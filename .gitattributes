@@ -1,0 +1,12 @@
+*.unity !text !filter !merge !diff
+*.prefab !text !filter !merge !diff
+*.asset !text !filter !merge !diff
+*.mat !text !filter !merge !diff
+*.controller !text !filter !merge !diff
+*.playable !text !filter !merge !diff
+*.mask !text !filter !merge !diff
+*.cubemap !text !filter !merge !diff
+*.flare !text !filter !merge !diff
+*.rendertexture !text !filter !merge !diff
+*.lighting !text !filter !merge !diff
+*.terrainlayer !text !filter !merge !diff
