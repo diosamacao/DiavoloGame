@@ -1,6 +1,6 @@
 public class ActionState : CharacterState
 {
-    public override CharacterStateType StateType => CharacterStateType.Action;
+    public override CharacterStateType Id => CharacterStateType.Action;
 
     public override void Enter()
     {

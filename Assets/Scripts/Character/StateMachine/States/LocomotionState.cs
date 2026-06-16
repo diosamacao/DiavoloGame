@@ -2,7 +2,7 @@ public class LocomotionState : CharacterState
 {
     const float MoveInputThreshold = 0.01f;
 
-    public override CharacterStateType StateType => CharacterStateType.Locomotion;
+    public override CharacterStateType Id => CharacterStateType.Locomotion;
 
     public override void Tick(float deltaTime)
     {
