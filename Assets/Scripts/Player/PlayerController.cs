@@ -19,19 +19,19 @@ public class PlayerController : MonoBehaviour
 
     CharacterController controller;
     InputReader input;
-    Animator animator;
 
     Vector3 velocity;
     float rotationVelocity;
+    float moveInputMagnitude;
+
+    public float MoveInputMagnitude => moveInputMagnitude;
+    public float RunThreshold => runThreshold;
+    public bool IsGrounded => controller != null && controller.isGrounded;
 
     void Awake()
     {
         controller = GetComponent<CharacterController>();
         input = GetComponent<InputReader>();
-        animator = GetComponentInChildren<Animator>();
-
-        if (animator != null)
-            animator.applyRootMotion = false;
 
         if (cameraTransform == null && Camera.main != null)
             cameraTransform = Camera.main.transform;
@@ -41,13 +41,13 @@ public class PlayerController : MonoBehaviour
     {
         Vector2 moveInput = input.MoveInput;
         Vector3 moveDirection = GetCameraRelativeMoveDirection(moveInput);
-        float inputMagnitude = Mathf.Clamp01(moveInput.magnitude);
-        float speed = inputMagnitude > runThreshold ? runSpeed : walkSpeed;
+        moveInputMagnitude = Mathf.Clamp01(moveInput.magnitude);
+        float speed = moveInputMagnitude > runThreshold ? runSpeed : walkSpeed;
 
         if (moveDirection.sqrMagnitude > 0.001f)
         {
             transform.rotation = GetSmoothedRotation(moveDirection);
-            controller.Move(moveDirection * (speed * inputMagnitude) * Time.deltaTime);
+            controller.Move(moveDirection * (speed * moveInputMagnitude) * Time.deltaTime);
         }
 
         ApplyGravity();
