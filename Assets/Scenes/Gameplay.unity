@@ -316,55 +316,55 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 8269001631454303563, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
+    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
       propertyPath: m_LocalPosition.x
       value: -4.119215
       objectReference: {fileID: 0}
-    - target: {fileID: 8269001631454303563, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
+    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 3.83
+      value: 2.9
       objectReference: {fileID: 0}
-    - target: {fileID: 8269001631454303563, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
+    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
       propertyPath: m_LocalPosition.z
       value: 2.0168781
       objectReference: {fileID: 0}
-    - target: {fileID: 8269001631454303563, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
+    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
       propertyPath: m_LocalRotation.w
       value: 1
       objectReference: {fileID: 0}
-    - target: {fileID: 8269001631454303563, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
+    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
       propertyPath: m_LocalRotation.x
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 8269001631454303563, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
+    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
       propertyPath: m_LocalRotation.y
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 8269001631454303563, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
+    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
       propertyPath: m_LocalRotation.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 8269001631454303563, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
+    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 8269001631454303563, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
+    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 8269001631454303563, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
+    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 8758011989475053553, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
+    - target: {fileID: 1000000001, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
       propertyPath: m_Name
-      value: School_Katana_FullBody-Magica cloth2
+      value: Player_KatanaGirl
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
+  m_SourcePrefab: {fileID: 100100000, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
 --- !u!1 &1870887557
 GameObject:
   m_ObjectHideFlags: 0
