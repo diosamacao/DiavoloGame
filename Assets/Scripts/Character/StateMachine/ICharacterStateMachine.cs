@@ -1,5 +1,1 @@
-public interface ICharacterStateMachine
-{
-    CharacterStateType CurrentStateType { get; }
-    bool TryChangeState(CharacterStateType next, bool force = false);
-}
+public interface ICharacterStateMachine : IStateMachine<CharacterStateType> { }
