@@ -12,6 +12,8 @@ GameObject:
   - component: {fileID: 1000000003}
   - component: {fileID: 1000000004}
   - component: {fileID: 1000000005}
+  - component: {fileID: 1000000008}
+  - component: {fileID: 1000000009}
   m_Layer: 0
   m_Name: Player_KatanaGirl
   m_TagString: Player
@@ -94,6 +96,33 @@ MonoBehaviour:
   gravity: -20
   groundedGravity: -2
   cameraTransform: {fileID: 0}
+--- !u!114 &1000000008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3c4d5e6f7a8901234567890abcdef03, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  profile: {fileID: 11400000, guid: d5e6f7a8901234567890abcdef050607, type: 2}
+  animator: {fileID: 0}
+  layerIndex: 0
+--- !u!114 &1000000009
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4d5e6f7a8901234567890abcdef0404, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1000000006
 GameObject:
   m_ObjectHideFlags: 0
@@ -176,6 +205,14 @@ PrefabInstance:
     - target: {fileID: 8758011989475053553, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
       propertyPath: m_Name
       value: School_Katana_FullBody-Magica cloth2
+      objectReference: {fileID: 0}
+    - target: {fileID: 8452091366363992238, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: f3a4b5c6d7e8901234567890abcdef03, type: 2}
+    - target: {fileID: 8452091366363992238, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
+      propertyPath: m_ApplyRootMotion
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
