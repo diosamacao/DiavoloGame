@@ -14,6 +14,11 @@ public class ActionDefinition : ScriptableObject
     [SerializeField] int comboLinkStartFrame;
     [SerializeField] int comboLinkEndFrame;
 
+    [Header("Displacement")]
+    [SerializeField] float displacementDistance;
+    [SerializeField] int displacementStartFrame;
+    [SerializeField] int displacementEndFrame;
+
     public string Id => id;
     public string DisplayName => displayName;
     public AnimationClip AnimationClip => animationClip;
@@ -22,6 +27,10 @@ public class ActionDefinition : ScriptableObject
     public CombatActionType ActionType => actionType;
     public float CrossFadeDuration => crossFadeDuration;
     public ActionDefinition NextAction => nextAction;
+    public float DisplacementDistance => displacementDistance;
+    public int DisplacementStartFrame => displacementStartFrame;
+    public int DisplacementEndFrame => displacementEndFrame;
+    public bool HasDisplacement => displacementDistance > 0f;
 
     public float DurationSeconds
     {
@@ -43,6 +52,30 @@ public class ActionDefinition : ScriptableObject
 
         int frame = Mathf.FloorToInt(elapsedSeconds * SampleRate);
         return frame >= comboLinkStartFrame && frame <= comboLinkEndFrame;
+    }
+
+    public bool IsInDisplacementWindow(float elapsedSeconds)
+    {
+        if (!HasDisplacement || totalFrames <= 0)
+            return false;
+
+        int frame = Mathf.FloorToInt(elapsedSeconds * SampleRate);
+        return frame >= displacementStartFrame && frame <= displacementEndFrame;
+    }
+
+    public float DisplacementSpeed
+    {
+        get
+        {
+            if (!HasDisplacement)
+                return 0f;
+
+            int frameCount = displacementEndFrame - displacementStartFrame + 1;
+            if (frameCount <= 0)
+                return 0f;
+
+            return displacementDistance / (frameCount / SampleRate);
+        }
     }
 
     void OnValidate()
@@ -67,5 +100,20 @@ public class ActionDefinition : ScriptableObject
 
         comboLinkStartFrame = Mathf.Clamp(comboLinkStartFrame, 0, Mathf.Max(0, totalFrames - 1));
         comboLinkEndFrame = Mathf.Clamp(comboLinkEndFrame, comboLinkStartFrame, Mathf.Max(0, totalFrames - 1));
+
+        if (displacementDistance > 0f)
+        {
+            if (displacementEndFrame <= 0)
+                displacementEndFrame = totalFrames - 1;
+
+            if (displacementStartFrame <= 0 && displacementEndFrame > 0)
+                displacementStartFrame = 0;
+        }
+
+        displacementStartFrame = Mathf.Clamp(displacementStartFrame, 0, Mathf.Max(0, totalFrames - 1));
+        displacementEndFrame = Mathf.Clamp(
+            displacementEndFrame,
+            displacementStartFrame,
+            Mathf.Max(0, totalFrames - 1));
     }
 }

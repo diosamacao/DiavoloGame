@@ -2,11 +2,13 @@ using UnityEngine;
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(CharacterAnimationController))]
+[RequireComponent(typeof(CharacterController))]
 public class ActionRuntimeController : MonoBehaviour, IActionRuntime
 {
     [SerializeField] CharacterAnimationController animationController;
     [SerializeField] ActionDefinition defaultAttack;
 
+    CharacterController _motor;
     ActionDefinition _current;
     bool _isPlaying;
     float _elapsed;
@@ -20,6 +22,8 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
     {
         if (animationController == null)
             animationController = GetComponent<CharacterAnimationController>();
+
+        _motor = GetComponent<CharacterController>();
     }
 
     public bool TryStartDefaultAction() => TryPlay(defaultAttack);
@@ -45,6 +49,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
             return;
 
         _elapsed += deltaTime;
+        ApplyDisplacement(deltaTime);
 
         if (TryConsumeBufferedCombo())
             return;
@@ -81,5 +86,20 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
 
         BeginAction(next);
         return true;
+    }
+
+    void ApplyDisplacement(float deltaTime)
+    {
+        if (_motor == null || !_current.HasDisplacement || !_current.IsInDisplacementWindow(_elapsed))
+            return;
+
+        Vector3 forward = transform.forward;
+        forward.y = 0f;
+
+        if (forward.sqrMagnitude < 0.0001f)
+            return;
+
+        forward.Normalize();
+        _motor.Move(forward * (_current.DisplacementSpeed * deltaTime));
     }
 }
