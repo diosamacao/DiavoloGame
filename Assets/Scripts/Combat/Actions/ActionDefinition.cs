@@ -15,13 +15,16 @@ public class ActionDefinition : ScriptableObject
     [SerializeField] int comboLinkStartFrame;
     [SerializeField] int comboLinkEndFrame;
 
+    [Header("Movement Cancel")]
+    [SerializeField] int movementCancelStartFrame;
+    [SerializeField] int movementCancelEndFrame;
+
     [Header("Movement")]
     [SerializeField] bool useRootMotion = true;
     [SerializeField] float displacementDistance;
     [SerializeField] int displacementStartFrame;
     [SerializeField] int displacementEndFrame;
-    [SerializeField] int movementCancelStartFrame;
-    [SerializeField] int movementCancelEndFrame;
+
 
     public string Id => id;
     public string DisplayName => displayName;
