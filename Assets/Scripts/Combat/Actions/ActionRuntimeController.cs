@@ -4,6 +4,7 @@ using UnityEngine;
 [RequireComponent(typeof(CharacterAnimationController))]
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(CharacterRootMotionDriver))]
+/// <summary>驱动招式播放、连招衔接、脚本位移与取消窗口查询。</summary>
 public class ActionRuntimeController : MonoBehaviour, IActionRuntime
 {
     [SerializeField] CharacterAnimationController animationController = null!;
@@ -17,6 +18,8 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
     float _elapsed;
 
     public bool IsPlaying => _isPlaying;
+    public bool CanCancelByMovement =>
+        _isPlaying && _current != null && _current.IsInMovementCancelWindow(_elapsed);
     public ActionDefinition CurrentAction => _current;
     public ActionDefinition DefaultAttack => defaultAttack;
 

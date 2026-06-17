@@ -71,7 +71,24 @@ public class PlayerController : MonoBehaviour
         if (_wasInAction && !inAction)
             _inputManager.ClearBuffer(InputSlot.Attack);
 
+        if (inAction)
+            TryCancelActionByMovement();
+
         _wasInAction = inAction;
+    }
+
+    /// <summary>移动取消：在招式配置的帧窗口内检测到移动输入则退回 Locomotion。</summary>
+    void TryCancelActionByMovement()
+    {
+        const float MoveInputThresholdSq = 0.01f;
+
+        if (input.MoveInput.sqrMagnitude < MoveInputThresholdSq)
+            return;
+
+        if (!actionRuntime.CanCancelByMovement)
+            return;
+
+        stateMachine.TryChangeState(CharacterStateType.Locomotion);
     }
 
     void HandleAttackPressed()

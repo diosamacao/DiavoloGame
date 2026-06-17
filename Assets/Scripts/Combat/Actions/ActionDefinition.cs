@@ -1,5 +1,6 @@
 using UnityEngine;
 
+/// <summary>招式数据：动画、连招衔接、位移与取消窗口等帧级配置。</summary>
 [CreateAssetMenu(fileName = "ActionDefinition", menuName = "ACT/Combat/Action Definition")]
 public class ActionDefinition : ScriptableObject
 {
@@ -19,6 +20,8 @@ public class ActionDefinition : ScriptableObject
     [SerializeField] float displacementDistance;
     [SerializeField] int displacementStartFrame;
     [SerializeField] int displacementEndFrame;
+    [SerializeField] int movementCancelStartFrame;
+    [SerializeField] int movementCancelEndFrame;
 
     public string Id => id;
     public string DisplayName => displayName;
@@ -32,7 +35,11 @@ public class ActionDefinition : ScriptableObject
     public float DisplacementDistance => displacementDistance;
     public int DisplacementStartFrame => displacementStartFrame;
     public int DisplacementEndFrame => displacementEndFrame;
+    public int MovementCancelStartFrame => movementCancelStartFrame;
+    public int MovementCancelEndFrame => movementCancelEndFrame;
     public bool HasScriptedDisplacement => !useRootMotion && displacementDistance > 0f;
+    /// <summary>是否配置了移动取消窗口（起止帧均有效且 end &gt; start）。</summary>
+    public bool HasMovementCancel => movementCancelEndFrame > movementCancelStartFrame;
 
     public float DurationSeconds
     {
@@ -52,8 +59,18 @@ public class ActionDefinition : ScriptableObject
         if (!HasComboLink || totalFrames <= 0)
             return false;
 
-        int frame = Mathf.FloorToInt(elapsedSeconds * SampleRate);
+        int frame = FrameAt(elapsedSeconds);
         return frame >= comboLinkStartFrame && frame <= comboLinkEndFrame;
+    }
+
+    /// <summary>当前播放时刻是否落在移动取消窗口内。</summary>
+    public bool IsInMovementCancelWindow(float elapsedSeconds)
+    {
+        if (!HasMovementCancel || totalFrames <= 0)
+            return false;
+
+        int frame = FrameAt(elapsedSeconds);
+        return frame >= movementCancelStartFrame && frame <= movementCancelEndFrame;
     }
 
     public bool IsInDisplacementWindow(float elapsedSeconds)
@@ -61,9 +78,11 @@ public class ActionDefinition : ScriptableObject
         if (!HasScriptedDisplacement || totalFrames <= 0)
             return false;
 
-        int frame = Mathf.FloorToInt(elapsedSeconds * SampleRate);
+        int frame = FrameAt(elapsedSeconds);
         return frame >= displacementStartFrame && frame <= displacementEndFrame;
     }
+
+    int FrameAt(float elapsedSeconds) => Mathf.FloorToInt(elapsedSeconds * SampleRate);
 
     public float DisplacementSpeed
     {
@@ -116,6 +135,18 @@ public class ActionDefinition : ScriptableObject
         displacementEndFrame = Mathf.Clamp(
             displacementEndFrame,
             displacementStartFrame,
+            Mathf.Max(0, totalFrames - 1));
+
+        if (movementCancelEndFrame > 0 && movementCancelStartFrame <= 0)
+            movementCancelStartFrame = Mathf.Max(1, Mathf.RoundToInt(totalFrames * 0.5f));
+
+        if (movementCancelStartFrame > 0 && movementCancelEndFrame <= 0)
+            movementCancelEndFrame = totalFrames - 1;
+
+        movementCancelStartFrame = Mathf.Clamp(movementCancelStartFrame, 0, Mathf.Max(0, totalFrames - 1));
+        movementCancelEndFrame = Mathf.Clamp(
+            movementCancelEndFrame,
+            movementCancelStartFrame,
             Mathf.Max(0, totalFrames - 1));
     }
 }
