@@ -7818,7 +7818,7 @@ MonoBehaviour:
       shape: 1
       baseLine: 0
       depth: 0
-      collider: 1
+      collider: 0
       animatedPosition: 0
       animatedAxis: 0
       animatedShape: 0
@@ -8875,7 +8875,7 @@ MonoBehaviour:
       shape: 1
       baseLine: 0
       depth: 0
-      collider: 1
+      collider: 0
       animatedPosition: 0
       animatedAxis: 0
       animatedShape: 0
@@ -10424,7 +10424,7 @@ MonoBehaviour:
       shape: 1
       baseLine: 0
       depth: 0
-      collider: 1
+      collider: 0
       animatedPosition: 0
       animatedAxis: 0
       animatedShape: 0
