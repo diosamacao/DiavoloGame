@@ -28,6 +28,7 @@
 | `PlayClip` 直播 AnimationClip | ✅ 已实现 | Animator Controller 仅管 Locomotion |
 | 攻击输入 → 进入 Action | ✅ 已实现 | `LocomotionState` 起手 |
 | 招式中攻击输入缓冲 + 连段 | ✅ 已实现 | `nextAction` + `comboLink` 帧窗口 |
+| 招式位移（Displacement） | ✅ 已实现 | 帧窗口内沿角色朝向推进 |
 | `CombatActionType` 枚举 | ✅ 已实现 | Attack/Dodge/Skill/Hit 等类型预留 |
 | `ActionPhase` / Hitbox / Hurtbox | ⬜ 未实现 | 见 ACTION_EDITOR §3.2–3.5 |
 | `CancelWindow` / `ActionTransition` | ⬜ 未实现 | 当前用 `nextAction` 折代替换 |
@@ -136,14 +137,20 @@ ActionRuntimeController
 | `nextAction` | `ActionDefinition` | `null` | 连段下一段；空则无连段 |
 | `comboLinkStartFrame` | `int` | 自动：`totalFrames × 0.5` | 可接招帧区间起点 |
 | `comboLinkEndFrame` | `int` | 自动：`totalFrames - 1` | 可接招帧区间终点 |
+| `displacementDistance` | `float` | `0` | 位移总距离（米）；`0` 表示无位移 |
+| `displacementStartFrame` | `int` | `0` | 位移生效起点帧 |
+| `displacementEndFrame` | `int` | 自动：`totalFrames - 1` | 位移生效终点帧 |
 
 **计算属性：**
 
 - `DurationSeconds` = `totalFrames / sampleRate`（无帧数时回退 `clip.length`）
 - `HasComboLink` = `nextAction != null`
 - `IsInComboLinkWindow(elapsedSeconds)` — 当前帧 ∈ `[comboLinkStartFrame, comboLinkEndFrame]`
+- `HasDisplacement` = `displacementDistance > 0`
+- `IsInDisplacementWindow(elapsedSeconds)` — 当前帧 ∈ `[displacementStartFrame, displacementEndFrame]`
+- `DisplacementSpeed` = `displacementDistance / 窗口秒数`（窗口内匀速推进）
 
-**OnValidate 自动行为：** 绑定 Clip 后刷新 `totalFrames`；若配置了 `nextAction` 且连段帧为 0，则写入默认窗口（后半段至末帧）。
+**OnValidate 自动行为：** 绑定 Clip 后刷新 `totalFrames`；若配置了 `nextAction` 且连段帧为 0，则写入默认窗口（后半段至末帧）；若 `displacementDistance > 0` 且终点帧为 0，则默认覆盖全段 `[0, totalFrames - 1]`。
 
 ### 5.2 CombatActionType
 
@@ -184,6 +191,7 @@ Assets/Data/Combat/Actions/
   → AttackPressedThisFrame? → BufferAttackInput()
   → ActionRuntime.Tick(deltaTime)
       → elapsed += dt
+      → ApplyDisplacement(dt)         // 位移窗口内沿朝向推进
       → TryConsumeBufferedCombo()
           → 有缓冲 && 在 comboLink 窗口?
           → BeginAction(nextAction)   // 切下一招，重置计时
@@ -217,6 +225,13 @@ Assets/Data/Combat/Actions/
 
 - 清空 `_current`、`_isPlaying`、`_elapsed`、`_attackBuffered`
 - 不主动切动画；由 `ActionState` 切回 `Locomotion` 后 `LocomotionState` 驱动 Idle/Walk/Run
+
+**位移 `ApplyDisplacement(deltaTime)`：**
+
+- 条件：`displacementDistance > 0` 且当前帧在 `[displacementStartFrame, displacementEndFrame]`
+- 方向：角色 `transform.forward` 投影到 XZ 平面（水平朝前）
+- 速度：`displacementDistance / 窗口时长`，窗口内匀速，总位移等于配置距离
+- 执行：`CharacterController.Move`；与 `PlayerController` 重力独立，同帧可叠加
 
 ### 6.3 输入与缓冲
 
@@ -262,6 +277,9 @@ bool inWindow = frame >= comboLinkStartFrame && frame <= comboLinkEndFrame;
    - **Total Frames**：指定 Clip 后由 `OnValidate` 自动填充，可手动微调
    - **Action Type**：`Attack`
    - **Cross Fade Duration**：默认 `0.1`
+4. （可选）**Displacement** 区：
+   - **Displacement Distance**：招式水平推进总距离（米），如普攻填 `0.5`～`1.5`
+   - **Displacement Start/End Frame**：位移生效帧区间；默认全段；建议对齐有效帧（如挥刀中段）
 
 ### 7.2 配置三连招
 
@@ -417,3 +435,4 @@ bool AttackPressedThisFrame { get; }
 | 日期 | 变更 |
 |------|------|
 | 2026-06-17 | 初版：基于当前代码归纳实现架构、数据模型、流程与使用说明 |
+| 2026-06-17 | 新增 `ActionDefinition` 位移配置（`displacementDistance` + 帧窗口）及运行时推进 |
