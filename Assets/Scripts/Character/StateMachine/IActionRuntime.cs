@@ -4,7 +4,7 @@ public interface IActionRuntime
 
     bool TryStartDefaultAction();
 
-    void BufferAttackInput();
+    void BindComboInput(IActionComboInput comboInput);
 
     void Tick(float deltaTime);
 

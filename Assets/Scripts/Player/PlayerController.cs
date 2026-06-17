@@ -1,8 +1,10 @@
 using UnityEngine;
 
+[DefaultExecutionOrder(-50)]
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(InputReader))]
 [RequireComponent(typeof(PlayerStateMachine))]
+[RequireComponent(typeof(ActionRuntimeController))]
 public class PlayerController : MonoBehaviour
 {
     [Header("Movement")]
@@ -18,13 +20,17 @@ public class PlayerController : MonoBehaviour
     [Header("References")]
     [SerializeField] Transform cameraTransform;
 
+    readonly InputManager _inputManager = new();
+
     CharacterController controller;
     InputReader input;
     PlayerStateMachine stateMachine;
+    ActionRuntimeController actionRuntime;
 
     Vector3 velocity;
     float rotationVelocity;
     float moveInputMagnitude;
+    bool _wasInAction;
 
     public float MoveInputMagnitude => moveInputMagnitude;
     public float RunThreshold => runThreshold;
@@ -35,15 +41,60 @@ public class PlayerController : MonoBehaviour
         controller = GetComponent<CharacterController>();
         input = GetComponent<InputReader>();
         stateMachine = GetComponent<PlayerStateMachine>();
+        actionRuntime = GetComponent<ActionRuntimeController>();
 
         if (cameraTransform == null && Camera.main != null)
             cameraTransform = Camera.main.transform;
+
+        actionRuntime.BindComboInput(new InputManagerComboInput(_inputManager));
+        RegisterInputHandlers();
+    }
+
+    void RegisterInputHandlers()
+    {
+        _inputManager.RegisterPressed(InputSlot.Attack, HandleAttackPressed);
     }
 
     void Update()
     {
-        bool inAction = stateMachine != null &&
-            stateMachine.CurrentStateType == CharacterStateType.Action;
+        ProcessInput();
+        UpdateMovement();
+        ApplyGravity();
+    }
+
+    void ProcessInput()
+    {
+        if (input.AttackPressedThisFrame)
+            _inputManager.NotifyPressed(InputSlot.Attack);
+
+        bool inAction = stateMachine.CurrentStateType == CharacterStateType.Action;
+        if (_wasInAction && !inAction)
+            _inputManager.ClearBuffer(InputSlot.Attack);
+
+        _wasInAction = inAction;
+    }
+
+    void HandleAttackPressed()
+    {
+        if (stateMachine.CurrentStateType == CharacterStateType.Locomotion)
+            TryStartAttackFromLocomotion();
+        else if (stateMachine.CurrentStateType == CharacterStateType.Action)
+            _inputManager.Buffer(InputSlot.Attack);
+    }
+
+    void TryStartAttackFromLocomotion()
+    {
+        _inputManager.ClearBuffer(InputSlot.Attack);
+
+        if (!actionRuntime.TryStartDefaultAction())
+            return;
+
+        stateMachine.TryChangeState(CharacterStateType.Action);
+    }
+
+    void UpdateMovement()
+    {
+        bool inAction = stateMachine.CurrentStateType == CharacterStateType.Action;
 
         if (!inAction)
         {
@@ -62,8 +113,6 @@ public class PlayerController : MonoBehaviour
         {
             moveInputMagnitude = 0f;
         }
-
-        ApplyGravity();
     }
 
     Vector3 GetCameraRelativeMoveDirection(Vector2 moveInput)

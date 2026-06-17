@@ -67,15 +67,19 @@
 ### 4.1 模块关系
 
 ```
-InputReader (Attack)
+InputReader (原始设备输入)
        │
        ▼
-PlayerStateMachine ── CharacterContext ──┬── ICharacterInput
-       │                                  ├── IActionRuntime (ActionRuntimeController)
-       │                                  └── CharacterAnimationController
+PlayerController ── InputManager（注册 + 缓冲）
+       │                │
+       │                ├─ Locomotion：TryStartDefaultAction() + 切 Action
+       │                └─ Action：Buffer(Attack)
        │
-       ├── LocomotionState ── TryStartDefaultAction() → Action
-       └── ActionState ── BufferAttackInput() + Tick() → Locomotion（结束）
+       ├── ActionRuntimeController ← IActionComboInput 消费缓冲连段
+       │
+       └── PlayerStateMachine ── CharacterContext ── IActionRuntime
+                ├── LocomotionState ── 仅 Locomotion 动画
+                └── ActionState ── Tick() → Locomotion（结束）
 
 ActionRuntimeController
        └── ActionDefinition SO → PlayClip(animationClip)
@@ -85,7 +89,7 @@ ActionRuntimeController
 
 | 状态 | 职责 | 与动作系统交互 |
 |------|------|----------------|
-| `Locomotion` | 移动动画、检测攻击输入 | `TryStartDefaultAction()` 成功 → 切 `Action` |
+| `Locomotion` | 移动动画 | 攻击起手由 `PlayerController` + `InputManager` 处理 |
 | `Action` | 锁定 Locomotion 动画 | `ActionRuntime.Tick()`；结束 → 切 `Locomotion` |
 | `Hit` | （未实现）受击硬直 | 预留；将播放 `actionType: Hit` 的 `ActionDefinition` |
 | `Death` | （未实现）死亡 | 预留 |
@@ -116,8 +120,9 @@ ActionRuntimeController
 | `ActionRuntimeController` | `Combat/Actions/ActionRuntimeController.cs` | 运行时播放与连段 |
 | `IActionRuntime` | `Character/StateMachine/IActionRuntime.cs` | 执行器抽象 |
 | `ActionState` | `Character/StateMachine/States/ActionState.cs` | Action 状态行为 |
-| `LocomotionState` | `Character/StateMachine/States/LocomotionState.cs` | 起手攻击 |
-| `ICharacterInput` | `Character/StateMachine/ICharacterInput.cs` | 输入抽象（当前仅攻击） |
+| `LocomotionState` | `Character/StateMachine/States/LocomotionState.cs` | Locomotion 动画 |
+| `InputManager` | `Input/InputManager.cs` | 输入注册、缓冲（仅 `PlayerController` 持有） |
+| `IActionComboInput` | `Input/IActionComboInput.cs` | 连段缓冲消费接口（注入 `ActionRuntimeController`） |
 | `CharacterRootMotionDriver` | `Character/Animation/CharacterRootMotionDriver.cs` | `OnAnimatorMove` 桥接 Root Motion → `CharacterController` |
 
 ---
@@ -183,16 +188,18 @@ Assets/Data/Combat/Actions/
 
 ```
 [Locomotion]
-  AttackPressedThisFrame?
-    → ActionRuntime.TryStartDefaultAction()  // 播放 defaultAttack
-    → StateMachine → Action
+  （攻击输入由 PlayerController 处理，非 LocomotionState）
+  → 仅驱动 Idle/Walk/Run 动画
 
-[Action] Enter
-  → Animation.SetLocked(true)
+[PlayerController] ProcessInput（先于状态机 Tick）
+  AttackPressedThisFrame?
+    → InputManager.NotifyPressed(Attack)
+        → Locomotion：TryStartDefaultAction() + 切 Action
+        → Action：InputManager.Buffer(Attack)
 
 [Action] Tick (每帧)
-  → AttackPressedThisFrame? → BufferAttackInput()
   → ActionRuntime.Tick(deltaTime)
+      → TryConsumeBufferedCombo()  // 经 IActionComboInput 消费缓冲
       → elapsed += dt
       → ApplyScriptedDisplacement(dt)   // useRootMotion=false 时
       → [并行] OnAnimatorMove           // useRootMotion=true 时
@@ -227,7 +234,7 @@ Assets/Data/Combat/Actions/
 
 **结束 `Stop()`：**
 
-- 清空 `_current`、`_isPlaying`、`_elapsed`、`_attackBuffered`
+- 清空 `_current`、`_isPlaying`、`_elapsed`
 - `CharacterRootMotionDriver.SetActive(false)`
 - 不主动切动画；由 `ActionState` 切回 `Locomotion` 后 `LocomotionState` 驱动 Idle/Walk/Run
 
@@ -252,9 +259,11 @@ Assets/Data/Combat/Actions/
 | 环节 | 实现 |
 |------|------|
 | 输入源 | `InputReader.AttackPressedThisFrame`（Input System `Player/Attack`） |
-| 起手 | `LocomotionState` 检测本帧攻击 → `TryStartDefaultAction()` |
-| 缓冲 | `ActionState` 在招式播放中检测攻击 → `BufferAttackInput()`（布尔标记，非队列） |
-| 消费 | 仅在 `comboLink` 帧窗口内消费，避免过早连段 |
+| 路由 | `PlayerController` 读取输入 → `InputManager.NotifyPressed` |
+| 起手 | `InputManager` 注册回调：Locomotion 时 `TryStartDefaultAction()` + 切 `Action` |
+| 缓冲 | 同回调：Action 时 `InputManager.Buffer(Attack)` |
+| 消费 | `ActionRuntimeController` 经 `IActionComboInput` 在 `comboLink` 窗口内 `TryConsumeBuffer` |
+| 清理 | 离开 `Action` 状态时 `PlayerController` 清除攻击缓冲 |
 
 > 与目标方案对比：完整版将在全程缓冲多种输入，由 `CancelWindow.allowedInputs` 决定消费；当前仅支持**攻击键单缓冲**。
 
@@ -386,27 +395,29 @@ runtime.CurrentAction;  // ActionRuntimeController 公开属性
 ```csharp
 bool IsPlaying { get; }
 bool TryStartDefaultAction();
-void BufferAttackInput();
+void BindComboInput(IActionComboInput comboInput);
 void Tick(float deltaTime);
 void Stop();
 ```
 
-状态机只依赖此接口，不直接引用 `ActionDefinition` 类型（除 `ActionRuntimeController` 内部）。
+状态机只依赖此接口，不直接引用 `ActionDefinition` 或 `InputManager`。
 
-### 8.2 ICharacterInput（当前）
+### 8.2 InputManager（仅 PlayerController 引用）
 
 ```csharp
-bool AttackPressedThisFrame { get; }
+void RegisterPressed(InputSlot slot, Action handler);
+void NotifyPressed(InputSlot slot);
+void Buffer(InputSlot slot);
+bool TryConsumeBuffer(InputSlot slot);
 ```
 
-后续扩展 Dodge / Skill 时，应同步扩展此接口，并由 `CancelWindow` 或等价逻辑消费。
+扩展 Dodge / Skill 时：新增 `InputSlot` + 在 `PlayerController.RegisterInputHandlers` 注册对应回调。
 
 ### 8.3 CharacterContext 相关字段
 
 | 字段 | 写入方 | 用途 |
 |------|--------|------|
-| `Input` | `PlayerStateMachine.ConfigureContext` | 攻击检测 |
-| `ActionRuntime` | 同上 | 招式 Tick |
+| `ActionRuntime` | `PlayerStateMachine.ConfigureContext` | 招式 Tick |
 | `MoveInputMagnitude` | `UpdateContext` | Locomotion 动画选择 |
 
 ---
@@ -419,7 +430,7 @@ bool AttackPressedThisFrame { get; }
 |------|------|------|
 | 无 Hitbox / 伤害 | 攻击无战斗判定 | Combat 模块 + `HitboxKeyframe` |
 | 无 `CancelWindow` | 无法闪避取消、移动取消 | 迁移到 ACTION_EDITOR 数据模型 |
-| 仅攻击键缓冲 | 无法多输入优先级 | 扩展 `ICharacterInput` + CancelWindow |
+| 仅攻击键缓冲 | 无法多输入优先级 | 扩展 `InputSlot` + `InputManager` 注册 |
 | 无 `Hit` 状态 | 受击无表现 | `HitState` + `actionType: Hit` 资产 |
 | 无逐帧 `UpdateFrame` | 编辑器预览与运行时难统一 | `ActionRuntimeController` 重构 |
 | `TryPlay` 同时只能播一条 | 无叠加层招式 | 按需求评估 |
@@ -473,3 +484,4 @@ bool AttackPressedThisFrame { get; }
 | 2026-06-17 | 初版：基于当前代码归纳实现架构、数据模型、流程与使用说明 |
 | 2026-06-17 | 新增 `ActionDefinition` 位移配置（`displacementDistance` + 帧窗口）及运行时推进 |
 | 2026-06-17 | Action 支持 Root Motion：`useRootMotion` + `CharacterRootMotionDriver`；脚本位移作为备选 |
+| 2026-06-17 | 输入缓冲提取至 `InputManager`；攻击路由由 `PlayerController` 注册，状态机不再读输入 |

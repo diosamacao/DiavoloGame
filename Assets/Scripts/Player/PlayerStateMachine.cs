@@ -17,8 +17,7 @@ public class PlayerStateMachine : CharacterStateMachine
 
     protected override void ConfigureContext(CharacterContext context)
     {
-        context.Input = GetComponent<ICharacterInput>();
-        context.ActionRuntime = GetComponent<IActionRuntime>();
+        context.ActionRuntime = GetComponent<ActionRuntimeController>();
     }
 
     protected override void UpdateContext()
