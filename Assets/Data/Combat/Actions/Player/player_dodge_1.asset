@@ -10,20 +10,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
-  m_Name: player_attack_3
+  m_Name: player_dodge_1
   m_EditorClassIdentifier: 
-  id: player_attack_1
-  displayName: Attack 1
-  animationClip: {fileID: -2809026575308471513, guid: f82fc59659869144db8488a519cd43f8, type: 3}
+  id: player_dodge_1
+  displayName: Dodge 1
+  animationClip: {fileID: 2127604031359038904, guid: 5e6268a8db07421499a9da12f223049d, type: 3}
   sampleRate: 30
-  totalFrames: 68
-  actionType: 0
+  totalFrames: 44
+  actionType: 1
   crossFadeDuration: 0.1
-  nextAction: {fileID: 11400000, guid: a1b2c3d4e5f6789012345678abcdef20, type: 2}
+  nextAction: {fileID: 0}
   comboLinkStartFrame: 33
-  comboLinkEndFrame: 67
+  comboLinkEndFrame: 43
   movementCancelStartFrame: 33
-  movementCancelEndFrame: 67
+  movementCancelEndFrame: 43
   useRootMotion: 1
   displacementDistance: 0
   displacementStartFrame: 0

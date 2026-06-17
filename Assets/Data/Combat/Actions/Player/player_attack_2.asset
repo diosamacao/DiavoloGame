@@ -12,10 +12,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
   m_Name: player_attack_2
   m_EditorClassIdentifier: 
-  id: player_attack_1
-  displayName: Attack 1
-  animationClip: {fileID: -441296982555202684, guid: 8880d032184913f449ee115b00dacfd3, type: 3}
+  id: player_attack_2
+  displayName: Attack 2
+  animationClip: {fileID: -8632713256952390345, guid: 31700544721f3674e93d606ad61dc1be, type: 3}
   sampleRate: 30
-  totalFrames: 61
+  totalFrames: 55
   actionType: 0
   crossFadeDuration: 0.1
+  nextAction: {fileID: 11400000, guid: 7a4119c60e95a3d419914beec74f62b5, type: 2}
+  comboLinkStartFrame: 15
+  comboLinkEndFrame: 54
+  movementCancelStartFrame: 24
+  movementCancelEndFrame: 54
+  useRootMotion: 1
+  displacementDistance: 0
+  displacementStartFrame: 0
+  displacementEndFrame: 0

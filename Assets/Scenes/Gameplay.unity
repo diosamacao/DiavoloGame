@@ -122,6 +122,11 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!95 &271505733 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 8452091367061936804, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
+  m_PrefabInstance: {fileID: 1290148845}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &982479432
 GameObject:
   m_ObjectHideFlags: 0
@@ -302,7 +307,7 @@ Transform:
   m_GameObject: {fileID: 1124908583}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: -10}
+  m_LocalPosition: {x: -3.85, y: 4.62, z: -0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -364,6 +369,34 @@ PrefabInstance:
       propertyPath: inputActions
       value: 
       objectReference: {fileID: -944628639613478452, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    - target: {fileID: 1000000008, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
+      propertyPath: animator
+      value: 
+      objectReference: {fileID: 271505733}
+    - target: {fileID: 1000000012, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
+      propertyPath: defaultDodge
+      value: 
+      objectReference: {fileID: 11400000, guid: 0460ea49f303c73418ff7cd1f5cda9c0, type: 2}
+    - target: {fileID: 3641417363979935423, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
+      propertyPath: animator
+      value: 
+      objectReference: {fileID: 271505733}
+    - target: {fileID: 8452091366727165126, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8452091367061936804, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
+      propertyPath: m_ApplyRootMotion
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8452091367361768612, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8452091367421119761, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

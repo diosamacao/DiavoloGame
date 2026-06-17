@@ -20,6 +20,7 @@ public class ActionDefinition : ScriptableObject
     [SerializeField] int movementCancelEndFrame;
 
     [Header("Movement")]
+    [Tooltip("开启时由动画 Root Motion 驱动位移，脚本位移（Displacement Distance）将被忽略。")]
     [SerializeField] bool useRootMotion = true;
     [SerializeField] float displacementDistance;
     [SerializeField] int displacementStartFrame;
@@ -40,7 +41,7 @@ public class ActionDefinition : ScriptableObject
     public int DisplacementEndFrame => displacementEndFrame;
     public int MovementCancelStartFrame => movementCancelStartFrame;
     public int MovementCancelEndFrame => movementCancelEndFrame;
-    public bool HasScriptedDisplacement => !useRootMotion && displacementDistance > 0f;
+    public bool HasScriptedDisplacement => !useRootMotion && Mathf.Abs(displacementDistance) > 0.001f;
     /// <summary>是否配置了移动取消窗口（起止帧均有效且 end &gt; start）。</summary>
     public bool HasMovementCancel => movementCancelEndFrame > movementCancelStartFrame;
 
@@ -125,7 +126,7 @@ public class ActionDefinition : ScriptableObject
         comboLinkStartFrame = Mathf.Clamp(comboLinkStartFrame, 0, Mathf.Max(0, totalFrames - 1));
         comboLinkEndFrame = Mathf.Clamp(comboLinkEndFrame, comboLinkStartFrame, Mathf.Max(0, totalFrames - 1));
 
-        if (displacementDistance > 0f)
+        if (Mathf.Abs(displacementDistance) > 0.001f)
         {
             if (displacementEndFrame <= 0)
                 displacementEndFrame = totalFrames - 1;

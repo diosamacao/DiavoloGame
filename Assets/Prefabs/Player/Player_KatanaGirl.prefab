@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 1000000008}
   - component: {fileID: 1000000009}
   - component: {fileID: 1000000012}
+  - component: {fileID: 3641417363979935423}
   m_Layer: 0
   m_Name: Player_KatanaGirl
   m_TagString: Player
@@ -36,7 +37,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1000000007}
-  - {fileID: 1000000011}
+  - {fileID: 8269001630522761025}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!143 &1000000003
@@ -136,8 +137,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d2e3f4a5b6c6970812345678abcdef11, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  animation: {fileID: 1000000008}
+  animationController: {fileID: 0}
   defaultAttack: {fileID: 11400000, guid: a1b2c3d4e5f6789012345678abcdef20, type: 2}
+  defaultDodge: {fileID: 11400000, guid: 0460ea49f303c73418ff7cd1f5cda9c0, type: 2}
+--- !u!114 &3641417363979935423
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e1edfd0e5cf69e54fa07039a1d1a1a6e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  animator: {fileID: 0}
 --- !u!1 &1000000006
 GameObject:
   m_ObjectHideFlags: 0
@@ -217,10 +232,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 8758011989475053553, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
-      propertyPath: m_Name
-      value: School_Katana_FullBody-Magica cloth2
-      objectReference: {fileID: 0}
     - target: {fileID: 8452091366363992238, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
       propertyPath: m_Controller
       value: 
@@ -229,12 +240,16 @@ PrefabInstance:
       propertyPath: m_ApplyRootMotion
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 8758011989475053553, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
+      propertyPath: m_Name
+      value: School_Katana_FullBody-Magica cloth2
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
---- !u!4 &1000000011 stripped
+--- !u!4 &8269001630522761025 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8269001631454303563, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
   m_PrefabInstance: {fileID: 1000000010}

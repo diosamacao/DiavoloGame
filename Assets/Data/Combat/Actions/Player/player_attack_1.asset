@@ -19,3 +19,12 @@ MonoBehaviour:
   totalFrames: 61
   actionType: 0
   crossFadeDuration: 0.1
+  nextAction: {fileID: 11400000, guid: a358c68a352967f4399fcb9f2d8b5b1b, type: 2}
+  comboLinkStartFrame: 12
+  comboLinkEndFrame: 60
+  movementCancelStartFrame: 20
+  movementCancelEndFrame: 60
+  useRootMotion: 1
+  displacementDistance: 0
+  displacementStartFrame: 0
+  displacementEndFrame: 0
