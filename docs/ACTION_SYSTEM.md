@@ -28,7 +28,8 @@
 | `PlayClip` 直播 AnimationClip | ✅ 已实现 | Animator Controller 仅管 Locomotion |
 | 攻击输入 → 进入 Action | ✅ 已实现 | `LocomotionState` 起手 |
 | 招式中攻击输入缓冲 + 连段 | ✅ 已实现 | `nextAction` + `comboLink` 帧窗口 |
-| 招式位移（Displacement） | ✅ 已实现 | 帧窗口内沿角色朝向推进 |
+| 招式位移（Root Motion） | ✅ 已实现 | `useRootMotion` + `CharacterRootMotionDriver` |
+| 招式位移（脚本推进） | ✅ 已实现 | `useRootMotion = false` 时用 `displacementDistance` |
 | `CombatActionType` 枚举 | ✅ 已实现 | Attack/Dodge/Skill/Hit 等类型预留 |
 | `ActionPhase` / Hitbox / Hurtbox | ⬜ 未实现 | 见 ACTION_EDITOR §3.2–3.5 |
 | `CancelWindow` / `ActionTransition` | ⬜ 未实现 | 当前用 `nextAction` 折代替换 |
@@ -117,7 +118,7 @@ ActionRuntimeController
 | `ActionState` | `Character/StateMachine/States/ActionState.cs` | Action 状态行为 |
 | `LocomotionState` | `Character/StateMachine/States/LocomotionState.cs` | 起手攻击 |
 | `ICharacterInput` | `Character/StateMachine/ICharacterInput.cs` | 输入抽象（当前仅攻击） |
-| `CharacterAnimationController` | `Character/Animation/CharacterAnimationController.cs` | `Play` / `PlayClip` |
+| `CharacterRootMotionDriver` | `Character/Animation/CharacterRootMotionDriver.cs` | `OnAnimatorMove` 桥接 Root Motion → `CharacterController` |
 
 ---
 
@@ -137,18 +138,20 @@ ActionRuntimeController
 | `nextAction` | `ActionDefinition` | `null` | 连段下一段；空则无连段 |
 | `comboLinkStartFrame` | `int` | 自动：`totalFrames × 0.5` | 可接招帧区间起点 |
 | `comboLinkEndFrame` | `int` | 自动：`totalFrames - 1` | 可接招帧区间终点 |
-| `displacementDistance` | `float` | `0` | 位移总距离（米）；`0` 表示无位移 |
-| `displacementStartFrame` | `int` | `0` | 位移生效起点帧 |
-| `displacementEndFrame` | `int` | 自动：`totalFrames - 1` | 位移生效终点帧 |
+| `useRootMotion` | `bool` | `true` | 启用动画 Root Motion；与脚本位移互斥 |
+| `displacementDistance` | `float` | `0` | 脚本位移总距离（米）；仅 `useRootMotion = false` 时生效 |
+| `displacementStartFrame` | `int` | `0` | 脚本位移起点帧 |
+| `displacementEndFrame` | `int` | 自动：`totalFrames - 1` | 脚本位移终点帧 |
 
 **计算属性：**
 
 - `DurationSeconds` = `totalFrames / sampleRate`（无帧数时回退 `clip.length`）
 - `HasComboLink` = `nextAction != null`
 - `IsInComboLinkWindow(elapsedSeconds)` — 当前帧 ∈ `[comboLinkStartFrame, comboLinkEndFrame]`
-- `HasDisplacement` = `displacementDistance > 0`
-- `IsInDisplacementWindow(elapsedSeconds)` — 当前帧 ∈ `[displacementStartFrame, displacementEndFrame]`
-- `DisplacementSpeed` = `displacementDistance / 窗口秒数`（窗口内匀速推进）
+- `UseRootMotion` — 是否由动画 Root Motion 驱动位移
+- `HasScriptedDisplacement` = `!useRootMotion && displacementDistance > 0`
+- `IsInDisplacementWindow(elapsedSeconds)` — 脚本位移帧窗口（仅 `HasScriptedDisplacement` 时有效）
+- `DisplacementSpeed` = `displacementDistance / 窗口秒数`（脚本位移匀速）
 
 **OnValidate 自动行为：** 绑定 Clip 后刷新 `totalFrames`；若配置了 `nextAction` 且连段帧为 0，则写入默认窗口（后半段至末帧）；若 `displacementDistance > 0` 且终点帧为 0，则默认覆盖全段 `[0, totalFrames - 1]`。
 
@@ -191,7 +194,8 @@ Assets/Data/Combat/Actions/
   → AttackPressedThisFrame? → BufferAttackInput()
   → ActionRuntime.Tick(deltaTime)
       → elapsed += dt
-      → ApplyDisplacement(dt)         // 位移窗口内沿朝向推进
+      → ApplyScriptedDisplacement(dt)   // useRootMotion=false 时
+      → [并行] OnAnimatorMove           // useRootMotion=true 时
       → TryConsumeBufferedCombo()
           → 有缓冲 && 在 comboLink 窗口?
           → BeginAction(nextAction)   // 切下一招，重置计时
@@ -224,9 +228,19 @@ Assets/Data/Combat/Actions/
 **结束 `Stop()`：**
 
 - 清空 `_current`、`_isPlaying`、`_elapsed`、`_attackBuffered`
+- `CharacterRootMotionDriver.SetActive(false)`
 - 不主动切动画；由 `ActionState` 切回 `Locomotion` 后 `LocomotionState` 驱动 Idle/Walk/Run
 
-**位移 `ApplyDisplacement(deltaTime)`：**
+**Root Motion（`useRootMotion = true`）：**
+
+- `BeginAction` 时 `CharacterRootMotionDriver.SetActive(true)`，同时 `animator.applyRootMotion = true`
+- `CharacterRootMotionReceiver` 挂在 **Animator 同物体**（运行时自动添加），在 `OnAnimatorMove` 中：
+  - 将 `deltaPosition`（Y 归零）写入父节点 `CharacterController.Move`
+  - 将 `deltaRotation` 叠加到父节点朝向
+  - **重置模型根 Transform 的 localPosition / localRotation**，避免子物体相对 `Player_KatanaGirl` 漂移
+- Locomotion 期间 Root Motion 关闭；退出 Action 时也会重置模型本地坐标
+
+**脚本位移 `ApplyScriptedDisplacement(deltaTime)`（`useRootMotion = false`）：**
 
 - 条件：`displacementDistance > 0` 且当前帧在 `[displacementStartFrame, displacementEndFrame]`
 - 方向：角色 `transform.forward` 投影到 XZ 平面（水平朝前）
@@ -277,11 +291,31 @@ bool inWindow = frame >= comboLinkStartFrame && frame <= comboLinkEndFrame;
    - **Total Frames**：指定 Clip 后由 `OnValidate` 自动填充，可手动微调
    - **Action Type**：`Attack`
    - **Cross Fade Duration**：默认 `0.1`
-4. （可选）**Displacement** 区：
-   - **Displacement Distance**：招式水平推进总距离（米），如普攻填 `0.5`～`1.5`
-   - **Displacement Start/End Frame**：位移生效帧区间；默认全段；建议对齐有效帧（如挥刀中段）
+4. **Movement** 区：
+   - **Use Root Motion**（默认勾选）：位移由动画 Root Motion 驱动
+   - 若关闭 Root Motion，可填 **Displacement Distance** + 帧窗口作脚本推进
 
-### 7.2 配置三连招
+### 7.2 配置 Root Motion（推荐）
+
+**动画 FBX（Editor）：**
+
+1. 选中攻击 FBX → Animation → 对应 Clip
+2. **Root Transform Position (XZ)**：取消 Bake Into Pose
+3. **Root Transform Position (Y)**：地面招式建议 Bake Y（避免飘起）
+4. 预览确认角色整体前进、脚底不打滑
+
+**Prefab（Editor）：**
+
+1. 打开 `Player_KatanaGirl` Prefab
+2. 根节点会自动挂上 `CharacterRootMotionDriver`（`PlayerStateMachine` RequireComponent）
+3. 子物体 Animator 的 Apply Root Motion 由代码动态控制，无需手动勾选
+
+**招式资产：**
+
+- `useRootMotion = true`（默认）
+- `displacementDistance` 保持 `0`
+
+### 7.3 配置三连招
 
 以 Attack1 → Attack2 → Attack3 为例：
 
@@ -297,7 +331,7 @@ bool inWindow = frame >= comboLinkStartFrame && frame <= comboLinkEndFrame;
 
 **调参建议：** 窗口偏前 = 连段手感紧；偏后 = 更偏「后摇接招」。在 Scene 播放时观察动画后摇，对齐 Start Frame。
 
-### 7.3 玩家 Prefab 挂载
+### 7.4 玩家 Prefab 挂载
 
 在 **Player_KatanaGirl**（或同类玩家 Prefab）上确认：
 
@@ -307,25 +341,26 @@ bool inWindow = frame >= comboLinkStartFrame && frame <= comboLinkEndFrame;
 | | `Default Attack` → `player_attack_1`（起手招式） |
 | `PlayerStateMachine` | 依赖自动满足（`RequireComponent` 链） |
 | `InputReader` | `Input Actions` → `GameInputActions.inputactions` |
-| `CharacterAnimationController` | `Profile` → 角色 AnimationProfile；`Animator` → 子物体 Animator |
+| `CharacterRootMotionDriver` | 随 `PlayerStateMachine` 自动添加；`Animator` 可拖子物体引用 |
 
 `PlayerStateMachine.ConfigureContext` 已将 `ICharacterInput` 与 `IActionRuntime` 注入 `CharacterContext`，无需额外代码。
 
-### 7.4 Animator 要求
+### 7.5 Animator 要求
 
 1. Animator Controller（如 `ACT_Runtime`）包含 Locomotion 状态（Idle/Walk/Run）及**与招式 Clip 同名的 State**
 2. 招式 State 不需要 Transition 连线；运行时通过 `CrossFadeInFixedTime(clip.name)` 切入
 3. Locomotion 与招式建议同一 Layer（`CharacterAnimationController.layerIndex`，默认 0）
 
-### 7.5 运行时验证清单
+### 7.6 运行时验证清单
 
 - [ ] 站立按攻击 → 播放第一段，移动停止
+- [ ] 攻击时角色随动画 Root Motion 前进（`useRootMotion = true`）
 - [ ] 第一段后摇内再按攻击 → 进入第二段
 - [ ] 窗口外按攻击 → 忽略，第一段播完回 Idle
 - [ ] 第三段播完 → 自动回 Locomotion，可移动
 - [ ] 招式中 `LocomotionState` 不会把动画切回 Walk/Run
 
-### 7.6 代码扩展入口
+### 7.7 代码扩展入口
 
 **播放指定招式（非 defaultAttack）：**
 
@@ -415,6 +450,7 @@ bool AttackPressedThisFrame { get; }
 | `Assets/Scripts/Character/StateMachine/States/LocomotionState.cs` |
 | `Assets/Scripts/Character/StateMachine/CharacterContext.cs` |
 | `Assets/Scripts/Character/StateMachine/CharacterStateMachine.cs` |
+| `Assets/Scripts/Character/Animation/CharacterRootMotionDriver.cs` |
 | `Assets/Scripts/Character/Animation/CharacterAnimationController.cs` |
 | `Assets/Scripts/Player/PlayerStateMachine.cs` |
 | `Assets/Scripts/Player/PlayerController.cs` |
@@ -436,3 +472,4 @@ bool AttackPressedThisFrame { get; }
 |------|------|
 | 2026-06-17 | 初版：基于当前代码归纳实现架构、数据模型、流程与使用说明 |
 | 2026-06-17 | 新增 `ActionDefinition` 位移配置（`displacementDistance` + 帧窗口）及运行时推进 |
+| 2026-06-17 | Action 支持 Root Motion：`useRootMotion` + `CharacterRootMotionDriver`；脚本位移作为备选 |

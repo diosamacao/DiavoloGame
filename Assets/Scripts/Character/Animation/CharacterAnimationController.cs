@@ -18,8 +18,6 @@ public class CharacterAnimationController : MonoBehaviour
         if (animator == null)
             animator = GetComponentInChildren<Animator>();
 
-        if (animator != null)
-            animator.applyRootMotion = false;
     }
 
     public void SetProfile(CharacterAnimationProfile animationProfile) => profile = animationProfile;

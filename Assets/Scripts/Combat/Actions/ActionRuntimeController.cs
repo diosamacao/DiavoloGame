@@ -3,12 +3,14 @@ using UnityEngine;
 [DisallowMultipleComponent]
 [RequireComponent(typeof(CharacterAnimationController))]
 [RequireComponent(typeof(CharacterController))]
+[RequireComponent(typeof(CharacterRootMotionDriver))]
 public class ActionRuntimeController : MonoBehaviour, IActionRuntime
 {
     [SerializeField] CharacterAnimationController animationController;
     [SerializeField] ActionDefinition defaultAttack;
 
     CharacterController _motor;
+    CharacterRootMotionDriver _rootMotion;
     ActionDefinition _current;
     bool _isPlaying;
     float _elapsed;
@@ -24,6 +26,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
             animationController = GetComponent<CharacterAnimationController>();
 
         _motor = GetComponent<CharacterController>();
+        _rootMotion = GetComponent<CharacterRootMotionDriver>();
     }
 
     public bool TryStartDefaultAction() => TryPlay(defaultAttack);
@@ -49,7 +52,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
             return;
 
         _elapsed += deltaTime;
-        ApplyDisplacement(deltaTime);
+        ApplyScriptedDisplacement(deltaTime);
 
         if (TryConsumeBufferedCombo())
             return;
@@ -64,6 +67,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         _current = null;
         _elapsed = 0f;
         _attackBuffered = false;
+        _rootMotion?.SetActive(false);
     }
 
     void BeginAction(ActionDefinition action)
@@ -72,6 +76,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         _isPlaying = true;
         _elapsed = 0f;
         _attackBuffered = false;
+        _rootMotion?.SetActive(action.UseRootMotion);
         animationController.PlayClip(action.AnimationClip, action.CrossFadeDuration);
     }
 
@@ -88,9 +93,9 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         return true;
     }
 
-    void ApplyDisplacement(float deltaTime)
+    void ApplyScriptedDisplacement(float deltaTime)
     {
-        if (_motor == null || !_current.HasDisplacement || !_current.IsInDisplacementWindow(_elapsed))
+        if (_motor == null || !_current.HasScriptedDisplacement || !_current.IsInDisplacementWindow(_elapsed))
             return;
 
         Vector3 forward = transform.forward;
