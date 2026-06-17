@@ -1,6 +1,7 @@
 ﻿// Magica Cloth 2.
 // Copyright (c) 2023 MagicaSoft.
 // https://magicasoft.jp
+using System.Collections.Generic;
 using System.Text;
 using Unity.Burst;
 using Unity.Collections;
@@ -73,6 +74,9 @@ namespace MagicaCloth2
         /// </summary>
         internal TransformAccessArray transformAccessArray;
 
+        // Unity 2022.3.62+ warns on TransformAccessArray.Add(null). Use pooled hidden transforms instead.
+        GameObject placeholderRoot;
+        readonly List<Transform> placeholderPool = new List<Transform>(64);
 
         internal int Count => flagArray?.Count ?? 0;
 
@@ -123,6 +127,71 @@ namespace MagicaCloth2
                 transformAccessArray.Dispose();
             //if (writeTransformAccessArray.isCreated)
             //    writeTransformAccessArray.Dispose();
+
+            DisposePlaceholders();
+        }
+
+        void DisposePlaceholders()
+        {
+            placeholderPool.Clear();
+            if (placeholderRoot != null)
+            {
+                if (Application.isPlaying)
+                    Object.Destroy(placeholderRoot);
+                else
+                    Object.DestroyImmediate(placeholderRoot);
+
+                placeholderRoot = null;
+            }
+        }
+
+        Transform AcquirePlaceholder()
+        {
+            int last = placeholderPool.Count - 1;
+            if (last >= 0)
+            {
+                Transform pooled = placeholderPool[last];
+                placeholderPool.RemoveAt(last);
+                return pooled;
+            }
+
+            if (placeholderRoot == null)
+            {
+                placeholderRoot = new GameObject("MagicaCloth2_TransformPlaceholders");
+                placeholderRoot.hideFlags = HideFlags.HideAndDontSave;
+                if (Application.isPlaying)
+                    Object.DontDestroyOnLoad(placeholderRoot);
+            }
+
+            var go = new GameObject("MC2_Placeholder");
+            go.hideFlags = HideFlags.HideAndDontSave;
+            go.transform.SetParent(placeholderRoot.transform, false);
+            return go.transform;
+        }
+
+        void ReleasePlaceholder(Transform t)
+        {
+            if (t == null || placeholderRoot == null || t.parent != placeholderRoot.transform)
+                return;
+
+            placeholderPool.Add(t);
+        }
+
+        bool IsPlaceholder(Transform t) => t != null && placeholderRoot != null && t.parent == placeholderRoot.transform;
+
+        void ReplaceArrayTransform(int index, Transform next)
+        {
+            Transform previous = transformAccessArray[index];
+            transformAccessArray[index] = next;
+            if (IsPlaceholder(previous))
+                ReleasePlaceholder(previous);
+        }
+
+        Transform AddArrayTransform(Transform t)
+        {
+            Transform slot = t != null ? t : AcquirePlaceholder();
+            transformAccessArray.Add(slot);
+            return slot;
         }
 
         public void EnterdEditMode()
@@ -193,7 +262,7 @@ namespace MagicaCloth2
             int start = c.startIndex;
             while (nowcnt < start)
             {
-                transformAccessArray.Add(null);
+                AddArrayTransform(null);
                 nowcnt++;
             }
 
@@ -202,9 +271,9 @@ namespace MagicaCloth2
                 var t = tdata.transformList[i];
                 int index = c.startIndex + i;
                 if (index < nowcnt)
-                    transformAccessArray[index] = t;
+                    ReplaceArrayTransform(index, t);
                 else
-                    transformAccessArray.Add(t);
+                    AddArrayTransform(t);
             }
 
             return c;
@@ -234,25 +303,24 @@ namespace MagicaCloth2
             // チームID
             teamIdArray.AddRange(count, (short)teamId);
 
-            // トランスフォームはすべてnullで登録する
+            // トランスフォームはプレースホルダーで領域確保（後で SetTransform により差し替え）
             int nowcnt = transformAccessArray.length;
 
             // データチャンクの開始まで埋める
             int start = c.startIndex;
             while (nowcnt < start)
             {
-                transformAccessArray.Add(null);
+                AddArrayTransform(null);
                 nowcnt++;
             }
 
             for (int i = 0; i < count; i++)
             {
-                Transform t = null;
                 int index = c.startIndex + i;
                 if (index < nowcnt)
-                    transformAccessArray[index] = t;
+                    ReplaceArrayTransform(index, AcquirePlaceholder());
                 else
-                    transformAccessArray.Add(t);
+                    AddArrayTransform(null);
             }
 
             return c;
@@ -287,9 +355,9 @@ namespace MagicaCloth2
             int nowcnt = transformAccessArray.length;
             int index = c.startIndex;
             if (index < nowcnt)
-                transformAccessArray[index] = t;
+                ReplaceArrayTransform(index, t);
             else
-                transformAccessArray.Add(t);
+                AddArrayTransform(t);
 
             return c;
         }
@@ -318,14 +386,15 @@ namespace MagicaCloth2
                 localPositionArray[index] = t.localPosition;
                 localRotationArray[index] = t.localRotation;
                 teamIdArray[index] = (short)teamId;
-                transformAccessArray[index] = t;
+                ReplaceArrayTransform(index, t);
             }
             else
             {
                 // データクリア（無効化）
                 flagArray[index] = default;
-                transformAccessArray[index] = null;
                 teamIdArray[index] = 0;
+                if (IsPlaceholder(transformAccessArray[index]) == false)
+                    ReplaceArrayTransform(index, AcquirePlaceholder());
             }
         }
 
@@ -348,7 +417,7 @@ namespace MagicaCloth2
             scaleArray[toIndex] = scaleArray[fromIndex];
             localPositionArray[toIndex] = localPositionArray[fromIndex];
             localRotationArray[toIndex] = localRotationArray[fromIndex];
-            transformAccessArray[toIndex] = transformAccessArray[fromIndex];
+            ReplaceArrayTransform(toIndex, transformAccessArray[fromIndex]);
             teamIdArray[toIndex] = teamIdArray[fromIndex];
         }
 
@@ -378,7 +447,8 @@ namespace MagicaCloth2
             for (int i = 0; i < c.dataLength; i++)
             {
                 int index = c.startIndex + i;
-                transformAccessArray[index] = null;
+                if (IsPlaceholder(transformAccessArray[index]) == false)
+                    ReplaceArrayTransform(index, AcquirePlaceholder());
             }
         }
 
@@ -468,13 +538,13 @@ namespace MagicaCloth2
             if (c.startIndex != nc.startIndex)
             {
                 while (transformAccessArray.length < (nc.startIndex + nc.dataLength))
-                    transformAccessArray.Add(null);
+                    AddArrayTransform(null);
 
                 for (int i = 0; i < c.dataLength; i++)
                 {
                     Transform t = transformAccessArray[c.startIndex + i];
                     transformAccessArray[nc.startIndex + i] = t;
-                    transformAccessArray[c.startIndex + i] = null;
+                    transformAccessArray[c.startIndex + i] = AcquirePlaceholder();
                 }
             }
 
