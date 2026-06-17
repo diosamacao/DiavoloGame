@@ -49,6 +49,7 @@ public class PlayerController : MonoBehaviour
             cameraTransform = Camera.main.transform;
 
         actionRuntime.BindComboInput(new InputManagerComboInput(_inputManager));
+        actionRuntime.BindDodgeFacing(ApplyDodgeFacing);
         RegisterInputHandlers();
     }
 
@@ -119,7 +120,7 @@ public class PlayerController : MonoBehaviour
     {
         _inputManager.ClearBuffer(InputSlot.Attack);
 
-        if (!actionRuntime.TryStartDefaultAction())
+        if (!actionRuntime.TryStartAttackChain())
             return;
 
         stateMachine.TryChangeState(CharacterStateType.Action);
@@ -130,7 +131,7 @@ public class PlayerController : MonoBehaviour
         _inputManager.ClearBuffer(InputSlot.Dodge);
         ApplyDodgeFacing();
 
-        if (!actionRuntime.TryStartDefaultDodge())
+        if (!actionRuntime.TryStartDodge())
             return;
 
         stateMachine.TryChangeState(CharacterStateType.Action);

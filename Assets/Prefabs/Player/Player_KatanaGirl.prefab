@@ -138,8 +138,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   animationController: {fileID: 0}
-  defaultAttack: {fileID: 11400000, guid: a1b2c3d4e5f6789012345678abcdef20, type: 2}
-  defaultDodge: {fileID: 11400000, guid: 0460ea49f303c73418ff7cd1f5cda9c0, type: 2}
+  actionSet: {fileID: 11400000, guid: b9f9878fb93b0db4ab46ec3fe6588d26, type: 2}
 --- !u!114 &3641417363979935423
 MonoBehaviour:
   m_ObjectHideFlags: 0

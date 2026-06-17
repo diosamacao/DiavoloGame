@@ -1,4 +1,4 @@
-/// <summary>将 InputManager 的 Attack 缓冲暴露给招式运行时。</summary>
+/// <summary>将 InputManager 缓冲暴露给招式运行时。</summary>
 public sealed class InputManagerComboInput : IActionComboInput
 {
     readonly InputManager _inputManager;
@@ -8,7 +8,7 @@ public sealed class InputManagerComboInput : IActionComboInput
         _inputManager = inputManager;
     }
 
-    public bool HasBufferedAttack => _inputManager.HasBuffer(InputSlot.Attack);
+    public bool HasBuffer(InputSlot slot) => _inputManager.HasBuffer(slot);
 
-    public void ConsumeBufferedAttack() => _inputManager.TryConsumeBuffer(InputSlot.Attack);
+    public bool TryConsumeBuffer(InputSlot slot) => _inputManager.TryConsumeBuffer(slot);
 }
