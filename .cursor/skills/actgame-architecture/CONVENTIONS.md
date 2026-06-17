@@ -53,7 +53,8 @@ public class MyBehaviour : MonoBehaviour
 
 - 逻辑层使用 `AnimationKey`，不直接硬编码 Animator 状态名字符串（映射在 Profile）
 - 播放走 `CharacterAnimationController.Play`；需要独占时 `SetLocked(true)`
-- `applyRootMotion = false`；位移由 CharacterController 负责
+- Locomotion：`applyRootMotion = false`，位移由 `CharacterController` + `PlayerController` 负责
+- Action：`ActionDefinition.useRootMotion = true` 时由 `CharacterRootMotionDriver` 在 `OnAnimatorMove` 中把 `deltaPosition` 写入 `CharacterController`；`useRootMotion = false` 时可用 `displacementDistance` 脚本位移
 - 同 key 不重复 CrossFade（Controller 内部去重）
 
 ## 输入约定

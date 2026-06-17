@@ -14,7 +14,8 @@ public class ActionDefinition : ScriptableObject
     [SerializeField] int comboLinkStartFrame;
     [SerializeField] int comboLinkEndFrame;
 
-    [Header("Displacement")]
+    [Header("Movement")]
+    [SerializeField] bool useRootMotion = true;
     [SerializeField] float displacementDistance;
     [SerializeField] int displacementStartFrame;
     [SerializeField] int displacementEndFrame;
@@ -27,10 +28,11 @@ public class ActionDefinition : ScriptableObject
     public CombatActionType ActionType => actionType;
     public float CrossFadeDuration => crossFadeDuration;
     public ActionDefinition NextAction => nextAction;
+    public bool UseRootMotion => useRootMotion;
     public float DisplacementDistance => displacementDistance;
     public int DisplacementStartFrame => displacementStartFrame;
     public int DisplacementEndFrame => displacementEndFrame;
-    public bool HasDisplacement => displacementDistance > 0f;
+    public bool HasScriptedDisplacement => !useRootMotion && displacementDistance > 0f;
 
     public float DurationSeconds
     {
@@ -56,7 +58,7 @@ public class ActionDefinition : ScriptableObject
 
     public bool IsInDisplacementWindow(float elapsedSeconds)
     {
-        if (!HasDisplacement || totalFrames <= 0)
+        if (!HasScriptedDisplacement || totalFrames <= 0)
             return false;
 
         int frame = Mathf.FloorToInt(elapsedSeconds * SampleRate);
@@ -67,7 +69,7 @@ public class ActionDefinition : ScriptableObject
     {
         get
         {
-            if (!HasDisplacement)
+            if (!HasScriptedDisplacement)
                 return 0f;
 
             int frameCount = displacementEndFrame - displacementStartFrame + 1;

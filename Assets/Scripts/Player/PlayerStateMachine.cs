@@ -2,6 +2,7 @@ using UnityEngine;
 
 [RequireComponent(typeof(PlayerController))]
 [RequireComponent(typeof(CharacterAnimationController))]
+[RequireComponent(typeof(CharacterRootMotionDriver))]
 [RequireComponent(typeof(ActionRuntimeController))]
 [RequireComponent(typeof(InputReader))]
 public class PlayerStateMachine : CharacterStateMachine
