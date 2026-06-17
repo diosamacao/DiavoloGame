@@ -24,19 +24,17 @@ public class ActionState : CharacterState
 
     public override void Tick(float deltaTime)
     {
+        if (!AdvanceActionRuntime(deltaTime))
+            Context.StateMachine.TryChangeState(CharacterStateType.Locomotion);
+    }
+
+    bool AdvanceActionRuntime(float deltaTime)
+    {
         IActionRuntime runtime = Context.ActionRuntime;
         if (runtime == null)
-        {
-            Context.StateMachine.TryChangeState(CharacterStateType.Locomotion);
-            return;
-        }
-
-        if (Context.Input != null && Context.Input.AttackPressedThisFrame)
-            runtime.BufferAttackInput();
+            return false;
 
         runtime.Tick(deltaTime);
-
-        if (!runtime.IsPlaying)
-            Context.StateMachine.TryChangeState(CharacterStateType.Locomotion);
+        return runtime.IsPlaying;
     }
 }

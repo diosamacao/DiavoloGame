@@ -6,15 +6,15 @@ using UnityEngine;
 [RequireComponent(typeof(CharacterRootMotionDriver))]
 public class ActionRuntimeController : MonoBehaviour, IActionRuntime
 {
-    [SerializeField] CharacterAnimationController animationController;
-    [SerializeField] ActionDefinition defaultAttack;
+    [SerializeField] CharacterAnimationController animationController = null!;
+    [SerializeField] ActionDefinition defaultAttack = null!;
 
-    CharacterController _motor;
-    CharacterRootMotionDriver _rootMotion;
+    CharacterController _motor = null!;
+    CharacterRootMotionDriver _rootMotion = null!;
+    IActionComboInput _comboInput;
     ActionDefinition _current;
     bool _isPlaying;
     float _elapsed;
-    bool _attackBuffered;
 
     public bool IsPlaying => _isPlaying;
     public ActionDefinition CurrentAction => _current;
@@ -29,13 +29,9 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         _rootMotion = GetComponent<CharacterRootMotionDriver>();
     }
 
-    public bool TryStartDefaultAction() => TryPlay(defaultAttack);
+    public void BindComboInput(IActionComboInput comboInput) => _comboInput = comboInput;
 
-    public void BufferAttackInput()
-    {
-        if (_isPlaying)
-            _attackBuffered = true;
-    }
+    public bool TryStartDefaultAction() => TryPlay(defaultAttack);
 
     public bool TryPlay(ActionDefinition action)
     {
@@ -66,7 +62,6 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         _isPlaying = false;
         _current = null;
         _elapsed = 0f;
-        _attackBuffered = false;
         _rootMotion?.SetActive(false);
     }
 
@@ -75,20 +70,20 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         _current = action;
         _isPlaying = true;
         _elapsed = 0f;
-        _attackBuffered = false;
         _rootMotion?.SetActive(action.UseRootMotion);
         animationController.PlayClip(action.AnimationClip, action.CrossFadeDuration);
     }
 
     bool TryConsumeBufferedCombo()
     {
-        if (!_attackBuffered || !_current.IsInComboLinkWindow(_elapsed))
+        if (_comboInput == null || !_comboInput.HasBufferedAttack || !_current.IsInComboLinkWindow(_elapsed))
             return false;
 
         ActionDefinition next = _current.NextAction;
         if (next == null || next.AnimationClip == null || animationController == null)
             return false;
 
+        _comboInput.ConsumeBufferedAttack();
         BeginAction(next);
         return true;
     }

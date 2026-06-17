@@ -1,13 +1,13 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class InputReader : MonoBehaviour, ICharacterInput
+public class InputReader : MonoBehaviour
 {
-    [SerializeField] InputActionAsset inputActions;
+    [SerializeField] InputActionAsset inputActions = null!;
 
-    InputAction moveAction;
-    InputAction lookAction;
-    InputAction attackAction;
+    InputAction moveAction = null!;
+    InputAction lookAction = null!;
+    InputAction attackAction = null!;
 
     public Vector2 MoveInput => moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
     public Vector2 LookInput => lookAction != null ? lookAction.ReadValue<Vector2>() : Vector2.zero;
