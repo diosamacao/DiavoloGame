@@ -19,6 +19,7 @@ public abstract class CharacterStateMachine : MonoBehaviour, ICharacterStateMach
             GetComponent<CharacterController>());
 
         context.StateMachine = this;
+        ConfigureContext(context);
         RegisterStates();
         _machine.Initialize(context, CharacterStateType.Locomotion);
     }
@@ -38,6 +39,8 @@ public abstract class CharacterStateMachine : MonoBehaviour, ICharacterStateMach
     }
 
     protected abstract void UpdateContext();
+
+    protected virtual void ConfigureContext(CharacterContext context) { }
 
     public bool TryChangeState(CharacterStateType next, bool force = false) =>
         _machine.TryChangeState(next, force);

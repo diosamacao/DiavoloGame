@@ -20,4 +20,6 @@ public class CharacterContext
     public float RunThreshold { get; set; }
     public bool IsGrounded { get; set; }
     public ICharacterStateMachine StateMachine { get; set; }
+    public ICharacterInput Input { get; set; }
+    public IActionRuntime ActionRuntime { get; set; }
 }

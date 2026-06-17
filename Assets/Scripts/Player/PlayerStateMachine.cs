@@ -2,6 +2,8 @@ using UnityEngine;
 
 [RequireComponent(typeof(PlayerController))]
 [RequireComponent(typeof(CharacterAnimationController))]
+[RequireComponent(typeof(ActionRuntimeController))]
+[RequireComponent(typeof(InputReader))]
 public class PlayerStateMachine : CharacterStateMachine
 {
     PlayerController _player;
@@ -10,6 +12,12 @@ public class PlayerStateMachine : CharacterStateMachine
     {
         _player = GetComponent<PlayerController>();
         base.Awake();
+    }
+
+    protected override void ConfigureContext(CharacterContext context)
+    {
+        context.Input = GetComponent<ICharacterInput>();
+        context.ActionRuntime = GetComponent<IActionRuntime>();
     }
 
     protected override void UpdateContext()

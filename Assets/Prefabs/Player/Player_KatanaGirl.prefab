@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 1000000005}
   - component: {fileID: 1000000008}
   - component: {fileID: 1000000009}
+  - component: {fileID: 1000000012}
   m_Layer: 0
   m_Name: Player_KatanaGirl
   m_TagString: Player
@@ -123,6 +124,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c4d5e6f7a8901234567890abcdef0404, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &1000000012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2e3f4a5b6c6970812345678abcdef11, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  animation: {fileID: 1000000008}
+  defaultAttack: {fileID: 11400000, guid: a1b2c3d4e5f6789012345678abcdef20, type: 2}
 --- !u!1 &1000000006
 GameObject:
   m_ObjectHideFlags: 0
