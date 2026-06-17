@@ -1,0 +1,53 @@
+---
+description: 禁止 Agent 修改美术资产、ScriptableObject 配置与 Prefab；相关操作由用户在 Unity Editor 中人工完成
+alwaysApply: true
+---
+
+# 资产与配置：只读，Editor 人工操作
+
+## 禁止
+
+Agent **不得**对以下资产进行任何创建、修改或删除：
+
+### 美术资源
+
+- `Assets/Art/**` 下全部内容
+- 模型：`.fbx`、`.obj`、`.blend`
+- 贴图：`.png`、`.jpg`、`.tga`、`.psd`、`.exr`
+- 材质与着色器：`.mat`、`.shader`、`.shadergraph`、`.shadersubgraph`
+- 动画与控制器：`.anim`、`.controller`、`.overrideController`、`.mask`
+- 音频：`.wav`、`.mp3`、`.ogg`
+
+### ScriptableObject 与项目配置资产
+
+- `Assets/Data/**` 下全部内容
+- 任意 `.asset` 文件（含 ScriptableObject、AnimationProfile、ActionDefinition 等）
+- `.inputactions` 等 Input System 资产配置
+
+### Prefab
+
+- `Assets/Prefabs/**` 下全部内容
+- 任意 `.prefab` 文件（含组件挂载、SerializeField 引用、层级与子物体）
+- 上述资产对应的 `.meta` 文件
+
+## 允许
+
+- 修改 `Assets/Scripts/**` 代码（含 ScriptableObject 的 C# 定义类）
+- 阅读资产路径、YAML 结构与字段，用于理解引用关系
+- 在回复中说明应在 Editor 中创建或填写的资产内容与步骤
+
+## 需要动到资产或 Prefab 时
+
+不要直接改文件。改为：
+
+1. 说明要在 Unity Editor 中完成的步骤（Create 菜单、Prefab 模式、Inspector 字段、拖拽引用）
+2. 若涉及代码侧接口（如新增 `[SerializeField]`、RequireComponent），只改脚本，并列出用户需在 Prefab/Inspector 中挂载与绑定的组件与字段
+
+## 示例
+
+```
+❌ 修改 Katana_Cloth.mat，或直接编辑 player_attack_1.asset 的 YAML
+❌ 改动 Player_KatanaGirl.prefab 上的组件引用或子物体层级
+✅ 在 PlayerController.cs 中新增 SerializeField，并告知用户在 Prefab 上拖入对应引用
+✅ 输出「打开 Player_KatanaGirl Prefab → 添加 X 组件 → 将 Y 拖到 Z 字段」的操作清单
+```
