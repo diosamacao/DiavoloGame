@@ -31,6 +31,9 @@ public class ActionState : CharacterState
             return;
         }
 
+        if (Context.Input != null && Context.Input.AttackPressedThisFrame)
+            runtime.BufferAttackInput();
+
         runtime.Tick(deltaTime);
 
         if (!runtime.IsPlaying)

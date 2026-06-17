@@ -10,6 +10,9 @@ public class ActionDefinition : ScriptableObject
     [SerializeField] int totalFrames;
     [SerializeField] CombatActionType actionType = CombatActionType.Attack;
     [SerializeField] float crossFadeDuration = 0.1f;
+    [SerializeField] ActionDefinition nextAction;
+    [SerializeField] int comboLinkStartFrame;
+    [SerializeField] int comboLinkEndFrame;
 
     public string Id => id;
     public string DisplayName => displayName;
@@ -18,6 +21,7 @@ public class ActionDefinition : ScriptableObject
     public int TotalFrames => totalFrames;
     public CombatActionType ActionType => actionType;
     public float CrossFadeDuration => crossFadeDuration;
+    public ActionDefinition NextAction => nextAction;
 
     public float DurationSeconds
     {
@@ -30,6 +34,17 @@ public class ActionDefinition : ScriptableObject
         }
     }
 
+    public bool HasComboLink => nextAction != null;
+
+    public bool IsInComboLinkWindow(float elapsedSeconds)
+    {
+        if (!HasComboLink || totalFrames <= 0)
+            return false;
+
+        int frame = Mathf.FloorToInt(elapsedSeconds * SampleRate);
+        return frame >= comboLinkStartFrame && frame <= comboLinkEndFrame;
+    }
+
     void OnValidate()
     {
         if (animationClip == null)
@@ -40,5 +55,17 @@ public class ActionDefinition : ScriptableObject
 
         sampleRate = Mathf.Max(1f, sampleRate);
         totalFrames = Mathf.Max(1, Mathf.RoundToInt(animationClip.length * sampleRate));
+
+        if (nextAction != null)
+        {
+            if (comboLinkStartFrame <= 0)
+                comboLinkStartFrame = Mathf.Max(1, Mathf.RoundToInt(totalFrames * 0.5f));
+
+            if (comboLinkEndFrame <= 0)
+                comboLinkEndFrame = totalFrames - 1;
+        }
+
+        comboLinkStartFrame = Mathf.Clamp(comboLinkStartFrame, 0, Mathf.Max(0, totalFrames - 1));
+        comboLinkEndFrame = Mathf.Clamp(comboLinkEndFrame, comboLinkStartFrame, Mathf.Max(0, totalFrames - 1));
     }
 }

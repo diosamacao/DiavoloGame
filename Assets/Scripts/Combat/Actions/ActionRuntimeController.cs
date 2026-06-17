@@ -10,6 +10,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
     ActionDefinition _current;
     bool _isPlaying;
     float _elapsed;
+    bool _attackBuffered;
 
     public bool IsPlaying => _isPlaying;
     public ActionDefinition CurrentAction => _current;
@@ -23,15 +24,18 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
 
     public bool TryStartDefaultAction() => TryPlay(defaultAttack);
 
+    public void BufferAttackInput()
+    {
+        if (_isPlaying)
+            _attackBuffered = true;
+    }
+
     public bool TryPlay(ActionDefinition action)
     {
         if (_isPlaying || action == null || action.AnimationClip == null || animationController == null)
             return false;
 
-        _current = action;
-        _isPlaying = true;
-        _elapsed = 0f;
-        animationController.PlayClip(action.AnimationClip, action.CrossFadeDuration);
+        BeginAction(action);
         return true;
     }
 
@@ -41,6 +45,10 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
             return;
 
         _elapsed += deltaTime;
+
+        if (TryConsumeBufferedCombo())
+            return;
+
         if (_elapsed >= _current.DurationSeconds)
             Stop();
     }
@@ -50,5 +58,28 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         _isPlaying = false;
         _current = null;
         _elapsed = 0f;
+        _attackBuffered = false;
+    }
+
+    void BeginAction(ActionDefinition action)
+    {
+        _current = action;
+        _isPlaying = true;
+        _elapsed = 0f;
+        _attackBuffered = false;
+        animationController.PlayClip(action.AnimationClip, action.CrossFadeDuration);
+    }
+
+    bool TryConsumeBufferedCombo()
+    {
+        if (!_attackBuffered || !_current.IsInComboLinkWindow(_elapsed))
+            return false;
+
+        ActionDefinition next = _current.NextAction;
+        if (next == null || next.AnimationClip == null || animationController == null)
+            return false;
+
+        BeginAction(next);
+        return true;
     }
 }
