@@ -72,7 +72,9 @@ public class MyBehaviour : MonoBehaviour
 ## 注释与语言
 
 - 用户可见 Debug 信息可用中文
-- 代码标识符英文；仅在非 obvious 逻辑处写简短中文/英文注释
+- 代码标识符英文
+- **Agent 新增/改动代码**：须满足 `.cursor/rules/lint-after-code-changes.mdc`（类型顶、public/protected 成员、非 obvious 逻辑均要有注释）
+- **人工维护的旧代码**：仅在 non-obvious 逻辑处补简短中文/英文注释即可
 - 不写「此文件由 AI 生成」类元注释
 
 ## 禁止 / 避免
@@ -80,8 +82,9 @@ public class MyBehaviour : MonoBehaviour
 | 避免 | 原因 |
 |------|------|
 | Agent 修改美术资产、ScriptableObject 或 Prefab（`Assets/Art/**`、`Assets/Data/**`、`Assets/Prefabs/**`、`.asset`、`.prefab` 等） | 由用户在 Unity Editor 中人工操作；见 `.cursor/rules/no-art-asset-edits.mdc` |
-| 改代码后不跑 linter、带着相关报错结束任务 | 必须在当前对话内 `ReadLints` 并修复；见 `.cursor/rules/lint-after-code-changes.mdc` |
-| 改代码后不补充注释就结束任务 | 须为新增/改动代码补充职责与非 obvious 逻辑说明；见 `.cursor/rules/lint-after-code-changes.mdc` |
+| 改代码后不跑 linter、带着相关报错结束任务 | 必须工具调用 `ReadLints` 并在回复附「代码收尾」清单；见 `lint-after-code-changes.mdc` |
+| 改代码后不补充注释就结束任务 | 须满足该规则中的最低注释要求 + 「代码收尾」清单；见 `lint-after-code-changes.mdc` |
+| 声称「已完成」但未附「代码收尾」清单 | 有代码改动时清单为强制项；见 `lint-after-code-changes.mdc` |
 | Core → Character/Player 引用 | 破坏分层 |
 | 在 State 里直接读 InputReader | 应经 Context 快照，便于 AI/回放测试 |
 | 静态 Service Locator 式 Input/Singleton | 与当前组件化方向不一致 |
