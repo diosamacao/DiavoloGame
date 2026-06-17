@@ -1,5 +1,6 @@
 using UnityEngine;
 
+/// <summary>玩家位移执行层：从 InputManager 读取移动意图，驱动 CharacterController。</summary>
 [DefaultExecutionOrder(-50)]
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(InputReader))]
@@ -23,7 +24,7 @@ public class PlayerController : MonoBehaviour
     readonly InputManager _inputManager = new();
 
     CharacterController controller;
-    InputReader input;
+    IPlayerInputSource inputSource;
     PlayerStateMachine stateMachine;
     ActionRuntimeController actionRuntime;
 
@@ -32,6 +33,7 @@ public class PlayerController : MonoBehaviour
     float moveInputMagnitude;
     bool _wasInAction;
 
+    public InputManager Input => _inputManager;
     public float MoveInputMagnitude => moveInputMagnitude;
     public float RunThreshold => runThreshold;
     public bool IsGrounded => controller != null && controller.isGrounded;
@@ -39,7 +41,7 @@ public class PlayerController : MonoBehaviour
     void Awake()
     {
         controller = GetComponent<CharacterController>();
-        input = GetComponent<InputReader>();
+        inputSource = GetComponent<InputReader>();
         stateMachine = GetComponent<PlayerStateMachine>();
         actionRuntime = GetComponent<ActionRuntimeController>();
 
@@ -53,23 +55,31 @@ public class PlayerController : MonoBehaviour
     void RegisterInputHandlers()
     {
         _inputManager.RegisterPressed(InputSlot.Attack, HandleAttackPressed);
+        _inputManager.RegisterPressed(InputSlot.Dodge, HandleDodgePressed);
     }
 
     void Update()
     {
-        ProcessInput();
-        UpdateMovement();
+        IngestInput();
+        ProcessGameplayInput();
+        ExecuteMovement();
         ApplyGravity();
     }
 
-    void ProcessInput()
+    /// <summary>采集本帧输入并写入 InputManager（回放/网络可替换 inputSource 或直调 IngestFrame）。</summary>
+    void IngestInput()
     {
-        if (input.AttackPressedThisFrame)
-            _inputManager.NotifyPressed(InputSlot.Attack);
+        _inputManager.IngestFrame(inputSource.CaptureFrame());
+    }
 
+    void ProcessGameplayInput()
+    {
         bool inAction = stateMachine.CurrentStateType == CharacterStateType.Action;
         if (_wasInAction && !inAction)
+        {
             _inputManager.ClearBuffer(InputSlot.Attack);
+            _inputManager.ClearBuffer(InputSlot.Dodge);
+        }
 
         if (inAction)
             TryCancelActionByMovement();
@@ -77,12 +87,10 @@ public class PlayerController : MonoBehaviour
         _wasInAction = inAction;
     }
 
-    /// <summary>移动取消：在招式配置的帧窗口内检测到移动输入则退回 Locomotion。</summary>
+    /// <summary>移动取消：读取移动意图（非位移执行），在取消窗口内退回 Locomotion。</summary>
     void TryCancelActionByMovement()
     {
-        const float MoveInputThresholdSq = 0.01f;
-
-        if (input.MoveInput.sqrMagnitude < MoveInputThresholdSq)
+        if (!_inputManager.HasMoveIntent)
             return;
 
         if (!actionRuntime.CanCancelByMovement)
@@ -99,6 +107,14 @@ public class PlayerController : MonoBehaviour
             _inputManager.Buffer(InputSlot.Attack);
     }
 
+    void HandleDodgePressed()
+    {
+        if (stateMachine.CurrentStateType == CharacterStateType.Locomotion)
+            TryStartDodgeFromLocomotion();
+        else if (stateMachine.CurrentStateType == CharacterStateType.Action)
+            _inputManager.Buffer(InputSlot.Dodge);
+    }
+
     void TryStartAttackFromLocomotion()
     {
         _inputManager.ClearBuffer(InputSlot.Attack);
@@ -109,15 +125,41 @@ public class PlayerController : MonoBehaviour
         stateMachine.TryChangeState(CharacterStateType.Action);
     }
 
-    void UpdateMovement()
+    void TryStartDodgeFromLocomotion()
+    {
+        _inputManager.ClearBuffer(InputSlot.Dodge);
+        ApplyDodgeFacing();
+
+        if (!actionRuntime.TryStartDefaultDodge())
+            return;
+
+        stateMachine.TryChangeState(CharacterStateType.Action);
+    }
+
+    /// <summary>闪避前按缓冲/当前移动意图转向；无输入则保持面朝方向。</summary>
+    void ApplyDodgeFacing()
+    {
+        Vector2 moveIntent = _inputManager.HasMoveIntent
+            ? _inputManager.MoveIntent
+            : _inputManager.BufferedMoveIntent;
+
+        Vector3 direction = ResolveWorldMoveDirection(moveIntent);
+        if (direction.sqrMagnitude < 0.001f)
+            return;
+
+        transform.rotation = Quaternion.LookRotation(direction);
+    }
+
+    /// <summary>根据当前移动意图执行位移；招式状态中不执行，但意图仍由 InputManager 持续更新/缓冲。</summary>
+    void ExecuteMovement()
     {
         bool inAction = stateMachine.CurrentStateType == CharacterStateType.Action;
 
         if (!inAction)
         {
-            Vector2 moveInput = input.MoveInput;
-            Vector3 moveDirection = GetCameraRelativeMoveDirection(moveInput);
-            moveInputMagnitude = Mathf.Clamp01(moveInput.magnitude);
+            Vector2 moveIntent = _inputManager.MoveIntent;
+            Vector3 moveDirection = ResolveWorldMoveDirection(moveIntent);
+            moveInputMagnitude = _inputManager.MoveMagnitude;
             float speed = moveInputMagnitude > runThreshold ? runSpeed : walkSpeed;
 
             if (moveDirection.sqrMagnitude > 0.001f)
@@ -132,13 +174,14 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    Vector3 GetCameraRelativeMoveDirection(Vector2 moveInput)
+    /// <summary>将移动意图转为世界空间方向；闪避等招式可复用 BufferedMoveIntent 调用此方法。</summary>
+    public Vector3 ResolveWorldMoveDirection(Vector2 moveIntent)
     {
-        if (moveInput.sqrMagnitude < 0.01f)
+        if (moveIntent.sqrMagnitude < 0.01f)
             return Vector3.zero;
 
         if (cameraTransform == null)
-            return new Vector3(moveInput.x, 0f, moveInput.y).normalized;
+            return new Vector3(moveIntent.x, 0f, moveIntent.y).normalized;
 
         Vector3 forward = cameraTransform.forward;
         Vector3 right = cameraTransform.right;
@@ -147,7 +190,7 @@ public class PlayerController : MonoBehaviour
         forward.Normalize();
         right.Normalize();
 
-        return (forward * moveInput.y + right * moveInput.x).normalized;
+        return (forward * moveIntent.y + right * moveIntent.x).normalized;
     }
 
     Quaternion GetSmoothedRotation(Vector3 moveDirection)

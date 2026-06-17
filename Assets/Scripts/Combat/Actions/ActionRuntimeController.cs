@@ -9,7 +9,8 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
 {
     [SerializeField] CharacterAnimationController animationController = null!;
     [SerializeField] ActionDefinition defaultAttack = null!;
-
+    [SerializeField] ActionDefinition defaultDodge = null!;
+    
     CharacterController _motor = null!;
     CharacterRootMotionDriver _rootMotion = null!;
     IActionComboInput _comboInput;
@@ -22,6 +23,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         _isPlaying && _current != null && _current.IsInMovementCancelWindow(_elapsed);
     public ActionDefinition CurrentAction => _current;
     public ActionDefinition DefaultAttack => defaultAttack;
+    public ActionDefinition DefaultDodge => defaultDodge;
 
     void Awake()
     {
@@ -35,6 +37,17 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
     public void BindComboInput(IActionComboInput comboInput) => _comboInput = comboInput;
 
     public bool TryStartDefaultAction() => TryPlay(defaultAttack);
+
+    public bool TryStartDefaultDodge()
+    {
+        if (defaultDodge == null)
+        {
+            Debug.LogWarning("ActionRuntimeController: defaultDodge 未分配。", this);
+            return false;
+        }
+
+        return TryPlay(defaultDodge);
+    }
 
     public bool TryPlay(ActionDefinition action)
     {
@@ -91,6 +104,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         return true;
     }
 
+    /// <summary>沿面朝方向脚本位移；距离为负时向后（反 forward）移动。</summary>
     void ApplyScriptedDisplacement(float deltaTime)
     {
         if (_motor == null || !_current.HasScriptedDisplacement || !_current.IsInDisplacementWindow(_elapsed))
@@ -103,6 +117,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
             return;
 
         forward.Normalize();
-        _motor.Move(forward * (_current.DisplacementSpeed * deltaTime));
+        float signedSpeed = _current.DisplacementSpeed;
+        _motor.Move(forward * (signedSpeed * deltaTime));
     }
 }

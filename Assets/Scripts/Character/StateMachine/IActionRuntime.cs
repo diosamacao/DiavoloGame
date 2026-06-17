@@ -7,6 +7,8 @@ public interface IActionRuntime
 
     bool TryStartDefaultAction();
 
+    bool TryStartDefaultDodge();
+
     void BindComboInput(IActionComboInput comboInput);
 
     void Tick(float deltaTime);
