@@ -11,7 +11,6 @@ public class ActionDefinition : ScriptableObject
     [SerializeField] int totalFrames;
     [SerializeField] CombatActionType actionType = CombatActionType.Attack;
     [SerializeField] float crossFadeDuration = 0.1f;
-    [SerializeField] ActionDefinition nextAction;
     [SerializeField] int comboLinkStartFrame;
     [SerializeField] int comboLinkEndFrame;
 
@@ -34,7 +33,6 @@ public class ActionDefinition : ScriptableObject
     public int TotalFrames => totalFrames;
     public CombatActionType ActionType => actionType;
     public float CrossFadeDuration => crossFadeDuration;
-    public ActionDefinition NextAction => nextAction;
     public bool UseRootMotion => useRootMotion;
     public float DisplacementDistance => displacementDistance;
     public int DisplacementStartFrame => displacementStartFrame;
@@ -56,7 +54,8 @@ public class ActionDefinition : ScriptableObject
         }
     }
 
-    public bool HasComboLink => nextAction != null;
+    /// <summary>是否配置了 ComboLink 帧窗口（与下一段招式无关，由运行时按输入解析）。</summary>
+    public bool HasComboLink => comboLinkEndFrame > comboLinkStartFrame;
 
     public bool IsInComboLinkWindow(float elapsedSeconds)
     {
@@ -66,6 +65,10 @@ public class ActionDefinition : ScriptableObject
         int frame = FrameAt(elapsedSeconds);
         return frame >= comboLinkStartFrame && frame <= comboLinkEndFrame;
     }
+
+    /// <summary>ComboLink 窗口内是否允许该输入衔接（M2：Attack / Dodge 均可互切）。</summary>
+    public bool AllowsComboInput(InputSlot slot) =>
+        slot == InputSlot.Attack || slot == InputSlot.Dodge;
 
     /// <summary>当前播放时刻是否落在移动取消窗口内。</summary>
     public bool IsInMovementCancelWindow(float elapsedSeconds)
@@ -114,14 +117,11 @@ public class ActionDefinition : ScriptableObject
         sampleRate = Mathf.Max(1f, sampleRate);
         totalFrames = Mathf.Max(1, Mathf.RoundToInt(animationClip.length * sampleRate));
 
-        if (nextAction != null)
-        {
-            if (comboLinkStartFrame <= 0)
-                comboLinkStartFrame = Mathf.Max(1, Mathf.RoundToInt(totalFrames * 0.5f));
+        if (comboLinkEndFrame > 0 && comboLinkStartFrame <= 0)
+            comboLinkStartFrame = Mathf.Max(1, Mathf.RoundToInt(totalFrames * 0.5f));
 
-            if (comboLinkEndFrame <= 0)
-                comboLinkEndFrame = totalFrames - 1;
-        }
+        if (comboLinkStartFrame > 0 && comboLinkEndFrame <= 0)
+            comboLinkEndFrame = totalFrames - 1;
 
         comboLinkStartFrame = Mathf.Clamp(comboLinkStartFrame, 0, Mathf.Max(0, totalFrames - 1));
         comboLinkEndFrame = Mathf.Clamp(comboLinkEndFrame, comboLinkStartFrame, Mathf.Max(0, totalFrames - 1));

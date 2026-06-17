@@ -1,29 +1,30 @@
+using System;
 using UnityEngine;
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(CharacterAnimationController))]
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(CharacterRootMotionDriver))]
-/// <summary>驱动招式播放、连招衔接、脚本位移与取消窗口查询。</summary>
+/// <summary>驱动招式播放；ComboLink 窗口内按输入在普攻链与闪避间衔接。</summary>
 public class ActionRuntimeController : MonoBehaviour, IActionRuntime
 {
     [SerializeField] CharacterAnimationController animationController = null!;
-    [SerializeField] ActionDefinition defaultAttack = null!;
-    [SerializeField] ActionDefinition defaultDodge = null!;
-    
+    [SerializeField] PlayerActionSet actionSet = null!;
+
     CharacterController _motor = null!;
     CharacterRootMotionDriver _rootMotion = null!;
     IActionComboInput _comboInput;
+    Action _onDodgeStarted;
     ActionDefinition _current;
     bool _isPlaying;
     float _elapsed;
+    int _attackIndex;
 
     public bool IsPlaying => _isPlaying;
     public bool CanCancelByMovement =>
         _isPlaying && _current != null && _current.IsInMovementCancelWindow(_elapsed);
     public ActionDefinition CurrentAction => _current;
-    public ActionDefinition DefaultAttack => defaultAttack;
-    public ActionDefinition DefaultDodge => defaultDodge;
+    public int AttackIndex => _attackIndex;
 
     void Awake()
     {
@@ -36,26 +37,39 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
 
     public void BindComboInput(IActionComboInput comboInput) => _comboInput = comboInput;
 
-    public bool TryStartDefaultAction() => TryPlay(defaultAttack);
+    public void BindDodgeFacing(Action onDodgeStarted) => _onDodgeStarted = onDodgeStarted;
 
-    public bool TryStartDefaultDodge()
+    public bool TryStartAttackChain()
     {
-        if (defaultDodge == null)
+        ActionDefinition[] chain = GetAttackChain();
+        if (chain.Length == 0)
         {
-            Debug.LogWarning("ActionRuntimeController: defaultDodge 未分配。", this);
+            Debug.LogWarning("ActionRuntimeController: attackChain 为空。", this);
             return false;
         }
 
-        return TryPlay(defaultDodge);
-    }
-
-    public bool TryPlay(ActionDefinition action)
-    {
-        if (_isPlaying || action == null || action.AnimationClip == null || animationController == null)
+        if (_isPlaying)
             return false;
 
-        BeginAction(action);
-        return true;
+        _attackIndex = 0;
+        return BeginActionIfValid(chain[0]);
+    }
+
+    public bool TryStartDodge()
+    {
+        ActionDefinition dodge = GetDodge();
+        if (dodge == null)
+        {
+            Debug.LogWarning("ActionRuntimeController: dodge 未分配。", this);
+            return false;
+        }
+
+        if (_isPlaying)
+            return false;
+
+        _attackIndex = 0;
+        _onDodgeStarted?.Invoke();
+        return BeginActionIfValid(dodge);
     }
 
     public void Tick(float deltaTime)
@@ -66,7 +80,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         _elapsed += deltaTime;
         ApplyScriptedDisplacement(deltaTime);
 
-        if (TryConsumeBufferedCombo())
+        if (TryResolveComboLink())
             return;
 
         if (_elapsed >= _current.DurationSeconds)
@@ -78,6 +92,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         _isPlaying = false;
         _current = null;
         _elapsed = 0f;
+        _attackIndex = 0;
         _rootMotion?.SetActive(false);
     }
 
@@ -90,21 +105,77 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         animationController.PlayClip(action.AnimationClip, action.CrossFadeDuration);
     }
 
-    bool TryConsumeBufferedCombo()
+    bool BeginActionIfValid(ActionDefinition action)
     {
-        if (_comboInput == null || !_comboInput.HasBufferedAttack || !_current.IsInComboLinkWindow(_elapsed))
+        if (action == null || action.AnimationClip == null || animationController == null)
             return false;
 
-        ActionDefinition next = _current.NextAction;
-        if (next == null || next.AnimationClip == null || animationController == null)
+        BeginAction(action);
+        return true;
+    }
+
+    /// <summary>ComboLink 内按缓冲输入衔接：Dodge 优先于 Attack。</summary>
+    bool TryResolveComboLink()
+    {
+        if (_comboInput == null || _current == null || !_current.IsInComboLinkWindow(_elapsed))
             return false;
 
-        _comboInput.ConsumeBufferedAttack();
+        if (_comboInput.HasBuffer(InputSlot.Dodge)
+            && _current.AllowsComboInput(InputSlot.Dodge)
+            && TryLinkDodge())
+            return true;
+
+        if (_comboInput.HasBuffer(InputSlot.Attack)
+            && _current.AllowsComboInput(InputSlot.Attack)
+            && TryLinkAttack())
+            return true;
+
+        return false;
+    }
+
+    bool TryLinkDodge()
+    {
+        ActionDefinition dodge = GetDodge();
+        if (dodge == null || dodge.AnimationClip == null)
+            return false;
+
+        _comboInput.TryConsumeBuffer(InputSlot.Dodge);
+        _comboInput.TryConsumeBuffer(InputSlot.Attack);
+        _attackIndex = 0;
+        _onDodgeStarted?.Invoke();
+        BeginAction(dodge);
+        return true;
+    }
+
+    bool TryLinkAttack()
+    {
+        ActionDefinition[] chain = GetAttackChain();
+        if (chain.Length == 0)
+            return false;
+
+        _comboInput.TryConsumeBuffer(InputSlot.Attack);
+        _comboInput.TryConsumeBuffer(InputSlot.Dodge);
+
+        if (_current.ActionType == CombatActionType.Dodge)
+            _attackIndex = 0;
+        else if (_attackIndex < chain.Length - 1)
+            _attackIndex++;
+        else
+            _attackIndex = 0;
+
+        ActionDefinition next = chain[_attackIndex];
+        if (next == null || next.AnimationClip == null)
+            return false;
+
         BeginAction(next);
         return true;
     }
 
-    /// <summary>沿面朝方向脚本位移；距离为负时向后（反 forward）移动。</summary>
+    ActionDefinition[] GetAttackChain() =>
+        actionSet != null && actionSet.AttackChain != null ? actionSet.AttackChain : Array.Empty<ActionDefinition>();
+
+    ActionDefinition GetDodge() => actionSet != null ? actionSet.Dodge : null;
+
     void ApplyScriptedDisplacement(float deltaTime)
     {
         if (_motor == null || !_current.HasScriptedDisplacement || !_current.IsInDisplacementWindow(_elapsed))
