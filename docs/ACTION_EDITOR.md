@@ -1,7 +1,7 @@
 # ACTGame — 动作编辑器（Action Editor）设计文档
 
 > 本文档描述 ACTGame 长期目标：**用可视化编辑器为角色配置战斗动作**，而非在代码或 Animator 里硬编码每一招。  
-> 最后更新：2026-06-17
+> 最后更新：2026-06-17（动作阶段与取消衔接补充）
 
 ---
 
@@ -112,7 +112,9 @@
 | `ActionPhase` | Startup / Active / Recovery + 无敌 / 霸体 |
 | `HitboxKeyframe` | 骨骼挂点 + 形状 + 起止帧 + `damageWeight` |
 | `HurtboxKeyframe` | 受击框；无框帧不可被击中 |
-| `CancelWindow` | 输入 → 目标招式 + 优先级 |
+| `CancelWindow` | 动作取消 / 移动取消 + `cancelType` + 优先级 |
+| `ActionTransition` | 动作结束与分支衔接（`AnimationEnd` / `OnHit` 等） |
+| `ActionPhase` 打断规则 | 各阶段 `interruptible` + 受击反应引用 |
 | `ActionEvent` | VFX / SFX / 位移 / 顿帧等帧触发 |
 | `ActionRuntimeController` | 逐帧驱动 Animator + Combat + 取消 |
 | `ActionEditorWindow` 基础版 | 列表 + Inspector 增强 + 自动算帧数 |
@@ -167,8 +169,8 @@ ActionDefinition                # 单个战斗动作（核心资产）
     ├── HitboxKeyframe[]        # 攻击判定框（区间为主，关键招可逐帧）
     ├── HurtboxKeyframe[]       # 受击框（与 Hitbox 对称）
     ├── MovementCurve           # 位移 / Root Motion 覆盖
-    ├── CancelWindow[]          # 可取消到其他动作的窗口（≈ ChangeCtrl）
-    └── ActionTransition[]      # 连段 / 分支条件
+    ├── CancelWindow[]          # 取消窗口：动作取消 / 移动取消（≈ ChangeCtrl）
+    └── ActionTransition[]      # 结束衔接与分支：AnimationEnd / OnHit / OnWhiff ...
 ActionRuntimeController         # 运行时执行器（Player / Enemy 共用）
     └── 读取 ActionDefinition，驱动 Animator + Combat；Logic Tick 与编辑器帧一致
 ```
@@ -192,18 +194,41 @@ ActionRuntimeController         # 运行时执行器（Player / Enemy 共用）
 
 ### 3.2 ActionPhase（动作阶段）
 
-将一条动作按战斗语义分段，便于策划理解：
+将一条动作按 **ACT 战斗语义** 分段。核心三相为 **前摇（Startup）→ 有效（Active）→ 后摇（Recovery）**；无敌与霸体为**覆盖在帧区间上的属性标记**，与三相正交。
 
-| 阶段 | 常见含义 | 典型配置 |
-|------|----------|----------|
-| Startup | 前摇 | 不可命中、可被打断 |
-| Active | 有效帧 | Hitbox 开启、产生伤害 |
-| Recovery | 后摇 | Hitbox 关闭、硬直 |
-| Invincible | 无敌 | I-Frame 标记 |
-| SuperArmor | 霸体 | 受击不硬直 |
-| Cancel | 可取消 | 允许转入其他动作 |
+#### 核心三相
 
-每阶段用 `[startFrame, endFrame]` 表示。
+| 阶段 | 俗称 | 常见含义 | 典型配置 |
+|------|------|----------|----------|
+| `Startup` | 前摇 | 无攻击判定；通常可被打断 | `interruptible: true` |
+| `Active` | 动作中 / 有效帧 | Hitbox 开启、造成伤害 | 配合 Hitbox 区间 |
+| `Recovery` | 后摇 | 判定关闭、动作硬直；**取消窗口主要落在此段** | 配合 `CancelWindow[]` |
+
+#### 覆盖属性（非独立时间段）
+
+| 标记 | 说明 |
+|------|------|
+| `Invincible` | 无敌帧（I-Frame），可与任意三相区间重叠 |
+| `SuperArmor` | 霸体：受击不切入 Hit 状态，但仍可扣血（规则由 Combat 定） |
+
+每阶段 / 标记用 `[startFrame, endFrame]` 表示。时间轴 **Phases 轨道** 至少展示 Startup / Active / Recovery 三段。
+
+#### 阶段打断规则（受击衔接）
+
+除霸体 / 无敌外，各阶段可配置是否允许被攻击打断，以及打断后进入的受击动作：
+
+| 字段 | 说明 |
+|------|------|
+| `interruptible` | 该区间内被命中时是否打断当前招式 |
+| `interruptActionId` | 打断后播放的受击 `ActionDefinition`（`actionType: Hit`）；空则由 Combat 按 HitInfo 选取 |
+
+典型约定（可调）：
+
+- **Startup**：可打断 → 轻受击
+- **Active**：默认不可打断；无霸体时可被重击打断
+- **Recovery**：可打断 → 重受击 / 浮空（由 HitInfo 决定具体 `interruptActionId`）
+
+> **设计约定：** 可取消性（连段、闪避、走路）**不**用 Phase 类型表达，统一由 `CancelWindow` 配置。已废弃将 `Cancel` 作为 Phase 类型的做法，避免与取消窗口混淆。
 
 ### 3.3 ActionEvent（时间轴事件）
 
@@ -249,16 +274,62 @@ ActionRuntimeController         # 运行时执行器（Player / Enemy 共用）
 
 ### 3.6 CancelWindow（取消窗口）
 
+描述 **招式播放过程中**（通常在 Recovery 后摇的不同子区间）玩家输入能否提前结束 / 切换行为。语义等价于 Gordon 方案的 `ChangeCtrl`。
+
+#### 取消类型（`cancelType`）
+
+| 类型 | 行为 | `targetActionId` |
+|------|------|------------------|
+| `Action` | **动作取消** — 切到另一个 `ActionDefinition`（连段、闪避、技能） | 必填（或走 ActionGraph 默认边） |
+| `Movement` | **移动取消** — 结束当前招式，退出 `ActionState`，回到 `Locomotion`；动画可 CrossFade 截断或播完剩余后摇 | 为空；由 `ActionRuntimeController` 通知状态机切 Locomotion |
+
+后摇常见配置模式：
+
+```
+Recovery [19───────────────41]
+         │ early cancel │ move cancel only │
+         ├─ Action: Attack/Dodge ─┤        │
+         │              ├─ Movement: Move ─┤
+         │              │  committed       │
+```
+
+同一帧区间可配置多个 `CancelWindow`，用 `priority` 解决重叠；输入缓冲在 `CancelWindow` 窗口内消费（见 §5.1）。
+
 | 字段 | 说明 |
 |------|------|
 | `startFrame` / `endFrame` | 窗口范围 |
-| `allowedInputs` | 如 Attack、Dodge、Skill1 |
-| `targetActionId` | 取消后进入的动作；空则按 ActionGraph 默认规则 |
-| `priority` | 多窗口重叠时的优先级 |
+| `cancelType` | `Action` / `Movement` |
+| `allowedInputs` | `Attack`、`Dodge`、`Skill1`、`Move` 等 |
+| `targetActionId` | 动作取消的目标招式；移动取消时为空 |
+| `priority` | 多窗口重叠时的优先级（数值越大越优先） |
 
-语义等价于 Gordon 方案的 `ChangeCtrl`（帧范围 + 输入指令 → 切换招式）。
+### 3.7 ActionTransition（结束衔接与分支）
 
-### 3.7 ActionGraph（连招 / 状态图，可选）
+描述 **动作自然结束或战斗事件触发时** 的衔接，与 `CancelWindow`（播放中提前取消）互补。
+
+| 字段 | 说明 |
+|------|------|
+| `condition` | 触发条件（见下表） |
+| `targetActionId` | 目标 `ActionDefinition`；`null` 表示回 `Locomotion` 或战斗待机（由 Graph 默认节点决定） |
+| `priority` | 多条件同帧触发时的优先级 |
+
+| `condition` | 说明 | 示例 |
+|---------------|------|------|
+| `AnimationEnd` | Clip 播完 | 回 Locomotion / 战斗待机 |
+| `OnHitConfirm` | 本招至少命中一次 | 自动进下一段连招（无需再按攻击） |
+| `OnWhiff` | 全程未命中 | 加长后摇或切挥空收招动作 |
+| `OnBlocked` | 被格挡 | 切弹刀 / 硬直收招 |
+| `OnInterrupted` | 被受击打断（与 Phase.interrupt 配合） | 通常由 Combat 驱动，较少写在 Transition |
+
+**与 CancelWindow 的分工：**
+
+| 时机 | 机制 |
+|------|------|
+| 播放中 + 玩家输入 | `CancelWindow` |
+| 播放中 + 被击中 | `ActionPhase.interruptible` + Combat → `Hit` 状态 / 受击 `ActionDefinition` |
+| 播放结束或命中/挥空等 | `ActionTransition` |
+
+### 3.8 ActionGraph（连招 / 状态图，可选）
 
 用于描述 **动作之间的转移**，而非在 `PlayerStateMachine` 里写死 if-else。
 
@@ -270,7 +341,9 @@ ActionRuntimeController         # 运行时执行器（Player / Enemy 共用）
 
 节点 = `ActionDefinition` 引用，边 = 输入 / 条件 / 自动连段。参考 Combo Graph 的输入边可视化。
 
-### 3.8 ActionSegment（可选，多动画拼招）
+**受击与收招：** `actionType: Hit` 的招式（轻受击、重受击、浮空、击飞、倒地）与攻击招式共用 `ActionDefinition` 格式，由 `CharacterStateMachine` 的 `Hit` 状态或 `ActionRuntimeController` 播放。Graph 边 `[Any] --受击--> [Hit_Light]` 指向对应受击资产；受击结束通过 `ActionTransition(AnimationEnd)` 或 Graph 边回到 Locomotion / 战斗待机。
+
+### 3.9 ActionSegment（可选，多动画拼招）
 
 | 字段 | 说明 |
 |------|------|
@@ -279,6 +352,39 @@ ActionRuntimeController         # 运行时执行器（Player / Enemy 共用）
 | `blendIn` | 与上一段衔接（可选） |
 
 用于同一招式由多段动画拼接，最大化美术动作复用（对应 `SkillInfo` 多 `ActInfo`）。
+
+### 3.10 动作生命周期与衔接（总览）
+
+单条招式从进入到退出的完整链路：
+
+```
+进入招式 (ActionGraph / 输入)
+    │
+    ▼
+┌─ Startup ─┬─ Active ─┬────── Recovery ──────────────────────┐
+│  前摇      │  有效帧   │  early ActionCancel │ late MoveCancel │
+│  可被打断  │  Hitbox  │  (连段/闪避)         │ (走路取消)       │
+└───────────┴──────────┴──────────────────────┴─────────────────┘
+    │ 受击且 interruptible          │ CancelWindow (Action/Movement)
+    ▼                               ▼
+ Hit 受击 ActionDefinition      下一招 / Locomotion
+    │
+    ▼
+ ActionTransition (AnimationEnd / OnHit / OnWhiff / OnBlocked)
+    │
+    ▼
+ 下一招 / 战斗待机 / Locomotion
+```
+
+**状态机分工（`CharacterStateType`）：**
+
+| 状态 | 职责 |
+|------|------|
+| `Action` | 攻击、闪避、技能等主动招式；`ActionState` 锁定 Locomotion 动画 |
+| `Hit` | 受击硬直、浮空、倒地；播放 `actionType: Hit` 的 `ActionDefinition` |
+| `Locomotion` | 移动；**移动取消**从 `Action` 退出后进入 |
+
+`ActionRuntimeController` 负责在 `Action` / `Hit` 状态下逐帧推进；是否切状态由 Cancel、Interrupt、Transition 三类规则共同决定。
 
 ---
 
@@ -298,7 +404,7 @@ ActionRuntimeController         # 运行时执行器（Player / Enemy 共用）
 │              │  ├ Hitboxes    [----[HB1]-------[HB2]----------] │
 │ Character:   │  ├ Hurtboxes   [========body========]            │
 │ Katana Girl  │  ├ Events      |*VFX    *SFX        *Shake|      │
-│              │  ├ Cancels     [---Dodge---][--Attack--]         │
+│              │  ├ Cancels     [Act:Attack][Act:Dodge][Mov:Move──] │
 │              │  └ Invincible  [=========]                       │
 ├──────────────┴──────────────────────────────────────────────────┤
 │ Inspector — 选中帧 / 事件 / Hitbox / Hurtbox 属性编辑            │
@@ -311,7 +417,7 @@ ActionRuntimeController         # 运行时执行器（Player / Enemy 共用）
 
 #### Phase A — 数据层（无自定义 UI，M2–M3 并行）
 
-- [ ] 定义 `ActionDefinition`、`ActionPhase`、`ActionEvent`、`HitboxKeyframe`、`HurtboxKeyframe`、`CancelWindow` 等类型
+- [ ] 定义 `ActionDefinition`、`ActionPhase`、`ActionEvent`、`HitboxKeyframe`、`HurtboxKeyframe`、`CancelWindow`（含 `cancelType`）、`ActionTransition` 等类型
 - [ ] ScriptableObject 资产创建菜单（`Assets/Data/Combat/Actions/`）
 - [ ] 运行时 `ActionRuntimeController` 读取 SO，**Logic Tick 与帧索引对齐**
 - [ ] 用 Inspector 手动填 Attack1–3、Evade 数据验证格式
@@ -321,7 +427,7 @@ ActionRuntimeController         # 运行时执行器（Player / Enemy 共用）
 
 - [ ] `ActionEditorWindow`：动作列表 + 选中动作 Inspector 增强（`ReorderableList` 或 Odin）
 - [ ] 绑定 AnimationClip，自动计算 `totalFrames` / `sampleRate`
-- [ ] Phase / Event / Hitbox / Hurtbox / Cancel 列表增删改
+- [ ] Phase / Event / Hitbox / Hurtbox / Cancel（区分 Action / Movement）/ Transition 列表增删改
 - [ ] 从 Animation Clip 导入已有 Animation Events（迁移辅助）
 - [ ] **Play Mode GM 热重载**：编辑保存后清空 Runtime Cache，进战斗即加载新配置
 - [ ] 模板复制 / Duplicate 招式资产
@@ -332,7 +438,7 @@ ActionRuntimeController         # 运行时执行器（Player / Enemy 共用）
 - [ ] 帧 scrubber + 播放控制（逐帧步进）
 - [ ] Scene 视图 Hitbox / Hurtbox Gizmo 预览（随帧变化）
 - [ ] 编辑态动画采样（`AnimationMode` / `PreviewRenderUtility` / `ActionPreviewRig`）
-- [ ] 多轨道 Frameline：Phases / Hitboxes / Hurtboxes / Events / Cancels / Invincible
+- [ ] 多轨道 Frameline：Phases / Hitboxes / Hurtboxes / Events / Cancels（Action·Movement 分色）/ Invincible / Transitions
 - [ ] 基础校验：未闭合 Hitbox、Active 无 Hitbox、clip 缺失
 
 #### Phase D — 连招图与批量工具（M7）
@@ -374,19 +480,25 @@ ActionRuntimeController         # 运行时执行器（Player / Enemy 共用）
         → 加载 ActionDefinition
         → CharacterAnimationController.PlayClip(clip)  // AC 仅 Locomotion
         → 每 Logic Tick：UpdateFrame(frameIndex)   // 与编辑器 scrub 同一套逻辑
-            → 检查 Phase 变化
+            → 检查 Phase 变化（Startup / Active / Recovery）
             → 评估 ActionEvent（含 Custom Trigger+Ctrl）
             → 更新 Hitbox / Hurtbox 查询体
+            → Combat 命中 → 若当前 Phase.interruptible → 切 Hit 受击动作 / Hit 状态
             → 检查 CancelWindow + 输入缓冲
-    → 动作结束 → ActionTransition / 回 Locomotion
+                → cancelType: Action  → Play(targetActionId)
+                → cancelType: Movement → 结束招式，状态机切 Locomotion
+    → 动作结束或 OnHit / OnWhiff 等 → ActionTransition
+        → targetActionId 或 null（Locomotion / 战斗待机）
 ```
+
+**输入缓冲：** `InputReader` 在招式播放全程缓存输入；`ActionRuntimeController` 仅在有效 `CancelWindow` 内消费，避免过早连段。
 
 ### 5.2 与现有模块的关系
 
 | 模块 | 关系 |
 |------|------|
-| `PlayerStateMachine` | 薄层：Locomotion / 受击 / 死亡等 **非招式** 状态；`ActionState` 锁定动画交给 ActionRuntime |
-| `Combat/` | 消费 Hitbox 帧数据 + `damageWeight` × 数值表；`HitInfo` 驱动受击反应 |
+| `PlayerStateMachine` | 薄层：`Locomotion` / `Hit` / `Death`；`Action` 锁定动画交给 ActionRuntime；**移动取消**从 `Action` 退出回 `Locomotion` |
+| `Combat/` | 消费 Hitbox + `damageWeight` × 数值表；`HitInfo` + `Phase.interruptible` 驱动受击反应与 `interruptActionId` |
 | `Input/` | 输入写入 Buffer；ActionRuntime 在 CancelWindow 内消费 |
 | `Enemy/` | AI 输出 `actionId`，同一套 ActionRuntime |
 | `Animator` | **仅 Locomotion**；招式 clip 由 `ActionDefinition` 引用、`PlayClip` 播放 |
@@ -397,7 +509,8 @@ Demo（M1–M4）不等待编辑器，但 **数据结构按 ActionDefinition 设
 
 - 手写 5–8 个 Action SO（Attack1–3、Evade、Skill1、EnemyAttack）
 - Hitbox 简化：每动作 1 个固定区间；Hurtbox 可用全身单区间
-- 连段先用 `nextActionId` 或代码，M5 迁到 CancelWindow / ActionGraph
+- 连段先用 `nextActionId` 或代码，M5 迁到 CancelWindow / ActionTransition
+- M2 可先不做 `Movement` 取消与 `OnWhiff` 分支，但 Schema 预留 `cancelType` / `ActionTransition.condition`
 - 伤害先用固定值，M7 接 `damageWeight` + 数值表
 
 ---
@@ -415,6 +528,7 @@ Assets/
 │   │   │   ├── HitboxKeyframe.cs
 │   │   │   ├── HurtboxKeyframe.cs
 │   │   │   ├── CancelWindow.cs
+│   │   │   ├── ActionTransition.cs
 │   │   │   ├── ActionGraph.cs
 │   │   │   └── ActionRuntimeController.cs
 │   │   └── ...                         # Health, Damage, HitReaction 等
@@ -453,12 +567,17 @@ phases:
   - type: Startup
     startFrame: 0
     endFrame: 8
+    interruptible: true
+    interruptActionId: player_hit_light
   - type: Active
     startFrame: 9
     endFrame: 18
+    interruptible: false
   - type: Recovery
     startFrame: 19
     endFrame: 41
+    interruptible: true
+    interruptActionId: player_hit_heavy
 hitboxes:
   - id: katana_blade
     attachBone: Hand_R
@@ -466,7 +585,7 @@ hitboxes:
     endFrame: 16
     shape: Box
     size: [1.2, 0.1, 0.3]
-    damageWeight: 1.0          # 单 Hit 时可设为 1.0；多 Hit 时与数值表相乘
+    damageWeight: 1.0
 hurtboxes:
   - id: body
     attachBone: Spine
@@ -482,19 +601,45 @@ events:
     type: PlayVFX
     payload: vfx_slash_trail
 cancelWindows:
+  # 后摇前半：动作取消（连段）
   - startFrame: 20
-    endFrame: 35
+    endFrame: 32
+    cancelType: Action
     allowedInputs: [Attack]
     targetActionId: player_attack_2
+    priority: 10
+  # 后摇中段：动作取消（闪避）
   - startFrame: 15
     endFrame: 25
+    cancelType: Action
     allowedInputs: [Dodge]
     targetActionId: player_evade
+    priority: 5
+  # 后摇末段：移动取消（走路）
+  - startFrame: 33
+    endFrame: 41
+    cancelType: Movement
+    allowedInputs: [Move]
+    targetActionId: null
+    priority: 1
 transitions:
   - condition: AnimationEnd
-    targetActionId: null       # 回 Locomotion
+    targetActionId: null              # 无输入时回 Locomotion
+  - condition: OnHitConfirm
+    targetActionId: player_attack_2   # 命中自动衔接（可与 Cancel 并存，priority 高者优先）
+    priority: 20
+  - condition: OnWhiff
+    targetActionId: player_attack_1_whiff_recovery
+    priority: 10
 # 数值表（Excel / SO，非 ActionDefinition 字段）:
 # skill_damage[player_attack_1] = 100  →  runtime: 100 * damageWeight
+
+# --- 受击收招示例（actionType: Hit）---
+# id: player_hit_light
+# actionType: Hit
+# animationClip: Hit_Light
+# phases: [ Recovery only, interruptible: false ]
+# transitions: [ AnimationEnd → null ]
 ```
 
 ---
@@ -522,6 +667,9 @@ transitions:
 | 策划学习成本 | 模板复制 + 文档示例 + 一体化窗口 |
 | 无 Undo/Redo | M5 用 Duplicate / Copy；M7 再评估全局 Undo |
 | 数值与帧数据耦合 | `damageWeight` 在编辑器，总伤害在配表；Combat 层结算 |
+| 取消类型混淆 | `CancelWindow.cancelType` 明确 Action / Movement；Phase 不再使用 Cancel 类型 |
+| 后摇只有连段无走路 | Recovery 末段配 `Movement` 取消窗；编辑器 Cancels 轨道分色校验 |
+| 挥空 / 命中无分支 | `ActionTransition` 支持 `OnHitConfirm` / `OnWhiff`；M4 可暂硬编码 |
 | 引入 Flux/Slate 依赖 | 仅借鉴 UI，不引入插件运行时 |
 
 ---
@@ -530,11 +678,12 @@ transitions:
 
 动作编辑器 v1 完成时，应满足：
 
-1. 策划 / 程序可在 **不修改 C# 代码** 的情况下，新建一条普攻并配置 Hitbox、受击框、连段、特效事件
-2. 编辑态可 scrub 预览 Hitbox / Hurtbox 与动画同步
-3. 玩家与敌人共用 `ActionRuntimeController`
+1. 策划 / 程序可在 **不修改 C# 代码** 的情况下，新建一条普攻并配置三相、Hitbox、受击框、**动作/移动取消**、结束衔接与特效事件
+2. 编辑态可 scrub 预览 Hitbox / Hurtbox 与动画同步；Cancels 轨道区分 Action / Movement
+3. 玩家与敌人共用 `ActionRuntimeController`；受击招式同为 `ActionDefinition`（`actionType: Hit`）
 4. Attack1–3、Evade、Sp_Skill1 全部迁移为 `ActionDefinition` 资产
 5. Play Mode 下通过 GM 热重载即可验证编辑结果，无需重启 Editor
+6. 后摇至少可配置一段 **动作取消** 与一段 **移动取消**（或文档化为何某招不需要）
 
 ---
 
@@ -565,3 +714,4 @@ transitions:
 |------|------|
 | 2026-06-11 | 初版：愿景、数据模型、Phase A–E、目录与里程碑 |
 | 2026-06-17 | 方案调研与选型结论（§2）；新增 Hurtbox、damageWeight、ActionSegment；Gordon 方案映射；功能优先级矩阵；数值分离约定；GM 热重载；Editor 技术选型表；扩展参考链接与变更日志 |
+| 2026-06-17 | 动作阶段与衔接：三相模型细化；`CancelWindow.cancelType`（Action/Movement）；`ActionTransition` 分支条件；Phase 打断规则；受击 `actionType: Hit`；§3.10 生命周期总览；示例与运行时流程更新 |
