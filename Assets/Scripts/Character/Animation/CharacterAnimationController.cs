@@ -49,5 +49,17 @@ public class CharacterAnimationController : MonoBehaviour
         _currentKey = null;
     }
 
+    public bool HasFinishedClip(AnimationClip clip)
+    {
+        if (animator == null || clip == null)
+            return true;
+
+        if (animator.IsInTransition(layerIndex))
+            return false;
+
+        AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(layerIndex);
+        return state.IsName(clip.name) && state.normalizedTime >= 1f;
+    }
+
     public void ResetPlaybackState() => _currentKey = null;
 }

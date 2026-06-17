@@ -1,15 +1,17 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class InputReader : MonoBehaviour
+public class InputReader : MonoBehaviour, ICharacterInput
 {
     [SerializeField] InputActionAsset inputActions;
 
     InputAction moveAction;
     InputAction lookAction;
+    InputAction attackAction;
 
     public Vector2 MoveInput => moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
     public Vector2 LookInput => lookAction != null ? lookAction.ReadValue<Vector2>() : Vector2.zero;
+    public bool AttackPressedThisFrame => attackAction != null && attackAction.WasPressedThisFrame();
 
     void Awake()
     {
@@ -23,6 +25,7 @@ public class InputReader : MonoBehaviour
         InputActionMap playerMap = inputActions.FindActionMap("Player", throwIfNotFound: true);
         moveAction = playerMap.FindAction("Move", throwIfNotFound: true);
         lookAction = playerMap.FindAction("Look", throwIfNotFound: true);
+        attackAction = playerMap.FindAction("Attack", throwIfNotFound: true);
     }
 
     void OnEnable()

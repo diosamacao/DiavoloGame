@@ -2,6 +2,7 @@ using UnityEngine;
 
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(InputReader))]
+[RequireComponent(typeof(PlayerStateMachine))]
 public class PlayerController : MonoBehaviour
 {
     [Header("Movement")]
@@ -19,6 +20,7 @@ public class PlayerController : MonoBehaviour
 
     CharacterController controller;
     InputReader input;
+    PlayerStateMachine stateMachine;
 
     Vector3 velocity;
     float rotationVelocity;
@@ -32,6 +34,7 @@ public class PlayerController : MonoBehaviour
     {
         controller = GetComponent<CharacterController>();
         input = GetComponent<InputReader>();
+        stateMachine = GetComponent<PlayerStateMachine>();
 
         if (cameraTransform == null && Camera.main != null)
             cameraTransform = Camera.main.transform;
@@ -39,15 +42,25 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        Vector2 moveInput = input.MoveInput;
-        Vector3 moveDirection = GetCameraRelativeMoveDirection(moveInput);
-        moveInputMagnitude = Mathf.Clamp01(moveInput.magnitude);
-        float speed = moveInputMagnitude > runThreshold ? runSpeed : walkSpeed;
+        bool inAction = stateMachine != null &&
+            stateMachine.CurrentStateType == CharacterStateType.Action;
 
-        if (moveDirection.sqrMagnitude > 0.001f)
+        if (!inAction)
         {
-            transform.rotation = GetSmoothedRotation(moveDirection);
-            controller.Move(moveDirection * (speed * moveInputMagnitude) * Time.deltaTime);
+            Vector2 moveInput = input.MoveInput;
+            Vector3 moveDirection = GetCameraRelativeMoveDirection(moveInput);
+            moveInputMagnitude = Mathf.Clamp01(moveInput.magnitude);
+            float speed = moveInputMagnitude > runThreshold ? runSpeed : walkSpeed;
+
+            if (moveDirection.sqrMagnitude > 0.001f)
+            {
+                transform.rotation = GetSmoothedRotation(moveDirection);
+                controller.Move(moveDirection * (speed * moveInputMagnitude) * Time.deltaTime);
+            }
+        }
+        else
+        {
+            moveInputMagnitude = 0f;
         }
 
         ApplyGravity();
