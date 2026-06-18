@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
-  m_Name: player_dodge_1
+  m_Name: player_evade_1
   m_EditorClassIdentifier: 
   id: player_dodge_1
   displayName: Dodge 1
@@ -19,12 +19,11 @@ MonoBehaviour:
   totalFrames: 44
   actionType: 1
   crossFadeDuration: 0.1
-  nextAction: {fileID: 0}
-  comboLinkStartFrame: 33
+  comboLinkStartFrame: 10
   comboLinkEndFrame: 43
-  movementCancelStartFrame: 33
+  movementCancelStartFrame: 15
   movementCancelEndFrame: 43
-  useRootMotion: 1
-  displacementDistance: 0
+  useRootMotion: 0
+  displacementDistance: -1
   displacementStartFrame: 0
-  displacementEndFrame: 0
+  displacementEndFrame: 4

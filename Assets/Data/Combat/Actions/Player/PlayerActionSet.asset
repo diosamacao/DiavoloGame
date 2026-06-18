@@ -12,5 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ca7d0218503b29548be403a763a47b6e, type: 3}
   m_Name: PlayerActionSet
   m_EditorClassIdentifier: 
-  attackChain: []
-  dodge: {fileID: 0}
+  attackChain:
+  - {fileID: 11400000, guid: a1b2c3d4e5f6789012345678abcdef20, type: 2}
+  - {fileID: 11400000, guid: a358c68a352967f4399fcb9f2d8b5b1b, type: 2}
+  - {fileID: 11400000, guid: 7a4119c60e95a3d419914beec74f62b5, type: 2}
+  dodge: {fileID: 11400000, guid: 0460ea49f303c73418ff7cd1f5cda9c0, type: 2}
