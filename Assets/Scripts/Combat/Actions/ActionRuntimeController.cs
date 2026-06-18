@@ -57,7 +57,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
 
     public bool TryStartDodge()
     {
-        ActionDefinition dodge = GetDodge();
+        ActionDefinition dodge = GetEvade();
         if (dodge == null)
         {
             Debug.LogWarning("ActionRuntimeController: dodge 未分配。", this);
@@ -135,7 +135,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
 
     bool TryLinkDodge()
     {
-        ActionDefinition dodge = GetDodge();
+        ActionDefinition dodge = GetEvade();
         if (dodge == null || dodge.AnimationClip == null)
             return false;
 
@@ -174,7 +174,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
     ActionDefinition[] GetAttackChain() =>
         actionSet != null && actionSet.AttackChain != null ? actionSet.AttackChain : Array.Empty<ActionDefinition>();
 
-    ActionDefinition GetDodge() => actionSet != null ? actionSet.Dodge : null;
+    ActionDefinition GetEvade() => actionSet != null ? actionSet.Evade : null;
 
     void ApplyScriptedDisplacement(float deltaTime)
     {

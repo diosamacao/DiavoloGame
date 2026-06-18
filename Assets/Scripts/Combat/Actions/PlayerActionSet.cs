@@ -5,8 +5,8 @@ using UnityEngine;
 public class PlayerActionSet : ScriptableObject
 {
     [SerializeField] ActionDefinition[] attackChain = null!;
-    [SerializeField] ActionDefinition dodge = null!;
+    [SerializeField] ActionDefinition evade = null!;
 
     public ActionDefinition[] AttackChain => attackChain;
-    public ActionDefinition Dodge => dodge;
+    public ActionDefinition Evade => evade;
 }
