@@ -17,7 +17,7 @@ public class ActionDefinition : ScriptableObject
     [Header("Cancel Windows")]
     [SerializeField] CancelWindow[] cancelWindows = Array.Empty<CancelWindow>();
 
-    [Header("End Transitions")]
+    [Header("Transitions")]
     [SerializeField] ActionTransition[] transitions = Array.Empty<ActionTransition>();
 
     [Header("Start Behaviors")]
@@ -79,7 +79,7 @@ public class ActionDefinition : ScriptableObject
         return list;
     }
 
-    /// <summary>AnimationEnd 衔接，按 priority 降序。</summary>
+    /// <summary>Transition 衔接，按 priority 降序。</summary>
     public IReadOnlyList<ActionTransition> GetTransitionsSorted()
     {
         if (transitions == null || transitions.Length == 0)
@@ -88,6 +88,23 @@ public class ActionDefinition : ScriptableObject
         var list = new List<ActionTransition>(transitions);
         list.Sort((a, b) => b.Priority.CompareTo(a.Priority));
         return list;
+    }
+
+    /// <summary>当前时刻是否满足 Transition 触发条件。</summary>
+    public bool IsTransitionEligible(ActionTransition transition, float elapsedSeconds)
+    {
+        if (transition == null || totalFrames <= 0)
+            return false;
+
+        switch (transition.Condition)
+        {
+            case ActionTransitionCondition.AnimationEnd:
+                return elapsedSeconds >= DurationSeconds;
+            case ActionTransitionCondition.AtFrame:
+                return FrameAt(elapsedSeconds) >= transition.StartFrame;
+            default:
+                return false;
+        }
     }
 
     public bool IsInCancelWindow(ResolvedCancelWindow window, float elapsedSeconds)

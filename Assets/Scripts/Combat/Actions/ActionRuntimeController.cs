@@ -89,8 +89,12 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         if (TryResolveCancelWindows())
             return;
 
+        if (TryResolveTransitions())
+            return;
+
+        // 无匹配 Transition 时自然收招
         if (_elapsed >= _current.DurationSeconds)
-            ResolveEndTransitions();
+            Stop();
     }
 
     public void Stop()
@@ -162,25 +166,28 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         }
     }
 
-    /// <summary>AnimationEnd：按 Transition 衔接或 Stop。</summary>
-    void ResolveEndTransitions()
+    /// <summary>按 priority 扫描 Transition，首个满足条件的自动衔接或 Stop。</summary>
+    bool TryResolveTransitions()
     {
+        if (_current == null)
+            return false;
+
         foreach (ActionTransition transition in _current.GetTransitionsSorted())
         {
-            if (transition.Condition != ActionTransitionCondition.AnimationEnd)
+            if (!_current.IsTransitionEligible(transition, _elapsed))
                 continue;
 
             if (transition.TargetAction != null && transition.TargetAction.AnimationClip != null)
             {
                 TransitionTo(transition.TargetAction);
-                return;
+                return true;
             }
 
             Stop();
-            return;
+            return true;
         }
 
-        Stop();
+        return false;
     }
 
     void TransitionTo(ActionDefinition action)

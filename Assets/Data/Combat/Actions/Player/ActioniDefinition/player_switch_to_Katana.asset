@@ -10,21 +10,25 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
-  m_Name: player_skill_1
+  m_Name: player_switch_to_Katana
   m_EditorClassIdentifier: 
-  id: player_attack_1
-  displayName: Attack 1
-  animationClip: {fileID: -1635821038562368723, guid: 04f65a68bc5a06f44923786a39b3267b, type: 3}
+  id: player_switch_1
+  displayName: switch1
+  animationClip: {fileID: -2019408629470369199, guid: 234c6583359144642922689cdcc39bb6, type: 3}
   sampleRate: 30
-  totalFrames: 96
-  actionType: 2
-  crossFadeDuration: 0
+  totalFrames: 52
+  actionType: 1
+  crossFadeDuration: 0.5
   cancelWindows: []
-  transitions: []
-  startBehaviors: 
-  switchCombatModeTarget: 0
+  transitions:
+  - condition: 1
+    startFrame: 28
+    targetAction: {fileID: 0}
+    priority: 0
+  startBehaviors: 01000000
+  switchCombatModeTarget: 1
   switchCombatModePolicy: 0
-  useRootMotion: 1
-  displacementDistance: 0
+  useRootMotion: 0
+  displacementDistance: -1
   displacementStartFrame: 0
-  displacementEndFrame: 0
+  displacementEndFrame: 4

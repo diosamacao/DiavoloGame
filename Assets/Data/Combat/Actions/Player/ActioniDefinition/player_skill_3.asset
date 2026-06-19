@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
-  m_Name: player_skill_1
+  m_Name: player_skill_3
   m_EditorClassIdentifier: 
   id: player_attack_1
   displayName: Attack 1
-  animationClip: {fileID: -1635821038562368723, guid: 04f65a68bc5a06f44923786a39b3267b, type: 3}
+  animationClip: {fileID: 7327309150045777236, guid: da539cbfcad3e8142b3d4f166a8d5dc6, type: 3}
   sampleRate: 30
-  totalFrames: 96
+  totalFrames: 135
   actionType: 2
   crossFadeDuration: 0
   cancelWindows: []
