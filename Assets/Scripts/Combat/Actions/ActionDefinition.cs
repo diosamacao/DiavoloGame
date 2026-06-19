@@ -35,6 +35,10 @@ public class ActionDefinition : ScriptableObject
     [Tooltip("帧窗口内允许玩家用移动输入修正朝向，常用于攻击前摇瞄准。")]
     [SerializeField] RotationWindow rotationWindow = new();
 
+    [Header("Target Lock")]
+    [Tooltip("攻击旋转窗口内的自动索敌配置。")]
+    [SerializeField] TargetLockSettings targetLockSettings = new();
+
     [Header("Movement")]
     [Tooltip("开启时由动画 Root Motion 驱动位移，脚本位移（Displacement Distance）将被忽略。")]
     [SerializeField] bool useRootMotion = true;
@@ -59,6 +63,8 @@ public class ActionDefinition : ScriptableObject
     public bool HasScriptedDisplacement => !useRootMotion && Mathf.Abs(displacementDistance) > 0.001f;
     public RotationWindow RotationWindow => rotationWindow;
     public bool HasRotationWindow => rotationWindow != null && rotationWindow.IsConfigured;
+    public TargetLockSettings TargetLockSettings => targetLockSettings ?? new TargetLockSettings();
+    public bool HasTargetLock => targetLockSettings != null && targetLockSettings.Enabled;
     public HitboxKeyframe[] Hitboxes => hitboxes ?? Array.Empty<HitboxKeyframe>();
 
     public float DurationSeconds
