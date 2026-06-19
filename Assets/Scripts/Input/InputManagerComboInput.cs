@@ -8,7 +8,7 @@ public sealed class InputManagerComboInput : IActionComboInput
         _inputManager = inputManager;
     }
 
-    public bool HasBuffer(InputSlot slot) => _inputManager.HasBuffer(slot);
+    public bool HasBuffer(string inputId) => _inputManager.HasBuffer(inputId);
 
-    public bool TryConsumeBuffer(InputSlot slot) => _inputManager.TryConsumeBuffer(slot);
+    public bool TryConsumeBuffer(string inputId) => _inputManager.TryConsumeBuffer(inputId);
 }

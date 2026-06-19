@@ -1,7 +1,7 @@
-/// <summary>招式运行时消费的输入缓冲（多槽位）。</summary>
+/// <summary>招式运行时消费的输入缓冲（多输入 id）。</summary>
 public interface IActionComboInput
 {
-    bool HasBuffer(InputSlot slot);
+    bool HasBuffer(string inputId);
 
-    bool TryConsumeBuffer(InputSlot slot);
+    bool TryConsumeBuffer(string inputId);
 }

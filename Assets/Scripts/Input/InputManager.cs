@@ -10,8 +10,8 @@ public sealed class InputManager
 {
     const float MoveIntentThresholdSq = 0.01f;
 
-    readonly Dictionary<InputSlot, Action> _pressedHandlers = new();
-    readonly HashSet<InputSlot> _buffer = new();
+    readonly Dictionary<string, Action> _pressedHandlers = new(StringComparer.Ordinal);
+    readonly HashSet<string> _buffer = new(StringComparer.Ordinal);
 
     PlayerInputFrame _frame = PlayerInputFrame.Empty;
     Vector2 _bufferedMoveIntent;
@@ -31,15 +31,18 @@ public sealed class InputManager
 
     public bool HasBufferedMoveIntent => _bufferedMoveIntent.sqrMagnitude >= MoveIntentThresholdSq;
 
-    public void RegisterPressed(InputSlot slot, Action handler)
+    public void RegisterPressed(string inputId, Action handler)
     {
+        if (string.IsNullOrEmpty(inputId))
+            throw new ArgumentException("inputId 不能为空。", nameof(inputId));
+
         if (handler == null)
             throw new ArgumentNullException(nameof(handler));
 
-        _pressedHandlers[slot] = handler;
+        _pressedHandlers[inputId] = handler;
     }
 
-    public void UnregisterPressed(InputSlot slot) => _pressedHandlers.Remove(slot);
+    public void UnregisterPressed(string inputId) => _pressedHandlers.Remove(inputId);
 
     /// <summary>摄入一帧输入；回放/网络可直接构造 PlayerInputFrame 调用，无需 IPlayerInputSource。</summary>
     public void IngestFrame(PlayerInputFrame frame)
@@ -47,26 +50,32 @@ public sealed class InputManager
         _frame = frame;
         UpdateMoveBuffer(frame.Move);
 
-        if (frame.AttackPressed)
-            NotifyPressed(InputSlot.Attack);
-
-        if (frame.DodgePressed)
-            NotifyPressed(InputSlot.Dodge);
+        foreach (string inputId in frame.PressedInputIds)
+            NotifyPressed(inputId);
     }
 
-    public void NotifyPressed(InputSlot slot)
+    public void NotifyPressed(string inputId)
     {
-        if (_pressedHandlers.TryGetValue(slot, out Action handler))
+        if (string.IsNullOrEmpty(inputId))
+            return;
+
+        if (_pressedHandlers.TryGetValue(inputId, out Action handler))
             handler.Invoke();
     }
 
-    public void Buffer(InputSlot slot) => _buffer.Add(slot);
+    public void Buffer(string inputId)
+    {
+        if (!string.IsNullOrEmpty(inputId))
+            _buffer.Add(inputId);
+    }
 
-    public bool HasBuffer(InputSlot slot) => _buffer.Contains(slot);
+    public bool HasBuffer(string inputId) =>
+        !string.IsNullOrEmpty(inputId) && _buffer.Contains(inputId);
 
-    public bool TryConsumeBuffer(InputSlot slot) => _buffer.Remove(slot);
+    public bool TryConsumeBuffer(string inputId) =>
+        !string.IsNullOrEmpty(inputId) && _buffer.Remove(inputId);
 
-    public void ClearBuffer(InputSlot slot) => _buffer.Remove(slot);
+    public void ClearBuffer(string inputId) => _buffer.Remove(inputId);
 
     public void ClearAllBuffers() => _buffer.Clear();
 

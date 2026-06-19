@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>玩家位移执行层：从 InputManager 读取移动意图，驱动 CharacterController。</summary>
@@ -6,7 +7,7 @@ using UnityEngine;
 [RequireComponent(typeof(InputReader))]
 [RequireComponent(typeof(PlayerStateMachine))]
 [RequireComponent(typeof(ActionRuntimeController))]
-public class PlayerController : MonoBehaviour
+public class PlayerController : MonoBehaviour, IActionStartContext
 {
     [Header("Movement")]
     [SerializeField] float walkSpeed = 4f;
@@ -49,14 +50,21 @@ public class PlayerController : MonoBehaviour
             cameraTransform = Camera.main.transform;
 
         actionRuntime.BindComboInput(new InputManagerComboInput(_inputManager));
-        actionRuntime.BindDodgeFacing(ApplyDodgeFacing);
+        actionRuntime.BindActionStartContext(this);
         RegisterInputHandlers();
     }
 
+    /// <summary>按 ActionRuntimeController 绑定的出招表注册离散输入。</summary>
     void RegisterInputHandlers()
     {
-        _inputManager.RegisterPressed(InputSlot.Attack, HandleAttackPressed);
-        _inputManager.RegisterPressed(InputSlot.Dodge, HandleDodgePressed);
+        foreach (ActionEntry entry in actionRuntime.InputEntries)
+        {
+            if (!entry.IsValid)
+                continue;
+
+            string inputId = entry.InputId;
+            _inputManager.RegisterPressed(inputId, () => HandleDiscreteInput(inputId));
+        }
     }
 
     void Update()
@@ -77,15 +85,21 @@ public class PlayerController : MonoBehaviour
     {
         bool inAction = stateMachine.CurrentStateType == CharacterStateType.Action;
         if (_wasInAction && !inAction)
-        {
-            _inputManager.ClearBuffer(InputSlot.Attack);
-            _inputManager.ClearBuffer(InputSlot.Dodge);
-        }
+            ClearAllActionBuffers();
 
         if (inAction)
             TryCancelActionByMovement();
 
         _wasInAction = inAction;
+    }
+
+    void ClearAllActionBuffers()
+    {
+        foreach (ActionEntry entry in actionRuntime.InputEntries)
+        {
+            if (entry.IsValid)
+                _inputManager.ClearBuffer(entry.InputId);
+        }
     }
 
     /// <summary>移动取消：读取移动意图（非位移执行），在取消窗口内退回 Locomotion。</summary>
@@ -100,45 +114,25 @@ public class PlayerController : MonoBehaviour
         stateMachine.TryChangeState(CharacterStateType.Locomotion);
     }
 
-    void HandleAttackPressed()
+    void HandleDiscreteInput(string inputId)
     {
         if (stateMachine.CurrentStateType == CharacterStateType.Locomotion)
-            TryStartAttackFromLocomotion();
+            TryStartFromLocomotion(inputId);
         else if (stateMachine.CurrentStateType == CharacterStateType.Action)
-            _inputManager.Buffer(InputSlot.Attack);
+            _inputManager.Buffer(inputId);
     }
 
-    void HandleDodgePressed()
+    void TryStartFromLocomotion(string inputId)
     {
-        if (stateMachine.CurrentStateType == CharacterStateType.Locomotion)
-            TryStartDodgeFromLocomotion();
-        else if (stateMachine.CurrentStateType == CharacterStateType.Action)
-            _inputManager.Buffer(InputSlot.Dodge);
-    }
+        _inputManager.ClearBuffer(inputId);
 
-    void TryStartAttackFromLocomotion()
-    {
-        _inputManager.ClearBuffer(InputSlot.Attack);
-
-        if (!actionRuntime.TryStartAttackChain())
+        if (!actionRuntime.TryStartByInput(inputId))
             return;
 
         stateMachine.TryChangeState(CharacterStateType.Action);
     }
 
-    void TryStartDodgeFromLocomotion()
-    {
-        _inputManager.ClearBuffer(InputSlot.Dodge);
-        ApplyDodgeFacing();
-
-        if (!actionRuntime.TryStartDodge())
-            return;
-
-        stateMachine.TryChangeState(CharacterStateType.Action);
-    }
-
-    /// <summary>闪避前按缓冲/当前移动意图转向；无输入则保持面朝方向。</summary>
-    void ApplyDodgeFacing()
+    public void FaceBufferedMoveIntent()
     {
         Vector2 moveIntent = _inputManager.HasMoveIntent
             ? _inputManager.MoveIntent

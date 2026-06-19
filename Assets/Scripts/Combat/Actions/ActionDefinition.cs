@@ -1,6 +1,8 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>招式数据：动画、连招衔接、位移与取消窗口等帧级配置。</summary>
+/// <summary>招式数据：动画、CancelWindow 衔接、结束 Transition 与位移窗口。</summary>
 [CreateAssetMenu(fileName = "ActionDefinition", menuName = "ACT/Combat/Action Definition")]
 public class ActionDefinition : ScriptableObject
 {
@@ -11,12 +13,15 @@ public class ActionDefinition : ScriptableObject
     [SerializeField] int totalFrames;
     [SerializeField] CombatActionType actionType = CombatActionType.Attack;
     [SerializeField] float crossFadeDuration = 0.1f;
-    [SerializeField] int comboLinkStartFrame;
-    [SerializeField] int comboLinkEndFrame;
 
-    [Header("Movement Cancel")]
-    [SerializeField] int movementCancelStartFrame;
-    [SerializeField] int movementCancelEndFrame;
+    [Header("Cancel Windows")]
+    [SerializeField] CancelWindow[] cancelWindows = Array.Empty<CancelWindow>();
+
+    [Header("End Transitions")]
+    [SerializeField] ActionTransition[] transitions = Array.Empty<ActionTransition>();
+
+    [Header("Start Behaviors")]
+    [SerializeField] ActionStartBehaviorType[] startBehaviors = Array.Empty<ActionStartBehaviorType>();
 
     [Header("Movement")]
     [Tooltip("开启时由动画 Root Motion 驱动位移，脚本位移（Displacement Distance）将被忽略。")]
@@ -24,7 +29,6 @@ public class ActionDefinition : ScriptableObject
     [SerializeField] float displacementDistance;
     [SerializeField] int displacementStartFrame;
     [SerializeField] int displacementEndFrame;
-
 
     public string Id => id;
     public string DisplayName => displayName;
@@ -37,11 +41,8 @@ public class ActionDefinition : ScriptableObject
     public float DisplacementDistance => displacementDistance;
     public int DisplacementStartFrame => displacementStartFrame;
     public int DisplacementEndFrame => displacementEndFrame;
-    public int MovementCancelStartFrame => movementCancelStartFrame;
-    public int MovementCancelEndFrame => movementCancelEndFrame;
+    public ActionStartBehaviorType[] StartBehaviors => startBehaviors ?? Array.Empty<ActionStartBehaviorType>();
     public bool HasScriptedDisplacement => !useRootMotion && Mathf.Abs(displacementDistance) > 0.001f;
-    /// <summary>是否配置了移动取消窗口（起止帧均有效且 end &gt; start）。</summary>
-    public bool HasMovementCancel => movementCancelEndFrame > movementCancelStartFrame;
 
     public float DurationSeconds
     {
@@ -54,30 +55,60 @@ public class ActionDefinition : ScriptableObject
         }
     }
 
-    /// <summary>是否配置了 ComboLink 帧窗口（与下一段招式无关，由运行时按输入解析）。</summary>
-    public bool HasComboLink => comboLinkEndFrame > comboLinkStartFrame;
-
-    public bool IsInComboLinkWindow(float elapsedSeconds)
+    /// <summary>按 priority 降序返回 CancelWindow。</summary>
+    public IReadOnlyList<ResolvedCancelWindow> GetCancelWindowsSorted()
     {
-        if (!HasComboLink || totalFrames <= 0)
-            return false;
+        if (cancelWindows == null || cancelWindows.Length == 0)
+            return Array.Empty<ResolvedCancelWindow>();
 
-        int frame = FrameAt(elapsedSeconds);
-        return frame >= comboLinkStartFrame && frame <= comboLinkEndFrame;
+        var list = new List<ResolvedCancelWindow>(cancelWindows.Length);
+        foreach (CancelWindow window in cancelWindows)
+        {
+            if (window != null)
+                list.Add(window.ToResolved());
+        }
+
+        list.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+        return list;
     }
 
-    /// <summary>ComboLink 窗口内是否允许该输入衔接（M2：Attack / Dodge 均可互切）。</summary>
-    public bool AllowsComboInput(InputSlot slot) =>
-        slot == InputSlot.Attack || slot == InputSlot.Dodge;
+    /// <summary>AnimationEnd 衔接，按 priority 降序。</summary>
+    public IReadOnlyList<ActionTransition> GetTransitionsSorted()
+    {
+        if (transitions == null || transitions.Length == 0)
+            return Array.Empty<ActionTransition>();
 
-    /// <summary>当前播放时刻是否落在移动取消窗口内。</summary>
+        var list = new List<ActionTransition>(transitions);
+        list.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+        return list;
+    }
+
+    public bool IsInCancelWindow(ResolvedCancelWindow window, float elapsedSeconds)
+    {
+        if (totalFrames <= 0)
+            return false;
+
+        return window.IsActiveAtFrame(FrameAt(elapsedSeconds));
+    }
+
+    /// <summary>当前时刻是否落在 CancelType.Movement 窗口内。</summary>
     public bool IsInMovementCancelWindow(float elapsedSeconds)
     {
-        if (!HasMovementCancel || totalFrames <= 0)
+        if (totalFrames <= 0 || cancelWindows == null)
             return false;
 
         int frame = FrameAt(elapsedSeconds);
-        return frame >= movementCancelStartFrame && frame <= movementCancelEndFrame;
+        foreach (CancelWindow window in cancelWindows)
+        {
+            if (window != null
+                && window.CancelType == CancelType.Movement
+                && window.IsActiveAtFrame(frame))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public bool IsInDisplacementWindow(float elapsedSeconds)
@@ -88,8 +119,6 @@ public class ActionDefinition : ScriptableObject
         int frame = FrameAt(elapsedSeconds);
         return frame >= displacementStartFrame && frame <= displacementEndFrame;
     }
-
-    int FrameAt(float elapsedSeconds) => Mathf.FloorToInt(elapsedSeconds * SampleRate);
 
     public float DisplacementSpeed
     {
@@ -106,6 +135,8 @@ public class ActionDefinition : ScriptableObject
         }
     }
 
+    int FrameAt(float elapsedSeconds) => Mathf.FloorToInt(elapsedSeconds * SampleRate);
+
     void OnValidate()
     {
         if (animationClip == null)
@@ -116,15 +147,6 @@ public class ActionDefinition : ScriptableObject
 
         sampleRate = Mathf.Max(1f, sampleRate);
         totalFrames = Mathf.Max(1, Mathf.RoundToInt(animationClip.length * sampleRate));
-
-        if (comboLinkEndFrame > 0 && comboLinkStartFrame <= 0)
-            comboLinkStartFrame = Mathf.Max(1, Mathf.RoundToInt(totalFrames * 0.5f));
-
-        if (comboLinkStartFrame > 0 && comboLinkEndFrame <= 0)
-            comboLinkEndFrame = totalFrames - 1;
-
-        comboLinkStartFrame = Mathf.Clamp(comboLinkStartFrame, 0, Mathf.Max(0, totalFrames - 1));
-        comboLinkEndFrame = Mathf.Clamp(comboLinkEndFrame, comboLinkStartFrame, Mathf.Max(0, totalFrames - 1));
 
         if (Mathf.Abs(displacementDistance) > 0.001f)
         {
@@ -139,18 +161,6 @@ public class ActionDefinition : ScriptableObject
         displacementEndFrame = Mathf.Clamp(
             displacementEndFrame,
             displacementStartFrame,
-            Mathf.Max(0, totalFrames - 1));
-
-        if (movementCancelEndFrame > 0 && movementCancelStartFrame <= 0)
-            movementCancelStartFrame = Mathf.Max(1, Mathf.RoundToInt(totalFrames * 0.5f));
-
-        if (movementCancelStartFrame > 0 && movementCancelEndFrame <= 0)
-            movementCancelEndFrame = totalFrames - 1;
-
-        movementCancelStartFrame = Mathf.Clamp(movementCancelStartFrame, 0, Mathf.Max(0, totalFrames - 1));
-        movementCancelEndFrame = Mathf.Clamp(
-            movementCancelEndFrame,
-            movementCancelStartFrame,
             Mathf.Max(0, totalFrames - 1));
     }
 }
