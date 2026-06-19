@@ -10,24 +10,36 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
-  m_Name: player_skill_2
+  m_Name: player_sp_attack_2
   m_EditorClassIdentifier: 
-  id: player_attack_1
-  displayName: Attack 1
-  animationClip: {fileID: 6032818364749935958, guid: f69185797e0343a498bf1fd1b55904dd, type: 3}
+  id: player_attack_2
+  displayName: Attack 2
+  animationClip: {fileID: -8632713256952390345, guid: 31700544721f3674e93d606ad61dc1be, type: 3}
   sampleRate: 30
-  totalFrames: 116
-  actionType: 2
-  crossFadeDuration: 0
+  totalFrames: 55
+  actionType: 0
+  crossFadeDuration: 0.1
   cancelWindows:
-  - startFrame: 104
-    endFrame: 200
+  - startFrame: 14
+    endFrame: 60
     cancelType: 0
     allowedInputs:
     - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    - {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    - {fileID: -130322003382893763, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     - {fileID: 6990492112164883386, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     priority: 0
-  transitions: []
+  - startFrame: 24
+    endFrame: 60
+    cancelType: 1
+    allowedInputs:
+    - {fileID: 6936757010596083576, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    priority: 1
+  transitions:
+  - condition: 1
+    startFrame: 18
+    targetAction: {fileID: 11400000, guid: 52dad92e8dc377447aac32742f191242, type: 2}
+    priority: 0
   startBehaviors: 
   switchCombatModeTarget: 0
   switchCombatModePolicy: 0

@@ -19,7 +19,14 @@ MonoBehaviour:
   totalFrames: 135
   actionType: 2
   crossFadeDuration: 0
-  cancelWindows: []
+  cancelWindows:
+  - startFrame: 39
+    endFrame: 100
+    cancelType: 0
+    allowedInputs:
+    - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    - {fileID: 6990492112164883386, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    priority: 0
   transitions: []
   startBehaviors: 
   switchCombatModeTarget: 0

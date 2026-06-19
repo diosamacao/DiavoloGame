@@ -11,6 +11,9 @@ public interface ICombatModeController
 
     /// <summary>请求切换战斗模式；若 profile 未配置目标模式则返回 false。</summary>
     bool TrySetMode(CombatModeType mode, CombatModeSwitchPolicy policy = CombatModeSwitchPolicy.Immediate);
+
+    /// <summary>招式已结束且存在挂起模式时立刻应用（OnNextLocomotion）。</summary>
+    void ApplyPendingModeIfReady();
 }
 
 /// <summary>战斗模式运行时：维护当前 mode、出招表与 Locomotion 动画 Profile。</summary>
@@ -97,6 +100,12 @@ public class CombatModeController : MonoBehaviour, ICombatModeController
 
         ApplyMode(mode);
         return true;
+    }
+
+    /// <summary>招式已结束且存在挂起模式时立刻应用（供 PlayerController 在消费预输入前调用）。</summary>
+    public void ApplyPendingModeIfReady()
+    {
+        TryApplyPendingMode();
     }
 
     /// <summary>招式结束后应用挂起的 OnNextLocomotion 切换。</summary>

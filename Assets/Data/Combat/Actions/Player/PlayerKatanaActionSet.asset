@@ -14,6 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   entries:
   - input: {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    comboTree: {fileID: 11400000, guid: 14ec0985296fc6e4189a705579fadf11, type: 2}
+    comboSequence: {fileID: 11400000, guid: 36de4625c610b6a4098e75d68a1e448d, type: 2}
   - input: {fileID: -130322003382893763, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    comboTree: {fileID: 11400000, guid: 3523d0e0c551d9d4fb4085a8c663cb03, type: 2}
+    comboSequence: {fileID: 11400000, guid: 3523d0e0c551d9d4fb4085a8c663cb03, type: 2}
+  - input: {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    comboSequence: {fileID: 11400000, guid: d7f66b4dad546fe4b885e978b0b1f89b, type: 2}
