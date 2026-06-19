@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(CharacterAnimationController))]
@@ -28,6 +29,10 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
     /// <summary>出招表入口，供 PlayerController 注册输入。</summary>
     public IReadOnlyList<ActionEntry> InputEntries =>
         actionSet != null ? actionSet.Entries : Array.Empty<ActionEntry>();
+
+    /// <summary>Entries 中的 InputActionReference，供 InputReader 轮询按下。</summary>
+    public InputActionReference[] GetEntryInputReferences() =>
+        actionSet != null ? actionSet.CollectEntryInputReferences() : Array.Empty<InputActionReference>();
 
     void Awake()
     {
