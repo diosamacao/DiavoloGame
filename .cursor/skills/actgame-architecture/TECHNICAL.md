@@ -13,7 +13,7 @@
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionState` | `Player_KatanaGirl_AnimationProfile.asset` |
 | 第三人称相机 | ✅ 已实现 | `CameraManager` | 场景内 CameraManager 对象 |
 | 动作系统（播放 / 取消 / 连段 / 战斗模式） | ✅ 已实现 | `ActionRuntimeController`、`CombatModeController` | `CombatModeProfile`、`ActionComboSequence` |
-| 攻击 / 战斗判定 | ⬜ 未实现 | — | Hitbox 待建 |
+| 攻击 / 战斗判定 | 🟡 部分实现 | `HitBoxSystem` OBB 重叠 + `OnHit` 回调 | 无伤害、击退、OnHit 回流 |
 | 敌人 AI | ⬜ 未实现 | — | `Enemy/` 占位 |
 | UI | ⬜ 未实现 | — | `UI/` 占位 |
 
@@ -320,17 +320,24 @@ CameraManager (场景对象)
 | 战斗模式 | `CombatModeController` + `CombatModeProfile` |
 | 输入 | `InputReader` → `PlayerInputFrame` → `InputManager` |
 | 位移 | Root Motion 或 `displacementDistance` |
+| 碰撞判定 | `HitBoxSystem` 拉取 `IActionRuntime.CurrentFrame` + `ActionDefinition` Hitbox 帧表 → OBB 检测 → `IHurtboxTarget.OnHit` |
+
+### 与碰撞系统的通信（摘要）
+
+- **模式：** 拉取式单向数据流；`ActionRuntimeController` 不引用 `HitBoxSystem`。
+- **帧同步：** `ActionState.Tick` → `ActionRuntime.Tick`（Update）；`HitBoxSystem.LateUpdate` 采样同帧逻辑帧。
+- **耦合：** 低到中等（`IActionRuntime` + `ActionHitContext` 边界清晰）；详见 [ACTION_SYSTEM.md §8](../../docs/ACTION_SYSTEM.md#8-动作系统与碰撞系统耦合分析)。
 
 ### 与动作编辑器（ACTION_EDITOR）对齐摘要
 
 | 对齐度 | 项 |
 |--------|-----|
 | ✅ | 路线 A（SO + ActionRuntimeController）、Cancel/Transition 语义、数据驱动 |
-| 🟡 | 单招 Schema 约 40%；无 `UpdateFrame`；Transition 条件不全 |
+| 🟡 | 单招 Schema 约 55%；`HitboxKeyframe` 已有；无 `UpdateFrame` API |
 | 🔀 偏差 | `ActionComboSequence` 代替 `ActionGraph`；Cancel 无 `targetAction` |
-| ⬜ | Phase/Hitbox/Event、ActionEditorWindow、GM 热重载 |
+| ⬜ | Phase/Event、伤害结算、OnHit 回流、`ActionEditorWindow`、GM 热重载 |
 
-**编辑器开发前 P0：** `UpdateFrame` 统一 Tick + Phase/Hitbox/Event 类型骨架。
+**编辑器开发前 P0：** `UpdateFrame` 统一 Tick + Phase/Event 类型骨架 + 命中回流通道。
 
 ### 关键资产
 
@@ -342,8 +349,8 @@ CameraManager (场景对象)
 
 ### 已知限制
 
-- 无 Hitbox；连招仅线性；无 `ActionEditorWindow`
-- 详见 ACTION_SYSTEM.md §7.4–7.6
+- Hitbox 仅 OBB 骨架，无伤害 / OnHit 回流；连招仅线性；无 `ActionEditorWindow`
+- 详见 ACTION_SYSTEM.md §7.4–8.5
 
 ---
 
@@ -355,7 +362,7 @@ CameraManager (场景对象)
 
 ### 空模块目录
 
-`Enemy/`、`UI/`、`Editor/` — 仅 `.gitkeep`；`Combat/Actions/` 已有动作运行时，Hitbox 待建
+`Enemy/`、`UI/` — 仅 `.gitkeep`；`Combat/Actions/` 动作运行时 + `Combat/Hitbox/` OBB 判定骨架已建
 
 ---
 
@@ -365,3 +372,4 @@ CameraManager (场景对象)
 |------|------|
 | 2026-06-17 | 初版：移动、输入、状态机、动画、相机、Prefab 文档化 |
 | 2026-06-17 | 动作系统 §7：ComboSequence、CombatMode、ACTION_EDITOR 对齐摘要 |
+| 2026-06-17 | Hitbox 判定骨架、动作↔碰撞通信与耦合分析（ACTION_SYSTEM §8） |

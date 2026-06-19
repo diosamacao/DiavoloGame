@@ -13,7 +13,7 @@
 | [ACTION_EDITOR.md](./ACTION_EDITOR.md) | 动作编辑器愿景、完整数据模型、分期规划 |
 | [TECHNICAL.md](../.cursor/skills/actgame-architecture/TECHNICAL.md) | 全项目功能索引 |
 
-**当前阶段：** Phase A 中后期 — 取消窗 / 收招 / 出招表 / 战斗模式 / 线性连招队列已落地；**不含** Hitbox、Phase、ActionEvent、编辑器 UI。
+**当前阶段：** Phase A 中后期 — 取消窗 / 收招 / 出招表 / 战斗模式 / 线性连招队列已落地；**Hitbox 判定骨架**（OBB 重叠 + 受击回调）已接入；**不含** Phase、ActionEvent、伤害结算、编辑器 UI。
 
 ---
 
@@ -32,10 +32,12 @@
 | `ActionStartBehavior` | 🟡 部分 | `FaceBufferedMoveIntent`、`SwitchCombatMode` |
 | Root Motion 桥接 | ✅ 已实现 | `CharacterRootMotionDriver` + Receiver |
 | `ActionState` + 动画锁定 | ✅ 已实现 | 薄层状态机 |
-| `ActionPhase` / Hitbox / Hurtbox / `ActionEvent` | ⬜ 未实现 | 编辑器 Must Have，运行时待建 |
+| `HitboxKeyframe` + `HitBoxSystem` | 🟡 部分 | `ActionDefinition` 帧表 + OBB 检测；无 Physics |
+| `HurtboxTarget` / `IHurtboxTarget` | 🟡 部分 | 静态注册表 + `OnHit` 回调；现阶段仅测试日志 |
+| `ActionPhase` / `ActionEvent` | ⬜ 未实现 | 编辑器 Must Have，运行时待建 |
 | `ActionGraph` 节点图 | ⬜ 未实现 | 由 `ActionComboSequence` 线性折中 |
-| `UpdateFrame(frameIndex)` 统一 Logic Tick | ⬜ 未实现 | 仍用 `elapsed` + `sampleRate` 换算 |
-| Combat 命中 / 伤害 / `Hit` 状态 | ⬜ 未实现 | — |
+| `UpdateFrame(frameIndex)` 统一 Logic Tick | 🟡 部分 | 已有 `CurrentFrame` 只读属性；无集中 `UpdateFrame` API |
+| Combat 伤害 / `Hit` 状态 / OnHit 回流 | ⬜ 未实现 | 命中不反馈 `ActionRuntime` |
 | `ActionEditorWindow` | ⬜ 未实现 | M5 目标 |
 
 ---
@@ -56,9 +58,12 @@ PlayerController ── InputManager（唯一持有者）
        ├── CombatModeController ── CombatModeProfile
        │         └─ mode → PlayerActionSet → ActionComboSequence
        │
-       ├── ActionRuntimeController
+       ├── ActionRuntimeController（IActionRuntime 只读状态）
        │         ├─ TryStartByInput / CancelWindow / Transition
-       │         └─ ActionDefinition（单招数据）
+       │         └─ ActionDefinition（单招数据 + Hitbox 帧表）
+       │
+       ├── HitBoxSystem（LateUpdate 拉取帧 → OBB 检测）
+       │         └─ HurtboxTargetRegistry → IHurtboxTarget.OnHit
        │
        └── PlayerStateMachine
                  ├─ LocomotionState（Idle/Walk/Run）
@@ -73,7 +78,8 @@ PlayerController ── InputManager（唯一持有者）
 | `InputManager` | 摄入帧、离散缓冲、移动意图、回调注册 |
 | `PlayerController` | 输入路由、移动执行、移动取消、起手切状态 |
 | `CombatModeController` | 战斗模式、出招表切换、Locomotion Profile |
-| `ActionRuntimeController` | 招式播放、Cancel 解析、Transition、位移 |
+| `ActionRuntimeController` | 招式播放、Cancel 解析、Transition、位移；**不调用**碰撞系统 |
+| `HitBoxSystem` | 拉取 `IActionRuntime` 当前帧，读 SO Hitbox，做 OBB 重叠并派发 `ActionHitContext` |
 | `ActionState` / `LocomotionState` | 动画锁与 Locomotion 动画 |
 
 ### 3.3 设计原则（已贯彻）
@@ -97,9 +103,20 @@ PlayerController ── InputManager（唯一持有者）
 | Transitions | `transitions[]` | `condition`, `startFrame`, `targetAction`, `priority` |
 | Start Behaviors | `startBehaviors[]` | 起手副作用 |
 | Combat Mode | `switchCombatModeTarget`, `switchCombatModePolicy` | 配合 `SwitchCombatMode` 行为 |
+| Hitboxes | `hitboxes[]`（`HitboxKeyframe`） | 帧区间内生效的攻击 OBB；由 `HitBoxSystem` 采样 |
 | Movement | `useRootMotion`, `displacementDistance`, 帧窗口 | Root Motion 或脚本位移 |
 
 **帧换算：** `frame = FloorToInt(elapsed * sampleRate)`
+
+### 4.7 Hitbox / Hurtbox（碰撞数据）
+
+| 类型 | 字段 | 说明 |
+|------|------|------|
+| `HitboxKeyframe` | `hitboxId`, `startFrame`, `endFrame`, `localOffset`, `localEulerAngles`, `size` | 挂在攻击者 `attachPoint` 的局部 Box；`GetActiveHitboxesAtFrame` 按帧筛选 |
+| `HurtboxDefinition` | `localOffset`, `localEulerAngles`, `size` | 受击方局部 Box；`HurtboxTarget` Inspector 配置 |
+| `ActionHitContext` | `Action`, `Hitbox`, `Attacker` | 一次命中判定的只读上下文，传给 `IHurtboxTarget.OnHit` |
+
+碰撞几何统一为 `HitboxOrientedBox`（OBB），由 `HitboxMath` 构建与相交检测，**不依赖** Unity Physics。
 
 ### 4.2 CancelWindow
 
@@ -170,6 +187,10 @@ PlayerController.Update（ExecutionOrder -50）
 
 PlayerStateMachine.Update
   → ActionState.Tick → ActionRuntime.Tick
+
+HitBoxSystem.LateUpdate（同帧，在 Tick 之后）
+  → 读 CurrentAction + CurrentFrame
+  → GetActiveHitboxesAtFrame → OBB 相交 → OnHit
 ```
 
 ### 5.2 起手（Locomotion → Action）
@@ -214,6 +235,33 @@ ActionRuntime.Tick:
 - `OnNextLocomotion`：招式中挂起，回 Locomotion 后 `ApplyPendingModeIfReady`。
 - 切换 mode 可换 `PlayerActionSet` 与 `CharacterAnimationProfile`（Locomotion）。
 
+### 5.7 与碰撞系统（Hitbox）的通信
+
+动作执行器**不主动调用**碰撞系统；碰撞系统在 `LateUpdate` **拉取**招式状态与 SO 数据，完成判定后**推送**给受击方。
+
+```
+ActionRuntimeController          HitBoxSystem              受击方
+        │                              │                      │
+        │  IsPlaying / CurrentAction   │                      │
+        │  CurrentFrame (IActionRuntime)│                     │
+        │ ────────────────────────────►│                      │
+        │                              │ GetActiveHitboxesAtFrame
+        │                              │ HitboxMath.Build + Intersects
+        │                              │ ─────────────────────► OnHit(context)
+        │                              │                      │
+        │  （无反向调用）               │                      │
+```
+
+| 环节 | 方向 | 载体 |
+|------|------|------|
+| 帧同步 | 碰撞 → 动作（只读） | `IActionRuntime.CurrentFrame` / `CurrentAction` |
+| 攻击形状 | 碰撞 → 数据（只读） | `ActionDefinition.GetActiveHitboxesAtFrame` |
+| 受击目标发现 | 碰撞内部 | `HurtboxTargetRegistry.ActiveTargets` |
+| 命中通知 | 碰撞 → 受击方 | `IHurtboxTarget.OnHit(in ActionHitContext)` |
+| 防重复命中 | 碰撞内部 | `(hitboxId, targetInstanceId)` 缓存，换招清空 |
+
+**同招单次命中：** 同一 `ActionDefinition` 播放周期内，每个 `(HitboxId, TargetInstanceId)` 对只触发一次 `OnHit`；`TransitionTo` / `Stop` 换招时 `ClearHitCacheIfNeeded` 清空缓存。
+
 ---
 
 ## 6. 使用方式（Editor）
@@ -239,6 +287,14 @@ ActionRuntime.Tick:
 | `ActionRuntimeController` | 依赖 `CombatModeController` 解析出招表 |
 | `InputReader` | `GameInputActions`；离散输入由 Profile 并集自动注入 |
 | `PlayerController` | 自动注册全部 mode 的 Entry |
+| `HitBoxSystem` | 与 `ActionRuntimeController` 同物体；`attachPoint` 拖武器/身体挂点（空则用根 Transform） |
+| 场景受击目标 | 添加 `HurtboxTarget`，配置 `HurtboxDefinition`；`OnEnable` 自动注册到 `HurtboxTargetRegistry` |
+
+### 6.4 配置 Hitbox（单招）
+
+1. 打开 `ActionDefinition` → **Hitboxes** 列表添加 `HitboxKeyframe`（`startFrame` / `endFrame` / 局部 offset / size）。
+2. 使用自定义 Inspector（`ActionDefinitionHitboxEditor`）Scrub 预览帧、在 Scene 视图拖拽 Handles 调形状。
+3. Preview Character 拖入带 `HitBoxSystem` 的 Player Transform，编辑器会复用其 `attachPoint` 对齐预览。
 
 ---
 
@@ -251,7 +307,7 @@ ActionRuntime.Tick:
 | 维度 | 评估 | 说明 |
 |------|------|------|
 | **技术路线** | ✅ 一致 | SO 帧表 + `ActionRuntimeController` + 自研 Editor（路线 A） |
-| **核心单招 Schema** | 🟡 约 40% | 基础字段 + Cancel/Transition 已有；Phase/Hitbox/Event 缺失 |
+| **核心单招 Schema** | 🟡 约 55% | 基础字段 + Cancel/Transition + HitboxKeyframe 已有；Phase/Event 缺失 |
 | **连招编排** | 🟡 有偏差 | 线性 `ActionComboSequence` 代替 `ActionGraph` / Cancel 内 `targetActionId` |
 | **运行时 Tick** | 🟡 有偏差 | 无统一 `UpdateFrame`；编辑器预览需补入口 |
 | **输入与取消语义** | ✅ 基本一致 | Action/Movement 取消、priority、缓冲消费 |
@@ -263,7 +319,7 @@ ActionRuntime.Tick:
 
 | ACTION_EDITOR 概念 | 当前实现 | 对齐度 | 编辑器适配备注 |
 |--------------------|----------|--------|----------------|
-| `ActionDefinition` | `ActionDefinition.cs` | 🟡 | 缺 `tags`, `ActionPhase[]`, `ActionEvent[]`, Hitbox/Hurtbox, `damageWeight` |
+| `ActionDefinition` | `ActionDefinition.cs` | 🟡 | 已有 `HitboxKeyframe[]`；缺 `tags`, `ActionPhase[]`, `ActionEvent[]`, `damageWeight` |
 | `CancelWindow` | `CancelWindow.cs` | 🟡 | 有帧区间/type/priority/inputs；**无 `targetActionId`**，改由 ComboSequence 解析 |
 | `ActionTransition` | `ActionTransition.cs` | 🟡 | 有 `AnimationEnd`；新增 `AtFrame`（编辑器文档未列）；缺 OnHit/OnWhiff/OnBlocked |
 | `ActionGraph` | `ActionComboSequence` | 🔀 偏差 | 线性队列 vs 节点图；编辑器 M7 图编辑器需评估迁移或并存 |
@@ -271,7 +327,8 @@ ActionRuntime.Tick:
 | `ActionRuntimeController` | 已实现 | ✅ | 编辑器预览应共用同一套 Cancel/Transition 解析 |
 | `UpdateFrame(frameIndex)` | 未实现 | ⬜ | **编辑器 Phase C 阻塞项**：预览与 Play Mode 须统一 |
 | `ActionPhase` | 未实现 | ⬜ | 时间轴 Phases 轨道无数据源 |
-| `HitboxKeyframe` / `HurtboxKeyframe` | 未实现 | ⬜ | 时间轴 Hitbox 轨道无数据源 |
+| `HitboxKeyframe` | `HitboxKeyframe.cs` + `HitBoxSystem` | 🟡 | 运行时 OBB 已通；编辑器时间轴轨道与校验待建 |
+| `HurtboxKeyframe`（动画驱动） | `HurtboxDefinition` + `HurtboxTarget` | 🟡 | 静态局部 Box；无逐帧 Hurtbox 轨道 |
 | `ActionEvent` | 未实现 | ⬜ | VFX/SFX/顿帧轨道无数据源 |
 | `ActionEditorWindow` | 未实现 | ⬜ | M5 目标 |
 | GM 热重载 | 未实现 | ⬜ | Phase B 建议提前落地 |
@@ -303,16 +360,16 @@ ActionRuntime.Tick:
 
 | 插件阶段 | 目标 | 当前适配度 | 缺口 |
 |----------|------|------------|------|
-| **Phase A（数据层）** | Schema + Runtime 读 SO | **75%** | Phase/Hitbox/Event 类型未定义；`UpdateFrame` 缺失 |
+| **Phase A（数据层）** | Schema + Runtime 读 SO | **80%** | HitboxKeyframe 已定义；Phase/Event 未定义；`UpdateFrame` API 缺失 |
 | **Phase B（基础 Editor）** | 列表 + Inspector + 热重载 | **55%** | 无 `ActionEditorWindow`；ComboSequence 需独立编辑流；无校验器 |
-| **Phase C（时间轴）** | Frameline 多轨道 + Scrub | **25%** | 无 Phase/Hitbox/Event 数据；无预览 Rig 共用 Tick |
+| **Phase C（时间轴）** | Frameline 多轨道 + Scrub | **35%** | Hitbox 有 Inspector 预览；无 Phase/Event；无统一 `UpdateFrame` |
 | **Phase D（连招图）** | ActionGraph GraphView | **15%** | 仅线性 Sequence；与 Graph 模型不兼容 |
 | **Phase E（运行时调试）** | Play Mode Overlay | **40%** | 有 `CurrentAction`/帧换算基础；无 Overlay / diff |
 
 **优先补全项（编辑器开发前）：**
 
 1. **`UpdateFrame(int frameIndex)`** — `ActionRuntimeController` 统一入口；编辑器 Scrub 与 Play Mode 共用。
-2. **`ActionPhase` / `HitboxKeyframe` / `ActionEvent` 类型** — 先空跑通 Tick，再接入 Combat。
+2. **`ActionPhase` / `ActionEvent` 类型** — Hitbox 骨架已有；补 Phase/Event 与统一 Tick。
 3. **CancelWindow `targetAction` 可选字段** — 与 ComboSequence **二选一**解析，便于编辑器直接填目标招。
 4. **GM 热重载** — 编辑 SO 后刷新 Runtime 缓存，缩短策划迭代。
 5. **数据校验 API** — 未闭合 Hitbox、Cancel 窗重叠、Sequence 断链等（Editor 与 CI 共用）。
@@ -338,13 +395,69 @@ ActionRuntime.Tick:
 
 ---
 
-## 8. 接口摘要
+## 8. 动作系统与碰撞系统：耦合分析
+
+### 8.1 总体结论
+
+**当前两系统之间不属于高耦合。** 采用「执行器发布只读状态 + 碰撞系统拉取采样 + 受击方接口回调」的单向数据流；`ActionRuntimeController` **零引用** `HitBoxSystem` / `IHurtboxTarget`，职责边界清晰。
+
+| 维度 | 评估 | 说明 |
+|------|------|------|
+| 调用方向 | ✅ 单向 | 碰撞 → 动作（只读）；动作不回调碰撞 |
+| 接口边界 | ✅ 良好 | `IActionRuntime` 暴露帧状态；`IHurtboxTarget` 消费命中 |
+| 数据共享 | 🟡 可接受 | `ActionDefinition` / `HitboxKeyframe` 为共享 SO 类型（数据驱动，非运行时环依赖） |
+| 组件装配 | 🟡 中等 | `HitBoxSystem` `[RequireComponent(ActionRuntimeController)]`，同 GameObject 组合根 |
+| 帧同步 | 🟡 隐式约定 | 依赖 `Update` Tick + `LateUpdate` 顺序，非显式事件 |
+| 战斗反馈闭环 | ⬜ 未建 | 命中不回流 `ActionRuntime`，`OnHitConfirm` Transition 无法实现 |
+
+### 8.2 解耦做得好的地方
+
+1. **动作执行器无感知** — `ActionRuntimeController` 只推进 `elapsed`、Cancel、Transition；不知道 Hitbox 是否存在。
+2. **只读契约** — `HitBoxSystem` 通过 `IActionRuntime` 读 `IsPlaying` / `CurrentAction` / `CurrentFrame`，不调用 `Tick` / `Stop`。
+3. **受击侧可替换** — 攻击逻辑不硬编码 `HurtboxTarget`；任意 `IHurtboxTarget` 实现（敌人、可破坏物）均可注册。
+4. **纯函数几何层** — `HitboxMath` / `HitboxOrientedBox` 与 MonoBehaviour 生命周期无关，可单测。
+5. **命中上下文值类型** — `ActionHitContext` 为 `readonly struct`，无共享可变状态。
+
+### 8.3 现存耦合点与风险
+
+| 耦合点 | 严重程度 | 影响 | 缓解方向 |
+|--------|----------|------|----------|
+| `HitBoxSystem` 序列化 `ActionRuntimeController` 具体类型 | 低 | 理论上可换实现，但绑死同物体组件 | 可改为 `IActionRuntime` 注入或 `GetComponent<IActionRuntime>()` |
+| `ActionHitContext` 携带 `ActionDefinition` + `HitboxKeyframe` | 低 | 受击逻辑与招式 SO 类型耦合 | 后续可增 `IHitSnapshot`（仅 id、伤害倍率、击退向量） |
+| `HurtboxTargetRegistry` 静态全局列表 | 中 | 多场景、并行测试、域重载需手动清理 | 改为 `CombatWorld` / 场景级 Registry |
+| `LateUpdate` 轮询 + 帧序约定 | 中 | 改 Tick 时机或引入固定 Timestep 时易不同步 | 统一 `CombatTick` 或 `UpdateFrame` 由单调度器驱动 |
+| 命中结果不回流动作系统 | 中（功能缺口） | `ActionTransition.OnHit` / 连段确认招无法落地 | 增加 `IHitNotifier` 或 Runtime 事件，由 Transition 条件订阅 |
+| Editor 预览依赖 `HitBoxSystem.attachPoint` | 低 | 仅 Editor 层对 Runtime 组件的引用 | 可抽 `IHitboxAnchorProvider` |
+
+### 8.4 与理想分层的对照
+
+```
+[数据层]  ActionDefinition.hitboxes[]     ← SO，两系统共读，合理
+[执行层]  ActionRuntimeController          ← 不依赖碰撞
+[判定层]  HitBoxSystem + HitboxMath        ← 依赖 IActionRuntime + SO，不依赖 PlayerController
+[受击层]  IHurtboxTarget 实现              ← 依赖 ActionHitContext，不依赖 ActionRuntime
+```
+
+当前分层符合「执行 / 判定 / 受击」三分，**没有出现**「动作系统内嵌 Physics.Overlap」或「碰撞系统直接 `TransitionTo`」等双向强耦合反模式。
+
+### 8.5 演进建议（保持低耦合前提下）
+
+1. **P0 — 命中回流通道** — `HitBoxSystem` 命中后通知 `IActionHitReceiver`（由 `ActionRuntimeController` 可选实现），支撑 `OnHitConfirm` Transition，仍避免碰撞系统直接改状态机。
+2. **P1 — 统一 Combat Tick** — 将帧推进与 Hitbox 采样纳入同一 `UpdateFrame(frame)`，消除 `LateUpdate` 隐式顺序。
+3. **P2 — 场景级 Registry** — `HurtboxTargetRegistry` 改为按战斗场景实例化，降低全局静态耦合。
+4. **P3 — 受击上下文瘦身** — 伤害结算层只读 `HitSnapshot`，不直接持有完整 `ActionDefinition` 引用。
+
+---
+
+## 9. 接口摘要
 
 ### IActionRuntime
 
 ```csharp
 bool IsPlaying { get; }
 ActionDefinition CurrentAction { get; }
+float ElapsedSeconds { get; }
+int CurrentFrame { get; }
 bool CanCancelByMovement { get; }
 bool TryStartByInput(string inputId);
 bool TryStart(ActionDefinition action);
@@ -352,6 +465,14 @@ void BindComboInput(IActionComboInput comboInput);
 void BindActionStartContext(IActionStartContext startContext);
 void Tick(float deltaTime);
 void Stop();
+```
+
+### IHurtboxTarget
+
+```csharp
+int TargetInstanceId { get; }
+HitboxOrientedBox GetWorldHurtbox();
+void OnHit(in ActionHitContext context);
 ```
 
 ### IActionComboInput
@@ -372,19 +493,21 @@ event Action<CombatModeType, CombatModeType> ModeChanged;
 
 ---
 
-## 9. 已知限制
+## 10. 已知限制
 
 | 限制 | 说明 |
 |------|------|
-| 无战斗判定 | Hitbox / 伤害 / 受击未接入 |
+| 碰撞仅 OBB 骨架 | 有重叠检测与 `OnHit`；无伤害、击退、无敌帧、`Hit` 状态 |
+| 命中不回流 | `ActionRuntime` 不知晓命中，无法做 OnHitConfirm 收招 |
+| 受击框静态 | `HurtboxDefinition` 无逐帧动画驱动 |
 | 连招仅线性 | 无分支、挥空、多输入树 |
 | Transition 条件少 | 无 OnHitConfirm / OnWhiff |
-| 无统一 Logic Tick | 编辑器预览parity 风险 |
-| 敌人未接入 | 执行器可复用，输入源需替换 |
+| 无统一 Logic Tick | 编辑器预览与 Play Mode 帧 parity 风险 |
+| 敌人未接入 | 执行器与 `HitBoxSystem` 可复用，输入源需替换 |
 
 ---
 
-## 10. 相关文件
+## 11. 相关文件
 
 ### 脚本
 
@@ -396,6 +519,12 @@ Assets/Scripts/Combat/
   Actions/ActionComboSequence.cs, PlayerActionSet.cs
   Actions/ActionStartBehaviorType.cs, IActionStartContext.cs
   CombatModeController.cs
+  Hitbox/HitBoxSystem.cs, HitboxKeyframe.cs, HitboxMath.cs
+  Hitbox/HurtboxTarget.cs, HurtboxDefinition.cs, IHurtboxTarget.cs
+  Hitbox/ActionHitContext.cs, HitboxGizmoDrawing.cs
+
+Assets/Scripts/Editor/Combat/
+  ActionDefinitionHitboxEditor.cs, HitboxSceneDrawing.cs
 
 Assets/Scripts/Input/
   InputManager.cs, InputReader.cs, PlayerInputFrame.cs
@@ -420,9 +549,10 @@ Assets/Data/Combat/Actions/Player/
 
 ---
 
-## 11. 变更日志
+## 12. 变更日志
 
 | 日期 | 变更 |
 |------|------|
 | 2026-06-17 | 初版与多轮迭代（InputManager、Root Motion、CancelWindow） |
 | 2026-06-17 | **全面重写**：`ActionComboSequence`、`CombatModeProfile`、Transition `AtFrame`、对齐 ACTION_EDITOR 分析、编辑器适配度评估 |
+| 2026-06-17 | **§5.7 / §8**：动作系统与碰撞系统通信方式、耦合分析；同步 Hitbox 实现状态 |
