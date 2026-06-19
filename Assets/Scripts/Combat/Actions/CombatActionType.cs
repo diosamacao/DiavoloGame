@@ -6,4 +6,5 @@ public enum CombatActionType
     Hit = 3,
     Death = 4,
     Locomotion = 5,
+    SwitchCombatMode = 6,
 }
