@@ -6,6 +6,7 @@ using UnityEngine;
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(InputReader))]
 [RequireComponent(typeof(PlayerStateMachine))]
+[RequireComponent(typeof(CombatModeController))]
 [RequireComponent(typeof(ActionRuntimeController))]
 public class PlayerController : MonoBehaviour, IActionStartContext
 {
@@ -23,10 +24,12 @@ public class PlayerController : MonoBehaviour, IActionStartContext
     [SerializeField] Transform cameraTransform;
 
     readonly InputManager _inputManager = new();
+    readonly HashSet<string> _registeredInputIds = new();
 
     CharacterController controller;
     InputReader inputReader;
     PlayerStateMachine stateMachine;
+    CombatModeController combatMode;
     ActionRuntimeController actionRuntime;
 
     Vector3 velocity;
@@ -38,12 +41,14 @@ public class PlayerController : MonoBehaviour, IActionStartContext
     public float MoveInputMagnitude => moveInputMagnitude;
     public float RunThreshold => runThreshold;
     public bool IsGrounded => controller != null && controller.isGrounded;
+    public ICombatModeController CombatMode => combatMode;
 
     void Awake()
     {
         controller = GetComponent<CharacterController>();
         inputReader = GetComponent<InputReader>();
         stateMachine = GetComponent<PlayerStateMachine>();
+        combatMode = GetComponent<CombatModeController>();
         actionRuntime = GetComponent<ActionRuntimeController>();
 
         if (cameraTransform == null && Camera.main != null)
@@ -52,28 +57,52 @@ public class PlayerController : MonoBehaviour, IActionStartContext
         inputReader.ConfigureDiscreteInputs(actionRuntime.GetEntryInputReferences());
         actionRuntime.BindComboInput(new InputManagerComboInput(_inputManager));
         actionRuntime.BindActionStartContext(this);
+        combatMode.ModeChanged += OnCombatModeChanged;
         RegisterInputHandlers();
     }
 
-    /// <summary>按 ActionRuntimeController 绑定的出招表注册离散输入。</summary>
+    void OnDestroy()
+    {
+        if (combatMode != null)
+            combatMode.ModeChanged -= OnCombatModeChanged;
+    }
+
+    /// <summary>注册全部战斗模式出招表中的离散输入（并集，按 inputId 去重）。</summary>
     void RegisterInputHandlers()
     {
-        if (actionRuntime.InputEntries.Count == 0)
+        _registeredInputIds.Clear();
+
+        if (combatMode.Profile == null)
         {
-            Debug.LogWarning(
-                "PlayerController: PlayerActionSet.entries 为空，攻击/闪避输入未注册。请在出招表配置 Entries。",
-                this);
+            Debug.LogWarning("PlayerController: CombatModeProfile 未绑定，离散输入未注册。", this);
             return;
         }
 
-        foreach (ActionEntry entry in actionRuntime.InputEntries)
+        bool hasAnyEntry = false;
+        foreach (ActionEntry entry in combatMode.Profile.EnumerateAllActionEntries())
         {
             if (!entry.IsValid)
                 continue;
 
+            hasAnyEntry = true;
             string inputId = entry.InputId;
+            if (!_registeredInputIds.Add(inputId))
+                continue;
+
             _inputManager.RegisterPressed(inputId, () => HandleDiscreteInput(inputId));
         }
+
+        if (!hasAnyEntry)
+        {
+            Debug.LogWarning(
+                "PlayerController: CombatModeProfile 中无有效 ActionEntry，攻击/闪避输入未注册。请配置各模式的出招表。",
+                this);
+        }
+    }
+
+    void OnCombatModeChanged(CombatModeType previous, CombatModeType current)
+    {
+        ClearAllActionBuffers();
     }
 
     void Update()
@@ -104,7 +133,10 @@ public class PlayerController : MonoBehaviour, IActionStartContext
 
     void ClearAllActionBuffers()
     {
-        foreach (ActionEntry entry in actionRuntime.InputEntries)
+        if (combatMode.Profile == null)
+            return;
+
+        foreach (ActionEntry entry in combatMode.Profile.EnumerateAllActionEntries())
         {
             if (entry.IsValid)
                 _inputManager.ClearBuffer(entry.InputId);

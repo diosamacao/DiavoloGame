@@ -7,11 +7,12 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(CharacterAnimationController))]
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(CharacterRootMotionDriver))]
-/// <summary>通用招式播放器：CancelWindow 消费输入衔接，ActionTransition 处理收招。</summary>
+[RequireComponent(typeof(CombatModeController))]
+/// <summary>通用招式播放器：CancelWindow 消费输入衔接，ActionTransition 处理收招；出招表由 CombatModeController 提供。</summary>
 public class ActionRuntimeController : MonoBehaviour, IActionRuntime
 {
     [SerializeField] CharacterAnimationController animationController = null!;
-    [SerializeField] PlayerActionSet actionSet = null!;
+    [SerializeField] CombatModeController combatMode = null!;
 
     CharacterController _motor = null!;
     CharacterRootMotionDriver _rootMotion = null!;
@@ -26,18 +27,29 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         _isPlaying && _current != null && _current.IsInMovementCancelWindow(_elapsed);
     public ActionDefinition CurrentAction => _current;
 
-    /// <summary>出招表入口，供 PlayerController 注册输入。</summary>
+    /// <summary>当前战斗模式绑定的出招表 Entries。</summary>
     public IReadOnlyList<ActionEntry> InputEntries =>
-        actionSet != null ? actionSet.Entries : Array.Empty<ActionEntry>();
+        ActiveActionSet != null ? ActiveActionSet.Entries : Array.Empty<ActionEntry>();
 
-    /// <summary>Entries 中的 InputActionReference，供 InputReader 轮询按下。</summary>
-    public InputActionReference[] GetEntryInputReferences() =>
-        actionSet != null ? actionSet.CollectEntryInputReferences() : Array.Empty<InputActionReference>();
+    PlayerActionSet ActiveActionSet =>
+        combatMode != null ? combatMode.ActiveActionSet : null;
+
+    /// <summary>全部模式出招表的离散输入并集，供 InputReader 轮询。</summary>
+    public InputActionReference[] GetEntryInputReferences()
+    {
+        if (combatMode != null && combatMode.Profile != null)
+            return combatMode.Profile.CollectAllInputReferences();
+
+        return Array.Empty<InputActionReference>();
+    }
 
     void Awake()
     {
         if (animationController == null)
             animationController = GetComponent<CharacterAnimationController>();
+
+        if (combatMode == null)
+            combatMode = GetComponent<CombatModeController>();
 
         _motor = GetComponent<CharacterController>();
         _rootMotion = GetComponent<CharacterRootMotionDriver>();
@@ -49,6 +61,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
 
     public bool TryStartByInput(string inputId)
     {
+        PlayerActionSet actionSet = ActiveActionSet;
         if (_isPlaying || actionSet == null || !actionSet.TryGetStartAction(inputId, out ActionDefinition startAction))
             return false;
 
@@ -91,6 +104,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
     /// <summary>按 priority 扫描 CancelWindow，首个匹配的 Action 取消生效。</summary>
     bool TryResolveCancelWindows()
     {
+        PlayerActionSet actionSet = ActiveActionSet;
         if (_comboInput == null || _current == null || actionSet == null)
             return false;
 
@@ -108,7 +122,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
             if (window.TargetAction == null || window.TargetAction.AnimationClip == null)
                 return false;
 
-            ClearComboBuffersExcept(matchedInputId);
+            ClearComboBuffersExcept(matchedInputId, actionSet);
             TransitionTo(window.TargetAction);
             return true;
         }
@@ -133,7 +147,8 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         return false;
     }
 
-    void ClearComboBuffersExcept(string keepInputId)
+    /// <summary>清除当前出招表中除 keepInputId 外的离散缓冲。</summary>
+    void ClearComboBuffersExcept(string keepInputId, PlayerActionSet actionSet)
     {
         if (_comboInput == null || actionSet == null)
             return;
@@ -181,15 +196,21 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
 
         ActionStartBehaviorType[] behaviors = action.StartBehaviors;
         foreach (ActionStartBehaviorType behavior in behaviors)
-            ExecuteStartBehavior(behavior);
+            ExecuteStartBehavior(action, behavior);
     }
 
-    void ExecuteStartBehavior(ActionStartBehaviorType behavior)
+    void ExecuteStartBehavior(ActionDefinition action, ActionStartBehaviorType behavior)
     {
         switch (behavior)
         {
             case ActionStartBehaviorType.FaceBufferedMoveIntent:
                 _startContext.FaceBufferedMoveIntent();
+                break;
+            case ActionStartBehaviorType.SwitchCombatMode:
+                if (combatMode != null)
+                {
+                    combatMode.TrySetMode(action.SwitchCombatModeTarget, action.SwitchCombatModePolicy);
+                }
                 break;
         }
     }
