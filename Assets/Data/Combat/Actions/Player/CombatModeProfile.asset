@@ -14,5 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CombatModeProfile
   defaultMode: 0
   entries:
-  - mode: 1
+  - mode: 0
     actionSet: {fileID: 11400000, guid: b9f9878fb93b0db4ab46ec3fe6588d26, type: 2}
+    locomotionProfile: {fileID: 11400000, guid: d5e6f7a8901234567890abcdef050607, type: 2}
+  - mode: 1
+    actionSet: {fileID: 11400000, guid: ff82eb68d51b2e54babb15d3b8326ead, type: 2}
+    locomotionProfile: {fileID: 11400000, guid: d9721f17c51cacf4db4416358e9e51c0, type: 2}

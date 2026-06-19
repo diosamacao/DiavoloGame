@@ -92,20 +92,23 @@ public class PlayerActionSet : ScriptableObject
     }
 }
 
-/// <summary>单个战斗模式与出招表的绑定项。</summary>
+/// <summary>单个战斗模式与出招表、Locomotion 动画配置的绑定项。</summary>
 [Serializable]
 public struct CombatModeEntry
 {
     [SerializeField] CombatModeType mode;
     [SerializeField] PlayerActionSet actionSet;
+    [Tooltip("该模式的 Idle/Walk/Run 映射；为空则切换到此 mode 时不改 Locomotion Profile。")]
+    [SerializeField] CharacterAnimationProfile locomotionProfile;
 
     public CombatModeType Mode => mode;
     public PlayerActionSet ActionSet => actionSet;
+    public CharacterAnimationProfile LocomotionProfile => locomotionProfile;
 
     public bool IsValid => actionSet != null;
 }
 
-/// <summary>战斗模式配置：mode → PlayerActionSet，供 CombatModeController 解析当前出招表。</summary>
+/// <summary>战斗模式配置：mode → PlayerActionSet / Locomotion Profile，供 CombatModeController 解析。</summary>
 [CreateAssetMenu(fileName = "CombatModeProfile", menuName = "ACT/Combat/Combat Mode Profile")]
 public class CombatModeProfile : ScriptableObject
 {
@@ -130,6 +133,25 @@ public class CombatModeProfile : ScriptableObject
         }
 
         actionSet = null;
+        return false;
+    }
+
+    /// <summary>查找指定模式的 Locomotion 动画 Profile；条目存在但 profile 为空时返回 false。</summary>
+    public bool TryGetLocomotionProfile(CombatModeType mode, out CharacterAnimationProfile locomotionProfile)
+    {
+        if (entries != null)
+        {
+            foreach (CombatModeEntry entry in entries)
+            {
+                if (entry.Mode != mode || !entry.IsValid)
+                    continue;
+
+                locomotionProfile = entry.LocomotionProfile;
+                return locomotionProfile != null;
+            }
+        }
+
+        locomotionProfile = null;
         return false;
     }
 

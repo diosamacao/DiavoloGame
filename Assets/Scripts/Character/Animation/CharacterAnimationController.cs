@@ -22,6 +22,9 @@ public class CharacterAnimationController : MonoBehaviour
 
     public void SetProfile(CharacterAnimationProfile animationProfile) => profile = animationProfile;
 
+    /// <summary>切换 Locomotion Profile 后调用，强制下一帧按新映射重播 AnimationKey。</summary>
+    public void ResetPlaybackState() => _currentKey = null;
+
     public void SetLocked(bool locked) => _locked = locked;
 
     public void Play(AnimationKey key, float? fadeDuration = null)
@@ -58,6 +61,4 @@ public class CharacterAnimationController : MonoBehaviour
         AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(layerIndex);
         return state.IsName(clip.name) && state.normalizedTime >= 1f;
     }
-
-    public void ResetPlaybackState() => _currentKey = null;
 }

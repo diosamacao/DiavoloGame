@@ -13,14 +13,16 @@ public interface ICombatModeController
     bool TrySetMode(CombatModeType mode, CombatModeSwitchPolicy policy = CombatModeSwitchPolicy.Immediate);
 }
 
-/// <summary>战斗模式运行时：维护当前 mode 与对应 PlayerActionSet，供 ActionRuntime 与输入路由查询。</summary>
+/// <summary>战斗模式运行时：维护当前 mode、出招表与 Locomotion 动画 Profile。</summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(ActionRuntimeController))]
+[RequireComponent(typeof(CharacterAnimationController))]
 public class CombatModeController : MonoBehaviour, ICombatModeController
 {
     [SerializeField] CombatModeProfile profile = null!;
 
     ActionRuntimeController _actionRuntime = null!;
+    CharacterAnimationController _animation = null!;
     CombatModeType _currentMode;
     bool _hasPendingMode;
     CombatModeType _pendingMode;
@@ -46,6 +48,7 @@ public class CombatModeController : MonoBehaviour, ICombatModeController
     void Awake()
     {
         _actionRuntime = GetComponent<ActionRuntimeController>();
+        _animation = GetComponent<CharacterAnimationController>();
 
         if (profile == null)
         {
@@ -62,7 +65,10 @@ public class CombatModeController : MonoBehaviour, ICombatModeController
                 $"CombatModeController: defaultMode={profile.DefaultMode} 未在 profile 中配置出招表。",
                 this);
             enabled = false;
+            return;
         }
+
+        ApplyLocomotionForMode(_currentMode);
     }
 
     void Update()
@@ -110,6 +116,22 @@ public class CombatModeController : MonoBehaviour, ICombatModeController
 
         CombatModeType previous = _currentMode;
         _currentMode = mode;
+        ApplyLocomotionForMode(mode);
         ModeChanged?.Invoke(previous, mode);
     }
+
+    /// <summary>按 mode 切换 Locomotion Profile；未配置 profile 时保持当前动画映射不变。</summary>
+    void ApplyLocomotionForMode(CombatModeType mode)
+    {
+        if (_animation == null || profile == null)
+            return;
+
+        if (!profile.TryGetLocomotionProfile(mode, out CharacterAnimationProfile locomotionProfile))
+            return;
+
+        _animation.SetProfile(locomotionProfile);
+        // 清除 Key 缓存，否则同 Idle/Walk/Run 不会 CrossFade 到新 StateName
+        _animation.ResetPlaybackState();
+    }
 }
+

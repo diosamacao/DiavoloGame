@@ -42,7 +42,7 @@ MonoBehaviour:
     targetAction: {fileID: 0}
     priority: 0
   transitions: []
-  startBehaviors: 00000000
+  startBehaviors: 01000000
   switchCombatModeTarget: 1
   switchCombatModePolicy: 0
   useRootMotion: 0
