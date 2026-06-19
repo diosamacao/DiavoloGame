@@ -23,7 +23,7 @@
 ```
 ACTGame Unity 项目约束（最高优先级，与 .cursor/rules/ 一致）：
 
-【资产】不得创建/修改/删除 Assets/Art/**、Assets/Data/**、Assets/Prefabs/**、任意 .asset / .prefab / .meta / .inputactions。只改 Assets/Scripts/** 的 C#。需要动资产时只输出 Unity Editor 操作步骤。
+【资产】不得创建/修改/删除 Assets/Art/**（Shader 源码除外）、Assets/Data/**、Assets/Prefabs/**、任意 .asset / .prefab / .meta / .inputactions、.mat 材质。只改 Assets/Scripts/** 的 C#；**允许**创建/编写 Shader 源码（.shader / .shadergraph / .hlsl / .cginc 等，如 Assets/Shaders/** 或 Assets/Art/**/Shaders/**）。材质绑 Shader、Prefab 引用仍输出 Unity Editor 操作步骤。
 
 【代码收尾】每次创建或修改代码后，向用户表示「已完成」前必须：
 1. 为改动的类、public/protected 成员、非 obvious 逻辑补充注释；
