@@ -12,7 +12,7 @@
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionState` | `Player_KatanaGirl_AnimationProfile.asset` |
 | 第三人称相机 | ✅ 已实现 | `CameraManager` | 场景内 CameraManager 对象 |
-| 动作系统（播放 / 取消 / 连段） | ✅ 已实现 | `ActionRuntimeController`、`PlayerController` | `PlayerActionSet`、`ActionDefinition` |
+| 动作系统（播放 / 取消 / 连段 / 战斗模式） | ✅ 已实现 | `ActionRuntimeController`、`CombatModeController` | `CombatModeProfile`、`ActionComboSequence` |
 | 攻击 / 战斗判定 | ⬜ 未实现 | — | Hitbox 待建 |
 | 敌人 AI | ⬜ 未实现 | — | `Enemy/` 占位 |
 | UI | ⬜ 未实现 | — | `UI/` 占位 |
@@ -303,35 +303,47 @@ CameraManager (场景对象)
 
 ## 7. 动作系统
 
-> 完整说明见 [docs/ACTION_SYSTEM.md](../../docs/ACTION_SYSTEM.md)。
+> 完整说明与 **ACTION_EDITOR 对齐分析** 见 [docs/ACTION_SYSTEM.md](../../docs/ACTION_SYSTEM.md) §7。
 
 ### 功能说明
 
-玩家通过出招表起手攻击/闪避；招式播放中由 `CancelWindow` 衔接连段或移动取消；播完由 `ActionTransition` 或自然结束回到 Locomotion。输入经 `InputManager` 缓冲，由 `ActionRuntimeController` 在有效帧窗口消费。
+多战斗模式（`CombatModeProfile`）下，玩家通过出招表 + `ActionComboSequence` 起手攻击/闪避；招内 `CancelWindow` 消费输入缓冲并沿队列进位；`ActionTransition` 自动收招；支持移动取消与战斗模式切换。
 
 ### 实现方案
 
 | 项 | 方案 |
 |----|------|
-| 起手 | `PlayerActionSet` + `TryStartByInput(inputId)` |
-| 连段 | `CancelWindow`（`CancelType.Action`）+ `InputManager` 缓冲 |
-| 移动取消 | `CancelType.Movement` + `PlayerController.TryCancelActionByMovement` |
-| 收招 | `ActionTransition(AnimationEnd)` 或 `Stop` |
-| 输入 | `InputReader` → `PlayerInputFrame` → `InputManager`；仅 `PlayerController` 注册回调 |
-| 位移 | Root Motion（`CharacterRootMotionDriver`）或 `displacementDistance` 脚本推进 |
+| 起手 | `PlayerActionSet` Entry → `ActionComboSequence.RootAction` |
+| 连段 | `CancelWindow(Action)` + `TryResolveNext` 队列进位 |
+| 移动取消 | `CancelWindow(Movement)` + `PlayerController` |
+| 收招 | `ActionTransition`（`AnimationEnd` / `AtFrame`） |
+| 战斗模式 | `CombatModeController` + `CombatModeProfile` |
+| 输入 | `InputReader` → `PlayerInputFrame` → `InputManager` |
+| 位移 | Root Motion 或 `displacementDistance` |
+
+### 与动作编辑器（ACTION_EDITOR）对齐摘要
+
+| 对齐度 | 项 |
+|--------|-----|
+| ✅ | 路线 A（SO + ActionRuntimeController）、Cancel/Transition 语义、数据驱动 |
+| 🟡 | 单招 Schema 约 40%；无 `UpdateFrame`；Transition 条件不全 |
+| 🔀 偏差 | `ActionComboSequence` 代替 `ActionGraph`；Cancel 无 `targetAction` |
+| ⬜ | Phase/Hitbox/Event、ActionEditorWindow、GM 热重载 |
+
+**编辑器开发前 P0：** `UpdateFrame` 统一 Tick + Phase/Hitbox/Event 类型骨架。
 
 ### 关键资产
 
 | 路径 | 说明 |
 |------|------|
-| `Assets/Data/Combat/Actions/Player/PlayerActionSet.asset` | 离散输入 → 起手招 |
-| `Assets/Data/Combat/Actions/Player/player_attack_*.asset` | 招式 + CancelWindow |
+| `Assets/Data/Combat/Actions/Player/` | `ActionDefinition`、`ActionComboSequence`、`PlayerActionSet` |
+| `CombatModeProfile` | 模式 → 出招表 / Locomotion Profile |
 | `Assets/Prefabs/Player/Player_KatanaGirl.prefab` | 组件挂载 |
 
 ### 已知限制
 
-- 无 Hitbox / 伤害；`ActionTransition` 仅 `AnimationEnd`
-- 部分 SO 资产可能仍含已废弃字段，需在 Editor 迁移为 `cancelWindows` / `entries`
+- 无 Hitbox；连招仅线性；无 `ActionEditorWindow`
+- 详见 ACTION_SYSTEM.md §7.4–7.6
 
 ---
 
@@ -352,4 +364,4 @@ CameraManager (场景对象)
 | 日期 | 变更 |
 |------|------|
 | 2026-06-17 | 初版：移动、输入、状态机、动画、相机、Prefab 文档化 |
-| 2026-06-17 | 动作系统索引更新为已实现；新增 §7 摘要，指向 ACTION_SYSTEM.md |
+| 2026-06-17 | 动作系统 §7：ComboSequence、CombatMode、ACTION_EDITOR 对齐摘要 |
