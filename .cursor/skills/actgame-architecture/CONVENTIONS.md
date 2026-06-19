@@ -62,7 +62,9 @@ public class MyBehaviour : MonoBehaviour
 - 使用 Input System + `.inputactions` 资产；Action Map 命名 `Player`
 - **采集**：`InputReader` 实现 `IPlayerInputSource`，输出 `PlayerInputFrame`
 - **中枢**：`InputManager` 仅由 `PlayerController` 持有；`IngestFrame` + `RegisterPressed(string inputId, Action)`
-- **离散 id**：与 Input System Action **名**一致（如 `Attack`），由 `InputBindingUtils` 解析；出招表 `PlayerActionSet.entries` 配置起手
+- **离散 id**：Input System Action **名**；出招表 `ActionEntry` → `ActionComboSequence`
+- **连招**：Cancel 窗只配帧/输入；下一招由 `ActionComboSequence.TryResolveNext` 进位（非 Cancel 内 targetAction）
+- **战斗模式**：`CombatModeProfile` + `CombatModeController`；与 `PlayerActionSet` 解耦
 - **缓冲**：招式中 `Buffer(inputId)`；`ActionRuntimeController` 经 `IActionComboInput` 在 `CancelWindow` 内消费
 - 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `PlayerController`）
 
