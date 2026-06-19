@@ -8,6 +8,7 @@ using UnityEngine;
 [RequireComponent(typeof(PlayerStateMachine))]
 [RequireComponent(typeof(CombatModeController))]
 [RequireComponent(typeof(ActionRuntimeController))]
+[RequireComponent(typeof(CombatTargetLock))]
 public class PlayerController : MonoBehaviour, IActionStartContext
 {
     [Header("Movement")]
@@ -31,6 +32,7 @@ public class PlayerController : MonoBehaviour, IActionStartContext
     PlayerStateMachine stateMachine;
     CombatModeController combatMode;
     ActionRuntimeController actionRuntime;
+    CombatTargetLock targetLock;
 
     Vector3 velocity;
     float rotationVelocity;
@@ -50,6 +52,7 @@ public class PlayerController : MonoBehaviour, IActionStartContext
         stateMachine = GetComponent<PlayerStateMachine>();
         combatMode = GetComponent<CombatModeController>();
         actionRuntime = GetComponent<ActionRuntimeController>();
+        targetLock = GetComponent<CombatTargetLock>();
 
         if (cameraTransform == null && Camera.main != null)
             cameraTransform = Camera.main.transform;
@@ -112,6 +115,7 @@ public class PlayerController : MonoBehaviour, IActionStartContext
         bool inAction = stateMachine.CurrentStateType == CharacterStateType.Action;
         if (_wasInAction && !inAction)
         {
+            targetLock.ClearLock();
             // 先应用挂起的 mode（OnNextLocomotion），再消费 Switch 期间的预输入
             CombatMode.ApplyPendingModeIfReady();
             if (!TryStartFromBufferedInputs())
@@ -223,26 +227,71 @@ public class PlayerController : MonoBehaviour, IActionStartContext
         else
         {
             moveInputMagnitude = 0f;
+            targetLock.Tick(actionRuntime);
             TryApplyActionRotation();
         }
     }
 
-    /// <summary>招式旋转修正窗口内，按当前移动输入平滑转向（不位移）。</summary>
+    /// <summary>RotationWindow 内解析旋转方向：索敌默认，仅反向输入（Dot&lt;0）才改用输入方向。</summary>
     void TryApplyActionRotation()
     {
-        if (!actionRuntime.CanRotateByInput || !_inputManager.HasMoveIntent)
+        if (!TryResolveActionRotationDirection(out Vector3 direction, out float smoothTime))
             return;
+
+        transform.rotation = GetSmoothedRotation(direction, smoothTime);
+    }
+
+    /// <summary>RotationWindow 内解析最终转向方向与平滑时间。</summary>
+    bool TryResolveActionRotationDirection(out Vector3 direction, out float smoothTime)
+    {
+        direction = Vector3.zero;
+        smoothTime = rotationSmoothTime;
+
+        if (!actionRuntime.CanRotateByInput)
+            return false;
 
         ActionDefinition action = actionRuntime.CurrentAction;
         if (action == null || !action.HasRotationWindow)
-            return;
+            return false;
 
-        Vector3 direction = ResolveWorldMoveDirection(_inputManager.MoveIntent);
-        if (direction.sqrMagnitude < 0.001f)
-            return;
+        float windowSmoothTime = action.RotationWindow.ResolveSmoothTime(rotationSmoothTime);
+        float lockSmoothTime = action.HasTargetLock
+            ? action.TargetLockSettings.ResolveLockSmoothTime(windowSmoothTime)
+            : windowSmoothTime;
 
-        float smoothTime = action.RotationWindow.ResolveSmoothTime(rotationSmoothTime);
-        transform.rotation = GetSmoothedRotation(direction, smoothTime);
+        bool hasLock = targetLock.TryGetLockDirection(out Vector3 lockDir);
+        bool hasInput = _inputManager.HasMoveIntent;
+
+        if (hasLock)
+        {
+            if (!hasInput)
+            {
+                direction = lockDir;
+                smoothTime = lockSmoothTime;
+                return true;
+            }
+
+            Vector3 inputDir = ResolveWorldMoveDirection(_inputManager.MoveIntent);
+            if (inputDir.sqrMagnitude < 0.001f)
+            {
+                direction = lockDir;
+                smoothTime = lockSmoothTime;
+                return true;
+            }
+
+            // 同向/侧向输入仍跟锁；仅背向输入（Dot<0）才打断索敌
+            bool useInputDirection = Vector3.Dot(inputDir, lockDir) < 0f;
+            direction = useInputDirection ? inputDir : lockDir;
+            smoothTime = useInputDirection ? windowSmoothTime : lockSmoothTime;
+            return true;
+        }
+
+        if (!hasInput)
+            return false;
+
+        direction = ResolveWorldMoveDirection(_inputManager.MoveIntent);
+        smoothTime = windowSmoothTime;
+        return direction.sqrMagnitude > 0.001f;
     }
 
     /// <summary>将移动意图转为世界空间方向；闪避等招式可复用 BufferedMoveIntent 调用此方法。</summary>
@@ -269,9 +318,12 @@ public class PlayerController : MonoBehaviour, IActionStartContext
         return GetSmoothedRotation(moveDirection, rotationSmoothTime);
     }
 
-    /// <summary>按指定平滑时间将朝向转向 moveDirection。</summary>
+    /// <summary>按指定平滑时间将朝向转向 moveDirection；smoothTime 极小时瞬时对齐。</summary>
     Quaternion GetSmoothedRotation(Vector3 moveDirection, float smoothTime)
     {
+        if (smoothTime <= 0.001f)
+            return Quaternion.LookRotation(moveDirection);
+
         float targetAngle = Mathf.Atan2(moveDirection.x, moveDirection.z) * Mathf.Rad2Deg;
         float angle = Mathf.SmoothDampAngle(
             transform.eulerAngles.y,
