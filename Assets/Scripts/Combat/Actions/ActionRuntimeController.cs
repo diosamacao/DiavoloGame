@@ -25,6 +25,8 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
     public bool IsPlaying => _isPlaying;
     public bool CanCancelByMovement =>
         _isPlaying && _current != null && _current.IsInMovementCancelWindow(_elapsed);
+    public bool CanRotateByInput =>
+        _isPlaying && _current != null && _current.IsInRotationWindow(_elapsed);
     public ActionDefinition CurrentAction => _current;
 
     /// <summary>当前招式已播放秒数。</summary>
