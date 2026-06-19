@@ -59,9 +59,12 @@ public class MyBehaviour : MonoBehaviour
 
 ## 输入约定
 
-- 使用 Input System + `.inputactions` 资产
-- Action Map 命名：`Player`；Move/Look 等 Action 名与 `InputReader` 一致
-- InputReader 挂在角色 Prefab 上；其他系统通过 SerializeField 引用，不用静态全局
+- 使用 Input System + `.inputactions` 资产；Action Map 命名 `Player`
+- **采集**：`InputReader` 实现 `IPlayerInputSource`，输出 `PlayerInputFrame`
+- **中枢**：`InputManager` 仅由 `PlayerController` 持有；`IngestFrame` + `RegisterPressed(string inputId, Action)`
+- **离散 id**：与 Input System Action **名**一致（如 `Attack`），由 `InputBindingUtils` 解析；出招表 `PlayerActionSet.entries` 配置起手
+- **缓冲**：招式中 `Buffer(inputId)`；`ActionRuntimeController` 经 `IActionComboInput` 在 `CancelWindow` 内消费
+- 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `PlayerController`）
 
 ## 相机约定
 
