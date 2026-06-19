@@ -25,7 +25,7 @@ public class PlayerController : MonoBehaviour, IActionStartContext
     readonly InputManager _inputManager = new();
 
     CharacterController controller;
-    IPlayerInputSource inputSource;
+    InputReader inputReader;
     PlayerStateMachine stateMachine;
     ActionRuntimeController actionRuntime;
 
@@ -42,13 +42,14 @@ public class PlayerController : MonoBehaviour, IActionStartContext
     void Awake()
     {
         controller = GetComponent<CharacterController>();
-        inputSource = GetComponent<InputReader>();
+        inputReader = GetComponent<InputReader>();
         stateMachine = GetComponent<PlayerStateMachine>();
         actionRuntime = GetComponent<ActionRuntimeController>();
 
         if (cameraTransform == null && Camera.main != null)
             cameraTransform = Camera.main.transform;
 
+        inputReader.ConfigureDiscreteInputs(actionRuntime.GetEntryInputReferences());
         actionRuntime.BindComboInput(new InputManagerComboInput(_inputManager));
         actionRuntime.BindActionStartContext(this);
         RegisterInputHandlers();
@@ -57,6 +58,14 @@ public class PlayerController : MonoBehaviour, IActionStartContext
     /// <summary>按 ActionRuntimeController 绑定的出招表注册离散输入。</summary>
     void RegisterInputHandlers()
     {
+        if (actionRuntime.InputEntries.Count == 0)
+        {
+            Debug.LogWarning(
+                "PlayerController: PlayerActionSet.entries 为空，攻击/闪避输入未注册。请在出招表配置 Entries。",
+                this);
+            return;
+        }
+
         foreach (ActionEntry entry in actionRuntime.InputEntries)
         {
             if (!entry.IsValid)
@@ -78,7 +87,7 @@ public class PlayerController : MonoBehaviour, IActionStartContext
     /// <summary>采集本帧输入并写入 InputManager（回放/网络可替换 inputSource 或直调 IngestFrame）。</summary>
     void IngestInput()
     {
-        _inputManager.IngestFrame(inputSource.CaptureFrame());
+        _inputManager.IngestFrame(inputReader.CaptureFrame());
     }
 
     void ProcessGameplayInput()

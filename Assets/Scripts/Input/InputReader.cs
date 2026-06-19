@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -9,25 +9,31 @@ public class InputReader : MonoBehaviour, IPlayerInputSource
 
     InputAction moveAction = null!;
     InputAction lookAction = null!;
-    InputAction attackAction = null!;
-    InputAction dodgeAction = null!;
+    InputActionReference[] _discreteInputs = Array.Empty<InputActionReference>();
 
-    readonly List<string> _pressedScratch = new(4);
+    readonly System.Collections.Generic.List<string> _pressedScratch = new(4);
 
     public Vector2 MoveInput => moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
     public Vector2 LookInput => lookAction != null ? lookAction.ReadValue<Vector2>() : Vector2.zero;
-    public bool AttackPressedThisFrame => attackAction != null && attackAction.WasPressedThisFrame();
-    public bool DodgePressedThisFrame => dodgeAction != null && dodgeAction.WasPressedThisFrame();
+
+    /// <summary>由 PlayerController 根据 PlayerActionSet.entries 注入，无需在 Prefab 重复配置。</summary>
+    public void ConfigureDiscreteInputs(InputActionReference[] references)
+    {
+        _discreteInputs = references ?? Array.Empty<InputActionReference>();
+    }
 
     public PlayerInputFrame CaptureFrame()
     {
         _pressedScratch.Clear();
 
-        if (AttackPressedThisFrame)
-            _pressedScratch.Add(InputIds.Attack);
+        foreach (InputActionReference reference in _discreteInputs)
+        {
+            if (!InputBindingUtils.IsValid(reference))
+                continue;
 
-        if (DodgePressedThisFrame)
-            _pressedScratch.Add(InputIds.Dodge);
+            if (reference.action.WasPressedThisFrame())
+                _pressedScratch.Add(reference.action.name);
+        }
 
         return new PlayerInputFrame(MoveInput, LookInput, _pressedScratch.ToArray());
     }
@@ -44,8 +50,6 @@ public class InputReader : MonoBehaviour, IPlayerInputSource
         InputActionMap playerMap = inputActions.FindActionMap("Player", throwIfNotFound: true);
         moveAction = playerMap.FindAction("Move", throwIfNotFound: true);
         lookAction = playerMap.FindAction("Look", throwIfNotFound: true);
-        attackAction = playerMap.FindAction("Attack", throwIfNotFound: true);
-        dodgeAction = playerMap.FindAction("Dodge", throwIfNotFound: true);
     }
 
     void OnEnable()
