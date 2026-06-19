@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -11,13 +12,25 @@ public class InputReader : MonoBehaviour, IPlayerInputSource
     InputAction attackAction = null!;
     InputAction dodgeAction = null!;
 
+    readonly List<string> _pressedScratch = new(4);
+
     public Vector2 MoveInput => moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
     public Vector2 LookInput => lookAction != null ? lookAction.ReadValue<Vector2>() : Vector2.zero;
     public bool AttackPressedThisFrame => attackAction != null && attackAction.WasPressedThisFrame();
     public bool DodgePressedThisFrame => dodgeAction != null && dodgeAction.WasPressedThisFrame();
 
-    public PlayerInputFrame CaptureFrame() =>
-        new(MoveInput, LookInput, AttackPressedThisFrame, DodgePressedThisFrame);
+    public PlayerInputFrame CaptureFrame()
+    {
+        _pressedScratch.Clear();
+
+        if (AttackPressedThisFrame)
+            _pressedScratch.Add(InputIds.Attack);
+
+        if (DodgePressedThisFrame)
+            _pressedScratch.Add(InputIds.Dodge);
+
+        return new PlayerInputFrame(MoveInput, LookInput, _pressedScratch.ToArray());
+    }
 
     void Awake()
     {

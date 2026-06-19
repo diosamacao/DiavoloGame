@@ -1,11 +1,12 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(CharacterAnimationController))]
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(CharacterRootMotionDriver))]
-/// <summary>驱动招式播放；ComboLink 窗口内按输入在普攻链与闪避间衔接。</summary>
+/// <summary>通用招式播放器：CancelWindow 消费输入衔接，ActionTransition 处理收招。</summary>
 public class ActionRuntimeController : MonoBehaviour, IActionRuntime
 {
     [SerializeField] CharacterAnimationController animationController = null!;
@@ -14,17 +15,19 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
     CharacterController _motor = null!;
     CharacterRootMotionDriver _rootMotion = null!;
     IActionComboInput _comboInput;
-    Action _onDodgeStarted;
+    IActionStartContext _startContext;
     ActionDefinition _current;
     bool _isPlaying;
     float _elapsed;
-    int _attackIndex;
 
     public bool IsPlaying => _isPlaying;
     public bool CanCancelByMovement =>
         _isPlaying && _current != null && _current.IsInMovementCancelWindow(_elapsed);
     public ActionDefinition CurrentAction => _current;
-    public int AttackIndex => _attackIndex;
+
+    /// <summary>出招表入口，供 PlayerController 注册输入。</summary>
+    public IReadOnlyList<ActionEntry> InputEntries =>
+        actionSet != null ? actionSet.Entries : Array.Empty<ActionEntry>();
 
     void Awake()
     {
@@ -37,39 +40,24 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
 
     public void BindComboInput(IActionComboInput comboInput) => _comboInput = comboInput;
 
-    public void BindDodgeFacing(Action onDodgeStarted) => _onDodgeStarted = onDodgeStarted;
+    public void BindActionStartContext(IActionStartContext startContext) => _startContext = startContext;
 
-    public bool TryStartAttackChain()
+    public bool TryStartByInput(string inputId)
     {
-        ActionDefinition[] chain = GetAttackChain();
-        if (chain.Length == 0)
-        {
-            Debug.LogWarning("ActionRuntimeController: attackChain 为空。", this);
-            return false;
-        }
-
-        if (_isPlaying)
+        if (_isPlaying || actionSet == null || !actionSet.TryGetStartAction(inputId, out ActionDefinition startAction))
             return false;
 
-        _attackIndex = 0;
-        return BeginActionIfValid(chain[0]);
+        return TryStart(startAction);
     }
 
-    public bool TryStartDodge()
+    public bool TryStart(ActionDefinition action)
     {
-        ActionDefinition dodge = GetEvade();
-        if (dodge == null)
-        {
-            Debug.LogWarning("ActionRuntimeController: dodge 未分配。", this);
-            return false;
-        }
-
-        if (_isPlaying)
+        if (_isPlaying || action == null || action.AnimationClip == null || animationController == null)
             return false;
 
-        _attackIndex = 0;
-        _onDodgeStarted?.Invoke();
-        return BeginActionIfValid(dodge);
+        ExecuteStartBehaviors(action);
+        BeginAction(action);
+        return true;
     }
 
     public void Tick(float deltaTime)
@@ -80,11 +68,11 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         _elapsed += deltaTime;
         ApplyScriptedDisplacement(deltaTime);
 
-        if (TryResolveComboLink())
+        if (TryResolveCancelWindows())
             return;
 
         if (_elapsed >= _current.DurationSeconds)
-            Stop();
+            ResolveEndTransitions();
     }
 
     public void Stop()
@@ -92,8 +80,113 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         _isPlaying = false;
         _current = null;
         _elapsed = 0f;
-        _attackIndex = 0;
         _rootMotion?.SetActive(false);
+    }
+
+    /// <summary>按 priority 扫描 CancelWindow，首个匹配的 Action 取消生效。</summary>
+    bool TryResolveCancelWindows()
+    {
+        if (_comboInput == null || _current == null || actionSet == null)
+            return false;
+
+        foreach (ResolvedCancelWindow window in _current.GetCancelWindowsSorted())
+        {
+            if (!_current.IsInCancelWindow(window, _elapsed))
+                continue;
+
+            if (window.CancelType != CancelType.Action)
+                continue;
+
+            if (!TryConsumeMatchingInput(window, out string matchedInputId))
+                continue;
+
+            if (window.TargetAction == null || window.TargetAction.AnimationClip == null)
+                return false;
+
+            ClearComboBuffersExcept(matchedInputId);
+            TransitionTo(window.TargetAction);
+            return true;
+        }
+
+        return false;
+    }
+
+    bool TryConsumeMatchingInput(ResolvedCancelWindow window, out string matchedInputId)
+    {
+        matchedInputId = null;
+
+        foreach (string inputId in window.AllowedInputs)
+        {
+            if (_comboInput.HasBuffer(inputId))
+            {
+                _comboInput.TryConsumeBuffer(inputId);
+                matchedInputId = inputId;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    void ClearComboBuffersExcept(string keepInputId)
+    {
+        if (_comboInput == null || actionSet == null)
+            return;
+
+        foreach (ActionEntry entry in actionSet.Entries)
+        {
+            if (!entry.IsValid || entry.InputId == keepInputId)
+                continue;
+
+            _comboInput.TryConsumeBuffer(entry.InputId);
+        }
+    }
+
+    /// <summary>AnimationEnd：按 Transition 衔接或 Stop。</summary>
+    void ResolveEndTransitions()
+    {
+        foreach (ActionTransition transition in _current.GetTransitionsSorted())
+        {
+            if (transition.Condition != ActionTransitionCondition.AnimationEnd)
+                continue;
+
+            if (transition.TargetAction != null && transition.TargetAction.AnimationClip != null)
+            {
+                TransitionTo(transition.TargetAction);
+                return;
+            }
+
+            Stop();
+            return;
+        }
+
+        Stop();
+    }
+
+    void TransitionTo(ActionDefinition action)
+    {
+        ExecuteStartBehaviors(action);
+        BeginAction(action);
+    }
+
+    void ExecuteStartBehaviors(ActionDefinition action)
+    {
+        if (action == null || _startContext == null)
+            return;
+
+        ActionStartBehaviorType[] behaviors = action.StartBehaviors;
+        foreach (ActionStartBehaviorType behavior in behaviors)
+            ExecuteStartBehavior(behavior);
+    }
+
+    void ExecuteStartBehavior(ActionStartBehaviorType behavior)
+    {
+        switch (behavior)
+        {
+            case ActionStartBehaviorType.FaceBufferedMoveIntent:
+                _startContext.FaceBufferedMoveIntent();
+                break;
+        }
     }
 
     void BeginAction(ActionDefinition action)
@@ -104,77 +197,6 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         _rootMotion?.SetActive(action.UseRootMotion);
         animationController.PlayClip(action.AnimationClip, action.CrossFadeDuration);
     }
-
-    bool BeginActionIfValid(ActionDefinition action)
-    {
-        if (action == null || action.AnimationClip == null || animationController == null)
-            return false;
-
-        BeginAction(action);
-        return true;
-    }
-
-    /// <summary>ComboLink 内按缓冲输入衔接：Dodge 优先于 Attack。</summary>
-    bool TryResolveComboLink()
-    {
-        if (_comboInput == null || _current == null || !_current.IsInComboLinkWindow(_elapsed))
-            return false;
-
-        if (_comboInput.HasBuffer(InputSlot.Dodge)
-            && _current.AllowsComboInput(InputSlot.Dodge)
-            && TryLinkDodge())
-            return true;
-
-        if (_comboInput.HasBuffer(InputSlot.Attack)
-            && _current.AllowsComboInput(InputSlot.Attack)
-            && TryLinkAttack())
-            return true;
-
-        return false;
-    }
-
-    bool TryLinkDodge()
-    {
-        ActionDefinition dodge = GetEvade();
-        if (dodge == null || dodge.AnimationClip == null)
-            return false;
-
-        _comboInput.TryConsumeBuffer(InputSlot.Dodge);
-        _comboInput.TryConsumeBuffer(InputSlot.Attack);
-        _attackIndex = 0;
-        _onDodgeStarted?.Invoke();
-        BeginAction(dodge);
-        return true;
-    }
-
-    bool TryLinkAttack()
-    {
-        ActionDefinition[] chain = GetAttackChain();
-        if (chain.Length == 0)
-            return false;
-
-        _comboInput.TryConsumeBuffer(InputSlot.Attack);
-        _comboInput.TryConsumeBuffer(InputSlot.Dodge);
-
-        if (_current.ActionType == CombatActionType.Dodge)
-            _attackIndex = 0;
-        else if (_attackIndex < chain.Length - 1)
-            _attackIndex++;
-        else
-            _attackIndex = 0;
-
-        ActionDefinition next = chain[_attackIndex];
-        if (next == null || next.AnimationClip == null)
-            return false;
-
-        BeginAction(next);
-        return true;
-    }
-
-    ActionDefinition[] GetAttackChain() =>
-        actionSet != null && actionSet.AttackChain != null ? actionSet.AttackChain : Array.Empty<ActionDefinition>();
-
-    ActionDefinition GetEvade() => actionSet != null ? actionSet.Evade : null;
 
     void ApplyScriptedDisplacement(float deltaTime)
     {
