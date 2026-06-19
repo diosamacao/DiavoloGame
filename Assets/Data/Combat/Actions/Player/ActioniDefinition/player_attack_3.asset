@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
+  m_Name: player_attack_3
+  m_EditorClassIdentifier: 
+  id: player_attack_1
+  displayName: Attack 1
+  animationClip: {fileID: -2809026575308471513, guid: f82fc59659869144db8488a519cd43f8, type: 3}
+  sampleRate: 30
+  totalFrames: 68
+  actionType: 0
+  crossFadeDuration: 0.1
+  cancelWindows:
+  - startFrame: 34
+    endFrame: 80
+    cancelType: 0
+    allowedInputs:
+    - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    targetAction: {fileID: 11400000, guid: a1b2c3d4e5f6789012345678abcdef20, type: 2}
+    priority: 0
+  - startFrame: 12
+    endFrame: 43
+    cancelType: 0
+    allowedInputs:
+    - {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    targetAction: {fileID: 11400000, guid: 0460ea49f303c73418ff7cd1f5cda9c0, type: 2}
+    priority: 1
+  - startFrame: 40
+    endFrame: 80
+    cancelType: 1
+    allowedInputs:
+    - {fileID: 6936757010596083576, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    targetAction: {fileID: 0}
+    priority: 1
+  transitions: []
+  startBehaviors: 
+  switchCombatModeTarget: 0
+  switchCombatModePolicy: 0
+  useRootMotion: 1
+  displacementDistance: 0
+  displacementStartFrame: 0
+  displacementEndFrame: 0

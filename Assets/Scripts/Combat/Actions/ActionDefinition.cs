@@ -23,6 +23,11 @@ public class ActionDefinition : ScriptableObject
     [Header("Start Behaviors")]
     [SerializeField] ActionStartBehaviorType[] startBehaviors = Array.Empty<ActionStartBehaviorType>();
 
+    [Header("Combat Mode Switch")]
+    [Tooltip("Start Behaviors 含 SwitchCombatMode 时生效。")]
+    [SerializeField] CombatModeType switchCombatModeTarget = CombatModeType.Default;
+    [SerializeField] CombatModeSwitchPolicy switchCombatModePolicy = CombatModeSwitchPolicy.Immediate;
+
     [Header("Movement")]
     [Tooltip("开启时由动画 Root Motion 驱动位移，脚本位移（Displacement Distance）将被忽略。")]
     [SerializeField] bool useRootMotion = true;
@@ -42,6 +47,8 @@ public class ActionDefinition : ScriptableObject
     public int DisplacementStartFrame => displacementStartFrame;
     public int DisplacementEndFrame => displacementEndFrame;
     public ActionStartBehaviorType[] StartBehaviors => startBehaviors ?? Array.Empty<ActionStartBehaviorType>();
+    public CombatModeType SwitchCombatModeTarget => switchCombatModeTarget;
+    public CombatModeSwitchPolicy SwitchCombatModePolicy => switchCombatModePolicy;
     public bool HasScriptedDisplacement => !useRootMotion && Mathf.Abs(displacementDistance) > 0.001f;
 
     public float DurationSeconds
@@ -163,4 +170,13 @@ public class ActionDefinition : ScriptableObject
             displacementStartFrame,
             Mathf.Max(0, totalFrames - 1));
     }
+}
+
+/// <summary>招式开始时由运行时触发的副作用（朝向、切战斗模式等）。</summary>
+public enum ActionStartBehaviorType
+{
+    FaceBufferedMoveIntent = 0,
+
+    /// <summary>切换 CombatModeType，目标与策略见 ActionDefinition 的 switchCombatMode 字段。</summary>
+    SwitchCombatMode = 1,
 }

@@ -16,6 +16,7 @@ GameObject:
   - component: {fileID: 1000000009}
   - component: {fileID: 1000000012}
   - component: {fileID: 3641417363979935423}
+  - component: {fileID: 7093930249673131889}
   m_Layer: 0
   m_Name: Player_KatanaGirl
   m_TagString: Player
@@ -78,7 +79,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e1d2c3b4a596877061234567abcdef02, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  inputActions: {fileID: -619905303, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+  inputActions: {fileID: -944628639613478452, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
 --- !u!114 &1000000005
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -138,7 +139,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   animationController: {fileID: 0}
-  actionSet: {fileID: 11400000, guid: b9f9878fb93b0db4ab46ec3fe6588d26, type: 2}
+  combatMode: {fileID: 0}
 --- !u!114 &3641417363979935423
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -152,6 +153,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   animator: {fileID: 0}
+--- !u!114 &7093930249673131889
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f3c2a1b9d4e5f60718293a4b5c6d7e8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  profile: {fileID: 0}
 --- !u!1 &1000000006
 GameObject:
   m_ObjectHideFlags: 0

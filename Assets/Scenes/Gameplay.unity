@@ -369,6 +369,18 @@ PrefabInstance:
       propertyPath: inputActions
       value: 
       objectReference: {fileID: -944628639613478452, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    - target: {fileID: 1000000004, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
+      propertyPath: discreteInputs.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 1000000004, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
+      propertyPath: discreteInputs.Array.data[0]
+      value: 
+      objectReference: {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    - target: {fileID: 1000000004, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
+      propertyPath: discreteInputs.Array.data[1]
+      value: 
+      objectReference: {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     - target: {fileID: 1000000008, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
       propertyPath: animator
       value: 
