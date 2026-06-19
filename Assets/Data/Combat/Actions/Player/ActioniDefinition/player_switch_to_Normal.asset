@@ -14,21 +14,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: player_switch_1
   displayName: switch1
-  animationClip: {fileID: -2019408629470369199, guid: 234c6583359144642922689cdcc39bb6, type: 3}
+  animationClip: {fileID: 7432686424384404285, guid: a8d4431eaea80c44da62d4331eecc7b3, type: 3}
   sampleRate: 30
-  totalFrames: 52
-  actionType: 1
+  totalFrames: 90
+  actionType: 6
   crossFadeDuration: 0.5
   cancelWindows: []
   transitions:
   - condition: 1
-    startFrame: 28
+    startFrame: 3
     targetAction: {fileID: 0}
     priority: 0
   startBehaviors: 01000000
-  switchCombatModeTarget: 1
+  switchCombatModeTarget: 0
   switchCombatModePolicy: 0
   useRootMotion: 0
-  displacementDistance: -1
+  displacementDistance: 0
   displacementStartFrame: 0
-  displacementEndFrame: 4
+  displacementEndFrame: 0

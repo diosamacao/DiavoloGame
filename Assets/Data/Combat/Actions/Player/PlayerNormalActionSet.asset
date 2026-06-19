@@ -14,12 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   entries:
   - input: {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    startAction: {fileID: 11400000, guid: a1b2c3d4e5f6789012345678abcdef20, type: 2}
-  - input: {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    startAction: {fileID: 11400000, guid: a358c68a352967f4399fcb9f2d8b5b1b, type: 2}
-  - input: {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    startAction: {fileID: 11400000, guid: 7a4119c60e95a3d419914beec74f62b5, type: 2}
-  - input: {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    startAction: {fileID: 11400000, guid: 0460ea49f303c73418ff7cd1f5cda9c0, type: 2}
+    comboTree: {fileID: 11400000, guid: 67c5c39f46a0c494f83e37655373a25d, type: 2}
   - input: {fileID: -130322003382893763, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    startAction: {fileID: 11400000, guid: 52dad92e8dc377447aac32742f191242, type: 2}
+    comboTree: {fileID: 11400000, guid: 35b0cd55c2db7dc4fa764c7938d77384, type: 2}
+  - input: {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    comboTree: {fileID: 11400000, guid: d7f66b4dad546fe4b885e978b0b1f89b, type: 2}

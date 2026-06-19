@@ -25,21 +25,15 @@ MonoBehaviour:
     cancelType: 0
     allowedInputs:
     - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    targetAction: {fileID: 11400000, guid: a358c68a352967f4399fcb9f2d8b5b1b, type: 2}
-    priority: 0
-  - startFrame: 12
-    endFrame: 43
-    cancelType: 0
-    allowedInputs:
     - {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    targetAction: {fileID: 11400000, guid: 0460ea49f303c73418ff7cd1f5cda9c0, type: 2}
-    priority: 1
+    - {fileID: -130322003382893763, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    - {fileID: 6990492112164883386, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    priority: 0
   - startFrame: 24
     endFrame: 60
     cancelType: 1
     allowedInputs:
     - {fileID: 6936757010596083576, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    targetAction: {fileID: 0}
     priority: 1
   transitions: []
   startBehaviors: 

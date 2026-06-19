@@ -18,17 +18,23 @@ MonoBehaviour:
   sampleRate: 30
   totalFrames: 52
   actionType: 1
-  crossFadeDuration: 0.5
-  cancelWindows: []
+  crossFadeDuration: 0.1
+  cancelWindows:
+  - startFrame: 15
+    endFrame: 43
+    cancelType: 1
+    allowedInputs:
+    - {fileID: 6936757010596083576, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    priority: 0
   transitions:
   - condition: 1
-    startFrame: 28
+    startFrame: 25
     targetAction: {fileID: 0}
     priority: 0
   startBehaviors: 01000000
   switchCombatModeTarget: 1
   switchCombatModePolicy: 0
   useRootMotion: 0
-  displacementDistance: -1
+  displacementDistance: -3
   displacementStartFrame: 0
   displacementEndFrame: 4

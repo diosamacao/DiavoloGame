@@ -24,20 +24,22 @@ public enum CombatModeSwitchPolicy
     StopCurrentAction = 2,
 }
 
-/// <summary>Locomotion 起手入口：Input System Action → 起始 ActionDefinition。</summary>
+/// <summary>Locomotion 起手入口：Input System Action → ActionComboSequence（起手 = steps[0]）。</summary>
 [Serializable]
 public struct ActionEntry
 {
     [Tooltip("从 GameInputActions 选择 Action（如 Player/Attack）；运行时 id = Action 名。")]
     [SerializeField] InputActionReference input;
-    [SerializeField] ActionDefinition startAction;
+    [SerializeField] ActionComboSequence comboSequence;
 
     public InputActionReference InputReference => input;
     public string InputId => InputBindingUtils.GetInputId(input);
-    public ActionDefinition StartAction => startAction;
+    public ActionComboSequence ComboSequence => comboSequence;
 
     public bool IsValid =>
-        InputBindingUtils.IsValid(input) && startAction != null;
+        InputBindingUtils.IsValid(input)
+        && comboSequence != null
+        && comboSequence.RootAction != null;
 }
 
 /// <summary>角色出招表：离散输入到起手招式的映射。</summary>
@@ -56,11 +58,32 @@ public class PlayerActionSet : ScriptableObject
             if (!entry.IsValid || entry.InputId != inputId)
                 continue;
 
-            startAction = entry.StartAction;
+            startAction = entry.ComboSequence.RootAction;
             return true;
         }
 
         startAction = null;
+        return false;
+    }
+
+    /// <summary>招内 Cancel：按 input 与当前招式在 Entry 的 ComboSequence 中顺序进位。</summary>
+    public bool TryResolveNext(string inputId, ActionDefinition current, out ActionDefinition next)
+    {
+        next = null;
+        if (string.IsNullOrEmpty(inputId))
+            return false;
+
+        foreach (ActionEntry entry in Entries)
+        {
+            if (!entry.IsValid || entry.InputId != inputId)
+                continue;
+
+            if (entry.ComboSequence.TryResolveNext(inputId, current, out next))
+                return next != null;
+
+            return false;
+        }
+
         return false;
     }
 

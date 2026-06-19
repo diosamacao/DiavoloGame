@@ -123,11 +123,14 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
             if (!TryConsumeMatchingInput(window, out string matchedInputId))
                 continue;
 
-            if (window.TargetAction == null || window.TargetAction.AnimationClip == null)
-                return false;
+            if (!actionSet.TryResolveNext(matchedInputId, _current, out ActionDefinition nextAction))
+                continue;
+
+            if (nextAction == null || nextAction.AnimationClip == null)
+                continue;
 
             ClearComboBuffersExcept(matchedInputId, actionSet);
-            TransitionTo(window.TargetAction);
+            TransitionTo(nextAction);
             return true;
         }
 
