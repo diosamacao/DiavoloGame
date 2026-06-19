@@ -8,12 +8,12 @@
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
 | 第三人称移动 | ✅ 已实现 | `PlayerController` | `Player_KatanaGirl.prefab` |
-| 输入（移动 + 视角） | ✅ 已实现 | `InputReader` | `GameInputActions.inputactions` |
+| 输入（移动 + 视角 + 离散按键） | ✅ 已实现 | `InputReader`、`InputManager` | `GameInputActions.inputactions` |
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionState` | `Player_KatanaGirl_AnimationProfile.asset` |
 | 第三人称相机 | ✅ 已实现 | `CameraManager` | 场景内 CameraManager 对象 |
-| 动作状态（Action） | 🟡 骨架 | `ActionState` | — |
-| 攻击 / 战斗 | ⬜ 未实现 | — | `Combat/` 占位 |
+| 动作系统（播放 / 取消 / 连段） | ✅ 已实现 | `ActionRuntimeController`、`PlayerController` | `PlayerActionSet`、`ActionDefinition` |
+| 攻击 / 战斗判定 | ⬜ 未实现 | — | Hitbox 待建 |
 | 敌人 AI | ⬜ 未实现 | — | `Enemy/` 占位 |
 | UI | ⬜ 未实现 | — | `UI/` 占位 |
 
@@ -301,13 +301,41 @@ CameraManager (场景对象)
 
 ---
 
-## 7. 预留 / 未完成功能
+## 7. 动作系统
 
-### ActionState（骨架）
+> 完整说明见 [docs/ACTION_SYSTEM.md](../../docs/ACTION_SYSTEM.md)。
 
-- 已实现 Enter/Exit 动画锁
-- `Tick` 为空，注释预留 `ActionRuntimeController`
-- 尚无输入切换到 Action、无攻击动画播放
+### 功能说明
+
+玩家通过出招表起手攻击/闪避；招式播放中由 `CancelWindow` 衔接连段或移动取消；播完由 `ActionTransition` 或自然结束回到 Locomotion。输入经 `InputManager` 缓冲，由 `ActionRuntimeController` 在有效帧窗口消费。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 起手 | `PlayerActionSet` + `TryStartByInput(inputId)` |
+| 连段 | `CancelWindow`（`CancelType.Action`）+ `InputManager` 缓冲 |
+| 移动取消 | `CancelType.Movement` + `PlayerController.TryCancelActionByMovement` |
+| 收招 | `ActionTransition(AnimationEnd)` 或 `Stop` |
+| 输入 | `InputReader` → `PlayerInputFrame` → `InputManager`；仅 `PlayerController` 注册回调 |
+| 位移 | Root Motion（`CharacterRootMotionDriver`）或 `displacementDistance` 脚本推进 |
+
+### 关键资产
+
+| 路径 | 说明 |
+|------|------|
+| `Assets/Data/Combat/Actions/Player/PlayerActionSet.asset` | 离散输入 → 起手招 |
+| `Assets/Data/Combat/Actions/Player/player_attack_*.asset` | 招式 + CancelWindow |
+| `Assets/Prefabs/Player/Player_KatanaGirl.prefab` | 组件挂载 |
+
+### 已知限制
+
+- 无 Hitbox / 伤害；`ActionTransition` 仅 `AnimationEnd`
+- 部分 SO 资产可能仍含已废弃字段，需在 Editor 迁移为 `cancelWindows` / `entries`
+
+---
+
+## 8. 预留 / 未完成功能
 
 ### CharacterStateType 预留枚举
 
@@ -315,7 +343,7 @@ CameraManager (场景对象)
 
 ### 空模块目录
 
-`Enemy/`、`Combat/`、`UI/`、`Editor/` — 仅 `.gitkeep`
+`Enemy/`、`UI/`、`Editor/` — 仅 `.gitkeep`；`Combat/Actions/` 已有动作运行时，Hitbox 待建
 
 ---
 
@@ -324,3 +352,4 @@ CameraManager (场景对象)
 | 日期 | 变更 |
 |------|------|
 | 2026-06-17 | 初版：移动、输入、状态机、动画、相机、Prefab 文档化 |
+| 2026-06-17 | 动作系统索引更新为已实现；新增 §7 摘要，指向 ACTION_SYSTEM.md |

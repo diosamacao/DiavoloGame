@@ -14,7 +14,7 @@
 | [ACTION_EDITOR.md](./ACTION_EDITOR.md) | 完整数据模型、编辑器分期、帧级战斗语义 |
 | [.cursor/skills/actgame-architecture/TECHNICAL.md](../.cursor/skills/actgame-architecture/TECHNICAL.md) | 全项目功能索引 |
 
-**当前阶段：** Phase A 早期（M2'）— 数据驱动招式播放 + 简化三连招，**不含** Hitbox、受击、取消窗口编辑器。
+**当前阶段：** Phase A 中期 — `CancelWindow` / `ActionTransition` / `PlayerActionSet` 已接入运行时；**不含** Hitbox、受击、动作编辑器 UI。
 
 ---
 
@@ -22,43 +22,45 @@
 
 | 能力 | 状态 | 说明 |
 |------|------|------|
-| `ActionDefinition` ScriptableObject | ✅ 已实现 | 简化字段；`OnValidate` 自动算帧数 |
-| `ActionRuntimeController` 招式播放 | ✅ 已实现 | 播 Clip、计时结束、连招衔接 |
+| `ActionDefinition` SO | ✅ 已实现 | 动画、帧数、位移、取消窗、收招 Transition |
+| `CancelWindow`（Action 取消） | ✅ 已实现 | 帧窗口 + `InputActionReference` + priority |
+| `CancelWindow`（Movement 取消） | ✅ 已实现 | `PlayerController` 检测移动意图并切 Locomotion |
+| `ActionTransition`（AnimationEnd） | ✅ 已实现 | 播完按 priority 衔接或 `Stop` |
+| `PlayerActionSet` 出招表 | ✅ 已实现 | 离散输入 → 起手 `ActionDefinition` |
+| `ActionRuntimeController` | ✅ 已实现 | 播放、取消解析、收招、Root Motion / 脚本位移 |
+| `InputManager` + `PlayerInputFrame` | ✅ 已实现 | 意图摄入、多 id 缓冲、注册回调 |
+| `ActionStartBehavior` | 🟡 部分 | 仅 `FaceBufferedMoveIntent` |
+| Root Motion 桥接 | ✅ 已实现 | `CharacterRootMotionDriver` + Receiver 防漂移 |
 | `ActionState` + 动画锁定 | ✅ 已实现 | 招式期间 Locomotion 动画不覆盖 |
-| `PlayClip` 直播 AnimationClip | ✅ 已实现 | Animator Controller 仅管 Locomotion |
-| 攻击输入 → 进入 Action | ✅ 已实现 | `LocomotionState` 起手 |
-| 招式中攻击输入缓冲 + 连段 | ✅ 已实现 | `nextAction` + `comboLink` 帧窗口 |
-| 招式位移（Root Motion） | ✅ 已实现 | `useRootMotion` + `CharacterRootMotionDriver` |
-| 招式位移（脚本推进） | ✅ 已实现 | `useRootMotion = false` 时用 `displacementDistance` |
-| `CombatActionType` 枚举 | ✅ 已实现 | Attack/Dodge/Skill/Hit 等类型预留 |
 | `ActionPhase` / Hitbox / Hurtbox | ⬜ 未实现 | 见 ACTION_EDITOR §3.2–3.5 |
-| `CancelWindow` / `ActionTransition` | ⬜ 未实现 | 当前用 `nextAction` 折代替换 |
-| `ActionGraph` 连招图 | ⬜ 未实现 | — |
-| Combat 命中 / 伤害 | ⬜ 未实现 | `Combat/` 层待建 |
-| `Hit` 受击状态 | ⬜ 未实现 | 枚举已预留 |
-| 移动取消（Movement Cancel） | ⬜ 未实现 | 招式结束才回 Locomotion |
+| `ActionTransition`（OnHit / OnWhiff 等） | ⬜ 未实现 | 枚举已预留，运行时未解析 |
+| `ActionGraph` | ⬜ 未实现 | — |
+| Combat 命中 / 伤害 | ⬜ 未实现 | — |
+| `Hit` 受击状态 | ⬜ 未实现 | — |
 | `ActionEditorWindow` | ⬜ 未实现 | M5 目标 |
 
 ---
 
 ## 3. 设计原理
 
-### 3.1 核心原则（已贯彻）
+### 3.1 核心原则
 
-1. **数据驱动** — 招式动画、时长、连段关系写在 `ActionDefinition` SO，不在状态机里硬编码 `if (attackCount == 2)`。
-2. **Animator 分工** — `CharacterAnimationProfile` + Animator Controller **只驱动 Locomotion**（Idle/Walk/Run）；招式由 `ActionDefinition.animationClip` 引用，经 `PlayClip()` 直播。
-3. **状态机薄层** — `CharacterStateMachine` 只管「是否在放招」；逐帧招式逻辑集中在 `ActionRuntimeController`。
-4. **角色无关接口** — `IActionRuntime` 挂在 `CharacterContext`，玩家与后续敌人可共用同一执行器。
-5. **渐进扩展** — 当前用 `nextAction` + 帧窗口实现连段，Schema 与 [ACTION_EDITOR.md](./ACTION_EDITOR.md) 对齐后，可平滑迁移到 `CancelWindow` / `ActionGraph`。
+1. **数据驱动** — 连招、取消窗、收招写在 `ActionDefinition` / `PlayerActionSet` SO，不在状态机里硬编码分支。
+2. **输入与玩法解耦** — `InputManager` 只管意图与缓冲；`PlayerController` 唯一持有并注册回调；状态机不读输入。
+3. **状态机薄层** — `Locomotion` / `Action` 只管动画锁定与状态切换；招式逻辑集中在 `ActionRuntimeController`。
+4. **Animator 双轨** — Animator Controller 仅 Locomotion；招式 `PlayClip(animationClip)` 直播。
+5. **角色无关执行器** — `IActionRuntime` 挂 `CharacterContext`，玩家与后续敌人可共用。
+6. **与 ACTION_EDITOR 对齐** — 已采用 `CancelWindow.cancelType`（Action / Movement）、`ActionTransition`；尚未实现 Phase / Hitbox / Event。
 
-### 3.2 与目标架构的差异（Demo 折中）
+### 3.2 职责分层
 
-| 目标设计（ACTION_EDITOR） | 当前实现 |
-|---------------------------|----------|
-| `CancelWindow` + `allowedInputs` 消费输入缓冲 | `comboLinkStartFrame` / `comboLinkEndFrame` + 攻击键缓冲 |
-| `ActionTransition(AnimationEnd)` 控制收招 | 播放时长到达 `DurationSeconds` 后 `Stop()` |
-| `UpdateFrame(frameIndex)` 逐帧 Logic Tick | 仅用 `elapsed` 秒 + `sampleRate` 换算帧索引 |
-| `defaultAttack` 仅起手；后续由 Graph / Cancel 解析 | `defaultAttack` 起手；连段靠 SO 内 `nextAction` 链 |
+| 层 | 职责 | 不负责 |
+|----|------|--------|
+| `InputReader` | 采集设备原始输入 → `PlayerInputFrame` | 缓冲、玩法判断 |
+| `InputManager` | 摄入帧、移动意图、离散缓冲、`RegisterPressed` | 位移执行、切状态 |
+| `PlayerController` | 注册输入、起手/缓冲路由、移动取消、水平位移 | 招式帧推进、Cancel 解析 |
+| `ActionRuntimeController` | 播招、`CancelWindow` 消费、`ActionTransition`、位移 | 读取原始设备 |
+| `ActionState` / `LocomotionState` | 动画锁 / Locomotion 动画 | 输入与连招 |
 
 ---
 
@@ -67,413 +69,331 @@
 ### 4.1 模块关系
 
 ```
-InputReader (原始设备输入)
+InputReader.CaptureFrame()
        │
        ▼
-PlayerController ── InputManager（注册 + 缓冲）
-       │                │
-       │                ├─ Locomotion：TryStartDefaultAction() + 切 Action
-       │                └─ Action：Buffer(Attack)
+PlayerController.IngestInput() ── InputManager
+       │                              │
+       │                              ├─ RegisterPressed(inputId) → HandleDiscreteInput
+       │                              ├─ Buffer(inputId)           （招式中）
+       │                              └─ MoveIntent / BufferedMoveIntent
        │
-       ├── ActionRuntimeController ← IActionComboInput 消费缓冲连段
+       ├─ Locomotion：TryStartByInput(inputId) → ActionState
+       ├─ Action 中：Buffer；Movement 取消窗内 + HasMoveIntent → Locomotion
        │
-       └── PlayerStateMachine ── CharacterContext ── IActionRuntime
-                ├── LocomotionState ── 仅 Locomotion 动画
-                └── ActionState ── Tick() → Locomotion（结束）
-
-ActionRuntimeController
-       └── ActionDefinition SO → PlayClip(animationClip)
+       ├── ActionRuntimeController ← IActionComboInput（消费缓冲）
+       │         ↑ PlayerActionSet（起手映射）
+       │         └── ActionDefinition（CancelWindow / Transition）
+       │
+       └── PlayerStateMachine
+                ├── LocomotionState（Idle/Walk/Run）
+                └── ActionState（Tick ActionRuntime → 结束回 Locomotion）
 ```
 
 ### 4.2 状态机职责
 
-| 状态 | 职责 | 与动作系统交互 |
-|------|------|----------------|
-| `Locomotion` | 移动动画 | 攻击起手由 `PlayerController` + `InputManager` 处理 |
-| `Action` | 锁定 Locomotion 动画 | `ActionRuntime.Tick()`；结束 → 切 `Locomotion` |
-| `Hit` | （未实现）受击硬直 | 预留；将播放 `actionType: Hit` 的 `ActionDefinition` |
-| `Death` | （未实现）死亡 | 预留 |
+| 状态 | 职责 |
+|------|------|
+| `Locomotion` | 根据 `MoveInputMagnitude` 播放 Idle/Walk/Run |
+| `Action` | `Animation.SetLocked(true)`；`ActionRuntime.Tick`；`!IsPlaying` 时回 Locomotion |
+| `Hit` / `Death` | 预留 |
 
-`ActionState` 进入时 `Animation.SetLocked(true)`，阻止 `LocomotionState` 的 `Play(Idle/Walk/Run)` 覆盖招式；退出时 `Stop()` + `SetLocked(false)` + `ResetPlaybackState()`。
-
-### 4.3 动画双轨
-
-```
-┌─────────────────────────────────────────────────────────┐
-│ CharacterAnimationController                            │
-├────────────────────────┬────────────────────────────────┤
-│ Locomotion 轨          │ Action 轨（招式）               │
-│ Play(AnimationKey)     │ PlayClip(AnimationClip)        │
-│ 依赖 AnimationProfile  │ 依赖 ActionDefinition          │
-│ locked 时跳过          │ ActionState 期间由 Runtime 调用  │
-└────────────────────────┴────────────────────────────────┘
-```
-
-**约定：** 招式 `AnimationClip` 须与 Animator Controller 中**同名 State** 存在（`CrossFadeInFixedTime(clip.name)`），但状态机参数不由 AC 驱动。
-
-### 4.4 类与接口
+### 4.3 类与接口一览
 
 | 类型 | 路径 | 职责 |
 |------|------|------|
-| `ActionDefinition` | `Combat/Actions/ActionDefinition.cs` | 招式 SO 数据 |
-| `CombatActionType` | `Combat/Actions/CombatActionType.cs` | 招式分类枚举 |
-| `ActionRuntimeController` | `Combat/Actions/ActionRuntimeController.cs` | 运行时播放与连段 |
+| `ActionDefinition` | `Combat/Actions/ActionDefinition.cs` | 单招数据 |
+| `CancelWindow` | `Combat/Actions/CancelWindow.cs` | 取消窗序列化 + `ResolvedCancelWindow` |
+| `ActionTransition` | `Combat/Actions/ActionTransition.cs` | 收招衔接 |
+| `PlayerActionSet` | `Combat/Actions/PlayerActionSet.cs` | 出招表 `ActionEntry[]` |
+| `ActionRuntimeController` | `Combat/Actions/ActionRuntimeController.cs` | 招式运行时 |
 | `IActionRuntime` | `Character/StateMachine/IActionRuntime.cs` | 执行器抽象 |
-| `ActionState` | `Character/StateMachine/States/ActionState.cs` | Action 状态行为 |
-| `LocomotionState` | `Character/StateMachine/States/LocomotionState.cs` | Locomotion 动画 |
-| `InputManager` | `Input/InputManager.cs` | 输入注册、缓冲（仅 `PlayerController` 持有） |
-| `IActionComboInput` | `Input/IActionComboInput.cs` | 连段缓冲消费接口（注入 `ActionRuntimeController`） |
-| `CharacterRootMotionDriver` | `Character/Animation/CharacterRootMotionDriver.cs` | `OnAnimatorMove` 桥接 Root Motion → `CharacterController` |
+| `IActionComboInput` | `Input/IActionComboInput.cs` | 多 id 缓冲消费 |
+| `IActionStartContext` | `Combat/Actions/IActionStartContext.cs` | 起手副作用（朝向等） |
+| `InputManager` | `Input/InputManager.cs` | 输入中枢 |
+| `InputReader` | `Input/InputReader.cs` | 设备采集 |
+| `InputBindingUtils` / `InputIds` | `Input/InputIds.cs` | Action 名解析、特殊 id |
+| `PlayerInputFrame` | `Input/PlayerInputFrame.cs` | 单帧输入快照 |
+| `CharacterRootMotionDriver` | `Character/Animation/CharacterRootMotionDriver.cs` | Root Motion → CC |
 
 ---
 
-## 5. 数据模型（当前）
+## 5. 数据模型
 
-### 5.1 ActionDefinition 字段
+### 5.1 ActionDefinition
 
-| 字段 | 类型 | 默认 / 行为 | 说明 |
-|------|------|-------------|------|
-| `id` | `string` | `"player_attack_1"` | 唯一标识；空时 `OnValidate` 用资产名 |
-| `displayName` | `string` | `"Attack 1"` | 显示名 |
-| `animationClip` | `AnimationClip` | — | **必填**；招式动画 |
-| `sampleRate` | `float` | `30` | 逻辑帧率；与 `totalFrames` 推算时长 |
-| `totalFrames` | `int` | 自动计算 | `Round(clip.length × sampleRate)` |
-| `actionType` | `CombatActionType` | `Attack` | 分类预留 |
-| `crossFadeDuration` | `float` | `0.1` | 切入招式的 CrossFade 时间 |
-| `nextAction` | `ActionDefinition` | `null` | 连段下一段；空则无连段 |
-| `comboLinkStartFrame` | `int` | 自动：`totalFrames × 0.5` | 可接招帧区间起点 |
-| `comboLinkEndFrame` | `int` | 自动：`totalFrames - 1` | 可接招帧区间终点 |
-| `useRootMotion` | `bool` | `true` | 启用动画 Root Motion；与脚本位移互斥 |
-| `displacementDistance` | `float` | `0` | 脚本位移总距离（米）；仅 `useRootMotion = false` 时生效 |
-| `displacementStartFrame` | `int` | `0` | 脚本位移起点帧 |
-| `displacementEndFrame` | `int` | 自动：`totalFrames - 1` | 脚本位移终点帧 |
-
-**计算属性：**
-
-- `DurationSeconds` = `totalFrames / sampleRate`（无帧数时回退 `clip.length`）
-- `HasComboLink` = `nextAction != null`
-- `IsInComboLinkWindow(elapsedSeconds)` — 当前帧 ∈ `[comboLinkStartFrame, comboLinkEndFrame]`
-- `UseRootMotion` — 是否由动画 Root Motion 驱动位移
-- `HasScriptedDisplacement` = `!useRootMotion && displacementDistance > 0`
-- `IsInDisplacementWindow(elapsedSeconds)` — 脚本位移帧窗口（仅 `HasScriptedDisplacement` 时有效）
-- `DisplacementSpeed` = `displacementDistance / 窗口秒数`（脚本位移匀速）
-
-**OnValidate 自动行为：** 绑定 Clip 后刷新 `totalFrames`；若配置了 `nextAction` 且连段帧为 0，则写入默认窗口（后半段至末帧）；若 `displacementDistance > 0` 且终点帧为 0，则默认覆盖全段 `[0, totalFrames - 1]`。
-
-### 5.2 CombatActionType
-
-```csharp
-Attack = 0, Dodge = 1, Skill = 2, Hit = 3, Death = 4, Locomotion = 5
-```
-
-当前运行时**未**按类型分支；仅作资产标注与未来扩展。
-
-### 5.3 资产目录
-
-```
-Assets/Data/Combat/Actions/
-└── Player/
-    ├── player_attack_1.asset
-    ├── player_attack_2.asset
-    └── player_attack_3.asset
-```
-
-创建菜单：`Create → ACT → Combat → Action Definition`
-
----
-
-## 6. 实现细节
-
-### 6.1 运行时主流程
-
-```
-[Locomotion]
-  （攻击输入由 PlayerController 处理，非 LocomotionState）
-  → 仅驱动 Idle/Walk/Run 动画
-
-[PlayerController] ProcessInput（先于状态机 Tick）
-  AttackPressedThisFrame?
-    → InputManager.NotifyPressed(Attack)
-        → Locomotion：TryStartDefaultAction() + 切 Action
-        → Action：InputManager.Buffer(Attack)
-
-[Action] Tick (每帧)
-  → ActionRuntime.Tick(deltaTime)
-      → TryConsumeBufferedCombo()  // 经 IActionComboInput 消费缓冲
-      → elapsed += dt
-      → ApplyScriptedDisplacement(dt)   // useRootMotion=false 时
-      → [并行] OnAnimatorMove           // useRootMotion=true 时
-      → TryConsumeBufferedCombo()
-          → 有缓冲 && 在 comboLink 窗口?
-          → BeginAction(nextAction)   // 切下一招，重置计时
-      → elapsed >= DurationSeconds?
-          → Stop()
-
-  → !IsPlaying → StateMachine → Locomotion
-
-[Action] Exit
-  → ActionRuntime.Stop()
-  → Animation.SetLocked(false)
-  → Animation.ResetPlaybackState()
-
-[Locomotion] 恢复 Idle/Walk/Run
-```
-
-### 6.2 ActionRuntimeController 关键逻辑
-
-**起手 `TryPlay(action)`：**
-
-- 拒绝条件：已在播放、action 为空、无 Clip、无 `animationController`
-- `BeginAction`：记录 `_current`、清零 `_elapsed`、`PlayClip(clip, crossFadeDuration)`
-
-**连段 `TryConsumeBufferedCombo()`：**
-
-- 仅在 `_attackBuffered == true` 且 `IsInComboLinkWindow(_elapsed)` 时触发
-- 成功则 `BeginAction(nextAction)`，并清除缓冲
-- **同帧优先连段**：连段成功后本帧不再检查结束计时
-
-**结束 `Stop()`：**
-
-- 清空 `_current`、`_isPlaying`、`_elapsed`
-- `CharacterRootMotionDriver.SetActive(false)`
-- 不主动切动画；由 `ActionState` 切回 `Locomotion` 后 `LocomotionState` 驱动 Idle/Walk/Run
-
-**Root Motion（`useRootMotion = true`）：**
-
-- `BeginAction` 时 `CharacterRootMotionDriver.SetActive(true)`，同时 `animator.applyRootMotion = true`
-- `CharacterRootMotionReceiver` 挂在 **Animator 同物体**（运行时自动添加），在 `OnAnimatorMove` 中：
-  - 将 `deltaPosition`（Y 归零）写入父节点 `CharacterController.Move`
-  - 将 `deltaRotation` 叠加到父节点朝向
-  - **重置模型根 Transform 的 localPosition / localRotation**，避免子物体相对 `Player_KatanaGirl` 漂移
-- Locomotion 期间 Root Motion 关闭；退出 Action 时也会重置模型本地坐标
-
-**脚本位移 `ApplyScriptedDisplacement(deltaTime)`（`useRootMotion = false`）：**
-
-- 条件：`displacementDistance > 0` 且当前帧在 `[displacementStartFrame, displacementEndFrame]`
-- 方向：角色 `transform.forward` 投影到 XZ 平面（水平朝前）
-- 速度：`displacementDistance / 窗口时长`，窗口内匀速，总位移等于配置距离
-- 执行：`CharacterController.Move`；与 `PlayerController` 重力独立，同帧可叠加
-
-### 6.3 输入与缓冲
-
-| 环节 | 实现 |
+| 字段 | 说明 |
 |------|------|
-| 输入源 | `InputReader.AttackPressedThisFrame`（Input System `Player/Attack`） |
-| 路由 | `PlayerController` 读取输入 → `InputManager.NotifyPressed` |
-| 起手 | `InputManager` 注册回调：Locomotion 时 `TryStartDefaultAction()` + 切 `Action` |
-| 缓冲 | 同回调：Action 时 `InputManager.Buffer(Attack)` |
-| 消费 | `ActionRuntimeController` 经 `IActionComboInput` 在 `comboLink` 窗口内 `TryConsumeBuffer` |
-| 清理 | 离开 `Action` 状态时 `PlayerController` 清除攻击缓冲 |
+| `id` / `displayName` | 标识与显示名 |
+| `animationClip` | 招式动画（须与 Animator State 同名） |
+| `sampleRate` / `totalFrames` | 逻辑帧率与总帧（`OnValidate` 自动算） |
+| `actionType` | `CombatActionType` 分类 |
+| `crossFadeDuration` | 切入 CrossFade 时间 |
+| `cancelWindows[]` | 取消窗（见 §5.2） |
+| `transitions[]` | 收招衔接（见 §5.3） |
+| `startBehaviors[]` | 起手副作用（见 §5.4） |
+| `useRootMotion` | 动画 Root Motion；为 true 时忽略脚本位移 |
+| `displacementDistance` + 帧窗口 | 脚本推进（可正可负，沿朝前 XZ） |
 
-> 与目标方案对比：完整版将在全程缓冲多种输入，由 `CancelWindow.allowedInputs` 决定消费；当前仅支持**攻击键单缓冲**。
+**帧换算：** `frame = FloorToInt(elapsedSeconds * sampleRate)`
 
-### 6.4 移动与 Action 互斥
+### 5.2 CancelWindow
 
-`PlayerController` 在 `CurrentStateType == Action` 时：
+| 字段 | 说明 |
+|------|------|
+| `startFrame` / `endFrame` | 生效帧区间（`endFrame > startFrame`） |
+| `cancelType` | `Action`：切到 `targetAction`；`Movement`：由 `PlayerController` 处理 |
+| `allowedInputs` | `InputActionReference[]`；运行时 id = **Action 名**（如 `Attack`） |
+| `targetAction` | Action 取消的目标招式 |
+| `priority` | 数值越大越优先；同帧多窗按降序扫描 |
 
-- 不处理水平移动输入（`moveInputMagnitude` 置 0）
-- 重力仍生效
+**Action 取消流程：** `ActionRuntimeController` 每帧按 priority 扫描 → 窗口内且有匹配缓冲 → 消费缓冲并 `TransitionTo(targetAction)`，同时清除其它离散缓冲。
 
-尚未实现「后摇移动取消」；玩家须等招式播完回到 `Locomotion` 才能移动。
+**Movement 取消流程：** `ActionDefinition.IsInMovementCancelWindow(elapsed)` 为 true，且 `InputManager.HasMoveIntent` → `PlayerController` 调用 `TryChangeState(Locomotion)`；`ActionState.Exit` 会 `Stop()` 招式。
 
-### 6.5 帧索引换算
+### 5.3 ActionTransition
+
+| 字段 | 说明 |
+|------|------|
+| `condition` | 当前仅运行时处理 `AnimationEnd` |
+| `targetAction` | 衔接目标；`null` 表示 `Stop` 回 Locomotion |
+| `priority` | 降序取首个匹配项 |
+
+### 5.4 ActionStartBehaviorType
+
+| 值 | 行为 |
+|----|------|
+| `FaceBufferedMoveIntent` | 起手时朝 `InputManager` 的移动意图（或缓冲意图）转向 |
+
+由 `PlayerController` 实现 `IActionStartContext` 并注入 `ActionRuntimeController`。
+
+### 5.5 PlayerActionSet
 
 ```csharp
-int frame = FloorToInt(elapsedSeconds * sampleRate);
-bool inWindow = frame >= comboLinkStartFrame && frame <= comboLinkEndFrame;
+struct ActionEntry {
+    InputActionReference input;   // 运行时 inputId = action.name
+    ActionDefinition startAction;
+}
 ```
 
-**注意：** 尚未实现统一的 `UpdateFrame(frameIndex)` 入口；后续 Hitbox / Phase / Event 应与此换算共用，以保证编辑器 scrub 与运行时一致（见 ACTION_EDITOR §2.3）。
+| 方法 | 说明 |
+|------|------|
+| `TryGetStartAction(inputId, out action)` | Locomotion 起手查找 |
+| `CollectEntryInputReferences()` | 供 `InputReader.ConfigureDiscreteInputs` 轮询按下 |
+
+创建菜单：`Create → ACT → Combat → Player Action Set`
+
+### 5.6 输入 id 约定
+
+- 离散输入 id = Input System **Action 名**（如 `Attack`、`Dodge`），由 `InputBindingUtils.GetInputId` 解析。
+- `InputIds.Move` 为移动取消语义占位，实际由 `HasMoveIntent` 判定，非离散 `NotifyPressed`。
+
+---
+
+## 6. 运行时流程
+
+### 6.1 每帧总览
+
+```
+PlayerController.Update（DefaultExecutionOrder -50，先于状态机）
+  1. IngestInput()        → InputManager.IngestFrame(CaptureFrame())
+  2. ProcessGameplayInput → 离开 Action 清缓冲；招式中尝试移动取消
+  3. ExecuteMovement()    → 非 Action 时执行水平位移
+  4. ApplyGravity()
+
+PlayerStateMachine.Update
+  → ActionState / LocomotionState.Tick
+      → ActionRuntime.Tick(dt)   // 仅 Action 状态
+```
+
+### 6.2 起手（Locomotion → Action）
+
+```
+离散输入按下 → InputManager.NotifyPressed(inputId)
+  → HandleDiscreteInput
+      → TryStartByInput(inputId)   // PlayerActionSet 查起手招
+      → TryChangeState(Action)
+      → ExecuteStartBehaviors      // 如 FaceBufferedMoveIntent
+      → BeginAction：PlayClip + RootMotion 开关
+```
+
+### 6.3 招式中（Action 取消 / 连段）
+
+```
+离散输入按下 → InputManager.Buffer(inputId)
+
+ActionRuntime.Tick:
+  → TryResolveCancelWindows()
+      → 按 priority 遍历 CancelType.Action 窗口
+      → HasBuffer(allowedInput) → Consume → TransitionTo(targetAction)
+
+Movement 取消（并行，PlayerController）:
+  → HasMoveIntent && CanCancelByMovement → Locomotion
+```
+
+### 6.4 收招（AnimationEnd）
+
+```
+elapsed >= DurationSeconds
+  → ResolveEndTransitions()
+      → 首个 AnimationEnd Transition 有 target → TransitionTo
+      → 无 target → Stop() → ActionState 下一帧切 Locomotion
+```
+
+### 6.5 位移
+
+| 模式 | 执行位置 |
+|------|----------|
+| Root Motion | `CharacterRootMotionReceiver.OnAnimatorMove` → 父节点 `CC.Move`；重置子模型 localPose |
+| 脚本位移 | `ActionRuntimeController.ApplyScriptedDisplacement`；`displacementDistance` 可为负 |
 
 ---
 
 ## 7. 使用方式
 
-### 7.1 新建一条招式资产
+### 7.1 配置出招表（PlayerActionSet）
 
-1. Project 窗口右键 → **Create → ACT → Combat → Action Definition**
-2. 保存到 `Assets/Data/Combat/Actions/Player/`（建议命名 `player_attack_N`）
-3. Inspector 填写：
-   - **Animation Clip**：拖入招式动画（须与 Animator 中 State 名一致）
-   - **Id / Display Name**：如 `player_attack_1` / `Attack 1`
-   - **Sample Rate**：与动画导入帧率一致（常用 30）
-   - **Total Frames**：指定 Clip 后由 `OnValidate` 自动填充，可手动微调
-   - **Action Type**：`Attack`
-   - **Cross Fade Duration**：默认 `0.1`
-4. **Movement** 区：
-   - **Use Root Motion**（默认勾选）：位移由动画 Root Motion 驱动
-   - 若关闭 Root Motion，可填 **Displacement Distance** + 帧窗口作脚本推进
+1. `Create → ACT → Combat → Player Action Set`
+2. **Entries** 添加行：`Input` 拖 `GameInputActions` 中的 Action（如 `Player/Attack`）；`Start Action` 拖起手 `ActionDefinition`
+3. 在 `ActionRuntimeController` 的 **Action Set** 字段绑定该资产
+4. `InputReader` 无需重复配置离散输入（`PlayerController.Awake` 自动 `ConfigureDiscreteInputs`）
 
-### 7.2 配置 Root Motion（推荐）
+### 7.2 配置单条招式与三连招
 
-**动画 FBX（Editor）：**
+**Attack1 → Attack2 → Attack3 示例：**
 
-1. 选中攻击 FBX → Animation → 对应 Clip
-2. **Root Transform Position (XZ)**：取消 Bake Into Pose
-3. **Root Transform Position (Y)**：地面招式建议 Bake Y（避免飘起）
-4. 预览确认角色整体前进、脚底不打滑
+1. 在 `player_attack_1` 的 **Cancel Windows** 添加：
+   - `cancelType: Action`，`allowedInputs: [Attack]`，`targetAction: player_attack_2`
+   - `startFrame` / `endFrame` 对齐后摇可接招区间，`priority` 按需设置
+2. `player_attack_2` 同理指向 `player_attack_3`
+3. `player_attack_3` 可不配 Action 取消窗，靠 `transitions` 或自然 `Stop` 收招
+4. **Movement 取消**（可选）：添加 `cancelType: Movement` 窗，后摇末段允许走路取消
 
-**Prefab（Editor）：**
+**End Transitions（可选）：**
 
-1. 打开 `Player_KatanaGirl` Prefab
-2. 根节点会自动挂上 `CharacterRootMotionDriver`（`PlayerStateMachine` RequireComponent）
-3. 子物体 Animator 的 Apply Root Motion 由代码动态控制，无需手动勾选
+- `condition: AnimationEnd`，`targetAction: null` → 播完回 Locomotion
 
-**招式资产：**
+### 7.3 配置 Root Motion
 
-- `useRootMotion = true`（默认）
-- `displacementDistance` 保持 `0`
+1. 攻击 FBX：**Root Transform Position (XZ)** 不 Bake Into Pose
+2. 招式资产 `useRootMotion = true`，`displacementDistance = 0`
+3. 详见前文 §6.5；子模型漂移由 `CharacterRootMotionReceiver` 重置 localPose
 
-### 7.3 配置三连招
+### 7.4 闪避起手朝向（Start Behavior）
 
-以 Attack1 → Attack2 → Attack3 为例：
+1. 闪避 `ActionDefinition` → **Start Behaviors** 勾选 `FaceBufferedMoveIntent`
+2. 玩家按住移动再按闪避键时，起手瞬间朝向缓冲移动方向
 
-| 资产 | nextAction | comboLinkStartFrame | comboLinkEndFrame |
-|------|------------|---------------------|-------------------|
-| `player_attack_1` | → attack_2 | 约 50% 总帧 | 末帧 |
-| `player_attack_2` | → attack_3 | 按动画后摇调整 | 末帧 |
-| `player_attack_3` | （空） | — | — |
+### 7.5 Prefab 检查清单
 
-1. 在 `player_attack_1` 的 **Next Action** 拖入 `player_attack_2`
-2. 调整 **Combo Link Start/End Frame**：玩家须在该帧区间内再次按下攻击，才会接下一段
-3. 第三段不配置 `nextAction`，播完自动回 Locomotion
+| 组件 | 配置 |
+|------|------|
+| `ActionRuntimeController` | `actionSet` → `PlayerActionSet`；`animationController` 自动解析 |
+| `InputReader` | `inputActions` → `GameInputActions.inputactions` |
+| `PlayerController` | 相机引用；自动绑定 `InputManager` / `IActionStartContext` |
+| `CharacterRootMotionDriver` | 随 `RequireComponent` 自动添加 |
 
-**调参建议：** 窗口偏前 = 连段手感紧；偏后 = 更偏「后摇接招」。在 Scene 播放时观察动画后摇，对齐 Start Frame。
+### 7.6 验证清单
 
-### 7.4 玩家 Prefab 挂载
-
-在 **Player_KatanaGirl**（或同类玩家 Prefab）上确认：
-
-| 组件 | 必要配置 |
-|------|----------|
-| `ActionRuntimeController` | `Animation Controller` → 同物体 `CharacterAnimationController` |
-| | `Default Attack` → `player_attack_1`（起手招式） |
-| `PlayerStateMachine` | 依赖自动满足（`RequireComponent` 链） |
-| `InputReader` | `Input Actions` → `GameInputActions.inputactions` |
-| `CharacterRootMotionDriver` | 随 `PlayerStateMachine` 自动添加；`Animator` 可拖子物体引用 |
-
-`PlayerStateMachine.ConfigureContext` 已将 `ICharacterInput` 与 `IActionRuntime` 注入 `CharacterContext`，无需额外代码。
-
-### 7.5 Animator 要求
-
-1. Animator Controller（如 `ACT_Runtime`）包含 Locomotion 状态（Idle/Walk/Run）及**与招式 Clip 同名的 State**
-2. 招式 State 不需要 Transition 连线；运行时通过 `CrossFadeInFixedTime(clip.name)` 切入
-3. Locomotion 与招式建议同一 Layer（`CharacterAnimationController.layerIndex`，默认 0）
-
-### 7.6 运行时验证清单
-
-- [ ] 站立按攻击 → 播放第一段，移动停止
-- [ ] 攻击时角色随动画 Root Motion 前进（`useRootMotion = true`）
-- [ ] 第一段后摇内再按攻击 → 进入第二段
-- [ ] 窗口外按攻击 → 忽略，第一段播完回 Idle
-- [ ] 第三段播完 → 自动回 Locomotion，可移动
-- [ ] 招式中 `LocomotionState` 不会把动画切回 Walk/Run
-
-### 7.7 代码扩展入口
-
-**播放指定招式（非 defaultAttack）：**
-
-```csharp
-var runtime = GetComponent<IActionRuntime>() as ActionRuntimeController;
-if (runtime.TryPlay(someActionDefinition))
-    stateMachine.TryChangeState(CharacterStateType.Action);
-```
-
-**查询状态：**
-
-```csharp
-runtime.IsPlaying;
-runtime.CurrentAction;  // ActionRuntimeController 公开属性
-```
+- [ ] 出招表 Entries 非空，攻击键能从 Locomotion 起手
+- [ ] 后摇内再按攻击，CancelWindow 衔接下一段
+- [ ] 后摇内推摇杆，Movement 取消窗内可回 Locomotion
+- [ ] 第三段播完回 Idle/Walk/Run
+- [ ] Root Motion 攻击时整体前移、模型不相对父节点漂移
+- [ ] 闪避（若配置）起手朝向移动方向
 
 ---
 
-## 8. 与状态机 / 输入接口
+## 8. 接口摘要
 
-### 8.1 IActionRuntime
+### IActionRuntime
 
 ```csharp
 bool IsPlaying { get; }
-bool TryStartDefaultAction();
+ActionDefinition CurrentAction { get; }
+bool CanCancelByMovement { get; }
+bool TryStartByInput(string inputId);
+bool TryStart(ActionDefinition action);
 void BindComboInput(IActionComboInput comboInput);
+void BindActionStartContext(IActionStartContext startContext);
 void Tick(float deltaTime);
 void Stop();
 ```
 
-状态机只依赖此接口，不直接引用 `ActionDefinition` 或 `InputManager`。
-
-### 8.2 InputManager（仅 PlayerController 引用）
+### IActionComboInput
 
 ```csharp
-void RegisterPressed(InputSlot slot, Action handler);
-void NotifyPressed(InputSlot slot);
-void Buffer(InputSlot slot);
-bool TryConsumeBuffer(InputSlot slot);
+bool HasBuffer(string inputId);
+bool TryConsumeBuffer(string inputId);
 ```
 
-扩展 Dodge / Skill 时：新增 `InputSlot` + 在 `PlayerController.RegisterInputHandlers` 注册对应回调。
+### InputManager（仅 PlayerController 持有）
 
-### 8.3 CharacterContext 相关字段
-
-| 字段 | 写入方 | 用途 |
-|------|--------|------|
-| `ActionRuntime` | `PlayerStateMachine.ConfigureContext` | 招式 Tick |
-| `MoveInputMagnitude` | `UpdateContext` | Locomotion 动画选择 |
-
----
-
-## 9. 已知限制与后续路线
-
-### 9.1 当前限制
-
-| 限制 | 影响 | 计划 |
-|------|------|------|
-| 无 Hitbox / 伤害 | 攻击无战斗判定 | Combat 模块 + `HitboxKeyframe` |
-| 无 `CancelWindow` | 无法闪避取消、移动取消 | 迁移到 ACTION_EDITOR 数据模型 |
-| 仅攻击键缓冲 | 无法多输入优先级 | 扩展 `InputSlot` + `InputManager` 注册 |
-| 无 `Hit` 状态 | 受击无表现 | `HitState` + `actionType: Hit` 资产 |
-| 无逐帧 `UpdateFrame` | 编辑器预览与运行时难统一 | `ActionRuntimeController` 重构 |
-| `TryPlay` 同时只能播一条 | 无叠加层招式 | 按需求评估 |
-| 敌人未接入 | 仅玩家可攻击 | 敌人挂同一 `ActionRuntimeController` |
-
-### 9.2 建议迁移顺序
-
-1. **连段** — `nextAction` → `CancelWindow(cancelType: Action)` + `ActionTransition`
-2. **战斗** — 增加 `UpdateFrame` + `HitboxKeyframe` + Combat 查询
-3. **收招** — `ActionTransition(AnimationEnd / OnHitConfirm / OnWhiff)`
-4. **编辑器** — `ActionEditorWindow`（M5）替换纯 Inspector 调参
-
-详见 [ACTION_EDITOR.md §4.2](./ACTION_EDITOR.md) 分期计划。
+```csharp
+void RegisterPressed(string inputId, Action handler);
+void IngestFrame(PlayerInputFrame frame);
+void Buffer(string inputId);
+bool HasBuffer(string inputId);
+bool TryConsumeBuffer(string inputId);
+Vector2 MoveIntent / BufferedMoveIntent { get; }
+bool HasMoveIntent { get; }
+```
 
 ---
 
-## 10. 相关文件索引
+## 9. 已知限制
+
+| 限制 | 说明 |
+|------|------|
+| 无 Hitbox / 伤害 | 攻击无判定 |
+| `ActionTransition` 仅 `AnimationEnd` | `OnHitConfirm` / `OnWhiff` 未实现 |
+| 无 `ActionPhase` | 无敌帧、霸体、受击打断未接入 |
+| 同时仅一条招式 | 无叠加层 |
+| 敌人未接入 | 结构可复用 `ActionRuntimeController` |
+| **资产迁移** | 部分 `ActionDefinition` / `PlayerActionSet` 资产可能仍含旧字段（`nextAction`、`attackChain` 等），需在 Editor 中改为 `cancelWindows` + `entries` |
+
+### 后续路线
+
+1. 资产迁移与 `CancelWindow` 调参稳定
+2. `ActionPhase` + Hitbox + Combat
+3. 扩展 `ActionTransition` 条件
+4. `ActionEditorWindow`（M5）
+
+---
+
+## 10. 相关文件
 
 ### 脚本
 
-| 路径 |
-|------|
-| `Assets/Scripts/Combat/Actions/ActionDefinition.cs` |
-| `Assets/Scripts/Combat/Actions/ActionRuntimeController.cs` |
-| `Assets/Scripts/Combat/Actions/CombatActionType.cs` |
-| `Assets/Scripts/Character/StateMachine/IActionRuntime.cs` |
-| `Assets/Scripts/Character/StateMachine/States/ActionState.cs` |
-| `Assets/Scripts/Character/StateMachine/States/LocomotionState.cs` |
-| `Assets/Scripts/Character/StateMachine/CharacterContext.cs` |
-| `Assets/Scripts/Character/StateMachine/CharacterStateMachine.cs` |
-| `Assets/Scripts/Character/Animation/CharacterRootMotionDriver.cs` |
-| `Assets/Scripts/Character/Animation/CharacterAnimationController.cs` |
-| `Assets/Scripts/Player/PlayerStateMachine.cs` |
-| `Assets/Scripts/Player/PlayerController.cs` |
-| `Assets/Scripts/Input/InputReader.cs` |
+```
+Assets/Scripts/Combat/Actions/
+  ActionDefinition.cs, ActionRuntimeController.cs
+  CancelWindow.cs, CancelType.cs
+  ActionTransition.cs, ActionTransitionCondition.cs
+  ActionStartBehaviorType.cs, IActionStartContext.cs
+  PlayerActionSet.cs, CombatActionType.cs
 
-### 资产与 Prefab（Editor 维护）
+Assets/Scripts/Input/
+  InputManager.cs, InputReader.cs, PlayerInputFrame.cs
+  IActionComboInput.cs, InputManagerComboInput.cs
+  InputIds.cs, IPlayerInputSource.cs
 
-| 路径 |
-|------|
-| `Assets/Data/Combat/Actions/Player/player_attack_*.asset` |
-| `Assets/Prefabs/Player/Player_KatanaGirl.prefab` |
-| `Assets/Scripts/Input/GameInputActions.inputactions` |
+Assets/Scripts/Player/
+  PlayerController.cs, PlayerStateMachine.cs
+
+Assets/Scripts/Character/
+  StateMachine/IActionRuntime.cs, States/ActionState.cs, States/LocomotionState.cs
+  Animation/CharacterRootMotionDriver.cs, CharacterAnimationController.cs
+```
+
+### 资产（Editor 维护）
+
+```
+Assets/Data/Combat/Actions/Player/
+  player_attack_*.asset, player_dodge_*.asset, PlayerActionSet.asset
+Assets/Prefabs/Player/Player_KatanaGirl.prefab
+Assets/Scripts/Input/GameInputActions.inputactions
+```
 
 ---
 
@@ -481,7 +401,6 @@ bool TryConsumeBuffer(InputSlot slot);
 
 | 日期 | 变更 |
 |------|------|
-| 2026-06-17 | 初版：基于当前代码归纳实现架构、数据模型、流程与使用说明 |
-| 2026-06-17 | 新增 `ActionDefinition` 位移配置（`displacementDistance` + 帧窗口）及运行时推进 |
-| 2026-06-17 | Action 支持 Root Motion：`useRootMotion` + `CharacterRootMotionDriver`；脚本位移作为备选 |
-| 2026-06-17 | 输入缓冲提取至 `InputManager`；攻击路由由 `PlayerController` 注册，状态机不再读输入 |
+| 2026-06-17 | 初版：M2' 简化连招 + 位移 |
+| 2026-06-17 | Root Motion、`InputManager` 输入路由 |
+| 2026-06-17 | **全面重写**：`CancelWindow` / `ActionTransition` / `PlayerActionSet`；移除 `nextAction`/`comboLink`/`defaultAttack`；`InputManager` 帧摄入与多 id 缓冲；Movement 取消与 `FaceBufferedMoveIntent` |
