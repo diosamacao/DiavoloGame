@@ -55,16 +55,9 @@ public class PlayerController : MonoBehaviour, IActionStartContext
             cameraTransform = Camera.main.transform;
 
         inputReader.ConfigureDiscreteInputs(actionRuntime.GetEntryInputReferences());
-        actionRuntime.BindComboInput(new InputManagerComboInput(_inputManager));
+        actionRuntime.BindComboInput(new PlayerComboInput(_inputManager));
         actionRuntime.BindActionStartContext(this);
-        combatMode.ModeChanged += OnCombatModeChanged;
         RegisterInputHandlers();
-    }
-
-    void OnDestroy()
-    {
-        if (combatMode != null)
-            combatMode.ModeChanged -= OnCombatModeChanged;
     }
 
     /// <summary>注册全部战斗模式出招表中的离散输入（并集，按 inputId 去重）。</summary>
@@ -100,11 +93,6 @@ public class PlayerController : MonoBehaviour, IActionStartContext
         }
     }
 
-    void OnCombatModeChanged(CombatModeType previous, CombatModeType current)
-    {
-        ClearAllActionBuffers();
-    }
-
     void Update()
     {
         IngestInput();
@@ -123,12 +111,40 @@ public class PlayerController : MonoBehaviour, IActionStartContext
     {
         bool inAction = stateMachine.CurrentStateType == CharacterStateType.Action;
         if (_wasInAction && !inAction)
-            ClearAllActionBuffers();
+        {
+            // 先应用挂起的 mode（OnNextLocomotion），再消费 Switch 期间的预输入
+            CombatMode.ApplyPendingModeIfReady();
+            if (!TryStartFromBufferedInputs())
+                ClearAllActionBuffers();
+        }
 
         if (inAction)
             TryCancelActionByMovement();
 
         _wasInAction = inAction;
+    }
+
+    /// <summary>离开 Action 后尝试用缓冲的离散输入从 Locomotion 起手。</summary>
+    bool TryStartFromBufferedInputs()
+    {
+        PlayerActionSet actionSet = combatMode.ActiveActionSet;
+        if (actionSet == null)
+            return false;
+
+        foreach (ActionEntry entry in actionSet.Entries)
+        {
+            if (!entry.IsValid)
+                continue;
+
+            string inputId = entry.InputId;
+            if (!_inputManager.HasBuffer(inputId))
+                continue;
+
+            TryStartFromLocomotion(inputId);
+            return stateMachine.CurrentStateType == CharacterStateType.Action;
+        }
+
+        return false;
     }
 
     void ClearAllActionBuffers()
@@ -248,5 +264,17 @@ public class PlayerController : MonoBehaviour, IActionStartContext
 
         velocity.y += gravity * Time.deltaTime;
         controller.Move(velocity * Time.deltaTime);
+    }
+
+    /// <summary>将本控制器 InputManager 缓冲桥接给 ActionRuntime Cancel 消费。</summary>
+    sealed class PlayerComboInput : IActionComboInput
+    {
+        readonly InputManager _inputManager;
+
+        public PlayerComboInput(InputManager inputManager) => _inputManager = inputManager;
+
+        public bool HasBuffer(string inputId) => _inputManager.HasBuffer(inputId);
+
+        public bool TryConsumeBuffer(string inputId) => _inputManager.TryConsumeBuffer(inputId);
     }
 }
