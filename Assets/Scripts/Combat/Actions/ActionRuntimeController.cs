@@ -27,6 +27,18 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         _isPlaying && _current != null && _current.IsInMovementCancelWindow(_elapsed);
     public ActionDefinition CurrentAction => _current;
 
+    /// <summary>当前招式已播放秒数。</summary>
+    public float ElapsedSeconds => _elapsed;
+
+    /// <summary>当前招式逻辑帧（与 ActionDefinition.sampleRate 对齐）。</summary>
+    public int CurrentFrame =>
+        _isPlaying && _current != null ? _current.FrameAt(_elapsed) : 0;
+
+    float IActionRuntime.ElapsedSeconds => _elapsed;
+
+    int IActionRuntime.CurrentFrame =>
+        _isPlaying && _current != null ? _current.FrameAt(_elapsed) : 0;
+
     /// <summary>当前战斗模式绑定的出招表 Entries。</summary>
     public IReadOnlyList<ActionEntry> InputEntries =>
         ActiveActionSet != null ? ActiveActionSet.Entries : Array.Empty<ActionEntry>();

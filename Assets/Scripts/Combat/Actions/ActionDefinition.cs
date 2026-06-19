@@ -28,6 +28,9 @@ public class ActionDefinition : ScriptableObject
     [SerializeField] CombatModeType switchCombatModeTarget = CombatModeType.Default;
     [SerializeField] CombatModeSwitchPolicy switchCombatModePolicy = CombatModeSwitchPolicy.Immediate;
 
+    [Header("Hitboxes")]
+    [SerializeField] HitboxKeyframe[] hitboxes = Array.Empty<HitboxKeyframe>();
+
     [Header("Movement")]
     [Tooltip("开启时由动画 Root Motion 驱动位移，脚本位移（Displacement Distance）将被忽略。")]
     [SerializeField] bool useRootMotion = true;
@@ -50,6 +53,7 @@ public class ActionDefinition : ScriptableObject
     public CombatModeType SwitchCombatModeTarget => switchCombatModeTarget;
     public CombatModeSwitchPolicy SwitchCombatModePolicy => switchCombatModePolicy;
     public bool HasScriptedDisplacement => !useRootMotion && Mathf.Abs(displacementDistance) > 0.001f;
+    public HitboxKeyframe[] Hitboxes => hitboxes ?? Array.Empty<HitboxKeyframe>();
 
     public float DurationSeconds
     {
@@ -159,7 +163,24 @@ public class ActionDefinition : ScriptableObject
         }
     }
 
-    int FrameAt(float elapsedSeconds) => Mathf.FloorToInt(elapsedSeconds * SampleRate);
+    /// <summary>将 elapsed 秒换算为逻辑帧索引。</summary>
+    public int FrameAt(float elapsedSeconds) => Mathf.FloorToInt(elapsedSeconds * SampleRate);
+
+    /// <summary>返回指定帧上全部生效的 Hitbox（按数组顺序）。</summary>
+    public IReadOnlyList<HitboxKeyframe> GetActiveHitboxesAtFrame(int frame)
+    {
+        if (hitboxes == null || hitboxes.Length == 0)
+            return Array.Empty<HitboxKeyframe>();
+
+        var active = new List<HitboxKeyframe>();
+        foreach (HitboxKeyframe hitbox in hitboxes)
+        {
+            if (hitbox != null && hitbox.IsActiveAtFrame(frame))
+                active.Add(hitbox);
+        }
+
+        return active;
+    }
 
     void OnValidate()
     {

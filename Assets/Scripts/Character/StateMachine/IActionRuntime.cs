@@ -6,6 +6,12 @@ public interface IActionRuntime
 
     ActionDefinition CurrentAction { get; }
 
+    /// <summary>当前招式已播放秒数。</summary>
+    float ElapsedSeconds { get; }
+
+    /// <summary>当前招式逻辑帧（与 ActionDefinition.sampleRate 对齐）。</summary>
+    int CurrentFrame { get; }
+
     /// <summary>当前招式是否处于可移动取消的帧窗口内。</summary>
     bool CanCancelByMovement { get; }
 
