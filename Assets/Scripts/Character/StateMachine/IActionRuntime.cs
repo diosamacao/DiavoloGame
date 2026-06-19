@@ -15,6 +15,9 @@ public interface IActionRuntime
     /// <summary>当前招式是否处于可移动取消的帧窗口内。</summary>
     bool CanCancelByMovement { get; }
 
+    /// <summary>当前招式是否处于输入旋转修正窗口内。</summary>
+    bool CanRotateByInput { get; }
+
     /// <summary>按出招表入口 id 从 Locomotion 起手。</summary>
     bool TryStartByInput(string inputId);
 

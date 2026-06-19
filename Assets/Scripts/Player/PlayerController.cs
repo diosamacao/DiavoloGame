@@ -223,7 +223,26 @@ public class PlayerController : MonoBehaviour, IActionStartContext
         else
         {
             moveInputMagnitude = 0f;
+            TryApplyActionRotation();
         }
+    }
+
+    /// <summary>招式旋转修正窗口内，按当前移动输入平滑转向（不位移）。</summary>
+    void TryApplyActionRotation()
+    {
+        if (!actionRuntime.CanRotateByInput || !_inputManager.HasMoveIntent)
+            return;
+
+        ActionDefinition action = actionRuntime.CurrentAction;
+        if (action == null || !action.HasRotationWindow)
+            return;
+
+        Vector3 direction = ResolveWorldMoveDirection(_inputManager.MoveIntent);
+        if (direction.sqrMagnitude < 0.001f)
+            return;
+
+        float smoothTime = action.RotationWindow.ResolveSmoothTime(rotationSmoothTime);
+        transform.rotation = GetSmoothedRotation(direction, smoothTime);
     }
 
     /// <summary>将移动意图转为世界空间方向；闪避等招式可复用 BufferedMoveIntent 调用此方法。</summary>
@@ -247,12 +266,18 @@ public class PlayerController : MonoBehaviour, IActionStartContext
 
     Quaternion GetSmoothedRotation(Vector3 moveDirection)
     {
+        return GetSmoothedRotation(moveDirection, rotationSmoothTime);
+    }
+
+    /// <summary>按指定平滑时间将朝向转向 moveDirection。</summary>
+    Quaternion GetSmoothedRotation(Vector3 moveDirection, float smoothTime)
+    {
         float targetAngle = Mathf.Atan2(moveDirection.x, moveDirection.z) * Mathf.Rad2Deg;
         float angle = Mathf.SmoothDampAngle(
             transform.eulerAngles.y,
             targetAngle,
             ref rotationVelocity,
-            rotationSmoothTime);
+            smoothTime);
 
         return Quaternion.Euler(0f, angle, 0f);
     }

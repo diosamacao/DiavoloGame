@@ -31,6 +31,10 @@ public class ActionDefinition : ScriptableObject
     [Header("Hitboxes")]
     [SerializeField] HitboxKeyframe[] hitboxes = Array.Empty<HitboxKeyframe>();
 
+    [Header("Rotation")]
+    [Tooltip("帧窗口内允许玩家用移动输入修正朝向，常用于攻击前摇瞄准。")]
+    [SerializeField] RotationWindow rotationWindow = new();
+
     [Header("Movement")]
     [Tooltip("开启时由动画 Root Motion 驱动位移，脚本位移（Displacement Distance）将被忽略。")]
     [SerializeField] bool useRootMotion = true;
@@ -53,6 +57,8 @@ public class ActionDefinition : ScriptableObject
     public CombatModeType SwitchCombatModeTarget => switchCombatModeTarget;
     public CombatModeSwitchPolicy SwitchCombatModePolicy => switchCombatModePolicy;
     public bool HasScriptedDisplacement => !useRootMotion && Mathf.Abs(displacementDistance) > 0.001f;
+    public RotationWindow RotationWindow => rotationWindow;
+    public bool HasRotationWindow => rotationWindow != null && rotationWindow.IsConfigured;
     public HitboxKeyframe[] Hitboxes => hitboxes ?? Array.Empty<HitboxKeyframe>();
 
     public float DurationSeconds
@@ -148,6 +154,15 @@ public class ActionDefinition : ScriptableObject
         return frame >= displacementStartFrame && frame <= displacementEndFrame;
     }
 
+    /// <summary>当前时刻是否落在输入旋转修正窗口内。</summary>
+    public bool IsInRotationWindow(float elapsedSeconds)
+    {
+        if (!HasRotationWindow || totalFrames <= 0)
+            return false;
+
+        return rotationWindow.IsActiveAtFrame(FrameAt(elapsedSeconds));
+    }
+
     public float DisplacementSpeed
     {
         get
@@ -207,6 +222,9 @@ public class ActionDefinition : ScriptableObject
             displacementEndFrame,
             displacementStartFrame,
             Mathf.Max(0, totalFrames - 1));
+
+        if (rotationWindow != null && rotationWindow.IsConfigured)
+            rotationWindow.ClampToTotalFrames(totalFrames);
     }
 }
 
