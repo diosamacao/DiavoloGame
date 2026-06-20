@@ -61,6 +61,7 @@ public class VFXManager : MonoBehaviour
             return null;
 
         ActionVfxSpawner.ApplyTransform(instance.transform, anchor, vfx);
+        BindSpawnOwner(instance, root);
         return instance;
     }
 
@@ -84,6 +85,7 @@ public class VFXManager : MonoBehaviour
         instanceTransform.position = position;
         instanceTransform.rotation = rotation;
         instanceTransform.localScale = Vector3.Max(localScale, Vector3.one * 0.01f);
+        BindSpawnOwner(instance, parent);
         return instance;
     }
 
@@ -154,6 +156,16 @@ public class VFXManager : MonoBehaviour
             pooled = instance.AddComponent<VfxPooledInstance>();
 
         pooled.Initialize(this, prefab);
+    }
+
+    /// <summary>绑定特效所属攻击者，供卡肉时暂停对应粒子。</summary>
+    static void BindSpawnOwner(GameObject instance, Transform ownerRoot)
+    {
+        if (instance == null || ownerRoot == null)
+            return;
+
+        VfxPooledInstance pooled = instance.GetComponent<VfxPooledInstance>();
+        pooled?.SetSpawnOwner(ownerRoot);
     }
 
     void EnsureInactiveRoot()
