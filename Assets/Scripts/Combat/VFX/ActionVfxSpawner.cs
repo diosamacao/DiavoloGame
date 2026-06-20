@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>按 ActionVfxKeyframe 配置实例化 VFX Prefab。</summary>
 public static class ActionVfxSpawner
 {
-    /// <summary>生成 VFX 实例；prefab 为空或 anchor 无效时返回 null。</summary>
+    /// <summary>生成 VFX 实例；优先经 VFXManager 对象池，无 Manager 时回退 Instantiate。</summary>
     public static GameObject Spawn(
         GameObject prefab,
         Transform root,
@@ -16,6 +16,9 @@ public static class ActionVfxSpawner
         Transform anchor = attachPoint != null ? attachPoint : root;
         if (anchor == null)
             return null;
+
+        if (VFXManager.TryGetInstance(out VFXManager manager))
+            return manager.Spawn(prefab, root, attachPoint, vfx);
 
         GameObject instance = Object.Instantiate(prefab);
         ApplyTransform(instance.transform, anchor, vfx);
