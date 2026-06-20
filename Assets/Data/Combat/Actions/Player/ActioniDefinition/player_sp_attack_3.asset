@@ -55,6 +55,10 @@ MonoBehaviour:
     localOffset: {x: 0, y: 0.6672542, z: 1.5483992}
     localEulerAngles: {x: 0, y: 0, z: 0}
     size: {x: 3, y: 2, z: 4.1090093}
+  vfxEvents: []
+  cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
+  disableCameraShakeOnHit: 0
+  useCameraShakeOnHit: 1
   rotationWindow:
     startFrame: 0
     endFrame: 6
