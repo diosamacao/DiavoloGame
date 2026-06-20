@@ -27,7 +27,6 @@ MonoBehaviour:
     - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     - {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     - {fileID: -130322003382893763, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    - {fileID: 6990492112164883386, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     priority: 0
   - startFrame: 24
     endFrame: 60
@@ -40,7 +39,7 @@ MonoBehaviour:
   switchCombatModeTarget: 0
   switchCombatModePolicy: 0
   hitboxes:
-  - hitboxId: 
+  - hitboxId: 0
     startFrame: 8
     endFrame: 10
     localOffset: {x: 0, y: 0.6672542, z: 1.5483992}
@@ -49,7 +48,7 @@ MonoBehaviour:
   rotationWindow:
     startFrame: 0
     endFrame: 7
-    smoothTimeOverride: 0
+    smoothTimeOverride: 0.05
   targetLockSettings:
     enabled: 1
     lockRange: 8

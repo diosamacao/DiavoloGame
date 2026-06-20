@@ -52,7 +52,7 @@ MonoBehaviour:
   rotationWindow:
     startFrame: 0
     endFrame: 6
-    smoothTimeOverride: 0
+    smoothTimeOverride: 0.05
   targetLockSettings:
     enabled: 1
     lockRange: 8
