@@ -27,7 +27,6 @@ MonoBehaviour:
     - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     - {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     - {fileID: -130322003382893763, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    - {fileID: 6990492112164883386, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     priority: 0
   - startFrame: 40
     endFrame: 80
@@ -37,12 +36,29 @@ MonoBehaviour:
     priority: 1
   transitions:
   - condition: 1
-    startFrame: 40
-    targetAction: {fileID: 11400000, guid: 52dad92e8dc377447aac32742f191242, type: 2}
+    startFrame: 60
+    targetAction: {fileID: 11400000, guid: 7c9da613ddcec5f439fbafcb3848a59d, type: 2}
     priority: 0
   startBehaviors: 
   switchCombatModeTarget: 0
   switchCombatModePolicy: 0
+  hitboxes:
+  - hitboxId: 
+    startFrame: 7
+    endFrame: 9
+    localOffset: {x: 0, y: 0.6672542, z: 1.5483992}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    size: {x: 3, y: 2, z: 4.1090093}
+  rotationWindow:
+    startFrame: 0
+    endFrame: -1
+    smoothTimeOverride: 0
+  targetLockSettings:
+    enabled: 1
+    lockRange: 8
+    forwardConeAngle: 120
+    policy: 0
+    lockRotationSmoothTimeOverride: 0
   useRootMotion: 1
   displacementDistance: 0
   displacementStartFrame: 0

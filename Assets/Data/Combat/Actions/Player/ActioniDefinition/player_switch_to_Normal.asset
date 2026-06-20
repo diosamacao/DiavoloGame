@@ -28,6 +28,17 @@ MonoBehaviour:
   startBehaviors: 01000000
   switchCombatModeTarget: 0
   switchCombatModePolicy: 0
+  hitboxes: []
+  rotationWindow:
+    startFrame: 0
+    endFrame: -1
+    smoothTimeOverride: 0
+  targetLockSettings:
+    enabled: 0
+    lockRange: 8
+    forwardConeAngle: 120
+    policy: 0
+    lockRotationSmoothTimeOverride: 0
   useRootMotion: 0
   displacementDistance: 0
   displacementStartFrame: 0

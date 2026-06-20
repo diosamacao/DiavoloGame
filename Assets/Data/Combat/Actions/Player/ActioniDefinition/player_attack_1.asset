@@ -39,6 +39,23 @@ MonoBehaviour:
   startBehaviors: 
   switchCombatModeTarget: 0
   switchCombatModePolicy: 0
+  hitboxes:
+  - hitboxId: 
+    startFrame: 7
+    endFrame: 9
+    localOffset: {x: 0, y: 0.6672542, z: 1.5483992}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    size: {x: 3, y: 2, z: 4.1090093}
+  rotationWindow:
+    startFrame: 0
+    endFrame: -1
+    smoothTimeOverride: 0
+  targetLockSettings:
+    enabled: 1
+    lockRange: 8
+    forwardConeAngle: 120
+    policy: 0
+    lockRotationSmoothTimeOverride: 0.05
   useRootMotion: 1
   displacementDistance: 0
   displacementStartFrame: 0
