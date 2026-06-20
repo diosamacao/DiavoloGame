@@ -34,6 +34,12 @@ MonoBehaviour:
     allowedInputs:
     - {fileID: 6936757010596083576, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     priority: 1
+  - startFrame: 60
+    endFrame: 80
+    cancelType: 1
+    allowedInputs:
+    - {fileID: -130322003382893763, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    priority: 1
   transitions:
   - condition: 1
     startFrame: 60

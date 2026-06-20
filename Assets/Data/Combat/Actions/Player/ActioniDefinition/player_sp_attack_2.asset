@@ -26,13 +26,18 @@ MonoBehaviour:
     allowedInputs:
     - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     - {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    - {fileID: -130322003382893763, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     priority: 0
   - startFrame: 24
     endFrame: 60
     cancelType: 1
     allowedInputs:
     - {fileID: 6936757010596083576, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    priority: 1
+  - startFrame: 30
+    endFrame: 60
+    cancelType: 1
+    allowedInputs:
+    - {fileID: -130322003382893763, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     priority: 1
   transitions:
   - condition: 1
