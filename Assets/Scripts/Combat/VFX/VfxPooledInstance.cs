@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>池化 VFX 实例：Spawn 时重启粒子，生命周期结束后自动回收到 VFXManager。</summary>
 [DisallowMultipleComponent]
-public sealed class VfxPooledInstance : MonoBehaviour
+public sealed class VfxPooledInstance : MonoBehaviour, IPoolable
 {
     [SerializeField] float fallbackLifetime = 2f;
 
@@ -14,17 +14,16 @@ public sealed class VfxPooledInstance : MonoBehaviour
     /// <summary>该实例对应的 Prefab，用于归还正确的对象池。</summary>
     public GameObject SourcePrefab => _prefab;
 
-    /// <summary>由 VfxPrefabPool 在创建/取出前绑定所属 Manager 与 Prefab 键。</summary>
+    /// <summary>由 GameObjectPool 在创建时绑定所属 Manager 与 Prefab 键。</summary>
     public void Initialize(VFXManager manager, GameObject prefab)
     {
         _manager = manager;
         _prefab = prefab;
     }
 
-    /// <summary>从池中取出并激活后调用：重启粒子并安排自动回收。</summary>
+    /// <summary>从池中取出后调用：重启粒子并安排自动回收。</summary>
     public void OnSpawnFromPool()
     {
-        gameObject.SetActive(true);
         RestartParticleSystems();
 
         if (_autoReturnCoroutine != null)

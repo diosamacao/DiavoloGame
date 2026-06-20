@@ -9,7 +9,8 @@ public class VFXManager : MonoBehaviour
 
     [SerializeField] int defaultPrewarmCount = 2;
 
-    readonly Dictionary<int, VfxPrefabPool> _pools = new();
+    readonly Dictionary<int, GameObject> _prefabRegistry = new();
+    ObjectPoolGroup<int, GameObject> _poolGroup;
     Transform _inactiveRoot;
 
     /// <summary>场景内 VFXManager 单例；未放置时返回 null。</summary>
@@ -29,6 +30,7 @@ public class VFXManager : MonoBehaviour
 
         s_instance = this;
         EnsureInactiveRoot();
+        _poolGroup = new ObjectPoolGroup<int, GameObject>(CreatePoolForPrefabId);
     }
 
     void OnDestroy()
@@ -85,7 +87,7 @@ public class VFXManager : MonoBehaviour
         return instance;
     }
 
-    /// <summary>将实例归还对象池；非本 Manager 创建的实例会被 Destroy。</summary>
+    /// <summary>将实例归还对象池；非池化实例会被 Destroy。</summary>
     public void Despawn(GameObject instance)
     {
         if (instance == null)
@@ -98,14 +100,7 @@ public class VFXManager : MonoBehaviour
             return;
         }
 
-        int prefabId = pooled.SourcePrefab.GetInstanceID();
-        if (!_pools.TryGetValue(prefabId, out VfxPrefabPool pool))
-        {
-            Destroy(instance);
-            return;
-        }
-
-        pool.Return(instance);
+        _poolGroup.Return(pooled.SourcePrefab.GetInstanceID(), instance);
     }
 
     /// <summary>为指定 Prefab 预热对象池。</summary>
@@ -114,36 +109,51 @@ public class VFXManager : MonoBehaviour
         if (prefab == null)
             return;
 
-        GetOrCreatePool(prefab).Prewarm(count);
+        RegisterPrefab(prefab);
+        _poolGroup.Prewarm(prefab.GetInstanceID(), count);
     }
 
+    /// <summary>注册 Prefab 并取出池实例；OnGet 会触发 IPoolable。</summary>
     GameObject SpawnInternal(GameObject prefab)
     {
-        VfxPrefabPool pool = GetOrCreatePool(prefab);
-        GameObject instance = pool.Get();
-
-        VfxPooledInstance pooled = instance.GetComponent<VfxPooledInstance>();
-        pooled?.OnSpawnFromPool();
-        return instance;
+        RegisterPrefab(prefab);
+        return _poolGroup.Get(prefab.GetInstanceID());
     }
 
-    VfxPrefabPool GetOrCreatePool(GameObject prefab)
+    void RegisterPrefab(GameObject prefab) => _prefabRegistry[prefab.GetInstanceID()] = prefab;
+
+    ObjectPoolBase<GameObject> CreatePoolForPrefabId(int prefabId)
     {
-        int prefabId = prefab.GetInstanceID();
-        if (_pools.TryGetValue(prefabId, out VfxPrefabPool existing))
-            return existing;
+        if (!_prefabRegistry.TryGetValue(prefabId, out GameObject prefab) || prefab == null)
+        {
+            Debug.LogError($"VFXManager: 未注册的 PrefabId={prefabId}，无法创建对象池。");
+            return null!;
+        }
 
         EnsureInactiveRoot();
 
         Transform prefabRoot = new GameObject($"Pool_{prefab.name}").transform;
         prefabRoot.SetParent(_inactiveRoot, false);
 
-        var pool = new VfxPrefabPool(prefab, prefabRoot, this);
+        var pool = new GameObjectPool(
+            prefab,
+            prefabRoot,
+            instance => ConfigureNewVfxInstance(instance, prefab));
+
         if (defaultPrewarmCount > 0)
             pool.Prewarm(defaultPrewarmCount);
 
-        _pools.Add(prefabId, pool);
         return pool;
+    }
+
+    /// <summary>新建池实例时挂载并初始化 VfxPooledInstance。</summary>
+    void ConfigureNewVfxInstance(GameObject instance, GameObject prefab)
+    {
+        VfxPooledInstance pooled = instance.GetComponent<VfxPooledInstance>();
+        if (pooled == null)
+            pooled = instance.AddComponent<VfxPooledInstance>();
+
+        pooled.Initialize(this, prefab);
     }
 
     void EnsureInactiveRoot()
