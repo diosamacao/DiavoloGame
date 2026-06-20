@@ -56,6 +56,10 @@ MonoBehaviour:
   cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
   disableCameraShakeOnHit: 0
   useCameraShakeOnHit: 1
+  useHitStopOnHit: 1
+  disableHitStopOnHit: 0
+  hitStopFrames: 3
+  hitStopOncePerAction: 1
   rotationWindow:
     startFrame: 0
     endFrame: 6
