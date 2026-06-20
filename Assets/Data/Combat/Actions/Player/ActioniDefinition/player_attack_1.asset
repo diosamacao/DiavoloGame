@@ -48,7 +48,7 @@ MonoBehaviour:
     size: {x: 3, y: 2, z: 4.1090093}
   rotationWindow:
     startFrame: 0
-    endFrame: -1
+    endFrame: 6
     smoothTimeOverride: 0
   targetLockSettings:
     enabled: 1
