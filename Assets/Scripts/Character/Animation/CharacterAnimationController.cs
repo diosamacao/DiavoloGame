@@ -13,6 +13,9 @@ public class CharacterAnimationController : MonoBehaviour
     public AnimationKey? CurrentKey => _currentKey;
     public bool IsLocked => _locked;
 
+    /// <summary>驱动招式的 Animator；可能位于子节点。</summary>
+    public Animator Animator => animator;
+
     void Awake()
     {
         if (animator == null)

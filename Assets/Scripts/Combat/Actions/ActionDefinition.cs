@@ -43,6 +43,16 @@ public class ActionDefinition : ScriptableObject
     [Tooltip("开启镜头震动；新资产默认 true。旧资产缺此字段时 Attack 仍默认开启。")]
     [SerializeField] bool useCameraShakeOnHit = true;
 
+    [Header("Hit Stop")]
+    [Tooltip("命中时触发卡肉（顿帧）；hitStopFrames > 0 时生效。")]
+    [SerializeField] bool useHitStopOnHit = true;
+    [Tooltip("勾选后禁止该招式触发卡肉。")]
+    [SerializeField] bool disableHitStopOnHit;
+    [Tooltip("卡肉持续逻辑帧数（与 sampleRate 对齐）。")]
+    [SerializeField] int hitStopFrames = 3;
+    [Tooltip("勾选后每招仅第一次命中触发卡肉。")]
+    [SerializeField] bool hitStopOncePerAction = true;
+
     [Header("Rotation")]
     [Tooltip("帧窗口内允许玩家用移动输入修正朝向，常用于攻击前摇瞄准。")]
     [SerializeField] RotationWindow rotationWindow = new();
@@ -95,6 +105,21 @@ public class ActionDefinition : ScriptableObject
         // 旧资产 YAML 无 useCameraShakeOnHit 时 Unity 反序列化为 false；Attack 仍默认震。
         return actionType == CombatActionType.Attack;
     }
+
+    /// <summary>卡肉持续秒数（由 hitStopFrames / sampleRate 换算）。</summary>
+    public float HitStopDurationSeconds => hitStopFrames > 0 ? hitStopFrames / SampleRate : 0f;
+
+    /// <summary>该招式命中是否触发卡肉。</summary>
+    public bool ShouldHitStopOnHit()
+    {
+        if (disableHitStopOnHit || hitStopFrames <= 0)
+            return false;
+
+        return useHitStopOnHit;
+    }
+
+    /// <summary>每招是否仅第一次命中触发卡肉。</summary>
+    public bool HitStopOncePerAction => hitStopOncePerAction;
 
     public float DurationSeconds
     {
@@ -266,6 +291,8 @@ public class ActionDefinition : ScriptableObject
             foreach (ActionVfxKeyframe vfxEvent in vfxEvents)
                 vfxEvent?.ClampToTotalFrames(totalFrames);
         }
+
+        hitStopFrames = Mathf.Max(0, hitStopFrames);
     }
 }
 

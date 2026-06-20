@@ -20,9 +20,12 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
     IActionStartContext _startContext;
     ActionDefinition _current;
     bool _isPlaying;
+    bool _hitStopPaused;
+    bool _hitStopTriggeredThisAction;
     float _elapsed;
 
     public bool IsPlaying => _isPlaying;
+    public bool IsHitStopPaused => _hitStopPaused;
     public bool CanCancelByMovement =>
         _isPlaying && _current != null && _current.IsInMovementCancelWindow(_elapsed);
     public bool CanRotateByInput =>
@@ -94,7 +97,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
 
     public void Tick(float deltaTime)
     {
-        if (!_isPlaying || _current == null)
+        if (!_isPlaying || _current == null || _hitStopPaused)
             return;
 
         _elapsed += deltaTime;
@@ -116,7 +119,22 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         _isPlaying = false;
         _current = null;
         _elapsed = 0f;
+        _hitStopPaused = false;
+        _hitStopTriggeredThisAction = false;
         _rootMotion?.SetActive(false);
+    }
+
+    /// <summary>卡肉期间暂停招式逻辑时间推进（由 HitStopController 驱动）。</summary>
+    public void SetHitStopPaused(bool paused) => _hitStopPaused = paused;
+
+    /// <summary>每招仅触发一次卡肉；返回 false 表示本招已触发过。</summary>
+    public bool TryConsumeHitStopTrigger()
+    {
+        if (_hitStopTriggeredThisAction)
+            return false;
+
+        _hitStopTriggeredThisAction = true;
+        return true;
     }
 
     /// <summary>按 priority 扫描 CancelWindow，首个匹配的 Action 取消生效。</summary>
@@ -244,6 +262,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime
         _current = action;
         _isPlaying = true;
         _elapsed = 0f;
+        _hitStopTriggeredThisAction = false;
         _rootMotion?.SetActive(action.UseRootMotion);
         animationController.PlayClip(action.AnimationClip, action.CrossFadeDuration);
     }
