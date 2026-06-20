@@ -31,6 +31,10 @@ public class ActionDefinition : ScriptableObject
     [Header("Hitboxes")]
     [SerializeField] HitboxKeyframe[] hitboxes = Array.Empty<HitboxKeyframe>();
 
+    [Header("VFX")]
+    [Tooltip("刀光等特效帧事件：在 triggerFrame 生成一次 Prefab。")]
+    [SerializeField] ActionVfxKeyframe[] vfxEvents = Array.Empty<ActionVfxKeyframe>();
+
     [Header("Camera Shake")]
     [Tooltip("命中时使用的镜头震动预设；为空则按 ActionType 使用 CameraShakeController 默认配置。")]
     [SerializeField] CameraShakeProfile cameraShakeProfile;
@@ -74,6 +78,7 @@ public class ActionDefinition : ScriptableObject
     public TargetLockSettings TargetLockSettings => targetLockSettings ?? new TargetLockSettings();
     public bool HasTargetLock => targetLockSettings != null && targetLockSettings.Enabled;
     public HitboxKeyframe[] Hitboxes => hitboxes ?? Array.Empty<HitboxKeyframe>();
+    public ActionVfxKeyframe[] VfxEvents => vfxEvents ?? Array.Empty<ActionVfxKeyframe>();
 
     /// <summary>命中时镜头震动预设；可为空。</summary>
     public CameraShakeProfile CameraShakeProfile => cameraShakeProfile;
@@ -255,6 +260,12 @@ public class ActionDefinition : ScriptableObject
 
         if (rotationWindow != null && rotationWindow.IsConfigured)
             rotationWindow.ClampToTotalFrames(totalFrames);
+
+        if (vfxEvents != null)
+        {
+            foreach (ActionVfxKeyframe vfxEvent in vfxEvents)
+                vfxEvent?.ClampToTotalFrames(totalFrames);
+        }
     }
 }
 
