@@ -31,6 +31,14 @@ public class ActionDefinition : ScriptableObject
     [Header("Hitboxes")]
     [SerializeField] HitboxKeyframe[] hitboxes = Array.Empty<HitboxKeyframe>();
 
+    [Header("Camera Shake")]
+    [Tooltip("命中时使用的镜头震动预设；为空则按 ActionType 使用 CameraShakeController 默认配置。")]
+    [SerializeField] CameraShakeProfile cameraShakeProfile;
+    [Tooltip("勾选后禁止该招式触发镜头震动。")]
+    [SerializeField] bool disableCameraShakeOnHit;
+    [Tooltip("开启镜头震动；新资产默认 true。旧资产缺此字段时 Attack 仍默认开启。")]
+    [SerializeField] bool useCameraShakeOnHit = true;
+
     [Header("Rotation")]
     [Tooltip("帧窗口内允许玩家用移动输入修正朝向，常用于攻击前摇瞄准。")]
     [SerializeField] RotationWindow rotationWindow = new();
@@ -66,6 +74,22 @@ public class ActionDefinition : ScriptableObject
     public TargetLockSettings TargetLockSettings => targetLockSettings ?? new TargetLockSettings();
     public bool HasTargetLock => targetLockSettings != null && targetLockSettings.Enabled;
     public HitboxKeyframe[] Hitboxes => hitboxes ?? Array.Empty<HitboxKeyframe>();
+
+    /// <summary>命中时镜头震动预设；可为空。</summary>
+    public CameraShakeProfile CameraShakeProfile => cameraShakeProfile;
+
+    /// <summary>该招式命中是否触发镜头震动（兼容旧 ActionDefinition 资产）。</summary>
+    public bool ShouldShakeOnHit()
+    {
+        if (disableCameraShakeOnHit)
+            return false;
+
+        if (useCameraShakeOnHit)
+            return true;
+
+        // 旧资产 YAML 无 useCameraShakeOnHit 时 Unity 反序列化为 false；Attack 仍默认震。
+        return actionType == CombatActionType.Attack;
+    }
 
     public float DurationSeconds
     {

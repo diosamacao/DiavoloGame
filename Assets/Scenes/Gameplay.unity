@@ -680,6 +680,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2000000002}
   - component: {fileID: 2000000003}
+  - component: {fileID: 2000000004}
   m_Layer: 0
   m_Name: GameplayCamera
   m_TagString: Untagged
@@ -726,6 +727,30 @@ MonoBehaviour:
   lockCursorOnStart: 1
   followDistance: 4
   initialPitch: 15
+--- !u!114 &2000000004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2000000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7825c6dc7577284d93edcc5f90b4d54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  cameraManager: {fileID: 0}
+  defaultAttackShake: {fileID: 0}
+  fallbackAttackSettings:
+    force: 1
+    duration: 0.12
+    directionForward: 0.55
+    directionSide: 0.25
+    directionUp: 0.2
+    amplitudeGain: 1
+    impulseShape: 2
+    propagationSpeed: 1000
+    dissipationDistance: 100
 --- !u!1001 &2086885892
 PrefabInstance:
   m_ObjectHideFlags: 0

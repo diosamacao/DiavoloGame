@@ -66,6 +66,9 @@ public class HitBoxSystem : MonoBehaviour
                 _hitPairs.Add(pair);
                 var context = new ActionHitContext(action, hitbox, root);
                 target.OnHit(in context);
+
+                Transform targetTransform = (target as Component)?.transform;
+                CombatHitFeedback.OnAttackHit(in context, targetTransform);
             }
         }
     }
