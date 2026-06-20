@@ -297,6 +297,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   actionRuntime: {fileID: 1094701652}
   attachPoint: {fileID: 1094701665}
+--- !u!114 &1094701673
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1094701649}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d7f6e5a4b3c2d1e0f9a8b7c6d5e4f3a2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1124908583
 GameObject:
   m_ObjectHideFlags: 0
@@ -579,6 +591,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 1000000001, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1094701666}
+    - targetCorrespondingSourceObject: {fileID: 1000000001, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1094701673}
   m_SourcePrefab: {fileID: 100100000, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
 --- !u!1 &1809699440
 GameObject:
