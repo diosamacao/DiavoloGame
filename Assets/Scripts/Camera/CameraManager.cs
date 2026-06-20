@@ -37,6 +37,9 @@ public class CameraManager : MonoBehaviour
 
     public Transform FollowTarget => cameraRoot != null ? cameraRoot : followTarget;
 
+    /// <summary>运行时创建或绑定的第三人称 Virtual Camera。</summary>
+    public CinemachineVirtualCamera VirtualCamera => virtualCamera;
+
     void Awake()
     {
         pitch = initialPitch;
@@ -44,6 +47,7 @@ public class CameraManager : MonoBehaviour
         ResolveFollowTarget();
         EnsureCameraRoot();
         ResolveInputReader();
+        EnsureCameraShakeController();
         EnsureVirtualCamera();
     }
 
@@ -54,6 +58,7 @@ public class CameraManager : MonoBehaviour
             ResolveFollowTarget();
             EnsureCameraRoot();
             ResolveInputReader();
+            EnsureCameraShakeController();
             EnsureVirtualCamera();
         }
 
@@ -201,6 +206,10 @@ public class CameraManager : MonoBehaviour
         collider.m_MinimumDistanceFromTarget = 0.5f;
         collider.m_CollideAgainst = LayerMask.GetMask("Default");
         collider.m_Strategy = CinemachineCollider.ResolutionStrategy.PreserveCameraHeight;
+
+        CameraShakeController shakeController = GetComponent<CameraShakeController>();
+        if (shakeController != null)
+            shakeController.BindVirtualCamera(vcam);
     }
 
     void ApplyLookInput()
@@ -236,5 +245,12 @@ public class CameraManager : MonoBehaviour
     {
         Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
         Cursor.visible = !locked;
+    }
+
+    /// <summary>确保同物体上有 CameraShakeController，避免场景遗漏挂载导致无震动。</summary>
+    void EnsureCameraShakeController()
+    {
+        if (GetComponent<CameraShakeController>() == null)
+            gameObject.AddComponent<CameraShakeController>();
     }
 }
