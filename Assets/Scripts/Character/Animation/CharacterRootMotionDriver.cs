@@ -1,5 +1,6 @@
 using UnityEngine;
 
+/// <summary>Root Motion 桥接器；把模型 Animator 的 deltaPosition 写回角色 CharacterController。</summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(CharacterController))]
 public class CharacterRootMotionDriver : MonoBehaviour
@@ -22,6 +23,15 @@ public class CharacterRootMotionDriver : MonoBehaviour
         SetActive(false);
     }
 
+    /// <summary>绑定模型 Animator，支持 PlayerController 实例化模型后显式装配。</summary>
+    public void BindAnimator(Animator targetAnimator)
+    {
+        animator = targetAnimator;
+        EnsureReceiver();
+        SetActive(false);
+    }
+
+    /// <summary>启停 Root Motion 位移接管。</summary>
     public void SetActive(bool active)
     {
         EnsureReceiver();

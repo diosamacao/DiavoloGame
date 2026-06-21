@@ -12,6 +12,7 @@ public class CombatModeController : MonoBehaviour, ICombatModeController
     CombatModeType _currentMode;
     bool _hasPendingMode;
     CombatModeType _pendingMode;
+    bool _initialized;
 
     public CombatModeType CurrentMode => _currentMode;
     public CombatModeProfile Profile => profile;
@@ -35,25 +36,54 @@ public class CombatModeController : MonoBehaviour, ICombatModeController
     {
         _animation = GetComponent<CharacterAnimationController>();
 
+        if (profile != null)
+            InitializeProfile(logErrors: true);
+    }
+
+    void Start()
+    {
+        if (!_initialized)
+            InitializeProfile(logErrors: true);
+    }
+
+    /// <summary>绑定战斗模式配置，供 CharacterConfig 运行时装配。</summary>
+    public void BindProfile(CombatModeProfile combatProfile)
+    {
+        profile = combatProfile;
+        InitializeProfile(logErrors: true);
+    }
+
+    /// <summary>初始化当前模式与 Locomotion Profile；失败后禁用运行时逻辑。</summary>
+    bool InitializeProfile(bool logErrors)
+    {
         if (profile == null)
         {
-            Debug.LogError("CombatModeController: profile 未绑定，无法解析出招表。", this);
+            if (logErrors)
+                Debug.LogError("CombatModeController: profile 未绑定，无法解析出招表。", this);
+
             enabled = false;
-            return;
+            return false;
         }
 
         _currentMode = profile.DefaultMode;
 
         if (ActiveActionSet == null)
         {
-            Debug.LogError(
-                $"CombatModeController: defaultMode={profile.DefaultMode} 未在 profile 中配置出招表。",
-                this);
+            if (logErrors)
+            {
+                Debug.LogError(
+                    $"CombatModeController: defaultMode={profile.DefaultMode} 未在 profile 中配置出招表。",
+                    this);
+            }
+
             enabled = false;
-            return;
+            return false;
         }
 
+        _initialized = true;
+        enabled = true;
         ApplyLocomotionForMode(_currentMode);
+        return true;
     }
 
     /// <summary>请求切换模式；招式中 OnNextLocomotion 挂起，StopCurrentAction 由调用方 Stop 后重试。</summary>

@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d043f51eb824084bb285c2b67ad61d0, type: 3}
+  m_Name: PlayerConfig
+  m_EditorClassIdentifier: 
+  modelPrefab: {fileID: 0}
+  modelLocalPosition: {x: 0, y: 0, z: 0}
+  modelLocalEulerAngles: {x: 0, y: 0, z: 0}
+  defaultLocomotionProfile: {fileID: 0}
+  animatorLayerIndex: 0
+  inputActions: {fileID: 0}
+  motor:
+    walkSpeed: 4
+    runSpeed: 7
+    runThreshold: 0.6
+    rotationSmoothTime: 0.12
+    gravity: -20
+    groundedGravity: -2
+    controllerHeight: 1.7
+    controllerRadius: 0.28
+    controllerCenter: {x: 0, y: 0.85, z: 0}
+  combatProfile: {fileID: 0}
+  combat:
+    teamId: 0
+    attachPointName: 
+    aimOriginName: 

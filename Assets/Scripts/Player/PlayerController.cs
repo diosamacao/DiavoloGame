@@ -1,37 +1,31 @@
 using UnityEngine;
 
-/// <summary>玩家位移执行层：InputManager 采集、Locomotion 位移与重力；招式逻辑由 CharacterActionDriver 负责。</summary>
+/// <summary>玩家角色装配与位移入口；Scene 空物体只需挂本组件并指定 CharacterConfig。</summary>
 [DefaultExecutionOrder(-50)]
-[RequireComponent(typeof(CharacterController))]
-[RequireComponent(typeof(InputReader))]
-[RequireComponent(typeof(PlayerStateMachine))]
-[RequireComponent(typeof(CharacterActionDriver))]
-[RequireComponent(typeof(ActionRotationDriver))]
 public class PlayerController : MonoBehaviour, IActionStartContext, IMoveIntentResolver
 {
-    [Header("Movement")]
-    [SerializeField] float walkSpeed = 4f;
-    [SerializeField] float runSpeed = 7f;
-    [SerializeField] float runThreshold = 0.6f;
-    [SerializeField] float rotationSmoothTime = 0.12f;
-
-    [Header("Gravity")]
-    [SerializeField] float gravity = -20f;
-    [SerializeField] float groundedGravity = -2f;
-
     [Header("References")]
+    [SerializeField] CharacterConfig characterConfig = null;
     [SerializeField] Transform cameraTransform;
 
     readonly InputManager _inputManager = new();
 
+    CharacterMotorConfig motorConfig;
     CharacterController controller;
     InputReader inputReader;
-    /// <summary>玩家状态机；基类类型供 PushMotorSnapshot 与 CurrentStateType 共用。</summary>
+    CharacterAnimationController animationController;
+    CharacterRootMotionDriver rootMotionDriver;
+    /// <summary>玩家状态机；基类类型供 PushMotorSnapshot 与当前状态读取共用。</summary>
     CharacterStateMachine stateMachine;
     CombatModeController combatMode;
     ActionRuntimeController actionRuntime;
     CharacterActionDriver actionDriver;
     ActionRotationDriver rotationDriver;
+    HitBoxSystem hitBoxSystem;
+    ActionVfxPlayer vfxPlayer;
+    CombatTargetLock targetLock;
+    CharacterRuntimeFacade runtimeFacade;
+    GameObject modelInstance;
 
     Vector3 velocity;
     float rotationVelocity;
@@ -39,44 +33,169 @@ public class PlayerController : MonoBehaviour, IActionStartContext, IMoveIntentR
 
     public InputManager Input => _inputManager;
     public float MoveInputMagnitude => moveInputMagnitude;
-    public float RunThreshold => runThreshold;
-    public bool IsGrounded => controller != null && controller.isGrounded;
+    public float RunThreshold => motorConfig.RunThreshold;
+    public bool IsGrounded => controller.isGrounded;
     public ICombatModeController CombatMode => combatMode;
-    public float DefaultRotationSmoothTime => rotationSmoothTime;
+    public float DefaultRotationSmoothTime => motorConfig.RotationSmoothTime;
 
     void Awake()
     {
-        controller = GetComponent<CharacterController>();
-        inputReader = GetComponent<InputReader>();
-        stateMachine = GetComponent<PlayerStateMachine>();
-        combatMode = GetComponent<CombatModeController>();
-        actionRuntime = GetComponent<ActionRuntimeController>();
-        actionDriver = GetComponent<CharacterActionDriver>();
-        rotationDriver = GetComponent<ActionRotationDriver>();
+        if (!TryBootstrapCharacter())
+        {
+            enabled = false;
+            return;
+        }
 
         if (cameraTransform == null && Camera.main != null)
             cameraTransform = Camera.main.transform;
+    }
+
+    /// <summary>按 CharacterConfig 创建模型并装配玩家运行时组件；失败时禁用 PlayerController。</summary>
+    bool TryBootstrapCharacter()
+    {
+        if (characterConfig == null)
+        {
+            Debug.LogError("PlayerController: 未绑定 CharacterConfig。", this);
+            return false;
+        }
+
+        if (!characterConfig.ValidateForPlayer(this))
+            return false;
+
+        EnsureCombatWorldSystem();
+        motorConfig = characterConfig.Motor;
+
+        Transform modelRoot = SpawnModelInstance();
+        Animator animator = modelRoot.GetComponentInChildren<Animator>();
+        if (animator == null)
+        {
+            Debug.LogError("PlayerController: CharacterConfig.ModelPrefab 中找不到 Animator。", this);
+            return false;
+        }
+
+        controller = GetOrAdd<CharacterController>();
+        motorConfig.ApplyTo(controller);
+
+        inputReader = GetOrAdd<InputReader>();
+        inputReader.BindInputActions(characterConfig.InputActions);
+
+        animationController = GetOrAdd<CharacterAnimationController>();
+        animationController.Bind(
+            animator,
+            characterConfig.DefaultLocomotionProfile,
+            characterConfig.AnimatorLayerIndex);
+
+        rootMotionDriver = GetOrAdd<CharacterRootMotionDriver>();
+        rootMotionDriver.BindAnimator(animator);
+
+        combatMode = GetOrAdd<CombatModeController>();
+        combatMode.BindProfile(characterConfig.CombatProfile);
+
+        actionRuntime = GetOrAdd<ActionRuntimeController>();
+        actionRuntime.BindCombatMode(combatMode);
+
+        Transform attachPoint = ResolveModelPoint(characterConfig.Combat.AttachPointName, modelRoot);
+        Transform aimOrigin = ResolveModelPoint(characterConfig.Combat.AimOriginName, modelRoot);
+
+        targetLock = GetOrAdd<CombatTargetLock>();
+        targetLock.Bind(characterConfig.Combat.TeamId, aimOrigin);
+
+        hitBoxSystem = GetOrAdd<HitBoxSystem>();
+        hitBoxSystem.Bind(actionRuntime, attachPoint);
+
+        vfxPlayer = GetOrAdd<ActionVfxPlayer>();
+        vfxPlayer.Bind(actionRuntime, attachPoint);
+
+        actionRuntime.RegisterFrameConsumer(hitBoxSystem);
+        actionRuntime.RegisterFrameConsumer(vfxPlayer);
+
+        stateMachine = GetOrAdd<PlayerStateMachine>();
+        actionDriver = GetOrAdd<CharacterActionDriver>();
+        rotationDriver = GetOrAdd<ActionRotationDriver>();
 
         actionDriver.BindInput(_inputManager);
         rotationDriver.Bind(_inputManager, this);
         actionRuntime.BindComboInput(actionDriver.CreateComboInputBridge());
         actionRuntime.BindActionStartContext(this);
+        actionDriver.InitializeInputRouting();
+        runtimeFacade = new CharacterRuntimeFacade(
+            inputReader,
+            _inputManager,
+            actionDriver,
+            stateMachine);
+        return true;
+    }
+
+    /// <summary>实例化配置中的模型 Prefab，并作为当前玩家根节点的子物体。</summary>
+    Transform SpawnModelInstance()
+    {
+        modelInstance = Instantiate(characterConfig.ModelPrefab, transform);
+        modelInstance.name = characterConfig.ModelPrefab.name;
+        Transform modelTransform = modelInstance.transform;
+        modelTransform.localPosition = characterConfig.ModelLocalPosition;
+        modelTransform.localRotation = characterConfig.ModelLocalRotation;
+        return modelTransform;
+    }
+
+    /// <summary>查找模型内命名挂点；未配置或未找到时回退到玩家根节点。</summary>
+    Transform ResolveModelPoint(string pointName, Transform modelRoot)
+    {
+        if (string.IsNullOrWhiteSpace(pointName))
+            return transform;
+
+        Transform point = FindChildRecursive(modelRoot, pointName);
+        if (point == null)
+        {
+            Debug.LogWarning($"PlayerController: 模型中找不到挂点 {pointName}，已回退到角色根节点。", this);
+            return transform;
+        }
+
+        return point;
+    }
+
+    /// <summary>递归查找子节点名，供 CharacterConfig 使用稳定挂点名而不是直接引用 Prefab 子物体。</summary>
+    static Transform FindChildRecursive(Transform root, string childName)
+    {
+        if (root == null)
+            return null;
+
+        if (root.name == childName)
+            return root;
+
+        foreach (Transform child in root)
+        {
+            Transform match = FindChildRecursive(child, childName);
+            if (match != null)
+                return match;
+        }
+
+        return null;
+    }
+
+    /// <summary>获取或补齐运行时组件；所有业务依赖集中在 Bootstrap 阶段建立。</summary>
+    T GetOrAdd<T>() where T : Component
+    {
+        T component = GetComponent<T>();
+        return component != null ? component : gameObject.AddComponent<T>();
+    }
+
+    /// <summary>确保场景级战斗系统存在；只在 Bootstrap 阶段查找或创建。</summary>
+    void EnsureCombatWorldSystem()
+    {
+        if (CombatWorldSystem.Current != null || FindObjectOfType<CombatWorldSystem>() != null)
+            return;
+
+        var world = new GameObject("CombatWorldSystem");
+        world.AddComponent<CombatWorldSystem>();
     }
 
     void Update()
     {
-        IngestInput();
-        actionDriver.ProcessGameplayInput();
+        runtimeFacade.TickInput();
         ExecuteLocomotionMovement();
         ApplyGravity();
         // 在 StateMachine.Update（order 0）之前写入 Context；单向 PC → PSM，无反向引用。
-        stateMachine.PushMotorSnapshot(moveInputMagnitude, runThreshold, IsGrounded);
-    }
-
-    /// <summary>采集本帧输入并写入 InputManager。</summary>
-    void IngestInput()
-    {
-        _inputManager.IngestFrame(inputReader.CaptureFrame());
+        runtimeFacade.PushMotorSnapshot(moveInputMagnitude, motorConfig.RunThreshold, IsGrounded);
     }
 
     public void FaceBufferedMoveIntent()
@@ -95,7 +214,7 @@ public class PlayerController : MonoBehaviour, IActionStartContext, IMoveIntentR
     /// <summary>Locomotion 状态下根据移动意图执行位移。</summary>
     void ExecuteLocomotionMovement()
     {
-        if (stateMachine.CurrentStateType == CharacterStateType.Action)
+        if (stateMachine.CurrentStateId == CharacterStateType.Action)
         {
             moveInputMagnitude = 0f;
             return;
@@ -104,7 +223,9 @@ public class PlayerController : MonoBehaviour, IActionStartContext, IMoveIntentR
         Vector2 moveIntent = _inputManager.MoveIntent;
         Vector3 moveDirection = ResolveWorldMoveDirection(moveIntent);
         moveInputMagnitude = _inputManager.MoveMagnitude;
-        float speed = moveInputMagnitude > runThreshold ? runSpeed : walkSpeed;
+        float speed = moveInputMagnitude > motorConfig.RunThreshold
+            ? motorConfig.RunSpeed
+            : motorConfig.WalkSpeed;
 
         if (moveDirection.sqrMagnitude <= 0.001f)
             return;
@@ -134,7 +255,7 @@ public class PlayerController : MonoBehaviour, IActionStartContext, IMoveIntentR
 
     Quaternion GetSmoothedRotation(Vector3 moveDirection)
     {
-        if (rotationSmoothTime <= 0.001f)
+        if (motorConfig.RotationSmoothTime <= 0.001f)
             return Quaternion.LookRotation(moveDirection);
 
         float targetAngle = Mathf.Atan2(moveDirection.x, moveDirection.z) * Mathf.Rad2Deg;
@@ -142,7 +263,7 @@ public class PlayerController : MonoBehaviour, IActionStartContext, IMoveIntentR
             transform.eulerAngles.y,
             targetAngle,
             ref rotationVelocity,
-            rotationSmoothTime);
+            motorConfig.RotationSmoothTime);
 
         return Quaternion.Euler(0f, angle, 0f);
     }
@@ -150,9 +271,9 @@ public class PlayerController : MonoBehaviour, IActionStartContext, IMoveIntentR
     void ApplyGravity()
     {
         if (controller.isGrounded && velocity.y < 0f)
-            velocity.y = groundedGravity;
+            velocity.y = motorConfig.GroundedGravity;
 
-        velocity.y += gravity * Time.deltaTime;
+        velocity.y += motorConfig.Gravity * Time.deltaTime;
         controller.Move(velocity * Time.deltaTime);
     }
 }

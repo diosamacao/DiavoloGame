@@ -217,7 +217,7 @@ public interface IActionHitReceiver
 - Phase / ActionEvent **运行时派发**（仅 Schema）
 - `ActionDefinition` 子 SO 拆分
 - 伤害结算、`Hit` 状态、受击 `ActionDefinition` 衔接
-- `HurtboxTargetRegistry` 场景级化
+- `TargetRegistry` 场景级化
 - Locomotion 移动职责迁移（ROADMAP 独立项）
 
 ### 7.2 ActionEditor 推荐下一步（ROADMAP P1）

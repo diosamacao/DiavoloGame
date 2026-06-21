@@ -7,7 +7,7 @@
 
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
-| 第三人称移动 | ✅ 已实现 | `PlayerController` | `Player_KatanaGirl.prefab` |
+| 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（移动 + 视角 + 离散按键） | ✅ 已实现 | `InputReader`、`InputManager` | `GameInputActions.inputactions` |
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionState` | `Player_KatanaGirl_AnimationProfile.asset` |
@@ -270,36 +270,35 @@ CameraManager (场景对象)
 
 ---
 
-## 6. 玩家 Prefab 组装
+## 6. 玩家角色装配
 
 ### 功能说明
 
-`Player_KatanaGirl` 为可 Play 的玩家实体：物理、输入、移动、动画、状态机一体。
+Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `CharacterConfig` 后，运行时装配模型、输入、移动、动画、状态机与战斗组件。
 
-### 根节点组件
+### CharacterConfig
 
-| 组件 | 作用 |
+| 字段 | 作用 |
 |------|------|
-| `CharacterController` | 胶囊碰撞，高 1.7，半径 0.28 |
-| `InputReader` | 绑定 GameInputActions |
-| `PlayerController` | 移动与重力、InputManager 采集 |
-| `CharacterActionDriver` | 离散输入起手/缓冲、移动取消 |
-| `ActionRotationDriver` | RotationWindow + 索敌 |
-| `CharacterAnimationController` | 动画播放 + Profile |
-| `PlayerStateMachine` | 状态机宿主 |
+| `ModelPrefab` | 实例化为玩家根节点子物体，要求子层级能找到 Animator |
+| `DefaultLocomotionProfile` | 默认 Idle/Walk/Run 动画映射 |
+| `InputActions` | Player ActionMap 输入资产 |
+| `Motor` | 移动速度、重力、CharacterController 高度/半径/中心 |
+| `CombatProfile` | 战斗模式、出招表与技能入口 |
+| `Combat` | teamId、Hitbox/VFX 挂点名、索敌起点名 |
 
-### 子对象
+### 运行时装配
 
-- `CameraRoot`：本地 y=1.4（与 CameraManager 逻辑一致；Manager 也可运行时创建）
-- 嵌套 `School_Katana_FullBody-Magica cloth2` 美术 Prefab，挂载 `ACT_Runtime` Animator
+- `PlayerController.Awake` 校验 `CharacterConfig`，创建 `CombatWorldSystem`（若场景不存在）
+- 实例化模型 Prefab，查找 Animator
+- 补齐 `CharacterController`、`InputReader`、`CharacterAnimationController`、`CharacterRootMotionDriver`
+- 注入 `CombatModeController`、`ActionRuntimeController`、`PlayerStateMachine`
+- 注册 `HitBoxSystem` / `ActionVfxPlayer` 为 Logic Tick 消费者
+- 创建 `CharacterRuntimeFacade`，每帧统一输入采集、动作路由和 Motor 快照
 
-### Tag
+### Editor 操作
 
-`Player` — 供 CameraManager 自动查找。
-
-### 相关文件
-
-- `Assets/Prefabs/Player/Player_KatanaGirl.prefab`
+在 Unity Editor 中创建 `CharacterConfig` 资产，填写模型 Prefab、输入资产、Locomotion Profile 与 CombatModeProfile；Scene 内只需要 Empty + `PlayerController` + 该配置引用。
 
 ---
 
@@ -318,7 +317,7 @@ CameraManager (场景对象)
 | 起手 / 缓冲 | `CharacterActionDriver` → `ActionRuntimeController.TryStartByInput` |
 | 移动取消 | `CharacterActionDriver` + `CancelWindow(Movement)` |
 | 招式旋转 | `ActionRotationDriver` + `CombatTargetLock` |
-| Logic Tick | `ActionRuntimeController.UpdateFrame` → `ICombatFrameConsumer` |
+| Logic Tick | `ActionRuntimeController.UpdateFrame` → `ICombatFrameConsumer` + `IActionEventConsumer` |
 | 命中回流 | `HitBoxSystem` → `IActionHitReceiver.NotifyHit` |
 | Motor | `PlayerController`（Locomotion 位移 + 重力） |
 
@@ -339,26 +338,21 @@ ActionState.Tick
 
 | 对齐度 | 项 |
 |--------|-----|
-| ✅ | `UpdateFrame` API、`ICombatFrameConsumer`、Phase/Event Schema |
+| ✅ | `UpdateFrame` API、`ICombatFrameConsumer`、`ActionEventContext` 派发、Phase/Event Schema |
 | ✅ | 命中回流、`OnHitConfirm` / `OnWhiff` Transition 条件 |
 | ✅ | `CharacterActionDriver` 角色无关输入路由 |
-| 🟡 | Phase/Event 运行时派发未接；无 `ActionEditorWindow` |
+| 🟡 | ActionEvent 已派发但 Hitbox/VFX 仍兼容旧数组；无 `ActionEditorWindow` |
 | ⬜ | 伤害结算、Hit 状态、GM 热重载 |
 
 ### 已知限制
 
-- Phase/Event 仅有 SO 字段，运行时未派发
+- ActionEvent 已有运行时派发入口，但 Hitbox/VFX 仍处于旧字段兼容期
 - 连招仍线性 `ActionComboSequence`
-- Prefab 需挂载 `CharacterActionDriver`、`ActionRotationDriver`（见 Editor 步骤）
+- Scene 玩家入口已改为 Empty + `PlayerController` + `CharacterConfig`
 
 ### Editor 操作（Prefab）
 
-在 `Player_KatanaGirl.prefab` 根节点 **Add Component**：
-
-1. `CharacterActionDriver`（InputReader / TargetLock 可留空，自动 GetComponent）
-2. `ActionRotationDriver`
-
-保存 Prefab 后 Play Mode 验证：起手、连段、移动取消、索敌旋转、Hitbox/VFX 与重构前一致。
+创建 `CharacterConfig` 后，在 Scene 空物体的 `PlayerController` 上指定该资产；Play Mode 验证：起手、连段、移动取消、索敌旋转、Hitbox/VFX 与重构前一致。
 
 ### 相关文件
 

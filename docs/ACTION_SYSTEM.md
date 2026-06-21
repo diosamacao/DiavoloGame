@@ -258,7 +258,7 @@ ActionRuntimeController          HitBoxSystem              受击方
 |------|------|------|
 | 帧同步 | 碰撞 → 动作（只读） | `IActionRuntime.CurrentFrame` / `CurrentAction` |
 | 攻击形状 | 碰撞 → 数据（只读） | `ActionDefinition.GetActiveHitboxesAtFrame` |
-| 受击目标发现 | 碰撞内部 | `HurtboxTargetRegistry.ActiveTargets` |
+| 受击目标发现 | 碰撞内部 | `TargetRegistry.ActiveTargets` |
 | 命中通知 | 碰撞 → 受击方 | `IHurtboxTarget.OnHit(in ActionHitContext)` |
 | 防重复命中 | 碰撞内部 | `(hitboxId, targetInstanceId)` 缓存，换招清空 |
 
@@ -290,7 +290,7 @@ ActionRuntimeController          HitBoxSystem              受击方
 | `InputReader` | `GameInputActions`；离散输入由 Profile 并集自动注入 |
 | `PlayerController` | 自动注册全部 mode 的 Entry |
 | `HitBoxSystem` | 与 `ActionRuntimeController` 同物体；`attachPoint` 拖武器/身体挂点（空则用根 Transform） |
-| 场景受击目标 | 添加 `HurtboxTarget`，配置 `HurtboxDefinition`；`OnEnable` 自动注册到 `HurtboxTargetRegistry` |
+| 场景受击目标 | 添加 `HurtboxTarget`，配置 `HurtboxDefinition`；`OnEnable` 自动注册到 `TargetRegistry` |
 
 ### 6.4 配置 Hitbox（单招）
 
@@ -426,7 +426,7 @@ ActionRuntimeController          HitBoxSystem              受击方
 |--------|----------|------|----------|
 | `HitBoxSystem` 序列化 `ActionRuntimeController` 具体类型 | 低 | 理论上可换实现，但绑死同物体组件 | 可改为 `IActionRuntime` 注入或 `GetComponent<IActionRuntime>()` |
 | `ActionHitContext` 携带 `ActionDefinition` + `HitboxKeyframe` | 低 | 受击逻辑与招式 SO 类型耦合 | 后续可增 `IHitSnapshot`（仅 id、伤害倍率、击退向量） |
-| `HurtboxTargetRegistry` 静态全局列表 | 中 | 多场景、并行测试、域重载需手动清理 | 改为 `CombatWorld` / 场景级 Registry |
+| `TargetRegistry` 静态全局列表 | 中 | 多场景、并行测试、域重载需手动清理 | 改为 `CombatWorld` / 场景级 Registry |
 | `LateUpdate` 轮询 + 帧序约定 | 中 | 改 Tick 时机或引入固定 Timestep 时易不同步 | 统一 `CombatTick` 或 `UpdateFrame` 由单调度器驱动 |
 | 命中结果不回流动作系统 | 中（功能缺口） | `ActionTransition.OnHit` / 连段确认招无法落地 | 增加 `IHitNotifier` 或 Runtime 事件，由 Transition 条件订阅 |
 | Editor 预览依赖 `HitBoxSystem.attachPoint` | 低 | 仅 Editor 层对 Runtime 组件的引用 | 可抽 `IHitboxAnchorProvider` |
@@ -446,7 +446,7 @@ ActionRuntimeController          HitBoxSystem              受击方
 
 1. **P0 — 命中回流通道** — `HitBoxSystem` 命中后通知 `IActionHitReceiver`（由 `ActionRuntimeController` 可选实现），支撑 `OnHitConfirm` Transition，仍避免碰撞系统直接改状态机。
 2. **P1 — 统一 Combat Tick** — 将帧推进与 Hitbox 采样纳入同一 `UpdateFrame(frame)`，消除 `LateUpdate` 隐式顺序。
-3. **P2 — 场景级 Registry** — `HurtboxTargetRegistry` 改为按战斗场景实例化，降低全局静态耦合。
+3. **P2 — 场景级 Registry** — `TargetRegistry` 改为按战斗场景实例化，降低全局静态耦合。
 4. **P3 — 受击上下文瘦身** — 伤害结算层只读 `HitSnapshot`，不直接持有完整 `ActionDefinition` 引用。
 
 ---

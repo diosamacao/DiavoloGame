@@ -19,6 +19,7 @@
 - **按职责分目录**，不用 C# namespace 区分模块
 - 新 MonoBehaviour 放在对应 gameplay 目录（Player/Enemy/Camera），共享逻辑放 Character/ 或 Core/
 - 占位目录保留 `.gitkeep`，实现后删除 `.gitkeep`
+- 角色装配配置集中在 `CharacterConfig`；Scene 玩家入口只挂 `PlayerController` 并引用配置资产
 
 ## Unity 组件模式
 
@@ -36,6 +37,7 @@ public class MyBehaviour : MonoBehaviour
 ```
 
 - 依赖用 `GetComponent` 在 Awake 解析，避免每帧 Find
+- 需要运行时装配的组件提供显式 `Bind...` 方法，由 Bootstrap 阶段一次性注入配置
 - 可选引用用 `[SerializeField]` + null 回退（如 `Camera.main`）
 - 缺失关键引用：`Debug.LogError` + `enabled = false`（见 InputReader）
 
@@ -67,6 +69,7 @@ public class MyBehaviour : MonoBehaviour
 - **战斗模式**：`CombatModeProfile` + `CombatModeController`；与 `PlayerActionSet` 解耦
 - **缓冲**：招式中 `Buffer(inputId)`；`ActionRuntimeController` 经 `IActionComboInput` 在 `CancelWindow` 内消费
 - 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `PlayerController`）
+- **玩家装配**：`InputActionAsset` 由 `CharacterConfig` 注入 `InputReader`，不在玩家 Prefab 上重复配置
 
 ## 相机约定
 
@@ -95,6 +98,7 @@ public class MyBehaviour : MonoBehaviour
 | 静态 Service Locator 式 Input/Singleton | 与当前组件化方向不一致 |
 | 在 Controller 与 State 重复同一业务判断 | 职责漂移；选一处为 source of truth |
 | 大范围命名空间重构（未经计划） | 全项目 diff 噪声 |
+| 为单个角色运行时业务堆多个必须手工挂载的脚本 | 优先用 `CharacterConfig` + Bootstrap / Facade 装配，跨角色逻辑迁到 System |
 
 ## 已废弃模式
 

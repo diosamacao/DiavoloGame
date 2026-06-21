@@ -5,7 +5,7 @@
 ## 设计原则（长期）
 
 1. **状态机驱动角色表现**：动画、动作阶段、可取消窗口由 State 负责
-2. **Controller 只管物理与输入桥接**：PlayerController 提供 Motor；招式路由在 CharacterActionDriver
+2. **Controller 作为装配与 Motor 入口**：PlayerController 通过 CharacterConfig 生成角色运行时；招式路由在 CharacterActionDriver
 3. **Combat 与 Character 解耦**：Hitbox 拉取 `IActionRuntime`；Character State 只 Tick Runtime
 4. **Logic Tick = 编辑器帧**：`UpdateFrame` 统一 Play Mode 与 ActionEditor Scrub
 5. **数据驱动**：数值、动画映射、技能表进 ScriptableObject（Assets/Data/）
@@ -35,7 +35,7 @@
 **下一步（ActionEditor M5 前）**：
 
 - [ ] `ActionEditorWindow` 基础版（列表 + Scrub 调 `UpdateFrame`）
-- [ ] Phase / Event 运行时派发（当前仅 Schema）
+- [x] 2026-06-21：ActionEvent 运行时派发入口（Hitbox/VFX 仍兼容旧数组）
 - [ ] `ActionDefinition` 子 SO 拆分（CombatData / PresentationData，可选）
 
 ### [P1] 战斗闭环
@@ -58,8 +58,8 @@
 ## Tech Debt 观察清单
 
 - [ ] `PlayerController` 与 `LocomotionState` 双处感知移动输入
-- [ ] Prefab 需手动挂载 `CharacterActionDriver`、`ActionRotationDriver`（2026-06-21 重构后）
-- [ ] `HurtboxTargetRegistry` 仍为静态全局列表
+- [x] 2026-06-21：Prefab 手动挂载 `CharacterActionDriver`、`ActionRotationDriver` 改为 `CharacterConfig` + `PlayerController` 运行时装配
+- [ ] `TargetRegistry` 仍为静态全局列表，后续可替换为空间分区 / 场景实例注册表
 - [ ] 无 asmdef，全项目单一 Assembly-CSharp
 
 ## 已完成
@@ -69,6 +69,7 @@
 - [x] 2026-06-17：InputReader + CameraManager 组件化
 - [x] 2026-06-17：动作系统 Phase A（ActionRuntime、Combo、CombatMode、Hitbox 骨架）
 - [x] 2026-06-21：ActionEditor 准备重构（CharacterActionDriver、UpdateFrame、Phase/Event 骨架、命中回流）
+- [x] 2026-06-21：CharacterConfig 装配入口、ActionSession、TargetRegistry / HitDetectionSystem / TargetingSystem 骨架
 
 ## 决策记录
 

@@ -13,12 +13,14 @@ public class ActionRotationDriver : MonoBehaviour
     InputManager _input;
     IMoveIntentResolver _moveResolver;
     float _rotationVelocity;
+    bool _initialized;
 
     /// <summary>注入 InputManager 与移动意图解析器（PlayerController 在 Awake 调用）。</summary>
     public void Bind(InputManager inputManager, IMoveIntentResolver moveResolver)
     {
         _input = inputManager;
         _moveResolver = moveResolver;
+        RefreshInitialized();
     }
 
     void Awake()
@@ -30,17 +32,20 @@ public class ActionRotationDriver : MonoBehaviour
 
         if (targetLock == null)
             targetLock = GetComponent<CombatTargetLock>();
+
+        RefreshInitialized();
     }
 
     void Update()
     {
-        if (_stateMachine == null || _input == null || _moveResolver == null || actionRuntime == null)
+        if (!_initialized)
             return;
 
-        if (_stateMachine.CurrentStateType != CharacterStateType.Action)
+        if (_stateMachine.CurrentStateId != CharacterStateType.Action)
             return;
 
-        targetLock.Tick(actionRuntime);
+        ActionSession session = actionRuntime.Session;
+        targetLock.Tick(session);
         TryApplyActionRotation();
     }
 
@@ -59,11 +64,12 @@ public class ActionRotationDriver : MonoBehaviour
         direction = Vector3.zero;
         smoothTime = _moveResolver.DefaultRotationSmoothTime;
 
-        if (!actionRuntime.CanRotateByInput)
+        ActionSession session = actionRuntime.Session;
+        if (!session.IsActive || !actionRuntime.CanRotateByInput)
             return false;
 
-        ActionDefinition action = actionRuntime.CurrentAction;
-        if (action == null || !action.HasRotationWindow)
+        ActionDefinition action = session.CurrentAction;
+        if (!action.HasRotationWindow)
             return false;
 
         float windowSmoothTime = action.RotationWindow.ResolveSmoothTime(_moveResolver.DefaultRotationSmoothTime);
@@ -119,5 +125,15 @@ public class ActionRotationDriver : MonoBehaviour
             smoothTime);
 
         return Quaternion.Euler(0f, angle, 0f);
+    }
+
+    /// <summary>初始化期统一确认依赖；Update 热路径只读一个布尔状态。</summary>
+    void RefreshInitialized()
+    {
+        _initialized = _stateMachine != null
+            && _input != null
+            && _moveResolver != null
+            && actionRuntime != null
+            && targetLock != null;
     }
 }
