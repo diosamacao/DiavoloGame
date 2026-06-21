@@ -1,11 +1,5 @@
 using UnityEngine;
 
-[RequireComponent(typeof(CharacterAnimationController))]
-[RequireComponent(typeof(CharacterRootMotionDriver))]
-[RequireComponent(typeof(ActionRuntimeController))]
-[RequireComponent(typeof(CharacterActionDriver))]
-[RequireComponent(typeof(ActionRotationDriver))]
-[RequireComponent(typeof(InputReader))]
 /// <summary>玩家状态机宿主；Motor 快照由 PlayerController 单向 Push，不引用 PlayerController。</summary>
 public class PlayerStateMachine : CharacterStateMachine
 {

@@ -8,8 +8,6 @@ public abstract class CharacterStateMachine : MonoBehaviour, ICharacterStateMach
 
     public CharacterStateType CurrentStateId => _machine.CurrentStateId;
 
-    public CharacterStateType CurrentStateType => CurrentStateId;
-
     protected virtual void Awake()
     {
         CharacterAnimationController animation = GetComponent<CharacterAnimationController>();

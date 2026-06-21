@@ -23,16 +23,24 @@ public class CombatTargetLock : MonoBehaviour
 
     Transform Origin => aimOrigin != null ? aimOrigin : transform;
 
-    /// <summary>每帧由 ActionRotationDriver 在 Action 状态下调用，处理 Acquire / Validate。</summary>
-    public void Tick(IActionRuntime runtime)
+    /// <summary>绑定索敌阵营与起点，供 CharacterConfig 统一装配。</summary>
+    public void Bind(int team, Transform origin)
     {
-        if (runtime == null || !runtime.IsPlaying || runtime.CurrentAction == null)
+        attackerTeamId = team;
+        aimOrigin = origin;
+        ClearLock();
+    }
+
+    /// <summary>每帧由 ActionRotationDriver 在 Action 状态下调用，按 ActionSession 处理 Acquire / Validate。</summary>
+    public void Tick(ActionSession session)
+    {
+        if (session == null || !session.IsActive)
         {
             ClearLock();
             return;
         }
 
-        ActionDefinition action = runtime.CurrentAction;
+        ActionDefinition action = session.CurrentAction;
         if (_lockedForAction != action)
             TryAcquireForAction(action);
 
@@ -56,7 +64,7 @@ public class CombatTargetLock : MonoBehaviour
         if (!HasValidLock)
             return false;
 
-        return TargetSelector.TryGetDirectionToTarget(Origin.position, _lockedTarget, out direction);
+        return TargetingSystem.TryGetDirectionToTarget(Origin.position, _lockedTarget, out direction);
     }
 
     void TryAcquireForAction(ActionDefinition action)
@@ -70,7 +78,7 @@ public class CombatTargetLock : MonoBehaviour
 
         TargetLockSettings settings = action.TargetLockSettings;
         _activeSettings = settings;
-        _lockedTarget = TargetSelector.Select(
+        _lockedTarget = TargetingSystem.Select(
             Origin.position,
             transform.forward,
             attackerTeamId,

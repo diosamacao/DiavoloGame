@@ -4,13 +4,13 @@ using UnityEngine;
 public class HurtboxTarget : MonoBehaviour, ITargetable
 {
     [SerializeField] HurtboxDefinition hurtbox = new();
-    [SerializeField] Transform aimPoint;
+    [SerializeField] Transform aimPoint = null;
     [SerializeField] int teamId = 1;
     [SerializeField] float currentHealth = float.MaxValue;
 
-    void OnEnable() => HurtboxTargetRegistry.Register(this);
+    void OnEnable() => TargetRegistry.Register(this);
 
-    void OnDisable() => HurtboxTargetRegistry.Unregister(this);
+    void OnDisable() => TargetRegistry.Unregister(this);
 
     public int TargetInstanceId => gameObject.GetInstanceID();
 

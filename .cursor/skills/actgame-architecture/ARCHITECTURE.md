@@ -82,11 +82,15 @@ flowchart TB
 | `CharacterStateMachine` | MonoBehaviour 宿主：Awake 建 Context、RegisterStates、Update Tick |
 | `LocomotionState` | 根据 MoveInputMagnitude 选择 Idle/Walk/Run 动画 |
 | `ActionState` | 薄层：Tick `IActionRuntime`，结束回 Locomotion |
+| `CharacterConfig` | 角色装配根配置：模型、输入、动画、移动、战斗模式 |
+| `CharacterRuntimeFacade` | 单角色运行时门面：输入路由、状态机快照调度 |
 
 **数据流（玩家）**：
 
 ```
-InputReader → PlayerController（Motor + InputManager 采集）
+CharacterConfig → PlayerController（Empty 根装配模型 + Runtime）
+                    ↓
+InputReader → CharacterRuntimeFacade（InputManager + 输入路由）
                     ↓
               CharacterActionDriver（起手 / 缓冲 / 移动取消）
                     ↓
@@ -101,9 +105,12 @@ InputReader → PlayerController（Motor + InputManager 采集）
 |----|------|
 | `ActionDefinition` | 单招 SO：动画、Cancel、Transition、Hitbox、Phase/Event 骨架 |
 | `ActionRuntimeController` | 播放、Cancel、Transition、**UpdateFrame Logic Tick**、命中回流 |
+| `ActionSession` | 当前招式唯一会话状态：CurrentAction、Elapsed、命中确认、卡肉暂停 |
 | `CharacterActionDriver` | 角色无关：离散输入路由、起手切状态、移动取消 |
 | `ActionRotationDriver` | RotationWindow + 索敌转向 |
 | `CombatModeController` | 战斗模式、出招表、Locomotion Profile 切换 |
+| `CombatWorldSystem` | 场景级战斗系统生命周期锚点 |
+| `TargetRegistry` / `HitDetectionSystem` / `TargetingSystem` | 目标注册、命中检测、索敌查询集中入口 |
 | `PlayerActionSet` / `ActionComboSequence` | 起手映射与线性连招 |
 
 **Logic Tick 原则**：编辑器 Scrub 与 Play Mode 共用 `ActionRuntimeController.UpdateFrame(frameIndex)`；帧消费者实现 `ICombatFrameConsumer`。
@@ -115,7 +122,7 @@ InputReader → PlayerController（Motor + InputManager 采集）
 | `PlayerController` | CharacterController 位移、重力、InputManager、`IMoveIntentResolver` |
 | `PlayerStateMachine` | 继承 CharacterStateMachine，快照 Context |
 
-**注意**：招式输入与旋转已迁至 `CharacterActionDriver` / `ActionRotationDriver`；Controller 只管 Motor 与输入采集。
+**注意**：`PlayerController` 现在是 Scene 空物体上的装配入口；通过 `CharacterConfig` 生成模型与运行时组件，招式输入与旋转仍迁至 `CharacterActionDriver` / `ActionRotationDriver`。
 
 ### 5. 动画（Character/Animation）
 

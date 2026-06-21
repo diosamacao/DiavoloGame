@@ -25,6 +25,13 @@ public class ActionVfxPlayer : MonoBehaviour, ICombatFrameConsumer
             actionRuntime = GetComponent<ActionRuntimeController>();
     }
 
+    /// <summary>绑定运行时与默认挂点，供 CharacterConfig 统一装配。</summary>
+    public void Bind(ActionRuntimeController runtime, Transform vfxAttachPoint)
+    {
+        actionRuntime = runtime;
+        attachPoint = vfxAttachPoint;
+    }
+
     /// <summary>新招式开始：重置 VFX 触发记录。</summary>
     public void OnActionBegan(ActionDefinition action)
     {

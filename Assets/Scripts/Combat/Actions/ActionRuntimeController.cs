@@ -17,36 +17,34 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime, IActionHit
     /// <summary>同物体 CombatModeController；单向依赖，不通过接口隐藏 Profile / ActiveActionSet。</summary>
     CombatModeController _combatMode = null!;
     readonly List<ICombatFrameConsumer> _frameConsumers = new();
+    readonly List<IActionEventConsumer> _eventConsumers = new();
+    readonly ActionSession _session = new();
     IActionComboInput _comboInput;
     IActionStartContext _startContext;
-    ActionDefinition _current;
-    bool _isPlaying;
-    bool _hitStopPaused;
-    bool _hitStopTriggeredThisAction;
-    bool _hasConfirmedHitThisAction;
-    float _elapsed;
-    int _lastProcessedFrame = -1;
 
-    public bool IsPlaying => _isPlaying;
-    public bool IsHitStopPaused => _hitStopPaused;
-    public bool HasConfirmedHitThisAction => _hasConfirmedHitThisAction;
+    /// <summary>当前招式会话；外部只读，状态写入集中在本控制器。</summary>
+    public ActionSession Session => _session;
+
+    public bool IsPlaying => _session.IsActive;
+    public bool IsHitStopPaused => _session.IsHitStopPaused;
+    public bool HasConfirmedHitThisAction => _session.HasConfirmedHit;
     public bool CanCancelByMovement =>
-        _isPlaying && _current != null && _current.IsInMovementCancelWindow(_elapsed);
+        _session.IsActive && _session.CurrentAction.IsInMovementCancelWindow(_session.ElapsedSeconds);
     public bool CanRotateByInput =>
-        _isPlaying && _current != null && _current.IsInRotationWindow(_elapsed);
-    public ActionDefinition CurrentAction => _current;
+        _session.IsActive && _session.CurrentAction.IsInRotationWindow(_session.ElapsedSeconds);
+    public ActionDefinition CurrentAction => _session.CurrentAction;
 
     /// <summary>当前招式已播放秒数。</summary>
-    public float ElapsedSeconds => _elapsed;
+    public float ElapsedSeconds => _session.ElapsedSeconds;
 
     /// <summary>当前招式逻辑帧（与 ActionDefinition.sampleRate 对齐）。</summary>
     public int CurrentFrame =>
-        _isPlaying && _current != null ? _current.FrameAt(_elapsed) : 0;
+        _session.IsActive ? _session.CurrentAction.FrameAt(_session.ElapsedSeconds) : 0;
 
-    float IActionRuntime.ElapsedSeconds => _elapsed;
+    float IActionRuntime.ElapsedSeconds => _session.ElapsedSeconds;
 
     int IActionRuntime.CurrentFrame =>
-        _isPlaying && _current != null ? _current.FrameAt(_elapsed) : 0;
+        _session.IsActive ? _session.CurrentAction.FrameAt(_session.ElapsedSeconds) : 0;
 
     /// <summary>Logic Tick 帧推进；编辑器 Scrub 与 Play Mode 共用。</summary>
     public event Action<CombatFrameContext> FrameAdvanced;
@@ -56,22 +54,13 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime, IActionHit
         ActiveActionSet != null ? ActiveActionSet.Entries : Array.Empty<ActionEntry>();
 
     PlayerActionSet ActiveActionSet =>
-        ResolveCombatMode()?.ActiveActionSet;
-
-    /// <summary>懒解析同物体 CombatModeController，避免 Awake 顺序导致 GetEntryInputReferences 返回空。</summary>
-    CombatModeController ResolveCombatMode()
-    {
-        if (_combatMode == null)
-            _combatMode = GetComponent<CombatModeController>();
-        return _combatMode;
-    }
+        _combatMode != null ? _combatMode.ActiveActionSet : null;
 
     /// <summary>全部模式出招表的离散输入并集，供 InputReader 轮询。</summary>
     public InputActionReference[] GetEntryInputReferences()
     {
-        CombatModeController mode = ResolveCombatMode();
-        if (mode != null && mode.Profile != null)
-            return mode.Profile.CollectAllInputReferences();
+        if (_combatMode != null && _combatMode.Profile != null)
+            return _combatMode.Profile.CollectAllInputReferences();
 
         return Array.Empty<InputActionReference>();
     }
@@ -95,6 +84,13 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime, IActionHit
             _frameConsumers.Add(consumer);
     }
 
+    /// <summary>注册 ActionEvent 轨道消费者；用于逐步替代旧 Hitbox/VFX 双轨。</summary>
+    public void RegisterEventConsumer(IActionEventConsumer consumer)
+    {
+        if (consumer != null && !_eventConsumers.Contains(consumer))
+            _eventConsumers.Add(consumer);
+    }
+
     public void BindComboInput(IActionComboInput comboInput) => _comboInput = comboInput;
 
     public void BindActionStartContext(IActionStartContext startContext) => _startContext = startContext;
@@ -105,7 +101,8 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime, IActionHit
     public bool TryStartByInput(string inputId)
     {
         PlayerActionSet actionSet = ActiveActionSet;
-        if (_isPlaying || actionSet == null || !actionSet.TryGetStartAction(inputId, out ActionDefinition startAction))
+        ActionDefinition startAction = null;
+        if (_session.IsActive || actionSet == null || !actionSet.TryGetStartAction(inputId, out startAction))
             return false;
 
         return TryStart(startAction);
@@ -113,7 +110,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime, IActionHit
 
     public bool TryStart(ActionDefinition action)
     {
-        if (_isPlaying || action == null || action.AnimationClip == null || animationController == null)
+        if (_session.IsActive || action == null || action.AnimationClip == null || animationController == null)
             return false;
 
         ExecuteStartBehaviors(action);
@@ -123,10 +120,11 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime, IActionHit
 
     public void Tick(float deltaTime)
     {
-        if (!_isPlaying || _current == null || _hitStopPaused)
+        if (!_session.IsActive || _session.IsHitStopPaused)
             return;
 
-        _elapsed += deltaTime;
+        ActionDefinition current = _session.CurrentAction;
+        _session.Advance(deltaTime);
         ApplyScriptedDisplacement(deltaTime);
         SyncLogicFrameFromElapsed();
 
@@ -136,68 +134,59 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime, IActionHit
         if (TryResolveTransitions())
             return;
 
-        if (_elapsed >= _current.DurationSeconds)
+        if (_session.ElapsedSeconds >= current.DurationSeconds)
             Stop();
     }
 
     /// <summary>编辑器 Scrub 与 Play Mode 共用的 Logic Tick 入口；要求招式已在播放中。</summary>
     public void UpdateFrame(int frameIndex)
     {
-        if (!_isPlaying || _current == null || _hitStopPaused)
+        if (!_session.IsActive || _session.IsHitStopPaused)
             return;
 
-        frameIndex = Mathf.Clamp(frameIndex, 0, Mathf.Max(0, _current.TotalFrames - 1));
-        _elapsed = frameIndex / _current.SampleRate;
+        frameIndex = Mathf.Clamp(frameIndex, 0, Mathf.Max(0, _session.CurrentAction.TotalFrames - 1));
+        _session.SetFrame(frameIndex);
         AdvanceLogicFramesThrough(frameIndex);
     }
 
     public void Stop()
     {
-        if (_isPlaying)
+        if (_session.IsActive)
             NotifyActionEnded();
 
-        _isPlaying = false;
-        _current = null;
-        _elapsed = 0f;
-        _lastProcessedFrame = -1;
-        _hitStopPaused = false;
-        _hitStopTriggeredThisAction = false;
-        _hasConfirmedHitThisAction = false;
+        _session.Stop();
         _rootMotion?.SetActive(false);
     }
 
     /// <summary>卡肉期间暂停招式逻辑时间推进（由 HitStopController 驱动）。</summary>
-    public void SetHitStopPaused(bool paused) => _hitStopPaused = paused;
+    public void SetHitStopPaused(bool paused) => _session.SetHitStopPaused(paused);
 
     /// <summary>每招仅触发一次卡肉；返回 false 表示本招已触发过。</summary>
     public bool TryConsumeHitStopTrigger()
     {
-        if (_hitStopTriggeredThisAction)
-            return false;
-
-        _hitStopTriggeredThisAction = true;
-        return true;
+        return _session.TryConsumeHitStopTrigger();
     }
 
     /// <summary>HitBoxSystem 命中回流；支撑 OnHitConfirm Transition。</summary>
     public void NotifyHit(in ActionHitContext context)
     {
-        if (!_isPlaying || _current == null || context.Action != _current)
+        if (!_session.IsActive || context.Action != _session.CurrentAction)
             return;
 
-        _hasConfirmedHitThisAction = true;
+        _session.ConfirmHit();
     }
 
     /// <summary>按 priority 扫描 CancelWindow，首个匹配的 Action 取消生效。</summary>
     bool TryResolveCancelWindows()
     {
         PlayerActionSet actionSet = ActiveActionSet;
-        if (_comboInput == null || _current == null || actionSet == null)
+        ActionDefinition current = _session.CurrentAction;
+        if (_comboInput == null || current == null || actionSet == null)
             return false;
 
-        foreach (ResolvedCancelWindow window in _current.GetCancelWindowsSorted())
+        foreach (ResolvedCancelWindow window in current.GetCancelWindowsSorted())
         {
-            if (!_current.IsInCancelWindow(window, _elapsed))
+            if (!current.IsInCancelWindow(window, _session.ElapsedSeconds))
                 continue;
 
             if (window.CancelType != CancelType.Action)
@@ -206,7 +195,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime, IActionHit
             if (!TryConsumeMatchingInput(window, out string matchedInputId))
                 continue;
 
-            if (!actionSet.TryResolveNext(matchedInputId, _current, out ActionDefinition nextAction))
+            if (!actionSet.TryResolveNext(matchedInputId, current, out ActionDefinition nextAction))
                 continue;
 
             if (nextAction == null || nextAction.AnimationClip == null)
@@ -254,12 +243,16 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime, IActionHit
     /// <summary>按 priority 扫描 Transition，首个满足条件的自动衔接或 Stop。</summary>
     bool TryResolveTransitions()
     {
-        if (_current == null)
+        ActionDefinition current = _session.CurrentAction;
+        if (current == null)
             return false;
 
-        foreach (ActionTransition transition in _current.GetTransitionsSorted())
+        foreach (ActionTransition transition in current.GetTransitionsSorted())
         {
-            if (!_current.IsTransitionEligible(transition, _elapsed, _hasConfirmedHitThisAction))
+            if (!current.IsTransitionEligible(
+                    transition,
+                    _session.ElapsedSeconds,
+                    _session.HasConfirmedHit))
                 continue;
 
             if (transition.TargetAction != null && transition.TargetAction.AnimationClip != null)
@@ -311,7 +304,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime, IActionHit
         if (_combatMode == null)
             return;
 
-        CombatModeSwitchResult result = _combatMode.TrySetMode(mode, policy, _isPlaying);
+        CombatModeSwitchResult result = _combatMode.TrySetMode(mode, policy, _session.IsActive);
         if (result != CombatModeSwitchResult.RequiresStopCurrentAction)
             return;
 
@@ -321,45 +314,80 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime, IActionHit
 
     void BeginAction(ActionDefinition action)
     {
-        _current = action;
-        _isPlaying = true;
-        _elapsed = 0f;
-        _lastProcessedFrame = -1;
-        _hitStopTriggeredThisAction = false;
-        _hasConfirmedHitThisAction = false;
+        _session.Begin(action);
         _rootMotion?.SetActive(action.UseRootMotion);
         animationController.PlayClip(action.AnimationClip, action.CrossFadeDuration);
 
         NotifyActionBegan(action);
         DispatchCombatFrame(0, -1);
-        _lastProcessedFrame = 0;
+        _session.LastProcessedFrame = 0;
     }
 
     void SyncLogicFrameFromElapsed()
     {
-        int frame = _current.FrameAt(_elapsed);
+        int frame = _session.CurrentAction.FrameAt(_session.ElapsedSeconds);
         AdvanceLogicFramesThrough(frame);
     }
 
-    /// <summary>从 _lastProcessedFrame+1 推进到 targetFrame，避免单帧大 delta 漏掉中间 Hitbox/VFX。</summary>
+    /// <summary>从上一帧推进到 targetFrame，避免单帧大 delta 漏掉中间 Hitbox/VFX。</summary>
     void AdvanceLogicFramesThrough(int targetFrame)
     {
-        if (targetFrame <= _lastProcessedFrame)
+        if (targetFrame <= _session.LastProcessedFrame)
             return;
 
-        for (int frame = _lastProcessedFrame + 1; frame <= targetFrame; frame++)
+        for (int frame = _session.LastProcessedFrame + 1; frame <= targetFrame; frame++)
             DispatchCombatFrame(frame, frame - 1);
 
-        _lastProcessedFrame = targetFrame;
+        _session.LastProcessedFrame = targetFrame;
     }
 
     void DispatchCombatFrame(int frameIndex, int previousFrameIndex)
     {
-        var context = new CombatFrameContext(_current, frameIndex, previousFrameIndex, _elapsed, transform);
+        var context = new CombatFrameContext(
+            _session.CurrentAction,
+            frameIndex,
+            previousFrameIndex,
+            _session.ElapsedSeconds,
+            transform);
         FrameAdvanced?.Invoke(context);
 
         foreach (ICombatFrameConsumer consumer in _frameConsumers)
             consumer.OnCombatFrameAdvanced(in context);
+
+        DispatchActionEvents(in context);
+    }
+
+    /// <summary>按帧派发 ActionEvent 轨道；旧 Hitbox/VFX 字段仍由 ICombatFrameConsumer 兼容消费。</summary>
+    void DispatchActionEvents(in CombatFrameContext frameContext)
+    {
+        if (frameContext.Action == null)
+            return;
+
+        ActionEvent[] actionEvents = frameContext.Action.ActionEvents;
+        if (actionEvents.Length == 0)
+            return;
+
+        foreach (ActionEvent actionEvent in actionEvents)
+        {
+            if (actionEvent == null)
+                continue;
+
+            if (!actionEvent.ShouldFireBetweenFrames(
+                    frameContext.PreviousFrameIndex,
+                    frameContext.FrameIndex))
+                continue;
+
+            var eventContext = new ActionEventContext(
+                frameContext.Action,
+                actionEvent,
+                frameContext.FrameIndex,
+                frameContext.PreviousFrameIndex,
+                frameContext.ElapsedSeconds,
+                frameContext.ActorRoot);
+
+            foreach (IActionEventConsumer consumer in _eventConsumers)
+                consumer.OnActionEvent(in eventContext);
+        }
     }
 
     void NotifyActionBegan(ActionDefinition action)
@@ -381,12 +409,19 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime, IActionHit
         {
             if (behaviour is ICombatFrameConsumer consumer)
                 RegisterFrameConsumer(consumer);
+
+            if (behaviour is IActionEventConsumer eventConsumer)
+                RegisterEventConsumer(eventConsumer);
         }
     }
 
     void ApplyScriptedDisplacement(float deltaTime)
     {
-        if (_motor == null || !_current.HasScriptedDisplacement || !_current.IsInDisplacementWindow(_elapsed))
+        ActionDefinition current = _session.CurrentAction;
+        if (_motor == null || current == null || !current.HasScriptedDisplacement)
+            return;
+
+        if (!current.IsInDisplacementWindow(_session.ElapsedSeconds))
             return;
 
         Vector3 forward = transform.forward;
@@ -396,7 +431,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime, IActionHit
             return;
 
         forward.Normalize();
-        float signedSpeed = _current.DisplacementSpeed;
+        float signedSpeed = current.DisplacementSpeed;
         _motor.Move(forward * (signedSpeed * deltaTime));
     }
 }

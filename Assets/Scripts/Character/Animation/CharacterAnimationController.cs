@@ -1,5 +1,6 @@
 using UnityEngine;
 
+/// <summary>角色动画播放入口；运行时由 CharacterConfig 注入 Animator 与 Locomotion Profile。</summary>
 [DisallowMultipleComponent]
 public class CharacterAnimationController : MonoBehaviour
 {
@@ -23,6 +24,16 @@ public class CharacterAnimationController : MonoBehaviour
 
     }
 
+    /// <summary>绑定 Animator 与初始 Profile，供 PlayerController 运行时装配角色模型后调用。</summary>
+    public void Bind(Animator targetAnimator, CharacterAnimationProfile animationProfile, int targetLayerIndex)
+    {
+        animator = targetAnimator;
+        profile = animationProfile;
+        layerIndex = targetLayerIndex;
+        ResetPlaybackState();
+    }
+
+    /// <summary>切换 Locomotion Profile。</summary>
     public void SetProfile(CharacterAnimationProfile animationProfile) => profile = animationProfile;
 
     /// <summary>切换 Locomotion Profile 后调用，强制下一帧按新映射重播 AnimationKey。</summary>
