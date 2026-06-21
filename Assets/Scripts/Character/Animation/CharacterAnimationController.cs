@@ -1,13 +1,11 @@
 using UnityEngine;
 
 /// <summary>角色动画播放入口；运行时由 CharacterConfig 注入 Animator 与 Locomotion Profile。</summary>
-[DisallowMultipleComponent]
-public class CharacterAnimationController : MonoBehaviour
+public sealed class CharacterAnimationController
 {
-    [SerializeField] CharacterAnimationProfile profile;
-    [SerializeField] Animator animator;
-    [SerializeField] int layerIndex;
-
+    CharacterAnimationProfile profile;
+    readonly Animator animator;
+    readonly int layerIndex;
     AnimationKey? _currentKey;
     bool _locked;
 
@@ -17,20 +15,15 @@ public class CharacterAnimationController : MonoBehaviour
     /// <summary>驱动招式的 Animator；可能位于子节点。</summary>
     public Animator Animator => animator;
 
-    void Awake()
-    {
-        if (animator == null)
-            animator = GetComponentInChildren<Animator>();
-
-    }
-
-    /// <summary>绑定 Animator 与初始 Profile，供 PlayerController 运行时装配角色模型后调用。</summary>
-    public void Bind(Animator targetAnimator, CharacterAnimationProfile animationProfile, int targetLayerIndex)
+    /// <summary>创建角色动画服务；Animator 来自 CharacterConfig 实例化出的模型。</summary>
+    public CharacterAnimationController(
+        Animator targetAnimator,
+        CharacterAnimationProfile animationProfile,
+        int targetLayerIndex)
     {
         animator = targetAnimator;
         profile = animationProfile;
         layerIndex = targetLayerIndex;
-        ResetPlaybackState();
     }
 
     /// <summary>切换 Locomotion Profile。</summary>

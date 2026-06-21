@@ -13,7 +13,7 @@ public class CameraManager : MonoBehaviour
     [SerializeField] float cameraRootHeight = 1.4f;
 
     [Header("Input")]
-    [SerializeField] InputReader inputReader;
+    [SerializeField] PlayerController playerController;
 
     [Header("Look")]
     [SerializeField] float horizontalSensitivity = 0.15f;
@@ -46,7 +46,7 @@ public class CameraManager : MonoBehaviour
         EnsureBrain();
         ResolveFollowTarget();
         EnsureCameraRoot();
-        ResolveInputReader();
+        ResolvePlayerController();
         EnsureCameraShakeController();
         EnsureVirtualCamera();
     }
@@ -57,7 +57,7 @@ public class CameraManager : MonoBehaviour
         {
             ResolveFollowTarget();
             EnsureCameraRoot();
-            ResolveInputReader();
+            ResolvePlayerController();
             EnsureCameraShakeController();
             EnsureVirtualCamera();
         }
@@ -114,13 +114,13 @@ public class CameraManager : MonoBehaviour
         cameraRoot = rootObject.transform;
     }
 
-    void ResolveInputReader()
+    void ResolvePlayerController()
     {
-        if (inputReader != null)
+        if (playerController != null)
             return;
 
         if (followTarget != null)
-            inputReader = followTarget.GetComponent<InputReader>();
+            playerController = followTarget.GetComponent<PlayerController>();
     }
 
     void EnsureOrbitPivots()
@@ -214,10 +214,10 @@ public class CameraManager : MonoBehaviour
 
     void ApplyLookInput()
     {
-        if (!lookEnabled || inputReader == null)
+        if (!lookEnabled || playerController == null || playerController.Input == null)
             return;
 
-        Vector2 lookInput = inputReader.LookInput;
+        Vector2 lookInput = playerController.Input.LookIntent;
         float verticalInput = invertY ? -lookInput.y : lookInput.y;
 
         yaw += lookInput.x * horizontalSensitivity;

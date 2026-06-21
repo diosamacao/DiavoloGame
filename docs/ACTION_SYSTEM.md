@@ -47,10 +47,10 @@
 ### 3.1 模块关系
 
 ```
-InputReader.CaptureFrame()
+InputReader.CaptureFrame()（纯 C#）
        │
        ▼
-PlayerController ── InputManager（唯一持有者）
+PlayerCharacterRuntime ── InputManager（唯一持有者）
        │    ├─ RegisterPressed(inputId) → 起手 / Buffer
        │    ├─ MoveIntent / BufferedMoveIntent
        │    └─ Movement 取消 → Locomotion
@@ -58,14 +58,14 @@ PlayerController ── InputManager（唯一持有者）
        ├── CombatModeController ── CombatModeProfile
        │         └─ mode → PlayerActionSet → ActionComboSequence
        │
-       ├── CharacterActionDriver ── 起手 / Buffer / 移动取消
-       ├── ActionRotationDriver ── RotationWindow + TargetLock
+       ├── CharacterActionDriver（纯 C#）── 起手 / Buffer / 移动取消
+       ├── ActionRotationDriver（纯 C#）── RotationWindow + TargetLock
        ├── ActionRuntimeController（IActionRuntime + IActionHitReceiver）
        │         ├─ UpdateFrame / Tick → ICombatFrameConsumer
        │         └─ ActionDefinition（单招 + Phase/Event 骨架）
-       ├── HitBoxSystem（ICombatFrameConsumer → OBB + NotifyHit）
+       ├── HitBoxSystem（纯 C# ICombatFrameConsumer → OBB + NotifyHit）
        │
-       └── PlayerStateMachine
+       └── CharacterStateMachine（纯 C#）
                  ├─ LocomotionState（Idle/Walk/Run）
                  └─ ActionState（Tick Runtime → 结束回 Locomotion）
 ```
@@ -74,9 +74,10 @@ PlayerController ── InputManager（唯一持有者）
 
 | 层 | 职责 |
 |----|------|
-| `InputReader` | 设备 → `PlayerInputFrame` |
+| `InputReader` | 设备 → `PlayerInputFrame`（纯 C#） |
 | `InputManager` | 摄入帧、离散缓冲、移动意图、回调注册 |
-| `PlayerController` | Motor、InputManager 采集、`IMoveIntentResolver` |
+| `PlayerController` | Scene 入口，只创建并 Tick `PlayerCharacterRuntime` |
+| `PlayerCharacterRuntime` | Motor、InputManager 采集、`IMoveIntentResolver` |
 | `CharacterActionDriver` | 输入路由、起手切状态、移动取消、缓冲消费 |
 | `ActionRotationDriver` | RotationWindow + 索敌转向 |
 | `CombatModeController` | 战斗模式、出招表切换、Locomotion Profile |
@@ -87,7 +88,7 @@ PlayerController ── InputManager（唯一持有者）
 ### 3.3 设计原则（已贯彻）
 
 1. **数据驱动** — 单招数据在 `ActionDefinition`；连招队列在 `ActionComboSequence`；起手映射在 `PlayerActionSet`。
-2. **输入与玩法解耦** — 状态机不读输入；`InputManager` 仅 `PlayerController` 持有。
+2. **输入与玩法解耦** — 状态机不读输入；`InputManager` 由 `PlayerCharacterRuntime` 持有。
 3. **状态机薄层** — `Action` 状态只 Tick `IActionRuntime`。
 4. **Animator 双轨** — Locomotion 走 Profile；招式 `PlayClip`。
 5. **角色无关执行器** — `ActionRuntimeController` 可复用于敌人（输入源可替换）。
@@ -125,7 +126,7 @@ PlayerController ── InputManager（唯一持有者）
 | 字段 | 说明 |
 |------|------|
 | `startFrame` / `endFrame` | 生效帧区间 |
-| `cancelType` | `Action`：消费缓冲并衔接下一招；`Movement`：由 `PlayerController` 检测移动意图 |
+| `cancelType` | `Action`：消费缓冲并衔接下一招；`Movement`：由 `PlayerCharacterRuntime` 检测移动意图 |
 | `allowedInputs` | `InputActionReference[]`；运行时 id = Action 名 |
 | `priority` | 降序扫描，首个匹配生效 |
 
@@ -182,15 +183,16 @@ CombatModeProfile
 
 ```
 PlayerController.Update（ExecutionOrder -50）
+  → PlayerCharacterRuntime.Tick
   1. IngestInput
   2. ProcessGameplayInput（离 Action 清缓冲 / 应用挂起 mode / 移动取消）
   3. ExecuteMovement
   4. ApplyGravity
 
-PlayerStateMachine.Update
+CharacterStateMachine.Tick
   → ActionState.Tick → ActionRuntime.Tick
 
-HitBoxSystem.LateUpdate（同帧，在 Tick 之后）
+HitBoxSystem.OnCombatFrameAdvanced（ActionRuntimeController 同步派发）
   → 读 CurrentAction + CurrentFrame
   → GetActiveHitboxesAtFrame → OBB 相交 → OnHit
 ```
@@ -219,7 +221,7 @@ ActionRuntime.Tick:
 
 ```
 招式中 HasMoveIntent && CanCancelByMovement
-  → PlayerController 切 Locomotion
+  → CharacterStateMachine 切 Locomotion
   → ActionState.Exit → Stop()
 ```
 
@@ -287,16 +289,16 @@ ActionRuntimeController          HitBoxSystem              受击方
 |------|------|
 | `CombatModeController` | `CombatModeProfile` |
 | `ActionRuntimeController` | 依赖 `CombatModeController` 解析出招表 |
-| `InputReader` | `GameInputActions`；离散输入由 Profile 并集自动注入 |
-| `PlayerController` | 自动注册全部 mode 的 Entry |
-| `HitBoxSystem` | 与 `ActionRuntimeController` 同物体；`attachPoint` 拖武器/身体挂点（空则用根 Transform） |
+| `InputReader` | `GameInputActions`；纯 C# 输入源，离散输入由 Profile 并集自动注入 |
+| `PlayerCharacterRuntime` | 自动注册全部 mode 的 Entry |
+| `HitBoxSystem` | 纯 C# 帧消费者；`attachPoint` 来自 `CharacterConfig` 挂点名 |
 | 场景受击目标 | 添加 `HurtboxTarget`，配置 `HurtboxDefinition`；`OnEnable` 自动注册到 `TargetRegistry` |
 
 ### 6.4 配置 Hitbox（单招）
 
 1. 打开 `ActionDefinition` → **Hitboxes** 列表添加 `HitboxKeyframe`（`startFrame` / `endFrame` / 局部 offset / size）。
 2. 使用自定义 Inspector（`ActionDefinitionHitboxEditor`）Scrub 预览帧、在 Scene 视图拖拽 Handles 调形状。
-3. Preview Character 拖入带 `HitBoxSystem` 的 Player Transform，编辑器会复用其 `attachPoint` 对齐预览。
+3. Preview Character 拖入带 Animator 的角色根；编辑器默认用 Preview Character 根节点对齐预览。
 
 ---
 

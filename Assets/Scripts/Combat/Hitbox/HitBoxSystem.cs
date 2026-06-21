@@ -5,13 +5,11 @@ using UnityEngine;
 /// 攻击侧 Hitbox 运行时：订阅 ActionRuntimeController Logic Tick，
 /// 与场景 IHurtboxTarget 做 OBB 重叠检测。
 /// </summary>
-[DisallowMultipleComponent]
-[RequireComponent(typeof(ActionRuntimeController))]
-public class HitBoxSystem : MonoBehaviour, ICombatFrameConsumer
+public sealed class HitBoxSystem : ICombatFrameConsumer
 {
-    [SerializeField] ActionRuntimeController actionRuntime = null!;
-    [Tooltip("Hitbox 局部变换的挂点；为空时使用本物体 Transform。")]
-    [SerializeField] Transform attachPoint = null;
+    readonly Transform root;
+    readonly Transform attachPoint;
+    readonly ActionRuntimeController actionRuntime;
 
     /// <summary>Hitbox 局部变换挂点；为空时使用本物体 Transform。</summary>
     public Transform AttachPoint => attachPoint;
@@ -22,17 +20,12 @@ public class HitBoxSystem : MonoBehaviour, ICombatFrameConsumer
     /// <summary>招式运行时只读访问，供帧采样与 Hitbox 检测。</summary>
     IActionRuntime Runtime => actionRuntime;
 
-    void Awake()
+    /// <summary>创建纯 C# Hitbox 帧消费者。</summary>
+    public HitBoxSystem(Transform actorRoot, ActionRuntimeController runtime, Transform hitboxAttachPoint)
     {
-        if (actionRuntime == null)
-            actionRuntime = GetComponent<ActionRuntimeController>();
-    }
-
-    /// <summary>绑定运行时与默认挂点，供 CharacterConfig 统一装配。</summary>
-    public void Bind(ActionRuntimeController runtime, Transform hitboxAttachPoint)
-    {
+        root = actorRoot;
         actionRuntime = runtime;
-        attachPoint = hitboxAttachPoint;
+        attachPoint = hitboxAttachPoint != null ? hitboxAttachPoint : actorRoot;
     }
 
     /// <summary>新招式开始：清空命中缓存。</summary>
@@ -59,13 +52,11 @@ public class HitBoxSystem : MonoBehaviour, ICombatFrameConsumer
 
     void ProcessHitboxesAtFrame(ActionDefinition action, int frame)
     {
-        Transform root = transform;
-        Transform anchor = attachPoint != null ? attachPoint : root;
         HitDetectionSystem.ProcessHitboxesAtFrame(
             action,
             frame,
             root,
-            anchor,
+            attachPoint,
             _hitPairs,
             actionRuntime);
     }
@@ -80,26 +71,12 @@ public class HitBoxSystem : MonoBehaviour, ICombatFrameConsumer
         _hitPairs.Clear();
     }
 
-    void OnDrawGizmos()
-    {
-        if (actionRuntime == null || !Runtime.IsPlaying || Runtime.CurrentAction == null)
-            return;
-
-        DrawActionHitboxes(
-            Runtime.CurrentAction,
-            Runtime.CurrentFrame,
-            false,
-            -1);
-    }
-
     /// <summary>绘制指定招式在某帧的全部生效 Hitbox（Play Mode Gizmo）。</summary>
     public void DrawActionHitboxes(ActionDefinition action, int frame, bool editorPreview, int selectedIndex)
     {
         if (action == null)
             return;
 
-        Transform root = transform;
-        Transform anchor = attachPoint != null ? attachPoint : root;
         HitboxKeyframe[] allHitboxes = action.Hitboxes;
 
         for (int i = 0; i < allHitboxes.Length; i++)
@@ -119,7 +96,7 @@ public class HitBoxSystem : MonoBehaviour, ICombatFrameConsumer
             if (!editorPreview && !isActive)
                 continue;
 
-            HitboxOrientedBox box = HitboxMath.BuildFromHitbox(root, anchor, hitbox);
+            HitboxOrientedBox box = HitboxMath.BuildFromHitbox(root, attachPoint, hitbox);
             HitboxGizmoDrawing.DrawWireOrientedBox(box, color);
         }
     }

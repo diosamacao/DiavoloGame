@@ -5,7 +5,7 @@
 ## 设计原则（长期）
 
 1. **状态机驱动角色表现**：动画、动作阶段、可取消窗口由 State 负责
-2. **Controller 作为装配与 Motor 入口**：PlayerController 通过 CharacterConfig 生成角色运行时；招式路由在 CharacterActionDriver
+2. **Controller 只做 Scene 入口**：PlayerController 通过 CharacterConfig 创建纯 C# `PlayerCharacterRuntime`；业务不再挂载到 Player 根对象
 3. **Combat 与 Character 解耦**：Hitbox 拉取 `IActionRuntime`；Character State 只 Tick Runtime
 4. **Logic Tick = 编辑器帧**：`UpdateFrame` 统一 Play Mode 与 ActionEditor Scrub
 5. **数据驱动**：数值、动画映射、技能表进 ScriptableObject（Assets/Data/）
@@ -15,7 +15,7 @@
 
 ### [P1] 移动职责迁移
 
-**现状**：`PlayerController.Update` 执行 Locomotion 位移；`LocomotionState` 只选动画 key。
+**现状**：`PlayerCharacterRuntime.Tick` 执行 Locomotion 位移；`LocomotionState` 只选动画 key。
 
 **目标**：LocomotionState（或 Motor 服务类）成为移动决策点；Controller 降为 Motor 执行层。
 
@@ -25,9 +25,9 @@
 
 **已完成**：
 
-- `CharacterActionDriver`：离散输入起手/缓冲、移动取消（角色无关）
-- `ActionRotationDriver`：RotationWindow + 索敌
-- `ActionRuntimeController.UpdateFrame` + `ICombatFrameConsumer`（Hitbox/VFX 统一 Logic Tick）
+- `CharacterActionDriver`：离散输入起手/缓冲、移动取消（纯 C#，角色无关）
+- `ActionRotationDriver`：RotationWindow + 索敌（纯 C#）
+- `ActionRuntimeController.UpdateFrame` + `ICombatFrameConsumer`（纯 C# Hitbox/VFX 统一 Logic Tick）
 - `ActionPhase` / `ActionEvent` 类型骨架写入 `ActionDefinition`
 - `IActionHitReceiver` 命中回流 + `OnHitConfirm` / `OnWhiff` Transition
 - `IActionRuntime` 迁至 `Combat/Actions/`
@@ -51,14 +51,14 @@
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
 | ActionEditorWindow | P1 | Frameline + Scrub 对接 `UpdateFrame` |
-| Enemy/ + AI | P2 | 复用 `CharacterActionDriver` + `ActionRuntimeController` |
+| Enemy/ + AI | P2 | 复用纯 C# `CharacterActionDriver` + `ActionRuntimeController` |
 | UI/ | P2 | HUD、血条 |
 | 事件总线 | P2 | 轻量 C# event；定稿前不引入第三方 |
 
 ## Tech Debt 观察清单
 
-- [ ] `PlayerController` 与 `LocomotionState` 双处感知移动输入
-- [x] 2026-06-21：Prefab 手动挂载 `CharacterActionDriver`、`ActionRotationDriver` 改为 `CharacterConfig` + `PlayerController` 运行时装配
+- [ ] `PlayerCharacterRuntime` 与 `LocomotionState` 双处感知移动输入
+- [x] 2026-06-21：Prefab/运行时堆业务脚本改为 `CharacterConfig` + `PlayerController` + 纯 C# `PlayerCharacterRuntime`
 - [ ] `TargetRegistry` 仍为静态全局列表，后续可替换为空间分区 / 场景实例注册表
 - [ ] 无 asmdef，全项目单一 Assembly-CSharp
 
@@ -70,6 +70,7 @@
 - [x] 2026-06-17：动作系统 Phase A（ActionRuntime、Combo、CombatMode、Hitbox 骨架）
 - [x] 2026-06-21：ActionEditor 准备重构（CharacterActionDriver、UpdateFrame、Phase/Event 骨架、命中回流）
 - [x] 2026-06-21：CharacterConfig 装配入口、ActionSession、TargetRegistry / HitDetectionSystem / TargetingSystem 骨架
+- [x] 2026-06-21：移除 Player 根对象运行时业务脚本挂载，动作/输入/状态/判定改为纯 C# runtime
 
 ## 决策记录
 

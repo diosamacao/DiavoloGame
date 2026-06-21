@@ -4,13 +4,10 @@ using UnityEngine;
 /// <summary>
 /// 订阅 ActionRuntimeController Logic Tick，在 ActionDefinition 配置的 triggerFrame 实例化 VFX Prefab。
 /// </summary>
-[DisallowMultipleComponent]
-[RequireComponent(typeof(ActionRuntimeController))]
-public class ActionVfxPlayer : MonoBehaviour, ICombatFrameConsumer
+public sealed class ActionVfxPlayer : ICombatFrameConsumer
 {
-    [SerializeField] ActionRuntimeController actionRuntime = null!;
-    [Tooltip("VFX 局部变换挂点；为空时使用本物体 Transform。可与 HitBoxSystem.attachPoint 相同。")]
-    [SerializeField] Transform attachPoint = null;
+    readonly Transform root;
+    readonly Transform attachPoint;
 
     /// <summary>VFX 局部变换挂点；为空时使用本物体 Transform。</summary>
     public Transform AttachPoint => attachPoint;
@@ -19,17 +16,11 @@ public class ActionVfxPlayer : MonoBehaviour, ICombatFrameConsumer
     ActionDefinition _trackedAction;
     int _lastSampledFrame = -1;
 
-    void Awake()
+    /// <summary>创建纯 C# VFX 帧消费者。</summary>
+    public ActionVfxPlayer(Transform actorRoot, Transform vfxAttachPoint)
     {
-        if (actionRuntime == null)
-            actionRuntime = GetComponent<ActionRuntimeController>();
-    }
-
-    /// <summary>绑定运行时与默认挂点，供 CharacterConfig 统一装配。</summary>
-    public void Bind(ActionRuntimeController runtime, Transform vfxAttachPoint)
-    {
-        actionRuntime = runtime;
-        attachPoint = vfxAttachPoint;
+        root = actorRoot;
+        attachPoint = vfxAttachPoint != null ? vfxAttachPoint : actorRoot;
     }
 
     /// <summary>新招式开始：重置 VFX 触发记录。</summary>
@@ -53,9 +44,6 @@ public class ActionVfxPlayer : MonoBehaviour, ICombatFrameConsumer
             return;
         }
 
-        Transform root = transform;
-        Transform anchor = attachPoint != null ? attachPoint : root;
-
         for (int i = 0; i < events.Length; i++)
         {
             ActionVfxKeyframe vfxEvent = events[i];
@@ -68,7 +56,7 @@ public class ActionVfxPlayer : MonoBehaviour, ICombatFrameConsumer
             if (!vfxEvent.ShouldFireBetweenFrames(_lastSampledFrame, context.FrameIndex))
                 continue;
 
-            ActionVfxSpawner.Spawn(vfxEvent.Prefab, root, anchor, vfxEvent);
+            ActionVfxSpawner.Spawn(vfxEvent.Prefab, root, attachPoint, vfxEvent);
             _firedEventIndices.Add(i);
         }
 

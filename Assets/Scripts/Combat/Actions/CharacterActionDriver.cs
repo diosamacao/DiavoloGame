@@ -3,103 +3,55 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>角色招式输入路由：离散输入起手/缓冲、移动取消与离开 Action 后的预输入消费；玩家与敌人共用。</summary>
-[DisallowMultipleComponent]
-[RequireComponent(typeof(ActionRuntimeController))]
-[RequireComponent(typeof(CombatModeController))]
-public class CharacterActionDriver : MonoBehaviour
+public sealed class CharacterActionDriver
 {
-    [SerializeField] InputReader inputReader = null!;
-    [SerializeField] CombatTargetLock targetLock = null!;
-
     readonly HashSet<string> _registeredInputIds = new(StringComparer.Ordinal);
-
-    InputManager _input;
-    CharacterStateMachine _stateMachine;
-    ActionRuntimeController _actionRuntime;
+    readonly InputReader inputReader;
+    readonly CombatTargetLock targetLock;
+    readonly InputManager _input;
+    readonly CharacterStateMachine _stateMachine;
+    readonly ActionRuntimeController _actionRuntime;
     /// <summary>同物体 CombatModeController；用具体类型访问 Profile / TrySetMode 三参 overload。</summary>
-    CombatModeController _combatMode;
+    readonly CombatModeController _combatMode;
     bool _wasInAction;
-    bool _initialized;
 
-    /// <summary>绑定 InputManager（由 PlayerController 等在 Awake 注入）。</summary>
-    public void BindInput(InputManager inputManager)
+    /// <summary>创建纯 C# 招式输入路由，并立即注册离散输入。</summary>
+    public CharacterActionDriver(
+        InputReader reader,
+        InputManager input,
+        CharacterStateMachine stateMachine,
+        ActionRuntimeController actionRuntime,
+        CombatModeController combatMode,
+        CombatTargetLock lockState)
     {
-        _input = inputManager;
-        RefreshInitialized();
+        inputReader = reader;
+        _input = input;
+        _stateMachine = stateMachine;
+        _actionRuntime = actionRuntime;
+        _combatMode = combatMode;
+        targetLock = lockState;
+        InitializeInputRouting();
     }
 
     /// <summary>供 ActionRuntime CancelWindow 消费的输入缓冲桥接。</summary>
     public IActionComboInput CreateComboInputBridge() => new ComboInputBridge(_input);
 
-    /// <summary>懒解析同物体组件；PlayerController.Awake(-50) 可能早于本类 Awake。</summary>
-    CombatModeController ResolveCombatMode()
-    {
-        if (_combatMode == null)
-            _combatMode = GetComponent<CombatModeController>();
-        return _combatMode;
-    }
-
-    ActionRuntimeController ResolveActionRuntime()
-    {
-        if (_actionRuntime == null)
-            _actionRuntime = GetComponent<ActionRuntimeController>();
-        return _actionRuntime;
-    }
-
-    CharacterStateMachine ResolveStateMachine()
-    {
-        if (_stateMachine == null)
-            _stateMachine = GetComponent<CharacterStateMachine>();
-        return _stateMachine;
-    }
-
-    InputReader ResolveInputReader()
-    {
-        if (inputReader == null)
-            inputReader = GetComponent<InputReader>();
-        return inputReader;
-    }
-
-    void Awake()
-    {
-        ResolveStateMachine();
-        ResolveActionRuntime();
-        ResolveCombatMode();
-        ResolveInputReader();
-
-        if (targetLock == null)
-            targetLock = GetComponent<CombatTargetLock>();
-
-        if (_stateMachine == null)
-            Debug.LogError("CharacterActionDriver: 需要 CharacterStateMachine（如 PlayerStateMachine）。", this);
-
-        RefreshInitialized();
-    }
-
     /// <summary>InputManager 绑定后调用；须在 Start（全部 Awake 完成之后）执行。</summary>
     public void InitializeInputRouting()
     {
-        InputReader reader = ResolveInputReader();
-        ActionRuntimeController runtime = ResolveActionRuntime();
-        if (reader != null && runtime != null)
-            reader.ConfigureDiscreteInputs(runtime.GetEntryInputReferences());
+        inputReader.ConfigureDiscreteInputs(_actionRuntime.GetEntryInputReferences());
 
         RegisterInputHandlers();
     }
 
-    void Start() => InitializeInputRouting();
-
     /// <summary>每帧在 InputManager.IngestFrame 之后调用。</summary>
     public void ProcessGameplayInput()
     {
-        if (!_initialized)
-            return;
-
         bool inAction = _stateMachine.CurrentStateId == CharacterStateType.Action;
         if (_wasInAction && !inAction)
         {
-            targetLock?.ClearLock();
-            _combatMode?.ApplyPendingModeIfReady();
+            targetLock.ClearLock();
+            _combatMode.ApplyPendingModeIfReady();
 
             if (!TryStartFromBufferedInputs())
                 ClearAllActionBuffers();
@@ -114,26 +66,16 @@ public class CharacterActionDriver : MonoBehaviour
     /// <summary>注册全部战斗模式出招表中的离散输入（并集，按 inputId 去重）。</summary>
     public void RegisterInputHandlers()
     {
-        if (!_initialized)
-            return;
-
-        CombatModeController mode = ResolveCombatMode();
-        if (mode == null)
+        if (_combatMode.Profile == null)
         {
-            Debug.LogWarning("CharacterActionDriver: 缺少 CombatModeController，离散输入未注册。", this);
-            return;
-        }
-
-        if (mode.Profile == null)
-        {
-            Debug.LogWarning("CharacterActionDriver: CombatModeProfile 未绑定，离散输入未注册。", this);
+            Debug.LogWarning("CharacterActionDriver: CombatModeProfile 未绑定，离散输入未注册。");
             return;
         }
 
         _registeredInputIds.Clear();
 
         bool hasAnyEntry = false;
-        foreach (ActionEntry entry in mode.Profile.EnumerateAllActionEntries())
+        foreach (ActionEntry entry in _combatMode.Profile.EnumerateAllActionEntries())
         {
             if (!entry.IsValid)
                 continue;
@@ -149,8 +91,7 @@ public class CharacterActionDriver : MonoBehaviour
         if (!hasAnyEntry)
         {
             Debug.LogWarning(
-                "CharacterActionDriver: CombatModeProfile 中无有效 ActionEntry，攻击/闪避输入未注册。",
-                this);
+                "CharacterActionDriver: CombatModeProfile 中无有效 ActionEntry，攻击/闪避输入未注册。");
         }
     }
 
@@ -192,7 +133,7 @@ public class CharacterActionDriver : MonoBehaviour
     /// <summary>移动取消：在 CancelWindow(Movement) 内退回 Locomotion。</summary>
     void TryCancelActionByMovement()
     {
-        if (!_input.HasMoveIntent || _actionRuntime == null)
+        if (!_input.HasMoveIntent)
             return;
 
         if (!_actionRuntime.CanCancelByMovement)
@@ -213,7 +154,7 @@ public class CharacterActionDriver : MonoBehaviour
     {
         _input.ClearBuffer(inputId);
 
-        if (_actionRuntime == null || !_actionRuntime.TryStartByInput(inputId))
+        if (!_actionRuntime.TryStartByInput(inputId))
             return;
 
         _stateMachine.TryChangeState(CharacterStateType.Action);
@@ -231,12 +172,4 @@ public class CharacterActionDriver : MonoBehaviour
         public bool TryConsumeBuffer(string inputId) => _inputManager.TryConsumeBuffer(inputId);
     }
 
-    /// <summary>初始化期统一确认依赖；每帧输入处理只检查一个布尔状态。</summary>
-    void RefreshInitialized()
-    {
-        _initialized = _input != null
-            && _stateMachine != null
-            && _actionRuntime != null
-            && _combatMode != null;
-    }
 }

@@ -51,28 +51,9 @@ public interface IActionEditorPreviewExtension
 /// <summary>解析 Preview Character 上 Hitbox / VFX 共用的 attachPoint。</summary>
 public static class ActionEditorPreviewAttachPoint
 {
-    /// <summary>优先 HitBoxSystem，其次 ActionVfxPlayer，否则回退 Preview Character 根节点。</summary>
+    /// <summary>纯运行时不再挂载 HitBoxSystem / ActionVfxPlayer，预览默认使用 Preview Character 根节点。</summary>
     public static Transform Resolve(Transform previewCharacter)
     {
-        if (previewCharacter == null)
-            return null;
-
-        HitBoxSystem hitBoxSystem = previewCharacter.GetComponent<HitBoxSystem>();
-        if (hitBoxSystem != null)
-        {
-            Transform attach = hitBoxSystem.AttachPoint;
-            if (attach != null)
-                return attach;
-        }
-
-        ActionVfxPlayer vfxPlayer = previewCharacter.GetComponent<ActionVfxPlayer>();
-        if (vfxPlayer != null)
-        {
-            Transform attach = vfxPlayer.AttachPoint;
-            if (attach != null)
-                return attach;
-        }
-
         return previewCharacter;
     }
 }
@@ -95,16 +76,7 @@ public static class ActionEditorAnimationSampler
         if (previewCharacter == null)
             return false;
 
-        CharacterAnimationController animationController =
-            previewCharacter.GetComponent<CharacterAnimationController>();
-        if (animationController != null)
-        {
-            animator = animationController.GetComponentInChildren<Animator>();
-        }
-        else
-        {
-            animator = previewCharacter.GetComponentInChildren<Animator>();
-        }
+        animator = previewCharacter.GetComponentInChildren<Animator>();
 
         if (animator == null)
             return false;

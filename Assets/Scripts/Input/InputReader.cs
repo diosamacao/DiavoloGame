@@ -3,27 +3,23 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>从 Input System 采集本帧原始输入，供 InputManager 摄入。</summary>
-public class InputReader : MonoBehaviour, IPlayerInputSource
+public sealed class InputReader : IPlayerInputSource
 {
-    [SerializeField] InputActionAsset inputActions = null!;
-
+    InputActionAsset inputActions = null!;
     InputAction moveAction = null!;
     InputAction lookAction = null!;
     InputActionReference[] _discreteInputs = Array.Empty<InputActionReference>();
-    bool _initialized;
 
     readonly System.Collections.Generic.List<string> _pressedScratch = new(4);
 
     public Vector2 MoveInput => moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
     public Vector2 LookInput => lookAction != null ? lookAction.ReadValue<Vector2>() : Vector2.zero;
 
-    /// <summary>由 PlayerController 根据 CharacterConfig 注入输入资产，支持 Empty GameObject 运行时装配。</summary>
-    public void BindInputActions(InputActionAsset actions)
+    /// <summary>创建纯 C# 输入源；由 PlayerController 按 CharacterConfig 构造。</summary>
+    public InputReader(InputActionAsset actions)
     {
         inputActions = actions;
-        InitializeActions(logMissingAsset: true);
-        if (_initialized && isActiveAndEnabled)
-            inputActions.Enable();
+        InitializeActions();
     }
 
     /// <summary>由 PlayerController 根据 PlayerActionSet.entries 注入，无需在 Prefab 重复配置。</summary>
@@ -48,45 +44,20 @@ public class InputReader : MonoBehaviour, IPlayerInputSource
         return new PlayerInputFrame(MoveInput, LookInput, _pressedScratch.ToArray());
     }
 
-    void Awake()
-    {
-        InitializeActions(logMissingAsset: false);
-    }
+    /// <summary>启用输入资产；由 PlayerController.OnEnable 调用。</summary>
+    public void Enable() => inputActions.Enable();
 
-    void Start()
-    {
-        if (!_initialized)
-            InitializeActions(logMissingAsset: true);
-    }
+    /// <summary>禁用输入资产；由 PlayerController.OnDisable 调用。</summary>
+    public void Disable() => inputActions.Disable();
 
-    /// <summary>解析 Player ActionMap；配置缺失时仅在最终校验阶段报错。</summary>
-    void InitializeActions(bool logMissingAsset)
+    /// <summary>解析 Player ActionMap；配置缺失视为 CharacterConfig 校验失败后的编程错误。</summary>
+    void InitializeActions()
     {
         if (inputActions == null)
-        {
-            if (logMissingAsset)
-            {
-                Debug.LogError("InputReader: 未分配 InputActionAsset。", this);
-                enabled = false;
-            }
-
-            return;
-        }
+            throw new ArgumentNullException(nameof(inputActions), "InputReader: 未分配 InputActionAsset。");
 
         InputActionMap playerMap = inputActions.FindActionMap("Player", throwIfNotFound: true);
         moveAction = playerMap.FindAction("Move", throwIfNotFound: true);
         lookAction = playerMap.FindAction("Look", throwIfNotFound: true);
-        _initialized = true;
-        enabled = true;
-    }
-
-    void OnEnable()
-    {
-        inputActions?.Enable();
-    }
-
-    void OnDisable()
-    {
-        inputActions?.Disable();
     }
 }

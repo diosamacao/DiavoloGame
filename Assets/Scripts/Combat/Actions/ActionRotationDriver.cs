@@ -1,46 +1,36 @@
 using UnityEngine;
 
 /// <summary>招式 RotationWindow 内转向与索敌；依赖 IMoveIntentResolver 解析移动意图。</summary>
-[DisallowMultipleComponent]
-[RequireComponent(typeof(ActionRuntimeController))]
-[RequireComponent(typeof(CombatTargetLock))]
-public class ActionRotationDriver : MonoBehaviour
+public sealed class ActionRotationDriver
 {
-    [SerializeField] ActionRuntimeController actionRuntime = null!;
-    [SerializeField] CombatTargetLock targetLock = null!;
-
-    CharacterStateMachine _stateMachine;
-    InputManager _input;
-    IMoveIntentResolver _moveResolver;
+    readonly Transform _actorRoot;
+    readonly CharacterStateMachine _stateMachine;
+    readonly InputManager _input;
+    readonly IMoveIntentResolver _moveResolver;
+    readonly ActionRuntimeController actionRuntime;
+    readonly CombatTargetLock targetLock;
     float _rotationVelocity;
-    bool _initialized;
 
-    /// <summary>注入 InputManager 与移动意图解析器（PlayerController 在 Awake 调用）。</summary>
-    public void Bind(InputManager inputManager, IMoveIntentResolver moveResolver)
+    /// <summary>创建动作旋转服务；由 PlayerCharacterRuntime 每帧调用。</summary>
+    public ActionRotationDriver(
+        Transform actorRoot,
+        CharacterStateMachine stateMachine,
+        InputManager inputManager,
+        IMoveIntentResolver moveResolver,
+        ActionRuntimeController runtime,
+        CombatTargetLock lockState)
     {
+        _actorRoot = actorRoot;
+        _stateMachine = stateMachine;
         _input = inputManager;
         _moveResolver = moveResolver;
-        RefreshInitialized();
+        actionRuntime = runtime;
+        targetLock = lockState;
     }
 
-    void Awake()
+    /// <summary>Action 状态下推进索敌和旋转窗口。</summary>
+    public void Tick()
     {
-        _stateMachine = GetComponent<CharacterStateMachine>();
-
-        if (actionRuntime == null)
-            actionRuntime = GetComponent<ActionRuntimeController>();
-
-        if (targetLock == null)
-            targetLock = GetComponent<CombatTargetLock>();
-
-        RefreshInitialized();
-    }
-
-    void Update()
-    {
-        if (!_initialized)
-            return;
-
         if (_stateMachine.CurrentStateId != CharacterStateType.Action)
             return;
 
@@ -55,7 +45,7 @@ public class ActionRotationDriver : MonoBehaviour
         if (!TryResolveActionRotationDirection(out Vector3 direction, out float smoothTime))
             return;
 
-        transform.rotation = GetSmoothedRotation(direction, smoothTime);
+        _actorRoot.rotation = GetSmoothedRotation(direction, smoothTime);
     }
 
     /// <summary>RotationWindow 内解析最终转向方向与平滑时间。</summary>
@@ -119,7 +109,7 @@ public class ActionRotationDriver : MonoBehaviour
 
         float targetAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
         float angle = Mathf.SmoothDampAngle(
-            transform.eulerAngles.y,
+            _actorRoot.eulerAngles.y,
             targetAngle,
             ref _rotationVelocity,
             smoothTime);
@@ -127,13 +117,4 @@ public class ActionRotationDriver : MonoBehaviour
         return Quaternion.Euler(0f, angle, 0f);
     }
 
-    /// <summary>初始化期统一确认依赖；Update 热路径只读一个布尔状态。</summary>
-    void RefreshInitialized()
-    {
-        _initialized = _stateMachine != null
-            && _input != null
-            && _moveResolver != null
-            && actionRuntime != null
-            && targetLock != null;
-    }
 }

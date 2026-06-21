@@ -134,7 +134,7 @@ public class ActionDefinitionHitboxEditor : Editor
         if (!ActionEditorAnimationSampler.TryResolveSampleRoot(_previewCharacter, out _, out _))
         {
             EditorGUILayout.HelpBox(
-                "Preview Character 上未找到 Animator（可在 CharacterAnimationController 子级）。",
+                "Preview Character 上未找到 Animator。",
                 MessageType.Warning);
         }
     }

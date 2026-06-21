@@ -43,7 +43,7 @@ public class HitStopController : MonoBehaviour
         if (!context.Action.ShouldHitStopOnHit())
             return;
 
-        ActionRuntimeController runtime = context.Attacker.GetComponent<ActionRuntimeController>();
+        CombatRuntimeRegistry.TryGet(context.Attacker, out ActionRuntimeController runtime, out Animator animator);
         if (context.Action.HitStopOncePerAction && runtime != null && !runtime.TryConsumeHitStopTrigger())
             return;
 
@@ -51,13 +51,16 @@ public class HitStopController : MonoBehaviour
         if (duration <= 0f)
             return;
 
-        ApplyHitStop(context.Attacker, runtime, duration);
+        ApplyHitStop(context.Attacker, runtime, animator, duration);
     }
 
     /// <summary>对攻击者施加卡肉；若已在卡肉中则延长剩余时间。</summary>
-    void ApplyHitStop(Transform attacker, ActionRuntimeController runtime, float durationSeconds)
+    void ApplyHitStop(
+        Transform attacker,
+        ActionRuntimeController runtime,
+        Animator animator,
+        float durationSeconds)
     {
-        Animator animator = ResolveAnimator(attacker);
         if (animator == null)
             return;
 
@@ -103,15 +106,4 @@ public class HitStopController : MonoBehaviour
         EndHitStop();
     }
 
-    /// <summary>解析攻击者 Animator；优先 CharacterAnimationController 所在层级。</summary>
-    static Animator ResolveAnimator(Transform attacker)
-    {
-        if (attacker == null)
-            return null;
-
-        if (attacker.GetComponent<CharacterAnimationController>() != null)
-            return attacker.GetComponentInChildren<Animator>();
-
-        return attacker.GetComponentInChildren<Animator>();
-    }
 }
