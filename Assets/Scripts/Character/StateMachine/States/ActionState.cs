@@ -24,8 +24,23 @@ public class ActionState : CharacterState
 
     public override void Tick(float deltaTime)
     {
+        Context.Movement.ClearMoveSnapshot();
+        SyncMotorSnapshot();
         if (!AdvanceActionRuntime(deltaTime))
+        {
             Context.StateMachine.TryChangeState(CharacterStateType.Locomotion);
+            return;
+        }
+
+        Context.ActionRotation?.Tick();
+    }
+
+    /// <summary>Action 状态清空 Locomotion 输入快照，避免动作中播放移动动画。</summary>
+    void SyncMotorSnapshot()
+    {
+        Context.MoveInputMagnitude = Context.Movement.MoveInputMagnitude;
+        Context.RunThreshold = Context.Movement.RunThreshold;
+        Context.IsGrounded = Context.Movement.IsGrounded;
     }
 
     bool AdvanceActionRuntime(float deltaTime)

@@ -1,4 +1,4 @@
-/// <summary>角色状态机运行时；不挂载到 GameObject，由 PlayerCharacterRuntime 持有并 Tick。</summary>
+/// <summary>角色状态机运行时；不挂载到 GameObject，由 CharacterRuntime 持有并 Tick。</summary>
 public sealed class CharacterStateMachine : ICharacterStateMachine
 {
     readonly StateMachine<CharacterStateType, CharacterContext> _machine = new();

@@ -6,7 +6,7 @@ using UnityEngine;
 public sealed class CharacterActionDriver
 {
     readonly HashSet<string> _registeredInputIds = new(StringComparer.Ordinal);
-    readonly InputReader inputReader;
+    readonly ICharacterInputSource inputSource;
     readonly CombatTargetLock targetLock;
     readonly InputManager _input;
     readonly CharacterStateMachine _stateMachine;
@@ -17,14 +17,14 @@ public sealed class CharacterActionDriver
 
     /// <summary>创建纯 C# 招式输入路由，并立即注册离散输入。</summary>
     public CharacterActionDriver(
-        InputReader reader,
+        ICharacterInputSource source,
         InputManager input,
         CharacterStateMachine stateMachine,
         ActionRuntimeController actionRuntime,
         CombatModeController combatMode,
         CombatTargetLock lockState)
     {
-        inputReader = reader;
+        inputSource = source;
         _input = input;
         _stateMachine = stateMachine;
         _actionRuntime = actionRuntime;
@@ -39,7 +39,7 @@ public sealed class CharacterActionDriver
     /// <summary>InputManager 绑定后调用；须在 Start（全部 Awake 完成之后）执行。</summary>
     public void InitializeInputRouting()
     {
-        inputReader.ConfigureDiscreteInputs(_actionRuntime.GetEntryInputReferences());
+        inputSource.ConfigureDiscreteInputs(_actionRuntime.GetEntryInputReferences());
 
         RegisterInputHandlers();
     }

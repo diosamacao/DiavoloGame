@@ -1,13 +1,14 @@
 using UnityEngine;
 
-/// <summary>玩家角色运行时工厂，负责从 CharacterConfig 创建纯 C# 服务图。</summary>
-public static class PlayerCharacterRuntimeFactory
+/// <summary>角色运行时工厂，负责从 CharacterConfig 和输入源创建纯 C# 服务图。</summary>
+public static class CharacterRuntimeFactory
 {
-    /// <summary>按配置创建玩家运行时；Player 根对象只会补齐 CharacterController。</summary>
-    public static PlayerCharacterRuntime Create(
+    /// <summary>按配置创建角色运行时；角色根对象只会补齐 CharacterController。</summary>
+    public static CharacterRuntime Create(
         GameObject owner,
         Transform root,
         CharacterConfig config,
+        ICharacterInputSource inputSource,
         Transform cameraTransform)
     {
         EnsureCombatWorldSystem();
@@ -16,12 +17,13 @@ public static class PlayerCharacterRuntimeFactory
         Transform modelRoot = SpawnModelInstance(config, root);
         Animator animator = modelRoot.GetComponentInChildren<Animator>();
         if (animator == null)
-            throw new MissingComponentException("PlayerCharacterRuntimeFactory: ModelPrefab 中找不到 Animator。");
+            throw new MissingComponentException("CharacterRuntimeFactory: ModelPrefab 中找不到 Animator。");
 
         CharacterController controller = GetOrAddCharacterController(owner);
         motorConfig.ApplyTo(controller);
 
-        var inputReader = new InputReader(config.InputActions);
+        var sharedInput = new InputManager();
+        var motor = new CharacterMotor(root, controller, motorConfig, sharedInput, cameraTransform);
         var animation = new CharacterAnimationController(
             animator,
             config.DefaultLocomotionProfile,
@@ -29,7 +31,7 @@ public static class PlayerCharacterRuntimeFactory
         var rootMotion = new CharacterRootMotionDriver(controller, animator);
         var combatMode = new CombatModeController(config.CombatProfile, animation);
 
-        var context = new CharacterContext(root, animation, controller);
+        var context = new CharacterContext(root, animation, controller, motor);
         var stateMachine = new CharacterStateMachine(context);
         var actionRuntime = new ActionRuntimeController(root, controller, animation, rootMotion, combatMode);
         context.ActionRuntime = actionRuntime;
@@ -43,9 +45,8 @@ public static class PlayerCharacterRuntimeFactory
         actionRuntime.RegisterFrameConsumer(hitBoxSystem);
         actionRuntime.RegisterFrameConsumer(vfxPlayer);
 
-        var sharedInput = new InputManager();
         var actionDriver = new CharacterActionDriver(
-            inputReader,
+            inputSource,
             sharedInput,
             stateMachine,
             actionRuntime,
@@ -53,27 +54,23 @@ public static class PlayerCharacterRuntimeFactory
             targetLock);
         actionRuntime.BindComboInput(actionDriver.CreateComboInputBridge());
 
-        var runtime = new PlayerCharacterRuntime(
-            root,
-            controller,
-            motorConfig,
-            inputReader,
+        var runtime = new CharacterRuntime(
+            inputSource,
             sharedInput,
+            motor,
             stateMachine,
             actionDriver,
-            combatMode,
-            cameraTransform);
+            combatMode);
 
         var rotationDriver = new ActionRotationDriver(
             root,
-            stateMachine,
-            runtime.Input,
-            runtime,
+            sharedInput,
+            motor,
             actionRuntime,
             targetLock);
 
-        runtime.BindRotationDriver(rotationDriver);
-        actionRuntime.BindActionStartContext(runtime);
+        context.ActionRotation = rotationDriver;
+        actionRuntime.BindActionStartContext(motor);
         CombatRuntimeRegistry.Register(root, actionRuntime, animation.Animator);
         return runtime;
     }
@@ -102,7 +99,7 @@ public static class PlayerCharacterRuntimeFactory
         Transform point = FindChildRecursive(modelRoot, pointName);
         if (point == null)
         {
-            Debug.LogWarning($"PlayerCharacterRuntimeFactory: 模型中找不到挂点 {pointName}，已回退到角色根节点。");
+            Debug.LogWarning($"CharacterRuntimeFactory: 模型中找不到挂点 {pointName}，已回退到角色根节点。");
             return fallback;
         }
 

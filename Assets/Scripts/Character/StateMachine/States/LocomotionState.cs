@@ -14,8 +14,18 @@ public class LocomotionState : CharacterState
 
     public override void Tick(float deltaTime)
     {
+        Context.Movement.TickLocomotion(deltaTime);
+        SyncMotorSnapshot();
         AnimationKey target = ResolveLocomotionKey();
         Context.Animation.Play(target);
+    }
+
+    /// <summary>Locomotion 移动后同步当前帧快照，供动画选择读取。</summary>
+    void SyncMotorSnapshot()
+    {
+        Context.MoveInputMagnitude = Context.Movement.MoveInputMagnitude;
+        Context.RunThreshold = Context.Movement.RunThreshold;
+        Context.IsGrounded = Context.Movement.IsGrounded;
     }
 
     AnimationKey ResolveLocomotionKey()

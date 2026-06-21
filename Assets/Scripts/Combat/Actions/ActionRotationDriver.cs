@@ -4,24 +4,21 @@ using UnityEngine;
 public sealed class ActionRotationDriver
 {
     readonly Transform _actorRoot;
-    readonly CharacterStateMachine _stateMachine;
     readonly InputManager _input;
     readonly IMoveIntentResolver _moveResolver;
     readonly ActionRuntimeController actionRuntime;
     readonly CombatTargetLock targetLock;
     float _rotationVelocity;
 
-    /// <summary>创建动作旋转服务；由 PlayerCharacterRuntime 每帧调用。</summary>
+    /// <summary>创建动作旋转服务；由 ActionState 在动作状态中调用。</summary>
     public ActionRotationDriver(
         Transform actorRoot,
-        CharacterStateMachine stateMachine,
         InputManager inputManager,
         IMoveIntentResolver moveResolver,
         ActionRuntimeController runtime,
         CombatTargetLock lockState)
     {
         _actorRoot = actorRoot;
-        _stateMachine = stateMachine;
         _input = inputManager;
         _moveResolver = moveResolver;
         actionRuntime = runtime;
@@ -31,9 +28,6 @@ public sealed class ActionRotationDriver
     /// <summary>Action 状态下推进索敌和旋转窗口。</summary>
     public void Tick()
     {
-        if (_stateMachine.CurrentStateId != CharacterStateType.Action)
-            return;
-
         ActionSession session = actionRuntime.Session;
         targetLock.Tick(session);
         TryApplyActionRotation();

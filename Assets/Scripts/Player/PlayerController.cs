@@ -8,7 +8,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] CharacterConfig characterConfig = null;
     [SerializeField] Transform cameraTransform;
 
-    PlayerCharacterRuntime runtime;
+    CharacterRuntime runtime;
 
     /// <summary>玩家输入中枢，供 CameraManager 读取视角输入。</summary>
     public InputManager Input => runtime?.Input;
@@ -31,10 +31,12 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        runtime = PlayerCharacterRuntimeFactory.Create(
+        var inputSource = new InputReader(characterConfig.InputActions);
+        runtime = CharacterRuntimeFactory.Create(
             gameObject,
             transform,
             characterConfig,
+            inputSource,
             cameraTransform);
     }
 
