@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>从 Input System 采集本帧原始输入，供 InputManager 摄入。</summary>
-public sealed class InputReader : IPlayerInputSource
+public sealed class InputReader : ICharacterInputSource
 {
     InputActionAsset inputActions = null!;
     InputAction moveAction = null!;

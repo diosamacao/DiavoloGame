@@ -7,8 +7,8 @@
 
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
-| 第三人称移动 | ✅ 已实现 | `PlayerController` + `PlayerCharacterRuntime` + `CharacterConfig` | Scene Empty + CharacterConfig |
-| 输入（移动 + 视角 + 离散按键） | ✅ 已实现 | 纯 C# `InputReader`、`InputManager` | `GameInputActions.inputactions` |
+| 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterRuntime` + `CharacterConfig` | Scene Empty + CharacterConfig |
+| 输入（移动 + 视角 + 离散按键） | ✅ 已实现 | `ICharacterInputSource`、纯 C# `InputReader`、`InputManager` | `GameInputActions.inputactions` |
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionState` | `Player_KatanaGirl_AnimationProfile.asset` |
 | 第三人称相机 | ✅ 已实现 | `CameraManager` | 场景内 CameraManager 对象 |
@@ -32,7 +32,7 @@
 | 项 | 方案 |
 |----|------|
 | 碰撞体 | `CharacterController`（非 Rigidbody） |
-| 位移执行 | `PlayerCharacterRuntime.Tick` 中 `controller.Move` |
+| 位移执行 | `LocomotionState.Tick` 调用 `CharacterMotor.TickLocomotion` |
 | 方向计算 | 输入 Vector2 → 相机 forward/right 投影到 XZ 平面 → 归一化方向 |
 | 速度 | `moveInputMagnitude × speed`；幅度 > `runThreshold` 用 `runSpeed`，否则 `walkSpeed` |
 | 旋转 | `SmoothDampAngle` 绕 Y 轴对齐移动方向 |
@@ -61,11 +61,11 @@ Update
 
 ### 对外暴露（供状态机）
 
-- `MoveInputMagnitude`、`RunThreshold`、`IsGrounded` — 由 `PlayerCharacterRuntime` 写入 `CharacterContext`
+- `MoveInputMagnitude`、`RunThreshold`、`IsGrounded` — 由当前 State 从 `CharacterMotor` 同步到 `CharacterContext`
 
 ### 已知限制
 
-- 移动逻辑在 `PlayerCharacterRuntime`，不在 State 内；动画与位移决策分离（见 ROADMAP「移动职责迁移」）
+- Locomotion 水平移动由 `LocomotionState` 拥有；重力仍由 `CharacterRuntime` 每帧统一推进
 - `cameraTransform` 未绑定时回退为世界 XZ 平面移动
 
 ### 相关文件
@@ -86,10 +86,10 @@ Update
 | 项 | 方案 |
 |----|------|
 | 资产 | `GameInputActions.inputactions` |
-| 形态 | `InputReader` 为纯 C# 输入源，由 `PlayerCharacterRuntimeFactory` 构造 |
+| 形态 | `InputReader` 为玩家纯 C# 输入源，实现 `ICharacterInputSource` |
 | 绑定 | Awake 时 `FindActionMap("Player")`，缓存 Move/Look Action |
 | 生命周期 | OnEnable/OnDisable 启用/禁用整个 Asset |
-| 消费方 | `PlayerCharacterRuntime` 读 Move；`CameraManager` 通过 `PlayerController.Input` 读 Look |
+| 消费方 | `CharacterRuntime` 读 Move；`CameraManager` 通过 `PlayerController.Input` 读 Look |
 
 ### 绑定摘要
 
@@ -113,7 +113,7 @@ Update
 
 ### 功能说明
 
-状态机驱动角色逻辑；玩家侧通过 `PlayerCharacterRuntime` 每帧同步 Context 并 Tick 当前 State。
+状态机驱动角色逻辑；角色侧通过 `CharacterRuntime` 每帧摄入输入并 Tick 当前 State。
 
 ### 实现方案
 
@@ -134,29 +134,32 @@ StateMachine<TStateId, TContext>
 
 **Player 层**
 
-- `PlayerCharacterRuntime`：把 Motor 快照 Push 到 `CharacterContext`，再 Tick `CharacterStateMachine`
+- `CharacterRuntime`：采集输入、处理动作路由、推进重力，再 Tick `CharacterStateMachine`
 
 ### 已注册状态
 
 | State | Id | Enter | Tick | Exit |
 |-------|-----|-------|------|------|
-| `LocomotionState` | 10 | — | 按输入选 AnimationKey 并 Play | — |
-| `ActionState` | 60 | `Animation.SetLocked(true)` | 空（预留） | Unlock + ResetPlaybackState |
+| `LocomotionState` | 10 | — | `CharacterMotor.TickLocomotion` + 选 AnimationKey 并 Play | — |
+| `ActionState` | 60 | `Animation.SetLocked(true)` | `ActionRuntimeController.Tick` + `ActionRotationDriver.Tick` | Unlock + ResetPlaybackState |
 
 ### 运行时流程（玩家）
 
 ```
-PlayerCharacterRuntime.Tick
-  → PushMotorSnapshot（MoveInputMagnitude, RunThreshold, IsGrounded）
+CharacterRuntime.Tick
+  → InputReader.CaptureFrame / InputManager.IngestFrame
+  → CharacterActionDriver.ProcessGameplayInput
+  → CharacterMotor.TickGravity
   → CharacterStateMachine.Tick
-      → LocomotionState.Tick → CharacterAnimationController.Play(key)
+      → LocomotionState.Tick → CharacterMotor.TickLocomotion → CharacterAnimationController.Play(key)
+      → ActionState.Tick → ActionRuntimeController.Tick → ActionRotationDriver.Tick
 ```
 
 ### 相关文件
 
 - `Assets/Scripts/Core/StateMachine/*`
 - `Assets/Scripts/Character/StateMachine/*`
-- `Assets/Scripts/Player/PlayerCharacterRuntime.cs`
+- `Assets/Scripts/Character/CharacterRuntime.cs`
 
 ---
 
@@ -289,12 +292,12 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 
 ### 运行时装配
 
-- `PlayerController.Awake` 校验 `CharacterConfig`，调用 `PlayerCharacterRuntimeFactory.Create`
+- `PlayerController.Awake` 校验 `CharacterConfig`，创建 `InputReader`，调用 `CharacterRuntimeFactory.Create`
 - 实例化模型 Prefab，查找 Animator
 - Player 根只补齐 Unity 必需的 `CharacterController`
 - 构造纯 C# `InputReader`、`CharacterAnimationController`、`CombatModeController`、`ActionRuntimeController`、`CharacterStateMachine`
 - 注册纯 C# `HitBoxSystem` / `ActionVfxPlayer` 为 Logic Tick 消费者
-- `PlayerCharacterRuntime.Tick` 统一输入采集、动作路由、Motor、状态机和旋转
+- `CharacterRuntime.Tick` 统一输入采集、动作路由、重力和状态机；状态自身调度 Locomotion 移动或 Action 旋转
 
 ### Editor 操作
 
@@ -319,7 +322,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 | 招式旋转 | `ActionRotationDriver` + `CombatTargetLock` |
 | Logic Tick | `ActionRuntimeController.UpdateFrame` → `ICombatFrameConsumer` + `IActionEventConsumer` |
 | 命中回流 | `HitBoxSystem` → `IActionHitReceiver.NotifyHit` |
-| Motor | `PlayerCharacterRuntime`（Locomotion 位移 + 重力） |
+| Motor | `CharacterMotor`（Locomotion 位移）+ `CharacterRuntime`（重力调度） |
 
 ### 运行时流程（Logic Tick）
 

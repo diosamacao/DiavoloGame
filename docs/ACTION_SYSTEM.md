@@ -5,6 +5,166 @@
 
 ---
 
+## 0. 当前脚本层级与调用链（重构后）
+
+### 0.1 运行时挂载边界
+
+玩家根对象运行时只允许存在：
+
+- `PlayerController`：Scene 入口，负责读取 `CharacterConfig` 并创建纯 C# 运行时。
+- `CharacterController`：Unity 碰撞与位移执行组件，由 `CharacterRuntimeFactory` 补齐或复用。
+- 模型子物体：由 `CharacterConfig.ModelPrefab` 实例化，保留模型、Renderer、Animator、美术相关组件。
+
+不再允许把以下业务脚本挂到 Player 根对象：`InputReader`、`CharacterAnimationController`、`CombatModeController`、`ActionRuntimeController`、`CharacterActionDriver`、`ActionRotationDriver`、`CombatTargetLock`、`HitBoxSystem`、`ActionVfxPlayer`、`CharacterStateMachine`。这些现在都是纯 C# runtime/service，由工厂创建并持有。
+
+### 0.2 文件层级
+
+| 层级 | 文件 | 形态 | 职责 |
+|------|------|------|------|
+| Scene 入口 | `Assets/Scripts/Player/PlayerController.cs` | `MonoBehaviour` | Scene Empty 上唯一玩家脚本；创建玩家输入源并 Tick `CharacterRuntime` |
+| Runtime 工厂 | `Assets/Scripts/Character/CharacterRuntimeFactory.cs` | static 纯 C# | 读取 `CharacterConfig` + `ICharacterInputSource`，实例化模型，补齐 `CharacterController`，组装所有 runtime/service |
+| 角色 Runtime | `Assets/Scripts/Character/CharacterRuntime.cs` | 纯 C# | 输入采集、动作路由、重力、状态机 Tick |
+| 配置根 | `Assets/Scripts/Character/CharacterConfig.cs` | `ScriptableObject` 定义类 | 模型、输入、移动、动画、战斗模式、挂点名等角色配置 |
+| 输入源抽象 | `Assets/Scripts/Input/ICharacterInputSource.cs` | interface | 玩家、AI、回放、网络输入统一入口 |
+| 玩家输入源 | `Assets/Scripts/Input/InputReader.cs` | 纯 C# | Input System → `PlayerInputFrame` |
+| AI 输入源 | `Assets/Scripts/Input/AIInputSource.cs` | 纯 C# | AI 决策 → `PlayerInputFrame`，复用 `CharacterRuntimeFactory` |
+| AI 输入源 | `Assets/Scripts/Input/AIInputSource.cs` | 纯 C# | AI 写入 `PlayerInputFrame`，复用同一 `CharacterRuntimeFactory` |
+| 输入中枢 | `Assets/Scripts/Input/InputManager.cs` | 纯 C# | 摄入输入帧、离散输入回调、输入缓冲、移动意图 |
+| 移动服务 | `Assets/Scripts/Character/CharacterMotor.cs` | 纯 C# | Locomotion 位移、重力、移动意图解析、起手面向 |
+| 动画服务 | `Assets/Scripts/Character/Animation/CharacterAnimationController.cs` | 纯 C# | Locomotion CrossFade、Action Clip 播放、动画锁 |
+| Root Motion | `Assets/Scripts/Character/Animation/CharacterRootMotionDriver.cs` | 纯 C# + 内部 Receiver | 控制 Animator Root Motion；内部 `CharacterRootMotionReceiver` 仅作为 `OnAnimatorMove` 桥接挂在 Animator 子物体 |
+| 状态机 | `Assets/Scripts/Character/StateMachine/CharacterStateMachine.cs` | 纯 C# | 注册并 Tick `LocomotionState` / `ActionState` |
+| 状态上下文 | `Assets/Scripts/Character/StateMachine/CharacterContext.cs` | 纯 C# | 状态机共享 Transform、Animation、Motor、ActionRuntime、Motor 快照 |
+| Locomotion 状态 | `Assets/Scripts/Character/StateMachine/States/LocomotionState.cs` | 纯 C# State | 根据移动幅度选择 Idle/Walk/Run |
+| Action 状态 | `Assets/Scripts/Character/StateMachine/States/ActionState.cs` | 纯 C# State | Tick `IActionRuntime`；招式结束回 Locomotion |
+| 战斗模式 | `Assets/Scripts/Combat/CombatModeController.cs` | 纯 C# | 当前模式、出招表、Locomotion Profile 切换 |
+| 动作执行 | `Assets/Scripts/Combat/Actions/ActionRuntimeController.cs` | 纯 C# | Action 播放、Cancel、Transition、Logic Tick、事件派发、命中回流 |
+| 动作会话 | `Assets/Scripts/Combat/Actions/ActionSession.cs` | 纯 C# | 当前招式、时间、逻辑帧、命中确认、卡肉暂停 |
+| 输入路由 | `Assets/Scripts/Combat/Actions/CharacterActionDriver.cs` | 纯 C# | 起手、输入缓冲、移动取消、离开 Action 后预输入消费 |
+| 动作旋转 | `Assets/Scripts/Combat/Actions/ActionRotationDriver.cs` | 纯 C# | RotationWindow 内按输入/锁定目标修正朝向 |
+| 索敌锁定 | `Assets/Scripts/Combat/Targeting/CombatTargetLock.cs` | 纯 C# | 单角色当前锁定目标状态 |
+| 索敌查询 | `Assets/Scripts/Combat/Targeting/TargetingSystem.cs` / `TargetSelector.cs` | static 纯 C# | 从 `TargetRegistry` 中选择目标、计算目标方向 |
+| 目标注册 | `Assets/Scripts/Combat/Targeting/TargetRegistry.cs` | static 纯 C# | 当前场景可命中/可索敌目标列表 |
+| 受击目标 | `Assets/Scripts/Combat/Hitbox/HurtboxTarget.cs` | `MonoBehaviour` | 场景目标组件；OnEnable/OnDisable 注册到 `TargetRegistry` |
+| 命中帧消费者 | `Assets/Scripts/Combat/Hitbox/HitBoxSystem.cs` | 纯 C# | 作为 `ICombatFrameConsumer` 接收逻辑帧，提交 OBB 检测 |
+| 命中批处理 | `Assets/Scripts/Combat/Hitbox/HitDetectionSystem.cs` | static 纯 C# | 扫描 `TargetRegistry`，执行 OBB 相交，回调受击方与攻击方 |
+| VFX 帧消费者 | `Assets/Scripts/Combat/VFX/ActionVfxPlayer.cs` | 纯 C# | 作为 `ICombatFrameConsumer` 按帧触发 `ActionVfxSpawner` |
+| VFX 池 | `Assets/Scripts/Combat/VFX/VFXManager.cs` | `MonoBehaviour` Manager | 场景级对象池与 VFX 实例生命周期 |
+| 战斗世界 | `Assets/Scripts/Combat/CombatWorldSystem.cs` | `MonoBehaviour` Manager | 场景级战斗系统生命周期锚点，确保反馈系统存在 |
+| 运行时注册 | `Assets/Scripts/Combat/CombatRuntimeRegistry.cs` | static 纯 C# | Transform → `ActionRuntimeController` / Animator 查询，供反馈系统使用 |
+| 反馈系统 | `Assets/Scripts/Combat/Feedback/FeedbackSystem.cs` | `MonoBehaviour` Manager | 场景级反馈入口，托管 `HitStopController` |
+| 卡肉控制 | `Assets/Scripts/Combat/Feedback/HitStopController.cs` | `MonoBehaviour` Manager | 订阅命中反馈，暂停纯 C# ActionRuntime 并冻结 Animator |
+| 相机 | `Assets/Scripts/Camera/CameraManager.cs` | `MonoBehaviour` Manager | 第三人称相机；通过 `PlayerController.Input.LookIntent` 读取视角输入 |
+
+### 0.3 启动装配链
+
+```
+Scene Empty
+  └─ PlayerController.Awake
+      → CharacterConfig.ValidateForPlayer
+      → new InputReader(CharacterConfig.InputActions)
+      → CharacterRuntimeFactory.Create
+          → EnsureCombatWorldSystem
+          → Instantiate(CharacterConfig.ModelPrefab)
+          → GetOrAdd CharacterController（唯一允许补到 Player 根的 Unity 组件）
+          → use ICharacterInputSource（玩家为 InputReader，敌人为 AIInputSource）
+          → new CharacterAnimationController(Animator, LocomotionProfile)
+          → new CharacterRootMotionDriver(CharacterController, Animator)
+              → Animator 子物体 AddComponent<CharacterRootMotionReceiver>（OnAnimatorMove 桥接）
+          → new CombatModeController(CombatModeProfile, AnimationController)
+          → new CharacterContext(root, animation, controller)
+          → new CharacterStateMachine(context)
+          → new ActionRuntimeController(root, controller, animation, rootMotion, combatMode)
+          → new CombatTargetLock(root, teamId, aimOrigin)
+          → new HitBoxSystem(root, actionRuntime, attachPoint)
+          → new ActionVfxPlayer(root, attachPoint)
+          → actionRuntime.RegisterFrameConsumer(HitBoxSystem / ActionVfxPlayer)
+          → new CharacterActionDriver(inputReader, inputManager, stateMachine, actionRuntime, combatMode, targetLock)
+          → new CharacterRuntime(...)
+          → new ActionRotationDriver(root, stateMachine, inputManager, runtime, actionRuntime, targetLock)
+          → CombatRuntimeRegistry.Register(root, actionRuntime, animator)
+```
+
+### 0.4 每帧调用链
+
+```
+PlayerController.Update
+  → CharacterRuntime.Tick(deltaTime)
+      → InputReader.CaptureFrame
+      → InputManager.IngestFrame
+          → RegisterPressed(inputId) callbacks
+              → CharacterActionDriver.HandleDiscreteInput
+      → CharacterActionDriver.ProcessGameplayInput
+          → Locomotion: TryStartFromLocomotion(inputId)
+              → ActionRuntimeController.TryStartByInput
+              → CharacterStateMachine.TryChangeState(Action)
+          → Action: Buffer(inputId) / Movement Cancel
+      → CharacterMotor.TickGravity
+      → CharacterStateMachine.Tick
+          → LocomotionState.Tick
+              → CharacterMotor.TickLocomotion
+              → sync Motor snapshot to CharacterContext
+              → CharacterAnimationController.Play(Idle/Walk/Run)
+          → ActionState.Tick
+              → CharacterMotor.ClearMoveSnapshot
+              → ActionRuntimeController.Tick(deltaTime)
+              → ActionRotationDriver.Tick
+                  → CombatTargetLock.Tick(ActionSession)
+                  → TargetingSystem.Select / TryGetDirectionToTarget
+                  → rotate actor root during RotationWindow
+```
+
+### 0.5 ActionRuntime Logic Tick 链
+
+```
+ActionRuntimeController.Tick / UpdateFrame
+  → ActionSession.Advance / SetFrame
+  → ApplyScriptedDisplacement 或 Root Motion
+  → SyncLogicFrameFromElapsed
+      → DispatchCombatFrame(frame)
+          → ICombatFrameConsumer.OnCombatFrameAdvanced
+              → HitBoxSystem
+                  → HitDetectionSystem.ProcessHitboxesAtFrame
+                      → TargetRegistry.ActiveTargets
+                      → HitboxMath.Intersects
+                      → IHurtboxTarget.OnHit
+                      → IActionHitReceiver.NotifyHit(ActionRuntimeController)
+                      → CombatHitFeedback.OnAttackHit
+              → ActionVfxPlayer
+                  → ActionVfxSpawner.Spawn
+                  → VFXManager / ObjectPool
+          → DispatchActionEvents
+              → IActionEventConsumer.OnActionEvent（后续扩展）
+  → TryResolveCancelWindows
+  → TryResolveTransitions
+  → duration end: Stop
+```
+
+### 0.6 命中反馈 / 卡肉链
+
+```
+HitDetectionSystem
+  → CombatHitFeedback.OnAttackHit
+      → HitStopController.HandleAttackHit
+          → CombatRuntimeRegistry.TryGet(attackerRoot)
+          → ActionRuntimeController.TryConsumeHitStopTrigger
+          → ActionRuntimeController.SetHitStopPaused(true)
+          → Animator.speed = 0
+          → Update unscaled timer
+          → ActionRuntimeController.SetHitStopPaused(false)
+          → Animator.speed restore
+```
+
+### 0.7 关键边界
+
+- Player 根对象不挂业务脚本；运行时业务必须放在 `CharacterRuntime` 及其纯 C# service。
+- `ActionRuntimeController` 不查找 GameObject 组件，依赖全部由 `CharacterRuntimeFactory` 构造注入。
+- `HitBoxSystem` / `ActionVfxPlayer` 不是组件，只是 `ICombatFrameConsumer`。
+- `CombatWorldSystem`、`FeedbackSystem`、`VFXManager`、`CameraManager` 是场景级 Manager；它们可以是 `MonoBehaviour`，但不挂在 Player 根对象上。
+- `CharacterRootMotionReceiver` 是唯一保留的运行时桥接组件，因为 Unity 的 `OnAnimatorMove` 必须由 `MonoBehaviour` 接收；它挂在 Animator 子物体，不是玩家业务组件。
+
+---
+
 ## 1. 文档定位
 
 | 文档 | 内容 |
@@ -13,7 +173,7 @@
 | [ACTION_EDITOR.md](./ACTION_EDITOR.md) | 动作编辑器愿景、完整数据模型、分期规划 |
 | [TECHNICAL.md](../.cursor/skills/actgame-architecture/TECHNICAL.md) | 全项目功能索引 |
 
-**当前阶段：** Phase A 中后期 — 取消窗 / 收招 / 出招表 / 战斗模式 / 线性连招队列已落地；**Hitbox 判定骨架**（OBB 重叠 + 受击回调）已接入；**不含** Phase、ActionEvent、伤害结算、编辑器 UI。
+**当前阶段：** Phase A 后期 — 取消窗 / 收招 / 出招表 / 战斗模式 / 线性连招队列已落地；**Hitbox 判定骨架**（OBB 重叠 + 受击回调）已接入；`ActionEvent` 已有运行时派发入口但 Hitbox/VFX 仍兼容旧数组；**不含**伤害结算、Hit 状态、ActionEditorWindow。
 
 ---
 
@@ -34,7 +194,7 @@
 | `ActionState` + 动画锁定 | ✅ 已实现 | 薄层状态机 |
 | `HitboxKeyframe` + `HitBoxSystem` | 🟡 部分 | `ActionDefinition` 帧表 + OBB 检测；无 Physics |
 | `HurtboxTarget` / `IHurtboxTarget` | 🟡 部分 | 静态注册表 + `OnHit` 回调；现阶段仅测试日志 |
-| `ActionPhase` / `ActionEvent` | 🟡 骨架 | SO 字段与类型已建；运行时派发待 M5 |
+| `ActionPhase` / `ActionEvent` | 🟡 骨架 | SO 字段与类型已建；`ActionEvent` 已有运行时派发入口，消费者待扩展 |
 | `ActionGraph` 节点图 | ⬜ 未实现 | 由 `ActionComboSequence` 线性折中 |
 | `UpdateFrame(frameIndex)` 统一 Logic Tick | ✅ 已实现 | `ActionRuntimeController` + `ICombatFrameConsumer` |
 | Combat 伤害 / `Hit` 状态 / OnHit 回流 | 🟡 部分 | `IActionHitReceiver` + OnHitConfirm Transition；无伤害/Hit 状态 |
@@ -50,7 +210,7 @@
 InputReader.CaptureFrame()（纯 C#）
        │
        ▼
-PlayerCharacterRuntime ── InputManager（唯一持有者）
+CharacterRuntime ── InputManager（唯一持有者）
        │    ├─ RegisterPressed(inputId) → 起手 / Buffer
        │    ├─ MoveIntent / BufferedMoveIntent
        │    └─ Movement 取消 → Locomotion
@@ -74,10 +234,11 @@ PlayerCharacterRuntime ── InputManager（唯一持有者）
 
 | 层 | 职责 |
 |----|------|
-| `InputReader` | 设备 → `PlayerInputFrame`（纯 C#） |
+| `ICharacterInputSource` | 角色输入源抽象：玩家、AI、回放、网络 |
+| `InputReader` | 玩家设备 → `PlayerInputFrame`（纯 C#） |
 | `InputManager` | 摄入帧、离散缓冲、移动意图、回调注册 |
-| `PlayerController` | Scene 入口，只创建并 Tick `PlayerCharacterRuntime` |
-| `PlayerCharacterRuntime` | Motor、InputManager 采集、`IMoveIntentResolver` |
+| `PlayerController` | Scene 入口，只创建玩家输入源并 Tick `CharacterRuntime` |
+| `CharacterRuntime` | 输入采集、动作路由、重力、状态机 Tick |
 | `CharacterActionDriver` | 输入路由、起手切状态、移动取消、缓冲消费 |
 | `ActionRotationDriver` | RotationWindow + 索敌转向 |
 | `CombatModeController` | 战斗模式、出招表切换、Locomotion Profile |
@@ -88,7 +249,7 @@ PlayerCharacterRuntime ── InputManager（唯一持有者）
 ### 3.3 设计原则（已贯彻）
 
 1. **数据驱动** — 单招数据在 `ActionDefinition`；连招队列在 `ActionComboSequence`；起手映射在 `PlayerActionSet`。
-2. **输入与玩法解耦** — 状态机不读输入；`InputManager` 由 `PlayerCharacterRuntime` 持有。
+2. **输入与玩法解耦** — 状态机不读输入；`InputManager` 由 `CharacterRuntime` 持有。
 3. **状态机薄层** — `Action` 状态只 Tick `IActionRuntime`。
 4. **Animator 双轨** — Locomotion 走 Profile；招式 `PlayClip`。
 5. **角色无关执行器** — `ActionRuntimeController` 可复用于敌人（输入源可替换）。
@@ -126,7 +287,7 @@ PlayerCharacterRuntime ── InputManager（唯一持有者）
 | 字段 | 说明 |
 |------|------|
 | `startFrame` / `endFrame` | 生效帧区间 |
-| `cancelType` | `Action`：消费缓冲并衔接下一招；`Movement`：由 `PlayerCharacterRuntime` 检测移动意图 |
+| `cancelType` | `Action`：消费缓冲并衔接下一招；`Movement`：由 `CharacterActionDriver` 读取 `InputManager.HasMoveIntent` |
 | `allowedInputs` | `InputActionReference[]`；运行时 id = Action 名 |
 | `priority` | 降序扫描，首个匹配生效 |
 
@@ -183,7 +344,7 @@ CombatModeProfile
 
 ```
 PlayerController.Update（ExecutionOrder -50）
-  → PlayerCharacterRuntime.Tick
+  → CharacterRuntime.Tick
   1. IngestInput
   2. ProcessGameplayInput（离 Action 清缓冲 / 应用挂起 mode / 移动取消）
   3. ExecuteMovement
@@ -241,24 +402,23 @@ ActionRuntime.Tick:
 
 ### 5.7 与碰撞系统（Hitbox）的通信
 
-动作执行器**不主动调用**碰撞系统；碰撞系统在 `LateUpdate` **拉取**招式状态与 SO 数据，完成判定后**推送**给受击方。
+动作执行器通过 `ICombatFrameConsumer` **同步派发逻辑帧**；`HitBoxSystem` 作为纯 C# 帧消费者读取招式状态与 SO 数据，完成判定后推送给受击方与动作运行时。
 
 ```
 ActionRuntimeController          HitBoxSystem              受击方
         │                              │                      │
-        │  IsPlaying / CurrentAction   │                      │
-        │  CurrentFrame (IActionRuntime)│                     │
+        │  CombatFrameContext          │                      │
         │ ────────────────────────────►│                      │
         │                              │ GetActiveHitboxesAtFrame
         │                              │ HitboxMath.Build + Intersects
         │                              │ ─────────────────────► OnHit(context)
         │                              │                      │
-        │  （无反向调用）               │                      │
+        │◄──────── NotifyHit(context)  │                      │
 ```
 
 | 环节 | 方向 | 载体 |
 |------|------|------|
-| 帧同步 | 碰撞 → 动作（只读） | `IActionRuntime.CurrentFrame` / `CurrentAction` |
+| 帧同步 | 动作 → 碰撞 | `CombatFrameContext` / `ICombatFrameConsumer` |
 | 攻击形状 | 碰撞 → 数据（只读） | `ActionDefinition.GetActiveHitboxesAtFrame` |
 | 受击目标发现 | 碰撞内部 | `TargetRegistry.ActiveTargets` |
 | 命中通知 | 碰撞 → 受击方 | `IHurtboxTarget.OnHit(in ActionHitContext)` |
@@ -289,8 +449,8 @@ ActionRuntimeController          HitBoxSystem              受击方
 |------|------|
 | `CombatModeController` | `CombatModeProfile` |
 | `ActionRuntimeController` | 依赖 `CombatModeController` 解析出招表 |
-| `InputReader` | `GameInputActions`；纯 C# 输入源，离散输入由 Profile 并集自动注入 |
-| `PlayerCharacterRuntime` | 自动注册全部 mode 的 Entry |
+| `InputReader` | `GameInputActions`；玩家纯 C# 输入源，离散输入由 Profile 并集自动注入 |
+| `CharacterRuntime` | 自动注册全部 mode 的 Entry |
 | `HitBoxSystem` | 纯 C# 帧消费者；`attachPoint` 来自 `CharacterConfig` 挂点名 |
 | 场景受击目标 | 添加 `HurtboxTarget`，配置 `HurtboxDefinition`；`OnEnable` 自动注册到 `TargetRegistry` |
 
@@ -410,14 +570,14 @@ ActionRuntimeController          HitBoxSystem              受击方
 | 调用方向 | ✅ 单向 | 碰撞 → 动作（只读）；动作不回调碰撞 |
 | 接口边界 | ✅ 良好 | `IActionRuntime` 暴露帧状态；`IHurtboxTarget` 消费命中 |
 | 数据共享 | 🟡 可接受 | `ActionDefinition` / `HitboxKeyframe` 为共享 SO 类型（数据驱动，非运行时环依赖） |
-| 组件装配 | 🟡 中等 | `HitBoxSystem` `[RequireComponent(ActionRuntimeController)]`，同 GameObject 组合根 |
-| 帧同步 | 🟡 隐式约定 | 依赖 `Update` Tick + `LateUpdate` 顺序，非显式事件 |
-| 战斗反馈闭环 | ⬜ 未建 | 命中不回流 `ActionRuntime`，`OnHitConfirm` Transition 无法实现 |
+| 装配方式 | ✅ 良好 | `HitBoxSystem` 是纯 C# 帧消费者，由 `CharacterRuntimeFactory` 注册到 `ActionRuntimeController` |
+| 帧同步 | ✅ 显式 | `ActionRuntimeController.DispatchCombatFrame` 同步派发，无 `LateUpdate` 顺序约定 |
+| 战斗反馈闭环 | 🟡 部分 | 命中通过 `IActionHitReceiver.NotifyHit` 回流 `ActionRuntimeController`，伤害/Hit 状态未实现 |
 
 ### 8.2 解耦做得好的地方
 
-1. **动作执行器无感知** — `ActionRuntimeController` 只推进 `elapsed`、Cancel、Transition；不知道 Hitbox 是否存在。
-2. **只读契约** — `HitBoxSystem` 通过 `IActionRuntime` 读 `IsPlaying` / `CurrentAction` / `CurrentFrame`，不调用 `Tick` / `Stop`。
+1. **动作执行器只知道帧消费者接口** — `ActionRuntimeController` 只推进 `elapsed`、Cancel、Transition，并向 `ICombatFrameConsumer` 派发帧上下文。
+2. **显式帧上下文** — `HitBoxSystem` 通过 `CombatFrameContext` 读取 `Action` / `FrameIndex`，不调用 `Tick` / `Stop`。
 3. **受击侧可替换** — 攻击逻辑不硬编码 `HurtboxTarget`；任意 `IHurtboxTarget` 实现（敌人、可破坏物）均可注册。
 4. **纯函数几何层** — `HitboxMath` / `HitboxOrientedBox` 与 MonoBehaviour 生命周期无关，可单测。
 5. **命中上下文值类型** — `ActionHitContext` 为 `readonly struct`，无共享可变状态。
@@ -426,19 +586,17 @@ ActionRuntimeController          HitBoxSystem              受击方
 
 | 耦合点 | 严重程度 | 影响 | 缓解方向 |
 |--------|----------|------|----------|
-| `HitBoxSystem` 序列化 `ActionRuntimeController` 具体类型 | 低 | 理论上可换实现，但绑死同物体组件 | 可改为 `IActionRuntime` 注入或 `GetComponent<IActionRuntime>()` |
 | `ActionHitContext` 携带 `ActionDefinition` + `HitboxKeyframe` | 低 | 受击逻辑与招式 SO 类型耦合 | 后续可增 `IHitSnapshot`（仅 id、伤害倍率、击退向量） |
 | `TargetRegistry` 静态全局列表 | 中 | 多场景、并行测试、域重载需手动清理 | 改为 `CombatWorld` / 场景级 Registry |
-| `LateUpdate` 轮询 + 帧序约定 | 中 | 改 Tick 时机或引入固定 Timestep 时易不同步 | 统一 `CombatTick` 或 `UpdateFrame` 由单调度器驱动 |
-| 命中结果不回流动作系统 | 中（功能缺口） | `ActionTransition.OnHit` / 连段确认招无法落地 | 增加 `IHitNotifier` 或 Runtime 事件，由 Transition 条件订阅 |
-| Editor 预览依赖 `HitBoxSystem.attachPoint` | 低 | 仅 Editor 层对 Runtime 组件的引用 | 可抽 `IHitboxAnchorProvider` |
+| Hitbox/VFX 仍走旧数组 | 中 | `ActionEvent` 虽已派发，但 `hitboxes[]` / `vfxEvents[]` 尚未统一到事件轨道 | 迁移到 `ActionEventKind.SpawnHitbox` / `PlayVfx` 消费者 |
 
 ### 8.4 与理想分层的对照
 
 ```
 [数据层]  ActionDefinition.hitboxes[]     ← SO，两系统共读，合理
 [执行层]  ActionRuntimeController          ← 不依赖碰撞
-[判定层]  HitBoxSystem + HitboxMath        ← 依赖 IActionRuntime + SO，不依赖 PlayerController
+[判定层]  HitBoxSystem + HitDetectionSystem + HitboxMath
+                                           ← 依赖 CombatFrameContext + SO，不依赖 PlayerController
 [受击层]  IHurtboxTarget 实现              ← 依赖 ActionHitContext，不依赖 ActionRuntime
 ```
 
@@ -446,10 +604,9 @@ ActionRuntimeController          HitBoxSystem              受击方
 
 ### 8.5 演进建议（保持低耦合前提下）
 
-1. **P0 — 命中回流通道** — `HitBoxSystem` 命中后通知 `IActionHitReceiver`（由 `ActionRuntimeController` 可选实现），支撑 `OnHitConfirm` Transition，仍避免碰撞系统直接改状态机。
-2. **P1 — 统一 Combat Tick** — 将帧推进与 Hitbox 采样纳入同一 `UpdateFrame(frame)`，消除 `LateUpdate` 隐式顺序。
-3. **P2 — 场景级 Registry** — `TargetRegistry` 改为按战斗场景实例化，降低全局静态耦合。
-4. **P3 — 受击上下文瘦身** — 伤害结算层只读 `HitSnapshot`，不直接持有完整 `ActionDefinition` 引用。
+1. **P0 — 事件轨道统一** — 将 `hitboxes[]` / `vfxEvents[]` 迁移到 `ActionEvent` 消费者，减少双轨维护。
+2. **P1 — 场景级 Registry** — `TargetRegistry` 改为按战斗场景实例化，降低全局静态耦合。
+3. **P2 — 受击上下文瘦身** — 伤害结算层只读 `HitSnapshot`，不直接持有完整 `ActionDefinition` 引用。
 
 ---
 
@@ -501,13 +658,12 @@ event Action<CombatModeType, CombatModeType> ModeChanged;
 
 | 限制 | 说明 |
 |------|------|
-| 碰撞仅 OBB 骨架 | 有重叠检测与 `OnHit`；无伤害、击退、无敌帧、`Hit` 状态 |
-| 命中不回流 | `ActionRuntime` 不知晓命中，无法做 OnHitConfirm 收招 |
+| 碰撞仅 OBB 骨架 | 有重叠检测、`OnHit` 与命中回流；无伤害、击退、无敌帧、`Hit` 状态 |
+| Hitbox/VFX 双轨 | `ActionEvent` 已派发，但 Hitbox/VFX 仍通过旧数组消费 |
 | 受击框静态 | `HurtboxDefinition` 无逐帧动画驱动 |
 | 连招仅线性 | 无分支、挥空、多输入树 |
-| Transition 条件少 | 无 OnHitConfirm / OnWhiff |
-| 无统一 Logic Tick | 编辑器预览与 Play Mode 帧 parity 风险 |
-| 敌人未接入 | 执行器与 `HitBoxSystem` 可复用，输入源需替换 |
+| Transition 条件仍少 | 已有 AnimationEnd / AtFrame / OnHitConfirm / OnWhiff，缺更丰富条件组合 |
+| 敌人未接入 | 纯 C# runtime 可复用，输入源和 AI 驱动需替换 |
 
 ---
 
@@ -531,11 +687,14 @@ Assets/Scripts/Editor/Combat/
   ActionDefinitionHitboxEditor.cs, HitboxSceneDrawing.cs
 
 Assets/Scripts/Input/
-  InputManager.cs, InputReader.cs, PlayerInputFrame.cs
-  IActionComboInput.cs, InputIds.cs, IPlayerInputSource.cs
+  InputManager.cs, InputReader.cs, AIInputSource.cs, PlayerInputFrame.cs
+  IActionComboInput.cs, InputIds.cs, ICharacterInputSource.cs, AIInputSource.cs
 
 Assets/Scripts/Player/
-  PlayerController.cs, PlayerStateMachine.cs
+  PlayerController.cs
+
+Assets/Scripts/Character/
+  CharacterConfig.cs, CharacterRuntime.cs, CharacterRuntimeFactory.cs, CharacterMotor.cs
 
 Assets/Scripts/Character/
   StateMachine/IActionRuntime.cs, States/ActionState.cs, States/LocomotionState.cs

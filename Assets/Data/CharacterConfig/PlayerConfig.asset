@@ -12,12 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6d043f51eb824084bb285c2b67ad61d0, type: 3}
   m_Name: PlayerConfig
   m_EditorClassIdentifier: 
-  modelPrefab: {fileID: 0}
+  modelPrefab: {fileID: 8758011989475053553, guid: c822ccc94298e6044a6191815437b7c4, type: 3}
   modelLocalPosition: {x: 0, y: 0, z: 0}
   modelLocalEulerAngles: {x: 0, y: 0, z: 0}
-  defaultLocomotionProfile: {fileID: 0}
+  defaultLocomotionProfile: {fileID: 11400000, guid: d5e6f7a8901234567890abcdef050607, type: 2}
   animatorLayerIndex: 0
-  inputActions: {fileID: 0}
+  inputActions: {fileID: -944628639613478452, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
   motor:
     walkSpeed: 4
     runSpeed: 7
@@ -28,7 +28,7 @@ MonoBehaviour:
     controllerHeight: 1.7
     controllerRadius: 0.28
     controllerCenter: {x: 0, y: 0.85, z: 0}
-  combatProfile: {fileID: 0}
+  combatProfile: {fileID: 11400000, guid: 3c4b0935f828fde418f9385cdc4a3408, type: 2}
   combat:
     teamId: 0
     attachPointName: 

@@ -5,7 +5,7 @@
 ## 设计原则（长期）
 
 1. **状态机驱动角色表现**：动画、动作阶段、可取消窗口由 State 负责
-2. **Controller 只做 Scene 入口**：PlayerController 通过 CharacterConfig 创建纯 C# `PlayerCharacterRuntime`；业务不再挂载到 Player 根对象
+2. **Controller 只做 Scene 入口**：PlayerController 通过 CharacterConfig 创建纯 C# `CharacterRuntime`；业务不再挂载到 Player 根对象
 3. **Combat 与 Character 解耦**：Hitbox 拉取 `IActionRuntime`；Character State 只 Tick Runtime
 4. **Logic Tick = 编辑器帧**：`UpdateFrame` 统一 Play Mode 与 ActionEditor Scrub
 5. **数据驱动**：数值、动画映射、技能表进 ScriptableObject（Assets/Data/）
@@ -15,11 +15,11 @@
 
 ### [P1] 移动职责迁移
 
-**现状**：`PlayerCharacterRuntime.Tick` 执行 Locomotion 位移；`LocomotionState` 只选动画 key。
+**现状**：`LocomotionState.Tick` 调用 `CharacterMotor.TickLocomotion` 执行水平位移并选择动画 key；`CharacterRuntime` 只保留输入、动作路由、重力和状态机调度。
 
 **目标**：LocomotionState（或 Motor 服务类）成为移动决策点；Controller 降为 Motor 执行层。
 
-**状态**：未开始（招式侧职责迁移已完成，见下）
+**状态**：已完成（2026-06-21）
 
 ### [P1] ActionEditor 准备 — 动作系统职责收敛 ✅ 2026-06-21
 
@@ -57,8 +57,8 @@
 
 ## Tech Debt 观察清单
 
-- [ ] `PlayerCharacterRuntime` 与 `LocomotionState` 双处感知移动输入
-- [x] 2026-06-21：Prefab/运行时堆业务脚本改为 `CharacterConfig` + `PlayerController` + 纯 C# `PlayerCharacterRuntime`
+- [ ] `CharacterRuntime` 与 `LocomotionState` 双处感知移动输入
+- [x] 2026-06-21：Prefab/运行时堆业务脚本改为 `CharacterConfig` + `PlayerController` + 纯 C# `CharacterRuntime`
 - [ ] `TargetRegistry` 仍为静态全局列表，后续可替换为空间分区 / 场景实例注册表
 - [ ] 无 asmdef，全项目单一 Assembly-CSharp
 

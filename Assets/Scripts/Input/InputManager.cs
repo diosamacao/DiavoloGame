@@ -44,7 +44,7 @@ public sealed class InputManager
 
     public void UnregisterPressed(string inputId) => _pressedHandlers.Remove(inputId);
 
-    /// <summary>摄入一帧输入；回放/网络可直接构造 PlayerInputFrame 调用，无需 IPlayerInputSource。</summary>
+    /// <summary>摄入一帧输入；回放/网络可直接构造 PlayerInputFrame 调用，无需 ICharacterInputSource。</summary>
     public void IngestFrame(PlayerInputFrame frame)
     {
         _frame = frame;

@@ -56,20 +56,20 @@ public class MyBehaviour : MonoBehaviour
 
 - 逻辑层使用 `AnimationKey`，不直接硬编码 Animator 状态名字符串（映射在 Profile）
 - 播放走纯 C# `CharacterAnimationController.Play`；需要独占时 `SetLocked(true)`
-- Locomotion：`applyRootMotion = false`，位移由 `CharacterController` + `PlayerCharacterRuntime` 负责
+- Locomotion：`applyRootMotion = false`，位移由 `CharacterController` + `CharacterMotor` 负责
 - Action：`ActionDefinition.useRootMotion = true` 时由 `CharacterRootMotionDriver` 在 `OnAnimatorMove` 中把 `deltaPosition` 写入 `CharacterController`；`useRootMotion = false` 时可用 `displacementDistance` 脚本位移
 - 同 key 不重复 CrossFade（Controller 内部去重）
 
 ## 输入约定
 
 - 使用 Input System + `.inputactions` 资产；Action Map 命名 `Player`
-- **采集**：纯 C# `InputReader` 实现 `IPlayerInputSource`，输出 `PlayerInputFrame`
-- **中枢**：`InputManager` 由 `PlayerCharacterRuntime` 持有；`IngestFrame` + `RegisterPressed(string inputId, Action)`
+- **采集**：输入源实现 `ICharacterInputSource`，玩家使用纯 C# `InputReader`，敌人可使用 AI 输入源
+- **中枢**：`InputManager` 由 `CharacterRuntime` 持有；`IngestFrame` + `RegisterPressed(string inputId, Action)`
 - **离散 id**：Input System Action **名**；出招表 `ActionEntry` → `ActionComboSequence`
 - **连招**：Cancel 窗只配帧/输入；下一招由 `ActionComboSequence.TryResolveNext` 进位（非 Cancel 内 targetAction）
 - **战斗模式**：`CombatModeProfile` + `CombatModeController`；与 `PlayerActionSet` 解耦
 - **缓冲**：招式中 `Buffer(inputId)`；`ActionRuntimeController` 经 `IActionComboInput` 在 `CancelWindow` 内消费
-- 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `PlayerCharacterRuntime`）
+- 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `CharacterMotor` / State）
 - **玩家装配**：`InputActionAsset` 由 `CharacterConfig` 注入 `InputReader`，不在玩家 Prefab 上重复配置
 
 ## 相机约定

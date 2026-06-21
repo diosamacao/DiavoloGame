@@ -17,7 +17,7 @@ Assets/
 │   ├── Character/
 │   │   ├── Animation/         # 动画播放与 Profile
 │   │   └── StateMachine/      # 角色状态机基类与共享 State
-│   ├── Player/                # PlayerController + 纯 C# PlayerCharacterRuntime
+│   ├── Player/                # PlayerController（玩家输入源适配）
 │   ├── Enemy/                 # （占位）
 │   ├── Combat/
 │   │   ├── Actions/           # ActionDefinition、ActionRuntimeController、CharacterActionDriver（纯 C#）
@@ -80,21 +80,25 @@ flowchart TB
 | `CharacterStateType` | 状态枚举（Locomotion, Action, …） |
 | `CharacterContext` | 运行时共享数据（Transform、Animation、Motor、ActionRuntime） |
 | `CharacterStateMachine` | 纯 C# 状态机宿主：RegisterStates、Tick |
-| `LocomotionState` | 根据 MoveInputMagnitude 选择 Idle/Walk/Run 动画 |
-| `ActionState` | 薄层：Tick `IActionRuntime`，结束回 Locomotion |
+| `LocomotionState` | Tick `CharacterMotor`，再根据 MoveInputMagnitude 选择 Idle/Walk/Run 动画 |
+| `ActionState` | Tick `IActionRuntime` + `ActionRotationDriver`，结束回 Locomotion |
 | `CharacterConfig` | 角色装配根配置：模型、输入、动画、移动、战斗模式 |
-| `PlayerCharacterRuntime` | 单角色纯 C# runtime：输入、Motor、状态机、动作、旋转 |
+| `CharacterMotor` | 纯 C# 移动服务：Locomotion 位移、重力、移动意图解析 |
+| `CharacterRuntime` | 单角色纯 C# runtime：输入、Motor、状态机、动作、旋转 |
+| `CharacterRuntimeFactory` | 通过 `CharacterConfig` + `ICharacterInputSource` 创建角色运行时 |
 
 **数据流（玩家）**：
 
 ```
-CharacterConfig → PlayerController（Empty 根创建 PlayerCharacterRuntime）
+CharacterConfig → PlayerController（Empty 根创建玩家输入源）
                     ↓
-InputReader（纯 C#）→ PlayerCharacterRuntime（InputManager + Motor + 状态机）
+InputReader（ICharacterInputSource）→ CharacterRuntime（InputManager + 重力 + 状态机）
                     ↓
               CharacterActionDriver（起手 / 缓冲 / 移动取消）
                     ↓
-              CharacterStateMachine → ActionState.Tick → ActionRuntimeController
+              CharacterStateMachine
+                    ├─ LocomotionState.Tick → CharacterMotor.TickLocomotion
+                    └─ ActionState.Tick → ActionRuntimeController + ActionRotationDriver
                     ↓ UpdateFrame（Logic Tick）
               HitBoxSystem / ActionVfxPlayer（ICombatFrameConsumer）
 ```
@@ -119,8 +123,9 @@ InputReader（纯 C#）→ PlayerCharacterRuntime（InputManager + Motor + 状�
 
 | 类 | 职责 |
 |----|------|
-| `PlayerController` | Scene Empty 上唯一玩家脚本；创建/启停 `PlayerCharacterRuntime` |
-| `PlayerCharacterRuntime` | 位移、重力、输入采集、状态机 Tick、动作旋转 |
+| `PlayerController` | Scene Empty 上唯一玩家脚本；创建 `InputReader` 并启停 `CharacterRuntime` |
+| `CharacterRuntime` | 输入采集、动作路由、重力、状态机 Tick |
+| `CharacterMotor` | Locomotion 位移、相机相对方向、起手面向、移动快照 |
 
 **注意**：`PlayerController` 现在是 Scene 空物体上的装配入口；通过 `CharacterConfig` 生成模型与纯 C# runtime。Player 根对象运行时只保留 `PlayerController` + `CharacterController`，不再挂载业务脚本。
 
@@ -137,7 +142,8 @@ InputReader（纯 C#）→ PlayerCharacterRuntime（InputManager + Motor + 状�
 | 类 | 职责 |
 |----|------|
 | `InputManager` | 帧快照、离散缓冲、移动意图 |
-| `InputReader` | 纯 C# 输入源：绑定 GameInputActions |
+| `ICharacterInputSource` | 角色输入源抽象：玩家、AI、回放、网络 |
+| `InputReader` | 玩家纯 C# 输入源：绑定 GameInputActions |
 
 ### 7. 相机（Camera）
 

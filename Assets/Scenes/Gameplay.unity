@@ -313,63 +313,52 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1001 &1290148845
-PrefabInstance:
+--- !u!1 &1634889783
+GameObject:
   m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1634889785}
+  - component: {fileID: 1634889784}
+  m_Layer: 0
+  m_Name: Player
+  m_TagString: Player
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1634889784
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1634889783}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a7b8c9d0e1f2345678901234567890ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  characterConfig: {fileID: 11400000, guid: 89d3da9e8857ef340b57f785f562b59c, type: 2}
+  cameraTransform: {fileID: 1124908586}
+--- !u!4 &1634889785
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1634889783}
   serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 1000000001, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
-      propertyPath: m_Name
-      value: Player_KatanaGirl
-      objectReference: {fileID: 0}
-    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: -4.119215
-      objectReference: {fileID: 0}
-    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 2.9
-      objectReference: {fileID: 0}
-    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 2.0168781
-      objectReference: {fileID: 0}
-    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1000000002, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: c1d2e3f4a5b6970812345678abcdef03, type: 3}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -8.609981, y: 4.184677, z: 6.0020647}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1809699440
 GameObject:
   m_ObjectHideFlags: 0
@@ -602,7 +591,7 @@ MonoBehaviour:
   followTarget: {fileID: 0}
   playerTag: Player
   cameraRootHeight: 1.4
-  inputReader: {fileID: 0}
+  playerController: {fileID: 0}
   horizontalSensitivity: 0.15
   verticalSensitivity: 0.15
   invertY: 1
@@ -745,6 +734,6 @@ SceneRoots:
   - {fileID: 982479434}
   - {fileID: 1870887561}
   - {fileID: 2000000002}
-  - {fileID: 1290148845}
   - {fileID: 1809699443}
   - {fileID: 2139115260}
+  - {fileID: 1634889785}
