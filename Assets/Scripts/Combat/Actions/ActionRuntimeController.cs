@@ -3,19 +3,15 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-[DisallowMultipleComponent]
-[RequireComponent(typeof(CharacterAnimationController))]
-[RequireComponent(typeof(CharacterController))]
-[RequireComponent(typeof(CharacterRootMotionDriver))]
 /// <summary>通用招式播放器：UpdateFrame 统一 Logic Tick；经 ICombatModeController 单向访问战斗模式。</summary>
-public class ActionRuntimeController : MonoBehaviour, IActionRuntime, IActionHitReceiver
+public sealed class ActionRuntimeController : IActionRuntime, IActionHitReceiver
 {
-    [SerializeField] CharacterAnimationController animationController = null!;
-
-    CharacterController _motor = null!;
-    CharacterRootMotionDriver _rootMotion = null!;
+    readonly Transform _actorRoot;
+    readonly CharacterAnimationController animationController;
+    readonly CharacterController _motor;
+    readonly CharacterRootMotionDriver _rootMotion;
     /// <summary>同物体 CombatModeController；单向依赖，不通过接口隐藏 Profile / ActiveActionSet。</summary>
-    CombatModeController _combatMode = null!;
+    readonly CombatModeController _combatMode;
     readonly List<ICombatFrameConsumer> _frameConsumers = new();
     readonly List<IActionEventConsumer> _eventConsumers = new();
     readonly ActionSession _session = new();
@@ -65,16 +61,19 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime, IActionHit
         return Array.Empty<InputActionReference>();
     }
 
-    void Awake()
+    /// <summary>创建纯 C# 招式运行时；所有依赖在 Bootstrap 阶段一次性注入。</summary>
+    public ActionRuntimeController(
+        Transform actorRoot,
+        CharacterController motor,
+        CharacterAnimationController animation,
+        CharacterRootMotionDriver rootMotion,
+        CombatModeController combatMode)
     {
-        if (animationController == null)
-            animationController = GetComponent<CharacterAnimationController>();
-
-        _combatMode = GetComponent<CombatModeController>();
-
-        _motor = GetComponent<CharacterController>();
-        _rootMotion = GetComponent<CharacterRootMotionDriver>();
-        DiscoverFrameConsumers();
+        _actorRoot = actorRoot;
+        _motor = motor;
+        animationController = animation;
+        _rootMotion = rootMotion;
+        _combatMode = combatMode;
     }
 
     /// <summary>注册 Logic Tick 消费者（Hitbox、VFX 等）；Awake 时会自动发现同物体实现。</summary>
@@ -94,9 +93,6 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime, IActionHit
     public void BindComboInput(IActionComboInput comboInput) => _comboInput = comboInput;
 
     public void BindActionStartContext(IActionStartContext startContext) => _startContext = startContext;
-
-    /// <summary>注入战斗模式（Awake 默认 GetComponent；也可由 Bootstrap 显式绑定）。</summary>
-    public void BindCombatMode(CombatModeController combatMode) => _combatMode = combatMode;
 
     public bool TryStartByInput(string inputId)
     {
@@ -348,7 +344,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime, IActionHit
             frameIndex,
             previousFrameIndex,
             _session.ElapsedSeconds,
-            transform);
+            _actorRoot);
         FrameAdvanced?.Invoke(context);
 
         foreach (ICombatFrameConsumer consumer in _frameConsumers)
@@ -402,19 +398,6 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime, IActionHit
             consumer.OnActionEnded();
     }
 
-    void DiscoverFrameConsumers()
-    {
-        MonoBehaviour[] behaviours = GetComponents<MonoBehaviour>();
-        foreach (MonoBehaviour behaviour in behaviours)
-        {
-            if (behaviour is ICombatFrameConsumer consumer)
-                RegisterFrameConsumer(consumer);
-
-            if (behaviour is IActionEventConsumer eventConsumer)
-                RegisterEventConsumer(eventConsumer);
-        }
-    }
-
     void ApplyScriptedDisplacement(float deltaTime)
     {
         ActionDefinition current = _session.CurrentAction;
@@ -424,7 +407,7 @@ public class ActionRuntimeController : MonoBehaviour, IActionRuntime, IActionHit
         if (!current.IsInDisplacementWindow(_session.ElapsedSeconds))
             return;
 
-        Vector3 forward = transform.forward;
+        Vector3 forward = _actorRoot.forward;
         forward.y = 0f;
 
         if (forward.sqrMagnitude < 0.0001f)

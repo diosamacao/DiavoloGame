@@ -20,6 +20,7 @@
 - 新 MonoBehaviour 放在对应 gameplay 目录（Player/Enemy/Camera），共享逻辑放 Character/ 或 Core/
 - 占位目录保留 `.gitkeep`，实现后删除 `.gitkeep`
 - 角色装配配置集中在 `CharacterConfig`；Scene 玩家入口只挂 `PlayerController` 并引用配置资产
+- 玩家根对象运行时禁止挂载业务脚本；除 `PlayerController` 与 Unity 必需组件（如 `CharacterController`）外，角色业务必须是纯 C# runtime/service
 
 ## Unity 组件模式
 
@@ -37,7 +38,7 @@ public class MyBehaviour : MonoBehaviour
 ```
 
 - 依赖用 `GetComponent` 在 Awake 解析，避免每帧 Find
-- 需要运行时装配的组件提供显式 `Bind...` 方法，由 Bootstrap 阶段一次性注入配置
+- 需要运行时装配的业务逻辑优先做纯 C# 构造函数注入；不要用 `AddComponent` 伪装装配
 - 可选引用用 `[SerializeField]` + null 回退（如 `Camera.main`）
 - 缺失关键引用：`Debug.LogError` + `enabled = false`（见 InputReader）
 
@@ -54,21 +55,21 @@ public class MyBehaviour : MonoBehaviour
 ## 动画约定
 
 - 逻辑层使用 `AnimationKey`，不直接硬编码 Animator 状态名字符串（映射在 Profile）
-- 播放走 `CharacterAnimationController.Play`；需要独占时 `SetLocked(true)`
-- Locomotion：`applyRootMotion = false`，位移由 `CharacterController` + `PlayerController` 负责
+- 播放走纯 C# `CharacterAnimationController.Play`；需要独占时 `SetLocked(true)`
+- Locomotion：`applyRootMotion = false`，位移由 `CharacterController` + `PlayerCharacterRuntime` 负责
 - Action：`ActionDefinition.useRootMotion = true` 时由 `CharacterRootMotionDriver` 在 `OnAnimatorMove` 中把 `deltaPosition` 写入 `CharacterController`；`useRootMotion = false` 时可用 `displacementDistance` 脚本位移
 - 同 key 不重复 CrossFade（Controller 内部去重）
 
 ## 输入约定
 
 - 使用 Input System + `.inputactions` 资产；Action Map 命名 `Player`
-- **采集**：`InputReader` 实现 `IPlayerInputSource`，输出 `PlayerInputFrame`
-- **中枢**：`InputManager` 仅由 `PlayerController` 持有；`IngestFrame` + `RegisterPressed(string inputId, Action)`
+- **采集**：纯 C# `InputReader` 实现 `IPlayerInputSource`，输出 `PlayerInputFrame`
+- **中枢**：`InputManager` 由 `PlayerCharacterRuntime` 持有；`IngestFrame` + `RegisterPressed(string inputId, Action)`
 - **离散 id**：Input System Action **名**；出招表 `ActionEntry` → `ActionComboSequence`
 - **连招**：Cancel 窗只配帧/输入；下一招由 `ActionComboSequence.TryResolveNext` 进位（非 Cancel 内 targetAction）
 - **战斗模式**：`CombatModeProfile` + `CombatModeController`；与 `PlayerActionSet` 解耦
 - **缓冲**：招式中 `Buffer(inputId)`；`ActionRuntimeController` 经 `IActionComboInput` 在 `CancelWindow` 内消费
-- 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `PlayerController`）
+- 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `PlayerCharacterRuntime`）
 - **玩家装配**：`InputActionAsset` 由 `CharacterConfig` 注入 `InputReader`，不在玩家 Prefab 上重复配置
 
 ## 相机约定
@@ -99,6 +100,7 @@ public class MyBehaviour : MonoBehaviour
 | 在 Controller 与 State 重复同一业务判断 | 职责漂移；选一处为 source of truth |
 | 大范围命名空间重构（未经计划） | 全项目 diff 噪声 |
 | 为单个角色运行时业务堆多个必须手工挂载的脚本 | 优先用 `CharacterConfig` + Bootstrap / Facade 装配，跨角色逻辑迁到 System |
+| 在 `PlayerController.Awake` 中为业务类 `AddComponent` | 这只是把 Prefab 堆脚本改成运行时堆脚本，必须改为纯 C# service |
 
 ## 已废弃模式
 

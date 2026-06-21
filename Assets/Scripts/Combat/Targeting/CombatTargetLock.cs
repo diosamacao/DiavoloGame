@@ -1,13 +1,11 @@
 using UnityEngine;
 
 /// <summary>攻击侧索敌运行时：起手 Acquire、帧间 Validate，并向 ActionRotationDriver 提供锁定方向。</summary>
-[DisallowMultipleComponent]
-public class CombatTargetLock : MonoBehaviour
+public sealed class CombatTargetLock
 {
-    [SerializeField] int attackerTeamId;
-    [Tooltip("索敌距离/扇形计算的起点；为空时使用本物体 Transform。")]
-    [SerializeField] Transform aimOrigin;
-
+    readonly Transform attackerRoot;
+    readonly int attackerTeamId;
+    readonly Transform aimOrigin;
     ITargetable _lockedTarget;
     TargetLockSettings _activeSettings;
     ActionDefinition _lockedForAction;
@@ -21,14 +19,14 @@ public class CombatTargetLock : MonoBehaviour
     /// <summary>当前锁定的可瞄准目标（可能已失效，使用前请检查 HasValidLock）。</summary>
     public ITargetable LockedTarget => _lockedTarget;
 
-    Transform Origin => aimOrigin != null ? aimOrigin : transform;
+    Transform Origin => aimOrigin != null ? aimOrigin : attackerRoot;
 
-    /// <summary>绑定索敌阵营与起点，供 CharacterConfig 统一装配。</summary>
-    public void Bind(int team, Transform origin)
+    /// <summary>创建索敌锁定状态；不挂载到玩家对象。</summary>
+    public CombatTargetLock(Transform attacker, int team, Transform origin)
     {
+        attackerRoot = attacker;
         attackerTeamId = team;
         aimOrigin = origin;
-        ClearLock();
     }
 
     /// <summary>每帧由 ActionRotationDriver 在 Action 状态下调用，按 ActionSession 处理 Acquire / Validate。</summary>
@@ -80,9 +78,9 @@ public class CombatTargetLock : MonoBehaviour
         _activeSettings = settings;
         _lockedTarget = TargetingSystem.Select(
             Origin.position,
-            transform.forward,
+            attackerRoot.forward,
             attackerTeamId,
-            transform,
+            attackerRoot,
             in settings);
     }
 
@@ -97,7 +95,7 @@ public class CombatTargetLock : MonoBehaviour
         if (target.AimTransform == null)
             return false;
 
-        if (IsSameHierarchy(transform, target.AimTransform))
+        if (IsSameHierarchy(attackerRoot, target.AimTransform))
             return false;
 
         Vector3 toTarget = target.AimTransform.position - Origin.position;
@@ -109,7 +107,7 @@ public class CombatTargetLock : MonoBehaviour
 
         if (settings.UsesForwardConeFilter)
         {
-            Vector3 forward = transform.forward;
+            Vector3 forward = attackerRoot.forward;
             forward.y = 0f;
             forward.Normalize();
 

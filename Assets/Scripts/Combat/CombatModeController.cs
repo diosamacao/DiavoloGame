@@ -2,17 +2,13 @@ using System;
 using UnityEngine;
 
 /// <summary>战斗模式运行时：维护 mode、出招表与 Locomotion Profile；不引用 ActionRuntimeController。</summary>
-[DisallowMultipleComponent]
-[RequireComponent(typeof(CharacterAnimationController))]
-public class CombatModeController : MonoBehaviour, ICombatModeController
+public sealed class CombatModeController : ICombatModeController
 {
-    [SerializeField] CombatModeProfile profile = null!;
-
-    CharacterAnimationController _animation = null!;
+    readonly CombatModeProfile profile;
+    readonly CharacterAnimationController _animation;
     CombatModeType _currentMode;
     bool _hasPendingMode;
     CombatModeType _pendingMode;
-    bool _initialized;
 
     public CombatModeType CurrentMode => _currentMode;
     public CombatModeProfile Profile => profile;
@@ -32,58 +28,21 @@ public class CombatModeController : MonoBehaviour, ICombatModeController
         }
     }
 
-    void Awake()
-    {
-        _animation = GetComponent<CharacterAnimationController>();
-
-        if (profile != null)
-            InitializeProfile(logErrors: true);
-    }
-
-    void Start()
-    {
-        if (!_initialized)
-            InitializeProfile(logErrors: true);
-    }
-
-    /// <summary>绑定战斗模式配置，供 CharacterConfig 运行时装配。</summary>
-    public void BindProfile(CombatModeProfile combatProfile)
+    /// <summary>创建战斗模式运行时，并立即应用默认模式的 Locomotion Profile。</summary>
+    public CombatModeController(CombatModeProfile combatProfile, CharacterAnimationController animation)
     {
         profile = combatProfile;
-        InitializeProfile(logErrors: true);
-    }
-
-    /// <summary>初始化当前模式与 Locomotion Profile；失败后禁用运行时逻辑。</summary>
-    bool InitializeProfile(bool logErrors)
-    {
+        _animation = animation;
         if (profile == null)
-        {
-            if (logErrors)
-                Debug.LogError("CombatModeController: profile 未绑定，无法解析出招表。", this);
-
-            enabled = false;
-            return false;
-        }
+            throw new ArgumentNullException(nameof(combatProfile), "CombatModeController: profile 未绑定，无法解析出招表。");
 
         _currentMode = profile.DefaultMode;
 
         if (ActiveActionSet == null)
-        {
-            if (logErrors)
-            {
-                Debug.LogError(
-                    $"CombatModeController: defaultMode={profile.DefaultMode} 未在 profile 中配置出招表。",
-                    this);
-            }
+            throw new InvalidOperationException(
+                $"CombatModeController: defaultMode={profile.DefaultMode} 未在 profile 中配置出招表。");
 
-            enabled = false;
-            return false;
-        }
-
-        _initialized = true;
-        enabled = true;
         ApplyLocomotionForMode(_currentMode);
-        return true;
     }
 
     /// <summary>请求切换模式；招式中 OnNextLocomotion 挂起，StopCurrentAction 由调用方 Stop 后重试。</summary>
@@ -136,9 +95,6 @@ public class CombatModeController : MonoBehaviour, ICombatModeController
     /// <summary>按 mode 切换 Locomotion Profile；未配置 profile 时保持当前动画映射不变。</summary>
     void ApplyLocomotionForMode(CombatModeType mode)
     {
-        if (_animation == null || profile == null)
-            return;
-
         if (!profile.TryGetLocomotionProfile(mode, out CharacterAnimationProfile locomotionProfile))
             return;
 

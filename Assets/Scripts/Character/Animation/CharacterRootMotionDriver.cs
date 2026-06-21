@@ -1,31 +1,18 @@
 using UnityEngine;
 
 /// <summary>Root Motion 桥接器；把模型 Animator 的 deltaPosition 写回角色 CharacterController。</summary>
-[DisallowMultipleComponent]
-[RequireComponent(typeof(CharacterController))]
-public class CharacterRootMotionDriver : MonoBehaviour
+public sealed class CharacterRootMotionDriver
 {
-    [SerializeField] Animator animator;
-
-    CharacterController _motor;
+    readonly CharacterController _motor;
+    readonly Animator animator;
     CharacterRootMotionReceiver _receiver;
 
     public bool IsActive => _receiver != null && _receiver.IsActive;
 
-    void Awake()
+    /// <summary>创建 Root Motion 服务；仅在 Animator 所在物体挂一个 Unity 消息桥接器。</summary>
+    public CharacterRootMotionDriver(CharacterController motor, Animator targetAnimator)
     {
-        _motor = GetComponent<CharacterController>();
-
-        if (animator == null)
-            animator = GetComponentInChildren<Animator>();
-
-        EnsureReceiver();
-        SetActive(false);
-    }
-
-    /// <summary>绑定模型 Animator，支持 PlayerController 实例化模型后显式装配。</summary>
-    public void BindAnimator(Animator targetAnimator)
-    {
+        _motor = motor;
         animator = targetAnimator;
         EnsureReceiver();
         SetActive(false);
