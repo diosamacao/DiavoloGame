@@ -1,5 +1,6 @@
 using System;
 
+/// <summary>招式播放运行时只读契约；Hitbox/VFX/Targeting 与 Character ActionState 共用。</summary>
 public interface IActionRuntime
 {
     bool IsPlaying { get; }
@@ -18,6 +19,9 @@ public interface IActionRuntime
     /// <summary>当前招式是否处于输入旋转修正窗口内。</summary>
     bool CanRotateByInput { get; }
 
+    /// <summary>Logic Tick 帧推进事件；编辑器 Scrub 与 Play Mode 共用。</summary>
+    event Action<CombatFrameContext> FrameAdvanced;
+
     /// <summary>按出招表入口 id 从 Locomotion 起手。</summary>
     bool TryStartByInput(string inputId);
 
@@ -29,6 +33,9 @@ public interface IActionRuntime
     void BindActionStartContext(IActionStartContext startContext);
 
     void Tick(float deltaTime);
+
+    /// <summary>编辑器 Scrub 与 Play Mode 共用的 Logic Tick 入口。</summary>
+    void UpdateFrame(int frameIndex);
 
     void Stop();
 }

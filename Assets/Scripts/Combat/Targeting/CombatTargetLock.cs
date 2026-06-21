@@ -1,6 +1,6 @@
 using UnityEngine;
 
-/// <summary>攻击侧索敌运行时：起手 Acquire、帧间 Validate，并向 PlayerController 提供锁定方向。</summary>
+/// <summary>攻击侧索敌运行时：起手 Acquire、帧间 Validate，并向 ActionRotationDriver 提供锁定方向。</summary>
 [DisallowMultipleComponent]
 public class CombatTargetLock : MonoBehaviour
 {
@@ -23,7 +23,7 @@ public class CombatTargetLock : MonoBehaviour
 
     Transform Origin => aimOrigin != null ? aimOrigin : transform;
 
-    /// <summary>每帧由 PlayerController 在 Action 状态下调用，处理 Acquire / Validate。</summary>
+    /// <summary>每帧由 ActionRotationDriver 在 Action 状态下调用，处理 Acquire / Validate。</summary>
     public void Tick(IActionRuntime runtime)
     {
         if (runtime == null || !runtime.IsPlaying || runtime.CurrentAction == null)

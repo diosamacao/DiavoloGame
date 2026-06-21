@@ -1,30 +1,13 @@
 using System;
 using UnityEngine;
 
-/// <summary>战斗模式运行时接口：供装备、Buff、UI 等系统切换出招表。</summary>
-public interface ICombatModeController
-{
-    CombatModeType CurrentMode { get; }
-
-    /// <summary>模式切换时触发：(previous, current)。</summary>
-    event Action<CombatModeType, CombatModeType> ModeChanged;
-
-    /// <summary>请求切换战斗模式；若 profile 未配置目标模式则返回 false。</summary>
-    bool TrySetMode(CombatModeType mode, CombatModeSwitchPolicy policy = CombatModeSwitchPolicy.Immediate);
-
-    /// <summary>招式已结束且存在挂起模式时立刻应用（OnNextLocomotion）。</summary>
-    void ApplyPendingModeIfReady();
-}
-
-/// <summary>战斗模式运行时：维护当前 mode、出招表与 Locomotion 动画 Profile。</summary>
+/// <summary>战斗模式运行时：维护 mode、出招表与 Locomotion Profile；不引用 ActionRuntimeController。</summary>
 [DisallowMultipleComponent]
-[RequireComponent(typeof(ActionRuntimeController))]
 [RequireComponent(typeof(CharacterAnimationController))]
 public class CombatModeController : MonoBehaviour, ICombatModeController
 {
     [SerializeField] CombatModeProfile profile = null!;
 
-    ActionRuntimeController _actionRuntime = null!;
     CharacterAnimationController _animation = null!;
     CombatModeType _currentMode;
     bool _hasPendingMode;
@@ -50,7 +33,6 @@ public class CombatModeController : MonoBehaviour, ICombatModeController
 
     void Awake()
     {
-        _actionRuntime = GetComponent<ActionRuntimeController>();
         _animation = GetComponent<CharacterAnimationController>();
 
         if (profile == null)
@@ -74,44 +56,36 @@ public class CombatModeController : MonoBehaviour, ICombatModeController
         ApplyLocomotionForMode(_currentMode);
     }
 
-    void Update()
-    {
-        TryApplyPendingMode();
-    }
-
-    /// <summary>请求切换模式；OnNextLocomotion 在招式中会挂起至回到 Locomotion。</summary>
-    public bool TrySetMode(CombatModeType mode, CombatModeSwitchPolicy policy = CombatModeSwitchPolicy.Immediate)
+    /// <summary>请求切换模式；招式中 OnNextLocomotion 挂起，StopCurrentAction 由调用方 Stop 后重试。</summary>
+    public CombatModeSwitchResult TrySetMode(
+        CombatModeType mode,
+        CombatModeSwitchPolicy policy = CombatModeSwitchPolicy.Immediate,
+        bool isActionPlaying = false)
     {
         if (profile == null || !profile.TryGetActionSet(mode, out _))
-            return false;
+            return CombatModeSwitchResult.Failed;
 
         if (mode == _currentMode)
-            return true;
+            return CombatModeSwitchResult.Applied;
 
-        if (policy == CombatModeSwitchPolicy.OnNextLocomotion && _actionRuntime != null && _actionRuntime.IsPlaying)
+        if (policy == CombatModeSwitchPolicy.OnNextLocomotion && isActionPlaying)
         {
             _pendingMode = mode;
             _hasPendingMode = true;
-            return true;
+            return CombatModeSwitchResult.PendingUntilLocomotion;
         }
 
-        if (policy == CombatModeSwitchPolicy.StopCurrentAction && _actionRuntime != null && _actionRuntime.IsPlaying)
-            _actionRuntime.Stop();
+        if (policy == CombatModeSwitchPolicy.StopCurrentAction && isActionPlaying)
+            return CombatModeSwitchResult.RequiresStopCurrentAction;
 
         ApplyMode(mode);
-        return true;
+        return CombatModeSwitchResult.Applied;
     }
 
-    /// <summary>招式已结束且存在挂起模式时立刻应用（供 PlayerController 在消费预输入前调用）。</summary>
+    /// <summary>应用挂起的 OnNextLocomotion 切换；调用方应保证已回到 Locomotion。</summary>
     public void ApplyPendingModeIfReady()
     {
-        TryApplyPendingMode();
-    }
-
-    /// <summary>招式结束后应用挂起的 OnNextLocomotion 切换。</summary>
-    void TryApplyPendingMode()
-    {
-        if (!_hasPendingMode || _actionRuntime == null || _actionRuntime.IsPlaying)
+        if (!_hasPendingMode)
             return;
 
         ApplyMode(_pendingMode);
@@ -139,8 +113,6 @@ public class CombatModeController : MonoBehaviour, ICombatModeController
             return;
 
         _animation.SetProfile(locomotionProfile);
-        // 清除 Key 缓存，否则同 Idle/Walk/Run 不会 CrossFade 到新 StateName
         _animation.ResetPlaybackState();
     }
 }
-

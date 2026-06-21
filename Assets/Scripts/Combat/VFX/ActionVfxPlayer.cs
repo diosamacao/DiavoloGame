@@ -2,11 +2,11 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 读取 ActionRuntimeController 当前帧，在 ActionDefinition 配置的 triggerFrame 实例化 VFX Prefab。
+/// 订阅 ActionRuntimeController Logic Tick，在 ActionDefinition 配置的 triggerFrame 实例化 VFX Prefab。
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(ActionRuntimeController))]
-public class ActionVfxPlayer : MonoBehaviour
+public class ActionVfxPlayer : MonoBehaviour, ICombatFrameConsumer
 {
     [SerializeField] ActionRuntimeController actionRuntime = null!;
     [Tooltip("VFX 局部变换挂点；为空时使用本物体 Transform。可与 HitBoxSystem.attachPoint 相同。")]
@@ -25,23 +25,24 @@ public class ActionVfxPlayer : MonoBehaviour
             actionRuntime = GetComponent<ActionRuntimeController>();
     }
 
-    void LateUpdate()
+    /// <summary>新招式开始：重置 VFX 触发记录。</summary>
+    public void OnActionBegan(ActionDefinition action)
     {
-        // 在 ActionRuntimeController.Tick 之后采样，保证帧索引与招式逻辑同步。
-        if (actionRuntime == null || !actionRuntime.IsPlaying || actionRuntime.CurrentAction == null)
-        {
-            ResetTracking(null);
+        ResetTracking(action);
+    }
+
+    /// <summary>Logic Tick 帧推进：检测应触发的 VFX 帧事件。</summary>
+    public void OnCombatFrameAdvanced(in CombatFrameContext context)
+    {
+        if (context.Action == null)
             return;
-        }
 
-        ActionDefinition action = actionRuntime.CurrentAction;
-        ResetTrackingIfActionChanged(action);
+        ResetTrackingIfActionChanged(context.Action);
 
-        int currentFrame = actionRuntime.CurrentFrame;
-        ActionVfxKeyframe[] events = action.VfxEvents;
+        ActionVfxKeyframe[] events = context.Action.VfxEvents;
         if (events.Length == 0)
         {
-            _lastSampledFrame = currentFrame;
+            _lastSampledFrame = context.FrameIndex;
             return;
         }
 
@@ -57,17 +58,22 @@ public class ActionVfxPlayer : MonoBehaviour
             if (_firedEventIndices.Contains(i))
                 continue;
 
-            if (!vfxEvent.ShouldFireBetweenFrames(_lastSampledFrame, currentFrame))
+            if (!vfxEvent.ShouldFireBetweenFrames(_lastSampledFrame, context.FrameIndex))
                 continue;
 
             ActionVfxSpawner.Spawn(vfxEvent.Prefab, root, anchor, vfxEvent);
             _firedEventIndices.Add(i);
         }
 
-        _lastSampledFrame = currentFrame;
+        _lastSampledFrame = context.FrameIndex;
     }
 
-    /// <summary>切换或停止招式时清空触发记录，避免跨招误判。</summary>
+    /// <summary>招式结束：清空触发记录。</summary>
+    public void OnActionEnded()
+    {
+        ResetTracking(null);
+    }
+
     void ResetTrackingIfActionChanged(ActionDefinition action)
     {
         if (_trackedAction == action)

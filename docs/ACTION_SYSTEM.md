@@ -1,7 +1,7 @@
 # ACTGame — 动作系统技术实现文档
 
 > 本文档描述**当前已落地**的动作系统：架构、实现细节、使用方式，以及与 [ACTION_EDITOR.md](./ACTION_EDITOR.md) 长期目标的对齐分析。  
-> Last updated: 2026-06-17
+> Last updated: 2026-06-21
 
 ---
 
@@ -34,10 +34,10 @@
 | `ActionState` + 动画锁定 | ✅ 已实现 | 薄层状态机 |
 | `HitboxKeyframe` + `HitBoxSystem` | 🟡 部分 | `ActionDefinition` 帧表 + OBB 检测；无 Physics |
 | `HurtboxTarget` / `IHurtboxTarget` | 🟡 部分 | 静态注册表 + `OnHit` 回调；现阶段仅测试日志 |
-| `ActionPhase` / `ActionEvent` | ⬜ 未实现 | 编辑器 Must Have，运行时待建 |
+| `ActionPhase` / `ActionEvent` | 🟡 骨架 | SO 字段与类型已建；运行时派发待 M5 |
 | `ActionGraph` 节点图 | ⬜ 未实现 | 由 `ActionComboSequence` 线性折中 |
-| `UpdateFrame(frameIndex)` 统一 Logic Tick | 🟡 部分 | 已有 `CurrentFrame` 只读属性；无集中 `UpdateFrame` API |
-| Combat 伤害 / `Hit` 状态 / OnHit 回流 | ⬜ 未实现 | 命中不反馈 `ActionRuntime` |
+| `UpdateFrame(frameIndex)` 统一 Logic Tick | ✅ 已实现 | `ActionRuntimeController` + `ICombatFrameConsumer` |
+| Combat 伤害 / `Hit` 状态 / OnHit 回流 | 🟡 部分 | `IActionHitReceiver` + OnHitConfirm Transition；无伤害/Hit 状态 |
 | `ActionEditorWindow` | ⬜ 未实现 | M5 目标 |
 
 ---
@@ -58,12 +58,12 @@ PlayerController ── InputManager（唯一持有者）
        ├── CombatModeController ── CombatModeProfile
        │         └─ mode → PlayerActionSet → ActionComboSequence
        │
-       ├── ActionRuntimeController（IActionRuntime 只读状态）
-       │         ├─ TryStartByInput / CancelWindow / Transition
-       │         └─ ActionDefinition（单招数据 + Hitbox 帧表）
-       │
-       ├── HitBoxSystem（LateUpdate 拉取帧 → OBB 检测）
-       │         └─ HurtboxTargetRegistry → IHurtboxTarget.OnHit
+       ├── CharacterActionDriver ── 起手 / Buffer / 移动取消
+       ├── ActionRotationDriver ── RotationWindow + TargetLock
+       ├── ActionRuntimeController（IActionRuntime + IActionHitReceiver）
+       │         ├─ UpdateFrame / Tick → ICombatFrameConsumer
+       │         └─ ActionDefinition（单招 + Phase/Event 骨架）
+       ├── HitBoxSystem（ICombatFrameConsumer → OBB + NotifyHit）
        │
        └── PlayerStateMachine
                  ├─ LocomotionState（Idle/Walk/Run）
@@ -76,10 +76,12 @@ PlayerController ── InputManager（唯一持有者）
 |----|------|
 | `InputReader` | 设备 → `PlayerInputFrame` |
 | `InputManager` | 摄入帧、离散缓冲、移动意图、回调注册 |
-| `PlayerController` | 输入路由、移动执行、移动取消、起手切状态 |
+| `PlayerController` | Motor、InputManager 采集、`IMoveIntentResolver` |
+| `CharacterActionDriver` | 输入路由、起手切状态、移动取消、缓冲消费 |
+| `ActionRotationDriver` | RotationWindow + 索敌转向 |
 | `CombatModeController` | 战斗模式、出招表切换、Locomotion Profile |
-| `ActionRuntimeController` | 招式播放、Cancel 解析、Transition、位移；**不调用**碰撞系统 |
-| `HitBoxSystem` | 拉取 `IActionRuntime` 当前帧，读 SO Hitbox，做 OBB 重叠并派发 `ActionHitContext` |
+| `ActionRuntimeController` | 播放、Cancel、Transition、**UpdateFrame**、命中回流 |
+| `HitBoxSystem` | `ICombatFrameConsumer`：Logic Tick 帧上 OBB 检测 |
 | `ActionState` / `LocomotionState` | 动画锁与 Locomotion 动画 |
 
 ### 3.3 设计原则（已贯彻）
@@ -555,4 +557,4 @@ Assets/Data/Combat/Actions/Player/
 |------|------|
 | 2026-06-17 | 初版与多轮迭代（InputManager、Root Motion、CancelWindow） |
 | 2026-06-17 | **全面重写**：`ActionComboSequence`、`CombatModeProfile`、Transition `AtFrame`、对齐 ACTION_EDITOR 分析、编辑器适配度评估 |
-| 2026-06-17 | **§5.7 / §8**：动作系统与碰撞系统通信方式、耦合分析；同步 Hitbox 实现状态 |
+| 2026-06-21 | ActionEditor 准备：CharacterActionDriver、UpdateFrame、ICombatFrameConsumer、Phase/Event 骨架、命中回流 |

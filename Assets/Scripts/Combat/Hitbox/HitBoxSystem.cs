@@ -2,12 +2,12 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 攻击侧 Hitbox 运行时：读取 ActionRuntimeController 当前帧，
+/// 攻击侧 Hitbox 运行时：订阅 ActionRuntimeController Logic Tick，
 /// 与场景 IHurtboxTarget 做 OBB 重叠检测。
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(ActionRuntimeController))]
-public class HitBoxSystem : MonoBehaviour
+public class HitBoxSystem : MonoBehaviour, ICombatFrameConsumer
 {
     [SerializeField] ActionRuntimeController actionRuntime = null!;
     [Tooltip("Hitbox 局部变换的挂点；为空时使用本物体 Transform。")]
@@ -28,19 +28,30 @@ public class HitBoxSystem : MonoBehaviour
             actionRuntime = GetComponent<ActionRuntimeController>();
     }
 
-    void LateUpdate()
+    /// <summary>新招式开始：清空命中缓存。</summary>
+    public void OnActionBegan(ActionDefinition action)
     {
-        // 在 ActionRuntimeController.Tick 之后采样，保证帧索引与招式逻辑同步。
-        if (actionRuntime == null || !Runtime.IsPlaying || Runtime.CurrentAction == null)
-        {
-            ClearHitCacheIfNeeded(null);
-            return;
-        }
-
-        ActionDefinition action = Runtime.CurrentAction;
         ClearHitCacheIfNeeded(action);
+    }
 
-        int frame = Runtime.CurrentFrame;
+    /// <summary>Logic Tick 帧推进：检测当前帧生效的 Hitbox。</summary>
+    public void OnCombatFrameAdvanced(in CombatFrameContext context)
+    {
+        if (actionRuntime == null || context.Action == null)
+            return;
+
+        ClearHitCacheIfNeeded(context.Action);
+        ProcessHitboxesAtFrame(context.Action, context.FrameIndex);
+    }
+
+    /// <summary>招式结束：清空追踪状态。</summary>
+    public void OnActionEnded()
+    {
+        ClearHitCacheIfNeeded(null);
+    }
+
+    void ProcessHitboxesAtFrame(ActionDefinition action, int frame)
+    {
         IReadOnlyList<HitboxKeyframe> activeHitboxes = action.GetActiveHitboxesAtFrame(frame);
         if (activeHitboxes.Count == 0)
             return;
@@ -66,6 +77,9 @@ public class HitBoxSystem : MonoBehaviour
                 _hitPairs.Add(pair);
                 var context = new ActionHitContext(action, hitbox, root);
                 target.OnHit(in context);
+
+                if (actionRuntime is IActionHitReceiver hitReceiver)
+                    hitReceiver.NotifyHit(in context);
 
                 Transform targetTransform = (target as Component)?.transform;
                 CombatHitFeedback.OnAttackHit(in context, targetTransform);
