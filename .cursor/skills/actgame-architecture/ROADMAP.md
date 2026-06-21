@@ -5,60 +5,70 @@
 ## 设计原则（长期）
 
 1. **状态机驱动角色表现**：动画、动作阶段、可取消窗口由 State 负责
-2. **Controller 只管物理与输入桥接**：PlayerController 提供移动能力数据，逐步减少「业务判断」
-3. **Combat 与 Character 解耦**：Hitbox/Hurtbox 在 Combat/，Character State 只触发战斗事件
-4. **数据驱动**：数值、动画映射、技能表进 ScriptableObject（Assets/Data/）
-5. **小步可验证**：每步可在 Play Mode 单独验证移动/动画/相机
+2. **Controller 只管物理与输入桥接**：PlayerController 提供 Motor；招式路由在 CharacterActionDriver
+3. **Combat 与 Character 解耦**：Hitbox 拉取 `IActionRuntime`；Character State 只 Tick Runtime
+4. **Logic Tick = 编辑器帧**：`UpdateFrame` 统一 Play Mode 与 ActionEditor Scrub
+5. **数据驱动**：数值、动画映射、技能表进 ScriptableObject（Assets/Data/）
+6. **小步可验证**：每步可在 Play Mode 单独验证移动/动画/战斗
 
 ## 进行中的结构迁移
 
 ### [P1] 移动职责迁移
 
-**现状**：`PlayerController.Update` 执行位移；`LocomotionState` 只选动画 key。
+**现状**：`PlayerController.Update` 执行 Locomotion 位移；`LocomotionState` 只选动画 key。
 
-**目标**：LocomotionState（或 Motor 服务类）成为移动决策点；Controller 降为 Motor 执行层，或合并进 Context.Motor 封装。
+**目标**：LocomotionState（或 Motor 服务类）成为移动决策点；Controller 降为 Motor 执行层。
 
-**阶段建议**：
-- Phase 1：把 `ResolveLocomotionKey` 用到的输入判断与 Controller 对齐文档，避免两处阈值不一致
-- Phase 2：移动向量计算移入 State 或 `CharacterMotor`  helper
-- Phase 3：PlayerController 精简为只读 Motor 接口
+**状态**：未开始（招式侧职责迁移已完成，见下）
 
-**状态**：未开始
+### [P1] ActionEditor 准备 — 动作系统职责收敛 ✅ 2026-06-21
 
-### [P1] ActionState 与战斗管线
+**已完成**：
 
-**现状**：`ActionState` 占位；Combat/ 目录空。
+- `CharacterActionDriver`：离散输入起手/缓冲、移动取消（角色无关）
+- `ActionRotationDriver`：RotationWindow + 索敌
+- `ActionRuntimeController.UpdateFrame` + `ICombatFrameConsumer`（Hitbox/VFX 统一 Logic Tick）
+- `ActionPhase` / `ActionEvent` 类型骨架写入 `ActionDefinition`
+- `IActionHitReceiver` 命中回流 + `OnHitConfirm` / `OnWhiff` Transition
+- `IActionRuntime` 迁至 `Combat/Actions/`
 
-**目标**：攻击输入 → ActionState → 动画 Lock → Combat Hitbox 窗口。
+**下一步（ActionEditor M5 前）**：
 
-**依赖**：Input Action（Attack）、AnimationKey 扩展、Hitbox 组件
+- [ ] `ActionEditorWindow` 基础版（列表 + Scrub 调 `UpdateFrame`）
+- [ ] Phase / Event 运行时派发（当前仅 Schema）
+- [ ] `ActionDefinition` 子 SO 拆分（CombatData / PresentationData，可选）
 
-**状态**：未开始
+### [P1] 战斗闭环
+
+**现状**：Hitbox OBB + 命中反馈（震屏/卡肉）；`OnHitConfirm` Transition 已可配置。
+
+**待做**：伤害结算、`Hit` 状态、受击 `ActionDefinition` 衔接。
+
+**状态**：部分完成
 
 ## 待建设模块
 
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
-| Enemy/ + AI StateMachine | P2 | 继承 CharacterStateMachine，Context 填 AI 意图 |
-| Combat/ | P1 | 伤害、Hitbox、IFrame |
+| ActionEditorWindow | P1 | Frameline + Scrub 对接 `UpdateFrame` |
+| Enemy/ + AI | P2 | 复用 `CharacterActionDriver` + `ActionRuntimeController` |
 | UI/ | P2 | HUD、血条 |
-| Data/Config | P1 | CharacterAnimationProfile 等已有，扩展技能/角色表 |
-| 事件总线 | P2 | 轻量 C# event 或 ScriptableObject Event；定稿前不引入第三方 |
+| 事件总线 | P2 | 轻量 C# event；定稿前不引入第三方 |
 
 ## Tech Debt 观察清单
 
-- [ ] `PlayerController` 与 `LocomotionState` 双处感知移动输入（Controller 算移动，State 算动画）
-- [ ] `CharacterStateMachine` 与 `PlayerStateMachine` 的 RequireComponent 链需在 Prefab 上验证
-- [ ] CameraManager 运行时创建对象，场景重复加载时的生命周期需确认
-- [ ] 无 asmdef，全项目单一 Assembly-CSharp（规模大后再拆）
+- [ ] `PlayerController` 与 `LocomotionState` 双处感知移动输入
+- [ ] Prefab 需手动挂载 `CharacterActionDriver`、`ActionRotationDriver`（2026-06-21 重构后）
+- [ ] `HurtboxTargetRegistry` 仍为静态全局列表
+- [ ] 无 asmdef，全项目单一 Assembly-CSharp
 
 ## 已完成
-
-（架构 skill 创建时填入）
 
 - [x] 2026-06-17：建立 Core 泛型状态机 + Character/Player 分层
 - [x] 2026-06-17：CharacterAnimationController + Profile 映射模式
 - [x] 2026-06-17：InputReader + CameraManager 组件化
+- [x] 2026-06-17：动作系统 Phase A（ActionRuntime、Combo、CombatMode、Hitbox 骨架）
+- [x] 2026-06-21：ActionEditor 准备重构（CharacterActionDriver、UpdateFrame、Phase/Event 骨架、命中回流）
 
 ## 决策记录
 
@@ -67,3 +77,5 @@
 | 2026-06-17 | 不用 namespace，用文件夹分层 | 当前规模小，减少样板 |
 | 2026-06-17 | CharacterController 非 Rigidbody | ACT 地面移动更可控 |
 | 2026-06-17 | 状态机 Core 不引用 UnityEngine | 可测试性与分层清晰 |
+| 2026-06-21 | 连招保持 `ActionComboSequence` 线性 | 近期无分支图需求 |
+| 2026-06-21 | 输入路由命名 `CharacterActionDriver` | 敌人复用同一组件 |

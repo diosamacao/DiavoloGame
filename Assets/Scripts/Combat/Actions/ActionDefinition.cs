@@ -14,6 +14,14 @@ public class ActionDefinition : ScriptableObject
     [SerializeField] CombatActionType actionType = CombatActionType.Attack;
     [SerializeField] float crossFadeDuration = 0.1f;
 
+    [Header("Phases (Editor)")]
+    [Tooltip("Startup / Active / Recovery 与无敌、霸体覆盖；编辑器时间轴数据源。")]
+    [SerializeField] ActionPhase[] phases = Array.Empty<ActionPhase>();
+
+    [Header("Events (Editor)")]
+    [Tooltip("时间轴事件骨架；完整运行时派发待 ActionEditor M5。")]
+    [SerializeField] ActionEvent[] actionEvents = Array.Empty<ActionEvent>();
+
     [Header("Cancel Windows")]
     [SerializeField] CancelWindow[] cancelWindows = Array.Empty<CancelWindow>();
 
@@ -89,6 +97,8 @@ public class ActionDefinition : ScriptableObject
     public bool HasTargetLock => targetLockSettings != null && targetLockSettings.Enabled;
     public HitboxKeyframe[] Hitboxes => hitboxes ?? Array.Empty<HitboxKeyframe>();
     public ActionVfxKeyframe[] VfxEvents => vfxEvents ?? Array.Empty<ActionVfxKeyframe>();
+    public ActionPhase[] Phases => phases ?? Array.Empty<ActionPhase>();
+    public ActionEvent[] ActionEvents => actionEvents ?? Array.Empty<ActionEvent>();
 
     /// <summary>命中时镜头震动预设；可为空。</summary>
     public CameraShakeProfile CameraShakeProfile => cameraShakeProfile;
@@ -161,7 +171,11 @@ public class ActionDefinition : ScriptableObject
     }
 
     /// <summary>当前时刻是否满足 Transition 触发条件。</summary>
-    public bool IsTransitionEligible(ActionTransition transition, float elapsedSeconds)
+    /// <param name="hasConfirmedHit">本招是否已命中；OnHitConfirm / OnWhiff 需要。</param>
+    public bool IsTransitionEligible(
+        ActionTransition transition,
+        float elapsedSeconds,
+        bool hasConfirmedHit = false)
     {
         if (transition == null || totalFrames <= 0)
             return false;
@@ -172,9 +186,45 @@ public class ActionDefinition : ScriptableObject
                 return elapsedSeconds >= DurationSeconds;
             case ActionTransitionCondition.AtFrame:
                 return FrameAt(elapsedSeconds) >= transition.StartFrame;
+            case ActionTransitionCondition.OnHitConfirm:
+                return hasConfirmedHit;
+            case ActionTransitionCondition.OnWhiff:
+                return elapsedSeconds >= DurationSeconds && !hasConfirmedHit;
             default:
                 return false;
         }
+    }
+
+    /// <summary>返回指定帧上全部生效的阶段（按数组顺序）。</summary>
+    public IReadOnlyList<ActionPhase> GetActivePhasesAtFrame(int frame)
+    {
+        if (phases == null || phases.Length == 0)
+            return Array.Empty<ActionPhase>();
+
+        var active = new List<ActionPhase>();
+        foreach (ActionPhase phase in phases)
+        {
+            if (phase != null && phase.IsActiveAtFrame(frame))
+                active.Add(phase);
+        }
+
+        return active;
+    }
+
+    /// <summary>指定帧是否落在可被打断的阶段区间内。</summary>
+    public bool IsInterruptibleAtFrame(int frame)
+    {
+        IReadOnlyList<ActionPhase> activePhases = GetActivePhasesAtFrame(frame);
+        if (activePhases.Count == 0)
+            return false;
+
+        foreach (ActionPhase phase in activePhases)
+        {
+            if (phase.Interruptible)
+                return true;
+        }
+
+        return false;
     }
 
     public bool IsInCancelWindow(ResolvedCancelWindow window, float elapsedSeconds)
@@ -290,6 +340,18 @@ public class ActionDefinition : ScriptableObject
         {
             foreach (ActionVfxKeyframe vfxEvent in vfxEvents)
                 vfxEvent?.ClampToTotalFrames(totalFrames);
+        }
+
+        if (phases != null)
+        {
+            foreach (ActionPhase phase in phases)
+                phase?.ClampToTotalFrames(totalFrames);
+        }
+
+        if (actionEvents != null)
+        {
+            foreach (ActionEvent actionEvent in actionEvents)
+                actionEvent?.ClampToTotalFrames(totalFrames);
         }
 
         hitStopFrames = Mathf.Max(0, hitStopFrames);

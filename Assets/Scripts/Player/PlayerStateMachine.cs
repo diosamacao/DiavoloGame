@@ -1,29 +1,19 @@
 using UnityEngine;
 
-[RequireComponent(typeof(PlayerController))]
 [RequireComponent(typeof(CharacterAnimationController))]
 [RequireComponent(typeof(CharacterRootMotionDriver))]
 [RequireComponent(typeof(ActionRuntimeController))]
+[RequireComponent(typeof(CharacterActionDriver))]
+[RequireComponent(typeof(ActionRotationDriver))]
 [RequireComponent(typeof(InputReader))]
+/// <summary>玩家状态机宿主；Motor 快照由 PlayerController 单向 Push，不引用 PlayerController。</summary>
 public class PlayerStateMachine : CharacterStateMachine
 {
-    PlayerController _player;
-
-    protected override void Awake()
-    {
-        _player = GetComponent<PlayerController>();
-        base.Awake();
-    }
-
     protected override void ConfigureContext(CharacterContext context)
     {
         context.ActionRuntime = GetComponent<ActionRuntimeController>();
     }
 
-    protected override void UpdateContext()
-    {
-        Context.MoveInputMagnitude = _player.MoveInputMagnitude;
-        Context.RunThreshold = _player.RunThreshold;
-        Context.IsGrounded = _player.IsGrounded;
-    }
+    /// <summary>Motor 数据已由 PlayerController PushMotorSnapshot 写入，无需再拉 PlayerController。</summary>
+    protected override void UpdateContext() { }
 }

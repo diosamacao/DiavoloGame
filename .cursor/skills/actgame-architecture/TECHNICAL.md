@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-06-17  
+> Last updated: 2026-06-21  
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -13,7 +13,7 @@
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionState` | `Player_KatanaGirl_AnimationProfile.asset` |
 | 第三人称相机 | ✅ 已实现 | `CameraManager` | 场景内 CameraManager 对象 |
 | 动作系统（播放 / 取消 / 连段 / 战斗模式） | ✅ 已实现 | `ActionRuntimeController`、`CombatModeController` | `CombatModeProfile`、`ActionComboSequence` |
-| 攻击 / 战斗判定 | 🟡 部分实现 | `HitBoxSystem` OBB 重叠 + `OnHit` 回调 | 无伤害、击退、OnHit 回流 |
+| 攻击 / 战斗判定 | 🟡 部分实现 | `HitBoxSystem` OBB + 命中回流 + `OnHitConfirm` Transition | 无伤害、Hit 状态 |
 | 敌人 AI | ⬜ 未实现 | — | `Enemy/` 占位 |
 | UI | ⬜ 未实现 | — | `UI/` 占位 |
 
@@ -282,7 +282,9 @@ CameraManager (场景对象)
 |------|------|
 | `CharacterController` | 胶囊碰撞，高 1.7，半径 0.28 |
 | `InputReader` | 绑定 GameInputActions |
-| `PlayerController` | 移动与重力 |
+| `PlayerController` | 移动与重力、InputManager 采集 |
+| `CharacterActionDriver` | 离散输入起手/缓冲、移动取消 |
+| `ActionRotationDriver` | RotationWindow + 索敌 |
 | `CharacterAnimationController` | 动画播放 + Profile |
 | `PlayerStateMachine` | 状态机宿主 |
 
@@ -303,54 +305,66 @@ CameraManager (场景对象)
 
 ## 7. 动作系统
 
-> 完整说明与 **ACTION_EDITOR 对齐分析** 见 [docs/ACTION_SYSTEM.md](../../docs/ACTION_SYSTEM.md) §7。
+> 完整说明见 [docs/ACTION_SYSTEM.md](../../docs/ACTION_SYSTEM.md)。
 
 ### 功能说明
 
-多战斗模式（`CombatModeProfile`）下，玩家通过出招表 + `ActionComboSequence` 起手攻击/闪避；招内 `CancelWindow` 消费输入缓冲并沿队列进位；`ActionTransition` 自动收招；支持移动取消与战斗模式切换。
+多战斗模式下，玩家通过出招表 + `ActionComboSequence` 起手攻击/闪避；招内 Cancel 消费缓冲；`ActionTransition` 收招（含 **OnHitConfirm / OnWhiff**）；**Logic Tick 由 `UpdateFrame` 统一驱动** Hitbox/VFX。
 
 ### 实现方案
 
 | 项 | 方案 |
 |----|------|
-| 起手 | `PlayerActionSet` Entry → `ActionComboSequence.RootAction` |
-| 连段 | `CancelWindow(Action)` + `TryResolveNext` 队列进位 |
-| 移动取消 | `CancelWindow(Movement)` + `PlayerController` |
-| 收招 | `ActionTransition`（`AnimationEnd` / `AtFrame`） |
-| 战斗模式 | `CombatModeController` + `CombatModeProfile` |
-| 输入 | `InputReader` → `PlayerInputFrame` → `InputManager` |
-| 位移 | Root Motion 或 `displacementDistance` |
-| 碰撞判定 | `HitBoxSystem` 拉取 `IActionRuntime.CurrentFrame` + `ActionDefinition` Hitbox 帧表 → OBB 检测 → `IHurtboxTarget.OnHit` |
+| 起手 / 缓冲 | `CharacterActionDriver` → `ActionRuntimeController.TryStartByInput` |
+| 移动取消 | `CharacterActionDriver` + `CancelWindow(Movement)` |
+| 招式旋转 | `ActionRotationDriver` + `CombatTargetLock` |
+| Logic Tick | `ActionRuntimeController.UpdateFrame` → `ICombatFrameConsumer` |
+| 命中回流 | `HitBoxSystem` → `IActionHitReceiver.NotifyHit` |
+| Motor | `PlayerController`（Locomotion 位移 + 重力） |
 
-### 与碰撞系统的通信（摘要）
+### 运行时流程（Logic Tick）
 
-- **模式：** 拉取式单向数据流；`ActionRuntimeController` 不引用 `HitBoxSystem`。
-- **帧同步：** `ActionState.Tick` → `ActionRuntime.Tick`（Update）；`HitBoxSystem.LateUpdate` 采样同帧逻辑帧。
-- **耦合：** 低到中等（`IActionRuntime` + `ActionHitContext` 边界清晰）；详见 [ACTION_SYSTEM.md §8](../../docs/ACTION_SYSTEM.md#8-动作系统与碰撞系统耦合分析)。
+```
+ActionState.Tick
+  → ActionRuntimeController.Tick(deltaTime)
+      → SyncLogicFrameFromElapsed → DispatchCombatFrame
+          → HitBoxSystem.OnCombatFrameAdvanced
+          → ActionVfxPlayer.OnCombatFrameAdvanced
+      → CancelWindow / Transition（含 OnHitConfirm）
+```
 
-### 与动作编辑器（ACTION_EDITOR）对齐摘要
+编辑器 Scrub：`UpdateFrame(frameIndex)` 与上列帧派发共用路径。
+
+### ActionEditor 对齐状态（2026-06-21）
 
 | 对齐度 | 项 |
 |--------|-----|
-| ✅ | 路线 A（SO + ActionRuntimeController）、Cancel/Transition 语义、数据驱动 |
-| 🟡 | 单招 Schema 约 55%；`HitboxKeyframe` 已有；无 `UpdateFrame` API |
-| 🔀 偏差 | `ActionComboSequence` 代替 `ActionGraph`；Cancel 无 `targetAction` |
-| ⬜ | Phase/Event、伤害结算、OnHit 回流、`ActionEditorWindow`、GM 热重载 |
-
-**编辑器开发前 P0：** `UpdateFrame` 统一 Tick + Phase/Event 类型骨架 + 命中回流通道。
-
-### 关键资产
-
-| 路径 | 说明 |
-|------|------|
-| `Assets/Data/Combat/Actions/Player/` | `ActionDefinition`、`ActionComboSequence`、`PlayerActionSet` |
-| `CombatModeProfile` | 模式 → 出招表 / Locomotion Profile |
-| `Assets/Prefabs/Player/Player_KatanaGirl.prefab` | 组件挂载 |
+| ✅ | `UpdateFrame` API、`ICombatFrameConsumer`、Phase/Event Schema |
+| ✅ | 命中回流、`OnHitConfirm` / `OnWhiff` Transition 条件 |
+| ✅ | `CharacterActionDriver` 角色无关输入路由 |
+| 🟡 | Phase/Event 运行时派发未接；无 `ActionEditorWindow` |
+| ⬜ | 伤害结算、Hit 状态、GM 热重载 |
 
 ### 已知限制
 
-- Hitbox 仅 OBB 骨架，无伤害 / OnHit 回流；连招仅线性；无 `ActionEditorWindow`
-- 详见 ACTION_SYSTEM.md §7.4–8.5
+- Phase/Event 仅有 SO 字段，运行时未派发
+- 连招仍线性 `ActionComboSequence`
+- Prefab 需挂载 `CharacterActionDriver`、`ActionRotationDriver`（见 Editor 步骤）
+
+### Editor 操作（Prefab）
+
+在 `Player_KatanaGirl.prefab` 根节点 **Add Component**：
+
+1. `CharacterActionDriver`（InputReader / TargetLock 可留空，自动 GetComponent）
+2. `ActionRotationDriver`
+
+保存 Prefab 后 Play Mode 验证：起手、连段、移动取消、索敌旋转、Hitbox/VFX 与重构前一致。
+
+### 相关文件
+
+- `Assets/Scripts/Combat/Actions/*`
+- `Assets/Scripts/Player/PlayerController.cs`
+- `docs/ACTION_SYSTEM.md`、`docs/ACTION_EDITOR.md`
 
 ---
 
@@ -372,4 +386,4 @@ CameraManager (场景对象)
 |------|------|
 | 2026-06-17 | 初版：移动、输入、状态机、动画、相机、Prefab 文档化 |
 | 2026-06-17 | 动作系统 §7：ComboSequence、CombatMode、ACTION_EDITOR 对齐摘要 |
-| 2026-06-17 | Hitbox 判定骨架、动作↔碰撞通信与耦合分析（ACTION_SYSTEM §8） |
+| 2026-06-21 | ActionEditor 准备重构：CharacterActionDriver、UpdateFrame、Phase/Event 骨架、命中回流 |
