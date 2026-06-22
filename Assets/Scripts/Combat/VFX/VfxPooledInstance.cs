@@ -28,17 +28,22 @@ public sealed class VfxPooledInstance : MonoBehaviour, IPoolable
 
     void OnEnable()
     {
-        CombatHitStop.Began += HandleHitStopBegan;
-        CombatHitStop.Ended += HandleHitStopEnded;
+        ACTGameArchitecture.Interface.RegisterEvent<HitStopBeganEvent>(HandleHitStopBegan);
+        ACTGameArchitecture.Interface.RegisterEvent<HitStopEndedEvent>(HandleHitStopEnded);
 
-        if (CombatHitStop.IsActive && ShouldPauseForHitStop(CombatHitStop.ActiveAttackerRoot))
+        CombatFeedbackSystem feedbackSystem = ACTGameArchitecture.Interface.GetSystem<CombatFeedbackSystem>();
+        if (feedbackSystem != null
+            && feedbackSystem.IsHitStopActive
+            && ShouldPauseForHitStop(feedbackSystem.ActiveHitStopAttackerRoot))
+        {
             PauseParticleSystems();
+        }
     }
 
     void OnDisable()
     {
-        CombatHitStop.Began -= HandleHitStopBegan;
-        CombatHitStop.Ended -= HandleHitStopEnded;
+        ACTGameArchitecture.Interface.UnregisterEvent<HitStopBeganEvent>(HandleHitStopBegan);
+        ACTGameArchitecture.Interface.UnregisterEvent<HitStopEndedEvent>(HandleHitStopEnded);
     }
 
     /// <summary>从池中取出后调用：重启粒子并安排自动回收。</summary>
@@ -67,15 +72,15 @@ public sealed class VfxPooledInstance : MonoBehaviour, IPoolable
         StopParticleSystems();
     }
 
-    void HandleHitStopBegan(Transform attackerRoot)
+    void HandleHitStopBegan(HitStopBeganEvent hitStopEvent)
     {
-        if (!ShouldPauseForHitStop(attackerRoot))
+        if (!ShouldPauseForHitStop(hitStopEvent.AttackerRoot))
             return;
 
         PauseParticleSystems();
     }
 
-    void HandleHitStopEnded()
+    void HandleHitStopEnded(HitStopEndedEvent hitStopEvent)
     {
         if (!_particlesPausedForHitStop)
             return;
@@ -154,8 +159,13 @@ public sealed class VfxPooledInstance : MonoBehaviour, IPoolable
     }
 
     /// <summary>攻击者卡肉期间冻结该实例的生命周期计时。</summary>
-    bool IsLifetimeFrozen() =>
-        CombatHitStop.IsActive && ShouldPauseForHitStop(CombatHitStop.ActiveAttackerRoot);
+    bool IsLifetimeFrozen()
+    {
+        CombatFeedbackSystem feedbackSystem = ACTGameArchitecture.Interface.GetSystem<CombatFeedbackSystem>();
+        return feedbackSystem != null
+            && feedbackSystem.IsHitStopActive
+            && ShouldPauseForHitStop(feedbackSystem.ActiveHitStopAttackerRoot);
+    }
 
     /// <summary>根据子级 ParticleSystem 估算最长可见时间；无粒子时用 fallbackLifetime。</summary>
     float ResolveLifetime()

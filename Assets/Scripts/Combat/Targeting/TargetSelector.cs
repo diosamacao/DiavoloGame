@@ -1,6 +1,6 @@
 using UnityEngine;
 
-/// <summary>从 TargetRegistry 中按策略选取单个 ITargetable。</summary>
+/// <summary>从 TargetSystem 中按策略选取单个 ITargetable。</summary>
 public static class TargetSelector
 {
     /// <summary>按 settings 与攻击者状态选取最佳目标；无候选时返回 null。</summary>
@@ -24,7 +24,11 @@ public static class TargetSelector
         float bestDistanceSq = float.MaxValue;
         float bestHealth = float.MaxValue;
 
-        foreach (IHurtboxTarget candidate in TargetRegistry.ActiveTargets)
+        TargetSystem targetSystem = ACTGameArchitecture.Interface.GetSystem<TargetSystem>();
+        if (targetSystem == null)
+            return null;
+
+        foreach (IHurtboxTarget candidate in targetSystem.ActiveTargets)
         {
             if (candidate is not ITargetable target)
                 continue;

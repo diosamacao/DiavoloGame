@@ -5,8 +5,9 @@
 ## 设计原则（长期）
 
 1. **状态机驱动角色表现**：动画、动作阶段、可取消窗口由 State 负责
-2. **Controller 只做 Scene 入口**：PlayerController 通过 CharacterConfig 创建纯 C# `CharacterRuntime`；业务不再挂载到 Player 根对象
-3. **Combat 与 Character 解耦**：Hitbox 拉取 `IActionRuntime`；Character State 只 Tick Runtime
+2. **Controller 只做 Scene 入口**：PlayerController 通过 CharacterConfig 创建纯 C# `CharacterActor`；业务不再挂载到 Player 根对象
+3. **Combat 与 Character 解耦**：Hitbox 拉取 `IActionExecutor`；Character State 只 Tick Executor
+4. **QFramework 风格跨系统通信**：跨系统使用 `ACTGameArchitecture`、Command、Event、System；动作帧内部保留强时序直连
 4. **Logic Tick = 编辑器帧**：`UpdateFrame` 统一 Play Mode 与 ActionEditor Scrub
 5. **数据驱动**：数值、动画映射、技能表进 ScriptableObject（Assets/Data/）
 6. **小步可验证**：每步可在 Play Mode 单独验证移动/动画/战斗
@@ -15,7 +16,7 @@
 
 ### [P1] 移动职责迁移
 
-**现状**：`LocomotionState.Tick` 调用 `CharacterMotor.TickLocomotion` 执行水平位移并选择动画 key；`CharacterRuntime` 只保留输入、动作路由、重力和状态机调度。
+**现状**：`LocomotionState.Tick` 调用 `CharacterMotor.TickLocomotion` 执行水平位移并选择动画 key；`CharacterActor` 只保留输入、动作路由、重力和状态机调度。
 
 **目标**：LocomotionState（或 Motor 服务类）成为移动决策点；Controller 降为 Motor 执行层。
 
@@ -27,10 +28,10 @@
 
 - `CharacterActionDriver`：离散输入起手/缓冲、移动取消（纯 C#，角色无关）
 - `ActionRotationDriver`：RotationWindow + 索敌（纯 C#）
-- `ActionRuntimeController.UpdateFrame` + `ICombatFrameConsumer`（纯 C# Hitbox/VFX 统一 Logic Tick）
+- `ActionExecutor.UpdateFrame` + `ICombatFrameConsumer`（纯 C# Hitbox/VFX 统一 Logic Tick）
 - `ActionPhase` / `ActionEvent` 类型骨架写入 `ActionDefinition`
 - `IActionHitReceiver` 命中回流 + `OnHitConfirm` / `OnWhiff` Transition
-- `IActionRuntime` 迁至 `Combat/Actions/`
+- `IActionExecutor` 位于 `Combat/Actions/`
 
 **下一步（ActionEditor M5 前）**：
 
@@ -51,15 +52,16 @@
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
 | ActionEditorWindow | P1 | Frameline + Scrub 对接 `UpdateFrame` |
-| Enemy/ + AI | P2 | 复用纯 C# `CharacterActionDriver` + `ActionRuntimeController` |
+| Enemy/ + AI | P2 | 复用纯 C# `CharacterActionDriver` + `ActionExecutor` |
 | UI/ | P2 | HUD、血条 |
 | 事件总线 | P2 | 轻量 C# event；定稿前不引入第三方 |
 
 ## Tech Debt 观察清单
 
-- [ ] `CharacterRuntime` 与 `LocomotionState` 双处感知移动输入
-- [x] 2026-06-21：Prefab/运行时堆业务脚本改为 `CharacterConfig` + `PlayerController` + 纯 C# `CharacterRuntime`
-- [ ] `TargetRegistry` 仍为静态全局列表，后续可替换为空间分区 / 场景实例注册表
+- [ ] `CharacterActor` 与 `LocomotionState` 双处感知移动输入
+- [x] 2026-06-21：Prefab/运行时堆业务脚本改为 `CharacterConfig` + `PlayerController` + 纯 C# 角色实例（2026-06-23 命名为 `CharacterActor`）
+- [x] 2026-06-23：命名迁移为 `CharacterActor` / `ActionExecutor`，新增 `ACTGameArchitecture`、`TargetSystem`、`CombatActorSystem`
+- [x] 2026-06-23：`TargetSystem` 替代静态目标注册表
 - [ ] 无 asmdef，全项目单一 Assembly-CSharp
 
 ## 已完成
@@ -69,7 +71,8 @@
 - [x] 2026-06-17：InputReader + CameraManager 组件化
 - [x] 2026-06-17：动作系统 Phase A（ActionRuntime、Combo、CombatMode、Hitbox 骨架）
 - [x] 2026-06-21：ActionEditor 准备重构（CharacterActionDriver、UpdateFrame、Phase/Event 骨架、命中回流）
-- [x] 2026-06-21：CharacterConfig 装配入口、ActionSession、TargetRegistry / HitDetectionSystem / TargetingSystem 骨架
+- [x] 2026-06-21：CharacterConfig 装配入口、ActionSession、目标注册 / HitDetectionSystem / TargetingSystem 骨架
+- [x] 2026-06-23：命中后跨系统通信迁移为 `ApplyHitCommand` + `AttackHitEvent`
 - [x] 2026-06-21：移除 Player 根对象运行时业务脚本挂载，动作/输入/状态/判定改为纯 C# runtime
 
 ## 决策记录

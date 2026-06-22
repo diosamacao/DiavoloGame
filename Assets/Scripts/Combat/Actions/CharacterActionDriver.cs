@@ -10,7 +10,7 @@ public sealed class CharacterActionDriver
     readonly CombatTargetLock targetLock;
     readonly InputManager _input;
     readonly CharacterStateMachine _stateMachine;
-    readonly ActionRuntimeController _actionRuntime;
+    readonly ActionExecutor _actionExecutor;
     /// <summary>同物体 CombatModeController；用具体类型访问 Profile / TrySetMode 三参 overload。</summary>
     readonly CombatModeController _combatMode;
     bool _wasInAction;
@@ -20,26 +20,26 @@ public sealed class CharacterActionDriver
         ICharacterInputSource source,
         InputManager input,
         CharacterStateMachine stateMachine,
-        ActionRuntimeController actionRuntime,
+        ActionExecutor actionExecutor,
         CombatModeController combatMode,
         CombatTargetLock lockState)
     {
         inputSource = source;
         _input = input;
         _stateMachine = stateMachine;
-        _actionRuntime = actionRuntime;
+        _actionExecutor = actionExecutor;
         _combatMode = combatMode;
         targetLock = lockState;
         InitializeInputRouting();
     }
 
-    /// <summary>供 ActionRuntime CancelWindow 消费的输入缓冲桥接。</summary>
+    /// <summary>供 ActionExecutor CancelWindow 消费的输入缓冲桥接。</summary>
     public IActionComboInput CreateComboInputBridge() => new ComboInputBridge(_input);
 
     /// <summary>InputManager 绑定后调用；须在 Start（全部 Awake 完成之后）执行。</summary>
     public void InitializeInputRouting()
     {
-        inputSource.ConfigureDiscreteInputs(_actionRuntime.GetEntryInputReferences());
+        inputSource.ConfigureDiscreteInputs(_actionExecutor.GetEntryInputReferences());
 
         RegisterInputHandlers();
     }
@@ -136,7 +136,7 @@ public sealed class CharacterActionDriver
         if (!_input.HasMoveIntent)
             return;
 
-        if (!_actionRuntime.CanCancelByMovement)
+        if (!_actionExecutor.CanCancelByMovement)
             return;
 
         _stateMachine.TryChangeState(CharacterStateType.Locomotion);
@@ -154,13 +154,13 @@ public sealed class CharacterActionDriver
     {
         _input.ClearBuffer(inputId);
 
-        if (!_actionRuntime.TryStartByInput(inputId))
+        if (!_actionExecutor.TryStartByInput(inputId))
             return;
 
         _stateMachine.TryChangeState(CharacterStateType.Action);
     }
 
-    /// <summary>将 InputManager 缓冲桥接给 ActionRuntime Cancel 消费。</summary>
+    /// <summary>将 InputManager 缓冲桥接给 ActionExecutor Cancel 消费。</summary>
     sealed class ComboInputBridge : IActionComboInput
     {
         readonly InputManager _inputManager;

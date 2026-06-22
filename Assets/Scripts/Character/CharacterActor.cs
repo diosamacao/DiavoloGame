@@ -1,7 +1,7 @@
 using UnityEngine;
 
-/// <summary>角色纯 C# 运行时，集中持有输入、移动、状态、动作和战斗服务。</summary>
-public sealed class CharacterRuntime
+/// <summary>单角色运行实例，集中持有输入、移动、状态、动作和战斗服务。</summary>
+public sealed class CharacterActor
 {
     readonly ICharacterInputSource _inputSource;
     readonly InputManager _inputManager;
@@ -25,8 +25,8 @@ public sealed class CharacterRuntime
     /// <summary>当前战斗模式控制器。</summary>
     public ICombatModeController CombatMode => _combatMode;
 
-    /// <summary>创建角色运行时；所有依赖由工厂一次性注入。</summary>
-    public CharacterRuntime(
+    /// <summary>创建角色实例；所有依赖由工厂一次性注入。</summary>
+    public CharacterActor(
         ICharacterInputSource inputSource,
         InputManager inputManager,
         CharacterMotor motor,

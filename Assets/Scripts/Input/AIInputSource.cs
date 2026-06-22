@@ -1,6 +1,6 @@
 using UnityEngine.InputSystem;
 
-/// <summary>AI 输入源骨架：敌人 AI 可写入 PlayerInputFrame 后复用 CharacterRuntimeFactory。</summary>
+/// <summary>AI 输入源骨架：敌人 AI 可写入 PlayerInputFrame 后复用 CharacterActorFactory。</summary>
 public sealed class AIInputSource : ICharacterInputSource
 {
     PlayerInputFrame _frame = PlayerInputFrame.Empty;

@@ -1,5 +1,6 @@
 using UnityEngine;
 
+/// <summary>角色状态机共享上下文；State 只读取快照和服务引用，不直接查找场景对象。</summary>
 public class CharacterContext
 {
     public CharacterContext(
@@ -24,6 +25,9 @@ public class CharacterContext
     public bool IsGrounded { get; set; }
     public ICharacterStateMachine StateMachine { get; set; }
 
-    public IActionRuntime ActionRuntime { get; set; }
+    /// <summary>单角色动作执行器，由 ActionState 推进。</summary>
+    public IActionExecutor ActionExecutor { get; set; }
+
+    /// <summary>动作状态下的转向服务。</summary>
     public ActionRotationDriver ActionRotation { get; set; }
 }

@@ -8,9 +8,9 @@ public class HurtboxTarget : MonoBehaviour, ITargetable
     [SerializeField] int teamId = 1;
     [SerializeField] float currentHealth = float.MaxValue;
 
-    void OnEnable() => TargetRegistry.Register(this);
+    void OnEnable() => ACTGameArchitecture.Interface.GetSystem<TargetSystem>()?.Register(this);
 
-    void OnDisable() => TargetRegistry.Unregister(this);
+    void OnDisable() => ACTGameArchitecture.Interface.GetSystem<TargetSystem>()?.Unregister(this);
 
     public int TargetInstanceId => gameObject.GetInstanceID();
 

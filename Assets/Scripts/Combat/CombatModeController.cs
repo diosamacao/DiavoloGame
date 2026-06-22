@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-/// <summary>战斗模式运行时：维护 mode、出招表与 Locomotion Profile；不引用 ActionRuntimeController。</summary>
+/// <summary>战斗模式服务：维护 mode、出招表与 Locomotion Profile；不引用 ActionExecutor。</summary>
 public sealed class CombatModeController : ICombatModeController
 {
     readonly CombatModeProfile profile;

@@ -21,7 +21,7 @@
 
 ### 1.2 长期目标 — 动作编辑器（M5+）
 
-最终要实现 **Action Editor（动作编辑器）**：在 Unity 内以时间轴 + 可视化的方式为角色配置战斗动作（帧阶段、Hitbox、事件、取消窗口、连招图），运行时由统一的 `ActionRuntimeController` 驱动，玩家与敌人共用同一套数据格式。
+最终要实现 **Action Editor（动作编辑器）**：在 Unity 内以时间轴 + 可视化的方式为角色配置战斗动作（帧阶段、Hitbox、事件、取消窗口、连招图），运行时由统一的 `ActionExecutor` 驱动，玩家与敌人共用同一套数据格式。
 
 > 详细设计见 [ACTION_EDITOR.md](./ACTION_EDITOR.md)
 
@@ -129,7 +129,7 @@
 | 状态 | 说明 | 优先级 |
 |------|------|--------|
 | Locomotion | 待机 / 走 / 跑 | P0 |
-| Action | 招式执行（委托 `ActionRuntimeController`） | P0 |
+| Action | 招式执行（委托 `ActionExecutor`） | P0 |
 | Hit / Stun | 受击硬直 | P0 |
 | Death | 死亡动画 + 触发 Game Over | P0 |
 | Crouch | 蹲伏移动 | P1 |
@@ -155,7 +155,7 @@
 - [ ] 目标选取（最近敌人 / 锁定目标）
 - [ ] `CharacterStats` ScriptableObject
 - [ ] **`ActionDefinition` SO**（动画、阶段、Hitbox 区间、事件、取消窗口）— P0 核心数据
-- [ ] **`ActionRuntimeController`**（统一招式播放与逐帧驱动）— P0
+- [ ] **`ActionExecutor`**（统一招式播放与逐帧驱动）— P0
 - [ ] `nextActionId` / 简单连段字段（M2）；完整 `ActionGraph` — P3
 - [ ] `CharacterCombatProfile`（角色引用动作库 + 默认 Graph）— P1
 
@@ -261,7 +261,7 @@
 
 - [ ] `ActionDefinition`、`ActionPhase`、`ActionEvent`、`HitboxKeyframe`、`CancelWindow` 类型定义
 - [ ] SO 创建菜单与示例资产（Player Attack1–3、Evade、Skill1；Enemy Attack）
-- [ ] `ActionRuntimeController` 运行时逐帧执行
+- [ ] `ActionExecutor` 运行时逐帧执行
 - [ ] 从 Animation Event 迁移到 ActionEvent 的辅助脚本
 
 #### Phase B — 基础 Editor 窗口（M5）
@@ -307,7 +307,7 @@
 ### Milestone 2 — 能打（预计 1–2 周）
 
 - [ ] Combat 核心（HP、Hitbox、伤害）
-- [ ] `ActionDefinition` 数据结构 + `ActionRuntimeController`（简化版）
+- [ ] `ActionDefinition` 数据结构 + `ActionExecutor`（简化版）
 - [ ] 玩家 Attack 连段 + Dodge
 - [ ] 敌人基础 AI（追击 + 单次攻击）
 - [ ] 受击 / 死亡流程
@@ -345,7 +345,7 @@
 - [ ] `ActionDefinition` 全套数据结构落地
 - [ ] 现有招式迁移为 SO 资产
 - [ ] `ActionEditorWindow` 基础版
-- [ ] 敌人招式共用 `ActionRuntimeController`
+- [ ] 敌人招式共用 `ActionExecutor`
 
 **验收标准：** 可在 Editor 内编辑一条新普攻并进入 Play Mode 验证，无需改代码。
 
@@ -380,7 +380,7 @@ Assets/_Game/
 │   ├── Input/      # InputReader、InputActions 绑定
 │   ├── Player/     # PlayerController、PlayerStateMachine（薄层）
 │   ├── Combat/
-│   │   ├── Actions/              # ActionDefinition、ActionRuntimeController
+│   │   ├── Actions/              # ActionDefinition、ActionExecutor
 │   │   └── ...                   # Health、Damage、Hitbox
 │   ├── Enemy/      # EnemyAI、Spawner（招式委托 ActionRuntime）
 │   ├── Camera/     # CameraController、LockOn
@@ -414,7 +414,7 @@ Core 框架
   ├── Input 输入
   │     └── Player 控制器
   │           └── Player 状态机（Locomotion / Hit / Death）
-  │                 └── ActionRuntimeController ← ActionDefinition SO
+  │                 └── ActionExecutor ← ActionDefinition SO
   │                       └── Combat（Hitbox、伤害、反馈）
   │                             ├── Enemy AI（同样使用 ActionRuntime）
   │                             └── UI HUD
@@ -430,7 +430,7 @@ Action Editor（M5+）──编辑──→ ActionDefinition / ActionGraph SO
 1. Core + Input  
 2. Player 移动 + Camera  
 3. Animator Locomotion  
-4. **ActionDefinition 数据结构 + ActionRuntimeController（简化版）**  
+4. **ActionDefinition 数据结构 + ActionExecutor（简化版）**
 5. Combat（Hitbox + 伤害，读取 Action 帧数据）  
 6. 手写 Player / Enemy 招式 SO（Attack1–3、Evade、Skill1）  
 7. Enemy AI + 受击 / 死亡  

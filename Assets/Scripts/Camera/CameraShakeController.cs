@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// 基于 Cinemachine Impulse 的镜头震动入口；挂载在场景相机管理对象上，
-/// 订阅 CombatHitFeedback 在命中时触发。
+/// 订阅 AttackHitEvent 在命中时触发。
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(CameraManager))]
@@ -32,12 +32,12 @@ public class CameraShakeController : MonoBehaviour
 
     void OnEnable()
     {
-        CombatHitFeedback.AttackHit += HandleAttackHit;
+        ACTGameArchitecture.Interface.RegisterEvent<AttackHitEvent>(HandleAttackHit);
     }
 
     void OnDisable()
     {
-        CombatHitFeedback.AttackHit -= HandleAttackHit;
+        ACTGameArchitecture.Interface.UnregisterEvent<AttackHitEvent>(HandleAttackHit);
     }
 
     void Start()
@@ -62,10 +62,10 @@ public class CameraShakeController : MonoBehaviour
         _boundVirtualCamera = virtualCamera;
     }
 
-    /// <summary>CombatHitFeedback 命中回调。</summary>
-    void HandleAttackHit(ActionDefinition action, Vector3 worldHitDirection)
+    /// <summary>AttackHitEvent 命中回调。</summary>
+    void HandleAttackHit(AttackHitEvent hitEvent)
     {
-        PlayFromAction(action, worldHitDirection);
+        PlayFromAction(hitEvent.Context.Action, hitEvent.HitDirection);
     }
 
     /// <summary>按招式配置播放命中震动；无 Profile 时回退到默认攻击预设。</summary>

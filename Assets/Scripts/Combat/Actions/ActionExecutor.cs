@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-/// <summary>通用招式播放器：UpdateFrame 统一 Logic Tick；经 ICombatModeController 单向访问战斗模式。</summary>
-public sealed class ActionRuntimeController : IActionRuntime, IActionHitReceiver
+/// <summary>单角色动作执行器：UpdateFrame 统一 Logic Tick；经 ICombatModeController 单向访问战斗模式。</summary>
+public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 {
     readonly Transform _actorRoot;
     readonly CharacterAnimationController animationController;
@@ -18,7 +18,7 @@ public sealed class ActionRuntimeController : IActionRuntime, IActionHitReceiver
     IActionComboInput _comboInput;
     IActionStartContext _startContext;
 
-    /// <summary>当前招式会话；外部只读，状态写入集中在本控制器。</summary>
+    /// <summary>当前招式会话；外部只读，状态写入集中在本执行器。</summary>
     public ActionSession Session => _session;
 
     public bool IsPlaying => _session.IsActive;
@@ -37,9 +37,9 @@ public sealed class ActionRuntimeController : IActionRuntime, IActionHitReceiver
     public int CurrentFrame =>
         _session.IsActive ? _session.CurrentAction.FrameAt(_session.ElapsedSeconds) : 0;
 
-    float IActionRuntime.ElapsedSeconds => _session.ElapsedSeconds;
+    float IActionExecutor.ElapsedSeconds => _session.ElapsedSeconds;
 
-    int IActionRuntime.CurrentFrame =>
+    int IActionExecutor.CurrentFrame =>
         _session.IsActive ? _session.CurrentAction.FrameAt(_session.ElapsedSeconds) : 0;
 
     /// <summary>Logic Tick 帧推进；编辑器 Scrub 与 Play Mode 共用。</summary>
@@ -61,8 +61,8 @@ public sealed class ActionRuntimeController : IActionRuntime, IActionHitReceiver
         return Array.Empty<InputActionReference>();
     }
 
-    /// <summary>创建纯 C# 招式运行时；所有依赖在 Bootstrap 阶段一次性注入。</summary>
-    public ActionRuntimeController(
+    /// <summary>创建纯 C# 招式执行器；所有依赖在 Bootstrap 阶段一次性注入。</summary>
+    public ActionExecutor(
         Transform actorRoot,
         CharacterController motor,
         CharacterAnimationController animation,
@@ -76,7 +76,7 @@ public sealed class ActionRuntimeController : IActionRuntime, IActionHitReceiver
         _combatMode = combatMode;
     }
 
-    /// <summary>注册 Logic Tick 消费者（Hitbox、VFX 等）；Awake 时会自动发现同物体实现。</summary>
+    /// <summary>注册 Logic Tick 消费者（Hitbox、VFX 等）。</summary>
     public void RegisterFrameConsumer(ICombatFrameConsumer consumer)
     {
         if (consumer != null && !_frameConsumers.Contains(consumer))

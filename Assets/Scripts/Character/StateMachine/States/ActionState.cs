@@ -1,3 +1,4 @@
+/// <summary>角色动作状态：锁定 Locomotion 动画，推进 ActionExecutor 并在动作结束后回到移动状态。</summary>
 public class ActionState : CharacterState
 {
     public override CharacterStateType Id => CharacterStateType.Action;
@@ -17,7 +18,7 @@ public class ActionState : CharacterState
 
     public override void Exit()
     {
-        Context.ActionRuntime?.Stop();
+        Context.ActionExecutor?.Stop();
         Context.Animation.SetLocked(false);
         Context.Animation.ResetPlaybackState();
     }
@@ -26,7 +27,7 @@ public class ActionState : CharacterState
     {
         Context.Movement.ClearMoveSnapshot();
         SyncMotorSnapshot();
-        if (!AdvanceActionRuntime(deltaTime))
+        if (!AdvanceActionExecutor(deltaTime))
         {
             Context.StateMachine.TryChangeState(CharacterStateType.Locomotion);
             return;
@@ -43,13 +44,14 @@ public class ActionState : CharacterState
         Context.IsGrounded = Context.Movement.IsGrounded;
     }
 
-    bool AdvanceActionRuntime(float deltaTime)
+    /// <summary>推进单角色动作执行器；动作结束时返回 false 以回到 Locomotion。</summary>
+    bool AdvanceActionExecutor(float deltaTime)
     {
-        IActionRuntime runtime = Context.ActionRuntime;
-        if (runtime == null)
+        IActionExecutor executor = Context.ActionExecutor;
+        if (executor == null)
             return false;
 
-        runtime.Tick(deltaTime);
-        return runtime.IsPlaying;
+        executor.Tick(deltaTime);
+        return executor.IsPlaying;
     }
 }

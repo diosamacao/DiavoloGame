@@ -6,7 +6,7 @@ public sealed class ActionRotationDriver
     readonly Transform _actorRoot;
     readonly InputManager _input;
     readonly IMoveIntentResolver _moveResolver;
-    readonly ActionRuntimeController actionRuntime;
+    readonly ActionExecutor actionExecutor;
     readonly CombatTargetLock targetLock;
     float _rotationVelocity;
 
@@ -15,20 +15,20 @@ public sealed class ActionRotationDriver
         Transform actorRoot,
         InputManager inputManager,
         IMoveIntentResolver moveResolver,
-        ActionRuntimeController runtime,
+        ActionExecutor executor,
         CombatTargetLock lockState)
     {
         _actorRoot = actorRoot;
         _input = inputManager;
         _moveResolver = moveResolver;
-        actionRuntime = runtime;
+        actionExecutor = executor;
         targetLock = lockState;
     }
 
     /// <summary>Action 状态下推进索敌和旋转窗口。</summary>
     public void Tick()
     {
-        ActionSession session = actionRuntime.Session;
+        ActionSession session = actionExecutor.Session;
         targetLock.Tick(session);
         TryApplyActionRotation();
     }
@@ -48,8 +48,8 @@ public sealed class ActionRotationDriver
         direction = Vector3.zero;
         smoothTime = _moveResolver.DefaultRotationSmoothTime;
 
-        ActionSession session = actionRuntime.Session;
-        if (!session.IsActive || !actionRuntime.CanRotateByInput)
+        ActionSession session = actionExecutor.Session;
+        if (!session.IsActive || !actionExecutor.CanRotateByInput)
             return false;
 
         ActionDefinition action = session.CurrentAction;

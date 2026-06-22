@@ -1,4 +1,4 @@
-/// <summary>订阅 ActionRuntimeController Logic Tick 的子系统（Hitbox、VFX、未来 ActionEvent 等）。</summary>
+/// <summary>订阅 ActionExecutor Logic Tick 的子系统（Hitbox、VFX、未来 ActionEvent 等）。</summary>
 public interface ICombatFrameConsumer
 {
     /// <summary>新招式开始播放时调用，用于清空帧追踪状态。</summary>
