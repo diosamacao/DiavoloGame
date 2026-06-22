@@ -2,14 +2,14 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 攻击侧 Hitbox 运行时：订阅 ActionRuntimeController Logic Tick，
+/// 攻击侧 Hitbox 运行时：订阅 ActionExecutor Logic Tick，
 /// 与场景 IHurtboxTarget 做 OBB 重叠检测。
 /// </summary>
 public sealed class HitBoxSystem : ICombatFrameConsumer
 {
     readonly Transform root;
     readonly Transform attachPoint;
-    readonly ActionRuntimeController actionRuntime;
+    readonly ActionExecutor actionExecutor;
 
     /// <summary>Hitbox 局部变换挂点；为空时使用本物体 Transform。</summary>
     public Transform AttachPoint => attachPoint;
@@ -18,13 +18,13 @@ public sealed class HitBoxSystem : ICombatFrameConsumer
     ActionDefinition _trackedAction;
 
     /// <summary>招式运行时只读访问，供帧采样与 Hitbox 检测。</summary>
-    IActionRuntime Runtime => actionRuntime;
+    IActionExecutor Runtime => actionExecutor;
 
     /// <summary>创建纯 C# Hitbox 帧消费者。</summary>
-    public HitBoxSystem(Transform actorRoot, ActionRuntimeController runtime, Transform hitboxAttachPoint)
+    public HitBoxSystem(Transform actorRoot, ActionExecutor executor, Transform hitboxAttachPoint)
     {
         root = actorRoot;
-        actionRuntime = runtime;
+        actionExecutor = executor;
         attachPoint = hitboxAttachPoint != null ? hitboxAttachPoint : actorRoot;
     }
 
@@ -58,7 +58,7 @@ public sealed class HitBoxSystem : ICombatFrameConsumer
             root,
             attachPoint,
             _hitPairs,
-            actionRuntime);
+            actionExecutor);
     }
 
     /// <summary>切换招式时清空命中缓存，避免跨招误判。</summary>

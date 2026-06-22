@@ -65,7 +65,7 @@
 
 | 路线 | 数据载体 | 编辑体验 | 运行时 | ACTGame 结论 |
 |------|----------|----------|--------|--------------|
-| **A. SO 帧表 + 自研 Editor** | `ActionDefinition` SO | 专用窗口 + 时间轴 + Gizmo | `ActionRuntimeController` | ✅ **采用** |
+| **A. SO 帧表 + 自研 Editor** | `ActionDefinition` SO | 专用窗口 + 时间轴 + Gizmo | `ActionExecutor` | ✅ **采用** |
 | **B. Timeline 扩展** | Timeline Asset + Custom Track | 复用 Timeline UI | PlayableGraph / 自研 Player | 🟡 仅借鉴轨道 UI，不引入依赖 |
 | **C. Animation Event 烘焙** | 写在 Clip 上 | 简单 | 监听 Animator 事件 | 🟡 Phase B 迁移辅助 only |
 | **D. 第三方全栈** | 插件格式 | 开箱即用 | 插件 Runtime | ❌ 与 `CharacterStateMachine` 冲突 |
@@ -74,7 +74,7 @@
 
 - 已有 `CharacterStateMachine` + 薄层 `ActionState`，`CharacterAnimationController.PlayClip()` 已支持招式直播
 - 约定 **Animator Controller 只管 Locomotion**，招式由 `ActionDefinition` 引用 Clip
-- 玩家 / 敌人共用 `ActionRuntimeController`，不绑定单一品类插件
+- 玩家 / 敌人共用 `ActionExecutor`，不绑定单一品类插件
 - 当前规模适合 **ScriptableObject**；若后续要热更再考虑从 SO 导出二进制
 
 ### 2.3 国内实战经验映射（Gordon ACT 编辑器）
@@ -116,7 +116,7 @@
 | `ActionTransition` | 动作结束与分支衔接（`AnimationEnd` / `OnHit` 等） |
 | `ActionPhase` 打断规则 | 各阶段 `interruptible` + 受击反应引用 |
 | `ActionEvent` | VFX / SFX / 位移 / 顿帧等帧触发 |
-| `ActionRuntimeController` | 逐帧驱动 Animator + Combat + 取消 |
+| `ActionExecutor` | 逐帧驱动 Animator + Combat + 取消 |
 | `ActionEditorWindow` 基础版 | 列表 + Inspector 增强 + 自动算帧数 |
 
 #### Should Have（M6）
@@ -171,7 +171,7 @@ ActionDefinition                # 单个战斗动作（核心资产）
     ├── MovementCurve           # 位移 / Root Motion 覆盖
     ├── CancelWindow[]          # 取消窗口：动作取消 / 移动取消（≈ ChangeCtrl）
     └── ActionTransition[]      # 结束衔接与分支：AnimationEnd / OnHit / OnWhiff ...
-ActionRuntimeController         # 运行时执行器（Player / Enemy 共用）
+ActionExecutor                  # 动作执行器（Player / Enemy 共用）
     └── 读取 ActionDefinition，驱动 Animator + Combat；Logic Tick 与编辑器帧一致
 ```
 
@@ -281,7 +281,7 @@ ActionRuntimeController         # 运行时执行器（Player / Enemy 共用）
 | 类型 | 行为 | `targetActionId` |
 |------|------|------------------|
 | `Action` | **动作取消** — 切到另一个 `ActionDefinition`（连段、闪避、技能） | 必填（或走 ActionGraph 默认边） |
-| `Movement` | **移动取消** — 结束当前招式，退出 `ActionState`，回到 `Locomotion`；动画可 CrossFade 截断或播完剩余后摇 | 为空；由 `ActionRuntimeController` 通知状态机切 Locomotion |
+| `Movement` | **移动取消** — 结束当前招式，退出 `ActionState`，回到 `Locomotion`；动画可 CrossFade 截断或播完剩余后摇 | 为空；由 `ActionExecutor` 通知状态机切 Locomotion |
 
 后摇常见配置模式：
 
@@ -341,7 +341,7 @@ Recovery [19───────────────41]
 
 节点 = `ActionDefinition` 引用，边 = 输入 / 条件 / 自动连段。参考 Combo Graph 的输入边可视化。
 
-**受击与收招：** `actionType: Hit` 的招式（轻受击、重受击、浮空、击飞、倒地）与攻击招式共用 `ActionDefinition` 格式，由 `CharacterStateMachine` 的 `Hit` 状态或 `ActionRuntimeController` 播放。Graph 边 `[Any] --受击--> [Hit_Light]` 指向对应受击资产；受击结束通过 `ActionTransition(AnimationEnd)` 或 Graph 边回到 Locomotion / 战斗待机。
+**受击与收招：** `actionType: Hit` 的招式（轻受击、重受击、浮空、击飞、倒地）与攻击招式共用 `ActionDefinition` 格式，由 `CharacterStateMachine` 的 `Hit` 状态或 `ActionExecutor` 播放。Graph 边 `[Any] --受击--> [Hit_Light]` 指向对应受击资产；受击结束通过 `ActionTransition(AnimationEnd)` 或 Graph 边回到 Locomotion / 战斗待机。
 
 ### 3.9 ActionSegment（可选，多动画拼招）
 
@@ -384,7 +384,7 @@ Recovery [19───────────────41]
 | `Hit` | 受击硬直、浮空、倒地；播放 `actionType: Hit` 的 `ActionDefinition` |
 | `Locomotion` | 移动；**移动取消**从 `Action` 退出后进入 |
 
-`ActionRuntimeController` 负责在 `Action` / `Hit` 状态下逐帧推进；是否切状态由 Cancel、Interrupt、Transition 三类规则共同决定。
+`ActionExecutor` 负责在 `Action` / `Hit` 状态下逐帧推进；是否切状态由 Cancel、Interrupt、Transition 三类规则共同决定。
 
 ---
 
@@ -419,7 +419,7 @@ Recovery [19───────────────41]
 
 - [ ] 定义 `ActionDefinition`、`ActionPhase`、`ActionEvent`、`HitboxKeyframe`、`HurtboxKeyframe`、`CancelWindow`（含 `cancelType`）、`ActionTransition` 等类型
 - [ ] ScriptableObject 资产创建菜单（`Assets/Data/Combat/Actions/`）
-- [ ] 运行时 `ActionRuntimeController` 读取 SO，**Logic Tick 与帧索引对齐**
+- [ ] 运行时 `ActionExecutor` 读取 SO，**Logic Tick 与帧索引对齐**
 - [ ] 用 Inspector 手动填 Attack1–3、Evade 数据验证格式
 - [ ] Hitbox 简化版：每动作 1 个固定区间即可跑通 Demo
 
@@ -476,7 +476,7 @@ Recovery [19───────────────41]
 ```
 输入 / AI 决策
     → ActionGraph 解析下一动作 id（或 CancelWindow 直接指定）
-    → ActionRuntimeController.Play(actionId)
+    → ActionExecutor.Play(actionId)
         → 加载 ActionDefinition
         → CharacterAnimationController.PlayClip(clip)  // AC 仅 Locomotion
         → 每 Logic Tick：UpdateFrame(frameIndex)   // 与编辑器 scrub 同一套逻辑
@@ -491,7 +491,7 @@ Recovery [19───────────────41]
         → targetActionId 或 null（Locomotion / 战斗待机）
 ```
 
-**输入缓冲：** `InputReader` 在招式播放全程缓存输入；`ActionRuntimeController` 仅在有效 `CancelWindow` 内消费，避免过早连段。
+**输入缓冲：** `InputReader` 在招式播放全程缓存输入；`ActionExecutor` 仅在有效 `CancelWindow` 内消费，避免过早连段。
 
 ### 5.2 与现有模块的关系
 
@@ -530,7 +530,7 @@ Assets/
 │   │   │   ├── CancelWindow.cs
 │   │   │   ├── ActionTransition.cs
 │   │   │   ├── ActionGraph.cs
-│   │   │   └── ActionRuntimeController.cs
+│   │   │   └── ActionExecutor.cs
 │   │   └── ...                         # Health, Damage, HitReaction 等
 │   └── Editor/
 │       └── ActionEditor/
@@ -648,7 +648,7 @@ transitions:
 
 | 里程碑 | 目标 | 依赖 |
 |--------|------|------|
-| **M2'** | `ActionDefinition` SO + 简化 `ActionRuntimeController`，手写 Attack1 可运行 | M2 战斗原型 |
+| **M2'** | `ActionDefinition` SO + 简化 `ActionExecutor`，手写 Attack1 可运行 | M2 战斗原型 |
 | **M5** | `ActionEditorWindow` 基础版 + GM 热重载 + 招式迁移 | M3 Demo 可玩 |
 | **M6** | Frameline 时间轴 + Hitbox/Hurtbox Scene 预览 | M5 |
 | **M7** | ActionGraph + 数值权重校验 + 导入导出 | M6 |
@@ -663,7 +663,7 @@ transitions:
 | 编辑器开发量大 | Phase A→E 分阶段；M2 仅 SO 手写；M5 不做完整时间轴 |
 | 与 Animator Controller 双重维护 | 招式 clip 只由 ActionDefinition 引用；AC 只管 Locomotion |
 | Hitbox 逐帧数据膨胀 | 默认 **区间** 编辑；关键招再逐帧微调 |
-| 预览与运行时不一致 | 共用 `ActionRuntimeController.UpdateFrame`；Logic Tick = 编辑器帧 |
+| 预览与运行时不一致 | 共用 `ActionExecutor.UpdateFrame`；Logic Tick = 编辑器帧 |
 | 策划学习成本 | 模板复制 + 文档示例 + 一体化窗口 |
 | 无 Undo/Redo | M5 用 Duplicate / Copy；M7 再评估全局 Undo |
 | 数值与帧数据耦合 | `damageWeight` 在编辑器，总伤害在配表；Combat 层结算 |
@@ -680,7 +680,7 @@ transitions:
 
 1. 策划 / 程序可在 **不修改 C# 代码** 的情况下，新建一条普攻并配置三相、Hitbox、受击框、**动作/移动取消**、结束衔接与特效事件
 2. 编辑态可 scrub 预览 Hitbox / Hurtbox 与动画同步；Cancels 轨道区分 Action / Movement
-3. 玩家与敌人共用 `ActionRuntimeController`；受击招式同为 `ActionDefinition`（`actionType: Hit`）
+3. 玩家与敌人共用 `ActionExecutor`；受击招式同为 `ActionDefinition`（`actionType: Hit`）
 4. Attack1–3、Evade、Sp_Skill1 全部迁移为 `ActionDefinition` 资产
 5. Play Mode 下通过 GM 热重载即可验证编辑结果，无需重启 Editor
 6. 后摇至少可配置一段 **动作取消** 与一段 **移动取消**（或文档化为何某招不需要）

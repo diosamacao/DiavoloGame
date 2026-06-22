@@ -1,18 +1,18 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-06-21  
+> Last updated: 2026-06-23
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
 
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
-| 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterRuntime` + `CharacterConfig` | Scene Empty + CharacterConfig |
+| 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（移动 + 视角 + 离散按键） | ✅ 已实现 | `ICharacterInputSource`、纯 C# `InputReader`、`InputManager` | `GameInputActions.inputactions` |
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionState` | `Player_KatanaGirl_AnimationProfile.asset` |
 | 第三人称相机 | ✅ 已实现 | `CameraManager` | 场景内 CameraManager 对象 |
-| 动作系统（播放 / 取消 / 连段 / 战斗模式） | ✅ 已实现 | 纯 C# `ActionRuntimeController`、`CombatModeController` | `CombatModeProfile`、`ActionComboSequence` |
+| 动作系统（播放 / 取消 / 连段 / 战斗模式） | ✅ 已实现 | 纯 C# `ActionExecutor`、`CombatModeController` | `CombatModeProfile`、`ActionComboSequence` |
 | 攻击 / 战斗判定 | 🟡 部分实现 | 纯 C# `HitBoxSystem` + `HitDetectionSystem` OBB + 命中回流 | 无伤害、Hit 状态 |
 | 敌人 AI | ⬜ 未实现 | — | `Enemy/` 占位 |
 | UI | ⬜ 未实现 | — | `UI/` 占位 |
@@ -65,7 +65,7 @@ Update
 
 ### 已知限制
 
-- Locomotion 水平移动由 `LocomotionState` 拥有；重力仍由 `CharacterRuntime` 每帧统一推进
+- Locomotion 水平移动由 `LocomotionState` 拥有；重力仍由 `CharacterActor` 每帧统一推进
 - `cameraTransform` 未绑定时回退为世界 XZ 平面移动
 
 ### 相关文件
@@ -89,7 +89,7 @@ Update
 | 形态 | `InputReader` 为玩家纯 C# 输入源，实现 `ICharacterInputSource` |
 | 绑定 | Awake 时 `FindActionMap("Player")`，缓存 Move/Look Action |
 | 生命周期 | OnEnable/OnDisable 启用/禁用整个 Asset |
-| 消费方 | `CharacterRuntime` 读 Move；`CameraManager` 通过 `PlayerController.Input` 读 Look |
+| 消费方 | `CharacterActor` 读 Move；`CameraManager` 通过 `PlayerController.Input` 读 Look |
 
 ### 绑定摘要
 
@@ -113,7 +113,7 @@ Update
 
 ### 功能说明
 
-状态机驱动角色逻辑；角色侧通过 `CharacterRuntime` 每帧摄入输入并 Tick 当前 State。
+状态机驱动角色逻辑；角色侧通过 `CharacterActor` 每帧摄入输入并 Tick 当前 State。
 
 ### 实现方案
 
@@ -134,32 +134,32 @@ StateMachine<TStateId, TContext>
 
 **Player 层**
 
-- `CharacterRuntime`：采集输入、处理动作路由、推进重力，再 Tick `CharacterStateMachine`
+- `CharacterActor`：采集输入、处理动作路由、推进重力，再 Tick `CharacterStateMachine`
 
 ### 已注册状态
 
 | State | Id | Enter | Tick | Exit |
 |-------|-----|-------|------|------|
 | `LocomotionState` | 10 | — | `CharacterMotor.TickLocomotion` + 选 AnimationKey 并 Play | — |
-| `ActionState` | 60 | `Animation.SetLocked(true)` | `ActionRuntimeController.Tick` + `ActionRotationDriver.Tick` | Unlock + ResetPlaybackState |
+| `ActionState` | 60 | `Animation.SetLocked(true)` | `ActionExecutor.Tick` + `ActionRotationDriver.Tick` | Unlock + ResetPlaybackState |
 
 ### 运行时流程（玩家）
 
 ```
-CharacterRuntime.Tick
+CharacterActor.Tick
   → InputReader.CaptureFrame / InputManager.IngestFrame
   → CharacterActionDriver.ProcessGameplayInput
   → CharacterMotor.TickGravity
   → CharacterStateMachine.Tick
       → LocomotionState.Tick → CharacterMotor.TickLocomotion → CharacterAnimationController.Play(key)
-      → ActionState.Tick → ActionRuntimeController.Tick → ActionRotationDriver.Tick
+      → ActionState.Tick → ActionExecutor.Tick → ActionRotationDriver.Tick
 ```
 
 ### 相关文件
 
 - `Assets/Scripts/Core/StateMachine/*`
 - `Assets/Scripts/Character/StateMachine/*`
-- `Assets/Scripts/Character/CharacterRuntime.cs`
+- `Assets/Scripts/Character/CharacterActor.cs`
 
 ---
 
@@ -292,12 +292,12 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 
 ### 运行时装配
 
-- `PlayerController.Awake` 校验 `CharacterConfig`，创建 `InputReader`，调用 `CharacterRuntimeFactory.Create`
+- `PlayerController.Awake` 校验 `CharacterConfig`，创建 `InputReader`，调用 `CharacterActorFactory.Create`
 - 实例化模型 Prefab，查找 Animator
 - Player 根只补齐 Unity 必需的 `CharacterController`
-- 构造纯 C# `InputReader`、`CharacterAnimationController`、`CombatModeController`、`ActionRuntimeController`、`CharacterStateMachine`
+- 构造纯 C# `InputReader`、`CharacterAnimationController`、`CombatModeController`、`ActionExecutor`、`CharacterStateMachine`
 - 注册纯 C# `HitBoxSystem` / `ActionVfxPlayer` 为 Logic Tick 消费者
-- `CharacterRuntime.Tick` 统一输入采集、动作路由、重力和状态机；状态自身调度 Locomotion 移动或 Action 旋转
+- `CharacterActor.Tick` 统一输入采集、动作路由、重力和状态机；状态自身调度 Locomotion 移动或 Action 旋转
 
 ### Editor 操作
 
@@ -317,18 +317,18 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 
 | 项 | 方案 |
 |----|------|
-| 起手 / 缓冲 | `CharacterActionDriver` → `ActionRuntimeController.TryStartByInput` |
+| 起手 / 缓冲 | `CharacterActionDriver` → `ActionExecutor.TryStartByInput` |
 | 移动取消 | `CharacterActionDriver` + `CancelWindow(Movement)` |
 | 招式旋转 | `ActionRotationDriver` + `CombatTargetLock` |
-| Logic Tick | `ActionRuntimeController.UpdateFrame` → `ICombatFrameConsumer` + `IActionEventConsumer` |
+| Logic Tick | `ActionExecutor.UpdateFrame` → `ICombatFrameConsumer` + `IActionEventConsumer` |
 | 命中回流 | `HitBoxSystem` → `IActionHitReceiver.NotifyHit` |
-| Motor | `CharacterMotor`（Locomotion 位移）+ `CharacterRuntime`（重力调度） |
+| Motor | `CharacterMotor`（Locomotion 位移）+ `CharacterActor`（重力调度） |
 
 ### 运行时流程（Logic Tick）
 
 ```
 ActionState.Tick
-  → ActionRuntimeController.Tick(deltaTime)
+  → ActionExecutor.Tick(deltaTime)
       → SyncLogicFrameFromElapsed → DispatchCombatFrame
           → HitBoxSystem.OnCombatFrameAdvanced
           → ActionVfxPlayer.OnCombatFrameAdvanced
@@ -384,3 +384,4 @@ ActionState.Tick
 | 2026-06-17 | 初版：移动、输入、状态机、动画、相机、Prefab 文档化 |
 | 2026-06-17 | 动作系统 §7：ComboSequence、CombatMode、ACTION_EDITOR 对齐摘要 |
 | 2026-06-21 | ActionEditor 准备重构：CharacterActionDriver、UpdateFrame、Phase/Event 骨架、命中回流 |
+| 2026-06-23 | QFramework 风格架构改造：CharacterActor、ActionExecutor、ACTGameArchitecture、ApplyHitCommand、AttackHitEvent、TargetSystem |

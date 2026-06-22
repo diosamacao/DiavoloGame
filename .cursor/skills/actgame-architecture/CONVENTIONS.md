@@ -21,6 +21,8 @@
 - 占位目录保留 `.gitkeep`，实现后删除 `.gitkeep`
 - 角色装配配置集中在 `CharacterConfig`；Scene 玩家入口只挂 `PlayerController` 并引用配置资产
 - 玩家根对象运行时禁止挂载业务脚本；除 `PlayerController` 与 Unity 必需组件（如 `CharacterController`）外，角色业务必须是纯 C# runtime/service
+- 新架构代码遵循 `Controller / System / Model / Command / Event / Query / Actor / Executor` 后缀语义；禁止新增泛化 `Runtime` 后缀业务类
+- 跨系统通信使用 `ACTGameArchitecture` 的 Command / Event；动作帧内部可保留 `ActionExecutor` → `ICombatFrameConsumer` 的强时序直连
 
 ## Unity 组件模式
 
@@ -64,11 +66,11 @@ public class MyBehaviour : MonoBehaviour
 
 - 使用 Input System + `.inputactions` 资产；Action Map 命名 `Player`
 - **采集**：输入源实现 `ICharacterInputSource`，玩家使用纯 C# `InputReader`，敌人可使用 AI 输入源
-- **中枢**：`InputManager` 由 `CharacterRuntime` 持有；`IngestFrame` + `RegisterPressed(string inputId, Action)`
+- **中枢**：`InputManager` 由 `CharacterActor` 持有；`IngestFrame` + `RegisterPressed(string inputId, Action)`
 - **离散 id**：Input System Action **名**；出招表 `ActionEntry` → `ActionComboSequence`
 - **连招**：Cancel 窗只配帧/输入；下一招由 `ActionComboSequence.TryResolveNext` 进位（非 Cancel 内 targetAction）
 - **战斗模式**：`CombatModeProfile` + `CombatModeController`；与 `PlayerActionSet` 解耦
-- **缓冲**：招式中 `Buffer(inputId)`；`ActionRuntimeController` 经 `IActionComboInput` 在 `CancelWindow` 内消费
+- **缓冲**：招式中 `Buffer(inputId)`；`ActionExecutor` 经 `IActionComboInput` 在 `CancelWindow` 内消费
 - 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `CharacterMotor` / State）
 - **玩家装配**：`InputActionAsset` 由 `CharacterConfig` 注入 `InputReader`，不在玩家 Prefab 上重复配置
 
@@ -101,6 +103,7 @@ public class MyBehaviour : MonoBehaviour
 | 大范围命名空间重构（未经计划） | 全项目 diff 噪声 |
 | 为单个角色运行时业务堆多个必须手工挂载的脚本 | 优先用 `CharacterConfig` + Bootstrap / Facade 装配，跨角色逻辑迁到 System |
 | 在 `PlayerController.Awake` 中为业务类 `AddComponent` | 这只是把 Prefab 堆脚本改成运行时堆脚本，必须改为纯 C# service |
+| 新增 static event / static registry 作为跨系统业务入口 | 破坏 QFramework 风格架构边界；应使用 Command / Event / System |
 
 ## 已废弃模式
 

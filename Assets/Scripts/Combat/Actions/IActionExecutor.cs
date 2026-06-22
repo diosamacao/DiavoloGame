@@ -1,7 +1,7 @@
 using System;
 
-/// <summary>招式播放运行时只读契约；Hitbox/VFX/Targeting 与 Character ActionState 共用。</summary>
-public interface IActionRuntime
+/// <summary>单角色动作执行器契约；Hitbox、VFX、Targeting 与 Character ActionState 共用。</summary>
+public interface IActionExecutor
 {
     bool IsPlaying { get; }
 
@@ -28,14 +28,18 @@ public interface IActionRuntime
     /// <summary>直接播放指定招式（ComboLink / Transition 内部使用）。</summary>
     bool TryStart(ActionDefinition action);
 
+    /// <summary>绑定连招输入缓冲桥接。</summary>
     void BindComboInput(IActionComboInput comboInput);
 
+    /// <summary>绑定招式开始副作用上下文。</summary>
     void BindActionStartContext(IActionStartContext startContext);
 
+    /// <summary>推进动作播放时间与逻辑帧。</summary>
     void Tick(float deltaTime);
 
     /// <summary>编辑器 Scrub 与 Play Mode 共用的 Logic Tick 入口。</summary>
     void UpdateFrame(int frameIndex);
 
+    /// <summary>停止当前动作并清理播放状态。</summary>
     void Stop();
 }

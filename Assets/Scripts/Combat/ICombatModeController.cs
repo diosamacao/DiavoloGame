@@ -13,7 +13,7 @@ public interface ICombatModeController
     /// <summary>模式切换时触发：(previous, current)。</summary>
     event Action<CombatModeType, CombatModeType> ModeChanged;
 
-    /// <summary>请求切换战斗模式；isActionPlaying 由调用方传入，本类不引用 ActionRuntime。</summary>
+    /// <summary>请求切换战斗模式；isActionPlaying 由调用方传入，本类不引用 ActionExecutor。</summary>
     CombatModeSwitchResult TrySetMode(
         CombatModeType mode,
         CombatModeSwitchPolicy policy = CombatModeSwitchPolicy.Immediate,

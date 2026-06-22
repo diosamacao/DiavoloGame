@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-06-21
+> Last audited: 2026-06-23
 
 ## 项目概述
 
@@ -20,11 +20,12 @@ Assets/
 │   ├── Player/                # PlayerController（玩家输入源适配）
 │   ├── Enemy/                 # （占位）
 │   ├── Combat/
-│   │   ├── Actions/           # ActionDefinition、ActionRuntimeController、CharacterActionDriver（纯 C#）
+│   │   ├── Actions/           # ActionDefinition、ActionExecutor、CharacterActionDriver（纯 C#）
 │   │   ├── Hitbox/            # OBB 判定
 │   │   ├── VFX/               # 招式 VFX 帧事件
 │   │   ├── Targeting/         # 索敌
 │   │   └── Feedback/          # 命中反馈、卡肉
+│   ├── Framework/             # 轻量 QFramework 风格 Architecture / System / Command / Event
 │   ├── Input/                 # Input System 封装
 │   ├── Camera/                # Cinemachine 第三人称相机
 │   ├── UI/                    # （占位）
@@ -81,24 +82,24 @@ flowchart TB
 | `CharacterContext` | 运行时共享数据（Transform、Animation、Motor、ActionRuntime） |
 | `CharacterStateMachine` | 纯 C# 状态机宿主：RegisterStates、Tick |
 | `LocomotionState` | Tick `CharacterMotor`，再根据 MoveInputMagnitude 选择 Idle/Walk/Run 动画 |
-| `ActionState` | Tick `IActionRuntime` + `ActionRotationDriver`，结束回 Locomotion |
+| `ActionState` | Tick `IActionExecutor` + `ActionRotationDriver`，结束回 Locomotion |
 | `CharacterConfig` | 角色装配根配置：模型、输入、动画、移动、战斗模式 |
 | `CharacterMotor` | 纯 C# 移动服务：Locomotion 位移、重力、移动意图解析 |
-| `CharacterRuntime` | 单角色纯 C# runtime：输入、Motor、状态机、动作、旋转 |
-| `CharacterRuntimeFactory` | 通过 `CharacterConfig` + `ICharacterInputSource` 创建角色运行时 |
+| `CharacterActor` | 单角色纯 C# Actor：输入、Motor、状态机、动作、旋转 |
+| `CharacterActorFactory` | 通过 `CharacterConfig` + `ICharacterInputSource` 创建角色实例 |
 
 **数据流（玩家）**：
 
 ```
 CharacterConfig → PlayerController（Empty 根创建玩家输入源）
                     ↓
-InputReader（ICharacterInputSource）→ CharacterRuntime（InputManager + 重力 + 状态机）
+InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力 + 状态机）
                     ↓
               CharacterActionDriver（起手 / 缓冲 / 移动取消）
                     ↓
               CharacterStateMachine
                     ├─ LocomotionState.Tick → CharacterMotor.TickLocomotion
-                    └─ ActionState.Tick → ActionRuntimeController + ActionRotationDriver
+                    └─ ActionState.Tick → ActionExecutor + ActionRotationDriver
                     ↓ UpdateFrame（Logic Tick）
               HitBoxSystem / ActionVfxPlayer（ICombatFrameConsumer）
 ```
@@ -108,23 +109,26 @@ InputReader（ICharacterInputSource）→ CharacterRuntime（InputManager + 重�
 | 类 | 职责 |
 |----|------|
 | `ActionDefinition` | 单招 SO：动画、Cancel、Transition、Hitbox、Phase/Event 骨架 |
-| `ActionRuntimeController` | 播放、Cancel、Transition、**UpdateFrame Logic Tick**、命中回流 |
+| `ActionExecutor` | 播放、Cancel、Transition、**UpdateFrame Logic Tick**、命中回流 |
 | `ActionSession` | 当前招式唯一会话状态：CurrentAction、Elapsed、命中确认、卡肉暂停 |
 | `CharacterActionDriver` | 角色无关：离散输入路由、起手切状态、移动取消 |
 | `ActionRotationDriver` | RotationWindow + 索敌转向 |
 | `CombatModeController` | 战斗模式、出招表、Locomotion Profile 切换 |
 | `CombatWorldSystem` | 场景级战斗系统生命周期锚点 |
-| `TargetRegistry` / `HitDetectionSystem` / `TargetingSystem` | 目标注册、命中检测、索敌查询集中入口 |
+| `ACTGameArchitecture` | 轻量架构入口：System 注册、Command 执行、Query 查询、Event 分发 |
+| `CombatActorSystem` / `TargetSystem` / `CombatFeedbackSystem` | 战斗角色注册、目标注册、反馈状态 |
+| `ApplyHitCommand` / `AttackHitEvent` | 命中后的跨系统通信入口 |
+| `HitDetectionSystem` / `TargetingSystem` | 命中检测、索敌查询集中入口 |
 | `PlayerActionSet` / `ActionComboSequence` | 起手映射与线性连招 |
 
-**Logic Tick 原则**：编辑器 Scrub 与 Play Mode 共用 `ActionRuntimeController.UpdateFrame(frameIndex)`；帧消费者实现 `ICombatFrameConsumer`。
+**Logic Tick 原则**：编辑器 Scrub 与 Play Mode 共用 `ActionExecutor.UpdateFrame(frameIndex)`；帧消费者实现 `ICombatFrameConsumer`。
 
 ### 4. 玩家（Player）
 
 | 类 | 职责 |
 |----|------|
-| `PlayerController` | Scene Empty 上唯一玩家脚本；创建 `InputReader` 并启停 `CharacterRuntime` |
-| `CharacterRuntime` | 输入采集、动作路由、重力、状态机 Tick |
+| `PlayerController` | Scene Empty 上唯一玩家脚本；创建 `InputReader` 并启停 `CharacterActor` |
+| `CharacterActor` | 输入采集、动作路由、重力、状态机 Tick |
 | `CharacterMotor` | Locomotion 位移、相机相对方向、起手面向、移动快照 |
 
 **注意**：`PlayerController` 现在是 Scene 空物体上的装配入口；通过 `CharacterConfig` 生成模型与纯 C# runtime。Player 根对象运行时只保留 `PlayerController` + `CharacterController`，不再挂载业务脚本。
@@ -164,8 +168,8 @@ InputReader（ICharacterInputSource）→ CharacterRuntime（InputManager + 重�
 | 需求 | 推荐接入位置 |
 |------|--------------|
 | 新玩家状态 | `CharacterStateType` + 新 State 类 + RegisterStates |
-| 新招式帧事件 | `ActionEvent` + `ICombatFrameConsumer` 或扩展 `ActionRuntimeController` |
-| 编辑器 Scrub | `ActionRuntimeController.UpdateFrame` |
+| 新招式帧事件 | `ActionEvent` + `ICombatFrameConsumer` 或扩展 `ActionExecutor` |
+| 编辑器 Scrub | `ActionExecutor.UpdateFrame` |
 | OnHit 收招 | `ActionTransitionCondition.OnHitConfirm` + `IActionHitReceiver` |
 | 敌人 AI 出招 | `CharacterActionDriver` + AI 输入源替换 `InputManager` |
 | 配置数据 | `Assets/Data/` ScriptableObject |

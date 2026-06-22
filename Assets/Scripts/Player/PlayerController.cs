@@ -8,10 +8,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] CharacterConfig characterConfig = null;
     [SerializeField] Transform cameraTransform;
 
-    CharacterRuntime runtime;
+    CharacterActor actor;
 
     /// <summary>玩家输入中枢，供 CameraManager 读取视角输入。</summary>
-    public InputManager Input => runtime?.Input;
+    public InputManager Input => actor?.Input;
 
     void Awake()
     {
@@ -32,7 +32,7 @@ public class PlayerController : MonoBehaviour
         }
 
         var inputSource = new InputReader(characterConfig.InputActions);
-        runtime = CharacterRuntimeFactory.Create(
+        actor = CharacterActorFactory.Create(
             gameObject,
             transform,
             characterConfig,
@@ -42,28 +42,28 @@ public class PlayerController : MonoBehaviour
 
     void OnEnable()
     {
-        runtime?.Enable();
+        actor?.Enable();
     }
 
     void OnDisable()
     {
-        runtime?.Disable();
+        actor?.Disable();
     }
 
     void OnDestroy()
     {
-        CombatRuntimeRegistry.Unregister(transform);
+        ACTGameArchitecture.Interface.GetSystem<CombatActorSystem>()?.Unregister(transform);
     }
 
     void Update()
     {
-        runtime?.Tick(Time.deltaTime);
+        actor?.Tick(Time.deltaTime);
     }
 
     /// <summary>相机就绪或切换后刷新运行时使用的相机 Transform。</summary>
     public void SetCameraTransform(Transform targetCamera)
     {
         cameraTransform = targetCamera;
-        runtime?.SetCameraTransform(targetCamera);
+        actor?.SetCameraTransform(targetCamera);
     }
 }

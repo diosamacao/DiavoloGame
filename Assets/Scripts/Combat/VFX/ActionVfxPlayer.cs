@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 订阅 ActionRuntimeController Logic Tick，在 ActionDefinition 配置的 triggerFrame 实例化 VFX Prefab。
+/// 订阅 ActionExecutor Logic Tick，在 ActionDefinition 配置的 triggerFrame 实例化 VFX Prefab。
 /// </summary>
 public sealed class ActionVfxPlayer : ICombatFrameConsumer
 {
