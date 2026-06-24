@@ -19,6 +19,8 @@ MonoBehaviour:
   totalFrames: 52
   actionType: 1
   crossFadeDuration: 0.1
+  phases: []
+  actionEvents: []
   cancelWindows:
   - startFrame: 15
     endFrame: 43
@@ -34,7 +36,26 @@ MonoBehaviour:
   startBehaviors: 01000000
   switchCombatModeTarget: 1
   switchCombatModePolicy: 0
-  useRootMotion: 0
+  hitboxes: []
+  vfxEvents: []
+  cameraShakeProfile: {fileID: 0}
+  disableCameraShakeOnHit: 0
+  useCameraShakeOnHit: 1
+  useHitStopOnHit: 1
+  disableHitStopOnHit: 0
+  hitStopFrames: 3
+  hitStopOncePerAction: 1
+  rotationWindow:
+    startFrame: 0
+    endFrame: -1
+    smoothTimeOverride: 0
+  targetLockSettings:
+    enabled: 0
+    lockRange: 8
+    forwardConeAngle: 120
+    policy: 0
+    lockRotationSmoothTimeOverride: 0
+  useRootMotion: 1
   displacementDistance: -3
   displacementStartFrame: 0
   displacementEndFrame: 4
