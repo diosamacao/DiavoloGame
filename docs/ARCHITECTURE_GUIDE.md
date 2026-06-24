@@ -27,6 +27,16 @@ ACTGame 的跨系统通信统一通过架构层完成：一次行为使用 Comma
 
 ## 分层职责
 
+## 目录落地（2026-06-24）
+
+- `Assets/Scripts/App/Architecture`：`ACTGameArchitecture` 与 `IArchitecture*` 契约
+- `Assets/Scripts/App/Commands`：跨系统行为命令（如 `ApplyHitCommand`）
+- `Assets/Scripts/App/Events`：跨系统事实事件（如 `AttackHitEvent`、`HitStop*Event`）
+- `Assets/Scripts/App/Systems`：注册到 Architecture 的业务系统（如 `CombatActorSystem`、`TargetSystem`、`CombatFeedbackSystem`）
+- `Assets/Scripts/App/Controllers`：Unity 入口层 `MonoBehaviour`（如 `PlayerController`、`CameraManager`、`CombatWorldSystem`）
+- `Assets/Scripts/Domain`：纯业务域对象（如 `Character/*`、`Combat/*`、`Input/*`、`Camera/*`）
+- `Assets/Scripts/Infrastructure`：外设与框架适配层（如 `InputReader`、`AIInputSource`）
+
 ### Controller
 
 - 只接收 Unity 生命周期、输入、碰撞、Inspector 引用。

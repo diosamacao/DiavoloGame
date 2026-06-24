@@ -21,41 +21,41 @@
 
 | 层级 | 文件 | 形态 | 职责 |
 |------|------|------|------|
-| Scene 入口 | `Assets/Scripts/Player/PlayerController.cs` | `MonoBehaviour` | Scene Empty 上唯一玩家脚本；创建玩家输入源并 Tick `CharacterActor` |
-| Actor 工厂 | `Assets/Scripts/Character/CharacterActorFactory.cs` | static 纯 C# | 读取 `CharacterConfig` + `ICharacterInputSource`，实例化模型，补齐 `CharacterController`，组装 Actor/Executor/Service |
-| 角色 Actor | `Assets/Scripts/Character/CharacterActor.cs` | 纯 C# | 输入采集、动作路由、重力、状态机 Tick |
-| 配置根 | `Assets/Scripts/Character/CharacterConfig.cs` | `ScriptableObject` 定义类 | 模型、输入、移动、动画、战斗模式、挂点名等角色配置 |
-| 输入源抽象 | `Assets/Scripts/Input/ICharacterInputSource.cs` | interface | 玩家、AI、回放、网络输入统一入口 |
-| 玩家输入源 | `Assets/Scripts/Input/InputReader.cs` | 纯 C# | Input System → `PlayerInputFrame` |
-| AI 输入源 | `Assets/Scripts/Input/AIInputSource.cs` | 纯 C# | AI 决策 → `PlayerInputFrame`，复用 `CharacterActorFactory` |
-| 输入中枢 | `Assets/Scripts/Input/InputManager.cs` | 纯 C# | 摄入输入帧、离散输入回调、输入缓冲、移动意图 |
-| 移动服务 | `Assets/Scripts/Character/CharacterMotor.cs` | 纯 C# | Locomotion 位移、重力、移动意图解析、起手面向 |
-| 动画服务 | `Assets/Scripts/Character/Animation/CharacterAnimationController.cs` | 纯 C# | Locomotion CrossFade、Action Clip 播放、动画锁 |
-| Root Motion | `Assets/Scripts/Character/Animation/CharacterRootMotionDriver.cs` | 纯 C# + 内部 Receiver | 控制 Animator Root Motion；内部 `CharacterRootMotionReceiver` 仅作为 `OnAnimatorMove` 桥接挂在 Animator 子物体 |
-| 状态机 | `Assets/Scripts/Character/StateMachine/CharacterStateMachine.cs` | 纯 C# | 注册并 Tick `LocomotionState` / `ActionState` |
-| 状态上下文 | `Assets/Scripts/Character/StateMachine/CharacterContext.cs` | 纯 C# | 状态机共享 Transform、Animation、Motor、ActionRuntime、Motor 快照 |
-| Locomotion 状态 | `Assets/Scripts/Character/StateMachine/States/LocomotionState.cs` | 纯 C# State | 根据移动幅度选择 Idle/Walk/Run |
-| Action 状态 | `Assets/Scripts/Character/StateMachine/States/ActionState.cs` | 纯 C# State | Tick `IActionExecutor`；招式结束回 Locomotion |
-| 战斗模式 | `Assets/Scripts/Combat/CombatModeController.cs` | 纯 C# | 当前模式、出招表、Locomotion Profile 切换 |
-| 动作执行 | `Assets/Scripts/Combat/Actions/ActionExecutor.cs` | 纯 C# | Action 播放、Cancel、Transition、Logic Tick、事件派发、命中回流 |
-| 动作会话 | `Assets/Scripts/Combat/Actions/ActionSession.cs` | 纯 C# | 当前招式、时间、逻辑帧、命中确认、卡肉暂停 |
-| 输入路由 | `Assets/Scripts/Combat/Actions/CharacterActionDriver.cs` | 纯 C# | 起手、输入缓冲、移动取消、离开 Action 后预输入消费 |
-| 动作旋转 | `Assets/Scripts/Combat/Actions/ActionRotationDriver.cs` | 纯 C# | RotationWindow 内按输入/锁定目标修正朝向 |
-| 索敌锁定 | `Assets/Scripts/Combat/Targeting/CombatTargetLock.cs` | 纯 C# | 单角色当前锁定目标状态 |
-| 架构入口 | `Assets/Scripts/Framework/ACTGameArchitecture.cs` | 纯 C# | System 注册、Command 执行、Query 查询、Event 分发 |
-| 战斗角色注册 | `Assets/Scripts/Framework/Systems/CombatActorSystem.cs` | 纯 C# System | Transform → `CharacterActor` / `ActionExecutor` / Animator 查询 |
-| 目标注册 | `Assets/Scripts/Framework/Systems/TargetSystem.cs` | 纯 C# System | 当前场景可命中/可索敌目标列表 |
-| 索敌查询 | `Assets/Scripts/Combat/Targeting/TargetingSystem.cs` / `TargetSelector.cs` | static 纯 C# | 从 `TargetSystem` 中选择目标、计算目标方向 |
-| 受击目标 | `Assets/Scripts/Combat/Hitbox/HurtboxTarget.cs` | `MonoBehaviour` | 场景目标组件；OnEnable/OnDisable 注册到 `TargetSystem` |
-| 命中帧消费者 | `Assets/Scripts/Combat/Hitbox/HitBoxSystem.cs` | 纯 C# | 作为 `ICombatFrameConsumer` 接收逻辑帧，提交 OBB 检测 |
-| 命中批处理 | `Assets/Scripts/Combat/Hitbox/HitDetectionSystem.cs` | static 纯 C# | 扫描 `TargetSystem`，执行 OBB 相交，发送 `ApplyHitCommand` |
-| VFX 帧消费者 | `Assets/Scripts/Combat/VFX/ActionVfxPlayer.cs` | 纯 C# | 作为 `ICombatFrameConsumer` 按帧触发 `ActionVfxSpawner` |
-| VFX 池 | `Assets/Scripts/Combat/VFX/VFXManager.cs` | `MonoBehaviour` Manager | 场景级对象池与 VFX 实例生命周期 |
-| 战斗世界 | `Assets/Scripts/Combat/CombatWorldSystem.cs` | `MonoBehaviour` Manager | 场景级战斗系统生命周期锚点，确保反馈系统存在 |
+| Scene 入口 | `Assets/Scripts/App/Controllers/Gameplay/PlayerController.cs` | `MonoBehaviour` | Scene Empty 上唯一玩家脚本；创建玩家输入源并 Tick `CharacterActor` |
+| Actor 工厂 | `Assets/Scripts/Domain/Character/CharacterActorFactory.cs` | static 纯 C# | 读取 `CharacterConfig` + `ICharacterInputSource`，实例化模型，补齐 `CharacterController`，组装 Actor/Executor/Service |
+| 角色 Actor | `Assets/Scripts/Domain/Character/CharacterActor.cs` | 纯 C# | 输入采集、动作路由、重力、状态机 Tick |
+| 配置根 | `Assets/Scripts/Domain/Character/CharacterConfig.cs` | `ScriptableObject` 定义类 | 模型、输入、移动、动画、战斗模式、挂点名等角色配置 |
+| 输入源抽象 | `Assets/Scripts/Domain/Input/ICharacterInputSource.cs` | interface | 玩家、AI、回放、网络输入统一入口 |
+| 玩家输入源 | `Assets/Scripts/Infrastructure/Input/InputReader.cs` | 纯 C# | Input System → `PlayerInputFrame` |
+| AI 输入源 | `Assets/Scripts/Infrastructure/Input/AIInputSource.cs` | 纯 C# | AI 决策 → `PlayerInputFrame`，复用 `CharacterActorFactory` |
+| 输入中枢 | `Assets/Scripts/Domain/Input/InputManager.cs` | 纯 C# | 摄入输入帧、离散输入回调、输入缓冲、移动意图 |
+| 移动服务 | `Assets/Scripts/Domain/Character/CharacterMotor.cs` | 纯 C# | Locomotion 位移、重力、移动意图解析、起手面向 |
+| 动画服务 | `Assets/Scripts/Domain/Character/Animation/CharacterAnimationController.cs` | 纯 C# | Locomotion CrossFade、Action Clip 播放、动画锁 |
+| Root Motion | `Assets/Scripts/Domain/Character/Animation/CharacterRootMotionDriver.cs` | 纯 C# + 内部 Receiver | 控制 Animator Root Motion；内部 `CharacterRootMotionReceiver` 仅作为 `OnAnimatorMove` 桥接挂在 Animator 子物体 |
+| 状态机 | `Assets/Scripts/Domain/Character/StateMachine/CharacterStateMachine.cs` | 纯 C# | 注册并 Tick `LocomotionState` / `ActionState` |
+| 状态上下文 | `Assets/Scripts/Domain/Character/StateMachine/CharacterContext.cs` | 纯 C# | 状态机共享 Transform、Animation、Motor、ActionExecutor、Motor 快照 |
+| Locomotion 状态 | `Assets/Scripts/Domain/Character/StateMachine/States/LocomotionState.cs` | 纯 C# State | 根据移动幅度选择 Idle/Walk/Run |
+| Action 状态 | `Assets/Scripts/Domain/Character/StateMachine/States/ActionState.cs` | 纯 C# State | Tick `IActionExecutor`；招式结束回 Locomotion |
+| 战斗模式 | `Assets/Scripts/Domain/Combat/CombatModeController.cs` | 纯 C# | 当前模式、出招表、Locomotion Profile 切换 |
+| 动作执行 | `Assets/Scripts/Domain/Combat/Actions/ActionExecutor.cs` | 纯 C# | Action 播放、Cancel、Transition、Logic Tick、事件派发、命中回流 |
+| 动作会话 | `Assets/Scripts/Domain/Combat/Actions/ActionSession.cs` | 纯 C# | 当前招式、时间、逻辑帧、命中确认、卡肉暂停 |
+| 输入路由 | `Assets/Scripts/Domain/Combat/Actions/CharacterActionDriver.cs` | 纯 C# | 起手、输入缓冲、移动取消、离开 Action 后预输入消费 |
+| 动作旋转 | `Assets/Scripts/Domain/Combat/Actions/ActionRotationDriver.cs` | 纯 C# | RotationWindow 内按输入/锁定目标修正朝向 |
+| 索敌锁定 | `Assets/Scripts/Domain/Combat/Targeting/CombatTargetLock.cs` | 纯 C# | 单角色当前锁定目标状态 |
+| 架构入口 | `Assets/Scripts/App/Architecture/ACTGameArchitecture.cs` | 纯 C# | System 注册、Command 执行、Query 查询、Event 分发 |
+| 战斗角色注册 | `Assets/Scripts/App/Systems/Combat/CombatActorSystem.cs` | 纯 C# System | Transform → `CharacterActor` / `ActionExecutor` / Animator 查询 |
+| 目标注册 | `Assets/Scripts/App/Systems/Combat/TargetSystem.cs` | 纯 C# System | 当前场景可命中/可索敌目标列表 |
+| 索敌查询 | `Assets/Scripts/Domain/Combat/Targeting/TargetingSystem.cs` / `TargetSelector.cs` | static 纯 C# | 从 `TargetSystem` 中选择目标、计算目标方向 |
+| 受击目标 | `Assets/Scripts/App/Controllers/Combat/HurtboxTarget.cs` | `MonoBehaviour` | 场景目标组件；OnEnable/OnDisable 注册到 `TargetSystem` |
+| 命中帧消费者 | `Assets/Scripts/Domain/Combat/Hitbox/HitBoxSystem.cs` | 纯 C# | 作为 `ICombatFrameConsumer` 接收逻辑帧，提交 OBB 检测 |
+| 命中批处理 | `Assets/Scripts/Domain/Combat/Hitbox/HitDetectionSystem.cs` | static 纯 C# | 扫描 `TargetSystem`，执行 OBB 相交，发送 `ApplyHitCommand` |
+| VFX 帧消费者 | `Assets/Scripts/Domain/Combat/VFX/ActionVfxPlayer.cs` | 纯 C# | 作为 `ICombatFrameConsumer` 按帧触发 `ActionVfxSpawner` |
+| VFX 池 | `Assets/Scripts/Domain/Combat/VFX/VFXManager.cs` | `MonoBehaviour` Manager | 场景级对象池与 VFX 实例生命周期 |
+| 战斗世界 | `Assets/Scripts/App/Controllers/Combat/CombatWorldSystem.cs` | `MonoBehaviour` Manager | 场景级战斗系统生命周期锚点，确保反馈系统存在 |
 | 命中命令 / 事件 | `ApplyHitCommand` / `AttackHitEvent` | 纯 C# | 命中后统一回调目标、攻击者，并向反馈系统广播 |
-| 反馈系统 | `Assets/Scripts/Combat/Feedback/FeedbackSystem.cs` | `MonoBehaviour` Manager | 场景级反馈入口，托管 `HitStopController` |
-| 卡肉控制 | `Assets/Scripts/Combat/Feedback/HitStopController.cs` | `MonoBehaviour` Manager | 订阅命中反馈，暂停纯 C# ActionRuntime 并冻结 Animator |
-| 相机 | `Assets/Scripts/Camera/CameraManager.cs` | `MonoBehaviour` Manager | 第三人称相机；通过 `PlayerController.Input.LookIntent` 读取视角输入 |
+| 反馈系统 | `Assets/Scripts/App/Controllers/Combat/FeedbackSystem.cs` | `MonoBehaviour` Manager | 场景级反馈入口，托管 `HitStopController` |
+| 卡肉控制 | `Assets/Scripts/App/Controllers/Combat/HitStopController.cs` | `MonoBehaviour` Manager | 订阅命中反馈，暂停纯 C# ActionExecutor 并冻结 Animator |
+| 相机 | `Assets/Scripts/App/Controllers/Camera/CameraManager.cs` | `MonoBehaviour` Manager | 第三人称相机；通过 `PlayerController.Input.LookIntent` 读取视角输入 |
 
 ### 0.3 启动装配链
 
@@ -115,7 +115,7 @@ PlayerController.Update
                   → rotate actor root during RotationWindow
 ```
 
-### 0.5 ActionRuntime Logic Tick 链
+### 0.5 ActionExecutor Logic Tick 链
 
 ```
 ActionExecutor.Tick / UpdateFrame
@@ -356,7 +356,7 @@ PlayerController.Update（ExecutionOrder -50）
   4. ApplyGravity
 
 CharacterStateMachine.Tick
-  → ActionState.Tick → ActionRuntime.Tick
+  → ActionState.Tick → ActionExecutor.Tick
 
 HitBoxSystem.OnCombatFrameAdvanced（ActionExecutor 同步派发）
   → 读 CurrentAction + CurrentFrame
@@ -377,7 +377,7 @@ HitBoxSystem.OnCombatFrameAdvanced（ActionExecutor 同步派发）
 ```
 输入 → Buffer(inputId)
 
-ActionRuntime.Tick:
+ActionExecutor.Tick:
   → 按 priority 扫描 CancelType.Action 窗口
   → HasBuffer(allowedInput) → Consume
   → actionSet.TryResolveNext → TransitionTo(next)
@@ -602,7 +602,7 @@ ActionExecutor                   HitBoxSystem              受击方
 [执行层]  ActionExecutor                   ← 不依赖碰撞
 [判定层]  HitBoxSystem + HitDetectionSystem + HitboxMath
                                            ← 依赖 CombatFrameContext + SO，不依赖 PlayerController
-[受击层]  IHurtboxTarget 实现              ← 依赖 ActionHitContext，不依赖 ActionRuntime
+[受击层]  IHurtboxTarget 实现              ← 依赖 ActionHitContext，不依赖 ActionExecutor
 ```
 
 当前分层符合「执行 / 判定 / 受击」三分，**没有出现**「动作系统内嵌 Physics.Overlap」或「碰撞系统直接 `TransitionTo`」等双向强耦合反模式。
@@ -677,33 +677,36 @@ event Action<CombatModeType, CombatModeType> ModeChanged;
 ### 脚本
 
 ```
-Assets/Scripts/Combat/
-  Actions/ActionDefinition.cs, ActionExecutor.cs
-  Actions/CancelWindow.cs, CancelType.cs
-  Actions/ActionTransition.cs, ActionTransitionCondition.cs
-  Actions/ActionComboSequence.cs, PlayerActionSet.cs
-  Actions/ActionStartBehaviorType.cs, IActionStartContext.cs
-  CombatModeController.cs
-  Hitbox/HitBoxSystem.cs, HitboxKeyframe.cs, HitboxMath.cs
-  Hitbox/HurtboxTarget.cs, HurtboxDefinition.cs, IHurtboxTarget.cs
-  Hitbox/ActionHitContext.cs, HitboxGizmoDrawing.cs
+Assets/Scripts/App/
+  Controllers/Gameplay/PlayerController.cs
+  Controllers/Combat/HurtboxTarget.cs, CombatWorldSystem.cs, FeedbackSystem.cs, HitStopController.cs
+  Controllers/Camera/CameraManager.cs, CameraShakeController.cs
+  Architecture/ACTGameArchitecture.cs, Architecture/Contracts/IArchitecture*.cs
+  Commands/Combat/ApplyHitCommand.cs
+  Events/Combat/AttackHitEvent.cs, HitStopBeganEvent.cs, HitStopEndedEvent.cs
+  Systems/Combat/CombatActorSystem.cs, TargetSystem.cs, CombatFeedbackSystem.cs
+
+Assets/Scripts/Domain/
+  Character/CharacterConfig.cs, CharacterActor.cs, CharacterActorFactory.cs, CharacterMotor.cs
+  Character/Animation/CharacterRootMotionDriver.cs, CharacterAnimationController.cs
+  Character/StateMachine/CharacterStateMachine.cs, CharacterContext.cs
+  Character/StateMachine/States/ActionState.cs, States/LocomotionState.cs
+  Combat/Actions/ActionDefinition.cs, ActionExecutor.cs, IActionExecutor.cs
+  Combat/Actions/CancelWindow.cs, CancelType.cs
+  Combat/Actions/ActionTransition.cs, ActionTransitionCondition.cs
+  Combat/Actions/ActionComboSequence.cs, PlayerActionSet.cs
+  Combat/Actions/IActionStartContext.cs, ICombatFrameConsumer.cs, IActionHitReceiver.cs
+  Combat/Hitbox/HitBoxSystem.cs, HitboxKeyframe.cs, HitboxMath.cs
+  Combat/Hitbox/HurtboxDefinition.cs, IHurtboxTarget.cs, ActionHitContext.cs, HitboxGizmoDrawing.cs
+  Combat/Targeting/TargetingSystem.cs, TargetSelector.cs, CombatTargetLock.cs
+  Combat/VFX/ActionVfxPlayer.cs, ActionVfxSpawner.cs, VFXManager.cs
+  Input/InputManager.cs, PlayerInputFrame.cs, IActionComboInput.cs, InputIds.cs, ICharacterInputSource.cs
+
+Assets/Scripts/Infrastructure/
+  Input/InputReader.cs, AIInputSource.cs
 
 Assets/Scripts/Editor/Combat/
   ActionDefinitionHitboxEditor.cs, HitboxSceneDrawing.cs
-
-Assets/Scripts/Input/
-  InputManager.cs, InputReader.cs, AIInputSource.cs, PlayerInputFrame.cs
-  IActionComboInput.cs, InputIds.cs, ICharacterInputSource.cs, AIInputSource.cs
-
-Assets/Scripts/Player/
-  PlayerController.cs
-
-Assets/Scripts/Character/
-  CharacterConfig.cs, CharacterActor.cs, CharacterActorFactory.cs, CharacterMotor.cs
-
-Assets/Scripts/Character/
-  Actions/IActionExecutor.cs, States/ActionState.cs, States/LocomotionState.cs
-  Animation/CharacterRootMotionDriver.cs, CharacterAnimationController.cs
 ```
 
 ### 资产（Editor 维护）

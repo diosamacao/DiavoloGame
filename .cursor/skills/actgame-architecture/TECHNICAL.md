@@ -70,7 +70,7 @@ Update
 
 ### 相关文件
 
-- `Assets/Scripts/Player/PlayerController.cs`
+- `Assets/Scripts/App/Controllers/Gameplay/PlayerController.cs`
 - `Assets/Prefabs/Player/Player_KatanaGirl.prefab`
 
 ---
@@ -104,7 +104,7 @@ Update
 
 ### 相关文件
 
-- `Assets/Scripts/Input/InputReader.cs`
+- `Assets/Scripts/Infrastructure/Input/InputReader.cs`
 - `Assets/Scripts/Input/GameInputActions.inputactions`
 
 ---
@@ -158,8 +158,8 @@ CharacterActor.Tick
 ### 相关文件
 
 - `Assets/Scripts/Core/StateMachine/*`
-- `Assets/Scripts/Character/StateMachine/*`
-- `Assets/Scripts/Character/CharacterActor.cs`
+- `Assets/Scripts/Domain/Character/StateMachine/*`
+- `Assets/Scripts/Domain/Character/CharacterActor.cs`
 
 ---
 
@@ -206,9 +206,9 @@ Animator Controller：`Assets/Art/Characters/.../ACT_Runtime.controller`（Prefa
 
 ### 相关文件
 
-- `Assets/Scripts/Character/Animation/CharacterAnimationController.cs`
-- `Assets/Scripts/Character/Animation/CharacterAnimationProfile.cs`
-- `Assets/Scripts/Character/StateMachine/States/LocomotionState.cs`
+- `Assets/Scripts/Domain/Character/Animation/CharacterAnimationController.cs`
+- `Assets/Scripts/Domain/Character/Animation/CharacterAnimationProfile.cs`
+- `Assets/Scripts/Domain/Character/StateMachine/States/LocomotionState.cs`
 
 ---
 
@@ -269,7 +269,7 @@ CameraManager (场景对象)
 
 ### 相关文件
 
-- `Assets/Scripts/Camera/CameraManager.cs`
+- `Assets/Scripts/App/Controllers/Camera/CameraManager.cs`
 
 ---
 
@@ -359,8 +359,8 @@ ActionState.Tick
 
 ### 相关文件
 
-- `Assets/Scripts/Combat/Actions/*`
-- `Assets/Scripts/Player/PlayerController.cs`
+- `Assets/Scripts/Domain/Combat/Actions/*`
+- `Assets/Scripts/App/Controllers/Gameplay/PlayerController.cs`
 - `docs/ACTION_SYSTEM.md`、`docs/ACTION_EDITOR.md`
 
 ---
