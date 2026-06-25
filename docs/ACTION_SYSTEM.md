@@ -15,7 +15,7 @@
 - `CharacterController`：Unity 碰撞与位移执行组件，由 `CharacterActorFactory` 补齐或复用。
 - 模型子物体：由 `CharacterConfig.ModelPrefab` 实例化，保留模型、Renderer、Animator、美术相关组件。
 
-不再允许把以下业务脚本挂到 Player 根对象：`InputReader`、`CharacterAnimationController`、`CombatModeController`、`ActionExecutor`、`CharacterActionDriver`、`ActionRotationDriver`、`CombatTargetLock`、`HitBoxSystem`、`ActionVfxPlayer`、`CharacterStateMachine`。这些现在都是纯 C# Actor / Executor / Service，由工厂创建并持有。
+不再允许把以下业务脚本挂到 Player 根对象：`InputReader`、`CharacterAnimationService`、`CombatModeService`、`ActionExecutor`、`CharacterActionDriver`、`ActionRotationDriver`、`CombatTargetLock`、`HitBoxSystem`、`ActionVfxPlayer`、`CharacterStateMachine`。这些现在都是纯 C# Actor / Executor / Service，由工厂创建并持有。
 
 ### 0.2 文件层级
 
@@ -30,13 +30,13 @@
 | AI 输入源 | `Assets/Scripts/Infrastructure/Input/AIInputSource.cs` | 纯 C# | AI 决策 → `PlayerInputFrame`，复用 `CharacterActorFactory` |
 | 输入中枢 | `Assets/Scripts/Domain/Input/InputManager.cs` | 纯 C# | 摄入输入帧、离散输入回调、输入缓冲、移动意图 |
 | 移动服务 | `Assets/Scripts/Domain/Character/CharacterMotor.cs` | 纯 C# | Locomotion 位移、重力、移动意图解析、起手面向 |
-| 动画服务 | `Assets/Scripts/Domain/Character/Animation/CharacterAnimationController.cs` | 纯 C# | Locomotion CrossFade、Action Clip 播放、动画锁 |
+| 动画服务 | `Assets/Scripts/Domain/Character/Animation/CharacterAnimationService.cs` | 纯 C# | Locomotion CrossFade、Action Clip 播放、动画锁 |
 | Root Motion | `Assets/Scripts/Domain/Character/Animation/CharacterRootMotionDriver.cs` | 纯 C# + 内部 Receiver | 控制 Animator Root Motion；内部 `CharacterRootMotionReceiver` 仅作为 `OnAnimatorMove` 桥接挂在 Animator 子物体 |
 | 状态机 | `Assets/Scripts/Domain/Character/StateMachine/CharacterStateMachine.cs` | 纯 C# | 注册并 Tick `LocomotionState` / `ActionState` |
 | 状态上下文 | `Assets/Scripts/Domain/Character/StateMachine/CharacterContext.cs` | 纯 C# | 状态机共享 Transform、Animation、Motor、ActionExecutor、Motor 快照 |
 | Locomotion 状态 | `Assets/Scripts/Domain/Character/StateMachine/States/LocomotionState.cs` | 纯 C# State | 根据移动幅度选择 Idle/Walk/Run |
 | Action 状态 | `Assets/Scripts/Domain/Character/StateMachine/States/ActionState.cs` | 纯 C# State | Tick `IActionExecutor`；招式结束回 Locomotion |
-| 战斗模式 | `Assets/Scripts/Domain/Combat/CombatModeController.cs` | 纯 C# | 当前模式、出招表、Locomotion Profile 切换 |
+| 战斗模式 | `Assets/Scripts/Domain/Combat/CombatModeService.cs` | 纯 C# | 当前模式、出招表、Locomotion Profile 切换 |
 | 动作执行 | `Assets/Scripts/Domain/Combat/Actions/ActionExecutor.cs` | 纯 C# | Action 播放、Cancel、Transition、Logic Tick、事件派发、命中回流 |
 | 动作会话 | `Assets/Scripts/Domain/Combat/Actions/ActionSession.cs` | 纯 C# | 当前招式、时间、逻辑帧、命中确认、卡肉暂停 |
 | 输入路由 | `Assets/Scripts/Domain/Combat/Actions/CharacterActionDriver.cs` | 纯 C# | 起手、输入缓冲、移动取消、离开 Action 后预输入消费 |
@@ -51,9 +51,9 @@
 | 命中批处理 | `Assets/Scripts/Domain/Combat/Hitbox/HitDetectionSystem.cs` | static 纯 C# | 扫描 `TargetSystem`，执行 OBB 相交，发送 `ApplyHitCommand` |
 | VFX 帧消费者 | `Assets/Scripts/Domain/Combat/VFX/ActionVfxPlayer.cs` | 纯 C# | 作为 `ICombatFrameConsumer` 按帧触发 `ActionVfxSpawner` |
 | VFX 池 | `Assets/Scripts/Domain/Combat/VFX/VFXManager.cs` | `MonoBehaviour` Manager | 场景级对象池与 VFX 实例生命周期 |
-| 战斗世界 | `Assets/Scripts/App/Controllers/Combat/CombatWorldSystem.cs` | `MonoBehaviour` Manager | 场景级战斗系统生命周期锚点，确保反馈系统存在 |
+| 战斗世界 | `Assets/Scripts/App/Controllers/Combat/CombatWorldController.cs` | `MonoBehaviour` Manager | 场景级战斗系统生命周期锚点，确保反馈系统存在 |
 | 命中命令 / 事件 | `ApplyHitCommand` / `AttackHitEvent` | 纯 C# | 命中后统一回调目标、攻击者，并向反馈系统广播 |
-| 反馈系统 | `Assets/Scripts/App/Controllers/Combat/FeedbackSystem.cs` | `MonoBehaviour` Manager | 场景级反馈入口，托管 `HitStopController` |
+| 反馈系统 | `Assets/Scripts/App/Controllers/Combat/FeedbackController.cs` | `MonoBehaviour` Manager | 场景级反馈入口，托管 `HitStopController` |
 | 卡肉控制 | `Assets/Scripts/App/Controllers/Combat/HitStopController.cs` | `MonoBehaviour` Manager | 订阅命中反馈，暂停纯 C# ActionExecutor 并冻结 Animator |
 | 相机 | `Assets/Scripts/App/Controllers/Camera/CameraManager.cs` | `MonoBehaviour` Manager | 第三人称相机；通过 `PlayerController.Input.LookIntent` 读取视角输入 |
 
@@ -65,14 +65,14 @@ Scene Empty
       → CharacterConfig.ValidateForPlayer
       → new InputReader(CharacterConfig.InputActions)
       → CharacterActorFactory.Create
-          → EnsureCombatWorldSystem
+          → EnsureCombatWorldController
           → Instantiate(CharacterConfig.ModelPrefab)
           → GetOrAdd CharacterController（唯一允许补到 Player 根的 Unity 组件）
           → use ICharacterInputSource（玩家为 InputReader，敌人为 AIInputSource）
-          → new CharacterAnimationController(Animator, LocomotionProfile)
+          → new CharacterAnimationService(Animator, LocomotionProfile)
           → new CharacterRootMotionDriver(CharacterController, Animator)
               → Animator 子物体 AddComponent<CharacterRootMotionReceiver>（OnAnimatorMove 桥接）
-          → new CombatModeController(CombatModeProfile, AnimationController)
+          → new CombatModeService(CombatModeProfile, AnimationService)
           → new CharacterContext(root, animation, controller)
           → new CharacterStateMachine(context)
           → new ActionExecutor(root, controller, animation, rootMotion, combatMode)
@@ -105,7 +105,7 @@ PlayerController.Update
           → LocomotionState.Tick
               → CharacterMotor.TickLocomotion
               → sync Motor snapshot to CharacterContext
-              → CharacterAnimationController.Play(Idle/Walk/Run)
+              → CharacterAnimationService.Play(Idle/Walk/Run)
           → ActionState.Tick
               → CharacterMotor.ClearMoveSnapshot
               → ActionExecutor.Tick(deltaTime)
@@ -165,7 +165,7 @@ HitDetectionSystem
 - Player 根对象不挂业务脚本；运行时业务必须放在 `CharacterActor` 及其纯 C# service。
 - `ActionExecutor` 不查找 GameObject 组件，依赖全部由 `CharacterActorFactory` 构造注入。
 - `HitBoxSystem` / `ActionVfxPlayer` 不是组件，只是 `ICombatFrameConsumer`。
-- `CombatWorldSystem`、`FeedbackSystem`、`VFXManager`、`CameraManager` 是场景级 Manager；它们可以是 `MonoBehaviour`，但不挂在 Player 根对象上。
+- `CombatWorldController`、`FeedbackController`、`VFXManager`、`CameraManager` 是场景级 Manager；它们可以是 `MonoBehaviour`，但不挂在 Player 根对象上。
 - `CharacterRootMotionReceiver` 是唯一保留的运行时桥接组件，因为 Unity 的 `OnAnimatorMove` 必须由 `MonoBehaviour` 接收；它挂在 Animator 子物体，不是玩家业务组件。
 
 ---
@@ -191,7 +191,7 @@ HitDetectionSystem
 | `ActionComboSequence` 线性连招 | ✅ 已实现 | 出招表 Entry 绑定；Cancel 按队列进位 |
 | `ActionTransition` | 🟡 部分 | `AnimationEnd`、`AtFrame`；无 OnHit / OnWhiff |
 | `PlayerActionSet` + `CombatModeProfile` | ✅ 已实现 | 多战斗模式出招表；模式切换 Locomotion Profile |
-| `CombatModeController` | ✅ 已实现 | Immediate / OnNextLocomotion / StopCurrentAction |
+| `CombatModeService` | ✅ 已实现 | Immediate / OnNextLocomotion / StopCurrentAction |
 | `ActionExecutor` | ✅ 已实现 | 播放、取消、Transition、Root Motion / 脚本位移 |
 | `InputManager` + `PlayerInputFrame` | ✅ 已实现 | 帧快照、多 id 缓冲、移动意图 |
 | `ActionStartBehavior` | 🟡 部分 | `FaceBufferedMoveIntent`、`SwitchCombatMode` |
@@ -220,7 +220,7 @@ CharacterActor ── InputManager（唯一持有者）
        │    ├─ MoveIntent / BufferedMoveIntent
        │    └─ Movement 取消 → Locomotion
        │
-       ├── CombatModeController ── CombatModeProfile
+       ├── CombatModeService ── CombatModeProfile
        │         └─ mode → PlayerActionSet → ActionComboSequence
        │
        ├── CharacterActionDriver（纯 C#）── 起手 / Buffer / 移动取消
@@ -246,7 +246,7 @@ CharacterActor ── InputManager（唯一持有者）
 | `CharacterActor` | 输入采集、动作路由、重力、状态机 Tick |
 | `CharacterActionDriver` | 输入路由、起手切状态、移动取消、缓冲消费 |
 | `ActionRotationDriver` | RotationWindow + 索敌转向 |
-| `CombatModeController` | 战斗模式、出招表切换、Locomotion Profile |
+| `CombatModeService` | 战斗模式、出招表切换、Locomotion Profile |
 | `ActionExecutor` | 播放、Cancel、Transition、**UpdateFrame**、命中回流 |
 | `HitBoxSystem` | `ICombatFrameConsumer`：Logic Tick 帧上 OBB 检测 |
 | `ActionState` / `LocomotionState` | 动画锁与 Locomotion 动画 |
@@ -334,7 +334,7 @@ CombatModeProfile
 |------|------|
 | `PlayerActionSet.TryGetStartAction` | Locomotion 起手 |
 | `PlayerActionSet.TryResolveNext` | 招内 Cancel 进位 |
-| `CombatModeController` | 运行时当前 mode、挂起切换、Locomotion Profile |
+| `CombatModeService` | 运行时当前 mode、挂起切换、Locomotion Profile |
 
 ### 4.6 输入 id
 
@@ -401,7 +401,7 @@ ActionExecutor.Tick:
 
 ### 5.6 战斗模式切换
 
-- 起手行为 `SwitchCombatMode` 或外部 `CombatModeController.TrySetMode`。
+- 起手行为 `SwitchCombatMode` 或外部 `CombatModeService.TrySetMode`。
 - `OnNextLocomotion`：招式中挂起，回 Locomotion 后 `ApplyPendingModeIfReady`。
 - 切换 mode 可换 `PlayerActionSet` 与 `CharacterAnimationProfile`（Locomotion）。
 
@@ -445,15 +445,15 @@ ActionExecutor                   HitBoxSystem              受击方
 ### 6.2 多战斗模式
 
 1. 创建 `CombatModeProfile`，配置 `Katana` / `Beast` 等 mode 的 `PlayerActionSet` 与 `LocomotionProfile`。
-2. `CombatModeController.profile` 绑定该资产。
+2. `CombatModeService.profile` 绑定该资产。
 3. 招式需切模式时：`Start Behaviors` 勾选 `SwitchCombatMode` 并填目标 mode / policy。
 
 ### 6.3 Prefab 检查
 
 | 组件 | 配置 |
 |------|------|
-| `CombatModeController` | `CombatModeProfile` |
-| `ActionExecutor` | 依赖 `CombatModeController` 解析出招表 |
+| `CombatModeService` | `CombatModeProfile` |
+| `ActionExecutor` | 依赖 `CombatModeService` 解析出招表 |
 | `InputReader` | `GameInputActions`；玩家纯 C# 输入源，离散输入由 Profile 并集自动注入 |
 | `CharacterActor` | 自动注册全部 mode 的 Entry |
 | `HitBoxSystem` | 纯 C# 帧消费者；`attachPoint` 来自 `CharacterConfig` 挂点名 |
@@ -648,7 +648,7 @@ bool HasBuffer(string inputId);
 bool TryConsumeBuffer(string inputId);
 ```
 
-### ICombatModeController
+### ICombatModeService
 
 ```csharp
 CombatModeType CurrentMode { get; }
@@ -679,7 +679,7 @@ event Action<CombatModeType, CombatModeType> ModeChanged;
 ```
 Assets/Scripts/App/
   Controllers/Gameplay/PlayerController.cs
-  Controllers/Combat/HurtboxTarget.cs, CombatWorldSystem.cs, FeedbackSystem.cs, HitStopController.cs
+  Controllers/Combat/HurtboxTarget.cs, CombatWorldController.cs, FeedbackController.cs, HitStopController.cs
   Controllers/Camera/CameraManager.cs, CameraShakeController.cs
   Architecture/ACTGameArchitecture.cs, Architecture/Contracts/IArchitecture*.cs
   Commands/Combat/ApplyHitCommand.cs
@@ -688,7 +688,7 @@ Assets/Scripts/App/
 
 Assets/Scripts/Domain/
   Character/CharacterConfig.cs, CharacterActor.cs, CharacterActorFactory.cs, CharacterMotor.cs
-  Character/Animation/CharacterRootMotionDriver.cs, CharacterAnimationController.cs
+  Character/Animation/CharacterRootMotionDriver.cs, CharacterAnimationService.cs
   Character/StateMachine/CharacterStateMachine.cs, CharacterContext.cs
   Character/StateMachine/States/ActionState.cs, States/LocomotionState.cs
   Combat/Actions/ActionDefinition.cs, ActionExecutor.cs, IActionExecutor.cs

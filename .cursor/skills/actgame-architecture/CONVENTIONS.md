@@ -21,7 +21,8 @@
 - 占位目录保留 `.gitkeep`，实现后删除 `.gitkeep`
 - 角色装配配置集中在 `CharacterConfig`；Scene 玩家入口只挂 `PlayerController` 并引用配置资产
 - 玩家根对象运行时禁止挂载业务脚本；除 `PlayerController` 与 Unity 必需组件（如 `CharacterController`）外，角色业务必须是纯 C# runtime/service
-- 新架构代码遵循 `Controller / System / Model / Command / Event / Query / Actor / Executor` 后缀语义；禁止新增泛化 `Runtime` 后缀业务类
+- 新架构代码遵循 `Controller / System / Model / Command / Event / Query / Actor / Executor / Service` 后缀语义；禁止新增泛化 `Runtime` 后缀业务类
+- `Controller` 仅用于 `App/Controllers` 下的 Unity 入口 `MonoBehaviour`；`Domain` 纯 C# 业务类优先使用 `Service` / `Actor` / `Executor`
 - 跨系统通信使用 `ACTGameArchitecture` 的 Command / Event；动作帧内部可保留 `ActionExecutor` → `ICombatFrameConsumer` 的强时序直连
 
 ## Unity 组件模式
@@ -57,7 +58,7 @@ public class MyBehaviour : MonoBehaviour
 ## 动画约定
 
 - 逻辑层使用 `AnimationKey`，不直接硬编码 Animator 状态名字符串（映射在 Profile）
-- 播放走纯 C# `CharacterAnimationController.Play`；需要独占时 `SetLocked(true)`
+- 播放走纯 C# `CharacterAnimationService.Play`；需要独占时 `SetLocked(true)`
 - Locomotion：`applyRootMotion = false`，位移由 `CharacterController` + `CharacterMotor` 负责
 - Action：`ActionDefinition.useRootMotion = true` 时由 `CharacterRootMotionDriver` 在 `OnAnimatorMove` 中把 `deltaPosition` 写入 `CharacterController`；`useRootMotion = false` 时可用 `displacementDistance` 脚本位移
 - 同 key 不重复 CrossFade（Controller 内部去重）
@@ -69,7 +70,7 @@ public class MyBehaviour : MonoBehaviour
 - **中枢**：`InputManager` 由 `CharacterActor` 持有；`IngestFrame` + `RegisterPressed(string inputId, Action)`
 - **离散 id**：Input System Action **名**；出招表 `ActionEntry` → `ActionComboSequence`
 - **连招**：Cancel 窗只配帧/输入；下一招由 `ActionComboSequence.TryResolveNext` 进位（非 Cancel 内 targetAction）
-- **战斗模式**：`CombatModeProfile` + `CombatModeController`；与 `PlayerActionSet` 解耦
+- **战斗模式**：`CombatModeProfile` + `CombatModeService`；与 `PlayerActionSet` 解耦
 - **缓冲**：招式中 `Buffer(inputId)`；`ActionExecutor` 经 `IActionComboInput` 在 `CancelWindow` 内消费
 - 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `CharacterMotor` / State）
 - **玩家装配**：`InputActionAsset` 由 `CharacterConfig` 注入 `InputReader`，不在玩家 Prefab 上重复配置

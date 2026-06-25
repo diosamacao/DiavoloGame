@@ -40,7 +40,7 @@ public struct CombatModeEntry
     public bool IsValid => actionSet != null;
 }
 
-/// <summary>战斗模式配置：mode → PlayerActionSet / Locomotion Profile，供 CombatModeController 解析。</summary>
+/// <summary>战斗模式配置：mode → PlayerActionSet / Locomotion Profile，供 CombatModeService 解析。</summary>
 [CreateAssetMenu(fileName = "CombatModeProfile", menuName = "ACT/Combat/Combat Mode Profile")]
 public class CombatModeProfile : ScriptableObject
 {

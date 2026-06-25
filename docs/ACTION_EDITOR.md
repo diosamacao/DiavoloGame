@@ -72,7 +72,7 @@
 
 **选型理由（ACTGame 特有约束）：**
 
-- 已有 `CharacterStateMachine` + 薄层 `ActionState`，`CharacterAnimationController.PlayClip()` 已支持招式直播
+- 已有 `CharacterStateMachine` + 薄层 `ActionState`，`CharacterAnimationService.PlayClip()` 已支持招式直播
 - 约定 **Animator Controller 只管 Locomotion**，招式由 `ActionDefinition` 引用 Clip
 - 玩家 / 敌人共用 `ActionExecutor`，不绑定单一品类插件
 - 当前规模适合 **ScriptableObject**；若后续要热更再考虑从 SO 导出二进制
@@ -478,7 +478,7 @@ Recovery [19───────────────41]
     → ActionGraph 解析下一动作 id（或 CancelWindow 直接指定）
     → ActionExecutor.Play(actionId)
         → 加载 ActionDefinition
-        → CharacterAnimationController.PlayClip(clip)  // AC 仅 Locomotion
+        → CharacterAnimationService.PlayClip(clip)  // AC 仅 Locomotion
         → 每 Logic Tick：UpdateFrame(frameIndex)   // 与编辑器 scrub 同一套逻辑
             → 检查 Phase 变化（Startup / Active / Recovery）
             → 评估 ActionEvent（含 Custom Trigger+Ctrl）

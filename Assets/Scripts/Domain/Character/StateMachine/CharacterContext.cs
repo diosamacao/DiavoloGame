@@ -5,7 +5,7 @@ public class CharacterContext
 {
     public CharacterContext(
         Transform transform,
-        CharacterAnimationController animation,
+        CharacterAnimationService animation,
         CharacterController motor,
         CharacterMotor movement)
     {
@@ -16,7 +16,7 @@ public class CharacterContext
     }
 
     public Transform Transform { get; }
-    public CharacterAnimationController Animation { get; }
+    public CharacterAnimationService Animation { get; }
     public CharacterController Motor { get; }
     public CharacterMotor Movement { get; }
 

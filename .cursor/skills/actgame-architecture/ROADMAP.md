@@ -67,7 +67,7 @@
 ## 已完成
 
 - [x] 2026-06-17：建立 Core 泛型状态机 + Character/Player 分层
-- [x] 2026-06-17：CharacterAnimationController + Profile 映射模式
+- [x] 2026-06-17：CharacterAnimationService + Profile 映射模式
 - [x] 2026-06-17：InputReader + CameraManager 组件化
 - [x] 2026-06-17：动作系统 Phase A（ActionRuntime、Combo、CombatMode、Hitbox 骨架）
 - [x] 2026-06-21：ActionEditor 准备重构（CharacterActionDriver、UpdateFrame、Phase/Event 骨架、命中回流）

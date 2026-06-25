@@ -1,7 +1,7 @@
 using UnityEngine;
 
-/// <summary>角色动画播放入口；运行时由 CharacterConfig 注入 Animator 与 Locomotion Profile。</summary>
-public sealed class CharacterAnimationController
+/// <summary>角色动画播放服务；运行时由 CharacterConfig 注入 Animator 与 Locomotion Profile。</summary>
+public sealed class CharacterAnimationService
 {
     CharacterAnimationProfile profile;
     readonly Animator animator;
@@ -16,7 +16,7 @@ public sealed class CharacterAnimationController
     public Animator Animator => animator;
 
     /// <summary>创建角色动画服务；Animator 来自 CharacterConfig 实例化出的模型。</summary>
-    public CharacterAnimationController(
+    public CharacterAnimationService(
         Animator targetAnimator,
         CharacterAnimationProfile animationProfile,
         int targetLayerIndex)

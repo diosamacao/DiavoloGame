@@ -3,15 +3,15 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-/// <summary>单角色动作执行器：UpdateFrame 统一 Logic Tick；经 ICombatModeController 单向访问战斗模式。</summary>
+/// <summary>单角色动作执行器：UpdateFrame 统一 Logic Tick；经 ICombatModeService 单向访问战斗模式。</summary>
 public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 {
     readonly Transform _actorRoot;
-    readonly CharacterAnimationController animationController;
+    readonly CharacterAnimationService animationController;
     readonly CharacterController _motor;
     readonly CharacterRootMotionDriver _rootMotion;
-    /// <summary>同物体 CombatModeController；单向依赖，不通过接口隐藏 Profile / ActiveActionSet。</summary>
-    readonly CombatModeController _combatMode;
+    /// <summary>同物体 CombatModeService；单向依赖，不通过接口隐藏 Profile / ActiveActionSet。</summary>
+    readonly CombatModeService _combatMode;
     readonly List<ICombatFrameConsumer> _frameConsumers = new();
     readonly List<IActionEventConsumer> _eventConsumers = new();
     readonly ActionSession _session = new();
@@ -65,9 +65,9 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
     public ActionExecutor(
         Transform actorRoot,
         CharacterController motor,
-        CharacterAnimationController animation,
+        CharacterAnimationService animation,
         CharacterRootMotionDriver rootMotion,
-        CombatModeController combatMode)
+        CombatModeService combatMode)
     {
         _actorRoot = actorRoot;
         _motor = motor;

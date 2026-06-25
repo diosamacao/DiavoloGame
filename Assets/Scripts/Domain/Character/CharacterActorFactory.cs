@@ -11,7 +11,7 @@ public static class CharacterActorFactory
         ICharacterInputSource inputSource,
         Transform cameraTransform)
     {
-        EnsureCombatWorldSystem();
+        EnsureCombatWorldController();
 
         CharacterMotorConfig motorConfig = config.Motor;
         Transform modelRoot = SpawnModelInstance(config, root);
@@ -24,12 +24,12 @@ public static class CharacterActorFactory
 
         var sharedInput = new InputManager();
         var motor = new CharacterMotor(root, controller, motorConfig, sharedInput, cameraTransform);
-        var animation = new CharacterAnimationController(
+        var animation = new CharacterAnimationService(
             animator,
             config.DefaultLocomotionProfile,
             config.AnimatorLayerIndex);
         var rootMotion = new CharacterRootMotionDriver(controller, animator);
-        var combatMode = new CombatModeController(config.CombatProfile, animation);
+        var combatMode = new CombatModeService(config.CombatProfile, animation);
 
         var context = new CharacterContext(root, animation, controller, motor);
         var stateMachine = new CharacterStateMachine(context);
@@ -126,12 +126,12 @@ public static class CharacterActorFactory
         return null;
     }
 
-    static void EnsureCombatWorldSystem()
+    static void EnsureCombatWorldController()
     {
-        if (CombatWorldSystem.Current != null || Object.FindObjectOfType<CombatWorldSystem>() != null)
+        if (CombatWorldController.Current != null || Object.FindObjectOfType<CombatWorldController>() != null)
             return;
 
-        var world = new GameObject("CombatWorldSystem");
-        world.AddComponent<CombatWorldSystem>();
+        var world = new GameObject("CombatWorldController");
+        world.AddComponent<CombatWorldController>();
     }
 }

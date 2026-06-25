@@ -8,7 +8,7 @@ public sealed class CharacterActor
     readonly CharacterMotor _motor;
     readonly CharacterStateMachine _stateMachine;
     readonly CharacterActionDriver _actionDriver;
-    readonly CombatModeController _combatMode;
+    readonly CombatModeService _combatMode;
 
     /// <summary>角色输入中枢，玩家相机等系统可读取 LookIntent。</summary>
     public InputManager Input => _inputManager;
@@ -22,8 +22,8 @@ public sealed class CharacterActor
     /// <summary>当前是否着地。</summary>
     public bool IsGrounded => _motor.IsGrounded;
 
-    /// <summary>当前战斗模式控制器。</summary>
-    public ICombatModeController CombatMode => _combatMode;
+    /// <summary>当前战斗模式服务。</summary>
+    public ICombatModeService CombatMode => _combatMode;
 
     /// <summary>创建角色实例；所有依赖由工厂一次性注入。</summary>
     public CharacterActor(
@@ -32,7 +32,7 @@ public sealed class CharacterActor
         CharacterMotor motor,
         CharacterStateMachine stateMachine,
         CharacterActionDriver actionDriver,
-        CombatModeController combatMode)
+        CombatModeService combatMode)
     {
         _inputSource = inputSource;
         _inputManager = inputManager;
