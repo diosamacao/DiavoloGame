@@ -1,7 +1,7 @@
 using System;
 
 /// <summary>战斗模式运行时接口：供装备、Buff、UI 等系统切换出招表。</summary>
-public interface ICombatModeController
+public interface ICombatModeService
 {
     CombatModeType CurrentMode { get; }
 

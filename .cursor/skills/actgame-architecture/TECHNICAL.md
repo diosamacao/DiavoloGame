@@ -12,7 +12,7 @@
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionState` | `Player_KatanaGirl_AnimationProfile.asset` |
 | 第三人称相机 | ✅ 已实现 | `CameraManager` | 场景内 CameraManager 对象 |
-| 动作系统（播放 / 取消 / 连段 / 战斗模式） | ✅ 已实现 | 纯 C# `ActionExecutor`、`CombatModeController` | `CombatModeProfile`、`ActionComboSequence` |
+| 动作系统（播放 / 取消 / 连段 / 战斗模式） | ✅ 已实现 | 纯 C# `ActionExecutor`、`CombatModeService` | `CombatModeProfile`、`ActionComboSequence` |
 | 攻击 / 战斗判定 | 🟡 部分实现 | 纯 C# `HitBoxSystem` + `HitDetectionSystem` OBB + 命中回流 | 无伤害、Hit 状态 |
 | 敌人 AI | ⬜ 未实现 | — | `Enemy/` 占位 |
 | UI | ⬜ 未实现 | — | `UI/` 占位 |
@@ -151,7 +151,7 @@ CharacterActor.Tick
   → CharacterActionDriver.ProcessGameplayInput
   → CharacterMotor.TickGravity
   → CharacterStateMachine.Tick
-      → LocomotionState.Tick → CharacterMotor.TickLocomotion → CharacterAnimationController.Play(key)
+      → LocomotionState.Tick → CharacterMotor.TickLocomotion → CharacterAnimationService.Play(key)
       → ActionState.Tick → ActionExecutor.Tick → ActionRotationDriver.Tick
 ```
 
@@ -175,7 +175,7 @@ CharacterActor.Tick
 |----|------|
 | 逻辑键 | `AnimationKey` 枚举（Idle, Walk, Run） |
 | 映射 | `CharacterAnimationProfile` ScriptableObject |
-| 播放 | `CharacterAnimationController.Play(key)` |
+| 播放 | `CharacterAnimationService.Play(key)` |
 | 去重 | 相同 key 不重复 CrossFade |
 | Root Motion | 关闭（`applyRootMotion = false`） |
 
@@ -206,7 +206,7 @@ Animator Controller：`Assets/Art/Characters/.../ACT_Runtime.controller`（Prefa
 
 ### 相关文件
 
-- `Assets/Scripts/Domain/Character/Animation/CharacterAnimationController.cs`
+- `Assets/Scripts/Domain/Character/Animation/CharacterAnimationService.cs`
 - `Assets/Scripts/Domain/Character/Animation/CharacterAnimationProfile.cs`
 - `Assets/Scripts/Domain/Character/StateMachine/States/LocomotionState.cs`
 
@@ -295,7 +295,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 - `PlayerController.Awake` 校验 `CharacterConfig`，创建 `InputReader`，调用 `CharacterActorFactory.Create`
 - 实例化模型 Prefab，查找 Animator
 - Player 根只补齐 Unity 必需的 `CharacterController`
-- 构造纯 C# `InputReader`、`CharacterAnimationController`、`CombatModeController`、`ActionExecutor`、`CharacterStateMachine`
+- 构造纯 C# `InputReader`、`CharacterAnimationService`、`CombatModeService`、`ActionExecutor`、`CharacterStateMachine`
 - 注册纯 C# `HitBoxSystem` / `ActionVfxPlayer` 为 Logic Tick 消费者
 - `CharacterActor.Tick` 统一输入采集、动作路由、重力和状态机；状态自身调度 Locomotion 移动或 Action 旋转
 

@@ -2,10 +2,10 @@ using System;
 using UnityEngine;
 
 /// <summary>战斗模式服务：维护 mode、出招表与 Locomotion Profile；不引用 ActionExecutor。</summary>
-public sealed class CombatModeController : ICombatModeController
+public sealed class CombatModeService : ICombatModeService
 {
     readonly CombatModeProfile profile;
-    readonly CharacterAnimationController _animation;
+    readonly CharacterAnimationService _animation;
     CombatModeType _currentMode;
     bool _hasPendingMode;
     CombatModeType _pendingMode;
@@ -29,18 +29,18 @@ public sealed class CombatModeController : ICombatModeController
     }
 
     /// <summary>创建战斗模式运行时，并立即应用默认模式的 Locomotion Profile。</summary>
-    public CombatModeController(CombatModeProfile combatProfile, CharacterAnimationController animation)
+    public CombatModeService(CombatModeProfile combatProfile, CharacterAnimationService animation)
     {
         profile = combatProfile;
         _animation = animation;
         if (profile == null)
-            throw new ArgumentNullException(nameof(combatProfile), "CombatModeController: profile 未绑定，无法解析出招表。");
+            throw new ArgumentNullException(nameof(combatProfile), "CombatModeService: profile 未绑定，无法解析出招表。");
 
         _currentMode = profile.DefaultMode;
 
         if (ActiveActionSet == null)
             throw new InvalidOperationException(
-                $"CombatModeController: defaultMode={profile.DefaultMode} 未在 profile 中配置出招表。");
+                $"CombatModeService: defaultMode={profile.DefaultMode} 未在 profile 中配置出招表。");
 
         ApplyLocomotionForMode(_currentMode);
     }

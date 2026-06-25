@@ -264,7 +264,7 @@ Assets/Scripts/
 | 日期 | 作者 | 说明 |
 |------|------|------|
 | 2026-06-21 | Agent + 用户确认 | ActionEditor 准备重构：Logic Tick、职责拆分、Phase/Event 骨架、命中回流、文档同步 |
-| 2026-06-21 | 单向依赖收敛 | PlayerController→PlayerStateMachine（PushMotorSnapshot）；ActionRuntimeController→ICombatModeController（CombatModeSwitchResult） |
+| 2026-06-21 | 单向依赖收敛 | PlayerController→PlayerStateMachine（PushMotorSnapshot）；ActionRuntimeController→ICombatModeService（CombatModeSwitchResult） |
 
 ---
 
@@ -276,9 +276,9 @@ Assets/Scripts/
 - 新增 `PlayerStateMachine.PushMotorSnapshot(...)`；`PlayerController.Update` 末尾 Push（`DefaultExecutionOrder(-50)` 保证先于 StateMachine Tick）。
 - `UpdateContext()` 改为空实现。
 
-### 10.2 ActionRuntimeController → ICombatModeController
+### 10.2 ActionRuntimeController → ICombatModeService
 
-- 移除 `CombatModeController` 对 `ActionRuntimeController` 的引用与 `Update` 轮询。
+- 移除 `CombatModeService` 对 `ActionRuntimeController` 的引用与 `Update` 轮询。
 - 新增 `CombatModeSwitchResult`；`TrySetMode(mode, policy, isActionPlaying)` 由调用方传入是否在招式中。
 - `StopCurrentAction`：返回 `RequiresStopCurrentAction`，由 `ActionRuntimeController.TrySwitchCombatMode` 先 `Stop()` 再重试。
 - `OnNextLocomotion` 挂起模式由 `CharacterActionDriver` 在回到 Locomotion 后调用 `ApplyPendingModeIfReady()`（不再检查 `IsPlaying`）。

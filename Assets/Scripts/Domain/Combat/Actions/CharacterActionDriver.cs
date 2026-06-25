@@ -11,8 +11,8 @@ public sealed class CharacterActionDriver
     readonly InputManager _input;
     readonly CharacterStateMachine _stateMachine;
     readonly ActionExecutor _actionExecutor;
-    /// <summary>同物体 CombatModeController；用具体类型访问 Profile / TrySetMode 三参 overload。</summary>
-    readonly CombatModeController _combatMode;
+    /// <summary>同物体 CombatModeService；用具体类型访问 Profile / TrySetMode 三参 overload。</summary>
+    readonly CombatModeService _combatMode;
     bool _wasInAction;
 
     /// <summary>创建纯 C# 招式输入路由，并立即注册离散输入。</summary>
@@ -21,7 +21,7 @@ public sealed class CharacterActionDriver
         InputManager input,
         CharacterStateMachine stateMachine,
         ActionExecutor actionExecutor,
-        CombatModeController combatMode,
+        CombatModeService combatMode,
         CombatTargetLock lockState)
     {
         inputSource = source;

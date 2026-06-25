@@ -113,8 +113,8 @@ InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力
 | `ActionSession` | 当前招式唯一会话状态：CurrentAction、Elapsed、命中确认、卡肉暂停 |
 | `CharacterActionDriver` | 角色无关：离散输入路由、起手切状态、移动取消 |
 | `ActionRotationDriver` | RotationWindow + 索敌转向 |
-| `CombatModeController` | 战斗模式、出招表、Locomotion Profile 切换 |
-| `CombatWorldSystem` | 场景级战斗系统生命周期锚点 |
+| `CombatModeService` | 战斗模式、出招表、Locomotion Profile 切换 |
+| `CombatWorldController` | 场景级战斗系统生命周期锚点 |
 | `ACTGameArchitecture` | 轻量架构入口：System 注册、Command 执行、Query 查询、Event 分发 |
 | `CombatActorSystem` / `TargetSystem` / `CombatFeedbackSystem` | 战斗角色注册、目标注册、反馈状态 |
 | `ApplyHitCommand` / `AttackHitEvent` | 命中后的跨系统通信入口 |
@@ -139,7 +139,7 @@ InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力
 |----|------|
 | `AnimationKey` | 逻辑动画键枚举 |
 | `CharacterAnimationProfile` | AnimationKey → Animator 状态名映射 |
-| `CharacterAnimationController` | 纯 C# Animator 封装：CrossFade 播放 Locomotion；招式 `PlayClip` |
+| `CharacterAnimationService` | 纯 C# Animator 封装：CrossFade 播放 Locomotion；招式 `PlayClip` |
 
 ### 6. 输入（Input）
 
