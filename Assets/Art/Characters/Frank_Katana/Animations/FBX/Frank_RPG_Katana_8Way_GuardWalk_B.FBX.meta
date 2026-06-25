@@ -1,7 +1,7 @@
 fileFormatVersion: 2
 guid: c85475a39fd30bd4cbda56ef14b907f5
 ModelImporter:
-  serializedVersion: 21202
+  serializedVersion: 22200
   internalIDToNameTable:
   - first:
       1: 100000
@@ -493,13 +493,35 @@ ModelImporter:
     rigImportErrors: 
     rigImportWarnings: "Copied Avatar Rig Configuration mis-match. Bone length in
       copied configuration does not match position in animation file:\n\t'thigh_l'
-      : position error = 2.716876 mm\n\t'thigh_r' : position error = 1.502864 mm\n\t'calf_r'
-      : position error = 1.130658 mm\n\t'lowerarm_l' : position error = 1.500571
-      mm\n\t'hand_l' : position error = 7.722568 mm\n\t'middle_02_l' : position error
-      = 1.205490 mm\n\t'ring_02_l' : position error = 1.315642 mm\n\t'upperarm_r'
-      : position error = 1.023220 mm\n\t'lowerarm_r' : position error = 1.485191
-      mm\n\t'hand_r' : position error = 2.843290 mm\n\t'middle_02_r' : position error
-      = 1.204164 mm\n\t'ring_02_r' : position error = 1.314626 mm\n"
+      : position error = 169.018906 mm\n\t'calf_l' : position error = 870.591553
+      mm\n\t'foot_l' : position error = 830.588318 mm\n\t'ball_l' : position error
+      = 323.495758 mm\n\t'thigh_r' : position error = 169.184769 mm\n\t'calf_r' :
+      position error = 24.386898 mm\n\t'foot_r' : position error = 30.929047 mm\n\t'ball_r'
+      : position error = 82.384338 mm\n\t'spine_01' : position error = 52.484573
+      mm\n\t'spine_02' : position error = 103.753738 mm\n\t'spine_03' : position
+      error = 34.743385 mm\n\t'clavicle_l' : position error = 72.852997 mm\n\t'upperarm_l'
+      : position error = 58.847599 mm\n\t'lowerarm_l' : position error = 78.678070
+      mm\n\t'hand_l' : position error = 28.210735 mm\n\t'thumb_01_l' : position error
+      = 36.083256 mm\n\t'thumb_02_l' : position error = 3.115061 mm\n\t'thumb_03_l'
+      : position error = 16.686298 mm\n\t'index_01_l' : position error = 55.103405
+      mm\n\t'index_02_l' : position error = 13.976620 mm\n\t'middle_01_l' : position
+      error = 61.078609 mm\n\t'middle_02_l' : position error = 11.280066 mm\n\t'middle_03_l'
+      : position error = 11.793600 mm\n\t'ring_01_l' : position error = 58.420357
+      mm\n\t'ring_02_l' : position error = 14.172041 mm\n\t'ring_03_l' : position
+      error = 13.392672 mm\n\t'pinky_01_l' : position error = 53.535728 mm\n\t'pinky_02_l'
+      : position error = 15.351929 mm\n\t'pinky_03_l' : position error = 11.146792
+      mm\n\t'clavicle_r' : position error = 72.852623 mm\n\t'upperarm_r' : position
+      error = 256.808136 mm\n\t'lowerarm_r' : position error = 526.047668 mm\n\t'hand_r'
+      : position error = 505.666321 mm\n\t'thumb_01_r' : position error = 70.969521
+      mm\n\t'thumb_02_r' : position error = 73.912361 mm\n\t'thumb_03_r' : position
+      error = 64.274483 mm\n\t'index_01_r' : position error = 188.766876 mm\n\t'index_02_r'
+      : position error = 72.490189 mm\n\t'middle_01_r' : position error = 189.629837
+      mm\n\t'middle_02_r' : position error = 83.102249 mm\n\t'middle_03_r' : position
+      error = 62.659660 mm\n\t'ring_01_r' : position error = 184.024963 mm\n\t'ring_02_r'
+      : position error = 73.886002 mm\n\t'ring_03_r' : position error = 57.659260
+      mm\n\t'pinky_01_r' : position error = 168.437073 mm\n\t'pinky_02_r' : position
+      error = 56.930737 mm\n\t'pinky_03_r' : position error = 48.519783 mm\n\t'neck_01'
+      : position error = 18.805756 mm\n\t'head' : position error = 5.312424 mm\n"
     animationImportErrors: 
     animationImportWarnings: "\nClip 'Take 001' has import animation warnings that
       might lower retargeting quality:\nNote: Activate translation DOF on avatar
@@ -510,9 +532,10 @@ ModelImporter:
       will be discarded.\n\t'calf_r' has translation animation that will be discarded.\n\t'foot_r'
       has translation animation that will be discarded.\n\t'ball_r' has translation
       animation that will be discarded.\n\t'spine_01' has translation animation that
-      will be discarded.\n\t'lowerarm_l' has translation animation that will be discarded.\n\t'hand_l'
-      has translation animation that will be discarded.\n\t'hand_r' has translation
-      animation that will be discarded.\n"
+      will be discarded.\n\t'upperarm_l' has translation animation that will be discarded.\n\t'lowerarm_l'
+      has translation animation that will be discarded.\n\t'hand_l' has translation
+      animation that will be discarded.\n\t'hand_r' has translation animation that
+      will be discarded.\n"
     animationRetargetingWarnings: 
     animationDoRetargetingWarnings: 0
     importAnimatedCustomProperties: 0
@@ -734,6 +757,7 @@ ModelImporter:
     addColliders: 0
     useSRGBMaterialColor: 1
     sortHierarchyByName: 1
+    importPhysicalCameras: 1
     importVisibility: 1
     importBlendShapes: 1
     importCameras: 1
@@ -761,6 +785,7 @@ ModelImporter:
     secondaryUVMinObjectScale: 1
     secondaryUVPackMargin: 4
     useFileScale: 1
+    strictVertexDataChecks: 0
   tangentSpace:
     normalSmoothAngle: 60
     normalImportMode: 0
@@ -1259,8 +1284,7 @@ ModelImporter:
     - name: ik_hand_r
       parentName: ik_hand_gun
       position: {x: -0, y: 0, z: -0.000000019073486}
-      rotation: {x: 0.000000014901159, y: -0.000000022351744, z: 0.000000014901163,
-        w: 1}
+      rotation: {x: 0.000000014901159, y: -0.000000022351744, z: 0.000000014901163, w: 1}
       scale: {x: 1, y: 1, z: 1}
     - name: R_Hand_Weapon
       parentName: ik_hand_r
@@ -1340,8 +1364,7 @@ ModelImporter:
     - name: lowerarm_twist_01_l
       parentName: lowerarm_l
       position: {x: -0.14000021, y: 0.000000019073486, z: 0.00000015258789}
-      rotation: {x: 0.000000014901161, y: -0.000000014901161, z: 0.000000014901161,
-        w: 1}
+      rotation: {x: 0.000000014901161, y: -0.000000014901161, z: 0.000000014901161, w: 1}
       scale: {x: 1, y: 1, z: 1}
     - name: hand_l
       parentName: lowerarm_l
@@ -1635,13 +1658,14 @@ ModelImporter:
     hasTranslationDoF: 0
     hasExtraRoot: 1
     skeletonHasParents: 1
-  lastHumanDescriptionAvatarSource: {fileID: 9000000, guid: c544be3651b5d0442a6ed780add0aa36,
-    type: 3}
+  lastHumanDescriptionAvatarSource: {fileID: 9000000, guid: c544be3651b5d0442a6ed780add0aa36, type: 3}
   autoGenerateAvatarMappingIfUnspecified: 1
   animationType: 3
   humanoidOversampling: 1
   avatarSetup: 2
   addHumanoidExtraRootOnlyWhenUsingAvatar: 0
+  importBlendShapeDeformPercent: 0
+  remapMaterialsIfMaterialImportModeIsNone: 1
   additionalBone: 0
   userData: 
   assetBundleName: 

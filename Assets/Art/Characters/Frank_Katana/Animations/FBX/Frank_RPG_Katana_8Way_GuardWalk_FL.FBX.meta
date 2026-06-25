@@ -1,7 +1,7 @@
 fileFormatVersion: 2
 guid: 8f5acbe5a3714e74594858298f30642d
 ModelImporter:
-  serializedVersion: 21202
+  serializedVersion: 22200
   internalIDToNameTable:
   - first:
       1: 100000
@@ -493,13 +493,35 @@ ModelImporter:
     rigImportErrors: 
     rigImportWarnings: "Copied Avatar Rig Configuration mis-match. Bone length in
       copied configuration does not match position in animation file:\n\t'thigh_l'
-      : position error = 2.212583 mm\n\t'thigh_r' : position error = 2.085303 mm\n\t'calf_r'
-      : position error = 1.178726 mm\n\t'lowerarm_l' : position error = 1.500600
-      mm\n\t'hand_l' : position error = 7.719441 mm\n\t'middle_02_l' : position error
-      = 1.205590 mm\n\t'ring_02_l' : position error = 1.315710 mm\n\t'upperarm_r'
-      : position error = 1.023176 mm\n\t'lowerarm_r' : position error = 1.485222
-      mm\n\t'hand_r' : position error = 2.843280 mm\n\t'middle_02_r' : position error
-      = 1.204202 mm\n\t'ring_02_r' : position error = 1.314685 mm\n"
+      : position error = 169.804749 mm\n\t'calf_l' : position error = 870.607483
+      mm\n\t'foot_l' : position error = 830.473083 mm\n\t'ball_l' : position error
+      = 323.495789 mm\n\t'thigh_r' : position error = 168.692337 mm\n\t'calf_r' :
+      position error = 24.399811 mm\n\t'foot_r' : position error = 30.794048 mm\n\t'ball_r'
+      : position error = 82.384338 mm\n\t'spine_01' : position error = 52.484776
+      mm\n\t'spine_02' : position error = 103.753670 mm\n\t'spine_03' : position
+      error = 34.743313 mm\n\t'clavicle_l' : position error = 72.853027 mm\n\t'upperarm_l'
+      : position error = 58.847767 mm\n\t'lowerarm_l' : position error = 78.678070
+      mm\n\t'hand_l' : position error = 28.210056 mm\n\t'thumb_01_l' : position error
+      = 36.083195 mm\n\t'thumb_02_l' : position error = 3.114909 mm\n\t'thumb_03_l'
+      : position error = 16.686451 mm\n\t'index_01_l' : position error = 55.103413
+      mm\n\t'index_02_l' : position error = 13.976774 mm\n\t'middle_01_l' : position
+      error = 61.078636 mm\n\t'middle_02_l' : position error = 11.280145 mm\n\t'middle_03_l'
+      : position error = 11.793678 mm\n\t'ring_01_l' : position error = 58.420403
+      mm\n\t'ring_02_l' : position error = 14.172122 mm\n\t'ring_03_l' : position
+      error = 13.392519 mm\n\t'pinky_01_l' : position error = 53.535732 mm\n\t'pinky_02_l'
+      : position error = 15.351854 mm\n\t'pinky_03_l' : position error = 11.146676
+      mm\n\t'clavicle_r' : position error = 72.852654 mm\n\t'upperarm_r' : position
+      error = 256.808136 mm\n\t'lowerarm_r' : position error = 526.047668 mm\n\t'hand_r'
+      : position error = 505.666382 mm\n\t'thumb_01_r' : position error = 70.969482
+      mm\n\t'thumb_02_r' : position error = 73.912376 mm\n\t'thumb_03_r' : position
+      error = 64.274513 mm\n\t'index_01_r' : position error = 188.766937 mm\n\t'index_02_r'
+      : position error = 72.490242 mm\n\t'middle_01_r' : position error = 189.629852
+      mm\n\t'middle_02_r' : position error = 83.102173 mm\n\t'middle_03_r' : position
+      error = 62.659958 mm\n\t'ring_01_r' : position error = 184.024963 mm\n\t'ring_02_r'
+      : position error = 73.886154 mm\n\t'ring_03_r' : position error = 57.659187
+      mm\n\t'pinky_01_r' : position error = 168.437103 mm\n\t'pinky_02_r' : position
+      error = 56.930737 mm\n\t'pinky_03_r' : position error = 48.519703 mm\n\t'neck_01'
+      : position error = 18.805733 mm\n\t'head' : position error = 5.312639 mm\n"
     animationImportErrors: 
     animationImportWarnings: "\nClip 'Take 001' has import animation warnings that
       might lower retargeting quality:\nNote: Activate translation DOF on avatar
@@ -734,6 +756,7 @@ ModelImporter:
     addColliders: 0
     useSRGBMaterialColor: 1
     sortHierarchyByName: 1
+    importPhysicalCameras: 1
     importVisibility: 1
     importBlendShapes: 1
     importCameras: 1
@@ -761,6 +784,7 @@ ModelImporter:
     secondaryUVMinObjectScale: 1
     secondaryUVPackMargin: 4
     useFileScale: 1
+    strictVertexDataChecks: 0
   tangentSpace:
     normalSmoothAngle: 60
     normalImportMode: 0
@@ -782,24 +806,8 @@ ModelImporter:
         value: {x: 0, y: 0, z: 0}
         length: 0
         modified: 0
-    - boneName: thigh_l
-      humanName: LeftUpperLeg
-      limit:
-        min: {x: 0, y: 0, z: 0}
-        max: {x: 0, y: 0, z: 0}
-        value: {x: 0, y: 0, z: 0}
-        length: 0
-        modified: 0
     - boneName: thigh_r
       humanName: RightUpperLeg
-      limit:
-        min: {x: 0, y: 0, z: 0}
-        max: {x: 0, y: 0, z: 0}
-        value: {x: 0, y: 0, z: 0}
-        length: 0
-        modified: 0
-    - boneName: calf_l
-      humanName: LeftLowerLeg
       limit:
         min: {x: 0, y: 0, z: 0}
         max: {x: 0, y: 0, z: 0}
@@ -814,16 +822,16 @@ ModelImporter:
         value: {x: 0, y: 0, z: 0}
         length: 0
         modified: 0
-    - boneName: foot_l
-      humanName: LeftFoot
+    - boneName: foot_r
+      humanName: RightFoot
       limit:
         min: {x: 0, y: 0, z: 0}
         max: {x: 0, y: 0, z: 0}
         value: {x: 0, y: 0, z: 0}
         length: 0
         modified: 0
-    - boneName: foot_r
-      humanName: RightFoot
+    - boneName: ball_r
+      humanName: RightToes
       limit:
         min: {x: 0, y: 0, z: 0}
         max: {x: 0, y: 0, z: 0}
@@ -840,6 +848,46 @@ ModelImporter:
         modified: 0
     - boneName: spine_02
       humanName: Chest
+      limit:
+        min: {x: 0, y: 0, z: 0}
+        max: {x: 0, y: 0, z: 0}
+        value: {x: 0, y: 0, z: 0}
+        length: 0
+        modified: 0
+    - boneName: spine_03
+      humanName: UpperChest
+      limit:
+        min: {x: 0, y: 0, z: 0}
+        max: {x: 0, y: 0, z: 0}
+        value: {x: 0, y: 0, z: 0}
+        length: 0
+        modified: 0
+    - boneName: clavicle_r
+      humanName: RightShoulder
+      limit:
+        min: {x: 0, y: 0, z: 0}
+        max: {x: 0, y: 0, z: 0}
+        value: {x: 0, y: 0, z: 0}
+        length: 0
+        modified: 0
+    - boneName: upperarm_r
+      humanName: RightUpperArm
+      limit:
+        min: {x: 0, y: 0, z: 0}
+        max: {x: 0, y: 0, z: 0}
+        value: {x: 0, y: 0, z: 0}
+        length: 0
+        modified: 0
+    - boneName: lowerarm_r
+      humanName: RightLowerArm
+      limit:
+        min: {x: 0, y: 0, z: 0}
+        max: {x: 0, y: 0, z: 0}
+        value: {x: 0, y: 0, z: 0}
+        length: 0
+        modified: 0
+    - boneName: hand_r
+      humanName: RightHand
       limit:
         min: {x: 0, y: 0, z: 0}
         max: {x: 0, y: 0, z: 0}
@@ -870,24 +918,8 @@ ModelImporter:
         value: {x: 0, y: 0, z: 0}
         length: 0
         modified: 0
-    - boneName: clavicle_r
-      humanName: RightShoulder
-      limit:
-        min: {x: 0, y: 0, z: 0}
-        max: {x: 0, y: 0, z: 0}
-        value: {x: 0, y: 0, z: 0}
-        length: 0
-        modified: 0
     - boneName: upperarm_l
       humanName: LeftUpperArm
-      limit:
-        min: {x: 0, y: 0, z: 0}
-        max: {x: 0, y: 0, z: 0}
-        value: {x: 0, y: 0, z: 0}
-        length: 0
-        modified: 0
-    - boneName: upperarm_r
-      humanName: RightUpperArm
       limit:
         min: {x: 0, y: 0, z: 0}
         max: {x: 0, y: 0, z: 0}
@@ -902,14 +934,6 @@ ModelImporter:
         value: {x: 0, y: 0, z: 0}
         length: 0
         modified: 0
-    - boneName: lowerarm_r
-      humanName: RightLowerArm
-      limit:
-        min: {x: 0, y: 0, z: 0}
-        max: {x: 0, y: 0, z: 0}
-        value: {x: 0, y: 0, z: 0}
-        length: 0
-        modified: 0
     - boneName: hand_l
       humanName: LeftHand
       limit:
@@ -918,8 +942,24 @@ ModelImporter:
         value: {x: 0, y: 0, z: 0}
         length: 0
         modified: 0
-    - boneName: hand_r
-      humanName: RightHand
+    - boneName: thigh_l
+      humanName: LeftUpperLeg
+      limit:
+        min: {x: 0, y: 0, z: 0}
+        max: {x: 0, y: 0, z: 0}
+        value: {x: 0, y: 0, z: 0}
+        length: 0
+        modified: 0
+    - boneName: calf_l
+      humanName: LeftLowerLeg
+      limit:
+        min: {x: 0, y: 0, z: 0}
+        max: {x: 0, y: 0, z: 0}
+        value: {x: 0, y: 0, z: 0}
+        length: 0
+        modified: 0
+    - boneName: foot_l
+      humanName: LeftFoot
       limit:
         min: {x: 0, y: 0, z: 0}
         max: {x: 0, y: 0, z: 0}
@@ -928,14 +968,6 @@ ModelImporter:
         modified: 0
     - boneName: ball_l
       humanName: LeftToes
-      limit:
-        min: {x: 0, y: 0, z: 0}
-        max: {x: 0, y: 0, z: 0}
-        value: {x: 0, y: 0, z: 0}
-        length: 0
-        modified: 0
-    - boneName: ball_r
-      humanName: RightToes
       limit:
         min: {x: 0, y: 0, z: 0}
         max: {x: 0, y: 0, z: 0}
@@ -1182,14 +1214,6 @@ ModelImporter:
         value: {x: 0, y: 0, z: 0}
         length: 0
         modified: 0
-    - boneName: spine_03
-      humanName: UpperChest
-      limit:
-        min: {x: 0, y: 0, z: 0}
-        max: {x: 0, y: 0, z: 0}
-        value: {x: 0, y: 0, z: 0}
-        length: 0
-        modified: 0
     skeleton:
     - name: Frank_RPG_Katana_Unity_Y_top(Clone)
       parentName: 
@@ -1229,27 +1253,27 @@ ModelImporter:
     - name: ik_foot_root
       parentName: root
       position: {x: -0, y: 0, z: 0}
-      rotation: {x: 0, y: -0, z: -0, w: 1}
+      rotation: {x: -0.7071068, y: 0, z: 0, w: 0.7071068}
       scale: {x: 1, y: 1, z: 1}
     - name: ik_foot_l
       parentName: ik_foot_root
-      position: {x: -0.17076282, y: 0.10372871, z: -0.08070446}
-      rotation: {x: -0.48155034, y: 0.4953346, z: -0.5119149, w: 0.51058406}
+      position: {x: -0.17076282, y: 0.08070446, z: 0.10372871}
+      rotation: {x: 0.02052996, y: 0.71223295, z: -0.011724031, w: 0.70154494}
       scale: {x: 1, y: 1, z: 1}
     - name: ik_foot_r
       parentName: ik_foot_root
-      position: {x: 0.17076302, y: 0.103727475, z: -0.0807091}
-      rotation: {x: 0.51058286, y: 0.5119134, z: 0.49533594, w: 0.48155192}
+      position: {x: 0.17076302, y: 0.0807091, z: 0.103727475}
+      rotation: {x: 0.7015452, y: 0.011722035, z: 0.7122328, w: -0.020528007}
       scale: {x: 1, y: 1, z: 1.000001}
     - name: ik_hand_root
       parentName: root
       position: {x: -0, y: 0, z: 0}
-      rotation: {x: 0, y: -0, z: -0, w: 1}
+      rotation: {x: -0.7071068, y: 0, z: 0, w: 0.7071068}
       scale: {x: 1, y: 1, z: 1}
     - name: ik_hand_gun
       parentName: ik_hand_root
-      position: {x: 0.5664607, y: 1.0858687, z: -0.0033535287}
-      rotation: {x: -0.042387515, y: -0.22598824, z: -0.3243342, w: 0.91757286}
+      position: {x: 0.5664607, y: 0.0033534812, z: 1.0858687}
+      rotation: {x: 0.6188495, y: 0.069541104, z: -0.38913673, w: 0.67879444}
       scale: {x: 1, y: 1, z: 1}
     - name: ik_hand_l
       parentName: ik_hand_gun
@@ -1259,8 +1283,7 @@ ModelImporter:
     - name: ik_hand_r
       parentName: ik_hand_gun
       position: {x: -0, y: 0, z: -0.000000019073486}
-      rotation: {x: 0.000000014901159, y: -0.000000022351744, z: 0.000000014901163,
-        w: 1}
+      rotation: {x: 0.000000014901159, y: -0.000000022351744, z: 0.000000014901163, w: 1}
       scale: {x: 1, y: 1, z: 1}
     - name: R_Hand_Weapon
       parentName: ik_hand_r
@@ -1340,8 +1363,7 @@ ModelImporter:
     - name: lowerarm_twist_01_l
       parentName: lowerarm_l
       position: {x: -0.14000021, y: 0.000000019073486, z: 0.00000015258789}
-      rotation: {x: 0.000000014901161, y: -0.000000014901161, z: 0.000000014901161,
-        w: 1}
+      rotation: {x: 0.000000014901161, y: -0.000000014901161, z: 0.000000014901161, w: 1}
       scale: {x: 1, y: 1, z: 1}
     - name: hand_l
       parentName: lowerarm_l
@@ -1545,9 +1567,9 @@ ModelImporter:
       scale: {x: 1, y: 1, z: 1}
     - name: Center_Slash_FX
       parentName: pelvis
-      position: {x: 0.9365336, y: -0.013966312, z: 0.0000000982767}
-      rotation: {x: 0.70710546, y: -0.0012855752, z: -0.0012860032, w: 0.7071059}
-      scale: {x: 0.999999, y: 1.000001, z: 1.000001}
+      position: {x: 0.93653363, y: -0.013966234, z: 0.00000009827665}
+      rotation: {x: -0.49908996, y: 0.50090843, z: 0.5009083, w: -0.49909}
+      scale: {x: 0.999999, y: 1.000001, z: 1}
     - name: thigh_l
       parentName: pelvis
       position: {x: 0.01448822, y: -0.0053142575, z: -0.0900581}
@@ -1635,13 +1657,14 @@ ModelImporter:
     hasTranslationDoF: 0
     hasExtraRoot: 1
     skeletonHasParents: 1
-  lastHumanDescriptionAvatarSource: {fileID: 9000000, guid: c544be3651b5d0442a6ed780add0aa36,
-    type: 3}
+  lastHumanDescriptionAvatarSource: {fileID: 9000000, guid: c544be3651b5d0442a6ed780add0aa36, type: 3}
   autoGenerateAvatarMappingIfUnspecified: 1
   animationType: 3
   humanoidOversampling: 1
   avatarSetup: 2
   addHumanoidExtraRootOnlyWhenUsingAvatar: 0
+  importBlendShapeDeformPercent: 0
+  remapMaterialsIfMaterialImportModeIsNone: 1
   additionalBone: 0
   userData: 
   assetBundleName: 
