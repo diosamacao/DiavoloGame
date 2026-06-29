@@ -78,17 +78,33 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         _controller.Move(_velocity * deltaTime);
     }
 
+    /// <summary>按当前或缓冲移动输入朝向；无有效输入时保持原朝向。</summary>
     public void FaceBufferedMoveIntent()
+    {
+        if (!TryGetDodgeIntentDirection(out Vector3 direction))
+            return;
+
+        FaceWorldDirection(direction);
+    }
+
+    /// <summary>读取 Dodge 方向判定输入：优先当前输入，其次缓冲输入。</summary>
+    public bool TryGetDodgeIntentDirection(out Vector3 direction)
     {
         Vector2 moveIntent = _input.HasMoveIntent
             ? _input.MoveIntent
             : _input.BufferedMoveIntent;
 
-        Vector3 direction = ResolveWorldMoveDirection(moveIntent);
-        if (direction.sqrMagnitude < 0.001f)
+        direction = ResolveWorldMoveDirection(moveIntent);
+        return direction.sqrMagnitude >= 0.001f;
+    }
+
+    /// <summary>按世界方向立即旋转角色；忽略 y 分量与极小向量。</summary>
+    public void FaceWorldDirection(Vector3 direction)
+    {
+        if (!TryNormalizePlanar(direction, out Vector3 normalizedDirection))
             return;
 
-        _root.rotation = Quaternion.LookRotation(direction);
+        _root.rotation = Quaternion.LookRotation(normalizedDirection);
     }
 
     public Vector3 ResolveWorldMoveDirection(Vector2 moveIntent)
@@ -122,5 +138,19 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
             _config.RotationSmoothTime);
 
         return Quaternion.Euler(0f, angle, 0f);
+    }
+
+    /// <summary>将向量投影到 XZ 平面并单位化；长度过小时返回 false。</summary>
+    static bool TryNormalizePlanar(Vector3 source, out Vector3 normalized)
+    {
+        source.y = 0f;
+        if (source.sqrMagnitude < 0.0001f)
+        {
+            normalized = Vector3.zero;
+            return false;
+        }
+
+        normalized = source.normalized;
+        return true;
     }
 }
