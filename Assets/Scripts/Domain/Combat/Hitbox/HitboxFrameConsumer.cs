@@ -1,31 +1,38 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// 攻击侧 Hitbox 运行时：订阅 ActionExecutor Logic Tick，
-/// 与场景 IHurtboxTarget 做 OBB 重叠检测。
-/// </summary>
-public sealed class HitBoxSystem : ICombatFrameConsumer
+/// <summary>攻击侧 Hitbox 帧消费者：订阅 ActionExecutor Logic Tick 并检测当前帧命中。</summary>
+public sealed class HitboxFrameConsumer : ICombatFrameConsumer
 {
     readonly Transform root;
     readonly Transform attachPoint;
     readonly ActionExecutor actionExecutor;
-
-    /// <summary>Hitbox 局部变换挂点；为空时使用本物体 Transform。</summary>
-    public Transform AttachPoint => attachPoint;
+    readonly Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider;
+    readonly Action<ActionHitContext, IHurtboxTarget, IActionHitReceiver, Transform> hitDetected;
 
     readonly HashSet<(string HitboxId, int TargetId)> _hitPairs = new();
     ActionDefinition _trackedAction;
 
+    /// <summary>Hitbox 局部变换挂点；为空时使用本物体 Transform。</summary>
+    public Transform AttachPoint => attachPoint;
+
     /// <summary>招式运行时只读访问，供帧采样与 Hitbox 检测。</summary>
     IActionExecutor Runtime => actionExecutor;
 
-    /// <summary>创建纯 C# Hitbox 帧消费者。</summary>
-    public HitBoxSystem(Transform actorRoot, ActionExecutor executor, Transform hitboxAttachPoint)
+    /// <summary>创建纯 C# Hitbox 帧消费者；目标查询与命中应用由 App 层委托提供。</summary>
+    public HitboxFrameConsumer(
+        Transform actorRoot,
+        ActionExecutor executor,
+        Transform hitboxAttachPoint,
+        Func<IReadOnlyList<IHurtboxTarget>> targetsProvider,
+        Action<ActionHitContext, IHurtboxTarget, IActionHitReceiver, Transform> onHitDetected)
     {
         root = actorRoot;
         actionExecutor = executor;
         attachPoint = hitboxAttachPoint != null ? hitboxAttachPoint : actorRoot;
+        activeTargetsProvider = targetsProvider;
+        hitDetected = onHitDetected;
     }
 
     /// <summary>新招式开始：清空命中缓存。</summary>
@@ -52,13 +59,16 @@ public sealed class HitBoxSystem : ICombatFrameConsumer
 
     void ProcessHitboxesAtFrame(ActionDefinition action, int frame)
     {
-        HitDetectionSystem.ProcessHitboxesAtFrame(
+        IReadOnlyList<IHurtboxTarget> activeTargets = activeTargetsProvider?.Invoke();
+        HitDetector.ProcessHitboxesAtFrame(
             action,
             frame,
             root,
             attachPoint,
             _hitPairs,
-            actionExecutor);
+            actionExecutor,
+            activeTargets,
+            hitDetected);
     }
 
     /// <summary>切换招式时清空命中缓存，避免跨招误判。</summary>

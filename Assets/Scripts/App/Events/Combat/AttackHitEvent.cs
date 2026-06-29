@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>攻击命中事件；命中结算完成后广播给反馈、相机、VFX、音频与 UI 系统。</summary>
-public readonly struct AttackHitEvent
+public readonly struct AttackHitEvent : IArchitectureEvent
 {
     /// <summary>创建攻击命中事件。</summary>
     public AttackHitEvent(ActionHitContext context, Transform targetTransform, Vector3 hitDirection)

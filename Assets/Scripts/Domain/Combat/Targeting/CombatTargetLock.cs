@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>攻击侧索敌运行时：起手 Acquire、帧间 Validate，并向 ActionRotationDriver 提供锁定方向。</summary>
@@ -6,6 +8,7 @@ public sealed class CombatTargetLock
     readonly Transform attackerRoot;
     readonly int attackerTeamId;
     readonly Transform aimOrigin;
+    readonly Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider;
     ITargetable _lockedTarget;
     TargetLockSettings _activeSettings;
     ActionDefinition _lockedForAction;
@@ -22,11 +25,16 @@ public sealed class CombatTargetLock
     Transform Origin => aimOrigin != null ? aimOrigin : attackerRoot;
 
     /// <summary>创建索敌锁定状态；不挂载到玩家对象。</summary>
-    public CombatTargetLock(Transform attacker, int team, Transform origin)
+    public CombatTargetLock(
+        Transform attacker,
+        int team,
+        Transform origin,
+        Func<IReadOnlyList<IHurtboxTarget>> targetsProvider)
     {
         attackerRoot = attacker;
         attackerTeamId = team;
         aimOrigin = origin;
+        activeTargetsProvider = targetsProvider;
     }
 
     /// <summary>每帧由 ActionRotationDriver 在 Action 状态下调用，按 ActionSession 处理 Acquire / Validate。</summary>
@@ -62,7 +70,7 @@ public sealed class CombatTargetLock
         if (!HasValidLock)
             return false;
 
-        return TargetingSystem.TryGetDirectionToTarget(Origin.position, _lockedTarget, out direction);
+        return TargetingResolver.TryGetDirectionToTarget(Origin.position, _lockedTarget, out direction);
     }
 
     void TryAcquireForAction(ActionDefinition action)
@@ -76,7 +84,8 @@ public sealed class CombatTargetLock
 
         TargetLockSettings settings = action.TargetLockSettings;
         _activeSettings = settings;
-        _lockedTarget = TargetingSystem.Select(
+        _lockedTarget = TargetingResolver.Select(
+            activeTargetsProvider?.Invoke(),
             Origin.position,
             attackerRoot.forward,
             attackerTeamId,

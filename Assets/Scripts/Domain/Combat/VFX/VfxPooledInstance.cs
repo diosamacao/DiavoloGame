@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>池化 VFX 实例：Spawn 时重启粒子，生命周期结束后自动回收到 VFXManager；卡肉时同步暂停粒子。</summary>
 [DisallowMultipleComponent]
-public sealed class VfxPooledInstance : MonoBehaviour, IPoolable
+public sealed class VfxPooledInstance : AppControllerBase, IPoolable
 {
     [SerializeField] float fallbackLifetime = 2f;
 
@@ -28,10 +28,10 @@ public sealed class VfxPooledInstance : MonoBehaviour, IPoolable
 
     void OnEnable()
     {
-        ACTGameArchitecture.Interface.RegisterEvent<HitStopBeganEvent>(HandleHitStopBegan);
-        ACTGameArchitecture.Interface.RegisterEvent<HitStopEndedEvent>(HandleHitStopEnded);
+        RegisterEvent<HitStopBeganEvent>(HandleHitStopBegan);
+        RegisterEvent<HitStopEndedEvent>(HandleHitStopEnded);
 
-        CombatFeedbackSystem feedbackSystem = ACTGameArchitecture.Interface.GetSystem<CombatFeedbackSystem>();
+        CombatFeedbackSystem feedbackSystem = GetSystem<CombatFeedbackSystem>();
         if (feedbackSystem != null
             && feedbackSystem.IsHitStopActive
             && ShouldPauseForHitStop(feedbackSystem.ActiveHitStopAttackerRoot))
@@ -42,8 +42,8 @@ public sealed class VfxPooledInstance : MonoBehaviour, IPoolable
 
     void OnDisable()
     {
-        ACTGameArchitecture.Interface.UnregisterEvent<HitStopBeganEvent>(HandleHitStopBegan);
-        ACTGameArchitecture.Interface.UnregisterEvent<HitStopEndedEvent>(HandleHitStopEnded);
+        UnregisterEvent<HitStopBeganEvent>(HandleHitStopBegan);
+        UnregisterEvent<HitStopEndedEvent>(HandleHitStopEnded);
     }
 
     /// <summary>从池中取出后调用：重启粒子并安排自动回收。</summary>
@@ -161,7 +161,7 @@ public sealed class VfxPooledInstance : MonoBehaviour, IPoolable
     /// <summary>攻击者卡肉期间冻结该实例的生命周期计时。</summary>
     bool IsLifetimeFrozen()
     {
-        CombatFeedbackSystem feedbackSystem = ACTGameArchitecture.Interface.GetSystem<CombatFeedbackSystem>();
+        CombatFeedbackSystem feedbackSystem = GetSystem<CombatFeedbackSystem>();
         return feedbackSystem != null
             && feedbackSystem.IsHitStopActive
             && ShouldPauseForHitStop(feedbackSystem.ActiveHitStopAttackerRoot);

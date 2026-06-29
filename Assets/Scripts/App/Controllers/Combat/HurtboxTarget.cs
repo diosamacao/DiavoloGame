@@ -1,16 +1,16 @@
 using UnityEngine;
 
 /// <summary>静态受击目标（木桩等）：Inspector 配置 Hurtbox，命中时输出测试日志；同时作为 ITargetable 供索敌。</summary>
-public class HurtboxTarget : MonoBehaviour, ITargetable
+public class HurtboxTarget : AppControllerBase, ITargetable
 {
     [SerializeField] HurtboxDefinition hurtbox = new();
     [SerializeField] Transform aimPoint = null;
     [SerializeField] int teamId = 1;
     [SerializeField] float currentHealth = float.MaxValue;
 
-    void OnEnable() => ACTGameArchitecture.Interface.GetSystem<TargetSystem>()?.Register(this);
+    void OnEnable() => GetSystem<TargetSystem>()?.Register(this);
 
-    void OnDisable() => ACTGameArchitecture.Interface.GetSystem<TargetSystem>()?.Unregister(this);
+    void OnDisable() => GetSystem<TargetSystem>()?.Unregister(this);
 
     public int TargetInstanceId => gameObject.GetInstanceID();
 

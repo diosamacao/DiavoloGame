@@ -1,25 +1,26 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>命中检测批处理入口；短期仍线性扫描 TargetSystem，后续可替换为空间分区。</summary>
-public static class HitDetectionSystem
+/// <summary>命中检测批处理入口；只接收目标集合与命中回调，不依赖架构层。</summary>
+public static class HitDetector
 {
-    /// <summary>检测指定招式帧的全部 Hitbox，并把命中结果交给 ApplyHitCommand 处理。</summary>
+    /// <summary>检测指定招式帧的全部 Hitbox，并把命中结果交给调用方处理。</summary>
     public static void ProcessHitboxesAtFrame(
         ActionDefinition action,
         int frame,
         Transform root,
         Transform anchor,
         HashSet<(string HitboxId, int TargetId)> hitPairs,
-        IActionHitReceiver hitReceiver)
+        IActionHitReceiver hitReceiver,
+        IReadOnlyList<IHurtboxTarget> activeTargets,
+        Action<ActionHitContext, IHurtboxTarget, IActionHitReceiver, Transform> hitDetected)
     {
-        IReadOnlyList<HitboxKeyframe> activeHitboxes = action.GetActiveHitboxesAtFrame(frame);
-        if (activeHitboxes.Count == 0)
+        if (activeTargets == null || activeTargets.Count == 0 || hitDetected == null)
             return;
 
-        TargetSystem targetSystem = ACTGameArchitecture.Interface.GetSystem<TargetSystem>();
-        IReadOnlyList<IHurtboxTarget> activeTargets = targetSystem?.ActiveTargets;
-        if (activeTargets == null || activeTargets.Count == 0)
+        IReadOnlyList<HitboxKeyframe> activeHitboxes = action.GetActiveHitboxesAtFrame(frame);
+        if (activeHitboxes.Count == 0)
             return;
 
         foreach (HitboxKeyframe hitbox in activeHitboxes)
@@ -40,8 +41,7 @@ public static class HitDetectionSystem
                 hitPairs.Add(pair);
                 var context = new ActionHitContext(action, hitbox, root);
                 Transform targetTransform = (target as Component)?.transform;
-                ACTGameArchitecture.Interface.SendCommand(
-                    new ApplyHitCommand(context, target, hitReceiver, targetTransform));
+                hitDetected.Invoke(context, target, hitReceiver, targetTransform);
             }
         }
     }

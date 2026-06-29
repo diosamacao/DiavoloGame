@@ -4,7 +4,7 @@
 
 ## 总原则
 
-ACTGame 的跨系统通信统一通过架构层完成：一次行为使用 Command，状态变化使用 Event，领域能力放入 System，状态数据放入 Model，无副作用查询使用 Query。
+ACTGame 的跨系统通信统一通过架构层完成：一次行为使用 Command，状态变化使用 Event，领域能力放入 System，状态数据放入 Model，无副作用查询使用 Query。进入架构 IOC 的对象必须实现对应契约或基类，避免只靠命名约束职责。
 
 动作系统内部允许保留直接依赖和接口回调，因为 Hitbox、CancelWindow、动作 VFX 与逻辑帧顺序强绑定，过度事件化会降低确定性与调试效率。
 
@@ -24,7 +24,18 @@ ACTGame 的跨系统通信统一通过架构层完成：一次行为使用 Comma
 | `Service` | 局部服务，不注册到项目架构层 |
 
 禁止新增业务类使用泛化的 `Runtime` 后缀。已有 `Runtime` 类在架构迁移中改为 `Actor`、`Executor`、`System`、`Factory` 等明确后缀。
-`Controller` 仅用于 `App/Controllers` 下的 Unity 入口；`Domain` 纯 C# 业务类应优先使用 `Service` / `Actor` / `Executor`。
+`Controller` 仅用于 `App/Controllers` 下的 Unity 入口，且应继承 `AppControllerBase` 或实现 `IArchitectureController`；`Domain` 纯 C# 业务类应优先使用 `Service` / `Actor` / `Executor` / `Resolver` / `Detector` / `Consumer`。
+
+## 强类型契约
+
+- `IArchitectureSystem` / `ArchitectureSystemBase`：只有 System 契约对象可注册进 `ACTGameArchitecture` 并被 `GetSystem<T>()` 取出。
+- `IArchitectureController` / `AppControllerBase`：Unity 表现入口通过能力方法发送 Command、Query 和订阅 Event。
+- `IArchitectureCommand` / `ArchitectureCommandBase`：表达一次会改变状态的业务行为；命令实例只携带本次执行上下文，不保存跨帧可变状态。
+- `IArchitectureQuery<TResult>` / `ArchitectureQueryBase<TResult>`：表达无副作用读取，不写状态、不发送事件。
+- `IArchitectureEvent`：只有显式标记的事件类型可被 `SendEvent` / `RegisterEvent` 使用。
+- `IArchitectureModel` / `ArchitectureModelBase` 与 `IArchitectureUtility`：预留共享状态与工具对象容器。
+
+`Assets/Scripts/Editor/Architecture/ArchitectureBoundaryValidator.cs` 会在 Editor 中校验核心目录/后缀规则：`App/Systems` 的 `*System` 必须实现 System 契约，`App/Controllers` 的 MonoBehaviour 必须实现 Controller 契约，`App/Events` 的 `*Event` 必须实现 Event 契约，`Domain` 禁止直接访问 `ACTGameArchitecture.Interface`。
 
 ## 分层职责
 
@@ -78,7 +89,7 @@ CharacterActor.Tick
     -> ActionState
       -> ActionExecutor.Tick
         -> ICombatFrameConsumer
-          -> HitBoxSystem
+          -> HitboxFrameConsumer
           -> ActionVfxPlayer
 ```
 
@@ -97,8 +108,8 @@ CharacterActor.Tick
 标准命中流程：
 
 ```text
-HitBoxSystem
-  -> HitDetectionSystem
+HitboxFrameConsumer
+  -> HitDetector
     -> ApplyHitCommand
       -> IActionHitReceiver.NotifyHit
       -> IHurtboxTarget.OnHit
@@ -107,14 +118,14 @@ HitBoxSystem
         -> CombatFeedbackSystem / VfxSystem / CameraFeedbackSystem / AudioSystem / UI
 ```
 
-禁止 `HitDetectionSystem` 直接调用 VFX、Camera、Audio、UI 或卡肉实现。
+禁止 `HitDetector` 直接调用 VFX、Camera、Audio、UI 或卡肉实现；它只接收目标集合和命中回调，跨系统结算由 App 层 Command 处理。
 
 ## 注册与查询规范
 
 - 目标注册统一进入 `TargetSystem`。
 - 角色战斗执行器注册统一进入 `CombatActorSystem`。
 - 不新增 static registry 作为业务入口。
-- 索敌通过 `TargetSystem` 或 Query 完成。
+- 索敌目标集合通过 `GetActiveTargetsQuery` 或调用方注入完成，Domain 内的 `TargetingResolver` 只做纯计算。
 
 ## 迁移命名
 

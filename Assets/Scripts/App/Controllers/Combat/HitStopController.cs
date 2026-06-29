@@ -5,7 +5,7 @@ using UnityEngine;
 /// 可挂在 Player 或场景 Managers 上；按 ActionDefinition 配置驱动。
 /// </summary>
 [DisallowMultipleComponent]
-public class HitStopController : MonoBehaviour
+public class HitStopController : AppControllerBase
 {
     Transform _activeAttacker;
     Animator _activeAnimator;
@@ -25,12 +25,12 @@ public class HitStopController : MonoBehaviour
 
     void OnEnable()
     {
-        ACTGameArchitecture.Interface.RegisterEvent<AttackHitEvent>(HandleAttackHit);
+        RegisterEvent<AttackHitEvent>(HandleAttackHit);
     }
 
     void OnDisable()
     {
-        ACTGameArchitecture.Interface.UnregisterEvent<AttackHitEvent>(HandleAttackHit);
+        UnregisterEvent<AttackHitEvent>(HandleAttackHit);
         ForceEndHitStop();
     }
 
@@ -44,7 +44,7 @@ public class HitStopController : MonoBehaviour
         if (!context.Action.ShouldHitStopOnHit())
             return;
 
-        CombatActorSystem actorSystem = ACTGameArchitecture.Interface.GetSystem<CombatActorSystem>();
+        CombatActorSystem actorSystem = GetSystem<CombatActorSystem>();
         if (actorSystem == null)
             return;
 
@@ -85,7 +85,7 @@ public class HitStopController : MonoBehaviour
 
             executor?.SetHitStopPaused(true);
             animator.speed = 0f;
-            ACTGameArchitecture.Interface.GetSystem<CombatFeedbackSystem>()?.BeginHitStop(attacker);
+            GetSystem<CombatFeedbackSystem>()?.BeginHitStop(attacker);
         }
 
         _remainingSeconds = Mathf.Max(_remainingSeconds, durationSeconds);
@@ -104,7 +104,7 @@ public class HitStopController : MonoBehaviour
         _activeAttacker = null;
         _activeExecutor = null;
         _activeAnimator = null;
-        ACTGameArchitecture.Interface.GetSystem<CombatFeedbackSystem>()?.EndHitStop();
+        GetSystem<CombatFeedbackSystem>()?.EndHitStop();
     }
 
     void ForceEndHitStop()

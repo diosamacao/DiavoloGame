@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>场景级战斗世界入口控制器，集中承载目标注册、命中检测、索敌与反馈系统的生命周期。</summary>
 [DisallowMultipleComponent]
-public class CombatWorldController : MonoBehaviour
+public class CombatWorldController : AppControllerBase
 {
     /// <summary>当前场景战斗世界；系统查询只把它作为生命周期锚点，不作为业务单例入口。</summary>
     public static CombatWorldController Current { get; private set; }

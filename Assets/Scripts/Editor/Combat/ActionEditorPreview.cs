@@ -51,7 +51,7 @@ public interface IActionEditorPreviewExtension
 /// <summary>解析 Preview Character 上 Hitbox / VFX 共用的 attachPoint。</summary>
 public static class ActionEditorPreviewAttachPoint
 {
-    /// <summary>纯运行时不再挂载 HitBoxSystem / ActionVfxPlayer，预览默认使用 Preview Character 根节点。</summary>
+    /// <summary>纯运行时不再挂载 HitboxFrameConsumer / ActionVfxPlayer，预览默认使用 Preview Character 根节点。</summary>
     public static Transform Resolve(Transform previewCharacter)
     {
         return previewCharacter;
