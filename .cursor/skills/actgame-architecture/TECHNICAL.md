@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-06-23
+> Last updated: 2026-06-29
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -10,14 +10,55 @@
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（移动 + 视角 + 离散按键） | ✅ 已实现 | `ICharacterInputSource`、纯 C# `InputReader`、`InputManager` | `GameInputActions.inputactions` |
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
+| 架构通信框架 | ✅ 已实现 | `ACTGameArchitecture`、`ArchitectureSystemBase`、`AppControllerBase`、Command / Query / Event | — |
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionState` | `Player_KatanaGirl_AnimationProfile.asset` |
 | 第三人称相机 | ✅ 已实现 | `CameraManager` | 场景内 CameraManager 对象 |
 | 动作系统（播放 / 取消 / 连段 / 战斗模式） | ✅ 已实现 | 纯 C# `ActionExecutor`、`CombatModeService` | `CombatModeProfile`、`ActionComboSequence` |
-| 攻击 / 战斗判定 | 🟡 部分实现 | 纯 C# `HitBoxSystem` + `HitDetectionSystem` OBB + 命中回流 | 无伤害、Hit 状态 |
+| 攻击 / 战斗判定 | 🟡 部分实现 | 纯 C# `HitboxFrameConsumer` + `HitDetector` OBB + 命中回流 | 无伤害、Hit 状态 |
 | 敌人 AI | ⬜ 未实现 | — | `Enemy/` 占位 |
 | UI | ⬜ 未实现 | — | `UI/` 占位 |
 
 状态图例：✅ 可玩可用 · 🟡 有类/占位但未接完 · ⬜ 未开始
+
+---
+
+## 0. 架构通信框架
+
+### 功能说明
+
+参考 QFramework 的分层方式，项目通过 `ACTGameArchitecture` 统一管理跨系统通信；进入 IOC 的对象必须实现对应契约或基类。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 架构入口 | `ACTGameArchitecture.Interface` 懒加载注册默认 System |
+| System | `ArchitectureSystemBase` + `IArchitectureSystem`，通过 `RegisterSystem` 进入 IOC |
+| Controller | `AppControllerBase` + `IArchitectureController`，Unity 表现入口通过能力方法访问架构层 |
+| Command | `ArchitectureCommandBase` + `IArchitectureCommand`，表达一次会改变状态的业务行为 |
+| Query | `ArchitectureQueryBase<TResult>` + `IArchitectureQuery<TResult>`，表达无副作用读取 |
+| Event | `IArchitectureEvent` 标记接口，限制可分发事件类型 |
+| Editor 校验 | `ArchitectureBoundaryValidator` 检查 App/Systems、App/Controllers、App/Events 与 Domain 单例访问 |
+
+### 运行时流程
+
+```
+AppControllerBase
+  → SendCommand / SendQuery / RegisterEvent
+  → ACTGameArchitecture
+      → ArchitectureSystemBase / ArchitectureCommandBase / ArchitectureQueryBase
+      → IArchitectureEvent
+```
+
+### 已知限制
+
+- 仍处于单一 `Assembly-CSharp`，目录边界由 Editor 校验辅助，尚未通过 asmdef 强制。
+- Model / Utility 容器已具备 API，但当前暂无业务 Model / Utility 注册。
+
+### 相关文件
+
+- `Assets/Scripts/App/Architecture/*`
+- `Assets/Scripts/Editor/Architecture/ArchitectureBoundaryValidator.cs`
 
 ---
 
@@ -296,7 +337,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 - 实例化模型 Prefab，查找 Animator
 - Player 根只补齐 Unity 必需的 `CharacterController`
 - 构造纯 C# `InputReader`、`CharacterAnimationService`、`CombatModeService`、`ActionExecutor`、`CharacterStateMachine`
-- 注册纯 C# `HitBoxSystem` / `ActionVfxPlayer` 为 Logic Tick 消费者
+- 注册纯 C# `HitboxFrameConsumer` / `ActionVfxPlayer` 为 Logic Tick 消费者
 - `CharacterActor.Tick` 统一输入采集、动作路由、重力和状态机；状态自身调度 Locomotion 移动或 Action 旋转
 
 ### Editor 操作
@@ -321,7 +362,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 | 移动取消 | `CharacterActionDriver` + `CancelWindow(Movement)` |
 | 招式旋转 | `ActionRotationDriver` + `CombatTargetLock` |
 | Logic Tick | `ActionExecutor.UpdateFrame` → `ICombatFrameConsumer` + `IActionEventConsumer` |
-| 命中回流 | `HitBoxSystem` → `IActionHitReceiver.NotifyHit` |
+| 命中回流 | `HitboxFrameConsumer` → `IActionHitReceiver.NotifyHit` |
 | Motor | `CharacterMotor`（Locomotion 位移）+ `CharacterActor`（重力调度） |
 
 ### 运行时流程（Logic Tick）
@@ -330,7 +371,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 ActionState.Tick
   → ActionExecutor.Tick(deltaTime)
       → SyncLogicFrameFromElapsed → DispatchCombatFrame
-          → HitBoxSystem.OnCombatFrameAdvanced
+          → HitboxFrameConsumer.OnCombatFrameAdvanced
           → ActionVfxPlayer.OnCombatFrameAdvanced
       → CancelWindow / Transition（含 OnHitConfirm）
 ```
@@ -385,3 +426,4 @@ ActionState.Tick
 | 2026-06-17 | 动作系统 §7：ComboSequence、CombatMode、ACTION_EDITOR 对齐摘要 |
 | 2026-06-21 | ActionEditor 准备重构：CharacterActionDriver、UpdateFrame、Phase/Event 骨架、命中回流 |
 | 2026-06-23 | QFramework 风格架构改造：CharacterActor、ActionExecutor、ACTGameArchitecture、ApplyHitCommand、AttackHitEvent、TargetSystem |
+| 2026-06-29 | QFramework 式强类型契约：System/Controller/Command/Query/Event 基类与 Editor 边界校验，命中与索敌 Domain 入口移除架构单例依赖 |

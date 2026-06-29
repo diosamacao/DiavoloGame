@@ -1,10 +1,12 @@
+using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>从 TargetSystem 中按策略选取单个 ITargetable。</summary>
+/// <summary>从候选目标集合中按策略选取单个 ITargetable。</summary>
 public static class TargetSelector
 {
     /// <summary>按 settings 与攻击者状态选取最佳目标；无候选时返回 null。</summary>
     public static ITargetable Select(
+        IReadOnlyList<IHurtboxTarget> activeTargets,
         Vector3 origin,
         Vector3 forward,
         int attackerTeamId,
@@ -24,11 +26,10 @@ public static class TargetSelector
         float bestDistanceSq = float.MaxValue;
         float bestHealth = float.MaxValue;
 
-        TargetSystem targetSystem = ACTGameArchitecture.Interface.GetSystem<TargetSystem>();
-        if (targetSystem == null)
+        if (activeTargets == null || activeTargets.Count == 0)
             return null;
 
-        foreach (IHurtboxTarget candidate in targetSystem.ActiveTargets)
+        foreach (IHurtboxTarget candidate in activeTargets)
         {
             if (candidate is not ITargetable target)
                 continue;

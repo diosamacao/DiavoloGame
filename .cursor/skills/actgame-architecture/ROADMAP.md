@@ -7,7 +7,7 @@
 1. **状态机驱动角色表现**：动画、动作阶段、可取消窗口由 State 负责
 2. **Controller 只做 Scene 入口**：PlayerController 通过 CharacterConfig 创建纯 C# `CharacterActor`；业务不再挂载到 Player 根对象
 3. **Combat 与 Character 解耦**：Hitbox 拉取 `IActionExecutor`；Character State 只 Tick Executor
-4. **QFramework 风格跨系统通信**：跨系统使用 `ACTGameArchitecture`、Command、Event、System；动作帧内部保留强时序直连
+4. **QFramework 风格跨系统通信**：跨系统使用 `ACTGameArchitecture`、System、Command、Query、Event；进入 IOC 的对象必须实现对应契约或基类，动作帧内部保留强时序直连
 4. **Logic Tick = 编辑器帧**：`UpdateFrame` 统一 Play Mode 与 ActionEditor Scrub
 5. **数据驱动**：数值、动画映射、技能表进 ScriptableObject（Assets/Data/）
 6. **小步可验证**：每步可在 Play Mode 单独验证移动/动画/战斗
@@ -62,6 +62,9 @@
 - [x] 2026-06-21：Prefab/运行时堆业务脚本改为 `CharacterConfig` + `PlayerController` + 纯 C# 角色实例（2026-06-23 命名为 `CharacterActor`）
 - [x] 2026-06-23：命名迁移为 `CharacterActor` / `ActionExecutor`，新增 `ACTGameArchitecture`、`TargetSystem`、`CombatActorSystem`
 - [x] 2026-06-23：`TargetSystem` 替代静态目标注册表
+- [x] 2026-06-29：QFramework 风格强类型契约落地（`ArchitectureSystemBase`、`AppControllerBase`、`ArchitectureCommandBase`、`ArchitectureQueryBase`、`IArchitectureEvent`）
+- [x] 2026-06-29：Domain 命中/索敌入口移除直接 `ACTGameArchitecture.Interface` 依赖，改为目标集合注入、`GetActiveTargetsQuery` 与 App 层 Command 编排
+- [x] 2026-06-29：新增 Editor 架构边界校验，检查 `System` / `Controller` / `Event` 契约和 Domain 单例访问
 - [ ] 无 asmdef，全项目单一 Assembly-CSharp
 
 ## 已完成
@@ -74,6 +77,7 @@
 - [x] 2026-06-21：CharacterConfig 装配入口、ActionSession、目标注册 / HitDetectionSystem / TargetingSystem 骨架
 - [x] 2026-06-23：命中后跨系统通信迁移为 `ApplyHitCommand` + `AttackHitEvent`
 - [x] 2026-06-21：移除 Player 根对象运行时业务脚本挂载，动作/输入/状态/判定改为纯 C# runtime
+- [x] 2026-06-29：`HitBoxSystem` / `HitDetectionSystem` / `TargetingSystem` 命名收敛为 `HitboxFrameConsumer` / `HitDetector` / `TargetingResolver`，`System` 后缀仅保留给架构 IOC
 
 ## 决策记录
 
@@ -84,3 +88,4 @@
 | 2026-06-17 | 状态机 Core 不引用 UnityEngine | 可测试性与分层清晰 |
 | 2026-06-21 | 连招保持 `ActionComboSequence` 线性 | 近期无分支图需求 |
 | 2026-06-21 | 输入路由命名 `CharacterActionDriver` | 敌人复用同一组件 |
+| 2026-06-29 | 架构层采用能力接口 + 基类约束 | 让 Controller/System/Command/Query/Event 职责在类型系统中表达 |

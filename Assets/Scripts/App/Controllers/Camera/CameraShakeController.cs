@@ -7,7 +7,7 @@ using UnityEngine;
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(CameraManager))]
-public class CameraShakeController : MonoBehaviour
+public class CameraShakeController : AppControllerBase
 {
     const int DefaultImpulseChannel = 1;
 
@@ -32,12 +32,12 @@ public class CameraShakeController : MonoBehaviour
 
     void OnEnable()
     {
-        ACTGameArchitecture.Interface.RegisterEvent<AttackHitEvent>(HandleAttackHit);
+        RegisterEvent<AttackHitEvent>(HandleAttackHit);
     }
 
     void OnDisable()
     {
-        ACTGameArchitecture.Interface.UnregisterEvent<AttackHitEvent>(HandleAttackHit);
+        UnregisterEvent<AttackHitEvent>(HandleAttackHit);
     }
 
     void Start()

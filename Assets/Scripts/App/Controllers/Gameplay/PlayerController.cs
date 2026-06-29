@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>玩家角色装配与位移入口；Scene 空物体只需挂本组件并指定 CharacterConfig。</summary>
 [DefaultExecutionOrder(-50)]
-public class PlayerController : MonoBehaviour
+public class PlayerController : AppControllerBase
 {
     [Header("References")]
     [SerializeField] CharacterConfig characterConfig = null;
@@ -32,12 +32,20 @@ public class PlayerController : MonoBehaviour
         }
 
         var inputSource = new InputReader(characterConfig.InputActions);
+        EnsureCombatWorldController();
+
         actor = CharacterActorFactory.Create(
             gameObject,
             transform,
             characterConfig,
             inputSource,
-            cameraTransform);
+            cameraTransform,
+            () => SendQuery(new GetActiveTargetsQuery()),
+            ApplyDetectedHit,
+            out ActionExecutor actionExecutor,
+            out Animator animator);
+
+        GetSystem<CombatActorSystem>()?.Register(transform, actor, actionExecutor, animator);
     }
 
     void OnEnable()
@@ -52,7 +60,7 @@ public class PlayerController : MonoBehaviour
 
     void OnDestroy()
     {
-        ACTGameArchitecture.Interface.GetSystem<CombatActorSystem>()?.Unregister(transform);
+        GetSystem<CombatActorSystem>()?.Unregister(transform);
     }
 
     void Update()
@@ -65,5 +73,25 @@ public class PlayerController : MonoBehaviour
     {
         cameraTransform = targetCamera;
         actor?.SetCameraTransform(targetCamera);
+    }
+
+    /// <summary>把纯 Domain 命中检测结果转交给架构 Command 处理跨系统结算。</summary>
+    void ApplyDetectedHit(
+        ActionHitContext context,
+        IHurtboxTarget target,
+        IActionHitReceiver hitReceiver,
+        Transform targetTransform)
+    {
+        SendCommand(new ApplyHitCommand(context, target, hitReceiver, targetTransform));
+    }
+
+    /// <summary>玩家装配前确保场景存在统一战斗世界入口。</summary>
+    void EnsureCombatWorldController()
+    {
+        if (CombatWorldController.Current != null || FindObjectOfType<CombatWorldController>() != null)
+            return;
+
+        var world = new GameObject("CombatWorldController");
+        world.AddComponent<CombatWorldController>();
     }
 }

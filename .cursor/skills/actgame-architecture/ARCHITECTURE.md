@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-06-23
+> Last audited: 2026-06-29
 
 ## 项目概述
 
@@ -25,7 +25,13 @@ Assets/
 │   │   ├── VFX/               # 招式 VFX 帧事件
 │   │   ├── Targeting/         # 索敌
 │   │   └── Feedback/          # 命中反馈、卡肉
-│   ├── Framework/             # 轻量 QFramework 风格 Architecture / System / Command / Event
+│   ├── App/
+│   │   ├── Architecture/      # QFramework 风格强类型 Architecture / 能力接口 / 基类
+│   │   ├── Controllers/       # Unity 表现入口，继承 AppControllerBase
+│   │   ├── Systems/           # 注册到 Architecture IOC 的业务系统
+│   │   ├── Commands/          # 跨系统业务行为
+│   │   ├── Queries/           # 无副作用读取请求
+│   │   └── Events/            # IArchitectureEvent 事件
 │   ├── Input/                 # Input System 封装
 │   ├── Camera/                # Cinemachine 第三人称相机
 │   ├── UI/                    # （占位）
@@ -101,7 +107,7 @@ InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力
                     ├─ LocomotionState.Tick → CharacterMotor.TickLocomotion
                     └─ ActionState.Tick → ActionExecutor + ActionRotationDriver
                     ↓ UpdateFrame（Logic Tick）
-              HitBoxSystem / ActionVfxPlayer（ICombatFrameConsumer）
+              HitboxFrameConsumer / ActionVfxPlayer（ICombatFrameConsumer）
 ```
 
 ### 3. 动作系统（Combat/Actions）
@@ -115,10 +121,11 @@ InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力
 | `ActionRotationDriver` | RotationWindow + 索敌转向 |
 | `CombatModeService` | 战斗模式、出招表、Locomotion Profile 切换 |
 | `CombatWorldController` | 场景级战斗系统生命周期锚点 |
-| `ACTGameArchitecture` | 轻量架构入口：System 注册、Command 执行、Query 查询、Event 分发 |
+| `ACTGameArchitecture` | QFramework 风格架构入口：System/Model/Utility 注册、Command 执行、Query 查询、Event 分发 |
+| `ArchitectureSystemBase` / `AppControllerBase` / `ArchitectureCommandBase` / `ArchitectureQueryBase` | 架构对象基类；通过能力接口限制谁能访问 System、发送 Command、订阅 Event |
 | `CombatActorSystem` / `TargetSystem` / `CombatFeedbackSystem` | 战斗角色注册、目标注册、反馈状态 |
-| `ApplyHitCommand` / `AttackHitEvent` | 命中后的跨系统通信入口 |
-| `HitDetectionSystem` / `TargetingSystem` | 命中检测、索敌查询集中入口 |
+| `ApplyHitCommand` / `GetActiveTargetsQuery` / `AttackHitEvent` | 命中后的跨系统通信入口与无副作用目标查询 |
+| `HitboxFrameConsumer` / `HitDetector` / `TargetingResolver` | 动作帧命中检测与索敌纯计算入口，不直接访问 Architecture |
 | `PlayerActionSet` / `ActionComboSequence` | 起手映射与线性连招 |
 
 **Logic Tick 原则**：编辑器 Scrub 与 Play Mode 共用 `ActionExecutor.UpdateFrame(frameIndex)`；帧消费者实现 `ICombatFrameConsumer`。

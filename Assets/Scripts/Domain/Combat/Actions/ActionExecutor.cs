@@ -163,7 +163,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         return _session.TryConsumeHitStopTrigger();
     }
 
-    /// <summary>HitBoxSystem 命中回流；支撑 OnHitConfirm Transition。</summary>
+    /// <summary>HitboxFrameConsumer 命中回流；支撑 OnHitConfirm Transition。</summary>
     public void NotifyHit(in ActionHitContext context)
     {
         if (!_session.IsActive || context.Action != _session.CurrentAction)

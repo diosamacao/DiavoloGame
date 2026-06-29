@@ -2,7 +2,7 @@ using Cinemachine;
 using UnityEngine;
 
 /// <summary>场景相机控制器：创建第三人称虚拟相机并驱动 look 输入与相机层级同步。</summary>
-public class CameraManager : MonoBehaviour
+public class CameraManager : AppControllerBase
 {
     const string CameraRootName = "CameraRoot";
     const string OrbitPivotName = "CameraOrbitPivot";

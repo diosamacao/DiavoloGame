@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 
-/// <summary>项目级架构入口，提供 System 注册、Command 执行、Query 查询与 Event 分发。</summary>
+/// <summary>项目级架构入口，提供 System/Model/Utility 注册、Command 执行、Query 查询与 Event 分发。</summary>
 public sealed class ACTGameArchitecture
 {
     static ACTGameArchitecture s_interface;
 
-    readonly Dictionary<Type, object> _systems = new();
+    readonly Dictionary<Type, IArchitectureSystem> _systems = new();
+    readonly Dictionary<Type, IArchitectureModel> _models = new();
+    readonly Dictionary<Type, IArchitectureUtility> _utilities = new();
     readonly Dictionary<Type, Delegate> _eventHandlers = new();
 
     /// <summary>全局架构入口；首次访问时完成系统注册。</summary>
@@ -23,11 +25,29 @@ public sealed class ACTGameArchitecture
 
     ACTGameArchitecture() { }
 
-    /// <summary>获取已注册系统。</summary>
-    public TSystem GetSystem<TSystem>() where TSystem : class
+    /// <summary>获取已注册系统；只有 IArchitectureSystem 类型能从 IOC 取出。</summary>
+    public TSystem GetSystem<TSystem>() where TSystem : class, IArchitectureSystem
     {
-        if (_systems.TryGetValue(typeof(TSystem), out object system))
+        if (_systems.TryGetValue(typeof(TSystem), out IArchitectureSystem system))
             return system as TSystem;
+
+        return null;
+    }
+
+    /// <summary>获取已注册模型；Model 只保存共享状态。</summary>
+    public TModel GetModel<TModel>() where TModel : class, IArchitectureModel
+    {
+        if (_models.TryGetValue(typeof(TModel), out IArchitectureModel model))
+            return model as TModel;
+
+        return null;
+    }
+
+    /// <summary>获取已注册工具；Utility 封装外部服务或无状态适配能力。</summary>
+    public TUtility GetUtility<TUtility>() where TUtility : class, IArchitectureUtility
+    {
+        if (_utilities.TryGetValue(typeof(TUtility), out IArchitectureUtility utility))
+            return utility as TUtility;
 
         return null;
     }
@@ -46,6 +66,7 @@ public sealed class ACTGameArchitecture
 
     /// <summary>订阅指定事件类型。</summary>
     public void RegisterEvent<TEvent>(Action<TEvent> handler)
+        where TEvent : IArchitectureEvent
     {
         if (handler == null)
             return;
@@ -57,6 +78,7 @@ public sealed class ACTGameArchitecture
 
     /// <summary>取消订阅指定事件类型。</summary>
     public void UnregisterEvent<TEvent>(Action<TEvent> handler)
+        where TEvent : IArchitectureEvent
     {
         if (handler == null)
             return;
@@ -74,6 +96,7 @@ public sealed class ACTGameArchitecture
 
     /// <summary>向全部订阅者分发事件。</summary>
     public void SendEvent<TEvent>(TEvent architectureEvent)
+        where TEvent : IArchitectureEvent
     {
         if (_eventHandlers.TryGetValue(typeof(TEvent), out Delegate handlers)
             && handlers is Action<TEvent> typedHandlers)
@@ -84,8 +107,28 @@ public sealed class ACTGameArchitecture
 
     void RegisterSystem<TSystem>(TSystem system) where TSystem : class, IArchitectureSystem
     {
+        if (system == null)
+            return;
+
         _systems[typeof(TSystem)] = system;
         system.Initialize(this);
+    }
+
+    void RegisterModel<TModel>(TModel model) where TModel : class, IArchitectureModel
+    {
+        if (model == null)
+            return;
+
+        _models[typeof(TModel)] = model;
+        model.Initialize(this);
+    }
+
+    void RegisterUtility<TUtility>(TUtility utility) where TUtility : class, IArchitectureUtility
+    {
+        if (utility == null)
+            return;
+
+        _utilities[typeof(TUtility)] = utility;
     }
 
     static ACTGameArchitecture CreateDefault()

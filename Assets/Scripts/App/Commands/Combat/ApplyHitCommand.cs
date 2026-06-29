@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>应用一次命中：回调受击方、通知攻击者命中确认，并广播跨系统命中事件。</summary>
-public sealed class ApplyHitCommand : IArchitectureCommand
+public sealed class ApplyHitCommand : ArchitectureCommandBase
 {
     readonly ActionHitContext _context;
     readonly IHurtboxTarget _target;
@@ -22,7 +22,7 @@ public sealed class ApplyHitCommand : IArchitectureCommand
     }
 
     /// <summary>执行命中结算入口；伤害系统接入后应在此处扩展。</summary>
-    public void Execute(ACTGameArchitecture architecture)
+    protected override void OnExecute()
     {
         if (_context.Action == null)
             return;
@@ -31,7 +31,7 @@ public sealed class ApplyHitCommand : IArchitectureCommand
         _hitReceiver?.NotifyHit(in _context);
 
         Vector3 direction = ResolveHitDirection(_context.Attacker, _targetTransform);
-        architecture.SendEvent(new AttackHitEvent(_context, _targetTransform, direction));
+        this.SendEvent(new AttackHitEvent(_context, _targetTransform, direction));
     }
 
     /// <summary>攻击者指向受击者的水平方向；缺省为攻击者 forward。</summary>

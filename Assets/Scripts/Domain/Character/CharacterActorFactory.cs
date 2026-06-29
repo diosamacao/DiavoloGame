@@ -1,21 +1,25 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>角色实例工厂，负责从 CharacterConfig 和输入源创建纯 C# 服务图。</summary>
 public static class CharacterActorFactory
 {
-    /// <summary>按配置创建角色实例；角色根对象只会补齐 CharacterController。</summary>
+    /// <summary>按配置创建角色实例；跨系统注册和命中结算由调用方通过委托接回 App 层。</summary>
     public static CharacterActor Create(
         GameObject owner,
         Transform root,
         CharacterConfig config,
         ICharacterInputSource inputSource,
-        Transform cameraTransform)
+        Transform cameraTransform,
+        Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider,
+        Action<ActionHitContext, IHurtboxTarget, IActionHitReceiver, Transform> hitDetected,
+        out ActionExecutor actionExecutor,
+        out Animator animator)
     {
-        EnsureCombatWorldController();
-
         CharacterMotorConfig motorConfig = config.Motor;
         Transform modelRoot = SpawnModelInstance(config, root);
-        Animator animator = modelRoot.GetComponentInChildren<Animator>();
+        animator = modelRoot.GetComponentInChildren<Animator>();
         if (animator == null)
             throw new MissingComponentException("CharacterActorFactory: ModelPrefab 中找不到 Animator。");
 
@@ -33,16 +37,16 @@ public static class CharacterActorFactory
 
         var context = new CharacterContext(root, animation, controller, motor);
         var stateMachine = new CharacterStateMachine(context);
-        var actionExecutor = new ActionExecutor(root, controller, animation, rootMotion, combatMode);
+        actionExecutor = new ActionExecutor(root, controller, animation, rootMotion, combatMode);
         context.ActionExecutor = actionExecutor;
 
         Transform attachPoint = ResolveModelPoint(config.Combat.AttachPointName, modelRoot, root);
         Transform aimOrigin = ResolveModelPoint(config.Combat.AimOriginName, modelRoot, root);
-        var targetLock = new CombatTargetLock(root, config.Combat.TeamId, aimOrigin);
-        var hitBoxSystem = new HitBoxSystem(root, actionExecutor, attachPoint);
+        var targetLock = new CombatTargetLock(root, config.Combat.TeamId, aimOrigin, activeTargetsProvider);
+        var hitboxFrameConsumer = new HitboxFrameConsumer(root, actionExecutor, attachPoint, activeTargetsProvider, hitDetected);
         var vfxPlayer = new ActionVfxPlayer(root, attachPoint);
 
-        actionExecutor.RegisterFrameConsumer(hitBoxSystem);
+        actionExecutor.RegisterFrameConsumer(hitboxFrameConsumer);
         actionExecutor.RegisterFrameConsumer(vfxPlayer);
 
         var actionDriver = new CharacterActionDriver(
@@ -71,15 +75,12 @@ public static class CharacterActorFactory
 
         context.ActionRotation = rotationDriver;
         actionExecutor.BindActionStartContext(motor);
-        ACTGameArchitecture.Interface
-            .GetSystem<CombatActorSystem>()
-            ?.Register(root, actor, actionExecutor, animation.Animator);
         return actor;
     }
 
     static Transform SpawnModelInstance(CharacterConfig config, Transform parent)
     {
-        GameObject modelInstance = Object.Instantiate(config.ModelPrefab, parent);
+        GameObject modelInstance = UnityEngine.Object.Instantiate(config.ModelPrefab, parent);
         modelInstance.name = config.ModelPrefab.name;
         Transform modelTransform = modelInstance.transform;
         modelTransform.localPosition = config.ModelLocalPosition;
@@ -124,14 +125,5 @@ public static class CharacterActorFactory
         }
 
         return null;
-    }
-
-    static void EnsureCombatWorldController()
-    {
-        if (CombatWorldController.Current != null || Object.FindObjectOfType<CombatWorldController>() != null)
-            return;
-
-        var world = new GameObject("CombatWorldController");
-        world.AddComponent<CombatWorldController>();
     }
 }
