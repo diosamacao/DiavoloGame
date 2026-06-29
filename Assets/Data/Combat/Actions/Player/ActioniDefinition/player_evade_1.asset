@@ -19,6 +19,8 @@ MonoBehaviour:
   totalFrames: 44
   actionType: 1
   crossFadeDuration: 0.1
+  phases: []
+  actionEvents: []
   cancelWindows:
   - startFrame: 12
     endFrame: 60
@@ -26,6 +28,7 @@ MonoBehaviour:
     allowedInputs:
     - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     - {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    - {fileID: 6632924207495724444, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     priority: 0
   - startFrame: 20
     endFrame: 43
@@ -37,6 +40,25 @@ MonoBehaviour:
   startBehaviors: 00000000
   switchCombatModeTarget: 0
   switchCombatModePolicy: 0
+  hitboxes: []
+  vfxEvents: []
+  cameraShakeProfile: {fileID: 0}
+  disableCameraShakeOnHit: 0
+  useCameraShakeOnHit: 1
+  useHitStopOnHit: 1
+  disableHitStopOnHit: 0
+  hitStopFrames: 3
+  hitStopOncePerAction: 1
+  rotationWindow:
+    startFrame: 0
+    endFrame: -1
+    smoothTimeOverride: 0
+  targetLockSettings:
+    enabled: 0
+    lockRange: 8
+    forwardConeAngle: 120
+    policy: 0
+    lockRotationSmoothTimeOverride: 0
   useRootMotion: 0
   displacementDistance: -1
   displacementStartFrame: 0

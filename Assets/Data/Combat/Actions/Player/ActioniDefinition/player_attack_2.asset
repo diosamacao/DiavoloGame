@@ -19,6 +19,8 @@ MonoBehaviour:
   totalFrames: 55
   actionType: 0
   crossFadeDuration: 0.1
+  phases: []
+  actionEvents: []
   cancelWindows:
   - startFrame: 14
     endFrame: 60
@@ -27,6 +29,7 @@ MonoBehaviour:
     - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     - {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     - {fileID: -130322003382893763, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    - {fileID: 6632924207495724444, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     priority: 0
   - startFrame: 24
     endFrame: 60
@@ -56,6 +59,10 @@ MonoBehaviour:
   cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
   disableCameraShakeOnHit: 0
   useCameraShakeOnHit: 1
+  useHitStopOnHit: 1
+  disableHitStopOnHit: 0
+  hitStopFrames: 3
+  hitStopOncePerAction: 1
   rotationWindow:
     startFrame: 0
     endFrame: 7
