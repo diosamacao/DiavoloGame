@@ -20,7 +20,12 @@ MonoBehaviour:
   actionType: 0
   crossFadeDuration: 0.1
   phases: []
-  actionEvents: []
+  actionEvents:
+  - eventId: 
+    kind: 0
+    triggerFrame: 0
+    endFrame: 0
+    payloadId: 
   cancelWindows:
   - startFrame: 34
     endFrame: 80

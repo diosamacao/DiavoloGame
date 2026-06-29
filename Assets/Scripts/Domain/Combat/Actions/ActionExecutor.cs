@@ -94,6 +94,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 
     public void BindActionStartContext(IActionStartContext startContext) => _startContext = startContext;
 
+    /// <summary>Locomotion 起手入口：按输入映射到起手招式，并在开始前执行 Dodge 方向分派。</summary>
     public bool TryStartByInput(string inputId)
     {
         PlayerActionSet actionSet = ActiveActionSet;
@@ -101,7 +102,8 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         if (_session.IsActive || actionSet == null || !actionSet.TryGetStartAction(inputId, out startAction))
             return false;
 
-        return TryStart(startAction);
+        ActionDefinition resolvedAction = ResolveStartAction(startAction, isFromActionCancelWindow: false);
+        return TryStart(resolvedAction);
     }
 
     public bool TryStart(ActionDefinition action)
@@ -198,7 +200,8 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
                 continue;
 
             ClearComboBuffersExcept(matchedInputId, actionSet);
-            TransitionTo(nextAction);
+            ActionDefinition resolvedAction = ResolveStartAction(nextAction, isFromActionCancelWindow: true);
+            TransitionTo(resolvedAction);
             return true;
         }
 
@@ -269,6 +272,108 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         NotifyActionEnded();
         ExecuteStartBehaviors(action);
         BeginAction(action);
+    }
+
+    /// <summary>招式开始前按 Dodge 输入与连携上下文重定向目标动作；其它动作原样返回。</summary>
+    ActionDefinition ResolveStartAction(ActionDefinition requestedAction, bool isFromActionCancelWindow)
+    {
+        if (requestedAction == null || requestedAction.ActionType != CombatActionType.Dodge)
+            return requestedAction;
+
+        PlayerActionSet actionSet = ActiveActionSet;
+        if (actionSet == null
+            || !actionSet.TryGetDodgeDirectionVariants(requestedAction, out DodgeDirectionVariants variants))
+            return requestedAction;
+
+        if (!TryGetDodgeIntentDirection(out Vector3 intentDirection))
+            return ResolveDodgeVariantOrSelf(requestedAction, variants.BackwardAction);
+
+        if (!TryGetPlanarForward(out Vector3 actorForward))
+            return ResolveDodgeVariantOrSelf(requestedAction, variants.BackwardAction);
+
+        if (!isFromActionCancelWindow)
+            return ResolveLocomotionDodgeAction(requestedAction, intentDirection, variants);
+
+        return ResolveCancelableDodgeAction(requestedAction, actorForward, intentDirection, variants);
+    }
+
+    /// <summary>非派生窗口（Locomotion 起手）只走前后闪；有输入时可先朝输入方向转向。</summary>
+    ActionDefinition ResolveLocomotionDodgeAction(
+        ActionDefinition requestedAction,
+        Vector3 intentDirection,
+        DodgeDirectionVariants variants)
+    {
+        if (variants.RotateToInputOnForward)
+            _startContext?.FaceWorldDirection(intentDirection);
+
+        return ResolveDodgeVariantOrSelf(requestedAction, variants.ForwardAction);
+    }
+
+    /// <summary>派生窗口 Dodge：按阈值先分左右，再按前后决定最终动作。</summary>
+    ActionDefinition ResolveCancelableDodgeAction(
+        ActionDefinition requestedAction,
+        Vector3 actorForward,
+        Vector3 intentDirection,
+        DodgeDirectionVariants variants)
+    {
+        float angle = Vector3.Angle(actorForward, intentDirection);
+        if (angle > variants.SideThresholdDeg)
+        {
+            float crossY = Vector3.Cross(actorForward, intentDirection).y;
+            ActionDefinition sideAction = crossY >= 0f
+                ? variants.RightAction
+                : variants.LeftAction;
+            return ResolveDodgeVariantOrSelf(requestedAction, sideAction);
+        }
+
+        float dot = Vector3.Dot(actorForward, intentDirection);
+        ActionDefinition forwardOrBackAction = dot >= 0f
+            ? variants.ForwardAction
+            : variants.BackwardAction;
+        return ResolveDodgeVariantOrSelf(requestedAction, forwardOrBackAction);
+    }
+
+    /// <summary>读取 Dodge 判定方向：优先当前输入，其次缓冲输入；返回世界空间 XZ 单位向量。</summary>
+    bool TryGetDodgeIntentDirection(out Vector3 direction)
+    {
+        direction = Vector3.zero;
+        if (_startContext == null || !_startContext.TryGetDodgeIntentDirection(out Vector3 resolvedDirection))
+            return false;
+
+        if (!TryNormalizePlanar(resolvedDirection, out direction))
+            return false;
+
+        return true;
+    }
+
+    /// <summary>读取角色当前平面朝向；避免模型朝向异常导致夹角计算抖动。</summary>
+    bool TryGetPlanarForward(out Vector3 forward)
+    {
+        forward = _actorRoot != null ? _actorRoot.forward : Vector3.forward;
+        return TryNormalizePlanar(forward, out forward);
+    }
+
+    /// <summary>将输入向量投影到 XZ 平面并单位化；长度过小时返回 false。</summary>
+    static bool TryNormalizePlanar(Vector3 source, out Vector3 normalized)
+    {
+        source.y = 0f;
+        if (source.sqrMagnitude < 0.0001f)
+        {
+            normalized = Vector3.zero;
+            return false;
+        }
+
+        normalized = source.normalized;
+        return true;
+    }
+
+    /// <summary>方向动作未配置或缺动画时回退根 Dodge，确保流程不中断。</summary>
+    static ActionDefinition ResolveDodgeVariantOrSelf(ActionDefinition rootDodge, ActionDefinition variant)
+    {
+        if (variant == null || variant.AnimationClip == null)
+            return rootDodge;
+
+        return variant;
     }
 
     void ExecuteStartBehaviors(ActionDefinition action)

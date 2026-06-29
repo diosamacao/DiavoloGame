@@ -99,7 +99,6 @@ public class ActionDefinition : ScriptableObject
     public ActionVfxKeyframe[] VfxEvents => vfxEvents ?? Array.Empty<ActionVfxKeyframe>();
     public ActionPhase[] Phases => phases ?? Array.Empty<ActionPhase>();
     public ActionEvent[] ActionEvents => actionEvents ?? Array.Empty<ActionEvent>();
-
     /// <summary>命中时镜头震动预设；可为空。</summary>
     public CameraShakeProfile CameraShakeProfile => cameraShakeProfile;
 
