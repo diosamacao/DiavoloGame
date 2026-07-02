@@ -100,6 +100,7 @@ public class MyBehaviour : MonoBehaviour
 | 改代码后不跑 linter、带着相关报错结束任务 | 必须工具调用 `ReadLints` 并在回复附「代码收尾」清单；见 `lint-after-code-changes.mdc` |
 | 改代码后不补充注释就结束任务 | 须满足该规则中的最低注释要求 + 「代码收尾」清单；见 `lint-after-code-changes.mdc` |
 | 声称「已完成」但未附「代码收尾」清单 | 有代码改动时清单为强制项；见 `lint-after-code-changes.mdc` |
+| 重写逻辑/重构框架时保留旧兼容层（Legacy/Fallback 双轨） | 默认直接切新并删除旧路径；仅用户明确要求才允许阶段迁移；见 `no-legacy-compatibility.mdc` |
 | Core → Character/Player 引用 | 破坏分层 |
 | 在 State 里直接读 InputReader | 应经 Context 快照，便于 AI/回放测试 |
 | 静态 Service Locator 式 Input/Singleton | 与当前组件化方向不一致 |
