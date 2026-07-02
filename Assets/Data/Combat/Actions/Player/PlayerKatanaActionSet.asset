@@ -20,7 +20,7 @@ MonoBehaviour:
   - input: {fileID: 6632924207495724444, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     comboSequence: {fileID: 11400000, guid: d7f66b4dad546fe4b885e978b0b1f89b, type: 2}
   - input: {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    comboSequence: {fileID: 11400000, guid: d7f66b4dad546fe4b885e978b0b1f89b, type: 2}
+    comboSequence: {fileID: 11400000, guid: 8b8438a9f6be2ab479764d8bab91c8df, type: 2}
   dodgeDirectionVariants:
   - rootDodgeAction: {fileID: 11400000, guid: 4b973751c44c53842b48849ef814c9f7, type: 2}
     sideThresholdDeg: 0
