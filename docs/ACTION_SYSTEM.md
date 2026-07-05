@@ -1,7 +1,7 @@
 # ACTGame — 动作系统技术实现文档
 
 > 本文档描述**当前已落地**的动作系统：架构、实现细节、使用方式，以及与 [ACTION_EDITOR.md](./ACTION_EDITOR.md) 长期目标的对齐分析。  
-> Last updated: 2026-06-23
+> Last updated: 2026-07-05（Resolver 重构：出招表 Entry 绑定 ActionResolver；ActionExecutor 不再做输入/Dodge 特判；Actions 目录按 Definitions / Resolution / Execution / Frames 分层）
 
 ---
 
@@ -37,10 +37,14 @@
 | Locomotion 状态 | `Assets/Scripts/Domain/Character/StateMachine/States/LocomotionState.cs` | 纯 C# State | 根据移动幅度选择 Idle/Walk/Run |
 | Action 状态 | `Assets/Scripts/Domain/Character/StateMachine/States/ActionState.cs` | 纯 C# State | Tick `IActionExecutor`；招式结束回 Locomotion |
 | 战斗模式 | `Assets/Scripts/Domain/Combat/CombatModeService.cs` | 纯 C# | 当前模式、出招表、Locomotion Profile 切换 |
-| 动作执行 | `Assets/Scripts/Domain/Combat/Actions/ActionExecutor.cs` | 纯 C# | Action 播放、Cancel、Transition、Logic Tick、事件派发、命中回流 |
-| 动作会话 | `Assets/Scripts/Domain/Combat/Actions/ActionSession.cs` | 纯 C# | 当前招式、时间、逻辑帧、命中确认、卡肉暂停 |
-| 输入路由 | `Assets/Scripts/Domain/Combat/Actions/CharacterActionDriver.cs` | 纯 C# | 起手、输入缓冲、移动取消、离开 Action 后预输入消费 |
-| 动作旋转 | `Assets/Scripts/Domain/Combat/Actions/ActionRotationDriver.cs` | 纯 C# | RotationWindow 内按输入/锁定目标修正朝向 |
+| 战斗模式配置 | `Assets/Scripts/Domain/Combat/CombatModeProfile.cs` | `ScriptableObject` 定义类 | mode → PlayerActionSet / Locomotion Profile 绑定 |
+| 动作执行 | `Assets/Scripts/Domain/Combat/Actions/Execution/ActionExecutor.cs` | 纯 C# | Action 播放、Cancel、Transition、Logic Tick、事件派发、命中回流（不做输入/动作类型特判） |
+| 动作会话 | `Assets/Scripts/Domain/Combat/Actions/Execution/ActionSession.cs` | 纯 C# | 当前招式、时间、逻辑帧、命中确认、卡肉暂停 |
+| 输入路由 | `Assets/Scripts/Domain/Combat/Actions/Execution/CharacterActionDriver.cs` | 纯 C# | 起手（经 Resolver 解析）、输入缓冲、移动取消、离开 Action 后预输入消费 |
+| 动作旋转 | `Assets/Scripts/Domain/Combat/Actions/Execution/ActionRotationDriver.cs` | 纯 C# | RotationWindow 内按输入/锁定目标修正朝向 |
+| 动作解析服务 | `Assets/Scripts/Domain/Combat/Actions/Resolution/ActionResolverService.cs` | 纯 C# | 按当前出招表把输入请求路由到对应 ActionResolver（起手 + Cancel 共用） |
+| 动作解析策略 | `Assets/Scripts/Domain/Combat/Actions/Resolution/ActionResolver.cs`（+ Single / Combo / Directional 子类） | `ScriptableObject` | 把 ActionRequest + 上下文解析为最终 ActionDefinition |
+| 出招表 | `Assets/Scripts/Domain/Combat/Actions/Resolution/PlayerActionSet.cs` | `ScriptableObject` 定义类 | 离散输入 → ActionResolver 映射 |
 | 索敌锁定 | `Assets/Scripts/Domain/Combat/Targeting/CombatTargetLock.cs` | 纯 C# | 单角色当前锁定目标状态 |
 | 架构入口 | `Assets/Scripts/App/Architecture/ACTGameArchitecture.cs` | 纯 C# | System 注册、Command 执行、Query 查询、Event 分发 |
 | 战斗角色注册 | `Assets/Scripts/App/Systems/Combat/CombatActorSystem.cs` | 纯 C# System | Transform → `CharacterActor` / `ActionExecutor` / Animator 查询 |
@@ -75,12 +79,14 @@ Scene Empty
           → new CombatModeService(CombatModeProfile, AnimationService)
           → new CharacterContext(root, animation, controller)
           → new CharacterStateMachine(context)
-          → new ActionExecutor(root, controller, animation, rootMotion, combatMode)
+          → new ActionResolverService(combatMode)
+          → new ActionExecutor(root, controller, animation, rootMotion, combatMode, resolverService)
           → new CombatTargetLock(root, teamId, aimOrigin)
           → new HitBoxSystem(root, actionRuntime, attachPoint)
           → new ActionVfxPlayer(root, attachPoint)
           → actionRuntime.RegisterFrameConsumer(HitBoxSystem / ActionVfxPlayer)
-          → new CharacterActionDriver(inputReader, inputManager, stateMachine, actionRuntime, combatMode, targetLock)
+          → new CharacterActionDriver(inputReader, inputManager, stateMachine, actionRuntime, combatMode, targetLock, resolverService, root, motor)
+          → actionRuntime.BindInputBuffer(actionDriver.CreateInputBufferBridge())
           → new CharacterActor(...)
           → new ActionRotationDriver(root, stateMachine, inputManager, runtime, actionRuntime, targetLock)
           → CombatActorSystem.Register(root, actor, actionExecutor, animator)
@@ -97,7 +103,8 @@ PlayerController.Update
               → CharacterActionDriver.HandleDiscreteInput
       → CharacterActionDriver.ProcessGameplayInput
           → Locomotion: TryStartFromLocomotion(inputId)
-              → ActionExecutor.TryStartByInput
+              → ActionResolverService.TryResolveStart(request, context)
+              → ActionExecutor.TryStart(resolvedAction)
               → CharacterStateMachine.TryChangeState(Action)
           → Action: Buffer(inputId) / Movement Cancel
       → CharacterMotor.TickGravity
@@ -188,7 +195,8 @@ HitDetectionSystem
 |------|------|------|
 | `ActionDefinition` SO | ✅ 已实现 | 动画、帧数、CancelWindow、Transition、位移、起手行为 |
 | `CancelWindow`（Action / Movement） | ✅ 已实现 | 帧窗口 + priority；Action 取消不直接绑目标招 |
-| `ActionComboSequence` 线性连招 | ✅ 已实现 | 出招表 Entry 绑定；Cancel 按队列进位 |
+| `ActionResolver` 解析层 | ✅ 已实现 | 出招表 Entry 绑定 Resolver；`Single` / `Combo`（线性连段）/ `Directional`（方向闪避）三类策略 |
+| `ActionResolverService` | ✅ 已实现 | 起手与 Cancel 共用路由；`ActionExecutor` 不再认知出招表结构 |
 | `ActionTransition` | 🟡 部分 | `AnimationEnd`、`AtFrame`；无 OnHit / OnWhiff |
 | `PlayerActionSet` + `CombatModeProfile` | ✅ 已实现 | 多战斗模式出招表；模式切换 Locomotion Profile |
 | `CombatModeService` | ✅ 已实现 | Immediate / OnNextLocomotion / StopCurrentAction |
@@ -200,7 +208,7 @@ HitDetectionSystem
 | `HitboxKeyframe` + `HitBoxSystem` | 🟡 部分 | `ActionDefinition` 帧表 + OBB 检测；无 Physics |
 | `HurtboxTarget` / `IHurtboxTarget` | 🟡 部分 | `TargetSystem` 注册 + `OnHit` 回调；现阶段仅测试日志 |
 | `ActionPhase` / `ActionEvent` | 🟡 骨架 | SO 字段与类型已建；`ActionEvent` 已有运行时派发入口，消费者待扩展 |
-| `ActionGraph` 节点图 | ⬜ 未实现 | 由 `ActionComboSequence` 线性折中 |
+| `ActionGraph` 节点图 | ⬜ 未实现 | 由 `ComboActionResolver` 线性折中 |
 | `UpdateFrame(frameIndex)` 统一 Logic Tick | ✅ 已实现 | `ActionExecutor` + `ICombatFrameConsumer` |
 | Combat 伤害 / `Hit` 状态 / OnHit 回流 | 🟡 部分 | `IActionHitReceiver` + OnHitConfirm Transition；无伤害/Hit 状态 |
 | `ActionEditorWindow` | ⬜ 未实现 | M5 目标 |
@@ -221,12 +229,15 @@ CharacterActor ── InputManager（唯一持有者）
        │    └─ Movement 取消 → Locomotion
        │
        ├── CombatModeService ── CombatModeProfile
-       │         └─ mode → PlayerActionSet → ActionComboSequence
+       │         └─ mode → PlayerActionSet → ActionEntry(input → ActionResolver)
        │
-       ├── CharacterActionDriver（纯 C#）── 起手 / Buffer / 移动取消
+       ├── ActionResolverService ── 按出招表把 ActionRequest 路由到 Resolver
+       │         └─ Single / Combo / Directional Resolver → ActionDefinition
+       ├── CharacterActionDriver（纯 C#）── 起手(经 Resolver) / Buffer / 移动取消
        ├── ActionRotationDriver（纯 C#）── RotationWindow + TargetLock
        ├── ActionExecutor（IActionExecutor + IActionHitReceiver）
        │         ├─ UpdateFrame / Tick → ICombatFrameConsumer
+       │         ├─ Cancel 下一招 → ActionResolverService.TryResolveNext
        │         └─ ActionDefinition（单招 + Phase/Event 骨架）
        ├── HitBoxSystem（纯 C# ICombatFrameConsumer → OBB + NotifyHit）
        │
@@ -244,20 +255,22 @@ CharacterActor ── InputManager（唯一持有者）
 | `InputManager` | 摄入帧、离散缓冲、移动意图、回调注册 |
 | `PlayerController` | Scene 入口，只创建玩家输入源并 Tick `CharacterActor` |
 | `CharacterActor` | 输入采集、动作路由、重力、状态机 Tick |
-| `CharacterActionDriver` | 输入路由、起手切状态、移动取消、缓冲消费 |
+| `CharacterActionDriver` | 输入路由、起手切状态（经 Resolver）、移动取消、缓冲消费 |
+| `ActionResolverService` + `ActionResolver` | 输入请求 → ActionDefinition 的解析策略层 |
 | `ActionRotationDriver` | RotationWindow + 索敌转向 |
 | `CombatModeService` | 战斗模式、出招表切换、Locomotion Profile |
-| `ActionExecutor` | 播放、Cancel、Transition、**UpdateFrame**、命中回流 |
+| `ActionExecutor` | 播放、Cancel、Transition、**UpdateFrame**、命中回流（不做输入/动作类型特判） |
 | `HitBoxSystem` | `ICombatFrameConsumer`：Logic Tick 帧上 OBB 检测 |
 | `ActionState` / `LocomotionState` | 动画锁与 Locomotion 动画 |
 
 ### 3.3 设计原则（已贯彻）
 
-1. **数据驱动** — 单招数据在 `ActionDefinition`；连招队列在 `ActionComboSequence`；起手映射在 `PlayerActionSet`。
-2. **输入与玩法解耦** — 状态机不读输入；`InputManager` 由 `CharacterActor` 持有。
-3. **状态机薄层** — `Action` 状态只 Tick `IActionExecutor`。
-4. **Animator 双轨** — Locomotion 走 Profile；招式 `PlayClip`。
-5. **角色无关执行器** — `ActionExecutor` 可复用于敌人（输入源可替换）。
+1. **数据驱动** — 单招数据在 `ActionDefinition`；选招策略在 `ActionResolver`（Single/Combo/Directional）；输入→Resolver 映射在 `PlayerActionSet`。
+2. **选招与播放分离** — `ActionResolverService` 负责"选哪招"，`ActionExecutor` 只负责"播已解析好的招"，执行器不认识出招表也不做 Dodge 特判。
+3. **输入与玩法解耦** — 状态机不读输入；`InputManager` 由 `CharacterActor` 持有。
+4. **状态机薄层** — `Action` 状态只 Tick `IActionExecutor`。
+5. **Animator 双轨** — Locomotion 走 Profile；招式 `PlayClip`。
+6. **角色无关执行器** — `ActionExecutor` 可复用于敌人（输入源可替换）。
 
 ---
 
@@ -296,7 +309,7 @@ CharacterActor ── InputManager（唯一持有者）
 | `allowedInputs` | `InputActionReference[]`；运行时 id = Action 名 |
 | `priority` | 降序扫描，首个匹配生效 |
 
-**与 ACTION_EDITOR 的差异：** 当前 **无 `targetAction` 字段**。Action 取消的下一招由 `PlayerActionSet` → `ActionComboSequence.TryResolveNext` 解析，而非取消窗直接指向目标 SO。
+**与 ACTION_EDITOR 的差异：** 当前 **无 `targetAction` 字段**。Action 取消的下一招由 `ActionExecutor` 消费匹配输入后委托 `ActionResolverService.TryResolveNext` → 对应 `ActionResolver` 解析，而非取消窗直接指向目标 SO。
 
 ### 4.3 ActionTransition
 
@@ -307,19 +320,24 @@ CharacterActor ── InputManager（唯一持有者）
 
 按 `priority` 降序；`targetAction == null` 则 `Stop`。
 
-### 4.4 ActionComboSequence（线性连招队列）
+### 4.4 ActionResolver（动作解析策略）
 
+`ActionResolver` 是 `ScriptableObject` 策略基类，统一契约：
+
+```csharp
+bool TryResolve(in ActionRequest request, in ActionResolveContext context, out ActionDefinition action);
 ```
-steps[]: [Attack1, Attack2, Attack3]
-leafPolicy: LoopToRoot | StopCombo
-```
 
-| 方法 | 行为 |
-|------|------|
-| `GetStartAction()` | `steps[0]`，Locomotion 起手 |
-| `TryResolveNext(inputId, current, out next)` | 当前招在队列中则 `index+1`；不在队列则回 `steps[0]`；末段按 `leafPolicy` |
+- `ActionRequest`：输入侧意图（`InputId` + `ActionInputTrigger`，当前仅 `Pressed`）。
+- `ActionResolveContext`：世界/状态侧信息（`Origin` = LocomotionStart / CancelWindow、`CurrentAction`、`ActorRoot`、`IActionStartContext`）。
 
-绑定在 `PlayerActionSet.ActionEntry.comboSequence`。
+| 子类 | 数据 | 行为 |
+|------|------|------|
+| `SingleActionResolver` | `action` | 始终返回固定招；用于切模式、单段技能、单段闪避 |
+| `ComboActionResolver` | `steps[]` + `ComboLeafPolicy` | `CurrentAction==null` 或不在队列 → `steps[0]`；在队列则 `index+1`；末段按 `LoopToRoot / StopCombo` |
+| `DirectionalActionResolver` | `defaultAction` + 前/后/左/右 + `sideThresholdDeg` + `rotateToInputOnForward` | 依 `Origin`：Locomotion 起手偏前闪并可先转向；CancelWindow 按输入与朝向夹角判左右/前后；变体缺失回退 `defaultAction`，仍无效则失败 |
+
+Resolver 作为资产绑定在 `PlayerActionSet.ActionEntry.resolver`。
 
 ### 4.5 PlayerActionSet / CombatModeProfile
 
@@ -327,13 +345,13 @@ leafPolicy: LoopToRoot | StopCombo
 CombatModeProfile
   └─ CombatModeEntry[] (mode, actionSet, locomotionProfile)
        └─ PlayerActionSet
-            └─ ActionEntry[] (input → ActionComboSequence)
+            └─ ActionEntry[] (input → ActionResolver)
 ```
 
 | 组件 | 职责 |
 |------|------|
-| `PlayerActionSet.TryGetStartAction` | Locomotion 起手 |
-| `PlayerActionSet.TryResolveNext` | 招内 Cancel 进位 |
+| `PlayerActionSet.TryGetResolver(inputId, out resolver)` | 按输入 id 找绑定的 Resolver |
+| `ActionResolverService.TryResolveStart / TryResolveNext` | 起手 / Cancel 解析（同一路由，差异由 context 表达） |
 | `CombatModeService` | 运行时当前 mode、挂起切换、Locomotion Profile |
 
 ### 4.6 输入 id
@@ -367,20 +385,25 @@ HitBoxSystem.OnCombatFrameAdvanced（ActionExecutor 同步派发）
 
 ```
 离散输入 → InputManager.NotifyPressed
-  → TryStartByInput → ActionComboSequence.RootAction
-  → ExecuteStartBehaviors → BeginAction(PlayClip)
+  → CharacterActionDriver.TryStartFromLocomotion(inputId)
+  → ActionResolverService.TryResolveStart(request, context{Origin=LocomotionStart})
+      → ActionEntry.resolver.TryResolve → ActionDefinition
+  → ActionExecutor.TryStart(resolvedAction)
+      → ExecuteStartBehaviors → BeginAction(PlayClip)
   → TryChangeState(Action)
 ```
 
-### 5.3 招内 Cancel（连段）
+### 5.3 招内 Cancel（连段 / 方向派生）
 
 ```
 输入 → Buffer(inputId)
 
-ActionExecutor.Tick:
+ActionExecutor.Tick → TryResolveCancelWindows:
   → 按 priority 扫描 CancelType.Action 窗口
   → HasBuffer(allowedInput) → Consume
-  → actionSet.TryResolveNext → TransitionTo(next)
+  → ActionResolverService.TryResolveNext(request, context{Origin=CancelWindow, CurrentAction})
+      → ComboActionResolver 进位 / DirectionalActionResolver 方向派生
+  → ClearOtherActionBuffers → TransitionTo(next)
 ```
 
 ### 5.4 移动取消
@@ -437,10 +460,17 @@ ActionExecutor                   HitBoxSystem              受击方
 
 ### 6.1 配置三连招
 
-1. 创建 `ActionComboSequence`，`steps` = [attack_1, attack_2, attack_3]。
-2. `PlayerActionSet` Entry：`Attack` → 上述 Sequence。
+1. 创建 `ComboActionResolver`（Create → ACT/Combat/Resolvers/Combo Action Resolver），`steps` = [attack_1, attack_2, attack_3]，设置 `leafPolicy`。
+2. `PlayerActionSet` Entry：`Attack` → 上述 `ComboActionResolver`。
 3. 各 `ActionDefinition` 的 **Cancel Windows** 添加 `CancelType.Action` 窗 + `allowedInputs: [Attack]`（无需填目标招）。
 4. 可选 **Movement** 取消窗 + `ActionTransition(AnimationEnd)` 收招。
+
+### 6.1b 配置方向闪避
+
+1. 创建 `DirectionalActionResolver`（Create → ACT/Combat/Resolvers/Directional Action Resolver）。
+2. 填入 `defaultAction`（根/后闪回退）与前/后/左/右动作，调 `sideThresholdDeg`、`rotateToInputOnForward`。
+3. `PlayerActionSet` Entry：`Dodge` → 上述 `DirectionalActionResolver`。
+4. 单招技能 / 切模式用 `SingleActionResolver`（Create → ACT/Combat/Resolvers/Single Action Resolver）。
 
 ### 6.2 多战斗模式
 
@@ -453,7 +483,8 @@ ActionExecutor                   HitBoxSystem              受击方
 | 组件 | 配置 |
 |------|------|
 | `CombatModeService` | `CombatModeProfile` |
-| `ActionExecutor` | 依赖 `CombatModeService` 解析出招表 |
+| `ActionExecutor` | 依赖 `ActionResolverService`（仅 Cancel 解析）+ `CombatModeService`（仅 SwitchCombatMode） |
+| `PlayerActionSet` Entry | 每个 `input` 必须绑定一个 `ActionResolver`（Single / Combo / Directional） |
 | `InputReader` | `GameInputActions`；玩家纯 C# 输入源，离散输入由 Profile 并集自动注入 |
 | `CharacterActor` | 自动注册全部 mode 的 Entry |
 | `HitBoxSystem` | 纯 C# 帧消费者；`attachPoint` 来自 `CharacterConfig` 挂点名 |
@@ -477,7 +508,7 @@ ActionExecutor                   HitBoxSystem              受击方
 |------|------|------|
 | **技术路线** | ✅ 一致 | SO 帧表 + `ActionExecutor` + 自研 Editor（路线 A） |
 | **核心单招 Schema** | 🟡 约 55% | 基础字段 + Cancel/Transition + HitboxKeyframe 已有；Phase/Event 缺失 |
-| **连招编排** | 🟡 有偏差 | 线性 `ActionComboSequence` 代替 `ActionGraph` / Cancel 内 `targetActionId` |
+| **连招编排** | 🟡 有偏差 | 线性 `ComboActionResolver` 代替 `ActionGraph` / Cancel 内 `targetActionId` |
 | **运行时 Tick** | 🟡 有偏差 | 无统一 `UpdateFrame`；编辑器预览需补入口 |
 | **输入与取消语义** | ✅ 基本一致 | Action/Movement 取消、priority、缓冲消费 |
 | **编辑器 UI 适配** | ⬜ 未开始 | 数据结构可部分复用；需补轨道类型与校验 |
@@ -491,7 +522,7 @@ ActionExecutor                   HitBoxSystem              受击方
 | `ActionDefinition` | `ActionDefinition.cs` | 🟡 | 已有 `HitboxKeyframe[]`；缺 `tags`, `ActionPhase[]`, `ActionEvent[]`, `damageWeight` |
 | `CancelWindow` | `CancelWindow.cs` | 🟡 | 有帧区间/type/priority/inputs；**无 `targetActionId`**，改由 ComboSequence 解析 |
 | `ActionTransition` | `ActionTransition.cs` | 🟡 | 有 `AnimationEnd`；新增 `AtFrame`（编辑器文档未列）；缺 OnHit/OnWhiff/OnBlocked |
-| `ActionGraph` | `ActionComboSequence` | 🔀 偏差 | 线性队列 vs 节点图；编辑器 M7 图编辑器需评估迁移或并存 |
+| `ActionGraph` | `ComboActionResolver` | 🔀 偏差 | 线性队列 vs 节点图；可作为新的 `ActionResolver` 子类接入，不破坏分层 |
 | `CharacterCombatProfile` | `CombatModeProfile` + `PlayerActionSet` | 🔀 扩展 | 多模式武器切换；编辑器需否纳入「角色战斗根配置」待定义 |
 | `ActionExecutor` | 已实现 | ✅ | 编辑器预览应共用同一套 Cancel/Transition 解析 |
 | `UpdateFrame(frameIndex)` | 未实现 | ⬜ | **编辑器 Phase C 阻塞项**：预览与 Play Mode 须统一 |
@@ -517,8 +548,8 @@ ActionExecutor                   HitBoxSystem              受击方
 
 | 偏差 | 原因 | 编辑器影响 | 建议 |
 |------|------|------------|------|
-| Cancel 无 `targetAction` | 线性连招队列简化配置 | 编辑器 Cancels 轨道不能只编辑「边到目标招」；需联动 `ActionComboSequence` 或 Graph | M5 Inspector 显示「下一招 = Sequence 进位」；M7 评估恢复 `targetActionId` 或 Graph 边 |
-| `ActionComboSequence` 代替 `ActionGraph` | Demo 三连招够用 | 无法表达分支连招（挥空、多输入树） | 保留 Sequence 作「线性模板」；Graph 作高级层 |
+| Cancel 无 `targetAction` | 选招交给 Resolver 简化配置 | 编辑器 Cancels 轨道不能只编辑「边到目标招」；需联动 `ActionResolver` 或 Graph | M5 Inspector 显示「下一招 = Resolver 进位」；M7 评估恢复 `targetActionId` 或 Graph 边 |
+| `ComboActionResolver` 代替 `ActionGraph` | Demo 三连招够用 | 无法表达分支连招（挥空、多输入树） | 保留线性 Resolver 作「线性模板」；新增 Graph 类 Resolver 作高级层 |
 | `AtFrame` Transition | 项目新增，支持中段自动切招 | ACTION_EDITOR 需补充枚举 | 更新 ACTION_EDITOR 变更日志 |
 | `CombatModeProfile` | 多武器 ACT 需求 | 编辑器角色配置需增加 mode 维度 | 纳入 `CharacterCombatProfile` 设计或单列「模式」面板 |
 | 无 `UpdateFrame` | 实现成本低 | **预览与运行时易不一致** | 编辑器开发前优先重构 `ActionExecutor.Tick` |
@@ -625,11 +656,13 @@ ActionDefinition CurrentAction { get; }
 float ElapsedSeconds { get; }
 int CurrentFrame { get; }
 bool CanCancelByMovement { get; }
-bool TryStartByInput(string inputId);
-bool TryStart(ActionDefinition action);
-void BindComboInput(IActionComboInput comboInput);
+bool CanRotateByInput { get; }
+event Action<CombatFrameContext> FrameAdvanced;
+bool TryStart(ActionDefinition action);           // 只播放已解析好的招
+void BindInputBuffer(IActionInputBuffer inputBuffer);
 void BindActionStartContext(IActionStartContext startContext);
 void Tick(float deltaTime);
+void UpdateFrame(int frameIndex);
 void Stop();
 ```
 
@@ -641,11 +674,23 @@ HitboxOrientedBox GetWorldHurtbox();
 void OnHit(in ActionHitContext context);
 ```
 
-### IActionComboInput
+### IActionInputBuffer
 
 ```csharp
 bool HasBuffer(string inputId);
 bool TryConsumeBuffer(string inputId);
+```
+
+### ActionResolver / ActionResolverService
+
+```csharp
+// 策略基类（ScriptableObject）
+abstract bool ActionResolver.TryResolve(in ActionRequest request, in ActionResolveContext context, out ActionDefinition action);
+
+// 服务（纯 C#）
+bool ActionResolverService.TryResolveStart(in ActionRequest request, in ActionResolveContext context, out ActionDefinition action);
+bool ActionResolverService.TryResolveNext(in ActionRequest request, in ActionResolveContext context, out ActionDefinition action);
+IEnumerable<string> ActionResolverService.EnumerateActiveInputIds();
 ```
 
 ### ICombatModeService
@@ -691,16 +736,24 @@ Assets/Scripts/Domain/
   Character/Animation/CharacterRootMotionDriver.cs, CharacterAnimationService.cs
   Character/StateMachine/CharacterStateMachine.cs, CharacterContext.cs
   Character/StateMachine/States/ActionState.cs, States/LocomotionState.cs
-  Combat/Actions/ActionDefinition.cs, ActionExecutor.cs, IActionExecutor.cs
-  Combat/Actions/CancelWindow.cs, CancelType.cs
-  Combat/Actions/ActionTransition.cs, ActionTransitionCondition.cs
-  Combat/Actions/ActionComboSequence.cs, PlayerActionSet.cs
-  Combat/Actions/IActionStartContext.cs, ICombatFrameConsumer.cs, IActionHitReceiver.cs
+  Combat/CombatModeService.cs, ICombatModeService.cs, CombatModeSwitchResult.cs, CombatModeProfile.cs
+  Combat/Actions/Definitions/ActionDefinition.cs, ActionPhase.cs, ActionPhaseKind.cs
+  Combat/Actions/Definitions/ActionEvent.cs, ActionEventKind.cs, ActionEventContext.cs
+  Combat/Actions/Definitions/ActionTransition.cs, ActionTransitionCondition.cs
+  Combat/Actions/Definitions/CancelWindow.cs, CancelType.cs, RotationWindow.cs, CombatActionType.cs
+  Combat/Actions/Resolution/PlayerActionSet.cs, IMoveIntentResolver.cs
+  Combat/Actions/Resolution/ActionRequest.cs, ActionInputTrigger.cs, ActionResolveContext.cs
+  Combat/Actions/Resolution/ActionResolver.cs, SingleActionResolver.cs, ComboActionResolver.cs, ComboLeafPolicy.cs, DirectionalActionResolver.cs
+  Combat/Actions/Resolution/ActionResolverService.cs
+  Combat/Actions/Execution/ActionExecutor.cs, IActionExecutor.cs, ActionSession.cs
+  Combat/Actions/Execution/CharacterActionDriver.cs, ActionRotationDriver.cs
+  Combat/Actions/Execution/IActionStartContext.cs, IActionHitReceiver.cs
+  Combat/Actions/Frames/CombatFrameContext.cs, ICombatFrameConsumer.cs
   Combat/Hitbox/HitBoxSystem.cs, HitboxKeyframe.cs, HitboxMath.cs
   Combat/Hitbox/HurtboxDefinition.cs, IHurtboxTarget.cs, ActionHitContext.cs, HitboxGizmoDrawing.cs
   Combat/Targeting/TargetingSystem.cs, TargetSelector.cs, CombatTargetLock.cs
   Combat/VFX/ActionVfxPlayer.cs, ActionVfxSpawner.cs, VFXManager.cs
-  Input/InputManager.cs, PlayerInputFrame.cs, IActionComboInput.cs, InputIds.cs, ICharacterInputSource.cs
+  Input/InputManager.cs, PlayerInputFrame.cs, IActionInputBuffer.cs, InputIds.cs, ICharacterInputSource.cs
 
 Assets/Scripts/Infrastructure/
   Input/InputReader.cs, AIInputSource.cs
@@ -714,9 +767,15 @@ Assets/Scripts/Editor/Combat/
 ```
 Assets/Data/Combat/Actions/Player/
   player_attack_*.asset, player_dodge_*.asset
-  PlayerActionSet.asset, ActionComboSequence/*.asset
+  PlayerActionSet.asset, Resolvers/*.asset（Single / Combo / Directional ActionResolver）
   CombatModeProfile.asset（若已建）
 ```
+
+> **Resolver 重构后的 Editor 资产迁移（必须在 Unity Editor 中人工完成）：**
+> 1. 旧 `ActionComboSequence.asset` 已废弃：改用 `Create → ACT/Combat/Resolvers/Combo Action Resolver`，把原 `steps` / `leafPolicy` 填入。
+> 2. 旧 `PlayerActionSet` 的每个 `Entry` 现在只有 `input` + `resolver` 两个字段：为每个输入绑定对应的 Resolver（Attack→Combo、Dodge→Directional、单招→Single）。
+> 3. 旧 `dodgeDirectionVariants` 字段与 `DodgeDirectionVariants` 已删除：改用 `Create → ACT/Combat/Resolvers/Directional Action Resolver`，把根/前/后/左/右动作与阈值填入，并让 Dodge Entry 的 `resolver` 指向它。
+> 4. 迁移期旧资产会出现缺字段/丢引用（预期结果，不做旧资产兼容），需一次性重配并保存。
 
 ---
 
@@ -727,3 +786,4 @@ Assets/Data/Combat/Actions/Player/
 | 2026-06-17 | 初版与多轮迭代（InputManager、Root Motion、CancelWindow） |
 | 2026-06-17 | **全面重写**：`ActionComboSequence`、`CombatModeProfile`、Transition `AtFrame`、对齐 ACTION_EDITOR 分析、编辑器适配度评估 |
 | 2026-06-21 | ActionEditor 准备：CharacterActionDriver、UpdateFrame、ICombatFrameConsumer、Phase/Event 骨架、命中回流 |
+| 2026-07-05 | **Resolver 重构**：新增 `ActionResolver`（Single/Combo/Directional）+ `ActionResolverService`；起手/连段/Dodge 方向/ Cancel 解析全部走 Resolver；删除 `ActionExecutor.TryStartByInput`、Dodge 特判、`ActionComboSequence`、`DodgeDirectionVariants`、`PlayerActionSet.TryGetStartAction/TryResolveNext/TryGetDodgeDirectionVariants`；`IActionComboInput` 改名 `IActionInputBuffer`；`Actions` 目录按 Definitions/Resolution/Execution/Frames 分层；`CombatModeProfile` 移至 Combat 层根目录 |

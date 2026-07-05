@@ -20,7 +20,7 @@ Assets/
 │   ├── Player/                # PlayerController（玩家输入源适配）
 │   ├── Enemy/                 # （占位）
 │   ├── Combat/
-│   │   ├── Actions/           # ActionDefinition、ActionExecutor、CharacterActionDriver（纯 C#）
+│   │   ├── Actions/           # Definitions(数据) / Resolution(选招) / Execution(播放) / Frames(帧契约)（纯 C#）
 │   │   ├── Hitbox/            # OBB 判定
 │   │   ├── VFX/               # 招式 VFX 帧事件
 │   │   ├── Targeting/         # 索敌
@@ -115,9 +115,10 @@ InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力
 | 类 | 职责 |
 |----|------|
 | `ActionDefinition` | 单招 SO：动画、Cancel、Transition、Hitbox、Phase/Event 骨架 |
-| `ActionExecutor` | 播放、Cancel、Transition、**UpdateFrame Logic Tick**、命中回流 |
+| `ActionExecutor` | 纯播放器：播放、Cancel（委托 Resolver 选下一招）、Transition、**UpdateFrame Logic Tick**、命中回流；不做输入查表 / 动作类型特判 |
 | `ActionSession` | 当前招式唯一会话状态：CurrentAction、Elapsed、命中确认、卡肉暂停 |
-| `CharacterActionDriver` | 角色无关：离散输入路由、起手切状态、移动取消 |
+| `ActionResolverService` / `ActionResolver` | 选招策略层：输入请求 + 上下文 → ActionDefinition（Single / Combo / Directional） |
+| `CharacterActionDriver` | 角色无关：离散输入路由、起手（经 Resolver）切状态、移动取消 |
 | `ActionRotationDriver` | RotationWindow + 索敌转向 |
 | `CombatModeService` | 战斗模式、出招表、Locomotion Profile 切换 |
 | `CombatWorldController` | 场景级战斗系统生命周期锚点 |
@@ -126,7 +127,7 @@ InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力
 | `CombatActorSystem` / `TargetSystem` / `CombatFeedbackSystem` | 战斗角色注册、目标注册、反馈状态 |
 | `ApplyHitCommand` / `GetActiveTargetsQuery` / `AttackHitEvent` | 命中后的跨系统通信入口与无副作用目标查询 |
 | `HitboxFrameConsumer` / `HitDetector` / `TargetingResolver` | 动作帧命中检测与索敌纯计算入口，不直接访问 Architecture |
-| `PlayerActionSet` / `ActionComboSequence` | 起手映射与线性连招 |
+| `PlayerActionSet` | 出招表：离散输入 → `ActionResolver` 映射 |
 
 **Logic Tick 原则**：编辑器 Scrub 与 Play Mode 共用 `ActionExecutor.UpdateFrame(frameIndex)`；帧消费者实现 `ICombatFrameConsumer`。
 

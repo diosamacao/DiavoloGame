@@ -37,7 +37,8 @@ public static class CharacterActorFactory
 
         var context = new CharacterContext(root, animation, controller, motor);
         var stateMachine = new CharacterStateMachine(context);
-        actionExecutor = new ActionExecutor(root, controller, animation, rootMotion, combatMode);
+        var resolverService = new ActionResolverService(combatMode);
+        actionExecutor = new ActionExecutor(root, controller, animation, rootMotion, combatMode, resolverService);
         context.ActionExecutor = actionExecutor;
 
         Transform attachPoint = ResolveModelPoint(config.Combat.AttachPointName, modelRoot, root);
@@ -55,8 +56,11 @@ public static class CharacterActorFactory
             stateMachine,
             actionExecutor,
             combatMode,
-            targetLock);
-        actionExecutor.BindComboInput(actionDriver.CreateComboInputBridge());
+            targetLock,
+            resolverService,
+            root,
+            motor);
+        actionExecutor.BindInputBuffer(actionDriver.CreateInputBufferBridge());
 
         var actor = new CharacterActor(
             inputSource,

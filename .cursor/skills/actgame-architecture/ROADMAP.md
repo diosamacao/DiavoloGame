@@ -78,6 +78,12 @@
 - [x] 2026-06-23：命中后跨系统通信迁移为 `ApplyHitCommand` + `AttackHitEvent`
 - [x] 2026-06-21：移除 Player 根对象运行时业务脚本挂载，动作/输入/状态/判定改为纯 C# runtime
 - [x] 2026-06-29：`HitBoxSystem` / `HitDetectionSystem` / `TargetingSystem` 命名收敛为 `HitboxFrameConsumer` / `HitDetector` / `TargetingResolver`，`System` 后缀仅保留给架构 IOC
+- [x] 2026-07-05：动作系统 Resolver 重构——新增 `ActionResolver`（Single/Combo/Directional）+ `ActionResolverService`；起手/连段/Dodge 方向/Cancel 解析全部走 Resolver；删除 `ActionExecutor.TryStartByInput` 与 Dodge 特判、`ActionComboSequence`、`DodgeDirectionVariants`；`IActionComboInput`→`IActionInputBuffer`；`Combat/Actions` 按 Definitions/Resolution/Execution/Frames 分层
+
+## 剩余项
+
+- [ ] 输入生命周期扩展：`ActionInputTrigger.Held / Released`、带时间戳输入缓冲、`HoldActionResolver`（延后，见 Resolver 计划 Phase 7）
+- [ ] `ActionEditorWindow`（多轨道时间轴）与 ActionMap 可视化编辑
 
 ## 决策记录
 
@@ -86,6 +92,7 @@
 | 2026-06-17 | 不用 namespace，用文件夹分层 | 当前规模小，减少样板 |
 | 2026-06-17 | CharacterController 非 Rigidbody | ACT 地面移动更可控 |
 | 2026-06-17 | 状态机 Core 不引用 UnityEngine | 可测试性与分层清晰 |
-| 2026-06-21 | 连招保持 `ActionComboSequence` 线性 | 近期无分支图需求 |
+| 2026-06-21 | 连招保持线性 | 近期无分支图需求 |
+| 2026-07-05 | 选招层用 `ActionResolver` 策略（Single/Combo/Directional）替代 `ActionComboSequence` + Dodge 特判 | 选招与播放分离，`ActionExecutor` 收敛为纯播放器；分支连招可作为新 Resolver 子类接入不破坏分层 |
 | 2026-06-21 | 输入路由命名 `CharacterActionDriver` | 敌人复用同一组件 |
 | 2026-06-29 | 架构层采用能力接口 + 基类约束 | 让 Controller/System/Command/Query/Event 职责在类型系统中表达 |

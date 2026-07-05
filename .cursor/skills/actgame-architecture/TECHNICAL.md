@@ -13,7 +13,7 @@
 | 架构通信框架 | ✅ 已实现 | `ACTGameArchitecture`、`ArchitectureSystemBase`、`AppControllerBase`、Command / Query / Event | — |
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionState` | `Player_KatanaGirl_AnimationProfile.asset` |
 | 第三人称相机 | ✅ 已实现 | `CameraManager` | 场景内 CameraManager 对象 |
-| 动作系统（播放 / 取消 / 连段 / 战斗模式） | ✅ 已实现 | 纯 C# `ActionExecutor`、`CombatModeService` | `CombatModeProfile`、`ActionComboSequence` |
+| 动作系统（选招 / 播放 / 取消 / 连段 / 战斗模式） | ✅ 已实现 | 纯 C# `ActionResolverService` + `ActionExecutor` + `CombatModeService` | `CombatModeProfile`、`PlayerActionSet`、`ActionResolver`(Single/Combo/Directional) |
 | 攻击 / 战斗判定 | 🟡 部分实现 | 纯 C# `HitboxFrameConsumer` + `HitDetector` OBB + 命中回流 | 无伤害、Hit 状态 |
 | 敌人 AI | ⬜ 未实现 | — | `Enemy/` 占位 |
 | UI | ⬜ 未实现 | — | `UI/` 占位 |
@@ -336,7 +336,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 - `PlayerController.Awake` 校验 `CharacterConfig`，创建 `InputReader`，调用 `CharacterActorFactory.Create`
 - 实例化模型 Prefab，查找 Animator
 - Player 根只补齐 Unity 必需的 `CharacterController`
-- 构造纯 C# `InputReader`、`CharacterAnimationService`、`CombatModeService`、`ActionExecutor`、`CharacterStateMachine`
+- 构造纯 C# `InputReader`、`CharacterAnimationService`、`CombatModeService`、`ActionResolverService`、`ActionExecutor`、`CharacterActionDriver`、`CharacterStateMachine`
 - 注册纯 C# `HitboxFrameConsumer` / `ActionVfxPlayer` 为 Logic Tick 消费者
 - `CharacterActor.Tick` 统一输入采集、动作路由、重力和状态机；状态自身调度 Locomotion 移动或 Action 旋转
 
@@ -352,13 +352,15 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 
 ### 功能说明
 
-多战斗模式下，玩家通过出招表 + `ActionComboSequence` 起手攻击/闪避；招内 Cancel 消费缓冲；`ActionTransition` 收招（含 **OnHitConfirm / OnWhiff**）；**Logic Tick 由 `UpdateFrame` 统一驱动** Hitbox/VFX。
+多战斗模式下，玩家通过出招表（`ActionEntry` → `ActionResolver`）起手攻击/闪避；起手、连段进位、Dodge 方向分派、招内 Cancel 下一招统一由 `ActionResolverService` 解析，`ActionExecutor` 只负责播放已解析好的招；`ActionTransition` 收招（含 **OnHitConfirm / OnWhiff**）；**Logic Tick 由 `UpdateFrame` 统一驱动** Hitbox/VFX。
 
 ### 实现方案
 
 | 项 | 方案 |
 |----|------|
-| 起手 / 缓冲 | `CharacterActionDriver` → `ActionExecutor.TryStartByInput` |
+| 起手 / 缓冲 | `CharacterActionDriver` → `ActionResolverService.TryResolveStart` → `ActionExecutor.TryStart` |
+| 选招策略 | `ActionResolver`：`Single` / `Combo`（线性连段）/ `Directional`（方向闪避） |
+| Cancel 下一招 | `ActionExecutor` 扫描窗口消费输入后 → `ActionResolverService.TryResolveNext` |
 | 移动取消 | `CharacterActionDriver` + `CancelWindow(Movement)` |
 | 招式旋转 | `ActionRotationDriver` + `CombatTargetLock` |
 | Logic Tick | `ActionExecutor.UpdateFrame` → `ICombatFrameConsumer` + `IActionEventConsumer` |
@@ -391,7 +393,7 @@ ActionState.Tick
 ### 已知限制
 
 - ActionEvent 已有运行时派发入口，但 Hitbox/VFX 仍处于旧字段兼容期
-- 连招仍线性 `ActionComboSequence`
+- 连招仍线性 `ComboActionResolver`（分支连招需新增 Resolver 子类）
 - Scene 玩家入口已改为 Empty + `PlayerController` + `CharacterConfig`
 
 ### Editor 操作（Prefab）
@@ -400,7 +402,7 @@ ActionState.Tick
 
 ### 相关文件
 
-- `Assets/Scripts/Domain/Combat/Actions/*`
+- `Assets/Scripts/Domain/Combat/Actions/{Definitions,Resolution,Execution,Frames}/*`
 - `Assets/Scripts/App/Controllers/Gameplay/PlayerController.cs`
 - `docs/ACTION_SYSTEM.md`、`docs/ACTION_EDITOR.md`
 
@@ -427,3 +429,4 @@ ActionState.Tick
 | 2026-06-21 | ActionEditor 准备重构：CharacterActionDriver、UpdateFrame、Phase/Event 骨架、命中回流 |
 | 2026-06-23 | QFramework 风格架构改造：CharacterActor、ActionExecutor、ACTGameArchitecture、ApplyHitCommand、AttackHitEvent、TargetSystem |
 | 2026-06-29 | QFramework 式强类型契约：System/Controller/Command/Query/Event 基类与 Editor 边界校验，命中与索敌 Domain 入口移除架构单例依赖 |
+| 2026-07-05 | 动作系统 Resolver 重构：`ActionResolver`(Single/Combo/Directional) + `ActionResolverService` 承接起手/连段/Dodge 方向/Cancel 选招；`ActionExecutor` 收敛为纯播放器；`Combat/Actions` 分 Definitions/Resolution/Execution/Frames；`IActionComboInput`→`IActionInputBuffer` |
