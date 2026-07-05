@@ -22,13 +22,18 @@ MonoBehaviour:
   phases: []
   actionEvents: []
   cancelWindows:
-  - startFrame: 27
+  - startFrame: 15
     endFrame: 80
     cancelType: 0
     allowedInputs:
     - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     - {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     - {fileID: 6632924207495724444, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    priority: 0
+  - startFrame: 15
+    endFrame: 80
+    cancelType: 1
+    allowedInputs: []
     priority: 0
   transitions: []
   startBehaviors: 

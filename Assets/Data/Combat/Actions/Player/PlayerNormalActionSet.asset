@@ -16,6 +16,8 @@ MonoBehaviour:
   - input: {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     resolver: {fileID: 11400000, guid: dc9850c9dcc235443aa93c459ba16aa7, type: 2}
   - input: {fileID: -130322003382893763, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    resolver: {fileID: 0}
+    resolver: {fileID: 11400000, guid: 7b95e24cfd2fde64e8e0825c1046ae7c, type: 2}
   - input: {fileID: 6632924207495724444, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    resolver: {fileID: 0}
+    resolver: {fileID: 11400000, guid: 918fb44fed226c94db55e94d7842eea4, type: 2}
+  - input: {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    resolver: {fileID: 11400000, guid: 1704ccf13e8c10141ad6ed56279b8bc1, type: 2}

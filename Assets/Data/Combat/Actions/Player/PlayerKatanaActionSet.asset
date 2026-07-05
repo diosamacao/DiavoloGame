@@ -14,18 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   entries:
   - input: {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    comboSequence: {fileID: 11400000, guid: 36de4625c610b6a4098e75d68a1e448d, type: 2}
+    resolver: {fileID: 11400000, guid: 085a935768ca90348bf298c6298d3b49, type: 2}
   - input: {fileID: -130322003382893763, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    comboSequence: {fileID: 11400000, guid: 3523d0e0c551d9d4fb4085a8c663cb03, type: 2}
+    resolver: {fileID: 11400000, guid: 5336bce93f7c341488e49b2843f951c4, type: 2}
   - input: {fileID: 6632924207495724444, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    comboSequence: {fileID: 11400000, guid: d7f66b4dad546fe4b885e978b0b1f89b, type: 2}
+    resolver: {fileID: 11400000, guid: 918fb44fed226c94db55e94d7842eea4, type: 2}
   - input: {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    comboSequence: {fileID: 11400000, guid: 8b8438a9f6be2ab479764d8bab91c8df, type: 2}
-  dodgeDirectionVariants:
-  - rootDodgeAction: {fileID: 11400000, guid: 4b973751c44c53842b48849ef814c9f7, type: 2}
-    sideThresholdDeg: 0
-    rotateToInputOnForward: 0
-    forwardAction: {fileID: 11400000, guid: 4b973751c44c53842b48849ef814c9f7, type: 2}
-    backwardAction: {fileID: 11400000, guid: cbacb26c8950a8e4e969393ced7a41a7, type: 2}
-    leftAction: {fileID: 11400000, guid: f90cc868434c0744c998f608c6d33c50, type: 2}
-    rightAction: {fileID: 11400000, guid: a511469225000da49b32550e1e7745a6, type: 2}
+    resolver: {fileID: 11400000, guid: 1704ccf13e8c10141ad6ed56279b8bc1, type: 2}

@@ -12,10 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e8c8db652d4426246acbf0b8cfc050e4, type: 3}
   m_Name: Dodge
   m_EditorClassIdentifier: 
-  defaultAction: {fileID: 0}
+  defaultAction: {fileID: 11400000, guid: 4b973751c44c53842b48849ef814c9f7, type: 2}
   sideThresholdDeg: 80
   rotateToInputOnForward: 1
-  forwardAction: {fileID: 0}
-  backwardAction: {fileID: 0}
-  leftAction: {fileID: 0}
-  rightAction: {fileID: 0}
+  forwardAction: {fileID: 11400000, guid: 4b973751c44c53842b48849ef814c9f7, type: 2}
+  backwardAction: {fileID: 11400000, guid: cbacb26c8950a8e4e969393ced7a41a7, type: 2}
+  leftAction: {fileID: 11400000, guid: f90cc868434c0744c998f608c6d33c50, type: 2}
+  rightAction: {fileID: 11400000, guid: a511469225000da49b32550e1e7745a6, type: 2}
