@@ -25,6 +25,7 @@
 - `Controller` 仅用于 `App/Controllers` 下的 Unity 入口 `MonoBehaviour`，并继承 `AppControllerBase` 或实现 `IArchitectureController`
 - `System` 后缀仅用于 `App/Systems` 下注册进 `ACTGameArchitecture` 的架构系统，并继承 `ArchitectureSystemBase` 或实现 `IArchitectureSystem`
 - `Domain` 纯 C# 业务类优先使用 `Service` / `Actor` / `Executor` / `Resolver` / `Detector` / `Consumer`，不得直接访问 `ACTGameArchitecture.Interface`
+- **动作系统目录分层**：`Combat/Actions/` 下按职责分四个子目录——`Definitions/`（动作数据 Schema）、`Resolution/`（输入 → 动作选招）、`Execution/`（播放/帧推进/输入路由/旋转）、`Frames/`（Logic Tick 帧上下文契约）；核心脚本不散落在 `Actions/` 根目录
 - 跨系统通信使用 `ACTGameArchitecture` 的 Command / Query / Event；动作帧内部可保留 `ActionExecutor` → `ICombatFrameConsumer` 的强时序直连
 - 架构事件必须实现 `IArchitectureEvent`；架构查询继承 `ArchitectureQueryBase<TResult>` 或实现 `IArchitectureQuery<TResult>`
 
@@ -71,10 +72,11 @@ public class MyBehaviour : MonoBehaviour
 - 使用 Input System + `.inputactions` 资产；Action Map 命名 `Player`
 - **采集**：输入源实现 `ICharacterInputSource`，玩家使用纯 C# `InputReader`，敌人可使用 AI 输入源
 - **中枢**：`InputManager` 由 `CharacterActor` 持有；`IngestFrame` + `RegisterPressed(string inputId, Action)`
-- **离散 id**：Input System Action **名**；出招表 `ActionEntry` → `ActionComboSequence`
-- **连招**：Cancel 窗只配帧/输入；下一招由 `ActionComboSequence.TryResolveNext` 进位（非 Cancel 内 targetAction）
+- **离散 id**：Input System Action **名**；出招表 `ActionEntry` → `ActionResolver`（`input` + `resolver` 两字段，缺一即无效）
+- **选招层**：起手 / 连段进位 / Dodge 方向分派 / Cancel 下一招统一由 `ActionResolverService` → `ActionResolver`（`Single` / `Combo` / `Directional`）解析；`ActionExecutor` 不做输入查表也不做 `CombatActionType` 特判
+- **连招**：Cancel 窗只配帧/输入；下一招由 `ComboActionResolver` 进位（非 Cancel 内 targetAction）
 - **战斗模式**：`CombatModeProfile` + `CombatModeService`；与 `PlayerActionSet` 解耦
-- **缓冲**：招式中 `Buffer(inputId)`；`ActionExecutor` 经 `IActionComboInput` 在 `CancelWindow` 内消费
+- **缓冲**：招式中 `Buffer(inputId)`；`ActionExecutor` 经 `IActionInputBuffer` 在 `CancelWindow` 内消费
 - 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `CharacterMotor` / State）
 - **玩家装配**：`InputActionAsset` 由 `CharacterConfig` 注入 `InputReader`，不在玩家 Prefab 上重复配置
 
