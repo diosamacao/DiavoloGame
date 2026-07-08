@@ -31,8 +31,8 @@ public static class HitboxMath
 {
     const float AxisEpsilon = 1e-6f;
 
-    /// <summary>由攻击者挂点与 HitboxKeyframe 构建世界 OBB。</summary>
-    public static HitboxOrientedBox BuildFromHitbox(Transform root, Transform attachPoint, HitboxKeyframe hitbox)
+    /// <summary>由攻击者挂点与 HitboxNotifyState 构建世界 OBB。</summary>
+    public static HitboxOrientedBox BuildFromHitbox(Transform root, Transform attachPoint, HitboxNotifyState hitbox)
     {
         Transform anchor = attachPoint != null ? attachPoint : root;
         if (anchor == null || hitbox == null)

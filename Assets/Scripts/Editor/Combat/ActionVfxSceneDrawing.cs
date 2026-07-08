@@ -1,11 +1,11 @@
 using UnityEditor;
 using UnityEngine;
 
-/// <summary>Scene 视图绘制 VFX 帧事件预览（轴向标记 + 可选 Prefab 实例）。</summary>
+/// <summary>Scene 视图绘制 VFX Notify 预览（轴向标记 + 可选 Prefab 实例）。</summary>
 public static class ActionVfxSceneDrawing
 {
     /// <summary>在挂点处绘制 VFX 位置/朝向预览标记。</summary>
-    public static void DrawVfxMarker(Transform anchor, ActionVfxKeyframe vfx, Color color)
+    public static void DrawVfxMarker(Transform anchor, PlayVfxNotify vfx, Color color)
     {
         if (anchor == null || vfx == null)
             return;
@@ -21,10 +21,10 @@ public static class ActionVfxSceneDrawing
         Handles.color = previous;
     }
 
-    /// <summary>由挂点与 VFX 关键帧计算世界空间位置与旋转。</summary>
+    /// <summary>由挂点与 VFX Notify 计算世界空间位置与旋转。</summary>
     public static void ResolveWorldPose(
         Transform anchor,
-        ActionVfxKeyframe vfx,
+        PlayVfxNotify vfx,
         out Vector3 worldCenter,
         out Quaternion worldRotation)
     {

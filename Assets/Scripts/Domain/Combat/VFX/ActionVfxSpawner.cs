@@ -1,6 +1,6 @@
 using UnityEngine;
 
-/// <summary>按 ActionVfxKeyframe 配置实例化 VFX Prefab。</summary>
+/// <summary>按 PlayVfxNotify 配置实例化 VFX Prefab。</summary>
 public static class ActionVfxSpawner
 {
     /// <summary>生成 VFX 实例；优先经 VFXManager 对象池，无 Manager 时回退 Instantiate。</summary>
@@ -8,7 +8,7 @@ public static class ActionVfxSpawner
         GameObject prefab,
         Transform root,
         Transform attachPoint,
-        ActionVfxKeyframe vfx)
+        PlayVfxNotify vfx)
     {
         if (prefab == null || vfx == null)
             return null;
@@ -25,8 +25,8 @@ public static class ActionVfxSpawner
         return instance;
     }
 
-    /// <summary>将已存在的 Transform 对齐到 VFX 关键帧（Editor 预览复用）。</summary>
-    public static void ApplyTransform(Transform instance, Transform anchor, ActionVfxKeyframe vfx)
+    /// <summary>将已存在的 Transform 对齐到 VFX Notify（Editor 预览复用）。</summary>
+    public static void ApplyTransform(Transform instance, Transform anchor, PlayVfxNotify vfx)
     {
         if (instance == null || anchor == null || vfx == null)
             return;

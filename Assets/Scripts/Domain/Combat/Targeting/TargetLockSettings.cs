@@ -5,13 +5,13 @@ using UnityEngine;
 [Serializable]
 public class TargetLockSettings
 {
-    [SerializeField] bool enabled;
+    [SerializeField] bool enabled = false;
     [SerializeField] float lockRange = 8f;
     [Tooltip("0 表示全向索敌；>0 时仅 NearestInForwardCone 或作为额外过滤角。")]
     [SerializeField] float forwardConeAngle = 120f;
     [SerializeField] TargetSelectionPolicy policy = TargetSelectionPolicy.NearestDistance;
-    [Tooltip("<=0 时使用 RotationWindow 的 smoothTime；值越小转向越快。")]
-    [SerializeField] float lockRotationSmoothTimeOverride;
+    [Tooltip("<=0 时使用 RotationNotifyState 的 smoothTime；值越小转向越快。")]
+    [SerializeField] float lockRotationSmoothTimeOverride = 0f;
 
     public bool Enabled => enabled;
     public float LockRange => Mathf.Max(0f, lockRange);
@@ -22,7 +22,7 @@ public class TargetLockSettings
     public bool UsesForwardConeFilter =>
         policy == TargetSelectionPolicy.NearestInForwardCone && ForwardConeAngle > 0f && ForwardConeAngle < 360f;
 
-    /// <summary>索敌转向平滑时间；未覆盖时回退 rotationWindowSmoothTime。</summary>
-    public float ResolveLockSmoothTime(float rotationWindowSmoothTime) =>
-        lockRotationSmoothTimeOverride > 0f ? lockRotationSmoothTimeOverride : rotationWindowSmoothTime;
+    /// <summary>索敌转向平滑时间；未覆盖时回退 rotationStateSmoothTime。</summary>
+    public float ResolveLockSmoothTime(float rotationStateSmoothTime) =>
+        lockRotationSmoothTimeOverride > 0f ? lockRotationSmoothTimeOverride : rotationStateSmoothTime;
 }

@@ -13,8 +13,8 @@ public class ActionDefinitionHitboxEditor : Editor
     const string PreviewHitboxEnabledPrefKey = "ACTGame.ActionEditorPreview.ShowHitbox";
     const string PreviewVfxEnabledPrefKey = "ACTGame.ActionEditorPreview.ShowVfx";
 
-    SerializedProperty _hitboxesProp;
-    SerializedProperty _vfxEventsProp;
+    SerializedProperty _hitboxStatesProp;
+    SerializedProperty _playVfxNotifiesProp;
 
     ActionEditorPreviewSession _previewSession;
     ActionEditorVfxPreviewExtension _vfxPreviewExtension;
@@ -28,8 +28,9 @@ public class ActionDefinitionHitboxEditor : Editor
 
     void OnEnable()
     {
-        _hitboxesProp = serializedObject.FindProperty("hitboxes");
-        _vfxEventsProp = serializedObject.FindProperty("vfxEvents");
+        SerializedProperty timelineProp = serializedObject.FindProperty("timeline");
+        _hitboxStatesProp = timelineProp?.FindPropertyRelative("hitboxStates");
+        _playVfxNotifiesProp = timelineProp?.FindPropertyRelative("playVfxNotifies");
 
         _vfxPreviewExtension = new ActionEditorVfxPreviewExtension();
         _vfxPreviewExtension.Bind(GetSelectedVfxProperty);
@@ -150,7 +151,7 @@ public class ActionDefinitionHitboxEditor : Editor
             return;
         }
 
-        int hitboxCount = _hitboxesProp != null ? _hitboxesProp.arraySize : 0;
+        int hitboxCount = _hitboxStatesProp != null ? _hitboxStatesProp.arraySize : 0;
         if (hitboxCount > 0)
         {
             _selectedHitboxIndex = EditorGUILayout.IntSlider(
@@ -161,7 +162,7 @@ public class ActionDefinitionHitboxEditor : Editor
         }
         else
         {
-            EditorGUILayout.HelpBox("在 Hitboxes 列表中添加至少一条 HitboxKeyframe。", MessageType.Info);
+            EditorGUILayout.HelpBox("在 Timeline / Hitbox States 列表中添加至少一条 HitboxNotifyState。", MessageType.Info);
         }
     }
 
@@ -176,7 +177,7 @@ public class ActionDefinitionHitboxEditor : Editor
             return;
         }
 
-        int vfxCount = _vfxEventsProp != null ? _vfxEventsProp.arraySize : 0;
+        int vfxCount = _playVfxNotifiesProp != null ? _playVfxNotifiesProp.arraySize : 0;
         if (vfxCount > 0)
         {
             EditorGUI.BeginChangeCheck();
@@ -186,8 +187,8 @@ public class ActionDefinitionHitboxEditor : Editor
                 0,
                 vfxCount - 1);
 
-            SerializedProperty selectedProp = _vfxEventsProp.GetArrayElementAtIndex(_selectedVfxIndex);
-            SerializedProperty triggerFrameProp = selectedProp.FindPropertyRelative("triggerFrame");
+            SerializedProperty selectedProp = _playVfxNotifiesProp.GetArrayElementAtIndex(_selectedVfxIndex);
+            SerializedProperty triggerFrameProp = selectedProp.FindPropertyRelative("startFrame");
             if (triggerFrameProp != null)
             {
                 triggerFrameProp.intValue = EditorGUILayout.IntSlider(
@@ -195,6 +196,10 @@ public class ActionDefinitionHitboxEditor : Editor
                     triggerFrameProp.intValue,
                     0,
                     maxFrame);
+
+                SerializedProperty endFrameProp = selectedProp.FindPropertyRelative("endFrame");
+                if (endFrameProp != null)
+                    endFrameProp.intValue = triggerFrameProp.intValue;
             }
 
             if (EditorGUI.EndChangeCheck())
@@ -220,7 +225,7 @@ public class ActionDefinitionHitboxEditor : Editor
         }
         else
         {
-            EditorGUILayout.HelpBox("在 VFX Events 列表中添加至少一条 ActionVfxKeyframe。", MessageType.Info);
+            EditorGUILayout.HelpBox("在 Timeline / Play Vfx Notifies 列表中添加至少一条 PlayVfxNotify。", MessageType.Info);
         }
     }
 
@@ -236,10 +241,10 @@ public class ActionDefinitionHitboxEditor : Editor
         {
             DrawAllHitboxPreviews(action, root, anchor);
 
-            if (_hitboxesProp != null && _hitboxesProp.arraySize > 0)
+            if (_hitboxStatesProp != null && _hitboxStatesProp.arraySize > 0)
             {
-                int hitboxIndex = Mathf.Clamp(_selectedHitboxIndex, 0, _hitboxesProp.arraySize - 1);
-                DrawSelectedHitboxHandles(_hitboxesProp.GetArrayElementAtIndex(hitboxIndex), anchor);
+                int hitboxIndex = Mathf.Clamp(_selectedHitboxIndex, 0, _hitboxStatesProp.arraySize - 1);
+                DrawSelectedHitboxHandles(_hitboxStatesProp.GetArrayElementAtIndex(hitboxIndex), anchor);
             }
         }
 
@@ -247,30 +252,30 @@ public class ActionDefinitionHitboxEditor : Editor
         {
             DrawAllVfxPreviews(action, anchor);
 
-            if (_vfxEventsProp != null && _vfxEventsProp.arraySize > 0)
+            if (_playVfxNotifiesProp != null && _playVfxNotifiesProp.arraySize > 0)
             {
-                int vfxIndex = Mathf.Clamp(_selectedVfxIndex, 0, _vfxEventsProp.arraySize - 1);
-                DrawSelectedVfxHandles(_vfxEventsProp.GetArrayElementAtIndex(vfxIndex), anchor);
+                int vfxIndex = Mathf.Clamp(_selectedVfxIndex, 0, _playVfxNotifiesProp.arraySize - 1);
+                DrawSelectedVfxHandles(_playVfxNotifiesProp.GetArrayElementAtIndex(vfxIndex), anchor);
             }
         }
     }
 
     SerializedProperty GetSelectedVfxProperty()
     {
-        if (_vfxEventsProp == null || _vfxEventsProp.arraySize == 0)
+        if (_playVfxNotifiesProp == null || _playVfxNotifiesProp.arraySize == 0)
             return null;
 
-        int vfxIndex = Mathf.Clamp(_selectedVfxIndex, 0, _vfxEventsProp.arraySize - 1);
-        return _vfxEventsProp.GetArrayElementAtIndex(vfxIndex);
+        int vfxIndex = Mathf.Clamp(_selectedVfxIndex, 0, _playVfxNotifiesProp.arraySize - 1);
+        return _playVfxNotifiesProp.GetArrayElementAtIndex(vfxIndex);
     }
 
     /// <summary>绘制全部 Hitbox 线框：当前帧生效高亮，选中项黄色。</summary>
     void DrawAllHitboxPreviews(ActionDefinition action, Transform root, Transform anchor)
     {
-        HitboxKeyframe[] hitboxes = action.Hitboxes;
+        HitboxNotifyState[] hitboxes = action.HitboxStates;
         for (int i = 0; i < hitboxes.Length; i++)
         {
-            HitboxKeyframe hitbox = hitboxes[i];
+            HitboxNotifyState hitbox = hitboxes[i];
             if (hitbox == null)
                 continue;
 
@@ -290,10 +295,10 @@ public class ActionDefinitionHitboxEditor : Editor
     /// <summary>绘制全部 VFX 标记：triggerFrame 与预览帧一致时高亮，选中项青色。</summary>
     void DrawAllVfxPreviews(ActionDefinition action, Transform anchor)
     {
-        ActionVfxKeyframe[] vfxEvents = action.VfxEvents;
-        for (int i = 0; i < vfxEvents.Length; i++)
+        PlayVfxNotify[] playVfxNotifies = action.PlayVfxNotifies;
+        for (int i = 0; i < playVfxNotifies.Length; i++)
         {
-            ActionVfxKeyframe vfxEvent = vfxEvents[i];
+            PlayVfxNotify vfxEvent = playVfxNotifies[i];
             if (vfxEvent == null)
                 continue;
 

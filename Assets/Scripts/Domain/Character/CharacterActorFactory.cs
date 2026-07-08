@@ -48,7 +48,8 @@ public static class CharacterActorFactory
         var vfxPlayer = new ActionVfxPlayer(root, attachPoint);
 
         actionExecutor.RegisterFrameConsumer(hitboxFrameConsumer);
-        actionExecutor.RegisterFrameConsumer(vfxPlayer);
+        actionExecutor.RegisterNotifyConsumer(vfxPlayer);
+        actionExecutor.BindTimelineAttachPoint(attachPoint);
 
         var actionDriver = new CharacterActionDriver(
             inputSource,

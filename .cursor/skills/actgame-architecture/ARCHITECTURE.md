@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-06-29
+> Last audited: 2026-07-09
 
 ## 项目概述
 
@@ -107,19 +107,20 @@ InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力
                     ├─ LocomotionState.Tick → CharacterMotor.TickLocomotion
                     └─ ActionState.Tick → ActionExecutor + ActionRotationDriver
                     ↓ UpdateFrame（Logic Tick）
-              HitboxFrameConsumer / ActionVfxPlayer（ICombatFrameConsumer）
+              HitboxFrameConsumer（ICombatFrameConsumer）/ ActionVfxPlayer（IActionNotifyConsumer）
 ```
 
 ### 3. 动作系统（Combat/Actions）
 
 | 类 | 职责 |
 |----|------|
-| `ActionDefinition` | 单招 SO：动画、Cancel、Transition、Hitbox、Phase/Event 骨架 |
-| `ActionExecutor` | 纯播放器：播放、Cancel（委托 Resolver 选下一招）、Transition、**UpdateFrame Logic Tick**、命中回流；不做输入查表 / 动作类型特判 |
+| `ActionDefinition` | 单招 SO：动画、`ActionTimeline`、Transition、Phase、反馈默认值 |
+| `ActionTimeline` / `ActionNotify` / `ActionNotifyState` | 动作帧数据唯一真源：点事件（VFX/自定义事件）与区间窗口（Hitbox/Hurtbox/Cancel/Movement/Rotation） |
+| `ActionExecutor` | 纯播放器：播放、Cancel（委托 Resolver 选下一招）、Transition、**UpdateFrame Logic Tick**、统一 Timeline 派发、命中回流；不做输入查表 / 动作类型特判 |
 | `ActionSession` | 当前招式唯一会话状态：CurrentAction、Elapsed、命中确认、卡肉暂停 |
 | `ActionResolverService` / `ActionResolver` | 选招策略层：输入请求 + 上下文 → ActionDefinition（Single / Combo / Directional） |
 | `CharacterActionDriver` | 角色无关：离散输入路由、起手（经 Resolver）切状态、移动取消 |
-| `ActionRotationDriver` | RotationWindow + 索敌转向 |
+| `ActionRotationDriver` | `RotationNotifyState` + 索敌转向 |
 | `CombatModeService` | 战斗模式、出招表、Locomotion Profile 切换 |
 | `CombatWorldController` | 场景级战斗系统生命周期锚点 |
 | `ACTGameArchitecture` | QFramework 风格架构入口：System/Model/Utility 注册、Command 执行、Query 查询、Event 分发 |
@@ -129,7 +130,7 @@ InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力
 | `HitboxFrameConsumer` / `HitDetector` / `TargetingResolver` | 动作帧命中检测与索敌纯计算入口，不直接访问 Architecture |
 | `PlayerActionSet` | 出招表：离散输入 → `ActionResolver` 映射 |
 
-**Logic Tick 原则**：编辑器 Scrub 与 Play Mode 共用 `ActionExecutor.UpdateFrame(frameIndex)`；帧消费者实现 `ICombatFrameConsumer`。
+**Logic Tick 原则**：编辑器 Scrub 与 Play Mode 共用 `ActionExecutor.UpdateFrame(frameIndex)`；帧消费者实现 `ICombatFrameConsumer`，点事件/区间事件消费者实现 `IActionNotifyConsumer`。
 
 ### 4. 玩家（Player）
 
@@ -176,7 +177,7 @@ InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力
 | 需求 | 推荐接入位置 |
 |------|--------------|
 | 新玩家状态 | `CharacterStateType` + 新 State 类 + RegisterStates |
-| 新招式帧事件 | `ActionEvent` + `ICombatFrameConsumer` 或扩展 `ActionExecutor` |
+| 新招式帧事件 | `ActionNotify` / `ActionNotifyState` + `IActionNotifyConsumer` 或专用查询服务 |
 | 编辑器 Scrub | `ActionExecutor.UpdateFrame` |
 | OnHit 收招 | `ActionTransitionCondition.OnHitConfirm` + `IActionHitReceiver` |
 | 敌人 AI 出招 | `CharacterActionDriver` + AI 输入源替换 `InputManager` |

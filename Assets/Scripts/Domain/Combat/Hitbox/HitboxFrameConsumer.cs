@@ -87,11 +87,11 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
         if (action == null)
             return;
 
-        HitboxKeyframe[] allHitboxes = action.Hitboxes;
+        HitboxNotifyState[] allHitboxes = action.HitboxStates;
 
         for (int i = 0; i < allHitboxes.Length; i++)
         {
-            HitboxKeyframe hitbox = allHitboxes[i];
+            HitboxNotifyState hitbox = allHitboxes[i];
             if (hitbox == null)
                 continue;
 

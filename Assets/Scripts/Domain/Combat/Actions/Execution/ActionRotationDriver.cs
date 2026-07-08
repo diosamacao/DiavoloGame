@@ -1,6 +1,6 @@
 using UnityEngine;
 
-/// <summary>招式 RotationWindow 内转向与索敌；依赖 IMoveIntentResolver 解析移动意图。</summary>
+/// <summary>招式 RotationNotifyState 窗口内转向与索敌；依赖 IMoveIntentResolver 解析移动意图。</summary>
 public sealed class ActionRotationDriver
 {
     readonly Transform _actorRoot;
@@ -33,7 +33,7 @@ public sealed class ActionRotationDriver
         TryApplyActionRotation();
     }
 
-    /// <summary>RotationWindow 内解析旋转方向：索敌默认，仅反向输入（Dot&lt;0）才改用输入方向。</summary>
+    /// <summary>旋转窗口内解析旋转方向：索敌默认，仅反向输入（Dot&lt;0）才改用输入方向。</summary>
     void TryApplyActionRotation()
     {
         if (!TryResolveActionRotationDirection(out Vector3 direction, out float smoothTime))
@@ -42,7 +42,7 @@ public sealed class ActionRotationDriver
         _actorRoot.rotation = GetSmoothedRotation(direction, smoothTime);
     }
 
-    /// <summary>RotationWindow 内解析最终转向方向与平滑时间。</summary>
+    /// <summary>旋转窗口内解析最终转向方向与平滑时间。</summary>
     bool TryResolveActionRotationDirection(out Vector3 direction, out float smoothTime)
     {
         direction = Vector3.zero;
@@ -53,10 +53,11 @@ public sealed class ActionRotationDriver
             return false;
 
         ActionDefinition action = session.CurrentAction;
-        if (!action.HasRotationWindow)
+        RotationNotifyState rotationState = action.GetActiveRotationState(session.ElapsedSeconds);
+        if (rotationState == null)
             return false;
 
-        float windowSmoothTime = action.RotationWindow.ResolveSmoothTime(_moveResolver.DefaultRotationSmoothTime);
+        float windowSmoothTime = rotationState.ResolveSmoothTime(_moveResolver.DefaultRotationSmoothTime);
         float lockSmoothTime = action.HasTargetLock
             ? action.TargetLockSettings.ResolveLockSmoothTime(windowSmoothTime)
             : windowSmoothTime;
