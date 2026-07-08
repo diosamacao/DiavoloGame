@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-06-29
+> Last updated: 2026-07-09
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -337,7 +337,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 - 实例化模型 Prefab，查找 Animator
 - Player 根只补齐 Unity 必需的 `CharacterController`
 - 构造纯 C# `InputReader`、`CharacterAnimationService`、`CombatModeService`、`ActionResolverService`、`ActionExecutor`、`CharacterActionDriver`、`CharacterStateMachine`
-- 注册纯 C# `HitboxFrameConsumer` / `ActionVfxPlayer` 为 Logic Tick 消费者
+- 注册纯 C# `HitboxFrameConsumer` 为 Logic Tick 消费者；注册 `ActionVfxPlayer` 为 `IActionNotifyConsumer`
 - `CharacterActor.Tick` 统一输入采集、动作路由、重力和状态机；状态自身调度 Locomotion 移动或 Action 旋转
 
 ### Editor 操作
@@ -352,7 +352,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 
 ### 功能说明
 
-多战斗模式下，玩家通过出招表（`ActionEntry` → `ActionResolver`）起手攻击/闪避；起手、连段进位、Dodge 方向分派、招内 Cancel 下一招统一由 `ActionResolverService` 解析，`ActionExecutor` 只负责播放已解析好的招；`ActionTransition` 收招（含 **OnHitConfirm / OnWhiff**）；**Logic Tick 由 `UpdateFrame` 统一驱动** Hitbox/VFX。
+多战斗模式下，玩家通过出招表（`ActionEntry` → `ActionResolver`）起手攻击/闪避；起手、连段进位、Dodge 方向分派、招内 Cancel 下一招统一由 `ActionResolverService` 解析，`ActionExecutor` 只负责播放已解析好的招；`ActionTransition` 收招（含 **OnHitConfirm / OnWhiff**）；**Logic Tick 由 `UpdateFrame` 统一驱动** `ActionTimeline`、Hitbox 与 VFX。
 
 ### 实现方案
 
@@ -361,9 +361,10 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 | 起手 / 缓冲 | `CharacterActionDriver` → `ActionResolverService.TryResolveStart` → `ActionExecutor.TryStart` |
 | 选招策略 | `ActionResolver`：`Single` / `Combo`（线性连段）/ `Directional`（方向闪避） |
 | Cancel 下一招 | `ActionExecutor` 扫描窗口消费输入后 → `ActionResolverService.TryResolveNext` |
-| 移动取消 | `CharacterActionDriver` + `CancelWindow(Movement)` |
-| 招式旋转 | `ActionRotationDriver` + `CombatTargetLock` |
-| Logic Tick | `ActionExecutor.UpdateFrame` → `ICombatFrameConsumer` + `IActionEventConsumer` |
+| 时间轴数据 | `ActionDefinition.Timeline`：`ActionNotify` 点事件 + `ActionNotifyState` 区间窗口 |
+| 移动取消 | `CharacterActionDriver` + `CancelWindowNotifyState(Movement)` |
+| 招式旋转 | `ActionRotationDriver` + `RotationNotifyState` + `CombatTargetLock` |
+| Logic Tick | `ActionExecutor.UpdateFrame` → `ICombatFrameConsumer` + `ActionTimelineRunner` + `IActionNotifyConsumer` |
 | 命中回流 | `HitboxFrameConsumer` → `IActionHitReceiver.NotifyHit` |
 | Motor | `CharacterMotor`（Locomotion 位移）+ `CharacterActor`（重力调度） |
 
@@ -374,31 +375,34 @@ ActionState.Tick
   → ActionExecutor.Tick(deltaTime)
       → SyncLogicFrameFromElapsed → DispatchCombatFrame
           → HitboxFrameConsumer.OnCombatFrameAdvanced
-          → ActionVfxPlayer.OnCombatFrameAdvanced
-      → CancelWindow / Transition（含 OnHitConfirm）
+          → ActionTimelineRunner.Dispatch
+              → PlayVfxNotify → ActionVfxPlayer.OnActionNotify
+              → ActionNotifyState Enter/Tick/Exit
+      → CancelWindowNotifyState / Transition（含 OnHitConfirm）
 ```
 
 编辑器 Scrub：`UpdateFrame(frameIndex)` 与上列帧派发共用路径。
 
-### ActionEditor 对齐状态（2026-06-21）
+### ActionEditor 对齐状态（2026-07-09）
 
 | 对齐度 | 项 |
 |--------|-----|
-| ✅ | `UpdateFrame` API、`ICombatFrameConsumer`、`ActionEventContext` 派发、Phase/Event Schema |
+| ✅ | `UpdateFrame` API、`ICombatFrameConsumer`、`ActionTimelineRunner`、`ActionNotify` / `ActionNotifyState` Schema |
 | ✅ | 命中回流、`OnHitConfirm` / `OnWhiff` Transition 条件 |
 | ✅ | `CharacterActionDriver` 角色无关输入路由 |
-| 🟡 | ActionEvent 已派发但 Hitbox/VFX 仍兼容旧数组；无 `ActionEditorWindow` |
+| ✅ | Hitbox/VFX/Cancel/Movement/Rotation 已收敛到 `ActionTimeline`，删除旧双轨数组 |
+| 🟡 | 无 `ActionEditorWindow` 多轨道窗口；现有 Inspector 预览已改读 Timeline 子字段 |
 | ⬜ | 伤害结算、Hit 状态、GM 热重载 |
 
 ### 已知限制
 
-- ActionEvent 已有运行时派发入口，但 Hitbox/VFX 仍处于旧字段兼容期
+- 现有资产需要在 Unity Editor 中把旧字段配置迁移到 `ActionTimeline` 对应列表；Agent 未直接修改 `.asset`
 - 连招仍线性 `ComboActionResolver`（分支连招需新增 Resolver 子类）
 - Scene 玩家入口已改为 Empty + `PlayerController` + `CharacterConfig`
 
 ### Editor 操作（Prefab）
 
-创建 `CharacterConfig` 后，在 Scene 空物体的 `PlayerController` 上指定该资产；Play Mode 验证：起手、连段、移动取消、索敌旋转、Hitbox/VFX 与重构前一致。
+创建 `CharacterConfig` 后，在 Scene 空物体的 `PlayerController` 上指定该资产；Play Mode 验证：起手、连段、移动取消、索敌旋转、`ActionTimeline` 中的 Hitbox/VFX 与预期一致。
 
 ### 相关文件
 
@@ -430,3 +434,4 @@ ActionState.Tick
 | 2026-06-23 | QFramework 风格架构改造：CharacterActor、ActionExecutor、ACTGameArchitecture、ApplyHitCommand、AttackHitEvent、TargetSystem |
 | 2026-06-29 | QFramework 式强类型契约：System/Controller/Command/Query/Event 基类与 Editor 边界校验，命中与索敌 Domain 入口移除架构单例依赖 |
 | 2026-07-05 | 动作系统 Resolver 重构：`ActionResolver`(Single/Combo/Directional) + `ActionResolverService` 承接起手/连段/Dodge 方向/Cancel 选招；`ActionExecutor` 收敛为纯播放器；`Combat/Actions` 分 Definitions/Resolution/Execution/Frames；`IActionComboInput`→`IActionInputBuffer` |
+| 2026-07-09 | ActionNotify 时间轴重构：新增 `ActionTimeline` / `ActionNotify` / `ActionNotifyState` / `ActionTimelineRunner`；Hitbox/VFX/Cancel/Movement/Rotation 改为统一 Timeline 数据真源并删除旧字段路径 |

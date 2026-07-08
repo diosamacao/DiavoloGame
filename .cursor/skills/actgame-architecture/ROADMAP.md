@@ -27,16 +27,16 @@
 **已完成**：
 
 - `CharacterActionDriver`：离散输入起手/缓冲、移动取消（纯 C#，角色无关）
-- `ActionRotationDriver`：RotationWindow + 索敌（纯 C#）
-- `ActionExecutor.UpdateFrame` + `ICombatFrameConsumer`（纯 C# Hitbox/VFX 统一 Logic Tick）
-- `ActionPhase` / `ActionEvent` 类型骨架写入 `ActionDefinition`
+- `ActionRotationDriver`：`RotationNotifyState` + 索敌（纯 C#）
+- `ActionExecutor.UpdateFrame` + `ICombatFrameConsumer` + `ActionTimelineRunner`（纯 C# Hitbox/VFX 统一 Logic Tick）
+- `ActionTimeline` / `ActionNotify` / `ActionNotifyState` 写入 `ActionDefinition`
 - `IActionHitReceiver` 命中回流 + `OnHitConfirm` / `OnWhiff` Transition
 - `IActionExecutor` 位于 `Combat/Actions/`
 
 **下一步（ActionEditor M5 前）**：
 
 - [ ] `ActionEditorWindow` 基础版（列表 + Scrub 调 `UpdateFrame`）
-- [x] 2026-06-21：ActionEvent 运行时派发入口（Hitbox/VFX 仍兼容旧数组）
+- [x] 2026-07-09：ActionNotify 时间轴入口：Hitbox/VFX/Cancel/Movement/Rotation 收敛到 `ActionTimeline`
 - [ ] `ActionDefinition` 子 SO 拆分（CombatData / PresentationData，可选）
 
 ### [P1] 战斗闭环
@@ -79,11 +79,12 @@
 - [x] 2026-06-21：移除 Player 根对象运行时业务脚本挂载，动作/输入/状态/判定改为纯 C# runtime
 - [x] 2026-06-29：`HitBoxSystem` / `HitDetectionSystem` / `TargetingSystem` 命名收敛为 `HitboxFrameConsumer` / `HitDetector` / `TargetingResolver`，`System` 后缀仅保留给架构 IOC
 - [x] 2026-07-05：动作系统 Resolver 重构——新增 `ActionResolver`（Single/Combo/Directional）+ `ActionResolverService`；起手/连段/Dodge 方向/Cancel 解析全部走 Resolver；删除 `ActionExecutor.TryStartByInput` 与 Dodge 特判、`ActionComboSequence`、`DodgeDirectionVariants`；`IActionComboInput`→`IActionInputBuffer`；`Combat/Actions` 按 Definitions/Resolution/Execution/Frames 分层
+- [x] 2026-07-09：ActionNotify 时间轴重构——新增 `ActionTimeline`、`ActionNotify`、`ActionNotifyState`、`ActionTimelineRunner`；删除旧 `HitboxKeyframe`、`ActionVfxKeyframe`、`CancelWindow`、`RotationWindow` 与 `ActionEventContext` 路径
 
 ## 剩余项
 
 - [ ] 输入生命周期扩展：`ActionInputTrigger.Held / Released`、带时间戳输入缓冲、`HoldActionResolver`（延后，见 Resolver 计划 Phase 7）
-- [ ] `ActionEditorWindow`（多轨道时间轴）与 ActionMap 可视化编辑
+- [ ] `ActionEditorWindow`（多轨道时间轴，基于 `ActionTimeline`）与 ActionMap 可视化编辑
 
 ## 决策记录
 

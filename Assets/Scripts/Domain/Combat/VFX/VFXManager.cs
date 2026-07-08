@@ -46,8 +46,8 @@ public class VFXManager : MonoBehaviour
         return manager != null;
     }
 
-    /// <summary>按 ActionVfxKeyframe 从池取出实例并应用局部变换。</summary>
-    public GameObject Spawn(GameObject prefab, Transform root, Transform attachPoint, ActionVfxKeyframe vfx)
+    /// <summary>按 PlayVfxNotify 从池取出实例并应用局部变换。</summary>
+    public GameObject Spawn(GameObject prefab, Transform root, Transform attachPoint, PlayVfxNotify vfx)
     {
         if (prefab == null || vfx == null)
             return null;

@@ -25,8 +25,9 @@
 - `Controller` 仅用于 `App/Controllers` 下的 Unity 入口 `MonoBehaviour`，并继承 `AppControllerBase` 或实现 `IArchitectureController`
 - `System` 后缀仅用于 `App/Systems` 下注册进 `ACTGameArchitecture` 的架构系统，并继承 `ArchitectureSystemBase` 或实现 `IArchitectureSystem`
 - `Domain` 纯 C# 业务类优先使用 `Service` / `Actor` / `Executor` / `Resolver` / `Detector` / `Consumer`，不得直接访问 `ACTGameArchitecture.Interface`
-- **动作系统目录分层**：`Combat/Actions/` 下按职责分四个子目录——`Definitions/`（动作数据 Schema）、`Resolution/`（输入 → 动作选招）、`Execution/`（播放/帧推进/输入路由/旋转）、`Frames/`（Logic Tick 帧上下文契约）；核心脚本不散落在 `Actions/` 根目录
-- 跨系统通信使用 `ACTGameArchitecture` 的 Command / Query / Event；动作帧内部可保留 `ActionExecutor` → `ICombatFrameConsumer` 的强时序直连
+- **动作系统目录分层**：`Combat/Actions/` 下按职责分四个子目录——`Definitions/`（动作数据 Schema，含 `Definitions/Timeline/`）、`Resolution/`（输入 → 动作选招）、`Execution/`（播放/帧推进/输入路由/旋转）、`Frames/`（Logic Tick 帧上下文契约）；核心脚本不散落在 `Actions/` 根目录
+- **动作时间轴数据**：帧相关配置以 `ActionDefinition.Timeline` 为唯一真源；点事件用 `ActionNotify`，区间窗口用 `ActionNotifyState`，禁止重新引入 `hitboxes[]`、`vfxEvents[]`、散字段位移或单例 `RotationWindow`
+- 跨系统通信使用 `ACTGameArchitecture` 的 Command / Query / Event；动作帧内部可保留 `ActionExecutor` → `ICombatFrameConsumer` / `IActionNotifyConsumer` 的强时序直连
 - 架构事件必须实现 `IArchitectureEvent`；架构查询继承 `ArchitectureQueryBase<TResult>` 或实现 `IArchitectureQuery<TResult>`
 
 ## Unity 组件模式
@@ -64,7 +65,7 @@ public class MyBehaviour : MonoBehaviour
 - 逻辑层使用 `AnimationKey`，不直接硬编码 Animator 状态名字符串（映射在 Profile）
 - 播放走纯 C# `CharacterAnimationService.Play`；需要独占时 `SetLocked(true)`
 - Locomotion：`applyRootMotion = false`，位移由 `CharacterController` + `CharacterMotor` 负责
-- Action：`ActionDefinition.useRootMotion = true` 时由 `CharacterRootMotionDriver` 在 `OnAnimatorMove` 中把 `deltaPosition` 写入 `CharacterController`；`useRootMotion = false` 时可用 `displacementDistance` 脚本位移
+- Action：`ActionDefinition.useRootMotion = true` 时由 `CharacterRootMotionDriver` 在 `OnAnimatorMove` 中把 `deltaPosition` 写入 `CharacterController`；`useRootMotion = false` 时可用 `MovementNotifyState` 脚本位移
 - 同 key 不重复 CrossFade（Controller 内部去重）
 
 ## 输入约定

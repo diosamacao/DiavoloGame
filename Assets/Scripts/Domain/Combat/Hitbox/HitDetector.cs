@@ -19,11 +19,11 @@ public static class HitDetector
         if (activeTargets == null || activeTargets.Count == 0 || hitDetected == null)
             return;
 
-        IReadOnlyList<HitboxKeyframe> activeHitboxes = action.GetActiveHitboxesAtFrame(frame);
+        IReadOnlyList<HitboxNotifyState> activeHitboxes = action.GetActiveHitboxesAtFrame(frame);
         if (activeHitboxes.Count == 0)
             return;
 
-        foreach (HitboxKeyframe hitbox in activeHitboxes)
+        foreach (HitboxNotifyState hitbox in activeHitboxes)
         {
             HitboxOrientedBox attackBox = HitboxMath.BuildFromHitbox(root, anchor, hitbox);
             foreach (IHurtboxTarget target in activeTargets)

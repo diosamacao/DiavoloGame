@@ -2,13 +2,13 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>招式数据：动画、CancelWindow 衔接、结束 Transition 与位移窗口。</summary>
+/// <summary>招式数据：动画、统一时间轴、自动 Transition 与命中反馈默认参数。</summary>
 [CreateAssetMenu(fileName = "ActionDefinition", menuName = "ACT/Combat/Action Definition")]
 public class ActionDefinition : ScriptableObject
 {
     [SerializeField] string id = "player_attack_1";
     [SerializeField] string displayName = "Attack 1";
-    [SerializeField] AnimationClip animationClip;
+    [SerializeField] AnimationClip animationClip = null;
     [SerializeField] float sampleRate = 30f;
     [SerializeField] int totalFrames;
     [SerializeField] CombatActionType actionType = CombatActionType.Attack;
@@ -18,12 +18,9 @@ public class ActionDefinition : ScriptableObject
     [Tooltip("Startup / Active / Recovery 与无敌、霸体覆盖；编辑器时间轴数据源。")]
     [SerializeField] ActionPhase[] phases = Array.Empty<ActionPhase>();
 
-    [Header("Events (Editor)")]
-    [Tooltip("时间轴事件骨架；完整运行时派发待 ActionEditor M5。")]
-    [SerializeField] ActionEvent[] actionEvents = Array.Empty<ActionEvent>();
-
-    [Header("Cancel Windows")]
-    [SerializeField] CancelWindow[] cancelWindows = Array.Empty<CancelWindow>();
+    [Header("Timeline")]
+    [Tooltip("动作帧数据唯一真源：点事件与区间窗口均从此处读取。")]
+    [SerializeField] ActionTimeline timeline = new();
 
     [Header("Transitions")]
     [SerializeField] ActionTransition[] transitions = Array.Empty<ActionTransition>();
@@ -36,18 +33,11 @@ public class ActionDefinition : ScriptableObject
     [SerializeField] CombatModeType switchCombatModeTarget = CombatModeType.Default;
     [SerializeField] CombatModeSwitchPolicy switchCombatModePolicy = CombatModeSwitchPolicy.Immediate;
 
-    [Header("Hitboxes")]
-    [SerializeField] HitboxKeyframe[] hitboxes = Array.Empty<HitboxKeyframe>();
-
-    [Header("VFX")]
-    [Tooltip("刀光等特效帧事件：在 triggerFrame 生成一次 Prefab。")]
-    [SerializeField] ActionVfxKeyframe[] vfxEvents = Array.Empty<ActionVfxKeyframe>();
-
     [Header("Camera Shake")]
     [Tooltip("命中时使用的镜头震动预设；为空则按 ActionType 使用 CameraShakeController 默认配置。")]
-    [SerializeField] CameraShakeProfile cameraShakeProfile;
+    [SerializeField] CameraShakeProfile cameraShakeProfile = null;
     [Tooltip("勾选后禁止该招式触发镜头震动。")]
-    [SerializeField] bool disableCameraShakeOnHit;
+    [SerializeField] bool disableCameraShakeOnHit = false;
     [Tooltip("开启镜头震动；新资产默认 true。旧资产缺此字段时 Attack 仍默认开启。")]
     [SerializeField] bool useCameraShakeOnHit = true;
 
@@ -55,15 +45,11 @@ public class ActionDefinition : ScriptableObject
     [Tooltip("命中时触发卡肉（顿帧）；hitStopFrames > 0 时生效。")]
     [SerializeField] bool useHitStopOnHit = true;
     [Tooltip("勾选后禁止该招式触发卡肉。")]
-    [SerializeField] bool disableHitStopOnHit;
+    [SerializeField] bool disableHitStopOnHit = false;
     [Tooltip("卡肉持续逻辑帧数（与 sampleRate 对齐）。")]
     [SerializeField] int hitStopFrames = 3;
     [Tooltip("勾选后每招仅第一次命中触发卡肉。")]
     [SerializeField] bool hitStopOncePerAction = true;
-
-    [Header("Rotation")]
-    [Tooltip("帧窗口内允许玩家用移动输入修正朝向，常用于攻击前摇瞄准。")]
-    [SerializeField] RotationWindow rotationWindow = new();
 
     [Header("Target Lock")]
     [Tooltip("攻击旋转窗口内的自动索敌配置。")]
@@ -72,33 +58,63 @@ public class ActionDefinition : ScriptableObject
     [Header("Movement")]
     [Tooltip("开启时由动画 Root Motion 驱动位移，脚本位移（Displacement Distance）将被忽略。")]
     [SerializeField] bool useRootMotion = true;
-    [SerializeField] float displacementDistance;
-    [SerializeField] int displacementStartFrame;
-    [SerializeField] int displacementEndFrame;
 
+    /// <summary>动作稳定 id，用于日志、编辑器列表与后续引用。</summary>
     public string Id => id;
+
+    /// <summary>编辑器显示名。</summary>
     public string DisplayName => displayName;
+
+    /// <summary>播放该动作的 AnimationClip。</summary>
     public AnimationClip AnimationClip => animationClip;
+
+    /// <summary>逻辑采样率；所有时间轴帧都按此值换算。</summary>
     public float SampleRate => sampleRate > 0f ? sampleRate : 30f;
+
+    /// <summary>动作总逻辑帧数。</summary>
     public int TotalFrames => totalFrames;
+
+    /// <summary>动作类型，用于反馈默认值和上层分类。</summary>
     public CombatActionType ActionType => actionType;
+
+    /// <summary>切入动作动画时使用的淡入时长。</summary>
     public float CrossFadeDuration => crossFadeDuration;
+
+    /// <summary>是否由动画 RootMotion 驱动位移。</summary>
     public bool UseRootMotion => useRootMotion;
-    public float DisplacementDistance => displacementDistance;
-    public int DisplacementStartFrame => displacementStartFrame;
-    public int DisplacementEndFrame => displacementEndFrame;
+
+    /// <summary>动作帧数据唯一真源：点事件与区间窗口均从此处读取。</summary>
+    public ActionTimeline Timeline => timeline ?? new ActionTimeline();
+
+    /// <summary>动作开始时执行的副作用列表。</summary>
     public ActionStartBehaviorType[] StartBehaviors => startBehaviors ?? Array.Empty<ActionStartBehaviorType>();
+
+    /// <summary>StartBehavior 含 SwitchCombatMode 时的目标战斗模式。</summary>
     public CombatModeType SwitchCombatModeTarget => switchCombatModeTarget;
+
+    /// <summary>StartBehavior 含 SwitchCombatMode 时的切换策略。</summary>
     public CombatModeSwitchPolicy SwitchCombatModePolicy => switchCombatModePolicy;
-    public bool HasScriptedDisplacement => !useRootMotion && Mathf.Abs(displacementDistance) > 0.001f;
-    public RotationWindow RotationWindow => rotationWindow;
-    public bool HasRotationWindow => rotationWindow != null && rotationWindow.IsConfigured;
+
+    /// <summary>是否存在非 RootMotion 的脚本位移窗口。</summary>
+    public bool HasScriptedDisplacement => !useRootMotion && Timeline.HasScriptedMovement;
+
+    /// <summary>索敌配置；未配置时返回默认空配置。</summary>
     public TargetLockSettings TargetLockSettings => targetLockSettings ?? new TargetLockSettings();
+
+    /// <summary>动作是否启用起手索敌。</summary>
     public bool HasTargetLock => targetLockSettings != null && targetLockSettings.Enabled;
-    public HitboxKeyframe[] Hitboxes => hitboxes ?? Array.Empty<HitboxKeyframe>();
-    public ActionVfxKeyframe[] VfxEvents => vfxEvents ?? Array.Empty<ActionVfxKeyframe>();
+
+    /// <summary>攻击判定框区间列表，来自统一 Timeline。</summary>
+    public HitboxNotifyState[] HitboxStates => Timeline.HitboxStates;
+
+    /// <summary>VFX 点事件列表，来自统一 Timeline。</summary>
+    public PlayVfxNotify[] PlayVfxNotifies => Timeline.PlayVfxNotifies;
+
+    /// <summary>阶段标记列表；暂保留为独立编辑数据。</summary>
     public ActionPhase[] Phases => phases ?? Array.Empty<ActionPhase>();
-    public ActionEvent[] ActionEvents => actionEvents ?? Array.Empty<ActionEvent>();
+
+    /// <summary>通用点事件列表，来自统一 Timeline。</summary>
+    public ActionEvent[] ActionEvents => Timeline.ActionEvents;
     /// <summary>命中时镜头震动预设；可为空。</summary>
     public CameraShakeProfile CameraShakeProfile => cameraShakeProfile;
 
@@ -144,18 +160,7 @@ public class ActionDefinition : ScriptableObject
     /// <summary>按 priority 降序返回 CancelWindow。</summary>
     public IReadOnlyList<ResolvedCancelWindow> GetCancelWindowsSorted()
     {
-        if (cancelWindows == null || cancelWindows.Length == 0)
-            return Array.Empty<ResolvedCancelWindow>();
-
-        var list = new List<ResolvedCancelWindow>(cancelWindows.Length);
-        foreach (CancelWindow window in cancelWindows)
-        {
-            if (window != null)
-                list.Add(window.ToResolved());
-        }
-
-        list.Sort((a, b) => b.Priority.CompareTo(a.Priority));
-        return list;
+        return Timeline.GetCancelWindowsSorted();
     }
 
     /// <summary>Transition 衔接，按 priority 降序。</summary>
@@ -237,11 +242,11 @@ public class ActionDefinition : ScriptableObject
     /// <summary>当前时刻是否落在 CancelType.Movement 窗口内。</summary>
     public bool IsInMovementCancelWindow(float elapsedSeconds)
     {
-        if (totalFrames <= 0 || cancelWindows == null)
+        if (totalFrames <= 0)
             return false;
 
         int frame = FrameAt(elapsedSeconds);
-        foreach (CancelWindow window in cancelWindows)
+        foreach (CancelWindowNotifyState window in Timeline.CancelWindowStates)
         {
             if (window != null
                 && window.CancelType == CancelType.Movement
@@ -259,51 +264,33 @@ public class ActionDefinition : ScriptableObject
         if (!HasScriptedDisplacement || totalFrames <= 0)
             return false;
 
-        int frame = FrameAt(elapsedSeconds);
-        return frame >= displacementStartFrame && frame <= displacementEndFrame;
+        return GetActiveMovementState(elapsedSeconds) != null;
     }
 
     /// <summary>当前时刻是否落在输入旋转修正窗口内。</summary>
     public bool IsInRotationWindow(float elapsedSeconds)
     {
-        if (!HasRotationWindow || totalFrames <= 0)
+        if (totalFrames <= 0)
             return false;
 
-        return rotationWindow.IsActiveAtFrame(FrameAt(elapsedSeconds));
+        return GetActiveRotationState(elapsedSeconds) != null;
     }
 
-    public float DisplacementSpeed
-    {
-        get
-        {
-            if (!HasScriptedDisplacement)
-                return 0f;
+    /// <summary>返回当前时刻最高优先级脚本位移窗口。</summary>
+    public MovementNotifyState GetActiveMovementState(float elapsedSeconds) =>
+        Timeline.GetActiveMovementStateAtFrame(FrameAt(elapsedSeconds));
 
-            int frameCount = displacementEndFrame - displacementStartFrame + 1;
-            if (frameCount <= 0)
-                return 0f;
-
-            return displacementDistance / (frameCount / SampleRate);
-        }
-    }
+    /// <summary>返回当前时刻最高优先级旋转修正窗口。</summary>
+    public RotationNotifyState GetActiveRotationState(float elapsedSeconds) =>
+        Timeline.GetActiveRotationStateAtFrame(FrameAt(elapsedSeconds));
 
     /// <summary>将 elapsed 秒换算为逻辑帧索引。</summary>
     public int FrameAt(float elapsedSeconds) => Mathf.FloorToInt(elapsedSeconds * SampleRate);
 
     /// <summary>返回指定帧上全部生效的 Hitbox（按数组顺序）。</summary>
-    public IReadOnlyList<HitboxKeyframe> GetActiveHitboxesAtFrame(int frame)
+    public IReadOnlyList<HitboxNotifyState> GetActiveHitboxesAtFrame(int frame)
     {
-        if (hitboxes == null || hitboxes.Length == 0)
-            return Array.Empty<HitboxKeyframe>();
-
-        var active = new List<HitboxKeyframe>();
-        foreach (HitboxKeyframe hitbox in hitboxes)
-        {
-            if (hitbox != null && hitbox.IsActiveAtFrame(frame))
-                active.Add(hitbox);
-        }
-
-        return active;
+        return Timeline.GetActiveHitboxesAtFrame(frame);
     }
 
     void OnValidate()
@@ -317,40 +304,13 @@ public class ActionDefinition : ScriptableObject
         sampleRate = Mathf.Max(1f, sampleRate);
         totalFrames = Mathf.Max(1, Mathf.RoundToInt(animationClip.length * sampleRate));
 
-        if (Mathf.Abs(displacementDistance) > 0.001f)
-        {
-            if (displacementEndFrame <= 0)
-                displacementEndFrame = totalFrames - 1;
-
-            if (displacementStartFrame <= 0 && displacementEndFrame > 0)
-                displacementStartFrame = 0;
-        }
-
-        displacementStartFrame = Mathf.Clamp(displacementStartFrame, 0, Mathf.Max(0, totalFrames - 1));
-        displacementEndFrame = Mathf.Clamp(
-            displacementEndFrame,
-            displacementStartFrame,
-            Mathf.Max(0, totalFrames - 1));
-
-        if (rotationWindow != null && rotationWindow.IsConfigured)
-            rotationWindow.ClampToTotalFrames(totalFrames);
-
-        if (vfxEvents != null)
-        {
-            foreach (ActionVfxKeyframe vfxEvent in vfxEvents)
-                vfxEvent?.ClampToTotalFrames(totalFrames);
-        }
+        timeline ??= new ActionTimeline();
+        timeline.ClampToTotalFrames(totalFrames);
 
         if (phases != null)
         {
             foreach (ActionPhase phase in phases)
                 phase?.ClampToTotalFrames(totalFrames);
-        }
-
-        if (actionEvents != null)
-        {
-            foreach (ActionEvent actionEvent in actionEvents)
-                actionEvent?.ClampToTotalFrames(totalFrames);
         }
 
         hitStopFrames = Mathf.Max(0, hitStopFrames);

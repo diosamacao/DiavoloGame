@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>单角色动作执行器：只播放已解析好的招式，负责帧推进、CancelWindow、Transition、Hitbox/VFX 派发。</summary>
+/// <summary>单角色动作执行器：只播放已解析好的招式，负责帧推进、Cancel、Transition 与统一 Timeline 派发。</summary>
 public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 {
     readonly Transform _actorRoot;
@@ -14,10 +14,12 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
     /// <summary>Cancel 窗口下一招解析委托；不用于 Locomotion 起手。</summary>
     readonly ActionResolverService _resolverService;
     readonly List<ICombatFrameConsumer> _frameConsumers = new();
-    readonly List<IActionEventConsumer> _eventConsumers = new();
+    readonly List<IActionNotifyConsumer> _notifyConsumers = new();
+    readonly ActionTimelineRunner _timelineRunner = new();
     readonly ActionSession _session = new();
     IActionInputBuffer _inputBuffer;
     IActionStartContext _startContext;
+    Transform _timelineAttachPoint;
 
     /// <summary>当前招式会话；外部只读，状态写入集中在本执行器。</summary>
     public ActionSession Session => _session;
@@ -70,12 +72,15 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
             _frameConsumers.Add(consumer);
     }
 
-    /// <summary>注册 ActionEvent 轨道消费者；用于逐步替代旧 Hitbox/VFX 双轨。</summary>
-    public void RegisterEventConsumer(IActionEventConsumer consumer)
+    /// <summary>注册统一 ActionNotify 时间轴消费者（VFX、SFX、相机等）。</summary>
+    public void RegisterNotifyConsumer(IActionNotifyConsumer consumer)
     {
-        if (consumer != null && !_eventConsumers.Contains(consumer))
-            _eventConsumers.Add(consumer);
+        if (consumer != null && !_notifyConsumers.Contains(consumer))
+            _notifyConsumers.Add(consumer);
     }
+
+    /// <summary>绑定 Notify 默认挂点；未绑定时使用角色根节点。</summary>
+    public void BindTimelineAttachPoint(Transform attachPoint) => _timelineAttachPoint = attachPoint;
 
     public void BindInputBuffer(IActionInputBuffer inputBuffer) => _inputBuffer = inputBuffer;
 
@@ -334,40 +339,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         foreach (ICombatFrameConsumer consumer in _frameConsumers)
             consumer.OnCombatFrameAdvanced(in context);
 
-        DispatchActionEvents(in context);
-    }
-
-    /// <summary>按帧派发 ActionEvent 轨道；旧 Hitbox/VFX 字段仍由 ICombatFrameConsumer 兼容消费。</summary>
-    void DispatchActionEvents(in CombatFrameContext frameContext)
-    {
-        if (frameContext.Action == null)
-            return;
-
-        ActionEvent[] actionEvents = frameContext.Action.ActionEvents;
-        if (actionEvents.Length == 0)
-            return;
-
-        foreach (ActionEvent actionEvent in actionEvents)
-        {
-            if (actionEvent == null)
-                continue;
-
-            if (!actionEvent.ShouldFireBetweenFrames(
-                    frameContext.PreviousFrameIndex,
-                    frameContext.FrameIndex))
-                continue;
-
-            var eventContext = new ActionEventContext(
-                frameContext.Action,
-                actionEvent,
-                frameContext.FrameIndex,
-                frameContext.PreviousFrameIndex,
-                frameContext.ElapsedSeconds,
-                frameContext.ActorRoot);
-
-            foreach (IActionEventConsumer consumer in _eventConsumers)
-                consumer.OnActionEvent(in eventContext);
-        }
+        _timelineRunner.Dispatch(in context, _timelineAttachPoint, _notifyConsumers);
     }
 
     void NotifyActionBegan(ActionDefinition action)
@@ -388,7 +360,8 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         if (_motor == null || current == null || !current.HasScriptedDisplacement)
             return;
 
-        if (!current.IsInDisplacementWindow(_session.ElapsedSeconds))
+        MovementNotifyState movement = current.GetActiveMovementState(_session.ElapsedSeconds);
+        if (movement == null)
             return;
 
         Vector3 forward = _actorRoot.forward;
@@ -398,7 +371,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
             return;
 
         forward.Normalize();
-        float signedSpeed = current.DisplacementSpeed;
+        float signedSpeed = movement.ResolveSpeed(current.SampleRate);
         _motor.Move(forward * (signedSpeed * deltaTime));
     }
 }
