@@ -107,8 +107,11 @@ public class ActionDefinition : ScriptableObject
     /// <summary>攻击判定框区间列表，来自统一 Timeline。</summary>
     public HitboxNotifyState[] HitboxStates => Timeline.HitboxStates;
 
-    /// <summary>VFX 点事件列表，来自统一 Timeline。</summary>
+    /// <summary>VFX 区间窗口列表，来自统一 Timeline。</summary>
     public PlayVfxNotify[] PlayVfxNotifies => Timeline.PlayVfxNotifies;
+
+    /// <summary>SFX 区间窗口列表，来自统一 Timeline。</summary>
+    public PlaySfxNotifyState[] PlaySfxStates => Timeline.PlaySfxStates;
 
     /// <summary>阶段标记列表；暂保留为独立编辑数据。</summary>
     public ActionPhase[] Phases => phases ?? Array.Empty<ActionPhase>();

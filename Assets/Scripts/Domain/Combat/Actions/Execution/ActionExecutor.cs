@@ -352,6 +352,9 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
     {
         foreach (ICombatFrameConsumer consumer in _frameConsumers)
             consumer.OnActionEnded();
+
+        for (int i = 0; i < _notifyConsumers.Count; i++)
+            _notifyConsumers[i].OnActionEnded();
     }
 
     void ApplyScriptedDisplacement(float deltaTime)

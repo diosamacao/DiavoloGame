@@ -1,6 +1,6 @@
 using System;
 
-/// <summary>动作时间轴点事件基类；用于 VFX、SFX、CameraShake、自定义信号等单帧触发。</summary>
+/// <summary>动作时间轴点事件基类；用于 CameraShake、自定义信号等单帧触发（VFX/SFX 为区间窗口）。</summary>
 [Serializable]
 public class ActionNotify : ActionTimelineItem
 {
