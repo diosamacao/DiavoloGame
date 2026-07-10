@@ -20,42 +20,30 @@ MonoBehaviour:
   actionType: 0
   crossFadeDuration: 0.1
   phases: []
-  actionEvents: []
-  cancelWindows:
-  - startFrame: 12
-    endFrame: 60
-    cancelType: 0
-    allowedInputs:
-    - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    - {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    - {fileID: -130322003382893763, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    - {fileID: 6632924207495724444, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    priority: 0
-  - startFrame: 24
-    endFrame: 60
-    cancelType: 1
-    allowedInputs:
-    - {fileID: 6936757010596083576, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    priority: 1
+  timeline:
+    actionEvents: []
+    playVfxNotifies: []
+    playSfxStates: []
+    hitboxStates: []
+    hurtboxStates: []
+    cancelWindowStates:
+    - id: Cancel_1
+      startFrame: 9
+      endFrame: 20
+      priority: 0
+      trackName: Cancel_1
+      cancelType: 0
+      allowedInputs: []
+    movementStates: []
+    rotationStates: []
+    tracks:
+    - trackName: Cancel_1
+      kind: 4
+      visible: 1
   transitions: []
   startBehaviors: 
   switchCombatModeTarget: 0
   switchCombatModePolicy: 0
-  hitboxes:
-  - hitboxId: 0
-    startFrame: 7
-    endFrame: 9
-    localOffset: {x: 0, y: 0.6672542, z: 1.5483992}
-    localEulerAngles: {x: 0, y: 0, z: 0}
-    size: {x: 3, y: 2, z: 4.1090093}
-  vfxEvents:
-  - eventId: 
-    triggerFrame: 7
-    prefab: {fileID: 5484218944294176571, guid: 063091fcdabad66489d9c94721816c86, type: 3}
-    localOffset: {x: 0, y: 0.92, z: 0.9}
-    localEulerAngles: {x: 0, y: 180, z: 0}
-    localScale: {x: 1.5, y: 1.5, z: 1.5}
-    parentToAttachPoint: 0
   cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
   disableCameraShakeOnHit: 0
   useCameraShakeOnHit: 1
@@ -63,10 +51,6 @@ MonoBehaviour:
   disableHitStopOnHit: 0
   hitStopFrames: 3
   hitStopOncePerAction: 1
-  rotationWindow:
-    startFrame: 0
-    endFrame: 6
-    smoothTimeOverride: 0.05
   targetLockSettings:
     enabled: 1
     lockRange: 8
@@ -74,6 +58,3 @@ MonoBehaviour:
     policy: 0
     lockRotationSmoothTimeOverride: 0.05
   useRootMotion: 1
-  displacementDistance: 0
-  displacementStartFrame: 0
-  displacementEndFrame: 0

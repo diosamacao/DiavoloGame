@@ -13,25 +13,38 @@ MonoBehaviour:
   m_Name: player_skill_3
   m_EditorClassIdentifier: 
   id: player_attack_1
-  displayName: Attack 1
+  displayName: Skill 3
   animationClip: {fileID: 7327309150045777236, guid: da539cbfcad3e8142b3d4f166a8d5dc6, type: 3}
   sampleRate: 30
   totalFrames: 135
   actionType: 2
   crossFadeDuration: 0
-  cancelWindows:
-  - startFrame: 39
-    endFrame: 100
-    cancelType: 0
-    allowedInputs:
-    - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    - {fileID: 6990492112164883386, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    priority: 0
+  phases: []
+  timeline:
+    actionEvents: []
+    playVfxNotifies: []
+    playSfxStates: []
+    hitboxStates: []
+    hurtboxStates: []
+    cancelWindowStates: []
+    movementStates: []
+    rotationStates: []
+    tracks: []
   transitions: []
   startBehaviors: 
   switchCombatModeTarget: 0
   switchCombatModePolicy: 0
+  cameraShakeProfile: {fileID: 0}
+  disableCameraShakeOnHit: 0
+  useCameraShakeOnHit: 1
+  useHitStopOnHit: 1
+  disableHitStopOnHit: 0
+  hitStopFrames: 3
+  hitStopOncePerAction: 1
+  targetLockSettings:
+    enabled: 0
+    lockRange: 8
+    forwardConeAngle: 120
+    policy: 0
+    lockRotationSmoothTimeOverride: 0
   useRootMotion: 1
-  displacementDistance: 0
-  displacementStartFrame: 0
-  displacementEndFrame: 0

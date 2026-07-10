@@ -1,0 +1,77 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: weapon01 1
+  m_Shader: {fileID: 4800000, guid: 2524d3d37419bae4499f8195d039ab35, type: 3}
+  m_ValidKeywords:
+  - _DIFFUSE_GUANG_ON
+  m_InvalidKeywords:
+  - _KEYWORD1_ON
+  m_LightmapFlags: 0
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _01NormalMap:
+        m_Texture: {fileID: 2800000, guid: dded77126ffc3174bb45dac582806020, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _04diffuseTex:
+        m_Texture: {fileID: 2800000, guid: 009fc17bb9226264c923dcf6fc839cfb, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Diffusemask:
+        m_Texture: {fileID: 2800000, guid: 1947dc6e725b3f8489236d51a2336f34, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TextureSample0:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TextureSample1:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _texcoord:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _01Normal_int: 0.6
+    - _02anbu_f: -0.03
+    - _02anbu_fanwei: 0.55
+    - _02anbu_ruanying: 0.45
+    - _05RimPower: 1
+    - _05Rimoffser: 0
+    - _06spec_int: 2
+    - _06spec_lerp: 0.738
+    - _06spec_max: -2.09
+    - _06spec_min: 0.08
+    - _06specpower: 0.37
+    - _DarkRage: -0.03
+    - _DarkSoft: 0
+    - _Float0: 0
+    - _Keyword0: 0
+    - _Keyword1: 1
+    - __dirty: 1
+    - _darkIntensity: 1
+    - _diffuse_guang: 1
+    - _outlinewidth: 0
+    m_Colors:
+    - _04diffuseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _04diffuse_MaskColor: {r: 0.08330351, g: 1.7544653, b: 5.886792, a: 1}
+    - _05Color0: {r: 0, g: 0, b: 0, a: 0}
+    - _Color0: {r: 0, g: 0, b: 0, a: 0}
+    - _outlinecolor: {r: 1, g: 1, b: 1, a: 0}
+  m_BuildTextureStacks: []
