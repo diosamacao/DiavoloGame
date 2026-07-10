@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-07-09
+> Last updated: 2026-07-10
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -14,6 +14,7 @@
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionState` | `Player_KatanaGirl_AnimationProfile.asset` |
 | 第三人称相机 | ✅ 已实现 | `CameraManager` | 场景内 CameraManager 对象 |
 | 动作系统（选招 / 播放 / 取消 / 连段 / 战斗模式） | ✅ 已实现 | 纯 C# `ActionResolverService` + `ActionExecutor` + `CombatModeService` | `CombatModeProfile`、`PlayerActionSet`、`ActionResolver`(Single/Combo/Directional) |
+| Action Editor（时间轴编辑） | 🟡 骨架/部分 | `ActionEditorWindow` + `ActionTimeline` 手动加轨/窗口 | Menu：`ACT/Action Editor` |
 | 攻击 / 战斗判定 | 🟡 部分实现 | 纯 C# `HitboxFrameConsumer` + `HitDetector` OBB + 命中回流 | 无伤害、Hit 状态 |
 | 敌人 AI | ⬜ 未实现 | — | `Enemy/` 占位 |
 | UI | ⬜ 未实现 | — | `UI/` 占位 |
@@ -376,14 +377,14 @@ ActionState.Tick
       → SyncLogicFrameFromElapsed → DispatchCombatFrame
           → HitboxFrameConsumer.OnCombatFrameAdvanced
           → ActionTimelineRunner.Dispatch
-              → PlayVfxNotify → ActionVfxPlayer.OnActionNotify
-              → ActionNotifyState Enter/Tick/Exit
+              → PlayVfxNotify Enter/Tick/Exit → ActionVfxPlayer.OnActionNotifyState（按 playbackSpeed）
+              → 其他 ActionNotifyState Enter/Tick/Exit
       → CancelWindowNotifyState / Transition（含 OnHitConfirm）
 ```
 
-编辑器 Scrub：`UpdateFrame(frameIndex)` 与上列帧派发共用路径。
+编辑器 Scrub：`UpdateFrame(frameIndex)` 与上列帧派发共用路径；`ACT/Action Editor` 窗口用 `ActionEditorPreviewSession` 做 Pose/VFX 预览。
 
-### ActionEditor 对齐状态（2026-07-09）
+### ActionEditor 对齐状态（2026-07-10）
 
 | 对齐度 | 项 |
 |--------|-----|
@@ -391,7 +392,8 @@ ActionState.Tick
 | ✅ | 命中回流、`OnHitConfirm` / `OnWhiff` Transition 条件 |
 | ✅ | `CharacterActionDriver` 角色无关输入路由 |
 | ✅ | Hitbox/VFX/Cancel/Movement/Rotation 已收敛到 `ActionTimeline`，删除旧双轨数组 |
-| 🟡 | 无 `ActionEditorWindow` 多轨道窗口；现有 Inspector 预览已改读 Timeline 子字段 |
+| ✅ | `ActionEditorWindow`：手动加轨、轨内加窗、拖位置/长短、右侧细节；VFX/SFX 为可缩放时长窗口 |
+| 🟡 | SFX 运行时 Consumer / 完整 FramePlayer 窗口预览仍可增强 |
 | ⬜ | 伤害结算、Hit 状态、GM 热重载 |
 
 ### 已知限制
@@ -435,3 +437,4 @@ ActionState.Tick
 | 2026-06-29 | QFramework 式强类型契约：System/Controller/Command/Query/Event 基类与 Editor 边界校验，命中与索敌 Domain 入口移除架构单例依赖 |
 | 2026-07-05 | 动作系统 Resolver 重构：`ActionResolver`(Single/Combo/Directional) + `ActionResolverService` 承接起手/连段/Dodge 方向/Cancel 选招；`ActionExecutor` 收敛为纯播放器；`Combat/Actions` 分 Definitions/Resolution/Execution/Frames；`IActionComboInput`→`IActionInputBuffer` |
 | 2026-07-09 | ActionNotify 时间轴重构：新增 `ActionTimeline` / `ActionNotify` / `ActionNotifyState` / `ActionTimelineRunner`；Hitbox/VFX/Cancel/Movement/Rotation 改为统一 Timeline 数据真源并删除旧字段路径 |
+| 2026-07-10 | VFX/SFX 改为区间窗口（`naturalDurationSeconds` / `playbackSpeed`）；新增 `ActionEditorWindow` 手动加轨与拖拽编辑；`ActionVfxPlayer` 改窗口 Enter/Exit 消费 |

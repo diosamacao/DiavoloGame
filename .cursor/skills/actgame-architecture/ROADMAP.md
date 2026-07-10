@@ -35,8 +35,9 @@
 
 **下一步（ActionEditor M5 前）**：
 
-- [ ] `ActionEditorWindow` 基础版（列表 + Scrub 调 `UpdateFrame`）
+- [x] 2026-07-10：`ActionEditorWindow` 基础版（列表 + Scrub + 手动加轨/窗口拖拽）
 - [x] 2026-07-09：ActionNotify 时间轴入口：Hitbox/VFX/Cancel/Movement/Rotation 收敛到 `ActionTimeline`
+- [x] 2026-07-10：VFX/SFX 区间窗口 + 播放倍率语义
 - [ ] `ActionDefinition` 子 SO 拆分（CombatData / PresentationData，可选）
 
 ### [P1] 战斗闭环
@@ -51,7 +52,7 @@
 
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
-| ActionEditorWindow | P1 | Frameline + Scrub 对接 `UpdateFrame` |
+| ActionEditorWindow | P1 | ✅ 2026-07-10 基础版已落地；后续增强 FramePlayer / SFX 预览 |
 | Enemy/ + AI | P2 | 复用纯 C# `CharacterActionDriver` + `ActionExecutor` |
 | UI/ | P2 | HUD、血条 |
 | 事件总线 | P2 | 轻量 C# event；定稿前不引入第三方 |
@@ -84,7 +85,7 @@
 ## 剩余项
 
 - [ ] 输入生命周期扩展：`ActionInputTrigger.Held / Released`、带时间戳输入缓冲、`HoldActionResolver`（延后，见 Resolver 计划 Phase 7）
-- [ ] `ActionEditorWindow`（多轨道时间轴，基于 `ActionTimeline`）与 ActionMap 可视化编辑
+- [ ] `ActionEditorWindow`（多轨道时间轴，基于 `ActionTimeline`）与 ActionMap 可视化编辑 — 实现方案见 `docs/ACTION_EDITOR_IMPLEMENTATION.md`
 
 ## 决策记录
 
