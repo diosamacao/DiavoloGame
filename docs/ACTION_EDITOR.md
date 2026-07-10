@@ -1,7 +1,8 @@
 # ACTGame — 动作编辑器（Action Editor）设计文档
 
 > 本文档描述 ACTGame 长期目标：**用可视化编辑器为角色配置战斗动作**，而非在代码或 Animator 里硬编码每一招。  
-> 最后更新：2026-06-17（动作阶段与取消衔接补充）
+> 最后更新：2026-06-17（动作阶段与取消衔接补充）  
+> **落地实现方案（分阶段、目录、验收）见：** [`ACTION_EDITOR_IMPLEMENTATION.md`](./ACTION_EDITOR_IMPLEMENTATION.md)
 
 ---
 

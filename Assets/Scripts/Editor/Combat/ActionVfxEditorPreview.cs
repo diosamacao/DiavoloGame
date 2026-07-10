@@ -25,6 +25,27 @@ public static class ActionVfxEditorPreview
         ResetTiming();
     }
 
+    /// <summary>
+    /// 按绝对本地时间采样粒子；scaledTime = localTime * playbackSpeed，用于窗口倍率预览。
+    /// </summary>
+    public static void SimulateAt(GameObject instance, float scaledTimeSeconds)
+    {
+        if (instance == null || !instance.activeInHierarchy)
+            return;
+
+        float time = Mathf.Max(0f, scaledTimeSeconds);
+        foreach (ParticleSystem ps in instance.GetComponentsInChildren<ParticleSystem>(true))
+        {
+            if (!ps.gameObject.activeInHierarchy)
+                continue;
+
+            // withChildren=true, restart=true：每次 Scrub 从 0 推到目标时间，保证帧一致。
+            ps.Simulate(time, true, true, true);
+        }
+
+        SceneView.RepaintAll();
+    }
+
     /// <summary>每帧推进粒子模拟；非循环特效结束后自动重播以便持续预览。</summary>
     public static void Simulate(GameObject instance)
     {

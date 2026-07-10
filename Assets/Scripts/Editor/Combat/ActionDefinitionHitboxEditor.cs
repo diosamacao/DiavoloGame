@@ -188,19 +188,34 @@ public class ActionDefinitionHitboxEditor : Editor
                 vfxCount - 1);
 
             SerializedProperty selectedProp = _playVfxNotifiesProp.GetArrayElementAtIndex(_selectedVfxIndex);
-            SerializedProperty triggerFrameProp = selectedProp.FindPropertyRelative("startFrame");
-            if (triggerFrameProp != null)
+            SerializedProperty startFrameProp = selectedProp.FindPropertyRelative("startFrame");
+            SerializedProperty endFrameProp = selectedProp.FindPropertyRelative("endFrame");
+            SerializedProperty naturalProp = selectedProp.FindPropertyRelative("naturalDurationSeconds");
+
+            if (startFrameProp != null && endFrameProp != null)
             {
-                triggerFrameProp.intValue = EditorGUILayout.IntSlider(
-                    "Trigger Frame",
-                    triggerFrameProp.intValue,
+                startFrameProp.intValue = EditorGUILayout.IntSlider(
+                    "Start Frame",
+                    startFrameProp.intValue,
                     0,
                     maxFrame);
-
-                SerializedProperty endFrameProp = selectedProp.FindPropertyRelative("endFrame");
-                if (endFrameProp != null)
-                    endFrameProp.intValue = triggerFrameProp.intValue;
+                endFrameProp.intValue = EditorGUILayout.IntSlider(
+                    "End Frame",
+                    Mathf.Max(endFrameProp.intValue, startFrameProp.intValue),
+                    startFrameProp.intValue,
+                    maxFrame);
             }
+
+            ActionDefinition action = (ActionDefinition)target;
+            float natural = naturalProp != null ? naturalProp.floatValue : 0f;
+            int frameCount = endFrameProp != null && startFrameProp != null
+                ? Mathf.Max(1, endFrameProp.intValue - startFrameProp.intValue + 1)
+                : 1;
+            float windowSeconds = frameCount / action.SampleRate;
+            float speed = natural > 0f ? natural / Mathf.Max(windowSeconds, 0.0001f) : 1f;
+            EditorGUILayout.LabelField("Natural Duration", $"{natural:0.###} s");
+            EditorGUILayout.LabelField("Window Duration", $"{windowSeconds:0.###} s");
+            EditorGUILayout.LabelField("Playback Speed", $"{speed:0.###}x");
 
             if (EditorGUI.EndChangeCheck())
             {
@@ -211,7 +226,7 @@ public class ActionDefinitionHitboxEditor : Editor
             GameObject prefab = selectedProp.FindPropertyRelative("prefab")?.objectReferenceValue as GameObject;
             if (prefab == null)
             {
-                EditorGUILayout.HelpBox("为选中的 VFX 事件指定 Prefab 后可在 Scene 中预览刀光位置。", MessageType.Info);
+                EditorGUILayout.HelpBox("为选中的 VFX 窗口指定 Prefab 后可在 Scene 中预览刀光位置。", MessageType.Info);
             }
             else if (ActionVfxEditorPreview.HasParticleSystems(prefab))
             {
@@ -225,7 +240,7 @@ public class ActionDefinitionHitboxEditor : Editor
         }
         else
         {
-            EditorGUILayout.HelpBox("在 Timeline / Play Vfx Notifies 列表中添加至少一条 PlayVfxNotify。", MessageType.Info);
+            EditorGUILayout.HelpBox("在 Timeline / Play Vfx Notifies 列表中添加至少一条 VFX 区间窗口。", MessageType.Info);
         }
     }
 
@@ -292,7 +307,7 @@ public class ActionDefinitionHitboxEditor : Editor
         }
     }
 
-    /// <summary>绘制全部 VFX 标记：triggerFrame 与预览帧一致时高亮，选中项青色。</summary>
+    /// <summary>绘制全部 VFX 标记：当前帧落在窗口内时高亮，选中项青色。</summary>
     void DrawAllVfxPreviews(ActionDefinition action, Transform anchor)
     {
         PlayVfxNotify[] playVfxNotifies = action.PlayVfxNotifies;
@@ -302,7 +317,7 @@ public class ActionDefinitionHitboxEditor : Editor
             if (vfxEvent == null)
                 continue;
 
-            bool isActive = vfxEvent.TriggerFrame == _previewFrame;
+            bool isActive = vfxEvent.IsActiveAtFrame(_previewFrame);
             bool isSelected = i == _selectedVfxIndex;
             Color color = isSelected
                 ? new Color(0.2f, 0.95f, 1f, 1f)

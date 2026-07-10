@@ -143,7 +143,7 @@ public sealed class ActionEditorPreviewSession : IDisposable
     static ActionEditorPreviewSession s_globalActive;
 
     readonly List<IActionEditorPreviewExtension> _extensions = new();
-    readonly Editor _owner;
+    readonly UnityEngine.Object _owner;
 
     ActionDefinition _action;
     Transform _previewCharacter;
@@ -153,7 +153,8 @@ public sealed class ActionEditorPreviewSession : IDisposable
     Transform _lastSampledCharacter;
     bool _extensionsBegun;
 
-    public ActionEditorPreviewSession(Editor owner)
+    /// <summary>owner 可为 CustomEditor 或 EditorWindow；销毁后 Session 停止 Tick。</summary>
+    public ActionEditorPreviewSession(UnityEngine.Object owner)
     {
         _owner = owner;
     }
@@ -358,8 +359,34 @@ public sealed class ActionEditorVfxPreviewExtension : IActionEditorPreviewExtens
         }
 
         UpdatePreviewInstance(vfxProp, context.AttachPoint);
-        if (_previewInstance != null)
+        if (_previewInstance == null)
+            return;
+
+        // 选中编辑辅模式：始终显示；若当前帧落在窗口内则按倍率采样粒子进度。
+        SerializedProperty startProp = vfxProp.FindPropertyRelative("startFrame");
+        SerializedProperty endProp = vfxProp.FindPropertyRelative("endFrame");
+        SerializedProperty naturalProp = vfxProp.FindPropertyRelative("naturalDurationSeconds");
+        if (startProp == null || endProp == null)
+        {
             ActionVfxEditorPreview.Simulate(_previewInstance);
+            return;
+        }
+
+        int start = startProp.intValue;
+        int end = endProp.intValue;
+        if (context.PreviewFrame < start || context.PreviewFrame > end)
+        {
+            ActionVfxEditorPreview.SimulateAt(_previewInstance, 0f);
+            return;
+        }
+
+        float sampleRate = context.SampleRate > 0f ? context.SampleRate : 30f;
+        float localTime = (context.PreviewFrame - start) / sampleRate;
+        float natural = naturalProp != null ? naturalProp.floatValue : 0f;
+        int frameCount = Mathf.Max(1, end - start + 1);
+        float windowSeconds = frameCount / sampleRate;
+        float speed = natural > 0f ? natural / Mathf.Max(windowSeconds, 0.0001f) : 1f;
+        ActionVfxEditorPreview.SimulateAt(_previewInstance, localTime * speed);
     }
 
     public void OnPreviewEnd(in ActionEditorPreviewContext context) => DestroyPreviewInstance();

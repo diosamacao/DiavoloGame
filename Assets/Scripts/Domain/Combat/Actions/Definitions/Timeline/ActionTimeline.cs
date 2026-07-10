@@ -8,17 +8,22 @@ public class ActionTimeline
 {
     [SerializeField] ActionEvent[] actionEvents = Array.Empty<ActionEvent>();
     [SerializeField] PlayVfxNotify[] playVfxNotifies = Array.Empty<PlayVfxNotify>();
+    [SerializeField] PlaySfxNotifyState[] playSfxStates = Array.Empty<PlaySfxNotifyState>();
     [SerializeField] HitboxNotifyState[] hitboxStates = Array.Empty<HitboxNotifyState>();
     [SerializeField] HurtboxNotifyState[] hurtboxStates = Array.Empty<HurtboxNotifyState>();
     [SerializeField] CancelWindowNotifyState[] cancelWindowStates = Array.Empty<CancelWindowNotifyState>();
     [SerializeField] MovementNotifyState[] movementStates = Array.Empty<MovementNotifyState>();
     [SerializeField] RotationNotifyState[] rotationStates = Array.Empty<RotationNotifyState>();
+    [SerializeField] ActionTimelineTrack[] tracks = Array.Empty<ActionTimelineTrack>();
 
-    /// <summary>通用点事件列表，用于自定义信号、音效、镜头等非专用事件。</summary>
+    /// <summary>通用点事件列表，用于自定义信号、镜头等非专用事件。</summary>
     public ActionEvent[] ActionEvents => actionEvents ?? Array.Empty<ActionEvent>();
 
-    /// <summary>VFX 点事件列表。</summary>
+    /// <summary>VFX 区间窗口列表（可拖时长，倍率由自然时长派生）。</summary>
     public PlayVfxNotify[] PlayVfxNotifies => playVfxNotifies ?? Array.Empty<PlayVfxNotify>();
+
+    /// <summary>SFX 区间窗口列表。</summary>
+    public PlaySfxNotifyState[] PlaySfxStates => playSfxStates ?? Array.Empty<PlaySfxNotifyState>();
 
     /// <summary>攻击判定框区间列表。</summary>
     public HitboxNotifyState[] HitboxStates => hitboxStates ?? Array.Empty<HitboxNotifyState>();
@@ -34,6 +39,9 @@ public class ActionTimeline
 
     /// <summary>旋转修正区间列表。</summary>
     public RotationNotifyState[] RotationStates => rotationStates ?? Array.Empty<RotationNotifyState>();
+
+    /// <summary>手动添加的轨道列表；可为空轨，窗口通过 trackName 归属。</summary>
+    public ActionTimelineTrack[] Tracks => tracks ?? Array.Empty<ActionTimelineTrack>();
 
     /// <summary>是否配置了任意非零脚本位移窗口。</summary>
     public bool HasScriptedMovement
@@ -58,12 +66,6 @@ public class ActionTimeline
             if (actionEvent != null)
                 yield return actionEvent;
         }
-
-        foreach (PlayVfxNotify notify in PlayVfxNotifies)
-        {
-            if (notify != null)
-                yield return notify;
-        }
     }
 
     /// <summary>枚举全部区间窗口，供 Runner 与编辑器轨道统一处理。</summary>
@@ -76,6 +78,18 @@ public class ActionTimeline
         }
 
         foreach (HurtboxNotifyState state in HurtboxStates)
+        {
+            if (state != null)
+                yield return state;
+        }
+
+        foreach (PlayVfxNotify state in PlayVfxNotifies)
+        {
+            if (state != null)
+                yield return state;
+        }
+
+        foreach (PlaySfxNotifyState state in PlaySfxStates)
         {
             if (state != null)
                 yield return state;
