@@ -1,0 +1,4238 @@
+fileFormatVersion: 2
+guid: e0fb12add9859904b8156d8aa742c910
+ModelImporter:
+  serializedVersion: 22200
+  internalIDToNameTable:
+  - first:
+      74: 572028686729525778
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_01
+  - first:
+      74: 1553331130822230890
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_01_End
+  - first:
+      74: -3972385943832332197
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_02
+  - first:
+      74: 5748458592787429313
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_02_End
+  - first:
+      74: -1079517053937398311
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_03
+  - first:
+      74: 3978027250542001007
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_03_End
+  - first:
+      74: 4539272939920189602
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_04
+  - first:
+      74: -1940573679502240250
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_04_02
+  - first:
+      74: 1826284881547973030
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_04_02_End
+  - first:
+      74: -3287773989399682729
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_04_End
+  - first:
+      74: 7774278636591444631
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_05
+  - first:
+      74: 7138499794557610069
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_05_02
+  - first:
+      74: -5023620028183682951
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_05_02_End
+  - first:
+      74: -3861401393553643014
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_05_End
+  - first:
+      74: 7476741811755756184
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_06
+  - first:
+      74: -8049994946118017950
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_06_02
+  - first:
+      74: -793494251362332402
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_06_02_End
+  - first:
+      74: 4764037966787204490
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_06_End
+  - first:
+      74: -2278640468525542589
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Attack_01
+  - first:
+      74: -8133270213699686728
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Attack_01_End
+  - first:
+      74: 4237250330676122199
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Attack_02
+  - first:
+      74: 1416373246580915594
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Attack_02_End
+  - first:
+      74: 4370533557129021179
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Attack_03
+  - first:
+      74: 3899767209193791515
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Attack_03_End
+  - first:
+      74: 2865645358833672043
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Start
+  - first:
+      74: -1143271914765192224
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_02_Attack_01
+  - first:
+      74: -3723065085949057831
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_02_Attack_01_End
+  - first:
+      74: 6386113870364290757
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_02_Attack_02
+  - first:
+      74: -1705365665763227913
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_02_Attack_02_End
+  - first:
+      74: -3392286390282092563
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_Start_01
+  - first:
+      74: 3068202171501560033
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_Start_02
+  - first:
+      74: 4160235627811993315
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_Start_03_01
+  - first:
+      74: 2216399848449866803
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_Start_04
+  - first:
+      74: -3726612651083738137
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Counter
+  - first:
+      74: 8942534438547229530
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Counter_End
+  - first:
+      74: -8905744309080766666
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Rush
+  - first:
+      74: -1544962368028939365
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Rush_02
+  - first:
+      74: 8068178579945992606
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Rush_02_End
+  - first:
+      74: -5275301452757840120
+    second: Avatar_Female_Size02_Unagi_Ani_Attack_Rush_End
+  - first:
+      74: -2816430923372938979
+    second: Avatar_Female_Size02_Unagi_Ani_Die
+  - first:
+      74: -4756552657945709222
+    second: Avatar_Female_Size02_Unagi_Ani_Evade_Back_End
+  - first:
+      74: -3115565738440498854
+    second: Avatar_Female_Size02_Unagi_Ani_Evade_Back_Left
+  - first:
+      74: -1645078295102842485
+    second: Avatar_Female_Size02_Unagi_Ani_Evade_Back_Right
+  - first:
+      74: 8499197216477740432
+    second: Avatar_Female_Size02_Unagi_Ani_Evade_Front_End
+  - first:
+      74: 1280743008863027657
+    second: Avatar_Female_Size02_Unagi_Ani_Evade_Front_Left
+  - first:
+      74: -7407910689189214246
+    second: Avatar_Female_Size02_Unagi_Ani_Evade_Front_Right
+  - first:
+      74: -4029515994322272551
+    second: Avatar_Female_Size02_Unagi_Ani_Hit_H_Back
+  - first:
+      74: -3769112847589529204
+    second: Avatar_Female_Size02_Unagi_Ani_Hit_H_Front
+  - first:
+      74: 4064384090145575674
+    second: Avatar_Female_Size02_Unagi_Ani_Hit_L_Back
+  - first:
+      74: 3181152124035842276
+    second: Avatar_Female_Size02_Unagi_Ani_Hit_L_Front
+  - first:
+      74: 3937986985105440132
+    second: Avatar_Female_Size02_Unagi_Ani_Hit_Shake
+  - first:
+      74: -3385817055766634253
+    second: Avatar_Female_Size02_Unagi_Ani_HitFly_Back
+  - first:
+      74: 7847688431909166888
+    second: Avatar_Female_Size02_Unagi_Ani_HitFly_Front
+  - first:
+      74: 1106022805061252040
+    second: Avatar_Female_Size02_Unagi_Ani_Idle
+  - first:
+      74: -3101187217175272289
+    second: Avatar_Female_Size02_Unagi_Ani_Idle_AFK
+  - first:
+      74: 9161334505566586173
+    second: Avatar_Female_Size02_Unagi_Ani_ReflectBullect
+  - first:
+      74: -6212203329072431684
+    second: Avatar_Female_Size02_Unagi_Ani_ReflectBullect_End
+  - first:
+      74: -7311692990479680680
+    second: Avatar_Female_Size02_Unagi_Ani_Run
+  - first:
+      74: -865967704773111046
+    second: Avatar_Female_Size02_Unagi_Ani_Run_End
+  - first:
+      74: 399448047040821400
+    second: Avatar_Female_Size02_Unagi_Ani_Run_Start
+  - first:
+      74: -2795115477538377714
+    second: Avatar_Female_Size02_Unagi_Ani_Run_Start_End
+  - first:
+      74: -4325381460996405613
+    second: Avatar_Female_Size02_Unagi_Ani_SwitchIn_Attack
+  - first:
+      74: -1825412882341038513
+    second: Avatar_Female_Size02_Unagi_Ani_SwitchIn_Attack_End
+  - first:
+      74: -51380531474429473
+    second: Avatar_Female_Size02_Unagi_Ani_SwitchIn_Attack_Ex
+  - first:
+      74: 3745840256929462420
+    second: Avatar_Female_Size02_Unagi_Ani_SwitchIn_Attack_Ex_End
+  - first:
+      74: 5237209483318134263
+    second: Avatar_Female_Size02_Unagi_Ani_SwitchIn_Attack_Ex_Start
+  - first:
+      74: 7007534128091862275
+    second: Avatar_Female_Size02_Unagi_Ani_SwitchIn_Normal
+  - first:
+      74: 7294163753853432812
+    second: Avatar_Female_Size02_Unagi_Ani_SwitchOut_Normal
+  - first:
+      74: -3948003767333505496
+    second: Avatar_Female_Size02_Unagi_Ani_TurnBack
+  - first:
+      74: -296316094933667100
+    second: Avatar_Female_Size02_Unagi_Ani_UI_CharacterSelect_01
+  - first:
+      74: -4407457965355703861
+    second: Avatar_Female_Size02_Unagi_Ani_UI_CharacterSelect_02
+  - first:
+      74: -5772686862334014591
+    second: Avatar_Female_Size02_Unagi_Ani_UI_Detail
+  - first:
+      74: 8363375098698594417
+    second: Avatar_Female_Size02_Unagi_Ani_UI_DtoE
+  - first:
+      74: -8459277486941201975
+    second: Avatar_Female_Size02_Unagi_Ani_UI_DtoS1
+  - first:
+      74: 8070780872352645518
+    second: Avatar_Female_Size02_Unagi_Ani_UI_Equipment
+  - first:
+      74: -9132459565587001
+    second: Avatar_Female_Size02_Unagi_Ani_UI_EtoD
+  - first:
+      74: 4064096857140533643
+    second: Avatar_Female_Size02_Unagi_Ani_UI_EtoS2
+  - first:
+      74: 6354619892845716135
+    second: Avatar_Female_Size02_Unagi_Ani_UI_S1toD
+  - first:
+      74: -3367230332885054335
+    second: Avatar_Female_Size02_Unagi_Ani_UI_S1toE
+  - first:
+      74: 7138138402776383717
+    second: Avatar_Female_Size02_Unagi_Ani_UI_S2toD
+  - first:
+      74: -5546971909494881117
+    second: Avatar_Female_Size02_Unagi_Ani_UI_S2toE
+  - first:
+      74: 1420502682779542139
+    second: Avatar_Female_Size02_Unagi_Ani_UI_Skill_01
+  - first:
+      74: 6017660769178731735
+    second: Avatar_Female_Size02_Unagi_Ani_UI_Skill_02
+  - first:
+      74: -229413099510903425
+    second: Avatar_Female_Size02_Unagi_Ani_Walk
+  - first:
+      74: -8292161441776038206
+    second: Avatar_Female_Size02_Unagi_Ani_Walk_Start
+  - first:
+      74: -5819123117228954633
+    second: Avatar_Female_Size02_Unagi_Ghost_Ani_Die
+  - first:
+      74: 8284062323044020358
+    second: Avatar_Female_Size02_Unagi_Ghost_Ani_Idle
+  - first:
+      74: 1350020449894980320
+    second: Avatar_Female_Size02_Unagi_Ghost_Ani_Idle_AFK
+  - first:
+      74: -3062897995064090370
+    second: Avatar_Female_Size02_Unagi_Ghost_Attack05
+  - first:
+      74: -8979414154264826625
+    second: Avatar_Female_Size02_Unagi_Ghost_Attack05_End
+  - first:
+      74: -2377341008652736872
+    second: Avatar_Female_Size02_Unagi_Ghost_Attack06
+  - first:
+      74: -5368640314466091655
+    second: Avatar_Female_Size02_Unagi_Ghost_Attack06_End
+  externalObjects: {}
+  materials:
+    materialImportMode: 2
+    materialName: 0
+    materialSearch: 1
+    materialLocation: 1
+  animations:
+    legacyGenerateAnimations: 4
+    bakeSimulation: 0
+    resampleCurves: 1
+    optimizeGameObjects: 0
+    removeConstantScaleCurves: 0
+    motionNodeName: 
+    rigImportErrors: 
+    rigImportWarnings: 
+    animationImportErrors: 
+    animationImportWarnings: 
+    animationRetargetingWarnings: 
+    animationDoRetargetingWarnings: 0
+    importAnimatedCustomProperties: 0
+    importConstraints: 0
+    animationCompression: 3
+    animationRotationError: 0.5
+    animationPositionError: 0.5
+    animationScaleError: 0.5
+    animationWrapMode: 0
+    extraExposedTransformPaths: []
+    extraUserProperties: []
+    clipAnimations:
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_01
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_01
+      internalID: 572028686729525778
+      firstFrame: 0
+      lastFrame: 39
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_01_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_01_End
+      internalID: 1553331130822230890
+      firstFrame: 0
+      lastFrame: 199
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_02
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_02
+      internalID: -3972385943832332197
+      firstFrame: 0
+      lastFrame: 199
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_02_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_02_End
+      internalID: 5748458592787429313
+      firstFrame: 0
+      lastFrame: 209
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_03
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_03
+      internalID: -1079517053937398311
+      firstFrame: 0
+      lastFrame: 209
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_03_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_03_End
+      internalID: 3978027250542001007
+      firstFrame: 0
+      lastFrame: 209
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_04
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_04
+      internalID: 4539272939920189602
+      firstFrame: 0
+      lastFrame: 209
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_04_02
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_04_02
+      internalID: -1940573679502240250
+      firstFrame: 0
+      lastFrame: 209
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_04_02_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_04_02_End
+      internalID: 1826284881547973030
+      firstFrame: 0
+      lastFrame: 225
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_04_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_04_End
+      internalID: -3287773989399682729
+      firstFrame: 0
+      lastFrame: 225
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_05
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_05
+      internalID: 7774278636591444631
+      firstFrame: 0
+      lastFrame: 225
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_05_02
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_05_02
+      internalID: 7138499794557610069
+      firstFrame: 0
+      lastFrame: 225
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_05_02_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_05_02_End
+      internalID: -5023620028183682951
+      firstFrame: 0
+      lastFrame: 225
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_05_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_05_End
+      internalID: -3861401393553643014
+      firstFrame: 0
+      lastFrame: 225
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_06
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_06
+      internalID: 7476741811755756184
+      firstFrame: 0
+      lastFrame: 225
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_06_02
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_06_02
+      internalID: -8049994946118017950
+      firstFrame: 0
+      lastFrame: 225
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_06_02_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_06_02_End
+      internalID: -793494251362332402
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_06_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_06_End
+      internalID: 4764037966787204490
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Attack_01
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Attack_01
+      internalID: -2278640468525542589
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Attack_01_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Attack_01_End
+      internalID: -8133270213699686728
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Attack_02
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Attack_02
+      internalID: 4237250330676122199
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Attack_02_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Attack_02_End
+      internalID: 1416373246580915594
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Attack_03
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Attack_03
+      internalID: 4370533557129021179
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Attack_03_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Attack_03_End
+      internalID: 3899767209193791515
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Start
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_01_Start
+      internalID: 2865645358833672043
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_02_Attack_01
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_02_Attack_01
+      internalID: -1143271914765192224
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_02_Attack_01_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_02_Attack_01_End
+      internalID: -3723065085949057831
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_02_Attack_02
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_02_Attack_02
+      internalID: 6386113870364290757
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_02_Attack_02_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_02_Attack_02_End
+      internalID: -1705365665763227913
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_Start_01
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_Start_01
+      internalID: -3392286390282092563
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_Start_02
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_Start_02
+      internalID: 3068202171501560033
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_Start_03_01
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_Start_03_01
+      internalID: 4160235627811993315
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_Start_04
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Branch_Start_04
+      internalID: 2216399848449866803
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Counter
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Counter
+      internalID: -3726612651083738137
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Counter_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Counter_End
+      internalID: 8942534438547229530
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Rush
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Rush
+      internalID: -8905744309080766666
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Rush_02
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Rush_02
+      internalID: -1544962368028939365
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Rush_02_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Rush_02_End
+      internalID: 8068178579945992606
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Attack_Rush_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Attack_Rush_End
+      internalID: -5275301452757840120
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Die
+      takeName: Avatar_Female_Size02_Unagi_Ani_Die
+      internalID: -2816430923372938979
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Evade_Back_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Evade_Back
+      internalID: -4756552657945709222
+      firstFrame: 32
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 1
+      loopBlendPositionY: 1
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 1
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Evade_Back_Left
+      takeName: Avatar_Female_Size02_Unagi_Ani_Evade_Back_Left
+      internalID: -3115565738440498854
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Evade_Back_Right
+      takeName: Avatar_Female_Size02_Unagi_Ani_Evade_Back_Right
+      internalID: -1645078295102842485
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Evade_Front_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Evade_Front
+      internalID: 8499197216477740432
+      firstFrame: 44
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 1
+      loopBlendPositionY: 1
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 1
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Evade_Front_Left
+      takeName: Avatar_Female_Size02_Unagi_Ani_Evade_Front_Left
+      internalID: 1280743008863027657
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Evade_Front_Right
+      takeName: Avatar_Female_Size02_Unagi_Ani_Evade_Front_Right
+      internalID: -7407910689189214246
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Hit_H_Back
+      takeName: Avatar_Female_Size02_Unagi_Ani_Hit_H_Back
+      internalID: -4029515994322272551
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Hit_H_Front
+      takeName: Avatar_Female_Size02_Unagi_Ani_Hit_H_Front
+      internalID: -3769112847589529204
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Hit_L_Back
+      takeName: Avatar_Female_Size02_Unagi_Ani_Hit_L_Back
+      internalID: 4064384090145575674
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Hit_L_Front
+      takeName: Avatar_Female_Size02_Unagi_Ani_Hit_L_Front
+      internalID: 3181152124035842276
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Hit_Shake
+      takeName: Avatar_Female_Size02_Unagi_Ani_Hit_Shake
+      internalID: 3937986985105440132
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_HitFly_Back
+      takeName: Avatar_Female_Size02_Unagi_Ani_HitFly_Back
+      internalID: -3385817055766634253
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_HitFly_Front
+      takeName: Avatar_Female_Size02_Unagi_Ani_HitFly_Front
+      internalID: 7847688431909166888
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Idle
+      takeName: Avatar_Female_Size02_Unagi_Ani_Idle
+      internalID: 1106022805061252040
+      firstFrame: 0
+      lastFrame: 329
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Idle_AFK
+      takeName: Avatar_Female_Size02_Unagi_Ani_Idle_AFK
+      internalID: -3101187217175272289
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_ReflectBullect
+      takeName: Avatar_Female_Size02_Unagi_Ani_ReflectBullect
+      internalID: 9161334505566586173
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_ReflectBullect_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_ReflectBullect_End
+      internalID: -6212203329072431684
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Run
+      takeName: Avatar_Female_Size02_Unagi_Ani_Run
+      internalID: -7311692990479680680
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Run_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Run_End
+      internalID: -865967704773111046
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Run_Start
+      takeName: Avatar_Female_Size02_Unagi_Ani_Run_Start
+      internalID: 399448047040821400
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Run_Start_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_Run_Start_End
+      internalID: -2795115477538377714
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_SwitchIn_Attack
+      takeName: Avatar_Female_Size02_Unagi_Ani_SwitchIn_Attack
+      internalID: -4325381460996405613
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_SwitchIn_Attack_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_SwitchIn_Attack_End
+      internalID: -1825412882341038513
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_SwitchIn_Attack_Ex
+      takeName: Avatar_Female_Size02_Unagi_Ani_SwitchIn_Attack_Ex
+      internalID: -51380531474429473
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_SwitchIn_Attack_Ex_End
+      takeName: Avatar_Female_Size02_Unagi_Ani_SwitchIn_Attack_Ex_End
+      internalID: 3745840256929462420
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_SwitchIn_Attack_Ex_Start
+      takeName: Avatar_Female_Size02_Unagi_Ani_SwitchIn_Attack_Ex_Start
+      internalID: 5237209483318134263
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_SwitchIn_Normal
+      takeName: Avatar_Female_Size02_Unagi_Ani_SwitchIn_Normal
+      internalID: 7007534128091862275
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_SwitchOut_Normal
+      takeName: Avatar_Female_Size02_Unagi_Ani_SwitchOut_Normal
+      internalID: 7294163753853432812
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_TurnBack
+      takeName: Avatar_Female_Size02_Unagi_Ani_TurnBack
+      internalID: -3948003767333505496
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_UI_CharacterSelect_01
+      takeName: Avatar_Female_Size02_Unagi_Ani_UI_CharacterSelect_01
+      internalID: -296316094933667100
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_UI_CharacterSelect_02
+      takeName: Avatar_Female_Size02_Unagi_Ani_UI_CharacterSelect_02
+      internalID: -4407457965355703861
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_UI_Detail
+      takeName: Avatar_Female_Size02_Unagi_Ani_UI_Detail
+      internalID: -5772686862334014591
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_UI_DtoE
+      takeName: Avatar_Female_Size02_Unagi_Ani_UI_DtoE
+      internalID: 8363375098698594417
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_UI_DtoS1
+      takeName: Avatar_Female_Size02_Unagi_Ani_UI_DtoS1
+      internalID: -8459277486941201975
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_UI_Equipment
+      takeName: Avatar_Female_Size02_Unagi_Ani_UI_Equipment
+      internalID: 8070780872352645518
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_UI_EtoD
+      takeName: Avatar_Female_Size02_Unagi_Ani_UI_EtoD
+      internalID: -9132459565587001
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_UI_EtoS2
+      takeName: Avatar_Female_Size02_Unagi_Ani_UI_EtoS2
+      internalID: 4064096857140533643
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_UI_S1toD
+      takeName: Avatar_Female_Size02_Unagi_Ani_UI_S1toD
+      internalID: 6354619892845716135
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_UI_S1toE
+      takeName: Avatar_Female_Size02_Unagi_Ani_UI_S1toE
+      internalID: -3367230332885054335
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_UI_S2toD
+      takeName: Avatar_Female_Size02_Unagi_Ani_UI_S2toD
+      internalID: 7138138402776383717
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_UI_S2toE
+      takeName: Avatar_Female_Size02_Unagi_Ani_UI_S2toE
+      internalID: -5546971909494881117
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_UI_Skill_01
+      takeName: Avatar_Female_Size02_Unagi_Ani_UI_Skill_01
+      internalID: 1420502682779542139
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_UI_Skill_02
+      takeName: Avatar_Female_Size02_Unagi_Ani_UI_Skill_02
+      internalID: 6017660769178731735
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Walk
+      takeName: Avatar_Female_Size02_Unagi_Ani_Walk
+      internalID: -229413099510903425
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 1
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ani_Walk_Start
+      takeName: Avatar_Female_Size02_Unagi_Ani_Walk_Start
+      internalID: -8292161441776038206
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ghost_Ani_Die
+      takeName: Avatar_Female_Size02_Unagi_Ghost_Ani_Die
+      internalID: -5819123117228954633
+      firstFrame: 0
+      lastFrame: 61
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ghost_Ani_Idle
+      takeName: Avatar_Female_Size02_Unagi_Ghost_Ani_Idle
+      internalID: 8284062323044020358
+      firstFrame: 0
+      lastFrame: 201
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ghost_Ani_Idle_AFK
+      takeName: Avatar_Female_Size02_Unagi_Ghost_Ani_Idle_AFK
+      internalID: 1350020449894980320
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ghost_Attack05
+      takeName: Avatar_Female_Size02_Unagi_Ghost_Attack05
+      internalID: -3062897995064090370
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ghost_Attack05_End
+      takeName: Avatar_Female_Size02_Unagi_Ghost_Attack05_End
+      internalID: -8979414154264826625
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ghost_Attack06
+      takeName: Avatar_Female_Size02_Unagi_Ghost_Attack06
+      internalID: -2377341008652736872
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    - serializedVersion: 16
+      name: Avatar_Female_Size02_Unagi_Ghost_Attack06_End
+      takeName: Avatar_Female_Size02_Unagi_Ghost_Attack06_End
+      internalID: -5368640314466091655
+      firstFrame: 0
+      lastFrame: 707
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 0
+      loopBlendPositionY: 0
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 0
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
+    isReadable: 0
+  meshes:
+    lODScreenPercentages: []
+    globalScale: 1
+    meshCompression: 0
+    addColliders: 0
+    useSRGBMaterialColor: 1
+    sortHierarchyByName: 1
+    importPhysicalCameras: 1
+    importVisibility: 1
+    importBlendShapes: 1
+    importCameras: 1
+    importLights: 1
+    nodeNameCollisionStrategy: 0
+    fileIdsGeneration: 2
+    swapUVChannels: 0
+    generateSecondaryUV: 0
+    useFileUnits: 1
+    keepQuads: 0
+    weldVertices: 1
+    bakeAxisConversion: 0
+    preserveHierarchy: 0
+    skinWeightsMode: 0
+    maxBonesPerVertex: 4
+    minBoneWeight: 0.001
+    optimizeBones: 1
+    meshOptimizationFlags: -1
+    indexFormat: 0
+    secondaryUVAngleDistortion: 8
+    secondaryUVAreaDistortion: 15.000001
+    secondaryUVHardAngle: 88
+    secondaryUVMarginMethod: 1
+    secondaryUVMinLightmapResolution: 40
+    secondaryUVMinObjectScale: 1
+    secondaryUVPackMargin: 4
+    useFileScale: 0
+    strictVertexDataChecks: 0
+  tangentSpace:
+    normalSmoothAngle: 60
+    normalImportMode: 0
+    tangentImportMode: 3
+    normalCalculationMode: 4
+    legacyComputeAllNormalsFromSmoothingGroupsWhenMeshHasBlendShapes: 0
+    blendShapeNormalImportMode: 1
+    normalSmoothingSource: 0
+  referencedClips: []
+  importAnimation: 1
+  humanDescription:
+    serializedVersion: 3
+    human: []
+    skeleton:
+    - name: Avatar_Female_Size02_Unagi_UI(Clone)
+      parentName: 
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: 0.023269892, y: 0.22160172, z: -0.058820095, w: 0.97308344}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Bip001
+      parentName: Avatar_Female_Size02_Unagi_UI(Clone)
+      position: {x: -0.0002701373, y: 0.008691009, z: 0}
+      rotation: {x: -0.6314279, y: 0.3481734, z: 0.40462786, w: 0.56245035}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Bip001 Pelvis
+      parentName: Bip001
+      position: {x: 0.000015264406, y: 0.0008427609, z: 0.00043637538}
+      rotation: {x: 0.5, y: -0.5, z: -0.5, w: -0.5}
+      scale: {x: 1.0000001, y: 1, z: 1.0000002}
+    - name: Pelvis_L2
+      parentName: Bip001 Pelvis
+      position: {x: -0.00009945375, y: -0.0007649758, z: 0.00067900715}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 0.9999997, z: 0.9999999}
+    - name: Pelvis_R
+      parentName: Bip001 Pelvis
+      position: {x: 0.0005464973, y: -0.000576858, z: -0.00074629893}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 0.99999964, z: 0.99999946}
+    - name: Bip001 R Thigh
+      parentName: Bip001 Pelvis
+      position: {x: -0.0000000015258789, y: -7.510186e-10, z: -0.0007887877}
+      rotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
+      scale: {x: 1, y: 1.0000001, z: 1}
+    - name: Bip001 R Calf
+      parentName: Bip001 R Thigh
+      position: {x: -0.0037572559, y: 4.7683715e-11, z: -2.3841857e-11}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 1}
+    - name: knee_R
+      parentName: Bip001 R Calf
+      position: {x: -0.000013645553, y: -0.0000051093098, z: -0.000000014472007}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999997, y: 0.95627224, z: 0.9999999}
+    - name: Bip001 R Calf Adv
+      parentName: Bip001 R Calf
+      position: {x: 0.00000048751826, y: 0.0000031848908, z: 0.0000000015432315}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000004, z: 0.99999994}
+    - name: NuoChai_other03
+      parentName: Bip001 R Calf Adv
+      position: {x: -0.0040411917, y: -1.1920929e-11, z: 1.9073493e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 1}
+    - name: JH_R
+      parentName: Bip001 R Calf Adv
+      position: {x: -0.0033101279, y: 0.000189079, z: 0.00005771227}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999994, y: 0.99999994, z: 0.99999976}
+    - name: Bip001 R Foot
+      parentName: Bip001 R Calf
+      position: {x: -0.0040411926, y: 9.536743e-11, z: -2.3841857e-11}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000005, z: 1.0000002}
+    - name: Bip001 R Toe0
+      parentName: Bip001 R Foot
+      position: {x: -0.0010004028, y: 0.0008028297, z: -0.0000004141808}
+      rotation: {x: 0, y: 0, z: 0.7071068, w: -0.7071068}
+      scale: {x: 0.9999997, y: 0.9999994, z: 1.0000002}
+    - name: Bip001 R Thigh_Twis
+      parentName: Bip001 R Thigh
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999999, y: 1.0000001, z: 0.9999999}
+    - name: Thigh_fix01
+      parentName: Bip001 R Thigh
+      position: {x: -0.00044746016, y: 0.0005988216, z: 0.0000942429}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1.0000007, z: 1.0000002}
+    - name: Thigh_fix04
+      parentName: Bip001 R Thigh
+      position: {x: -0.00035131915, y: -0.00017117053, z: 0.0005735013}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999976, y: 1.000001, z: 1.0000005}
+    - name: Pelvis_R2
+      parentName: Bip001 Pelvis
+      position: {x: -0.00009945601, y: -0.00076497963, z: -0.0006789981}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 0.9999999, z: 1.0000001}
+    - name: Bip001 L Thigh
+      parentName: Bip001 Pelvis
+      position: {x: 0.0000000015258789, y: 0.0000000014185905, z: 0.0007887875}
+      rotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
+      scale: {x: 0.99999964, y: 1, z: 0.9999999}
+    - name: Bip001 L Calf
+      parentName: Bip001 L Thigh
+      position: {x: -0.003757256, y: 2.3841857e-11, z: -4.7683715e-11}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Bip001 L Foot
+      parentName: Bip001 L Calf
+      position: {x: -0.0040411926, y: 0, z: 1.1920928e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 0.99999994, z: 0.99999976}
+    - name: Bip001 L Toe0
+      parentName: Bip001 L Foot
+      position: {x: -0.0010004028, y: 0.0008028297, z: 0.00000041419264}
+      rotation: {x: 0, y: 0, z: 0.7071068, w: -0.7071068}
+      scale: {x: 1, y: 1.0000001, z: 1}
+    - name: knee_L
+      parentName: Bip001 L Calf
+      position: {x: -7.6293943e-10, y: 1.1920929e-11, z: 4.768371e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999997, y: 0.99999994, z: 0.99999964}
+    - name: Bip001 L Calf Adv
+      parentName: Bip001 L Calf
+      position: {x: 0.0000016803745, y: 0.0000007339479, z: 6.5565997e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000002, z: 1}
+    - name: JH_L
+      parentName: Bip001 L Calf Adv
+      position: {x: -0.0033101288, y: 0.00018908271, z: -0.00005774927}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999997, y: 0.99999976, z: 0.99999976}
+    - name: Bip001 L Thigh_Twis
+      parentName: Bip001 L Thigh
+      position: {x: -7.6293943e-10, y: -1.1920929e-11, z: 9.536743e-11}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999994, y: 1, z: 0.9999999}
+    - name: Thigh_fix02
+      parentName: Bip001 L Thigh
+      position: {x: -0.0004474609, y: 0.0006060161, z: 0.000014709569}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 0.99999976, z: 0.9999997}
+    - name: Thigh_fix03
+      parentName: Bip001 L Thigh
+      position: {x: -0.0003513199, y: -0.00016055771, z: -0.00057660264}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 0.99999976, z: 0.9999999}
+    - name: Pelvis_L
+      parentName: Bip001 Pelvis
+      position: {x: 0.0005464912, y: -0.00057680777, z: 0.00074634765}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999999, y: 1.0000002, z: 0.9999998}
+    - name: Bip001 Spine
+      parentName: Bip001 Pelvis
+      position: {x: -0.0005070663, y: 0.000101331105, z: -0.00000005569457}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1.0000001, z: 1.0000001}
+    - name: Bip001 L Thigh_Twis_O
+      parentName: Bip001 Spine
+      position: {x: 0.00051046215, y: -0.00008279541, z: 0.0007887877}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Bip001 R Thigh_Twis_O
+      parentName: Bip001 Spine
+      position: {x: 0.00051046215, y: -0.00008279102, z: -0.00078878773}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 0.9999999}
+    - name: Skirt3_01
+      parentName: Bip001 Spine
+      position: {x: -0.0007930352, y: -0.000072438976, z: 0.0009720531}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999999, y: 0.99999964, z: 1}
+    - name: Skirt3_02
+      parentName: Skirt3_01
+      position: {x: -0.0013437972, y: 7.6293943e-10, z: 0.0000000010490417}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1.0000004, z: 1.0000005}
+    - name: Skirt3_03
+      parentName: Skirt3_02
+      position: {x: -0.0012111992, y: -0.000000009536745, z: -0.0000000034809107}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1.0000001, z: 1}
+    - name: Skirt3_04
+      parentName: Skirt3_03
+      position: {x: -0.0013198868, y: 0.0000000022888185, z: 0.0000000043869015}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 0.99999994, z: 0.99999994}
+    - name: PDS_01
+      parentName: Bip001 Spine
+      position: {x: -0.00069403526, y: 0.0006255465, z: 0.00049800426}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999976, y: 0.9999998, z: 1}
+    - name: PDS_02
+      parentName: PDS_01
+      position: {x: -0.0002422562, y: -0.000000008392334, z: -1.66893e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 0.9999999}
+    - name: PDS_03
+      parentName: PDS_02
+      position: {x: -0.00031326822, y: -1.9073486e-10, z: -1.4305115e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999998, y: 0.99999976, z: 0.99999964}
+    - name: Skirt4_01
+      parentName: Bip001 Spine
+      position: {x: -0.00075520785, y: -0.0005625996, z: 0.00061664905}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999976, y: 0.99999976, z: 0.99999964}
+    - name: Skirt4_02
+      parentName: Skirt4_01
+      position: {x: -0.001344369, y: -3.814697e-10, z: 7.152557e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000005, y: 1.0000001, z: 1.0000001}
+    - name: Skirt4_03
+      parentName: Skirt4_02
+      position: {x: -0.001211004, y: -0.000000004196167, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000002, z: 1.0000002}
+    - name: Skirt4_04
+      parentName: Skirt4_03
+      position: {x: -0.0013202761, y: -0.0000000015258789, z: -0.0000000016212458}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999996, y: 0.9999996, z: 0.9999998}
+    - name: Skirt8_01
+      parentName: Bip001 Spine
+      position: {x: -0.0008240143, y: 0.0004977736, z: -0.0006655993}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999999, y: 0.9999999, z: 0.99999976}
+    - name: Skirt8_02
+      parentName: Skirt8_01
+      position: {x: -0.001689274, y: -0.000000002479553, z: 0.000000001168251}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999999, y: 1.0000001, z: 1.0000001}
+    - name: Skirt8_03
+      parentName: Skirt8_02
+      position: {x: -0.001133596, y: -0.000000004196167, z: -0.000000001335144}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 0.9999999}
+    - name: Skirt8_04
+      parentName: Skirt8_03
+      position: {x: -0.001080401, y: -7.6293943e-10, z: 0.000000001335144}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 0.9999995, z: 0.9999999}
+    - name: Skirt8_06
+      parentName: Skirt8_01
+      position: {x: -0.0017309936, y: -0.000005115319, z: -0.00021336823}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1.0000002, z: 1}
+    - name: Skirt8_07
+      parentName: Skirt8_06
+      position: {x: -0.0010976914, y: -0.00000000629425, z: 2.3841857e-11}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 0.99999994, z: 1}
+    - name: Skirt8_08
+      parentName: Skirt8_07
+      position: {x: -0.0011381311, y: 0.0000000016212458, z: 9.536743e-11}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1.0000001, z: 1.0000001}
+    - name: Skirt7_01
+      parentName: Bip001 Spine
+      position: {x: -0.00079303666, y: -0.00007243625, z: -0.0009721001}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999999, y: 0.9999997, z: 0.9999997}
+    - name: Skirt7_02
+      parentName: Skirt7_01
+      position: {x: -0.0013437995, y: -1.9073486e-10, z: 3.33786e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000004, z: 1}
+    - name: Skirt7_03
+      parentName: Skirt7_02
+      position: {x: -0.001211194, y: -0.000000004577637, z: 7.152557e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 0.99999994, z: 1.0000001}
+    - name: Skirt7_04
+      parentName: Skirt7_03
+      position: {x: -0.0013198901, y: -0.000000001716614, z: -8.106233e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.999999, y: 0.99999934, z: 0.9999999}
+    - name: Skirt6_01
+      parentName: Bip001 Spine
+      position: {x: -0.0007552069, y: -0.00056259794, z: -0.0006166002}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999992, y: 0.9999994, z: 0.9999996}
+    - name: Skirt6_02
+      parentName: Skirt6_01
+      position: {x: -0.0013443665, y: -0.0000000011444092, z: -6.1988825e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000007, y: 1.0000005, z: 1}
+    - name: Skirt6_03
+      parentName: Skirt6_02
+      position: {x: -0.0012110049, y: -0.0000000040054315, z: 7.6293943e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999995, y: 0.99999976, z: 1}
+    - name: Skirt6_04
+      parentName: Skirt6_03
+      position: {x: -0.0013202749, y: -9.536743e-10, z: 3.814697e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000004, y: 1.0000002, z: 0.99999976}
+    - name: Skirt1_01
+      parentName: Bip001 Spine
+      position: {x: -0.00083582225, y: 0.00068940106, z: 6.437301e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999997, y: 0.99999976, z: 0.9999996}
+    - name: Skirt1_02
+      parentName: Skirt1_01
+      position: {x: -0.0013443695, y: 0, z: -2.861023e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 0.9999999, z: 0.9999999}
+    - name: Skirt1_03
+      parentName: Skirt1_02
+      position: {x: -0.0012110069, y: -0.0000000034332273, z: 4.768371e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1.0000004, z: 1.0000004}
+    - name: Skirt1_04
+      parentName: Skirt1_03
+      position: {x: -0.0013202771, y: -0.000000001335144, z: 4.4849e-12}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1, z: 1.0000001}
+    - name: Skirt2_01
+      parentName: Bip001 Spine
+      position: {x: -0.0008240112, y: 0.00049777335, z: 0.0006656067}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999976, y: 0.99999964, z: 1}
+    - name: Skirt2_02
+      parentName: Skirt2_01
+      position: {x: -0.0013443723, y: -0.000000001335144, z: 0.0000000019550324}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000002, z: 1.0000005}
+    - name: Skirt2_03
+      parentName: Skirt2_02
+      position: {x: -0.0012109955, y: -0.0000000043869015, z: -6.1988825e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999976, y: 1, z: 0.99999934}
+    - name: Skirt2_04
+      parentName: Skirt2_03
+      position: {x: -0.0013202835, y: -0.0000000015258789, z: 0.00000000115633}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1, z: 1.0000002}
+    - name: Skirt5_01
+      parentName: Bip001 Spine
+      position: {x: -0.0007601921, y: -0.0007210922, z: -6.9141387e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999998, y: 0.99999994, z: 0.9999998}
+    - name: Skirt5_02
+      parentName: Skirt5_01
+      position: {x: -0.0013443695, y: 1.9073486e-10, z: 3.0994413e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999999, y: 1.0000001, z: 1}
+    - name: Skirt5_03
+      parentName: Skirt5_02
+      position: {x: -0.0012110015, y: -0.0000000068664545, z: 0.0000000016689299}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 0.9999998, z: 0.99999964}
+    - name: Skirt5_04
+      parentName: Skirt5_03
+      position: {x: -0.0013202738, y: -6.67572e-10, z: -0.0000000016212466}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1.0000001, z: 1}
+    - name: Bip001 Spine1
+      parentName: Bip001 Spine
+      position: {x: -0.00088327785, y: -0.00000073595044, z: -0.00000006198883}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000002, z: 1.0000005}
+    - name: Bip001 Spine2
+      parentName: Bip001 Spine1
+      position: {x: -0.0009348778, y: -0.0000015528678, z: -0.00000013628006}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999994, y: 0.99999994, z: 1.0000001}
+    - name: Chest_L_B
+      parentName: Bip001 Spine2
+      position: {x: -0.0010337088, y: 0.00034395984, z: 0.0004230008}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999994, y: 0.99999994, z: 1}
+    - name: Chest_R_B
+      parentName: Bip001 Spine2
+      position: {x: -0.0010336791, y: 0.00034393655, z: -0.00042300345}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1, z: 1.0000001}
+    - name: Furisode_B_01_ROOT
+      parentName: Bip001 Spine2
+      position: {x: -0.001179602, y: -0.0007472362, z: 0.0011459424}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1.0000002, z: 1.0000001}
+    - name: Furisode_B_01
+      parentName: Furisode_B_01_ROOT
+      position: {x: -0.0003386017, y: 0.000000002479553, z: 0.000000001335144}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999946, y: 0.9999998, z: 0.9999992}
+    - name: Furisode_B_02
+      parentName: Furisode_B_01
+      position: {x: -0.0012190101, y: 0.000000009155274, z: -0.0000000020027158}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000004, y: 1.0000004, z: 1.0000001}
+    - name: Furisode_B_03
+      parentName: Furisode_B_02
+      position: {x: -0.0012784974, y: -0.000000008392334, z: 9.536743e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 0.99999994, z: 0.9999999}
+    - name: Furisode_B_04
+      parentName: Furisode_B_03
+      position: {x: -0.0011058899, y: 3.8146972e-10, z: 0.000000007724763}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999996, y: 0.99999934, z: 0.9999999}
+    - name: Furisode_B_05
+      parentName: Furisode_B_04
+      position: {x: -0.0010771964, y: 3.8146972e-10, z: -0.000000004959106}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1.0000002, z: 1}
+    - name: MaJia5_01_ROOT
+      parentName: Bip001 Spine2
+      position: {x: -0.0012639754, y: -0.0008034305, z: 0.0012497586}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1, z: 0.99999994}
+    - name: MaJia5_01
+      parentName: MaJia5_01_ROOT
+      position: {x: -0.0003782242, y: 0.0000195137, z: -0.0000060569755}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000001, z: 1}
+    - name: MaJia5_02
+      parentName: MaJia5_01
+      position: {x: -0.0009037185, y: -0.0000000025749205, z: 0.0000000022888185}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999997, y: 1.0000002, z: 0.99999934}
+    - name: MaJia5_03
+      parentName: MaJia5_02
+      position: {x: -0.00086092006, y: 0.00000000629425, z: 0.0000000019073485}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000015, y: 1.0000023, z: 1.0000025}
+    - name: LD_01
+      parentName: Bip001 Spine2
+      position: {x: -0.0010208879, y: 0.00076646765, z: 0.0000000018596649}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999997, y: 0.9999997, z: 0.9999989}
+    - name: LD_02
+      parentName: LD_01
+      position: {x: -0.00026279216, y: 0.000000014495849, z: -1.4305115e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999976, y: 1, z: 1.0000001}
+    - name: LD_03
+      parentName: LD_02
+      position: {x: -0.00029248197, y: 0.0000000030517577, z: -6.1988825e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1.0000001, z: 1.0000001}
+    - name: Chest_R
+      parentName: Bip001 Spine2
+      position: {x: -0.0006582664, y: 0.0002816799, z: -0.00042300357}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1.0000005, z: 1.0000001}
+    - name: MaJia1_01
+      parentName: Chest_R
+      position: {x: -0.000578109, y: 0.00009139479, z: -0.0002773405}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999994, y: 0.99999946, z: 1}
+    - name: MaJia1_02
+      parentName: MaJia1_01
+      position: {x: -0.00074827496, y: -5.722046e-10, z: -1.4305115e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1.0000005, z: 1.0000002}
+    - name: MaJia1_03
+      parentName: MaJia1_02
+      position: {x: -0.0008686585, y: 0, z: 9.0599056e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000062, y: 0.9999928, z: 0.99999243}
+    - name: Chest_L
+      parentName: Bip001 Spine2
+      position: {x: -0.00065829535, y: 0.0002817022, z: 0.00042300075}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999946, y: 0.9999998, z: 0.99999946}
+    - name: Bn_Spine2FIX
+      parentName: Bip001 Spine2
+      position: {x: -0.0014097884, y: 0.00024386824, z: 0.0006584803}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999997, y: 0.9999996, z: 0.99999946}
+    - name: Bip001 R Clavicle
+      parentName: Bip001 Spine2
+      position: {x: -0.0016914895, y: -0.00023954963, z: -0.00015530968}
+      rotation: {x: 0.7071068, y: -0.000000030908623, z: 0.7071068, w: -0.000000030908623}
+      scale: {x: 0.99999934, y: 0.99999994, z: 0.9999997}
+    - name: Bip001 R UpperArm
+      parentName: Bip001 R Clavicle
+      position: {x: -0.00082837325, y: -3.8146972e-10, z: -7.6293943e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Bip001 R Forearm
+      parentName: Bip001 R UpperArm
+      position: {x: -0.002235523, y: 1.9073486e-10, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Bip001 R Forearm Adv
+      parentName: Bip001 R Forearm
+      position: {x: 7.6293943e-10, y: 0.0001715187, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999994, y: 0.99999976, z: 0.9999997}
+    - name: Bip001_R_ForeTwist
+      parentName: Bip001 R Forearm Adv
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000004, y: 1, z: 1.0000007}
+    - name: SleeveDown001
+      parentName: Bip001_R_ForeTwist
+      position: {x: -0.000000011253359, y: -0.0000000072002413, z: -0.00000001983643}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999993, y: 0.99999934, z: 0.9999991}
+    - name: Bip001 R Hand
+      parentName: Bip001 R Forearm
+      position: {x: -0.0020211448, y: 0, z: 0}
+      rotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
+      scale: {x: 0.9999998, y: 1.0000004, z: 0.99999994}
+    - name: Bip001 R Finger0
+      parentName: Bip001 R Hand
+      position: {x: -0.00008499261, y: 0.000054125212, z: 0.000109658526}
+      rotation: {x: 0, y: 0.38268346, z: 0, w: 0.9238795}
+      scale: {x: 1.0000001, y: 1.0000006, z: 1.0000004}
+    - name: Bip001 R Finger01
+      parentName: Bip001 R Finger0
+      position: {x: -0.0003698553, y: 3.8146972e-10, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999994, y: 0.9999998, z: 0.99999994}
+    - name: Bip001 R Finger02
+      parentName: Bip001 R Finger01
+      position: {x: -0.00025575788, y: 0, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999994, y: 1.0000002, z: 1.0000004}
+    - name: Bip001 R Finger1
+      parentName: Bip001 R Hand
+      position: {x: -0.0006958194, y: -0.000024177552, z: 0.00016843042}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1.0000004, z: 1.0000007}
+    - name: Bip001 R Finger11
+      parentName: Bip001 R Finger1
+      position: {x: -0.00030227847, y: 0, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1.0000004, z: 1.0000004}
+    - name: Bip001 R Finger12
+      parentName: Bip001 R Finger11
+      position: {x: -0.00018891138, y: 7.6293943e-10, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999999, y: 0.9999998, z: 1}
+    - name: Bip001 R Finger2
+      parentName: Bip001 R Hand
+      position: {x: -0.00067578425, y: -0.0000553337, z: 0.000017464066}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1.0000005, z: 1.0000007}
+    - name: Bip001 R Finger21
+      parentName: Bip001 R Finger2
+      position: {x: -0.00032065145, y: 0, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999998, y: 0.9999997, z: 0.9999997}
+    - name: Bip001 R Finger22
+      parentName: Bip001 R Finger21
+      position: {x: -0.00022007825, y: 7.6293943e-10, z: -9.536743e-11}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1.0000002, z: 0.99999994}
+    - name: Bip001 R Finger3
+      parentName: Bip001 R Hand
+      position: {x: -0.000648695, y: -0.00002157364, z: -0.00012728357}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000002, z: 1.0000005}
+    - name: Bip001 R Finger31
+      parentName: Bip001 R Finger3
+      position: {x: -0.00029341926, y: 0, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000007, y: 1, z: 1.0000004}
+    - name: Bip001 R Finger32
+      parentName: Bip001 R Finger31
+      position: {x: -0.0002105751, y: 0, z: -2.861023e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999994, y: 1, z: 1.0000002}
+    - name: Bip001 R Finger4
+      parentName: Bip001 R Hand
+      position: {x: -0.00056248624, y: 0.00006111603, z: -0.00023446817}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000006, y: 1.0000006, z: 1.0000005}
+    - name: Bip001 R Finger41
+      parentName: Bip001 R Finger4
+      position: {x: -0.00024419208, y: 0, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 1.0000002}
+    - name: Bip001 R Finger42
+      parentName: Bip001 R Finger41
+      position: {x: -0.00014353367, y: 7.6293943e-10, z: -1.9073493e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1.0000002, z: 1}
+    - name: Elbow_R
+      parentName: Bip001 R Forearm
+      position: {x: -0.0000009290694, y: 0.000000507164, z: 0.00000001220703}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 0.98784816, z: 0.9999999}
+    - name: Bn_SleeveUP
+      parentName: Bip001 R UpperArm
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 1.0000001}
+    - name: Furisode2_01
+      parentName: Bn_SleeveUP
+      position: {x: -0.002140409, y: 0.000011813258, z: 0.0004142239}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999998, y: 0.99999994, z: 1}
+    - name: Furisode2_02
+      parentName: Furisode2_01
+      position: {x: -0.0013721215, y: 0.0000000015258789, z: -0.000000008392334}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000005, y: 1.0000005, z: 1.0000004}
+    - name: Furisode2_03
+      parentName: Furisode2_02
+      position: {x: -0.001116759, y: -1.9073493e-10, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999994, y: 0.9999998, z: 0.9999997}
+    - name: Furisode1_01
+      parentName: Bn_SleeveUP
+      position: {x: -0.0011962982, y: 0.00004647776, z: 0.00047057416}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000004, z: 1.0000001}
+    - name: Furisode1_02
+      parentName: Furisode1_01
+      position: {x: -0.0013533614, y: 0.000000005531311, z: -0.000000011825561}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1, z: 1.0000004}
+    - name: Furisode1_03
+      parentName: Furisode1_02
+      position: {x: -0.0011009361, y: -2.861023e-10, z: 0.000000003814697}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000001, z: 1.0000001}
+    - name: Bip001_R_UpArmTwist02
+      parentName: Bip001 R UpperArm
+      position: {x: -0.0010662635, y: 0.000000008773803, z: 0.00000003890991}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000002, z: 1.0000005}
+    - name: Bip001_R_UpArmTwist01
+      parentName: Bip001 R UpperArm
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999976, y: 0.9999997, z: 1}
+    - name: MaJia3_01
+      parentName: Bip001 Spine2
+      position: {x: -0.00086582865, y: -0.00083388743, z: -0.0005740712}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999997, y: 0.9999999, z: 0.9999992}
+    - name: MaJia3_02
+      parentName: MaJia3_01
+      position: {x: -0.00090373453, y: 0.0000000016212466, z: -0.0000000032901766}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1.0000001, z: 1.0000002}
+    - name: MaJia3_03
+      parentName: MaJia3_02
+      position: {x: -0.00086089934, y: -0.0000000019073485, z: 0.0000000022888185}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.000002, y: 0.99999523, z: 0.99999493}
+    - name: MaJia2_01
+      parentName: Bip001 Spine2
+      position: {x: -0.00068409485, y: -0.00017743048, z: -0.0011200929}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999998, y: 0.9999997, z: 0.99999976}
+    - name: MaJia2_02
+      parentName: MaJia2_01
+      position: {x: -0.0007914636, y: -7.6293943e-10, z: -1.311302e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 0.99999994, z: 1.0000001}
+    - name: MaJia2_03
+      parentName: MaJia2_02
+      position: {x: -0.00085833046, y: -3.814697e-10, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1.0000001, z: 0.9999999}
+    - name: MaJia4_01
+      parentName: Bip001 Spine2
+      position: {x: -0.0008742736, y: -0.0008737621, z: 0.0006068574}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999994, y: 1.000001, z: 1.0000001}
+    - name: MaJia4_02
+      parentName: MaJia4_01
+      position: {x: -0.00090367196, y: 0.0000000021934508, z: 6.67572e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999833, y: 0.99999785, z: 0.99999756}
+    - name: MaJia4_03
+      parentName: MaJia4_02
+      position: {x: -0.0008609314, y: -1.9073493e-10, z: 9.536743e-11}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1.0000001, z: 0.9999999}
+    - name: Bip001 L Clavicle
+      parentName: Bip001 Spine2
+      position: {x: -0.0016914895, y: -0.00023955076, z: 0.00015530836}
+      rotation: {x: 0.7071068, y: -0.000000030908623, z: -0.7071068, w: 0.000000030908623}
+      scale: {x: 1.0000001, y: 1, z: 1.0000004}
+    - name: Bip001 L UpperArm
+      parentName: Bip001 L Clavicle
+      position: {x: -0.00082837325, y: -1.9073486e-10, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Bip001 L Forearm
+      parentName: Bip001 L UpperArm
+      position: {x: -0.002235523, y: 1.9073486e-10, z: 3.8146972e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Bip001 L Forearm Adv
+      parentName: Bip001 L Forearm
+      position: {x: -0, y: 0.000027051732, z: 0.0000000015258789}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 0.9999997, z: 0.99999964}
+    - name: Bip001_L_ForeTwist
+      parentName: Bip001 L Forearm Adv
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999934, y: 0.99999964, z: 0.9999997}
+    - name: Bip001 L Hand
+      parentName: Bip001 L Forearm
+      position: {x: -0.0020211458, y: 0, z: 0}
+      rotation: {x: 0.7071068, y: 0, z: 0, w: -0.7071068}
+      scale: {x: 0.9999991, y: 0.9999991, z: 0.99999946}
+    - name: Bip001 L Finger2
+      parentName: Bip001 L Hand
+      position: {x: -0.00067578425, y: -0.0000553337, z: -0.000017464066}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000005, z: 1.0000005}
+    - name: Bip001 L Finger21
+      parentName: Bip001 L Finger2
+      position: {x: -0.00032065046, y: 9.536743e-11, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1, z: 1.0000004}
+    - name: Bip001 L Finger22
+      parentName: Bip001 L Finger21
+      position: {x: -0.0002200779, y: 0, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1.0000002, z: 1.0000002}
+    - name: Bip001 L Finger3
+      parentName: Bip001 L Hand
+      position: {x: -0.0006486954, y: -0.00002157364, z: 0.00012728386}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1.0000001, z: 1}
+    - name: Bip001 L Finger31
+      parentName: Bip001 L Finger3
+      position: {x: -0.00029341958, y: -7.6293943e-10, z: -9.536743e-11}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1.0000002, z: 1.0000005}
+    - name: Bip001 L Finger32
+      parentName: Bip001 L Finger31
+      position: {x: -0.00021057531, y: 0, z: -4.7683715e-11}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999976, y: 1, z: 1}
+    - name: Bip001 L Finger0
+      parentName: Bip001 L Hand
+      position: {x: -0.000084992214, y: 0.000054125594, z: -0.000109658424}
+      rotation: {x: 0, y: 0.3826835, z: 0, w: -0.9238795}
+      scale: {x: 0.99999976, y: 0.9999998, z: 0.9999994}
+    - name: Bip001 L Finger01
+      parentName: Bip001 L Finger0
+      position: {x: -0.00036985552, y: -3.8146972e-10, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999999, y: 1.0000007, z: 1.0000007}
+    - name: Bip001 L Finger02
+      parentName: Bip001 L Finger01
+      position: {x: -0.00025575713, y: 0, z: 1.9073486e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999994, y: 1.0000001, z: 1.0000001}
+    - name: Bip001 L Finger1
+      parentName: Bip001 L Hand
+      position: {x: -0.00069582055, y: -0.000024177549, z: -0.0001684303}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999964, y: 1, z: 0.99999964}
+    - name: Bip001 L Finger11
+      parentName: Bip001 L Finger1
+      position: {x: -0.00030227887, y: 0, z: -9.536743e-11}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1, z: 1.0000005}
+    - name: Bip001 L Finger12
+      parentName: Bip001 L Finger11
+      position: {x: -0.00018891091, y: -7.6293943e-10, z: 1.9073493e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1.0000005, z: 1}
+    - name: Bip001 L Finger4
+      parentName: Bip001 L Hand
+      position: {x: -0.00056248624, y: 0.000061116785, z: 0.00023446843}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999976, y: 1, z: 1}
+    - name: Bip001 L Finger41
+      parentName: Bip001 L Finger4
+      position: {x: -0.0002441925, y: 0, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 0.9999999}
+    - name: Bip001 L Finger42
+      parentName: Bip001 L Finger41
+      position: {x: -0.00014353484, y: -9.536743e-11, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999999, y: 1, z: 0.9999998}
+    - name: Elbow_L
+      parentName: Bip001 L Forearm
+      position: {x: -0.000000667572, y: 0.0000010710719, z: 0.0000000015258789}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999912, y: 0.9910253, z: 1.0000015}
+    - name: Bip001_L_UpArmTwist01
+      parentName: Bip001 L UpperArm
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999905, y: 0.9999995, z: 0.99999887}
+    - name: Bone010
+      parentName: Bip001_L_UpArmTwist01
+      position: {x: -0.00088716886, y: 0.0001302133, z: 0.0002343849}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999997, y: 1.0000008, z: 0.9999998}
+    - name: Bip001_L_UpArmTwist02
+      parentName: Bip001 L UpperArm
+      position: {x: -0.0010662925, y: -3.8146972e-10, z: -0.0000000011444092}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999991, y: 0.9999998, z: 0.99999946}
+    - name: 'Bn_elbow '
+      parentName: Bip001 L UpperArm
+      position: {x: -0.0020572753, y: 0.00026935537, z: -0.00012920608}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000004, y: 0.9999997, z: 1.0000005}
+    - name: Bip001 Neck
+      parentName: Bip001 Spine2
+      position: {x: -0.0019418219, y: -0.00016183012, z: 0.00000009436607}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999999, y: 1.0000004, z: 0.9999996}
+    - name: Bip001 Head
+      parentName: Bip001 Neck
+      position: {x: -0.00064967497, y: -9.536743e-11, z: -9.536743e-11}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000007, y: 1.0000008, z: 1.0000006}
+    - name: FaceShadowPoint
+      parentName: Bip001 Head
+      position: {x: -0.0011349999, y: 0.0013090001, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Eye_L
+      parentName: Bip001 Head
+      position: {x: -0.00062889856, y: -0.00010342751, z: 0.0002580982}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999996, y: 0.99999946, z: 0.99999994}
+    - name: Mouth_A
+      parentName: Bip001 Head
+      position: {x: -0.00000833435, y: 0.0006361099, z: -0.000091455026}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999996, y: 0.9999997, z: 0.9999998}
+    - name: Mouth_B
+      parentName: Bip001 Head
+      position: {x: -0.000022607417, y: 0.00063472916, z: 0.0000000030517577}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999997, y: 1, z: 0.99999994}
+    - name: Mouth_C
+      parentName: Bip001 Head
+      position: {x: -0.000008311462, y: 0.0006361114, z: 0.00009150233}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999998, y: 1, z: 1.0524867}
+    - name: Eye_R
+      parentName: Bip001 Head
+      position: {x: -0.0006289399, y: -0.000103763196, z: -0.000258063}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999997, y: 0.9999998, z: 0.9999997}
+    - name: HairF1_01
+      parentName: Bip001 Head
+      position: {x: -0.0015664931, y: 0.0006066517, z: -0.00035999907}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 0.99999994, z: 1.0000001}
+    - name: HairF1_02
+      parentName: HairF1_01
+      position: {x: -0.00039872888, y: 7.6293943e-10, z: -0.000000001716614}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1.0000002, z: 1}
+    - name: HairF1_03
+      parentName: HairF1_02
+      position: {x: -0.00031248023, y: 0.0000000011444089, z: -0.0000000021934508}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000001, z: 1.0000006}
+    - name: Ear2_01
+      parentName: Bip001 Head
+      position: {x: -0.0016433242, y: -0.00009943618, z: -0.00043929953}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1, z: 1.0000004}
+    - name: Ear2_02
+      parentName: Ear2_01
+      position: {x: -0.00061219325, y: -0.000000005340576, z: -0.000000005197525}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000132, y: 1.0000067, z: 0.99999785}
+    - name: Ear2_03
+      parentName: Ear2_02
+      position: {x: -0.0006538361, y: 0.000000031280518, z: 0.000000004029274}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1, z: 1.0000004}
+    - name: Ear1_01
+      parentName: Bip001 Head
+      position: {x: -0.0016433821, y: -0.00009945295, z: 0.00043926062}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999994, y: 0.9999996, z: 0.99999994}
+    - name: Ear1_02
+      parentName: Ear1_01
+      position: {x: -0.0006121688, y: -0.000000017547606, z: -0.0000000033378598}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999803, y: 1.0000039, z: 0.9999918}
+    - name: Ear1_03
+      parentName: Ear1_02
+      position: {x: -0.0006537811, y: 0, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000004, z: 1}
+    - name: HairS2_01
+      parentName: Bip001 Head
+      position: {x: -0.0012885376, y: 0.00039756316, z: -0.0006582993}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1.0000001, z: 1.0000004}
+    - name: HairS2_02
+      parentName: HairS2_01
+      position: {x: -0.00061219936, y: 3.8146972e-10, z: -0.0000000030517577}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999994, y: 1, z: 1.0000001}
+    - name: HairS2_03
+      parentName: HairS2_02
+      position: {x: -0.00047751918, y: -4.7683715e-11, z: 7.6293943e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 0.9999998}
+    - name: HairB2_01
+      parentName: Bip001 Head
+      position: {x: -0.0002587636, y: -0.0007100532, z: -0.0005895019}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999994, y: 0.99999994, z: 1}
+    - name: HairB2_02
+      parentName: HairB2_01
+      position: {x: -0.001535794, y: 0.00000001907349, z: 0.0000000044822692}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 0.9999998, z: 0.99999994}
+    - name: HairB2_03
+      parentName: HairB2_02
+      position: {x: -0.0016283751, y: -0.0000000064849863, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000004, y: 1.0000005, z: 1.0000001}
+    - name: HairB2_04
+      parentName: HairB2_03
+      position: {x: -0.0014636421, y: -0.000000014877319, z: 0.0000000066757195}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1, z: 1.0000002}
+    - name: HairB2_05
+      parentName: HairB2_04
+      position: {x: -0.0015288475, y: -0.0000000064849863, z: -0.0000000057220455}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999998, y: 0.99999994, z: 0.99999994}
+    - name: HairB3_01
+      parentName: Bip001 Head
+      position: {x: -0.00036257974, y: -0.0010987478, z: 0.0000010849001}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999998, y: 0.99999994, z: 1.0000001}
+    - name: HairB3_02
+      parentName: HairB3_01
+      position: {x: -0.0013488143, y: 0.000000015258788, z: -0.0000000027656555}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1.0000002, z: 0.99999994}
+    - name: HairB3_03
+      parentName: HairB3_02
+      position: {x: -0.0011798613, y: -0.000000009918212, z: -0.000000002336502}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000004, z: 1.0000004}
+    - name: HairB3_04
+      parentName: HairB3_03
+      position: {x: -0.0010870757, y: 0.0000000022888185, z: 0.00000000267541}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.9999996, y: 0.9999991, z: 0.9999998}
+    - name: HairF2_01
+      parentName: Bip001 Head
+      position: {x: -0.0015636446, y: 0.00072069373, z: -0.00010708312}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 1.0000001}
+    - name: HairF2_02
+      parentName: HairF2_01
+      position: {x: -0.00039859314, y: 0, z: 0.0000000015258789}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1.0000001, z: 1}
+    - name: HairF2_03
+      parentName: HairF2_02
+      position: {x: -0.00027016146, y: -5.722046e-10, z: -0.0000000038623815}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999994, y: 0.9999998, z: 1}
+    - name: HairF3_01
+      parentName: Bip001 Head
+      position: {x: -0.001569075, y: 0.00067555613, z: 0.000188115}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999994, y: 0.9999998, z: 0.9999998}
+    - name: HairF3_02
+      parentName: HairF3_01
+      position: {x: -0.0003972153, y: 0, z: 0.000000001049042}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000001, y: 1.0000005, z: 0.99999994}
+    - name: HairF3_03
+      parentName: HairF3_02
+      position: {x: -0.00028736566, y: 3.814697e-10, z: 0.0000000020980826}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000001, z: 0.99999994}
+    - name: HairF4_01
+      parentName: Bip001 Head
+      position: {x: -0.0015597548, y: 0.0005656341, z: 0.00036095575}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000001, z: 0.99999994}
+    - name: HairF4_02
+      parentName: HairF4_01
+      position: {x: -0.00039721676, y: 3.8146972e-10, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 1}
+    - name: HairF4_03
+      parentName: HairF4_02
+      position: {x: -0.0003158371, y: 0.0000000011444089, z: -0.0000000022888178}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999994, y: 1, z: 1}
+    - name: HairS1_01
+      parentName: Bip001 Head
+      position: {x: -0.001288539, y: 0.00039756123, z: 0.00065825507}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 0.9999998}
+    - name: HairS1_02
+      parentName: HairS1_01
+      position: {x: -0.0006121979, y: 1.9073493e-10, z: 0.0000000015497208}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 0.9999998, z: 0.99999994}
+    - name: HairS1_03
+      parentName: HairS1_02
+      position: {x: -0.00047752078, y: -1.9073493e-10, z: -0.0000000028133393}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000001, z: 1.0000001}
+    - name: HairB1_01
+      parentName: Bip001 Head
+      position: {x: -0.00025876408, y: -0.0007100548, z: 0.0005895171}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 0.99999994, y: 1, z: 0.99999994}
+    - name: HairB1_02
+      parentName: HairB1_01
+      position: {x: -0.0015357229, y: 0.000000011444091, z: 8.583068e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1.0000001, z: 0.9999998}
+    - name: HairB1_03
+      parentName: HairB1_02
+      position: {x: -0.0016283975, y: -0.0000000011444092, z: 0.0000000032424932}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000001, z: 1}
+    - name: HairB1_04
+      parentName: HairB1_03
+      position: {x: -0.0014636666, y: -3.8146972e-10, z: -1.9073486e-10}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1.0000002, y: 1.0000002, z: 1.0000002}
+    - name: HairB1_05
+      parentName: HairB1_04
+      position: {x: -0.0015288513, y: 0.000000002670288, z: -0.0000000039100647}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Bone015
+      parentName: Bip001
+      position: {x: -0.001330039, y: -0.0012574837, z: 0.001478885}
+      rotation: {x: 0.5478885, y: 0.83385485, z: 0.05034712, w: -0.044378772}
+      scale: {x: 1.0000001, y: 0.9999998, z: 1.0000007}
+    - name: Furisode3_01
+      parentName: Bone015
+      position: {x: 0.00044108887, y: 0.000037586306, z: 0.00033897246}
+      rotation: {x: -0.5003686, y: -0.45302537, z: 0.5162613, w: -0.52713716}
+      scale: {x: 1, y: 1.0000001, z: 1.0000001}
+    - name: Furisode3_02
+      parentName: Furisode3_01
+      position: {x: -0.0013721625, y: 0.0000000010967254, z: 0.0000000028610228}
+      rotation: {x: -0.00041738155, y: -0.03028168, z: -0.014799313, w: 0.9994318}
+      scale: {x: 0.99999934, y: 0.9999977, z: 0.99999976}
+    - name: Furisode3_03
+      parentName: Furisode3_02
+      position: {x: -0.0011223105, y: 0, z: -0.0000000024819746}
+      rotation: {x: 0.0004637512, y: -0.022669246, z: -0.01276601, w: 0.99966145}
+      scale: {x: 1.0000002, y: 1.0000004, z: 1.0000006}
+    - name: Bn_PET
+      parentName: Bip001
+      position: {x: -0.0014551664, y: 0.0017800471, z: 0.012587562}
+      rotation: {x: 0.048774425, y: 0.03991936, z: -0.5323109, w: 0.8441994}
+      scale: {x: 1, y: 1, z: 0.99999994}
+    - name: Bn_PET_EYE
+      parentName: Bn_PET
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: -0.000000059604645, y: 0.70710677, z: 0.000000027939677, w: 0.7071069}
+      scale: {x: 0.9999998, y: 0.99999994, z: 0.9999997}
+    - name: Bn_Weapon
+      parentName: Bip001
+      position: {x: 0.0005733412, y: 0.0016853213, z: -0.0008482093}
+      rotation: {x: 0.6439084, y: 0.16037124, z: -0.15151621, w: -0.73260224}
+      scale: {x: 0.9999999, y: 1, z: 0.99999964}
+    - name: Bn_scabbardA_01
+      parentName: Bn_Weapon
+      position: {x: 0.000039670173, y: 0.00042987175, z: 0.0008381886}
+      rotation: {x: -0.500001, y: 0.500001, z: 0.49999893, w: -0.49999905}
+      scale: {x: 1, y: 0.99999976, z: 0.9999994}
+    - name: Bn_scabbardA_02
+      parentName: Bn_scabbardA_01
+      position: {x: -0.00039352, y: 0.0000000057220455, z: -0.0000000030517577}
+      rotation: {x: -0.0000013411045, y: -0.000000029802322, z: 0.00000011920929,
+        w: 1}
+      scale: {x: 0.99999994, y: 1, z: 1.0000001}
+    - name: Bn_scabbardA_03
+      parentName: Bn_scabbardA_02
+      position: {x: -0.00037063452, y: -9.536743e-11, z: 6.996788e-12}
+      rotation: {x: 0.00000009313225, y: 0.000000017462295, z: -0.00000008940696,
+        w: 1}
+      scale: {x: 1.0000002, y: 1.0000002, z: 1.0000002}
+    - name: Bn_scabbardB_01
+      parentName: Bn_Weapon
+      position: {x: 0.000039666364, y: 0.0003971512, z: 0.00018180617}
+      rotation: {x: -0.500001, y: 0.5000011, z: 0.4999989, w: -0.49999902}
+      scale: {x: 1.0000001, y: 1, z: 0.9999999}
+    - name: Bn_scabbardB_02
+      parentName: Bn_scabbardB_01
+      position: {x: -0.00039352148, y: 0.0000000011444092, z: -0.000000009918212}
+      rotation: {x: -0.0000014305115, y: 0.000000029802322, z: 0.000000059604645,
+        w: 1}
+      scale: {x: 1, y: 1.0000002, z: 1.0000004}
+    - name: Bn_scabbardB_03
+      parentName: Bn_scabbardB_02
+      position: {x: -0.00037063484, y: 0.0000000034332273, z: 0.000000007629394}
+      rotation: {x: 0.00000014901183, y: -0.000000029802246, z: -0.00000005960468,
+        w: 1}
+      scale: {x: 1.0000005, y: 1.0000004, z: 1.0000005}
+    - name: Bn_katana_hilt
+      parentName: Bip001
+      position: {x: -0.0009925832, y: 0.0022346335, z: 0.000064809414}
+      rotation: {x: 0.56245077, y: -0.40462676, z: 0.34817353, w: -0.6314282}
+      scale: {x: 0.9999999, y: 1.0000001, z: 1}
+    - name: Bn_katana_hilt2
+      parentName: Bn_katana_hilt
+      position: {x: 0.001808535, y: 0.00030128934, z: 0.000026775111}
+      rotation: {x: -0.8494985, y: 0.5058793, z: -0.14925769, w: 0.012677178}
+      scale: {x: 1, y: 0.99999976, z: 0.9999996}
+    - name: Bn_katana_burst
+      parentName: Bn_katana_hilt
+      position: {x: -0.001262071, y: -0.000044801327, z: 0.0000000016212458}
+      rotation: {x: 0.00000026822087, y: 0.0000001490116, z: 0.000000029802319, w: 1}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Bn_katana_burst_eye
+      parentName: Bn_katana_burst
+      position: {x: -0.001110754, y: -0.00016951941, z: -0.0001252579}
+      rotation: {x: -0.91530347, y: -0.4027649, z: 0.0000009814029, w: -0.00000012763212}
+      scale: {x: 1, y: 0.9999999, z: 1}
+    - name: Bn_katana_burst01
+      parentName: Bn_katana_hilt
+      position: {x: 0.0017897311, y: 0.0005146841, z: 0.0000396667}
+      rotation: {x: -0.7071074, y: 0.7071062, z: 0.000000089406974, w: -0.0000008642674}
+      scale: {x: 1.0000001, y: 1.0000002, z: 1.0000002}
+    - name: Bn_katana_burst02
+      parentName: Bn_katana_burst01
+      position: {x: -0.000606906, y: 0, z: -2.861023e-10}
+      rotation: {x: -0.0000026342318, y: -0.000000021142112, z: 0.00009849666, w: 1}
+      scale: {x: 1, y: 1, z: 0.99999976}
+    - name: Bn_katana_burst03
+      parentName: Bn_katana_burst02
+      position: {x: -0.00062808074, y: 0, z: 2.910383e-15}
+      rotation: {x: 0.000000021075719, y: -0.000000063169956, z: -0.000015854834,
+        w: 1}
+      scale: {x: 1.0000001, y: 1, z: 1}
+    - name: Bn_katana_burst04
+      parentName: Bn_katana_burst03
+      position: {x: -0.0006245513, y: 3.8146972e-10, z: 3.6381245e-11}
+      rotation: {x: 0.0000024680176, y: 1.9224444e-10, z: -0.00008255243, w: 1}
+      scale: {x: 1, y: 1.0000002, z: 1.0000001}
+    - name: Root
+      parentName: Avatar_Female_Size02_Unagi_UI(Clone)
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: -0.00000013315805, y: 0, z: -0, w: 1}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Unagi_Body
+      parentName: Avatar_Female_Size02_Unagi_UI(Clone)
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: -0.7071068, y: 0, z: -0, w: 0.7071068}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Unagi_Face
+      parentName: Avatar_Female_Size02_Unagi_UI(Clone)
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: -0.7071068, y: 0, z: -0, w: 0.7071068}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Unagi_Hair
+      parentName: Avatar_Female_Size02_Unagi_UI(Clone)
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: -0.7071068, y: 0, z: -0, w: 0.7071068}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Unagi_PET
+      parentName: Avatar_Female_Size02_Unagi_UI(Clone)
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: -0.7071068, y: 0, z: -0, w: 0.7071068}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Unagi_Weapon01
+      parentName: Avatar_Female_Size02_Unagi_UI(Clone)
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: -0.7071068, y: 0, z: -0, w: 0.7071068}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Unagi_Weapon02
+      parentName: Avatar_Female_Size02_Unagi_UI(Clone)
+      position: {x: -0, y: 0, z: -4.078831e-11}
+      rotation: {x: -0.7071068, y: 0, z: -0, w: 0.7071068}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Unagi_Weapon03
+      parentName: Avatar_Female_Size02_Unagi_UI(Clone)
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: -0.7071068, y: 0, z: -0, w: 0.7071068}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Unagi_Weapon04
+      parentName: Avatar_Female_Size02_Unagi_UI(Clone)
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: -0.7071068, y: 0, z: -0, w: 0.7071068}
+      scale: {x: 1, y: 1, z: 1}
+    - name: Unagi_Weapon05
+      parentName: Avatar_Female_Size02_Unagi_UI(Clone)
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: -0.7071068, y: 0, z: -0, w: 0.7071068}
+      scale: {x: 1, y: 1, z: 1}
+    armTwist: 0.5
+    foreArmTwist: 0.5
+    upperLegTwist: 0.5
+    legTwist: 0.5
+    armStretch: 0.05
+    legStretch: 0.05
+    feetSpacing: 0
+    globalScale: 1
+    rootMotionBoneName: Bip001
+    hasTranslationDoF: 1
+    hasExtraRoot: 0
+    skeletonHasParents: 1
+  lastHumanDescriptionAvatarSource: {instanceID: 0}
+  autoGenerateAvatarMappingIfUnspecified: 1
+  animationType: 2
+  humanoidOversampling: 1
+  avatarSetup: 1
+  addHumanoidExtraRootOnlyWhenUsingAvatar: 1
+  importBlendShapeDeformPercent: 0
+  remapMaterialsIfMaterialImportModeIsNone: 1
+  additionalBone: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

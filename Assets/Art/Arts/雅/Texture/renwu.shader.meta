@@ -1,0 +1,13 @@
+fileFormatVersion: 2
+guid: b73df682355541e44a9eed4715286ef2
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures:
+  - _Unagi_Body_N: {fileID: 2800000, guid: 22f957cf23694d64da4318ac01fffe44, type: 3}
+  - _Unagi_Body_D: {fileID: 2800000, guid: 8d3e16eb7df59ad4dae5c1bfece7fa5f, type: 3}
+  - _Unagi_Body_M: {fileID: 2800000, guid: 95bfa52db78cc4142989668ba8d1fcd2, type: 3}
+  nonModifiableTextures: []
+  preprocessorOverride: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
