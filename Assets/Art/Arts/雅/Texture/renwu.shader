@@ -56,7 +56,7 @@ Shader "Smalleyes/renwu"
 		ENDCG
 	}
 	Fallback "Diffuse"
-	CustomEditor "ASEMaterialInspector"
+	// 已移除 ASEMaterialInspector：项目未安装 Amplify Shader Editor，保留会导致选中材质时刷警告
 }
 /*ASEBEGIN
 Version=18800
