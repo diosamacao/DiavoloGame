@@ -302,6 +302,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         _session.Begin(action);
         _rootMotion?.SetActive(action.UseRootMotion);
         animationController.PlayClip(action.AnimationClip, action.CrossFadeDuration);
+        Debug.Log($"BeginAction: {action.AnimationClip.name}");
 
         NotifyActionBegan(action);
         DispatchCombatFrame(0, -1);

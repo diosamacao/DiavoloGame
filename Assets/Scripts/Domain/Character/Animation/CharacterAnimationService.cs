@@ -54,6 +54,7 @@ public sealed class CharacterAnimationService
             return;
 
         animator.CrossFadeInFixedTime(clip.name, fadeDuration, layerIndex);
+        
         _currentKey = null;
     }
 
