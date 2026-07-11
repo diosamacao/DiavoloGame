@@ -1,7 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 
-/// <summary>Action Editor 顶部工具栏：预览角色、帧控制、播放与加轨入口。</summary>
+/// <summary>Action Editor 顶部工具栏：预览角色、帧控制与播放。</summary>
 public sealed class ActionToolbar
 {
     /// <summary>绘制工具栏；返回是否发生会影响预览的变更。</summary>
@@ -10,8 +10,7 @@ public sealed class ActionToolbar
         ref Transform previewCharacter,
         ref int previewFrame,
         ref bool isPlaying,
-        ref bool loop,
-        System.Action onAddTrack)
+        ref bool loop)
     {
         bool changed = false;
         EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
@@ -61,9 +60,6 @@ public sealed class ActionToolbar
             action != null ? $"{action.DisplayName}  ({previewFrame}/{maxFrame})" : "No Action",
             EditorStyles.miniLabel,
             GUILayout.Width(220f));
-
-        if (GUILayout.Button("Add Track", EditorStyles.toolbarButton, GUILayout.Width(80f)))
-            onAddTrack?.Invoke();
 
         EditorGUILayout.EndHorizontal();
         return changed;

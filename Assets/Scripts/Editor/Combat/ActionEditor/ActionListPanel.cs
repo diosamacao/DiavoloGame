@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-/// <summary>左侧 ActionDefinition 资产列表：搜索与选择。</summary>
+/// <summary>左侧 ActionDefinition 资产列表：搜索、创建入口与选择。</summary>
 public sealed class ActionListPanel
 {
     string _search = string.Empty;
@@ -25,27 +25,31 @@ public sealed class ActionListPanel
         _actions.Sort((a, b) => string.CompareOrdinal(a.DisplayName, b.DisplayName));
     }
 
-    /// <summary>绘制列表；返回用户新选中的资产（未变更时返回 current）。</summary>
-    public ActionDefinition Draw(Rect rect, ActionDefinition current)
+    /// <summary>
+    /// 绘制列表；返回用户新选中的资产。
+    /// onRequestCreate：点击 Create 时打开独立创建面板。
+    /// </summary>
+    public ActionDefinition Draw(Rect rect, ActionDefinition current, System.Action onRequestCreate)
     {
         GUILayout.BeginArea(rect);
-        EditorGUILayout.LabelField("Actions", EditorStyles.boldLabel);
 
-        EditorGUI.BeginChangeCheck();
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            if (GUILayout.Button("Create", GUILayout.Width(70f)))
+                onRequestCreate?.Invoke();
+
+            if (GUILayout.Button("Refresh", GUILayout.Width(70f)))
+                Refresh();
+        }
+
+        EditorGUILayout.Space(2f);
         _search = EditorGUILayout.TextField("Search", _search);
-        EditorGUI.EndChangeCheck();
-
-        if (GUILayout.Button("Refresh", GUILayout.Width(80f)))
-            Refresh();
 
         _scroll = EditorGUILayout.BeginScrollView(_scroll);
         for (int i = 0; i < _actions.Count; i++)
         {
             ActionDefinition action = _actions[i];
-            if (action == null)
-                continue;
-
-            if (!PassesFilter(action))
+            if (action == null || !PassesFilter(action))
                 continue;
 
             bool selected = action == current;
