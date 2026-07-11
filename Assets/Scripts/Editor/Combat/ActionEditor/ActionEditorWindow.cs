@@ -8,8 +8,8 @@ using UnityEngine;
 public sealed class ActionEditorWindow : EditorWindow
 {
     const string PreviewCharacterPrefKey = "ACTGame.ActionEditor.PreviewCharacter";
-    const float LeftWidth = 220f;
-    const float RightWidth = 300f;
+    const string LeftWidthPrefKey = "ACTGame.ActionEditor.LeftWidth";
+    const string RightWidthPrefKey = "ACTGame.ActionEditor.RightWidth";
 
     readonly ActionListPanel _listPanel = new();
     readonly ActionToolbar _toolbar = new();
@@ -27,6 +27,12 @@ public sealed class ActionEditorWindow : EditorWindow
     bool _loop = true;
     double _lastPlayTime;
 
+    float _leftWidth = ActionEditorStyles.DefaultLeftWidth;
+    float _rightWidth = ActionEditorStyles.DefaultRightWidth;
+    int _splitterDrag; // 0=无 1=左分隔 2=右分隔
+    float _splitterDragStartX;
+    float _splitterDragStartWidth;
+
     [MenuItem("ACT/Action Editor")]
     public static void Open()
     {
@@ -41,6 +47,8 @@ public sealed class ActionEditorWindow : EditorWindow
         wantsMouseMove = true;
         _listPanel.Refresh();
         RestorePreviewCharacter();
+        _leftWidth = EditorPrefs.GetFloat(LeftWidthPrefKey, ActionEditorStyles.DefaultLeftWidth);
+        _rightWidth = EditorPrefs.GetFloat(RightWidthPrefKey, ActionEditorStyles.DefaultRightWidth);
 
         _vfxPreviewExtension = new ActionEditorVfxPreviewExtension();
         _vfxPreviewExtension.Bind(GetSelectedVfxProperty);
@@ -56,6 +64,8 @@ public sealed class ActionEditorWindow : EditorWindow
         EditorApplication.update -= OnEditorUpdate;
         SceneView.duringSceneGui -= OnSceneGUI;
         SavePreviewCharacter();
+        EditorPrefs.SetFloat(LeftWidthPrefKey, _leftWidth);
+        EditorPrefs.SetFloat(RightWidthPrefKey, _rightWidth);
         _previewSession?.Dispose();
         _previewSession = null;
     }
@@ -67,35 +77,170 @@ public sealed class ActionEditorWindow : EditorWindow
 
         DrawToolbar();
 
-        Rect content = new(0f, 22f, position.width, position.height - 22f);
-        Rect left = new(content.x, content.y, LeftWidth, content.height);
-        Rect right = new(content.xMax - RightWidth, content.y, RightWidth, content.height);
-        Rect center = new(left.xMax + 4f, content.y, content.width - LeftWidth - RightWidth - 8f, content.height);
+        // 工具栏高度用实际 layout 后的剩余区域，避免硬编码 22 与真实高度错位。
+        Rect content = new(0f, 24f, position.width, Mathf.Max(0f, position.height - 24f));
+        ComputePanelRects(content, out Rect left, out Rect splitterL, out Rect center, out Rect splitterR, out Rect right);
+        HandleSplitterDrag(splitterL, splitterR);
 
-        ActionDefinition next = _listPanel.Draw(left, _selectedAction);
+        Rect leftBody = ActionEditorStyles.DrawPanelChrome(left, "Actions", ActionEditorStyles.PanelLeft);
+        Rect centerBody = ActionEditorStyles.DrawPanelChrome(center, "Timeline", ActionEditorStyles.PanelCenter);
+        Rect rightBody = ActionEditorStyles.DrawPanelChrome(right, "Inspector", ActionEditorStyles.PanelRight);
+        ActionEditorStyles.DrawSplitter(splitterL);
+        ActionEditorStyles.DrawSplitter(splitterR);
+
+        ActionDefinition next = _listPanel.Draw(leftBody, _selectedAction, OpenCreateActionWindow);
         if (next != _selectedAction)
             SelectAction(next);
 
         if (_selectedAction != null && _serializedObject != null)
         {
             _serializedObject.Update();
-            if (_timelineView.Draw(center, _serializedObject, _selectedAction, ref _selection, ref _previewFrame))
+            if (_timelineView.Draw(
+                    centerBody,
+                    _serializedObject,
+                    _selectedAction,
+                    ref _selection,
+                    ref _previewFrame,
+                    ShowAddTrackMenu))
             {
                 _serializedObject.ApplyModifiedProperties();
                 EditorUtility.SetDirty(_selectedAction);
             }
 
-            ActionNotifySelectionDrawer.Draw(right, _serializedObject, _selection, _selectedAction);
+            ActionNotifySelectionDrawer.Draw(rightBody, _serializedObject, _selection, _selectedAction);
         }
         else
         {
-            GUI.Box(center, "从左侧选择 ActionDefinition");
-            GUI.Box(right, string.Empty);
+            GUI.Box(centerBody, "从左侧选择或创建 ActionDefinition");
+            GUILayout.BeginArea(rightBody);
+            EditorGUILayout.HelpBox("选中招式后可编辑窗口细节。", MessageType.Info);
+            GUILayout.EndArea();
         }
 
-        // 菜单回调可能在下一帧才改选中，这里再消费一次。
         if (_timelineView.ConsumePendingRepaint())
             Repaint();
+    }
+
+    /// <summary>
+    /// 按可用宽度分配左/中/右，保证中栏最小宽度，避免右栏遮挡时间轴。
+    /// </summary>
+    void ComputePanelRects(
+        Rect content,
+        out Rect left,
+        out Rect splitterL,
+        out Rect center,
+        out Rect splitterR,
+        out Rect right)
+    {
+        float splitter = ActionEditorStyles.SplitterWidth;
+        float available = content.width - splitter * 2f;
+
+        float leftW = Mathf.Clamp(_leftWidth, ActionEditorStyles.MinLeftWidth, ActionEditorStyles.MaxLeftWidth);
+        float rightW = Mathf.Clamp(_rightWidth, ActionEditorStyles.MinRightWidth, ActionEditorStyles.MaxRightWidth);
+        float minCenter = ActionEditorStyles.MinCenterWidth;
+
+        // 空间不足时优先压缩左右，保住中栏。
+        if (leftW + rightW + minCenter > available)
+        {
+            float overflow = leftW + rightW + minCenter - available;
+            float leftRoom = Mathf.Max(0f, leftW - ActionEditorStyles.MinLeftWidth);
+            float rightRoom = Mathf.Max(0f, rightW - ActionEditorStyles.MinRightWidth);
+            float room = leftRoom + rightRoom;
+            if (room > 0.01f)
+            {
+                leftW -= overflow * (leftRoom / room);
+                rightW -= overflow * (rightRoom / room);
+            }
+
+            leftW = Mathf.Max(ActionEditorStyles.MinLeftWidth, leftW);
+            rightW = Mathf.Max(ActionEditorStyles.MinRightWidth, rightW);
+            if (leftW + rightW + minCenter > available)
+            {
+                // 极端窄窗：再等比压缩到可用宽。
+                float side = Mathf.Max(0f, available - minCenter);
+                float sum = leftW + rightW;
+                if (sum > 0.01f)
+                {
+                    leftW = side * (leftW / sum);
+                    rightW = side * (rightW / sum);
+                }
+            }
+        }
+
+        float centerW = Mathf.Max(minCenter, available - leftW - rightW);
+        // 若仍溢出（窗口极窄），以实际剩余为准，允许中栏暂时小于理想最小值。
+        if (leftW + rightW + centerW > available)
+            centerW = Mathf.Max(40f, available - leftW - rightW);
+
+        left = new Rect(content.x, content.y, leftW, content.height);
+        splitterL = new Rect(left.xMax, content.y, splitter, content.height);
+        center = new Rect(splitterL.xMax, content.y, centerW, content.height);
+        splitterR = new Rect(center.xMax, content.y, splitter, content.height);
+        right = new Rect(splitterR.xMax, content.y, rightW, content.height);
+
+        _leftWidth = leftW;
+        _rightWidth = rightW;
+    }
+
+    /// <summary>处理左右分隔条拖拽，写回宽度并持久化。</summary>
+    void HandleSplitterDrag(Rect splitterL, Rect splitterR)
+    {
+        Event evt = Event.current;
+        int leftId = GUIUtility.GetControlID(FocusType.Passive);
+        int rightId = GUIUtility.GetControlID(FocusType.Passive);
+
+        switch (evt.type)
+        {
+            case EventType.MouseDown when evt.button == 0:
+                if (splitterL.Contains(evt.mousePosition))
+                {
+                    _splitterDrag = 1;
+                    _splitterDragStartX = evt.mousePosition.x;
+                    _splitterDragStartWidth = _leftWidth;
+                    GUIUtility.hotControl = leftId;
+                    evt.Use();
+                }
+                else if (splitterR.Contains(evt.mousePosition))
+                {
+                    _splitterDrag = 2;
+                    _splitterDragStartX = evt.mousePosition.x;
+                    _splitterDragStartWidth = _rightWidth;
+                    GUIUtility.hotControl = rightId;
+                    evt.Use();
+                }
+
+                break;
+
+            case EventType.MouseDrag when _splitterDrag != 0:
+                float delta = evt.mousePosition.x - _splitterDragStartX;
+                if (_splitterDrag == 1)
+                {
+                    _leftWidth = Mathf.Clamp(
+                        _splitterDragStartWidth + delta,
+                        ActionEditorStyles.MinLeftWidth,
+                        ActionEditorStyles.MaxLeftWidth);
+                }
+                else
+                {
+                    // 右分隔条：向右拖应减小右栏宽度。
+                    _rightWidth = Mathf.Clamp(
+                        _splitterDragStartWidth - delta,
+                        ActionEditorStyles.MinRightWidth,
+                        ActionEditorStyles.MaxRightWidth);
+                }
+
+                Repaint();
+                evt.Use();
+                break;
+
+            case EventType.MouseUp when _splitterDrag != 0:
+                _splitterDrag = 0;
+                GUIUtility.hotControl = 0;
+                EditorPrefs.SetFloat(LeftWidthPrefKey, _leftWidth);
+                EditorPrefs.SetFloat(RightWidthPrefKey, _rightWidth);
+                evt.Use();
+                break;
+        }
     }
 
     void DrawToolbar()
@@ -105,8 +250,7 @@ public sealed class ActionEditorWindow : EditorWindow
             ref _previewCharacter,
             ref _previewFrame,
             ref _isPlaying,
-            ref _loop,
-            ShowAddTrackMenu);
+            ref _loop);
 
         if (_previewCharacter != null)
             SavePreviewCharacter();
@@ -135,6 +279,18 @@ public sealed class ActionEditorWindow : EditorWindow
         }
 
         menu.ShowAsContext();
+    }
+
+    /// <summary>打开独立创建 ActionDefinition 面板。</summary>
+    void OpenCreateActionWindow()
+    {
+        ActionDefinitionCreateWindow.Open(created =>
+        {
+            _listPanel.Refresh();
+            SelectAction(created);
+            Focus();
+            Repaint();
+        });
     }
 
     void SelectAction(ActionDefinition action)

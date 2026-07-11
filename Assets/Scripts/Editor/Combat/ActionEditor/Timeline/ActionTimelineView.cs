@@ -21,6 +21,7 @@ public sealed class ActionTimelineView
     int _dragOriginalStart;
     int _dragOriginalEnd;
     int _dragControlId = -1;
+    /// <summary>每帧像素宽；每帧按中栏可用宽度 / totalFrames 自动计算，铺满时间轴。</summary>
     float _pixelsPerFrame = 8f;
     bool _pendingRepaint;
 
@@ -40,17 +41,19 @@ public sealed class ActionTimelineView
 
     /// <summary>
     /// 绘制时间轴；返回是否修改了数据，并通过 selection/previewFrame 回写交互结果。
+    /// onAddTrack：中栏顶部右侧 Add Track 按钮回调。
     /// </summary>
     public bool Draw(
         Rect rect,
         SerializedObject so,
         ActionDefinition action,
         ref ActionEditorSelection selection,
-        ref int previewFrame)
+        ref int previewFrame,
+        System.Action onAddTrack)
     {
         if (action == null || so == null)
         {
-            GUI.Box(rect, "Select an ActionDefinition");
+            GUI.Box(rect, "从左侧选择或创建 ActionDefinition");
             return false;
         }
 
@@ -68,36 +71,68 @@ public sealed class ActionTimelineView
         }
 
         bool changed = false;
-        int totalFrames = Mathf.Max(1, action.TotalFrames);
-        float contentWidth = ActionEditorStyles.TrackHeaderWidth + totalFrames * _pixelsPerFrame + 40f;
 
         SerializedProperty tracksProp = so.FindProperty("timeline.tracks");
         int trackCount = tracksProp != null ? tracksProp.arraySize : 0;
         float contentHeight = ActionEditorStyles.RulerHeight
             + Mathf.Max(1, trackCount) * (ActionEditorStyles.TrackHeight + 2f)
-            + 40f;
+            + 80f;
 
-        Rect toolbarRect = new(rect.x, rect.y, rect.width, 20f);
-        Rect bodyRect = new(rect.x, rect.y + 22f, rect.width, rect.height - 22f);
+        // 中栏顶栏：左侧 Animation Clip，右侧 Add Track。
+        const float topBarHeight = 22f;
+        const float addTrackWidth = 90f;
+        Rect topBarRect = new(rect.x, rect.y, rect.width, topBarHeight);
+        Rect clipFieldRect = new(
+            topBarRect.x + 4f,
+            topBarRect.y + 1f,
+            ActionEditorStyles.TrackHeaderWidth - 4f,
+            20f);
+        Rect addTrackRect = new(topBarRect.xMax - addTrackWidth - 4f, topBarRect.y + 1f, addTrackWidth, 20f);
 
-        EditorGUI.BeginChangeCheck();
-        _pixelsPerFrame = EditorGUI.Slider(toolbarRect, "Zoom", _pixelsPerFrame, 3f, 20f);
-        if (EditorGUI.EndChangeCheck())
+        if (DrawAnimationClipField(clipFieldRect, so, ref previewFrame))
             changed = true;
 
-        _scroll = GUI.BeginScrollView(bodyRect, _scroll, new Rect(0f, 0f, contentWidth, contentHeight));
+        int totalFrames = Mathf.Max(1, so.FindProperty("totalFrames")?.intValue ?? action.TotalFrames);
+        GUI.Label(
+            new Rect(addTrackRect.x - 100f, topBarRect.y + 1f, 96f, 20f),
+            $"{totalFrames} frames",
+            EditorStyles.miniLabel);
 
-        Rect rulerRect = new(ActionEditorStyles.TrackHeaderWidth, 0f, totalFrames * _pixelsPerFrame, ActionEditorStyles.RulerHeight);
+        if (GUI.Button(addTrackRect, "Add Track"))
+            onAddTrack?.Invoke();
+
+        Rect bodyRect = new(rect.x, rect.y + topBarHeight + 2f, rect.width, rect.height - topBarHeight - 2f);
+
+        const float verticalScrollBarWidth = 14f;
+        bool needsVerticalScroll = contentHeight > bodyRect.height;
+        float usableWidth = Mathf.Max(1f, bodyRect.width - (needsVerticalScroll ? verticalScrollBarWidth : 0f));
+        float contentWidth = usableWidth;
+        float laneWidth = Mathf.Max(1f, usableWidth - ActionEditorStyles.TrackHeaderWidth);
+        _pixelsPerFrame = laneWidth / totalFrames;
+
+        _scroll = GUI.BeginScrollView(
+            bodyRect,
+            _scroll,
+            new Rect(0f, 0f, contentWidth, contentHeight),
+            false,
+            needsVerticalScroll);
+
+        // 标尺左侧轨头角：与顶栏 Clip 对齐的占位标题。
+        EditorGUI.DrawRect(
+            new Rect(0f, 0f, ActionEditorStyles.TrackHeaderWidth, ActionEditorStyles.RulerHeight),
+            ActionEditorStyles.PanelHeader);
+        GUI.Label(
+            new Rect(4f, 2f, ActionEditorStyles.TrackHeaderWidth - 8f, ActionEditorStyles.RulerHeight - 4f),
+            "Tracks",
+            EditorStyles.miniLabel);
+
+        Rect rulerRect = new(ActionEditorStyles.TrackHeaderWidth, 0f, laneWidth, ActionEditorStyles.RulerHeight);
         DrawRuler(rulerRect, totalFrames);
         HandleRulerInput(rulerRect, totalFrames, ref previewFrame, ref changed);
 
         float y = ActionEditorStyles.RulerHeight + 2f;
         if (trackCount == 0)
-        {
-            GUI.Label(
-                new Rect(8f, y, 420f, 40f),
-                "时间轴为空。使用工具栏 Add Track 手动添加轨道。");
-        }
+            DrawEmptyTracksHint(new Rect(ActionEditorStyles.TrackHeaderWidth + 8f, y, Mathf.Max(200f, laneWidth - 16f), 72f));
 
         for (int trackIndex = 0; trackIndex < trackCount; trackIndex++)
         {
@@ -125,6 +160,51 @@ public sealed class ActionTimelineView
         return changed;
     }
 
+    /// <summary>无轨道时的空态提示，引导使用右上角 Add Track。</summary>
+    void DrawEmptyTracksHint(Rect rect)
+    {
+        EditorGUI.DrawRect(rect, ActionEditorStyles.EmptyStateBox);
+        GUI.Label(
+            new Rect(rect.x + 12f, rect.y + 12f, rect.width - 24f, 48f),
+            "尚未添加轨道。\n点击右上角 Add Track 选择类型并添加。",
+            EditorStyles.wordWrappedLabel);
+    }
+
+    /// <summary>
+    /// 绘制 Animation Clip 选择；变更时同步 totalFrames。
+    /// </summary>
+    bool DrawAnimationClipField(Rect rect, SerializedObject so, ref int previewFrame)
+    {
+        SerializedProperty clipProp = so.FindProperty("animationClip");
+        if (clipProp == null)
+            return false;
+
+        EditorGUI.BeginChangeCheck();
+        EditorGUI.ObjectField(rect, clipProp, typeof(AnimationClip), GUIContent.none);
+        if (!EditorGUI.EndChangeCheck())
+            return false;
+
+        so.ApplyModifiedProperties();
+
+        var clip = clipProp.objectReferenceValue as AnimationClip;
+        SerializedProperty sampleRateProp = so.FindProperty("sampleRate");
+        SerializedProperty totalFramesProp = so.FindProperty("totalFrames");
+        float sampleRate = sampleRateProp != null ? Mathf.Max(1f, sampleRateProp.floatValue) : 30f;
+        if (totalFramesProp != null)
+        {
+            totalFramesProp.intValue = clip != null
+                ? Mathf.Max(1, Mathf.RoundToInt(clip.length * sampleRate))
+                : 1;
+        }
+
+        so.ApplyModifiedProperties();
+        EditorUtility.SetDirty(so.targetObject);
+
+        int maxFrame = Mathf.Max(0, (totalFramesProp?.intValue ?? 1) - 1);
+        previewFrame = Mathf.Clamp(previewFrame, 0, maxFrame);
+        return true;
+    }
+
     void DrawTrack(
         Rect trackRect,
         SerializedObject so,
@@ -140,10 +220,11 @@ public sealed class ActionTimelineView
         string trackName = trackProp.FindPropertyRelative("trackName").stringValue;
 
         Rect headerRect = new(trackRect.x, trackRect.y, ActionEditorStyles.TrackHeaderWidth, trackRect.height);
+        // 轨道路面宽度铺满中栏剩余区域（与标尺同宽）。
         Rect laneRect = new(
             trackRect.x + ActionEditorStyles.TrackHeaderWidth,
             trackRect.y,
-            totalFrames * _pixelsPerFrame,
+            Mathf.Max(1f, trackRect.width - ActionEditorStyles.TrackHeaderWidth),
             trackRect.height);
 
         EditorGUI.DrawRect(headerRect, new Color(0.22f, 0.22f, 0.25f, 1f));
@@ -376,13 +457,25 @@ public sealed class ActionTimelineView
         EditorGUI.DrawRect(rect, ActionEditorStyles.Ruler);
         Handles.BeginGUI();
         Handles.color = new Color(1f, 1f, 1f, 0.25f);
+
+        // 按每帧像素宽自适应刻度密度，避免铺满后文字挤成一团。
+        int majorStep = _pixelsPerFrame >= 12f ? 5
+            : _pixelsPerFrame >= 6f ? 10
+            : _pixelsPerFrame >= 3f ? 20
+            : 30;
+        int minorStep = Mathf.Max(1, majorStep / 5);
+
         for (int f = 0; f <= totalFrames; f++)
         {
+            if (f != 0 && f != totalFrames && f % minorStep != 0)
+                continue;
+
             float x = rect.x + f * _pixelsPerFrame;
-            float h = f % 5 == 0 ? rect.height : rect.height * 0.4f;
+            bool major = f % majorStep == 0 || f == totalFrames;
+            float h = major ? rect.height : rect.height * 0.4f;
             Handles.DrawLine(new Vector3(x, rect.yMax - h), new Vector3(x, rect.yMax));
-            if (f % 5 == 0)
-                GUI.Label(new Rect(x + 2f, rect.y, 28f, 16f), f.ToString(), EditorStyles.miniLabel);
+            if (major)
+                GUI.Label(new Rect(x + 2f, rect.y, 36f, 16f), f.ToString(), EditorStyles.miniLabel);
         }
 
         Handles.EndGUI();

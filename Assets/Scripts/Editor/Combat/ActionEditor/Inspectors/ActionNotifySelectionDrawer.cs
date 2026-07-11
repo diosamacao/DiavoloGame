@@ -4,21 +4,29 @@ using UnityEngine;
 /// <summary>右侧选中窗口细节面板；按类型绘制字段，帧数字与轨道双向同步。</summary>
 public static class ActionNotifySelectionDrawer
 {
-    /// <summary>绘制选中窗口；无选中时显示提示。</summary>
+    /// <summary>绘制选中窗口；无选中时显示动作基础字段。</summary>
     public static void Draw(Rect rect, SerializedObject so, ActionEditorSelection selection, ActionDefinition action)
     {
         GUILayout.BeginArea(rect);
-        EditorGUILayout.LabelField("Inspector", EditorStyles.boldLabel);
 
-        if (!selection.IsValid || action == null)
+        if (action == null || so == null)
         {
-            EditorGUILayout.HelpBox("选中时间轴上的窗口以编辑细节。", MessageType.Info);
+            EditorGUILayout.HelpBox("选中招式后可编辑细节。", MessageType.Info);
             GUILayout.EndArea();
             return;
         }
 
-        SerializedProperty element = selection.ElementProperty;
         so.Update();
+
+        if (!selection.IsValid)
+        {
+            DrawActionBasics(so, action);
+            GUILayout.EndArea();
+            return;
+        }
+
+        EditorGUILayout.LabelField("Window", EditorStyles.boldLabel);
+        SerializedProperty element = selection.ElementProperty;
         EditorGUI.BeginChangeCheck();
 
         DrawFrameFields(element, action);
@@ -61,6 +69,32 @@ public static class ActionNotifySelectionDrawer
         }
 
         GUILayout.EndArea();
+    }
+
+    /// <summary>未选中窗口时编辑招式基础字段（Clip / 采样率等）。</summary>
+    static void DrawActionBasics(SerializedObject so, ActionDefinition action)
+    {
+        EditorGUILayout.LabelField("Action", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox("选中时间轴窗口可编辑片段细节。", MessageType.None);
+
+        EditorGUI.BeginChangeCheck();
+        EditorGUILayout.PropertyField(so.FindProperty("displayName"));
+        EditorGUILayout.PropertyField(so.FindProperty("id"));
+        EditorGUILayout.PropertyField(so.FindProperty("animationClip"));
+        EditorGUILayout.PropertyField(so.FindProperty("sampleRate"));
+        using (new EditorGUI.DisabledScope(true))
+            EditorGUILayout.IntField("Total Frames", action.TotalFrames);
+        EditorGUILayout.PropertyField(so.FindProperty("actionType"));
+        EditorGUILayout.PropertyField(so.FindProperty("crossFadeDuration"));
+
+        if (action.AnimationClip == null)
+            EditorGUILayout.HelpBox("请指定 Animation Clip，否则无法预览 Pose。", MessageType.Warning);
+
+        if (EditorGUI.EndChangeCheck())
+        {
+            so.ApplyModifiedProperties();
+            EditorUtility.SetDirty(so.targetObject);
+        }
     }
 
     static void DrawFrameFields(SerializedProperty element, ActionDefinition action)
