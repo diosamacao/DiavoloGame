@@ -46,7 +46,7 @@ MonoBehaviour:
       endFrame: 26
       priority: 0
       trackName: Cancel_3
-      cancelType: 1
+      cancelType: 0
       allowedInputs:
       - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     movementStates: []
