@@ -87,7 +87,7 @@ public class MyBehaviour : MonoBehaviour
 ## 相机约定
 
 - 运行时由 CameraManager 搭建层级（CameraRoot → Orbit → Pitch）
-- Follow 目标为 CameraRoot（非角色 Transform 本身）
+- Orbit 用 SmoothDamp 追 CameraRoot；VCam Follow/LookAt 走平滑 Orbit（非直接硬锁角色 Transform）
 - 灵敏度、Clamp 等 tunable 值 SerializeField 暴露
 
 ## 注释与语言
