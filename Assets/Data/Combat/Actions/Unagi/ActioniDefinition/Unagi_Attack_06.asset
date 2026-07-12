@@ -29,7 +29,18 @@ MonoBehaviour:
   phases: []
   timeline:
     actionEvents: []
-    playVfxNotifies: []
+    playVfxNotifies:
+    - id: VFX_1
+      startFrame: 3
+      endFrame: 139
+      priority: 0
+      trackName: VFX_1
+      prefab: {fileID: 1713045243172065375, guid: f791790f35137b946b82347edb9264f2, type: 3}
+      localOffset: {x: 0, y: 0.97, z: 1.75}
+      localEulerAngles: {x: 0, y: 180, z: 180}
+      localScale: {x: 1.5, y: 1.5, z: 1.5}
+      parentToAttachPoint: 0
+      naturalDurationSeconds: 6
     playSfxStates: []
     hitboxStates: []
     hurtboxStates: []
@@ -74,6 +85,9 @@ MonoBehaviour:
       visible: 1
     - trackName: Rotation_1
       kind: 6
+      visible: 1
+    - trackName: VFX_1
+      kind: 2
       visible: 1
   transitions: []
   startBehaviors: 
