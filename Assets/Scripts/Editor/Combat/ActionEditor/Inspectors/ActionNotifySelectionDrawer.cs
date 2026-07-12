@@ -25,41 +25,49 @@ public static class ActionNotifySelectionDrawer
             return;
         }
 
-        EditorGUILayout.LabelField("Window", EditorStyles.boldLabel);
-        SerializedProperty element = selection.ElementProperty;
         EditorGUI.BeginChangeCheck();
 
-        DrawFrameFields(element, action);
-        EditorGUILayout.PropertyField(element.FindPropertyRelative("id"));
-        EditorGUILayout.PropertyField(element.FindPropertyRelative("priority"));
-        EditorGUILayout.PropertyField(element.FindPropertyRelative("trackName"));
-
-        switch (selection.Kind)
+        if (selection.Kind == ActionTimelineTrackKind.Animation)
         {
-            case ActionTimelineTrackKind.Hitbox:
-                DrawHitbox(element);
-                break;
-            case ActionTimelineTrackKind.Hurtbox:
-                DrawHurtbox(element);
-                break;
-            case ActionTimelineTrackKind.Vfx:
-                DrawVfx(element, action);
-                break;
-            case ActionTimelineTrackKind.Sfx:
-                DrawSfx(element, action);
-                break;
-            case ActionTimelineTrackKind.Cancel:
-                DrawCancel(element);
-                break;
-            case ActionTimelineTrackKind.Movement:
-                DrawMovement(element);
-                break;
-            case ActionTimelineTrackKind.Rotation:
-                DrawRotation(element);
-                break;
-            case ActionTimelineTrackKind.Event:
-                DrawEvent(element);
-                break;
+            DrawAnimationSegment(selection.ElementProperty, action);
+        }
+        else
+        {
+            EditorGUILayout.LabelField("Window", EditorStyles.boldLabel);
+            SerializedProperty element = selection.ElementProperty;
+
+            DrawFrameFields(element, action);
+            EditorGUILayout.PropertyField(element.FindPropertyRelative("id"));
+            EditorGUILayout.PropertyField(element.FindPropertyRelative("priority"));
+            EditorGUILayout.PropertyField(element.FindPropertyRelative("trackName"));
+
+            switch (selection.Kind)
+            {
+                case ActionTimelineTrackKind.Hitbox:
+                    DrawHitbox(element);
+                    break;
+                case ActionTimelineTrackKind.Hurtbox:
+                    DrawHurtbox(element);
+                    break;
+                case ActionTimelineTrackKind.Vfx:
+                    DrawVfx(element, action);
+                    break;
+                case ActionTimelineTrackKind.Sfx:
+                    DrawSfx(element, action);
+                    break;
+                case ActionTimelineTrackKind.Cancel:
+                    DrawCancel(element);
+                    break;
+                case ActionTimelineTrackKind.Movement:
+                    DrawMovement(element);
+                    break;
+                case ActionTimelineTrackKind.Rotation:
+                    DrawRotation(element);
+                    break;
+                case ActionTimelineTrackKind.Event:
+                    DrawEvent(element);
+                    break;
+            }
         }
 
         if (EditorGUI.EndChangeCheck())
@@ -71,16 +79,35 @@ public static class ActionNotifySelectionDrawer
         GUILayout.EndArea();
     }
 
-    /// <summary>未选中窗口时编辑招式基础字段（Clip / 采样率等）。</summary>
+    /// <summary>选中 Animation 段时编辑 Clip / 裁切 / 淡入。</summary>
+    static void DrawAnimationSegment(SerializedProperty element, ActionDefinition action)
+    {
+        EditorGUILayout.LabelField("Animation Segment", EditorStyles.boldLabel);
+        if (element == null)
+            return;
+
+        EditorGUILayout.PropertyField(element.FindPropertyRelative("clip"));
+        EditorGUILayout.PropertyField(element.FindPropertyRelative("startFrame"));
+        EditorGUILayout.PropertyField(element.FindPropertyRelative("endFrame"), new GUIContent("End Frame", "<0 = 用到 Clip 末尾"));
+        EditorGUILayout.PropertyField(element.FindPropertyRelative("crossFadeDuration"));
+
+        using (new EditorGUI.DisabledScope(true))
+        {
+            EditorGUILayout.IntField("Total Frames (Action)", action != null ? action.TotalFrames : 0);
+        }
+
+        EditorGUILayout.HelpBox("段在时间轴上的长度由 Clip 有效帧累加；修改 Clip/裁切后 Total Frames 会自动更新。", MessageType.None);
+    }
+
+    /// <summary>未选中窗口时编辑招式基础字段（采样率等）。</summary>
     static void DrawActionBasics(SerializedObject so, ActionDefinition action)
     {
         EditorGUILayout.LabelField("Action", EditorStyles.boldLabel);
-        EditorGUILayout.HelpBox("选中时间轴窗口可编辑片段细节。显示名即资产文件名。", MessageType.None);
+        EditorGUILayout.HelpBox("选中 Animation 轨上的段或其它窗口可编辑细节。显示名即资产文件名。", MessageType.None);
 
         EditorGUI.BeginChangeCheck();
         using (new EditorGUI.DisabledScope(true))
             EditorGUILayout.TextField("File Name", action.name);
-        EditorGUILayout.PropertyField(so.FindProperty("animationSegments"), new GUIContent("Animation Clips"), true);
         EditorGUILayout.PropertyField(so.FindProperty("sampleRate"));
         using (new EditorGUI.DisabledScope(true))
             EditorGUILayout.IntField("Total Frames", action.TotalFrames);
@@ -88,7 +115,7 @@ public static class ActionNotifySelectionDrawer
         EditorGUILayout.PropertyField(so.FindProperty("crossFadeDuration"));
 
         if (!action.HasAnimation)
-            EditorGUILayout.HelpBox("请至少配置一段 Animation Clip，否则无法预览 Pose。", MessageType.Warning);
+            EditorGUILayout.HelpBox("请在 Animation 轨添加并绑定 Clip，否则无法预览 Pose。", MessageType.Warning);
 
         if (EditorGUI.EndChangeCheck())
         {
