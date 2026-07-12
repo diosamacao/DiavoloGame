@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
-  m_Name: Attack_01
+  m_Name: Unagi_Attack_01
   m_EditorClassIdentifier: 
   id: Attack_01
   displayName: Attack_01
-  animationClip: {fileID: -2516013265382948196, guid: 4b5b09eaad6bbc84f8f0722d7d6413db, type: 3}
+  animationClip: {fileID: 2754811189149721877, guid: 6b84a4fde20facb4781831a8174d37bd, type: 3}
   sampleRate: 30
   totalFrames: 20
   actionType: 0
