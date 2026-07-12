@@ -267,7 +267,8 @@ public sealed class ActionEditorWindow : EditorWindow
         var menu = new GenericMenu();
         foreach (ActionTimelineTrackKind kind in System.Enum.GetValues(typeof(ActionTimelineTrackKind)))
         {
-            if (kind == ActionTimelineTrackKind.Phase)
+            // Phase 未开放；Animation 为默认固定轨，不可手动添加。
+            if (kind == ActionTimelineTrackKind.Phase || kind == ActionTimelineTrackKind.Animation)
                 continue;
 
             ActionTimelineTrackKind captured = kind;

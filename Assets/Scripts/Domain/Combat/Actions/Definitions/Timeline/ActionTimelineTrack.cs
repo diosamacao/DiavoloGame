@@ -12,6 +12,8 @@ public enum ActionTimelineTrackKind
     Rotation = 6,
     Event = 7,
     Phase = 8,
+    /// <summary>默认动画轨：展示 ActionDefinition.animationSegments，非 timeline 窗口数组。</summary>
+    Animation = 9,
 }
 
 /// <summary>时间轴轨道描述；允许空轨存在，窗口通过 trackName 归属到轨。</summary>

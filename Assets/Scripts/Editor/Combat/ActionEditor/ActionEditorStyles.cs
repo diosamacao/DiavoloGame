@@ -33,6 +33,59 @@ public static class ActionEditorStyles
     /// <summary>选中时相对原色的加深倍率（&lt; 1 更暗）。</summary>
     const float SelectionDarken = 0.72f;
 
+    /// <summary>窗口条块圆角半径（像素）。</summary>
+    public const float WindowCornerRadius = 4f;
+
+    /// <summary>窗口条块描边宽度（像素）。</summary>
+    public const float WindowBorderWidth = 1.25f;
+
+    /// <summary>绘制圆角填充 + 描边的窗口条块，便于相邻窗口区分。</summary>
+    public static void DrawRoundedWindowClip(Rect rect, Color fill, bool selected)
+    {
+        if (rect.width < 1f || rect.height < 1f)
+            return;
+
+        float radius = Mathf.Min(WindowCornerRadius, rect.height * 0.5f, rect.width * 0.5f);
+        var radii = new Vector4(radius, radius, radius, radius);
+
+        // 外圈描边：选中用更亮描边，未选中用深色细边。
+        Color border = selected
+            ? new Color(1f, 1f, 1f, 0.92f)
+            : new Color(0f, 0f, 0f, 0.55f);
+
+        GUI.DrawTexture(
+            rect,
+            EditorGUIUtility.whiteTexture,
+            ScaleMode.StretchToFill,
+            true,
+            0f,
+            border,
+            Vector4.zero,
+            radii);
+
+        float inset = WindowBorderWidth;
+        Rect inner = new(
+            rect.x + inset,
+            rect.y + inset,
+            Mathf.Max(0f, rect.width - inset * 2f),
+            Mathf.Max(0f, rect.height - inset * 2f));
+
+        if (inner.width < 1f || inner.height < 1f)
+            return;
+
+        float innerRadius = Mathf.Max(0f, radius - inset);
+        var innerRadii = new Vector4(innerRadius, innerRadius, innerRadius, innerRadius);
+        GUI.DrawTexture(
+            inner,
+            EditorGUIUtility.whiteTexture,
+            ScaleMode.StretchToFill,
+            true,
+            0f,
+            fill,
+            Vector4.zero,
+            innerRadii);
+    }
+
     /// <summary>绘制面板底色与顶栏标题。</summary>
     public static Rect DrawPanelChrome(Rect panelRect, string title, Color bodyColor)
     {
@@ -76,6 +129,7 @@ public static class ActionEditorStyles
         ActionTimelineTrackKind.Rotation => new Color(0.75f, 0.85f, 0.3f, 0.85f),
         ActionTimelineTrackKind.Event => new Color(0.95f, 0.85f, 0.3f, 0.85f),
         ActionTimelineTrackKind.Phase => new Color(0.55f, 0.55f, 0.6f, 0.85f),
+        ActionTimelineTrackKind.Animation => new Color(0.45f, 0.65f, 1f, 0.9f),
         _ => new Color(0.6f, 0.6f, 0.65f, 0.85f),
     };
 
@@ -102,6 +156,7 @@ public static class ActionEditorStyles
         ActionTimelineTrackKind.Rotation => "Rotation",
         ActionTimelineTrackKind.Event => "Event",
         ActionTimelineTrackKind.Phase => "Phase",
+        ActionTimelineTrackKind.Animation => "Animation",
         _ => kind.ToString(),
     };
 }

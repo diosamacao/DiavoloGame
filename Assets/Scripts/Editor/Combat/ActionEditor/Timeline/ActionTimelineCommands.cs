@@ -15,6 +15,7 @@ public static class ActionTimelineCommands
         ActionTimelineTrackKind.Movement => "movementStates",
         ActionTimelineTrackKind.Rotation => "rotationStates",
         ActionTimelineTrackKind.Event => "actionEvents",
+        ActionTimelineTrackKind.Animation => null,
         _ => null,
     };
 
@@ -84,9 +85,12 @@ public static class ActionTimelineCommands
         return true;
     }
 
-    /// <summary>添加一条空轨并写入默认 trackName。</summary>
+    /// <summary>添加一条空轨并写入默认 trackName；不允许添加默认 Animation 轨。</summary>
     public static void AddTrack(SerializedObject so, ActionTimelineTrackKind kind)
     {
+        if (kind == ActionTimelineTrackKind.Animation || kind == ActionTimelineTrackKind.Phase)
+            return;
+
         SerializedProperty tracksProp = so.FindProperty("timeline.tracks");
         if (tracksProp == null)
             return;
@@ -181,13 +185,36 @@ public static class ActionTimelineCommands
         return new ActionEditorSelection(arrayProp, index, kind);
     }
 
+    /// <summary>在 animationSegments 末尾追加一段空 Clip 槽。</summary>
+    public static ActionEditorSelection AddAnimationSegment(SerializedObject so)
+    {
+        SerializedProperty segmentsProp = so.FindProperty("animationSegments");
+        if (segmentsProp == null)
+            return default;
+
+        Undo.RecordObject(so.targetObject, "Add Animation Segment");
+        int index = segmentsProp.arraySize;
+        segmentsProp.arraySize++;
+        SerializedProperty element = segmentsProp.GetArrayElementAtIndex(index);
+        element.FindPropertyRelative("clip").objectReferenceValue = null;
+        element.FindPropertyRelative("startFrame").intValue = 0;
+        element.FindPropertyRelative("endFrame").intValue = -1;
+        element.FindPropertyRelative("crossFadeDuration").floatValue = 0f;
+        so.ApplyModifiedProperties();
+        EditorUtility.SetDirty(so.targetObject);
+        return new ActionEditorSelection(segmentsProp, index, ActionTimelineTrackKind.Animation);
+    }
+
     /// <summary>删除选中窗口。</summary>
     public static void RemoveWindow(SerializedObject so, ActionEditorSelection selection)
     {
         if (!selection.IsValid)
             return;
 
-        Undo.RecordObject(so.targetObject, "Remove Action Window");
+        string undoName = selection.Kind == ActionTimelineTrackKind.Animation
+            ? "Remove Animation Segment"
+            : "Remove Action Window";
+        Undo.RecordObject(so.targetObject, undoName);
         selection.ArrayProperty.DeleteArrayElementAtIndex(selection.Index);
         so.ApplyModifiedProperties();
         EditorUtility.SetDirty(so.targetObject);

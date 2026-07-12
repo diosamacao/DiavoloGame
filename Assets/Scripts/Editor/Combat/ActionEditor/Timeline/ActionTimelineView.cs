@@ -74,31 +74,21 @@ public sealed class ActionTimelineView
 
         SerializedProperty tracksProp = so.FindProperty("timeline.tracks");
         int trackCount = tracksProp != null ? tracksProp.arraySize : 0;
+        // +1：默认 Animation 轨始终占一行。
+        int visibleLaneCount = 1 + Mathf.Max(0, trackCount);
         float contentHeight = ActionEditorStyles.RulerHeight
-            + Mathf.Max(1, trackCount) * (ActionEditorStyles.TrackHeight + 2f)
+            + visibleLaneCount * (ActionEditorStyles.TrackHeight + 2f)
             + 80f;
 
-        // 中栏顶栏：左侧 Animation Segments，右侧 Add Track。
-        SerializedProperty segmentsProp = so.FindProperty("animationSegments");
-        float segmentsHeight = segmentsProp != null
-            ? EditorGUI.GetPropertyHeight(segmentsProp, true)
-            : 20f;
-        float topBarHeight = Mathf.Max(22f, segmentsHeight + 4f);
+        // 顶栏：帧数 + Add Track（动画段在默认 Animation 轨上展示）。
+        const float topBarHeight = 22f;
         const float addTrackWidth = 90f;
         Rect topBarRect = new(rect.x, rect.y, rect.width, topBarHeight);
-        Rect clipFieldRect = new(
-            topBarRect.x + 4f,
-            topBarRect.y + 1f,
-            ActionEditorStyles.TrackHeaderWidth - 4f,
-            topBarHeight - 2f);
         Rect addTrackRect = new(topBarRect.xMax - addTrackWidth - 4f, topBarRect.y + 1f, addTrackWidth, 20f);
-
-        if (DrawAnimationSegmentsField(clipFieldRect, so, ref previewFrame))
-            changed = true;
 
         int totalFrames = Mathf.Max(1, so.FindProperty("totalFrames")?.intValue ?? action.TotalFrames);
         GUI.Label(
-            new Rect(addTrackRect.x - 100f, topBarRect.y + 1f, 96f, 20f),
+            new Rect(topBarRect.x + 8f, topBarRect.y + 1f, 160f, 20f),
             $"{totalFrames} frames",
             EditorStyles.miniLabel);
 
@@ -121,7 +111,6 @@ public sealed class ActionTimelineView
             false,
             needsVerticalScroll);
 
-        // 标尺左侧轨头角：与顶栏 Clip 对齐的占位标题。
         EditorGUI.DrawRect(
             new Rect(0f, 0f, ActionEditorStyles.TrackHeaderWidth, ActionEditorStyles.RulerHeight),
             ActionEditorStyles.PanelHeader);
@@ -135,6 +124,12 @@ public sealed class ActionTimelineView
         HandleRulerInput(rulerRect, totalFrames, ref previewFrame, ref changed);
 
         float y = ActionEditorStyles.RulerHeight + 2f;
+
+        // 默认动画轨：始终置顶，展示 animationSegments。
+        Rect animationTrackRect = new(0f, y, contentWidth, ActionEditorStyles.TrackHeight);
+        DrawAnimationTrack(animationTrackRect, so, action, totalFrames, ref selection, ref changed);
+        y += ActionEditorStyles.TrackHeight + 2f;
+
         if (trackCount == 0)
             DrawEmptyTracksHint(new Rect(ActionEditorStyles.TrackHeaderWidth + 8f, y, Mathf.Max(200f, laneWidth - 16f), 72f));
 
@@ -164,38 +159,155 @@ public sealed class ActionTimelineView
         return changed;
     }
 
-    /// <summary>无轨道时的空态提示，引导使用右上角 Add Track。</summary>
+    /// <summary>无轨道时的空态提示，引导使用右上角 Add Track（Animation 轨始终存在）。</summary>
     void DrawEmptyTracksHint(Rect rect)
     {
         EditorGUI.DrawRect(rect, ActionEditorStyles.EmptyStateBox);
         GUI.Label(
             new Rect(rect.x + 12f, rect.y + 12f, rect.width - 24f, 48f),
-            "尚未添加轨道。\n点击右上角 Add Track 选择类型并添加。",
+            "尚无 Hitbox/Cancel 等业务轨道。\n点击右上角 Add Track 添加；上方 Animation 轨用于展示多段 Clip。",
             EditorStyles.wordWrappedLabel);
     }
 
-    /// <summary>
-    /// 绘制 Animation Segments 列表；变更时由 OnValidate 重算 totalFrames。
-    /// </summary>
-    bool DrawAnimationSegmentsField(Rect rect, SerializedObject so, ref int previewFrame)
+    /// <summary>绘制默认 Animation 轨：按全局帧铺开各 animationSegments。</summary>
+    void DrawAnimationTrack(
+        Rect trackRect,
+        SerializedObject so,
+        ActionDefinition action,
+        int totalFrames,
+        ref ActionEditorSelection selection,
+        ref bool changed)
     {
+        Rect headerRect = new(trackRect.x, trackRect.y, ActionEditorStyles.TrackHeaderWidth, trackRect.height);
+        Rect laneRect = new(
+            trackRect.x + ActionEditorStyles.TrackHeaderWidth,
+            trackRect.y,
+            Mathf.Max(1f, trackRect.width - ActionEditorStyles.TrackHeaderWidth),
+            trackRect.height);
+
+        EditorGUI.DrawRect(headerRect, new Color(0.22f, 0.22f, 0.25f, 1f));
+        EditorGUI.DrawRect(laneRect, ActionEditorStyles.Background);
+        GUI.Label(
+            new Rect(headerRect.x + 4f, headerRect.y + 4f, headerRect.width - 28f, headerRect.height - 8f),
+            ActionEditorStyles.DisplayName(ActionTimelineTrackKind.Animation),
+            EditorStyles.miniLabel);
+
+        Rect menuRect = new(headerRect.xMax - 22f, headerRect.y + 4f, 18f, headerRect.height - 8f);
+        if (GUI.Button(menuRect, "⋮", EditorStyles.miniButton))
+            ShowAnimationTrackMenu(so);
+
         SerializedProperty segmentsProp = so.FindProperty("animationSegments");
         if (segmentsProp == null)
-            return false;
+            return;
 
-        EditorGUI.BeginChangeCheck();
-        EditorGUI.PropertyField(rect, segmentsProp, new GUIContent("Clips"), true);
-        if (!EditorGUI.EndChangeCheck())
-            return false;
+        Event evt = Event.current;
+        if (evt.type == EventType.MouseDown
+            && evt.clickCount == 2
+            && evt.button == 0
+            && laneRect.Contains(evt.mousePosition)
+            && _dragMode == DragMode.None)
+        {
+            selection = ActionTimelineCommands.AddAnimationSegment(so);
+            changed = true;
+            evt.Use();
+        }
 
-        so.ApplyModifiedProperties();
-        EditorUtility.SetDirty(so.targetObject);
+        float sampleRate = action.SampleRate;
+        int cursor = 0;
+        for (int i = 0; i < segmentsProp.arraySize; i++)
+        {
+            SerializedProperty element = segmentsProp.GetArrayElementAtIndex(i);
+            int frameCount = ResolveSegmentFrameCount(element, sampleRate);
+            if (frameCount <= 0)
+                continue;
 
-        // OnValidate 已重算 totalFrames；此处夹紧预览帧。
-        SerializedProperty totalFramesProp = so.FindProperty("totalFrames");
-        int maxFrame = Mathf.Max(0, (totalFramesProp?.intValue ?? 1) - 1);
-        previewFrame = Mathf.Clamp(previewFrame, 0, maxFrame);
-        return true;
+            int globalStart = cursor;
+            int globalEnd = cursor + frameCount - 1;
+            cursor += frameCount;
+
+            DrawAnimationSegmentClip(
+                laneRect,
+                element,
+                new ActionEditorSelection(segmentsProp, i, ActionTimelineTrackKind.Animation),
+                globalStart,
+                globalEnd,
+                totalFrames,
+                ref selection,
+                ref changed);
+        }
+
+        if (segmentsProp.arraySize == 0)
+        {
+            GUI.Label(
+                new Rect(laneRect.x + 8f, laneRect.y + 4f, laneRect.width - 16f, laneRect.height - 8f),
+                "双击或菜单添加 Animation Segment",
+                EditorStyles.miniLabel);
+        }
+    }
+
+    void ShowAnimationTrackMenu(SerializedObject so)
+    {
+        var menu = new GenericMenu();
+        menu.AddItem(new GUIContent("Add Segment"), false, () =>
+        {
+            _pendingSelection = ActionTimelineCommands.AddAnimationSegment(so);
+            _hasPendingSelection = true;
+            _pendingRepaint = true;
+        });
+        menu.ShowAsContext();
+    }
+
+    /// <summary>绘制单段动画条块（只读展示全局帧范围；选中后右侧改 Clip）。</summary>
+    void DrawAnimationSegmentClip(
+        Rect laneRect,
+        SerializedProperty element,
+        ActionEditorSelection itemSelection,
+        int globalStart,
+        int globalEnd,
+        int totalFrames,
+        ref ActionEditorSelection selection,
+        ref bool changed)
+    {
+        float x = laneRect.x + globalStart * _pixelsPerFrame;
+        float width = Mathf.Max(_pixelsPerFrame, (globalEnd - globalStart + 1) * _pixelsPerFrame);
+        Rect clipRect = new(x, laneRect.y + 3f, width, laneRect.height - 6f);
+
+        bool selected = selection.Equals(itemSelection);
+        Color color = selected
+            ? ActionEditorStyles.ColorForSelectedTrack(ActionTimelineTrackKind.Animation)
+            : ActionEditorStyles.ColorForTrack(ActionTimelineTrackKind.Animation);
+
+        ActionEditorStyles.DrawRoundedWindowClip(clipRect, color, selected);
+
+        var clip = element.FindPropertyRelative("clip").objectReferenceValue as AnimationClip;
+        string label = clip != null ? clip.name : $"Segment {itemSelection.Index}";
+        GUI.Label(clipRect, label, EditorStyles.miniLabel);
+
+        Event evt = Event.current;
+        if (evt.type != EventType.MouseDown || evt.button != 0 || !clipRect.Contains(evt.mousePosition))
+            return;
+
+        if (_dragMode != DragMode.None && _dragMode != DragMode.Scrub)
+            return;
+
+        selection = itemSelection;
+        changed = true;
+        evt.Use();
+    }
+
+    /// <summary>从 SerializedProperty 计算段贡献帧数（与 ActionAnimationSegment.GetFrameCount 对齐）。</summary>
+    static int ResolveSegmentFrameCount(SerializedProperty element, float sampleRate)
+    {
+        var clip = element.FindPropertyRelative("clip").objectReferenceValue as AnimationClip;
+        if (clip == null)
+            return 0;
+
+        float rate = sampleRate > 0f ? sampleRate : 30f;
+        int clipLastFrame = Mathf.Max(0, Mathf.RoundToInt(clip.length * rate) - 1);
+        int start = Mathf.Clamp(element.FindPropertyRelative("startFrame").intValue, 0, clipLastFrame);
+        int endField = element.FindPropertyRelative("endFrame").intValue;
+        int end = endField < 0 ? clipLastFrame : Mathf.Clamp(endField, start, clipLastFrame);
+        return Mathf.Max(1, end - start + 1);
     }
 
     void DrawTrack(
@@ -324,7 +436,7 @@ public sealed class ActionTimelineView
             ? ActionEditorStyles.ColorForSelectedTrack(itemSelection.Kind)
             : ActionEditorStyles.ColorForTrack(itemSelection.Kind);
 
-        EditorGUI.DrawRect(clipRect, color);
+        ActionEditorStyles.DrawRoundedWindowClip(clipRect, color, selected);
         // 用 Label 仅作绘制，不参与控件焦点，避免抢走拖拽事件。
         GUI.Label(clipRect, idProp != null ? idProp.stringValue : itemSelection.Kind.ToString(), EditorStyles.miniLabel);
 
