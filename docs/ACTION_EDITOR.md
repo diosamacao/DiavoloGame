@@ -85,7 +85,7 @@
 | 该文模块 | ACTGame 对应 | 备注 |
 |----------|--------------|------|
 | `ActInfo` + 逐帧 `FrameInfo` | `ActionDefinition` + `HitboxKeyframe` / `HurtboxKeyframe` | 需同时支持攻击框与受击框 |
-| `SkillInfo`（多 `ActInfo` 拼帧） | `ActionDefinition` + 可选 `ActionSegment[]` | M2 先单 Clip；M7 前评估多段拼接 |
+| `SkillInfo`（多 `ActInfo` 拼帧） | `ActionDefinition` + `ActionAnimationSegment[]` | ✅ 多段顺序播放已落地 |
 | `ChangeCtrl` | `CancelWindow` + `ActionTransition` | 帧范围 + 输入 → 目标招式 |
 | `SkillCtrl` + `Trigger` | `ActionEvent` + `Custom` 扩展通道 | M5 起为 Custom 预留 Trigger+Ctrl 子类模式 |
 | `HitInfo` | `Combat/` 层命中反应配置 | 编辑器不承载完整伤害公式 |
@@ -137,7 +137,7 @@
 | `ActionGraph` 节点图 | GraphView 连招 / 受击分支 |
 | 模板复制 / JSON 导入导出 | 新角色快速量产 |
 | Play Mode Overlay | 当前帧、阶段、框体调试 |
-| `ActionSegment[]` 多 Clip 拼招 | 动画复用 |
+| `ActionAnimationSegment[]` 多 Clip 拼招 | ✅ 已实现：同招顺序播多段，无需另建后摇 Action |
 | Motion Warp | 吸附目标（参考 GC2） |
 
 #### 明确延后
@@ -164,16 +164,12 @@ CharacterCombatProfile          # 角色战斗配置（引用动作库、起始�
     └── ActionGraph               # 可选：连招 / 状态转移图
             └── ActionNode        # 节点 = ActionDefinition 引用 + 转移条件
 ActionDefinition                # 单个战斗动作（核心资产）
-    ├── AnimationClip 引用（或 ActionSegment[] 多段拼接，可选）
+    ├── ActionAnimationSegment[]  # 多段 AnimationClip 顺序拼接（攻击+后摇等）
     ├── ActionPhase[]           # 阶段：Startup / Active / Recovery / ...
-    ├── ActionEvent[]           # 时间轴事件（M5+ Custom 可接 SkillCtrl）
-    ├── HitboxKeyframe[]        # 攻击判定框（区间为主，关键招可逐帧）
-    ├── HurtboxKeyframe[]       # 受击框（与 Hitbox 对称）
-    ├── MovementCurve           # 位移 / Root Motion 覆盖
-    ├── CancelWindow[]          # 取消窗口：动作取消 / 移动取消（≈ ChangeCtrl）
-    └── ActionTransition[]      # 结束衔接与分支：AnimationEnd / OnHit / OnWhiff ...
+    ├── ActionTimeline          # 统一时间轴（Notify / Cancel / Hitbox …）
+    └── ActionTransition[]      # 结束衔接与分支：换另一条 Action（连段等）
 ActionExecutor                  # 动作执行器（Player / Enemy 共用）
-    └── 读取 ActionDefinition，驱动 Animator + Combat；Logic Tick 与编辑器帧一致
+    └── 读取 ActionDefinition，按段播 Clip + Combat；Logic Tick 与编辑器帧一致
 ```
 
 ### 3.1 ActionDefinition（动作定义）
@@ -185,10 +181,9 @@ ActionExecutor                  # 动作执行器（Player / Enemy 共用）
 | 字段 | 说明 |
 |------|------|
 | 资产文件名 | 唯一标识与编辑器显示名（如 `player_attack_1`） |
-| `animationClip` | 绑定的 AnimationClip（M2 必填） |
-| `segments` | 可选 `ActionSegment[]`：多 Clip + 帧范围拼接（M7 评估） |
+| `animationSegments` | 顺序动画段；每段含 `clip` / `startFrame` / `endFrame` / `crossFadeDuration` |
 | `sampleRate` | 采样率（默认与动画 import 一致，显式对齐 Logic Tick） |
-| `totalFrames` | 总帧数（可由 clip 自动计算） |
+| `totalFrames` | 总帧数（各段有效帧累加，OnValidate 自动写） |
 | `actionType` | Attack / Dodge / Skill / Hit / Death / Locomotion ... |
 | `tags` | 如 `light_attack`, `invincible`, `guard_break` |
 
@@ -343,15 +338,15 @@ Recovery [19───────────────41]
 
 **受击与收招：** `actionType: Hit` 的招式（轻受击、重受击、浮空、击飞、倒地）与攻击招式共用 `ActionDefinition` 格式，由 `CharacterStateMachine` 的 `Hit` 状态或 `ActionExecutor` 播放。Graph 边 `[Any] --受击--> [Hit_Light]` 指向对应受击资产；受击结束通过 `ActionTransition(AnimationEnd)` 或 Graph 边回到 Locomotion / 战斗待机。
 
-### 3.9 ActionSegment（可选，多动画拼招）
+### 3.9 ActionAnimationSegment（多动画拼招）
 
 | 字段 | 说明 |
 |------|------|
 | `clip` | AnimationClip |
-| `startFrame` / `endFrame` | 使用该 Clip 的帧范围 |
-| `blendIn` | 与上一段衔接（可选） |
+| `startFrame` / `endFrame` | 使用该 Clip 的逻辑帧范围（`endFrame < 0` = 到末尾） |
+| `crossFadeDuration` | 切入本段淡入；首段可回退 `ActionDefinition.crossFadeDuration` |
 
-用于同一招式由多段动画拼接，最大化美术动作复用（对应 `SkillInfo` 多 `ActInfo`）。
+同一招式由多段动画顺序拼接（例如攻击主段 + 后摇），`totalFrames` 为各段有效帧之和；时间轴 Notify/Cancel 仍用全局逻辑帧。换另一条招式仍用 `ActionTransition`。
 
 ### 3.10 动作生命周期与衔接（总览）
 
@@ -715,3 +710,4 @@ transitions:
 | 2026-06-11 | 初版：愿景、数据模型、Phase A–E、目录与里程碑 |
 | 2026-06-17 | 方案调研与选型结论（§2）；新增 Hurtbox、damageWeight、ActionSegment；Gordon 方案映射；功能优先级矩阵；数值分离约定；GM 热重载；Editor 技术选型表；扩展参考链接与变更日志 |
 | 2026-06-17 | 动作阶段与衔接：三相模型细化；`CancelWindow.cancelType`（Action/Movement）；`ActionTransition` 分支条件；Phase 打断规则；受击 `actionType: Hit`；§3.10 生命周期总览；示例与运行时流程更新 |
+| 2026-07-12 | `ActionAnimationSegment[]` 多 Clip 顺序播放落地；§3.1/§3.9 更新为已实现 |

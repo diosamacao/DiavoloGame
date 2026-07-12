@@ -2,11 +2,17 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>招式数据：动画、统一时间轴、自动 Transition 与命中反馈默认参数。</summary>
+/// <summary>招式数据：多段动画、统一时间轴、自动 Transition 与命中反馈默认参数。</summary>
 [CreateAssetMenu(fileName = "ActionDefinition", menuName = "ACT/Combat/Action Definition")]
 public class ActionDefinition : ScriptableObject
 {
+    [HideInInspector]
     [SerializeField] AnimationClip animationClip = null;
+
+    [Header("Animation")]
+    [Tooltip("按顺序播放的动画段；totalFrames 由各段有效帧累加。")]
+    [SerializeField] ActionAnimationSegment[] animationSegments = Array.Empty<ActionAnimationSegment>();
+
     [SerializeField] float sampleRate = 30f;
     [SerializeField] int totalFrames;
     [SerializeField] CombatActionType actionType = CombatActionType.Attack;
@@ -57,19 +63,52 @@ public class ActionDefinition : ScriptableObject
     [Tooltip("开启时由动画 Root Motion 驱动位移，脚本位移（Displacement Distance）将被忽略。")]
     [SerializeField] bool useRootMotion = true;
 
-    /// <summary>播放该动作的 AnimationClip。</summary>
-    public AnimationClip AnimationClip => animationClip;
+    /// <summary>顺序动画段；运行时与编辑器均只认此列表。</summary>
+    public ActionAnimationSegment[] AnimationSegments =>
+        animationSegments ?? Array.Empty<ActionAnimationSegment>();
+
+    /// <summary>是否至少有一段绑定了 Clip。</summary>
+    public bool HasAnimation
+    {
+        get
+        {
+            ActionAnimationSegment[] segments = AnimationSegments;
+            for (int i = 0; i < segments.Length; i++)
+            {
+                if (segments[i].clip != null)
+                    return true;
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>首段 AnimationClip；兼容旧调用方的「主 Clip」查询。</summary>
+    public AnimationClip AnimationClip
+    {
+        get
+        {
+            ActionAnimationSegment[] segments = AnimationSegments;
+            for (int i = 0; i < segments.Length; i++)
+            {
+                if (segments[i].clip != null)
+                    return segments[i].clip;
+            }
+
+            return null;
+        }
+    }
 
     /// <summary>逻辑采样率；所有时间轴帧都按此值换算。</summary>
     public float SampleRate => sampleRate > 0f ? sampleRate : 30f;
 
-    /// <summary>动作总逻辑帧数。</summary>
+    /// <summary>动作总逻辑帧数（各段有效帧之和）。</summary>
     public int TotalFrames => totalFrames;
 
     /// <summary>动作类型，用于反馈默认值和上层分类。</summary>
     public CombatActionType ActionType => actionType;
 
-    /// <summary>切入动作动画时使用的淡入时长。</summary>
+    /// <summary>切入招式首段时的默认淡入时长；段可自带 crossFadeDuration 覆盖。</summary>
     public float CrossFadeDuration => crossFadeDuration;
 
     /// <summary>是否由动画 RootMotion 驱动位移。</summary>
@@ -110,6 +149,7 @@ public class ActionDefinition : ScriptableObject
 
     /// <summary>通用点事件列表，来自统一 Timeline。</summary>
     public ActionEvent[] ActionEvents => Timeline.ActionEvents;
+
     /// <summary>命中时镜头震动预设；可为空。</summary>
     public CameraShakeProfile CameraShakeProfile => cameraShakeProfile;
 
@@ -141,6 +181,7 @@ public class ActionDefinition : ScriptableObject
     /// <summary>每招是否仅第一次命中触发卡肉。</summary>
     public bool HitStopOncePerAction => hitStopOncePerAction;
 
+    /// <summary>招式总时长（秒）；优先 totalFrames，否则回退段累加。</summary>
     public float DurationSeconds
     {
         get
@@ -148,8 +189,90 @@ public class ActionDefinition : ScriptableObject
             if (totalFrames > 0)
                 return totalFrames / SampleRate;
 
-            return animationClip != null ? animationClip.length : 0f;
+            return ComputeTotalFramesFromSegments() / SampleRate;
         }
+    }
+
+    /// <summary>解析全局逻辑帧落在哪一段，以及段内帧偏移。</summary>
+    public bool TryGetSegmentAtFrame(
+        int globalFrame,
+        out int segmentIndex,
+        out ActionAnimationSegment segment,
+        out int frameOffsetInSegment)
+    {
+        segmentIndex = -1;
+        segment = default;
+        frameOffsetInSegment = 0;
+
+        ActionAnimationSegment[] segments = AnimationSegments;
+        if (segments.Length == 0 || globalFrame < 0)
+            return false;
+
+        int cursor = 0;
+        for (int i = 0; i < segments.Length; i++)
+        {
+            int count = segments[i].GetFrameCount(SampleRate);
+            if (count <= 0 || segments[i].clip == null)
+                continue;
+
+            if (globalFrame < cursor + count)
+            {
+                segmentIndex = i;
+                segment = segments[i];
+                frameOffsetInSegment = globalFrame - cursor;
+                return true;
+            }
+
+            cursor += count;
+        }
+
+        // 落在末尾之后时钳到最后有效段末帧，便于 scrub / 结束判定采样。
+        return TryGetLastValidSegment(out segmentIndex, out segment, out frameOffsetInSegment);
+    }
+
+    /// <summary>按已播放秒数解析当前动画段。</summary>
+    public bool TryGetSegmentAtElapsed(
+        float elapsedSeconds,
+        out int segmentIndex,
+        out ActionAnimationSegment segment,
+        out int frameOffsetInSegment)
+    {
+        return TryGetSegmentAtFrame(
+            FrameAt(elapsedSeconds),
+            out segmentIndex,
+            out segment,
+            out frameOffsetInSegment);
+    }
+
+    /// <summary>全局逻辑帧对应的采样 Clip；无则 null。</summary>
+    public AnimationClip GetClipAtFrame(int globalFrame)
+    {
+        return TryGetSegmentAtFrame(globalFrame, out _, out ActionAnimationSegment segment, out _)
+            ? segment.clip
+            : null;
+    }
+
+    /// <summary>全局逻辑帧对应的 Clip 局部采样时间（秒）。</summary>
+    public float GetLocalTimeInSegment(int globalFrame)
+    {
+        if (!TryGetSegmentAtFrame(globalFrame, out _, out ActionAnimationSegment segment, out int offset))
+            return 0f;
+
+        return segment.GetLocalTimeSeconds(offset, SampleRate);
+    }
+
+    /// <summary>解析切入指定段应使用的淡入时长；首段可回退到招式默认 CrossFade。</summary>
+    public float ResolveSegmentCrossFade(int segmentIndex)
+    {
+        ActionAnimationSegment[] segments = AnimationSegments;
+        if (segmentIndex < 0 || segmentIndex >= segments.Length)
+            return crossFadeDuration;
+
+        float segmentFade = segments[segmentIndex].crossFadeDuration;
+        if (segmentIndex == 0 && segmentFade <= 0f)
+            return crossFadeDuration;
+
+        return Mathf.Max(0f, segmentFade);
     }
 
     /// <summary>按 priority 降序返回 CancelWindow。</summary>
@@ -290,11 +413,9 @@ public class ActionDefinition : ScriptableObject
 
     void OnValidate()
     {
-        if (animationClip == null)
-            return;
-
         sampleRate = Mathf.Max(1f, sampleRate);
-        totalFrames = Mathf.Max(1, Mathf.RoundToInt(animationClip.length * sampleRate));
+        MigrateLegacyAnimationClipIfNeeded();
+        totalFrames = Mathf.Max(1, ComputeTotalFramesFromSegments());
 
         timeline ??= new ActionTimeline();
         timeline.ClampToTotalFrames(totalFrames);
@@ -306,6 +427,82 @@ public class ActionDefinition : ScriptableObject
         }
 
         hitStopFrames = Mathf.Max(0, hitStopFrames);
+    }
+
+    /// <summary>旧单字段 animationClip 迁入 animationSegments[0]；之后只认 segments。</summary>
+    void MigrateLegacyAnimationClipIfNeeded()
+    {
+        if (animationClip == null)
+            return;
+
+        bool hasSegmentClip = false;
+        if (animationSegments != null)
+        {
+            for (int i = 0; i < animationSegments.Length; i++)
+            {
+                if (animationSegments[i].clip != null)
+                {
+                    hasSegmentClip = true;
+                    break;
+                }
+            }
+        }
+
+        if (!hasSegmentClip)
+        {
+            animationSegments = new[]
+            {
+                new ActionAnimationSegment
+                {
+                    clip = animationClip,
+                    startFrame = 0,
+                    endFrame = -1,
+                    crossFadeDuration = 0f,
+                },
+            };
+        }
+
+        animationClip = null;
+    }
+
+    int ComputeTotalFramesFromSegments()
+    {
+        ActionAnimationSegment[] segments = AnimationSegments;
+        int sum = 0;
+        for (int i = 0; i < segments.Length; i++)
+        {
+            if (segments[i].clip == null)
+                continue;
+
+            sum += segments[i].GetFrameCount(SampleRate);
+        }
+
+        return sum;
+    }
+
+    bool TryGetLastValidSegment(
+        out int segmentIndex,
+        out ActionAnimationSegment segment,
+        out int frameOffsetInSegment)
+    {
+        segmentIndex = -1;
+        segment = default;
+        frameOffsetInSegment = 0;
+
+        ActionAnimationSegment[] segments = AnimationSegments;
+        for (int i = segments.Length - 1; i >= 0; i--)
+        {
+            int count = segments[i].GetFrameCount(SampleRate);
+            if (count <= 0 || segments[i].clip == null)
+                continue;
+
+            segmentIndex = i;
+            segment = segments[i];
+            frameOffsetInSegment = count - 1;
+            return true;
+        }
+
+        return false;
     }
 }
 

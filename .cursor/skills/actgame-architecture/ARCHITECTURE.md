@@ -114,7 +114,7 @@ InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力
 
 | 类 | 职责 |
 |----|------|
-| `ActionDefinition` | 单招 SO：动画、`ActionTimeline`、Transition、Phase、反馈默认值 |
+| `ActionDefinition` | 单招 SO：`ActionAnimationSegment[]`、`ActionTimeline`、Transition、Phase、反馈默认值 |
 | `ActionTimeline` / `ActionNotify` / `ActionNotifyState` | 动作帧数据唯一真源：点事件（自定义 Event）与区间窗口（Hitbox/Hurtbox/VFX/SFX/Cancel/Movement/Rotation）；`tracks[]` 为编辑器手动轨道 |
 | `ActionExecutor` | 纯播放器：播放、Cancel（委托 Resolver 选下一招）、Transition、**UpdateFrame Logic Tick**、统一 Timeline 派发、命中回流；不做输入查表 / 动作类型特判 |
 | `ActionSession` | 当前招式唯一会话状态：CurrentAction、Elapsed、命中确认、卡肉暂停 |

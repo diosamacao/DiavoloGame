@@ -78,18 +78,22 @@ public sealed class ActionTimelineView
             + Mathf.Max(1, trackCount) * (ActionEditorStyles.TrackHeight + 2f)
             + 80f;
 
-        // 中栏顶栏：左侧 Animation Clip，右侧 Add Track。
-        const float topBarHeight = 22f;
+        // 中栏顶栏：左侧 Animation Segments，右侧 Add Track。
+        SerializedProperty segmentsProp = so.FindProperty("animationSegments");
+        float segmentsHeight = segmentsProp != null
+            ? EditorGUI.GetPropertyHeight(segmentsProp, true)
+            : 20f;
+        float topBarHeight = Mathf.Max(22f, segmentsHeight + 4f);
         const float addTrackWidth = 90f;
         Rect topBarRect = new(rect.x, rect.y, rect.width, topBarHeight);
         Rect clipFieldRect = new(
             topBarRect.x + 4f,
             topBarRect.y + 1f,
             ActionEditorStyles.TrackHeaderWidth - 4f,
-            20f);
+            topBarHeight - 2f);
         Rect addTrackRect = new(topBarRect.xMax - addTrackWidth - 4f, topBarRect.y + 1f, addTrackWidth, 20f);
 
-        if (DrawAnimationClipField(clipFieldRect, so, ref previewFrame))
+        if (DrawAnimationSegmentsField(clipFieldRect, so, ref previewFrame))
             changed = true;
 
         int totalFrames = Mathf.Max(1, so.FindProperty("totalFrames")?.intValue ?? action.TotalFrames);
@@ -171,35 +175,24 @@ public sealed class ActionTimelineView
     }
 
     /// <summary>
-    /// 绘制 Animation Clip 选择；变更时同步 totalFrames。
+    /// 绘制 Animation Segments 列表；变更时由 OnValidate 重算 totalFrames。
     /// </summary>
-    bool DrawAnimationClipField(Rect rect, SerializedObject so, ref int previewFrame)
+    bool DrawAnimationSegmentsField(Rect rect, SerializedObject so, ref int previewFrame)
     {
-        SerializedProperty clipProp = so.FindProperty("animationClip");
-        if (clipProp == null)
+        SerializedProperty segmentsProp = so.FindProperty("animationSegments");
+        if (segmentsProp == null)
             return false;
 
         EditorGUI.BeginChangeCheck();
-        EditorGUI.ObjectField(rect, clipProp, typeof(AnimationClip), GUIContent.none);
+        EditorGUI.PropertyField(rect, segmentsProp, new GUIContent("Clips"), true);
         if (!EditorGUI.EndChangeCheck())
             return false;
 
         so.ApplyModifiedProperties();
-
-        var clip = clipProp.objectReferenceValue as AnimationClip;
-        SerializedProperty sampleRateProp = so.FindProperty("sampleRate");
-        SerializedProperty totalFramesProp = so.FindProperty("totalFrames");
-        float sampleRate = sampleRateProp != null ? Mathf.Max(1f, sampleRateProp.floatValue) : 30f;
-        if (totalFramesProp != null)
-        {
-            totalFramesProp.intValue = clip != null
-                ? Mathf.Max(1, Mathf.RoundToInt(clip.length * sampleRate))
-                : 1;
-        }
-
-        so.ApplyModifiedProperties();
         EditorUtility.SetDirty(so.targetObject);
 
+        // OnValidate 已重算 totalFrames；此处夹紧预览帧。
+        SerializedProperty totalFramesProp = so.FindProperty("totalFrames");
         int maxFrame = Mathf.Max(0, (totalFramesProp?.intValue ?? 1) - 1);
         previewFrame = Mathf.Clamp(previewFrame, 0, maxFrame);
         return true;

@@ -28,7 +28,11 @@ public sealed class ActionDefinitionCreateWindow : EditorWindow
         EditorGUILayout.Space(4f);
 
         _fileName = EditorGUILayout.TextField("File Name", _fileName);
-        _clip = (AnimationClip)EditorGUILayout.ObjectField("Animation Clip", _clip, typeof(AnimationClip), false);
+        _clip = (AnimationClip)EditorGUILayout.ObjectField(
+            "First Animation Clip",
+            _clip,
+            typeof(AnimationClip),
+            false);
 
         EditorGUILayout.Space(4f);
         EditorGUILayout.LabelField("Save Folder", EditorStyles.miniLabel);

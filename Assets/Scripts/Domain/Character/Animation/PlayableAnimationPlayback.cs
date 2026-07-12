@@ -109,6 +109,23 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
         _fading = true;
     }
 
+    /// <summary>将当前主 Clip 跳到指定时间；同时清淡入以免权重卡在过渡中。</summary>
+    public void Seek(float timeSeconds)
+    {
+        if (!IsValid || !_currentPlayable.IsValid())
+            return;
+
+        double clamped = Mathf.Max(0f, timeSeconds);
+        if (_currentClip != null)
+            clamped = Mathf.Min((float)clamped, _currentClip.length);
+
+        _currentPlayable.SetTime(clamped);
+        _currentPlayable.SetTime(clamped);
+        SetWeights(0f, 1f);
+        DestroySlot(PreviousSlot, ref _previousPlayable);
+        _fading = false;
+    }
+
     /// <summary>按 Speed 推进 CrossFade 权重；Speed=0 时淡入与骨骼一并冻结。</summary>
     public void Tick(float deltaTime)
     {

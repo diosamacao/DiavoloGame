@@ -13,6 +13,9 @@ public sealed class ActionSession
     /// <summary>上一次派发过的逻辑帧，用于避免大 delta 漏帧。</summary>
     public int LastProcessedFrame { get; set; } = -1;
 
+    /// <summary>当前已切入的动画段索引；用于段边界 PlayClip 去重。</summary>
+    public int CurrentAnimationSegmentIndex { get; set; } = -1;
+
     /// <summary>卡肉期间暂停招式逻辑时间。</summary>
     public bool IsHitStopPaused { get; private set; }
 
@@ -27,6 +30,7 @@ public sealed class ActionSession
         CurrentAction = action;
         ElapsedSeconds = 0f;
         LastProcessedFrame = -1;
+        CurrentAnimationSegmentIndex = -1;
         IsHitStopPaused = false;
         HasConfirmedHit = false;
         _hitStopTriggered = false;
@@ -38,6 +42,7 @@ public sealed class ActionSession
         CurrentAction = null;
         ElapsedSeconds = 0f;
         LastProcessedFrame = -1;
+        CurrentAnimationSegmentIndex = -1;
         IsHitStopPaused = false;
         HasConfirmedHit = false;
         _hitStopTriggered = false;

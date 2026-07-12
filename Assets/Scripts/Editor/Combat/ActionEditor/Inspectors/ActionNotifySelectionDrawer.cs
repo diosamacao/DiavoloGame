@@ -80,15 +80,15 @@ public static class ActionNotifySelectionDrawer
         EditorGUI.BeginChangeCheck();
         using (new EditorGUI.DisabledScope(true))
             EditorGUILayout.TextField("File Name", action.name);
-        EditorGUILayout.PropertyField(so.FindProperty("animationClip"));
+        EditorGUILayout.PropertyField(so.FindProperty("animationSegments"), new GUIContent("Animation Clips"), true);
         EditorGUILayout.PropertyField(so.FindProperty("sampleRate"));
         using (new EditorGUI.DisabledScope(true))
             EditorGUILayout.IntField("Total Frames", action.TotalFrames);
         EditorGUILayout.PropertyField(so.FindProperty("actionType"));
         EditorGUILayout.PropertyField(so.FindProperty("crossFadeDuration"));
 
-        if (action.AnimationClip == null)
-            EditorGUILayout.HelpBox("请指定 Animation Clip，否则无法预览 Pose。", MessageType.Warning);
+        if (!action.HasAnimation)
+            EditorGUILayout.HelpBox("请至少配置一段 Animation Clip，否则无法预览 Pose。", MessageType.Warning);
 
         if (EditorGUI.EndChangeCheck())
         {

@@ -126,9 +126,9 @@ public class ActionDefinitionHitboxEditor : Editor
         if (_previewCharacter == null)
             return;
 
-        if (action.AnimationClip == null)
+        if (!action.HasAnimation)
         {
-            EditorGUILayout.HelpBox("该 ActionDefinition 未绑定 Animation Clip，无法预览角色动作。", MessageType.Warning);
+            EditorGUILayout.HelpBox("该 ActionDefinition 未配置 Animation Segments，无法预览角色动作。", MessageType.Warning);
             return;
         }
 

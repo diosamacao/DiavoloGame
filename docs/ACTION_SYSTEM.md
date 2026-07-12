@@ -270,7 +270,7 @@ CharacterActor ── InputManager（唯一持有者）
 2. **选招与播放分离** — `ActionResolverService` 负责"选哪招"，`ActionExecutor` 只负责"播已解析好的招"，执行器不认识出招表也不做 Dodge 特判。
 3. **输入与玩法解耦** — 状态机不读输入；`InputManager` 由 `CharacterActor` 持有。
 4. **状态机薄层** — `Action` 状态只 Tick `IActionExecutor`。
-5. **Clip + Playable** — Locomotion Profile 与招式均引用 `AnimationClip`，经 `IAnimationPlayback` 播放。
+5. **Clip + Playable** — Locomotion Profile 与招式 `animationSegments` 均引用 `AnimationClip`，经 `IAnimationPlayback` 播放。
 6. **角色无关执行器** — `ActionExecutor` 可复用于敌人（输入源可替换）。
 
 ---
@@ -281,7 +281,7 @@ CharacterActor ── InputManager（唯一持有者）
 
 | 区块 | 字段 | 说明 |
 |------|------|------|
-| 基础 | `animationClip`, `sampleRate`, `totalFrames`, `actionType`, `crossFadeDuration` | 动画与类型；显示名即资产文件名 |
+| 基础 | `animationSegments[]`, `sampleRate`, `totalFrames`, `actionType`, `crossFadeDuration` | 多段动画顺序播放；`totalFrames` 为各段有效帧之和；显示名即资产文件名 |
 | Cancel Windows | `cancelWindows[]` | 帧区间、`cancelType`、`allowedInputs`、`priority` |
 | Transitions | `transitions[]` | `condition`, `startFrame`, `targetAction`, `priority` |
 | Start Behaviors | `startBehaviors[]` | 起手副作用 |
