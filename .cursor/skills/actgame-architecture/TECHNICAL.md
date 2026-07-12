@@ -246,7 +246,7 @@ MoveInputMagnitude ≤ RunThreshold → Walk
 
 ### Action 状态下的动画锁
 
-进入 `ActionState` 时 `SetLocked(true)`，`Play` 调用被忽略；Exit 时解锁并重置 `_currentKey`。招式走 `PlayClip(ActionDefinition.AnimationClip)`。
+进入 `ActionState` 时 `SetLocked(true)`，`Play` 调用被忽略；Exit 时解锁并重置 `_currentKey`。招式走 `animationSegments` 顺序 PlayClip，段边界由 `ActionExecutor` 自动切换。
 
 ### 相关文件
 
@@ -444,3 +444,4 @@ ActionState.Tick
 | 2026-07-09 | ActionNotify 时间轴重构：新增 `ActionTimeline` / `ActionNotify` / `ActionNotifyState` / `ActionTimelineRunner`；Hitbox/VFX/Cancel/Movement/Rotation 改为统一 Timeline 数据真源并删除旧字段路径 |
 | 2026-07-10 | VFX/SFX 改为区间窗口（`naturalDurationSeconds` / `playbackSpeed`）；新增 `ActionEditorWindow` 手动加轨与拖拽编辑；`ActionVfxPlayer` 改窗口 Enter/Exit 消费 |
 | 2026-07-12 | 动画改为 Clip + 薄层 Playable：`IAnimationPlayback` / `PlayableAnimationPlayback`；Profile 映射 Clip；HitStop 走 `SetSpeed`；废弃 Animator Controller 业务依赖 |
+| 2026-07-12 | `ActionDefinition` 多段 `ActionAnimationSegment[]`：同招顺序播多 Clip；`ActionExecutor` 段边界自动切；旧 `animationClip` OnValidate 迁入 segments |

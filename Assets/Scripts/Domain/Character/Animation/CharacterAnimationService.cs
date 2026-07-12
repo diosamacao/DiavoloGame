@@ -77,6 +77,9 @@ public sealed class CharacterAnimationService : IDisposable
         _currentKey = null;
     }
 
+    /// <summary>将当前招式 Clip 跳到指定时间（秒）。</summary>
+    public void SeekClip(float timeSeconds) => playback?.Seek(timeSeconds);
+
     public bool HasFinishedClip(AnimationClip clip)
     {
         if (playback == null || clip == null)

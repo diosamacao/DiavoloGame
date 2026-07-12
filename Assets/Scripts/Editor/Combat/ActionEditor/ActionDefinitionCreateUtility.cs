@@ -9,7 +9,7 @@ public static class ActionDefinitionCreateUtility
 
     /// <summary>
     /// 创建新招式资产；文件名即显示名。成功返回资产，失败返回 null。
-    /// 仅新建文件，不修改已有 .asset。
+    /// 仅新建文件，不修改已有 .asset。首段写入 animationSegments[0]。
     /// </summary>
     public static ActionDefinition Create(
         string fileName,
@@ -34,12 +34,25 @@ public static class ActionDefinitionCreateUtility
         AssetDatabase.CreateAsset(action, assetPath);
 
         var so = new SerializedObject(action);
-        so.FindProperty("animationClip").objectReferenceValue = animationClip;
+        SerializedProperty segmentsProp = so.FindProperty("animationSegments");
+        if (animationClip != null && segmentsProp != null)
+        {
+            segmentsProp.arraySize = 1;
+            SerializedProperty element = segmentsProp.GetArrayElementAtIndex(0);
+            element.FindPropertyRelative("clip").objectReferenceValue = animationClip;
+            element.FindPropertyRelative("startFrame").intValue = 0;
+            element.FindPropertyRelative("endFrame").intValue = -1;
+            element.FindPropertyRelative("crossFadeDuration").floatValue = 0f;
 
-        // 与 ActionDefinition.OnValidate 对齐：有 Clip 时写入 totalFrames。
-        float sampleRate = Mathf.Max(1f, so.FindProperty("sampleRate").floatValue);
-        if (animationClip != null)
-            so.FindProperty("totalFrames").intValue = Mathf.Max(1, Mathf.RoundToInt(animationClip.length * sampleRate));
+            float sampleRate = Mathf.Max(1f, so.FindProperty("sampleRate").floatValue);
+            so.FindProperty("totalFrames").intValue =
+                Mathf.Max(1, Mathf.RoundToInt(animationClip.length * sampleRate));
+        }
+        else if (segmentsProp != null)
+        {
+            segmentsProp.arraySize = 0;
+            so.FindProperty("totalFrames").intValue = 1;
+        }
 
         so.ApplyModifiedPropertiesWithoutUndo();
         EditorUtility.SetDirty(action);

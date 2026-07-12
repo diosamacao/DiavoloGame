@@ -88,7 +88,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 
     public bool TryStart(ActionDefinition action)
     {
-        if (_session.IsActive || action == null || action.AnimationClip == null || animationController == null)
+        if (_session.IsActive || action == null || !action.HasAnimation || animationController == null)
             return false;
 
         ExecuteStartBehaviors(action);
@@ -103,6 +103,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 
         ActionDefinition current = _session.CurrentAction;
         _session.Advance(deltaTime);
+        SyncAnimationSegment();
         ApplyScriptedDisplacement(deltaTime);
         SyncLogicFrameFromElapsed();
 
@@ -124,6 +125,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 
         frameIndex = Mathf.Clamp(frameIndex, 0, Mathf.Max(0, _session.CurrentAction.TotalFrames - 1));
         _session.SetFrame(frameIndex);
+        SyncAnimationSegment();
         AdvanceLogicFramesThrough(frameIndex);
     }
 
@@ -182,7 +184,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
             if (!_resolverService.TryResolveNext(in request, in context, out ActionDefinition nextAction))
                 continue;
 
-            if (nextAction == null || nextAction.AnimationClip == null)
+            if (nextAction == null || !nextAction.HasAnimation)
                 continue;
 
             ClearOtherActionBuffers(matchedInputId);
@@ -240,7 +242,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
                     _session.HasConfirmedHit))
                 continue;
 
-            if (transition.TargetAction != null && transition.TargetAction.AnimationClip != null)
+            if (transition.TargetAction != null && transition.TargetAction.HasAnimation)
             {
                 TransitionTo(transition.TargetAction);
                 return true;
@@ -301,12 +303,55 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
     {
         _session.Begin(action);
         _rootMotion?.SetActive(action.UseRootMotion);
-        animationController.PlayClip(action.AnimationClip, action.CrossFadeDuration);
-        Debug.Log($"BeginAction: {action.AnimationClip.name}");
+        PlayAnimationSegment(action, 0);
+        Debug.Log($"BeginAction: {action.name} segment0={(action.AnimationClip != null ? action.AnimationClip.name : "null")}");
 
         NotifyActionBegan(action);
         DispatchCombatFrame(0, -1);
         _session.LastProcessedFrame = 0;
+    }
+
+    /// <summary>按当前 elapsed 切入对应动画段；同段不重复 Play。</summary>
+    void SyncAnimationSegment()
+    {
+        ActionDefinition action = _session.CurrentAction;
+        if (action == null || animationController == null)
+            return;
+
+        if (!action.TryGetSegmentAtElapsed(
+                _session.ElapsedSeconds,
+                out int segmentIndex,
+                out ActionAnimationSegment segment,
+                out _))
+            return;
+
+        if (segment.clip == null || segmentIndex == _session.CurrentAnimationSegmentIndex)
+            return;
+
+        PlayAnimationSegment(action, segmentIndex);
+    }
+
+    void PlayAnimationSegment(ActionDefinition action, int segmentIndex)
+    {
+        ActionAnimationSegment[] segments = action.AnimationSegments;
+        if (segmentIndex < 0 || segmentIndex >= segments.Length)
+            return;
+
+        ActionAnimationSegment segment = segments[segmentIndex];
+        if (segment.clip == null)
+            return;
+
+        float fade = action.ResolveSegmentCrossFade(segmentIndex);
+        animationController.PlayClip(segment.clip, fade);
+
+        // 段裁切：从 Clip 内 startFrame 对应时间起播。
+        if (segment.startFrame > 0
+            && segment.TryGetFrameRange(action.SampleRate, out int startInclusive, out _))
+        {
+            animationController.SeekClip(startInclusive / action.SampleRate);
+        }
+
+        _session.CurrentAnimationSegmentIndex = segmentIndex;
     }
 
     void SyncLogicFrameFromElapsed()

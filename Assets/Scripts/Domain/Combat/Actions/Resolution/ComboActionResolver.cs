@@ -28,21 +28,21 @@ public class ComboActionResolver : ActionResolver
         if (index < 0)
         {
             action = rootAction;
-            return true;
+            return rootAction.HasAnimation;
         }
 
         // 命中队列内部：进位到下一段。
         if (index + 1 < steps.Length)
         {
             action = steps[index + 1];
-            return action != null && action.AnimationClip != null;
+            return action != null && action.HasAnimation;
         }
 
         // 末段再次输入：按叶策略循环回首段或终止连段。
         if (leafPolicy == ComboLeafPolicy.LoopToRoot)
         {
             action = rootAction;
-            return true;
+            return rootAction.HasAnimation;
         }
 
         return false;

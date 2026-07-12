@@ -22,6 +22,9 @@ public interface IAnimationPlayback : IDisposable
     /// <summary>以固定秒数淡入播放 Clip；同引用也会强制从头重播。</summary>
     void Play(AnimationClip clip, float fadeDuration);
 
+    /// <summary>将当前主 Clip 跳到指定时间（秒）；用于段 startFrame 裁切起点。</summary>
+    void Seek(float timeSeconds);
+
     /// <summary>推进淡入混合等需手动更新的逻辑；Graph 自动推进时仍用于权重插值。</summary>
     void Tick(float deltaTime);
 }

@@ -58,14 +58,14 @@ public class DirectionalActionResolver : ActionResolver
     /// <summary>方向动作缺失时回退 defaultAction；仍无效则解析失败，不启动动作。</summary>
     bool TryFinalize(ActionDefinition variant, out ActionDefinition action)
     {
-        if (variant != null && variant.AnimationClip != null)
+        if (variant != null && variant.HasAnimation)
         {
             action = variant;
             return true;
         }
 
         action = defaultAction;
-        return action != null && action.AnimationClip != null;
+        return action != null && action.HasAnimation;
     }
 
     /// <summary>读取闪避判定方向并投影到 XZ 平面；无有效方向时返回 false。</summary>

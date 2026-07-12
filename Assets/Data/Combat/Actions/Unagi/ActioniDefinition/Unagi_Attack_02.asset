@@ -10,20 +10,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
-  m_Name: Unagi_Attack_01
+  m_Name: Unagi_Attack_02
   m_EditorClassIdentifier: 
   animationClip: {fileID: 0}
   animationSegments:
-  - clip: {fileID: 2754811189149721877, guid: 6b84a4fde20facb4781831a8174d37bd, type: 3}
+  - clip: {fileID: -8821836075838314823, guid: 9a912e5d66b5e1140b0e6345cf2cb593, type: 3}
     startFrame: 0
     endFrame: -1
     crossFadeDuration: 0
-  - clip: {fileID: -7596049190413007820, guid: 18bc4e1c163b1ee46b9fa99e2c7ff8c6, type: 3}
+  - clip: {fileID: 2038334351013100477, guid: 98aec8210077f9b41870249b3de566ff, type: 3}
     startFrame: 0
     endFrame: -1
     crossFadeDuration: 0
   sampleRate: 30
-  totalFrames: 121
+  totalFrames: 123
   actionType: 0
   crossFadeDuration: 0.1
   phases: []
@@ -31,31 +31,36 @@ MonoBehaviour:
     actionEvents: []
     playVfxNotifies: []
     playSfxStates: []
-    hitboxStates: []
+    hitboxStates:
+    - id: Hitbox_1
+      startFrame: 4
+      endFrame: 6
+      priority: 0
+      trackName: Hitbox_2
+      hitboxId: 
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 0, z: 0}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 0, y: 0, z: 0}
+      damageWeight: 0
+      hitReactionId: 
     hurtboxStates: []
     cancelWindowStates:
     - id: Cancel_1
-      startFrame: 19
-      endFrame: 120
+      startFrame: 20
+      endFrame: 122
       priority: 0
       trackName: Cancel_1
       cancelType: 1
       allowedInputs: []
-    - id: Cancel_2
-      startFrame: 16
-      endFrame: 26
-      priority: 0
-      trackName: Cancel_3
-      cancelType: 1
-      allowedInputs:
-      - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     movementStates: []
     rotationStates: []
     tracks:
-    - trackName: Cancel_1
-      kind: 4
+    - trackName: Hitbox_2
+      kind: 0
       visible: 1
-    - trackName: Cancel_3
+    - trackName: Cancel_1
       kind: 4
       visible: 1
   transitions: []

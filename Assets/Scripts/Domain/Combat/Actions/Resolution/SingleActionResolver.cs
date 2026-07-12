@@ -12,6 +12,6 @@ public class SingleActionResolver : ActionResolver
         out ActionDefinition resolved)
     {
         resolved = action;
-        return resolved != null && resolved.AnimationClip != null;
+        return resolved != null && resolved.HasAnimation;
     }
 }

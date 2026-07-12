@@ -30,7 +30,7 @@ public readonly struct ActionEditorPreviewContext
     public bool IsValid =>
         Action != null
         && PreviewCharacter != null
-        && Action.AnimationClip != null;
+        && Action.HasAnimation;
 }
 
 /// <summary>
@@ -227,13 +227,12 @@ public sealed class ActionEditorPreviewSession : IDisposable
 
         if (NeedsResample())
         {
-            ActionEditorAnimationSampler.Sample(
-                context.Action.AnimationClip,
-                context.PreviewTimeSeconds,
-                context.SampleRate);
+            AnimationClip clip = context.Action.GetClipAtFrame(context.PreviewFrame);
+            float localTime = context.Action.GetLocalTimeInSegment(context.PreviewFrame);
+            ActionEditorAnimationSampler.Sample(clip, localTime, context.SampleRate);
 
             _lastSampledFrame = _previewFrame;
-            _lastSampledClip = context.Action.AnimationClip;
+            _lastSampledClip = clip;
             _lastSampledCharacter = _previewCharacter;
         }
 
@@ -278,8 +277,9 @@ public sealed class ActionEditorPreviewSession : IDisposable
 
     bool NeedsResample()
     {
+        AnimationClip clipAtFrame = _action != null ? _action.GetClipAtFrame(_previewFrame) : null;
         return _previewFrame != _lastSampledFrame
-            || _action.AnimationClip != _lastSampledClip
+            || clipAtFrame != _lastSampledClip
             || _previewCharacter != _lastSampledCharacter;
     }
 
