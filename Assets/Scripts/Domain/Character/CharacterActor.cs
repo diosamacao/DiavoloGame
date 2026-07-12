@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>单角色运行实例，集中持有输入、移动、状态、动作和战斗服务。</summary>
-public sealed class CharacterActor
+public sealed class CharacterActor : System.IDisposable
 {
     readonly ICharacterInputSource _inputSource;
     readonly InputManager _inputManager;
@@ -9,9 +9,13 @@ public sealed class CharacterActor
     readonly CharacterStateMachine _stateMachine;
     readonly CharacterActionDriver _actionDriver;
     readonly CombatModeService _combatMode;
+    readonly CharacterAnimationService _animation;
 
     /// <summary>角色输入中枢，玩家相机等系统可读取 LookIntent。</summary>
     public InputManager Input => _inputManager;
+
+    /// <summary>动画门面；供注册系统与卡肉使用。</summary>
+    public CharacterAnimationService Animation => _animation;
 
     /// <summary>当前移动输入幅度。</summary>
     public float MoveInputMagnitude => _motor.MoveInputMagnitude;
@@ -32,7 +36,8 @@ public sealed class CharacterActor
         CharacterMotor motor,
         CharacterStateMachine stateMachine,
         CharacterActionDriver actionDriver,
-        CombatModeService combatMode)
+        CombatModeService combatMode,
+        CharacterAnimationService animation)
     {
         _inputSource = inputSource;
         _inputManager = inputManager;
@@ -40,6 +45,7 @@ public sealed class CharacterActor
         _stateMachine = stateMachine;
         _actionDriver = actionDriver;
         _combatMode = combatMode;
+        _animation = animation;
     }
 
     /// <summary>启用输入源。</summary>
@@ -54,12 +60,17 @@ public sealed class CharacterActor
         _motor.SetCameraTransform(cameraTransform);
     }
 
-    /// <summary>按固定顺序推进输入、动作路由、重力与状态机。</summary>
+    /// <summary>按固定顺序推进输入、动作路由、重力、状态机与动画淡入。</summary>
     public void Tick(float deltaTime)
     {
         _inputManager.IngestFrame(_inputSource.CaptureFrame());
         _actionDriver.ProcessGameplayInput();
         _motor.TickGravity(deltaTime);
         _stateMachine.Tick(deltaTime);
+        // 状态机内可能 Play 新 Clip，同帧末推进 CrossFade 权重。
+        _animation.Tick(deltaTime);
     }
+
+    /// <summary>释放动画 PlayableGraph 等资源。</summary>
+    public void Dispose() => _animation?.Dispose();
 }

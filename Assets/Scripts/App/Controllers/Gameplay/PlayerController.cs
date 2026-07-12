@@ -43,9 +43,9 @@ public class PlayerController : AppControllerBase
             () => SendQuery(new GetActiveTargetsQuery()),
             ApplyDetectedHit,
             out ActionExecutor actionExecutor,
-            out Animator animator);
+            out CharacterAnimationService animation);
 
-        GetSystem<CombatActorSystem>()?.Register(transform, actor, actionExecutor, animator);
+        GetSystem<CombatActorSystem>()?.Register(transform, actor, actionExecutor, animation);
     }
 
     void OnEnable()
@@ -61,6 +61,8 @@ public class PlayerController : AppControllerBase
     void OnDestroy()
     {
         GetSystem<CombatActorSystem>()?.Unregister(transform);
+        actor?.Dispose();
+        actor = null;
     }
 
     void Update()

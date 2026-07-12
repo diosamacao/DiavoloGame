@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-07-10
+> Last audited: 2026-07-12
 
 ## 项目概述
 
@@ -147,8 +147,10 @@ InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力
 | 类 | 职责 |
 |----|------|
 | `AnimationKey` | 逻辑动画键枚举 |
-| `CharacterAnimationProfile` | AnimationKey → Animator 状态名映射 |
-| `CharacterAnimationService` | 纯 C# Animator 封装：CrossFade 播放 Locomotion；招式 `PlayClip` |
+| `CharacterAnimationProfile` | AnimationKey → AnimationClip 映射 |
+| `IAnimationPlayback` | 可替换播放后端契约（Playable / 未来 Animancer） |
+| `PlayableAnimationPlayback` | 双槽 CrossFade PlayableGraph 实现 |
+| `CharacterAnimationService` | 调用层门面：Locomotion `Play`、招式 `PlayClip`、`SetSpeed` |
 
 ### 6. 输入（Input）
 
@@ -169,7 +171,7 @@ InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力
 - Unity + **Input System**
 - **CharacterController** 移动
 - **Cinemachine** 虚拟相机
-- **Animator** + CrossFade（Locomotion）；招式 Clip 由 `ActionDefinition` 驱动
+- **Animator** 仅作 Playable 输出目标 + Avatar + Root Motion；Locomotion/招式均由 Clip + `IAnimationPlayback` 驱动
 - 无命名空间（全局类名，靠目录分层）
 
 ## 扩展点

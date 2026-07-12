@@ -30,7 +30,7 @@
 | AI 输入源 | `Assets/Scripts/Infrastructure/Input/AIInputSource.cs` | 纯 C# | AI 决策 → `PlayerInputFrame`，复用 `CharacterActorFactory` |
 | 输入中枢 | `Assets/Scripts/Domain/Input/InputManager.cs` | 纯 C# | 摄入输入帧、离散输入回调、输入缓冲、移动意图 |
 | 移动服务 | `Assets/Scripts/Domain/Character/CharacterMotor.cs` | 纯 C# | Locomotion 位移、重力、移动意图解析、起手面向 |
-| 动画服务 | `Assets/Scripts/Domain/Character/Animation/CharacterAnimationService.cs` | 纯 C# | Locomotion CrossFade、Action Clip 播放、动画锁 |
+| 动画服务 | `Assets/Scripts/Domain/Character/Animation/CharacterAnimationService.cs` | 纯 C# | Locomotion/招式 Clip 门面；后端 `IAnimationPlayback` |
 | Root Motion | `Assets/Scripts/Domain/Character/Animation/CharacterRootMotionDriver.cs` | 纯 C# + 内部 Receiver | 控制 Animator Root Motion；内部 `CharacterRootMotionReceiver` 仅作为 `OnAnimatorMove` 桥接挂在 Animator 子物体 |
 | 状态机 | `Assets/Scripts/Domain/Character/StateMachine/CharacterStateMachine.cs` | 纯 C# | 注册并 Tick `LocomotionState` / `ActionState` |
 | 状态上下文 | `Assets/Scripts/Domain/Character/StateMachine/CharacterContext.cs` | 纯 C# | 状态机共享 Transform、Animation、Motor、ActionExecutor、Motor 快照 |
@@ -73,7 +73,8 @@ Scene Empty
           → Instantiate(CharacterConfig.ModelPrefab)
           → GetOrAdd CharacterController（唯一允许补到 Player 根的 Unity 组件）
           → use ICharacterInputSource（玩家为 InputReader，敌人为 AIInputSource）
-          → new CharacterAnimationService(Animator, LocomotionProfile)
+          → new PlayableAnimationPlayback(Animator)  // 清空 runtimeAnimatorController
+          → new CharacterAnimationService(playback, Animator, LocomotionProfile)
           → new CharacterRootMotionDriver(CharacterController, Animator)
               → Animator 子物体 AddComponent<CharacterRootMotionReceiver>（OnAnimatorMove 桥接）
           → new CombatModeService(CombatModeProfile, AnimationService)
@@ -89,7 +90,7 @@ Scene Empty
           → actionRuntime.BindInputBuffer(actionDriver.CreateInputBufferBridge())
           → new CharacterActor(...)
           → new ActionRotationDriver(root, stateMachine, inputManager, runtime, actionRuntime, targetLock)
-          → CombatActorSystem.Register(root, actor, actionExecutor, animator)
+          → CombatActorSystem.Register(root, actor, actionExecutor, animation)
 ```
 
 ### 0.4 每帧调用链
@@ -160,10 +161,10 @@ HitDetectionSystem
           → CombatActorSystem.TryGet(attackerRoot)
           → ActionExecutor.TryConsumeHitStopTrigger
           → ActionExecutor.SetHitStopPaused(true)
-          → Animator.speed = 0
+          → CharacterAnimationService.SetSpeed(0)
           → Update unscaled timer
           → ActionExecutor.SetHitStopPaused(false)
-          → Animator.speed restore
+          → CharacterAnimationService.SetSpeed(restore)
           → CombatFeedbackSystem.BeginHitStop / EndHitStop
 ```
 
@@ -269,7 +270,7 @@ CharacterActor ── InputManager（唯一持有者）
 2. **选招与播放分离** — `ActionResolverService` 负责"选哪招"，`ActionExecutor` 只负责"播已解析好的招"，执行器不认识出招表也不做 Dodge 特判。
 3. **输入与玩法解耦** — 状态机不读输入；`InputManager` 由 `CharacterActor` 持有。
 4. **状态机薄层** — `Action` 状态只 Tick `IActionExecutor`。
-5. **Animator 双轨** — Locomotion 走 Profile；招式 `PlayClip`。
+5. **Clip + Playable** — Locomotion Profile 与招式均引用 `AnimationClip`，经 `IAnimationPlayback` 播放。
 6. **角色无关执行器** — `ActionExecutor` 可复用于敌人（输入源可替换）。
 
 ---
@@ -540,7 +541,7 @@ ActionExecutor                   HitBoxSystem              受击方
 2. **CancelWindow.cancelType** — `Action` / `Movement` 分工与 ACTION_EDITOR §3.6 一致。
 3. **Cancel vs Transition** — Cancel 需输入；Transition 自动衔接（含 AnimationEnd）。
 4. **priority 解析** — 多窗口/多 Transition 按 priority 降序，与文档一致。
-5. **Animator 仅 Locomotion** — 招式 `PlayClip`，与编辑器约定一致。
+5. **无 Animator Controller 业务依赖** — Locomotion/招式均 `Play`/`PlayClip`；编辑器预览仍可用 `AnimationMode`。
 6. **输入缓冲** — 全程 Buffer、窗口内 Consume，与 §5.1 输入缓冲设计一致。
 7. **数值与逻辑分离** — 伤害公式未进 `ActionDefinition`（符合 §2.5）。
 
