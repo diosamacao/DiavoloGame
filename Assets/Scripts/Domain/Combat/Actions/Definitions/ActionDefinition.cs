@@ -6,8 +6,6 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "ActionDefinition", menuName = "ACT/Combat/Action Definition")]
 public class ActionDefinition : ScriptableObject
 {
-    [SerializeField] string id = "player_attack_1";
-    [SerializeField] string displayName = "Attack 1";
     [SerializeField] AnimationClip animationClip = null;
     [SerializeField] float sampleRate = 30f;
     [SerializeField] int totalFrames;
@@ -58,12 +56,6 @@ public class ActionDefinition : ScriptableObject
     [Header("Movement")]
     [Tooltip("开启时由动画 Root Motion 驱动位移，脚本位移（Displacement Distance）将被忽略。")]
     [SerializeField] bool useRootMotion = true;
-
-    /// <summary>动作稳定 id，用于日志、编辑器列表与后续引用。</summary>
-    public string Id => id;
-
-    /// <summary>编辑器显示名。</summary>
-    public string DisplayName => displayName;
 
     /// <summary>播放该动作的 AnimationClip。</summary>
     public AnimationClip AnimationClip => animationClip;
@@ -300,9 +292,6 @@ public class ActionDefinition : ScriptableObject
     {
         if (animationClip == null)
             return;
-
-        if (string.IsNullOrEmpty(id))
-            id = name;
 
         sampleRate = Mathf.Max(1f, sampleRate);
         totalFrames = Mathf.Max(1, Mathf.RoundToInt(animationClip.length * sampleRate));

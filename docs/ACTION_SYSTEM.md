@@ -280,7 +280,7 @@ CharacterActor ── InputManager（唯一持有者）
 
 | 区块 | 字段 | 说明 |
 |------|------|------|
-| 基础 | `id`, `displayName`, `animationClip`, `sampleRate`, `totalFrames`, `actionType`, `crossFadeDuration` | 动画与标识 |
+| 基础 | `animationClip`, `sampleRate`, `totalFrames`, `actionType`, `crossFadeDuration` | 动画与类型；显示名即资产文件名 |
 | Cancel Windows | `cancelWindows[]` | 帧区间、`cancelType`、`allowedInputs`、`priority` |
 | Transitions | `transitions[]` | `condition`, `startFrame`, `targetAction`, `priority` |
 | Start Behaviors | `startBehaviors[]` | 起手副作用 |
