@@ -49,14 +49,31 @@ MonoBehaviour:
       cancelType: 0
       allowedInputs:
       - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    - id: Cancel_3
+      startFrame: 27
+      endFrame: 120
+      priority: 0
+      trackName: Cancel_3
+      cancelType: 2
+      allowedInputs:
+      - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     movementStates: []
-    rotationStates: []
+    rotationStates:
+    - id: Rotation_1
+      startFrame: 0
+      endFrame: 4
+      priority: 0
+      trackName: Rotation_1
+      smoothTimeOverride: 0
     tracks:
     - trackName: Cancel_1
       kind: 4
       visible: 1
     - trackName: Cancel_3
       kind: 4
+      visible: 1
+    - trackName: Rotation_1
+      kind: 6
       visible: 1
   transitions: []
   startBehaviors: 

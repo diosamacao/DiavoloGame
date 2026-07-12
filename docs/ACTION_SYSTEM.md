@@ -330,7 +330,7 @@ bool TryResolve(in ActionRequest request, in ActionResolveContext context, out A
 ```
 
 - `ActionRequest`：输入侧意图（`InputId` + `ActionInputTrigger`，当前仅 `Pressed`）。
-- `ActionResolveContext`：世界/状态侧信息（`Origin` = LocomotionStart / CancelWindow、`CurrentAction`、`ActorRoot`、`IActionStartContext`）。
+- `ActionResolveContext`：世界/状态侧信息（`Origin` = LocomotionStart / CancelWindow、`CancelType`、`CurrentAction`、`ActorRoot`、`IActionStartContext`）。
 
 | 子类 | 数据 | 行为 |
 |------|------|------|
@@ -359,6 +359,7 @@ CombatModeProfile
 
 - 离散输入 id = Input System **Action 名**（`Attack`、`Dodge` 等）。
 - 移动取消不走路由表，由 `InputManager.HasMoveIntent` + `CancelType.Movement` 窗口判定。
+- 后摇重开连招首段：`CancelType.Recovery` 窗 + `ComboActionResolver`（回 `steps[0]`）；去向不写在 Action 时间轴上。
 
 ---
 
@@ -400,10 +401,10 @@ HitBoxSystem.OnCombatFrameAdvanced（ActionExecutor 同步派发）
 输入 → Buffer(inputId)
 
 ActionExecutor.Tick → TryResolveCancelWindows:
-  → 按 priority 扫描 CancelType.Action 窗口
+  → 按 priority 扫描 CancelType.Action / Recovery 窗口
   → HasBuffer(allowedInput) → Consume
-  → ActionResolverService.TryResolveNext(request, context{Origin=CancelWindow, CurrentAction})
-      → ComboActionResolver 进位 / DirectionalActionResolver 方向派生
+  → ActionResolverService.TryResolveNext(request, context{Origin=CancelWindow, CancelType, CurrentAction})
+      → Combo：Action 进位 / Recovery 回 steps[0]；Directional 方向派生
   → ClearOtherActionBuffers → TransitionTo(next)
 ```
 
@@ -463,7 +464,7 @@ ActionExecutor                   HitBoxSystem              受击方
 
 1. 创建 `ComboActionResolver`（Create → ACT/Combat/Resolvers/Combo Action Resolver），`steps` = [attack_1, attack_2, attack_3]，设置 `leafPolicy`。
 2. `PlayerActionSet` Entry：`Attack` → 上述 `ComboActionResolver`。
-3. 各 `ActionDefinition` 的 **Cancel Windows** 添加 `CancelType.Action` 窗 + `allowedInputs: [Attack]`（无需填目标招）。
+3. 各 `ActionDefinition`：攻击末加 `CancelType.Action` 窗、后摇加 `CancelType.Recovery` 窗，`allowedInputs: [Attack]`（无需填目标招）。
 4. 可选 **Movement** 取消窗 + `ActionTransition(AnimationEnd)` 收招。
 
 ### 6.1b 配置方向闪避

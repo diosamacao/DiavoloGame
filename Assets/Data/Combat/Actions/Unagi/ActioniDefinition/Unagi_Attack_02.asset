@@ -31,20 +31,7 @@ MonoBehaviour:
     actionEvents: []
     playVfxNotifies: []
     playSfxStates: []
-    hitboxStates:
-    - id: Hitbox_1
-      startFrame: 4
-      endFrame: 6
-      priority: 0
-      trackName: Hitbox_2
-      hitboxId: 
-      shape: 0
-      attachPointId: 
-      localOffset: {x: 0, y: 0, z: 0}
-      localEulerAngles: {x: 0, y: 0, z: 0}
-      size: {x: 0, y: 0, z: 0}
-      damageWeight: 0
-      hitReactionId: 
+    hitboxStates: []
     hurtboxStates: []
     cancelWindowStates:
     - id: Cancel_1
@@ -54,14 +41,39 @@ MonoBehaviour:
       trackName: Cancel_1
       cancelType: 1
       allowedInputs: []
+    - id: Cancel_2
+      startFrame: 18
+      endFrame: 24
+      priority: 0
+      trackName: Cancel_3
+      cancelType: 0
+      allowedInputs:
+      - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    - id: Cancel_3
+      startFrame: 25
+      endFrame: 122
+      priority: 0
+      trackName: Cancel_3
+      cancelType: 2
+      allowedInputs:
+      - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     movementStates: []
-    rotationStates: []
+    rotationStates:
+    - id: Rotation_1
+      startFrame: 0
+      endFrame: 4
+      priority: 0
+      trackName: Rotation_1
+      smoothTimeOverride: 0
     tracks:
-    - trackName: Hitbox_2
-      kind: 0
-      visible: 1
     - trackName: Cancel_1
       kind: 4
+      visible: 1
+    - trackName: Cancel_3
+      kind: 4
+      visible: 1
+    - trackName: Rotation_1
+      kind: 6
       visible: 1
   transitions: []
   startBehaviors: 
