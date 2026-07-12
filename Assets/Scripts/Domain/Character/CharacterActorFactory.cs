@@ -15,11 +15,11 @@ public static class CharacterActorFactory
         Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider,
         Action<ActionHitContext, IHurtboxTarget, IActionHitReceiver, Transform> hitDetected,
         out ActionExecutor actionExecutor,
-        out Animator animator)
+        out CharacterAnimationService animation)
     {
         CharacterMotorConfig motorConfig = config.Motor;
         Transform modelRoot = SpawnModelInstance(config, root);
-        animator = modelRoot.GetComponentInChildren<Animator>();
+        Animator animator = modelRoot.GetComponentInChildren<Animator>();
         if (animator == null)
             throw new MissingComponentException("CharacterActorFactory: ModelPrefab 中找不到 Animator。");
 
@@ -28,10 +28,11 @@ public static class CharacterActorFactory
 
         var sharedInput = new InputManager();
         var motor = new CharacterMotor(root, controller, motorConfig, sharedInput, cameraTransform);
-        var animation = new CharacterAnimationService(
+        IAnimationPlayback playback = new PlayableAnimationPlayback(animator);
+        animation = new CharacterAnimationService(
+            playback,
             animator,
-            config.DefaultLocomotionProfile,
-            config.AnimatorLayerIndex);
+            config.DefaultLocomotionProfile);
         var rootMotion = new CharacterRootMotionDriver(controller, animator);
         var combatMode = new CombatModeService(config.CombatProfile, animation);
 
@@ -69,7 +70,8 @@ public static class CharacterActorFactory
             motor,
             stateMachine,
             actionDriver,
-            combatMode);
+            combatMode,
+            animation);
 
         var rotationDriver = new ActionRotationDriver(
             root,

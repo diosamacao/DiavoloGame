@@ -1,16 +1,16 @@
 using UnityEngine;
 
 /// <summary>
-/// 命中卡肉控制器：订阅 AttackHitEvent，冻结攻击者 Animator、暂停 ActionExecutor 与关联 VFX 粒子。
+/// 命中卡肉控制器：订阅 AttackHitEvent，冻结攻击者动画 Speed、暂停 ActionExecutor 与关联 VFX 粒子。
 /// 可挂在 Player 或场景 Managers 上；按 ActionDefinition 配置驱动。
 /// </summary>
 [DisallowMultipleComponent]
 public class HitStopController : AppControllerBase
 {
     Transform _activeAttacker;
-    Animator _activeAnimator;
+    CharacterAnimationService _activeAnimation;
     ActionExecutor _activeExecutor;
-    float _normalAnimatorSpeed = 1f;
+    float _normalAnimationSpeed = 1f;
     float _remainingSeconds;
 
     void Update()
@@ -52,7 +52,7 @@ public class HitStopController : AppControllerBase
             return;
 
         ActionExecutor executor = entry.ActionExecutor;
-        Animator animator = entry.Animator;
+        CharacterAnimationService animation = entry.Animation;
 
         if (context.Action.HitStopOncePerAction && executor != null && !executor.TryConsumeHitStopTrigger())
             return;
@@ -61,17 +61,17 @@ public class HitStopController : AppControllerBase
         if (duration <= 0f)
             return;
 
-        ApplyHitStop(context.Attacker, executor, animator, duration);
+        ApplyHitStop(context.Attacker, executor, animation, duration);
     }
 
     /// <summary>对攻击者施加卡肉；若已在卡肉中则延长剩余时间。</summary>
     void ApplyHitStop(
         Transform attacker,
         ActionExecutor executor,
-        Animator animator,
+        CharacterAnimationService animation,
         float durationSeconds)
     {
-        if (animator == null)
+        if (animation == null)
             return;
 
         bool sameAttacker = _activeAttacker == attacker && _remainingSeconds > 0f;
@@ -80,11 +80,11 @@ public class HitStopController : AppControllerBase
             ForceEndHitStop();
             _activeAttacker = attacker;
             _activeExecutor = executor;
-            _activeAnimator = animator;
-            _normalAnimatorSpeed = animator.speed > 0f ? animator.speed : 1f;
+            _activeAnimation = animation;
+            _normalAnimationSpeed = animation.Speed > 0f ? animation.Speed : 1f;
 
             executor?.SetHitStopPaused(true);
-            animator.speed = 0f;
+            animation.SetSpeed(0f);
             GetSystem<CombatFeedbackSystem>()?.BeginHitStop(attacker);
         }
 
@@ -98,12 +98,12 @@ public class HitStopController : AppControllerBase
         if (_activeExecutor != null)
             _activeExecutor.SetHitStopPaused(false);
 
-        if (_activeAnimator != null)
-            _activeAnimator.speed = _normalAnimatorSpeed;
+        if (_activeAnimation != null)
+            _activeAnimation.SetSpeed(_normalAnimationSpeed);
 
         _activeAttacker = null;
         _activeExecutor = null;
-        _activeAnimator = null;
+        _activeAnimation = null;
         GetSystem<CombatFeedbackSystem>()?.EndHitStop();
     }
 

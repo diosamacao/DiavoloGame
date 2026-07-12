@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-07-10
+> Last updated: 2026-07-12
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -209,17 +209,19 @@ CharacterActor.Tick
 
 ### 功能说明
 
-根据移动输入幅度在 Idle / Walk / Run 间切换；CrossFade 过渡；与 Animator Controller 状态名通过 Profile 映射。
+根据移动输入幅度在 Idle / Walk / Run 间切换；由 Playable 双槽 CrossFade 过渡；Profile 映射 `AnimationKey` → `AnimationClip`，**不依赖 Animator Controller**。
 
 ### 实现方案
 
 | 项 | 方案 |
 |----|------|
 | 逻辑键 | `AnimationKey` 枚举（Idle, Walk, Run） |
-| 映射 | `CharacterAnimationProfile` ScriptableObject |
-| 播放 | `CharacterAnimationService.Play(key)` |
-| 去重 | 相同 key 不重复 CrossFade |
-| Root Motion | 关闭（`applyRootMotion = false`） |
+| 映射 | `CharacterAnimationProfile` → `AnimationClip` |
+| 门面 | `CharacterAnimationService.Play(key)` |
+| 后端 | `IAnimationPlayback` / `PlayableAnimationPlayback` |
+| 去重 | 相同 key 不重复 Play |
+| 卡肉 | `CharacterAnimationService.SetSpeed(0)` |
+| Root Motion（Locomotion） | 关闭（`applyRootMotion = false`） |
 
 ### 动画选择规则（LocomotionState）
 
@@ -231,26 +233,29 @@ MoveInputMagnitude ≤ RunThreshold → Walk
 
 `RunThreshold` 来自 Context（与 PlayerController 一致，默认 0.6）。
 
-### Profile 配置（KatanaGirl）
+### Profile 配置（Katana）
 
-| AnimationKey | Animator 状态名 | CrossFade 默认 |
-|--------------|-----------------|----------------|
-| Idle | Idle | 0.15s |
-| Walk | Walk | 0.15s |
-| Run | Run | 0.15s |
+| AnimationKey | AnimationClip | CrossFade 默认 |
+|--------------|---------------|----------------|
+| Idle | （Inspector 绑定，原 Sp_Idle 等） | 0.15s |
+| Walk | （Inspector 绑定） | 0.15s |
+| Run | （Inspector 绑定） | 0.15s |
 
-资产路径：`Assets/Data/Characters/Player_KatanaGirl_AnimationProfile.asset`  
-Animator Controller：`Assets/Art/Characters/.../ACT_Runtime.controller`（Prefab 内嵌引用）
+资产路径：`Assets/Data/CharacterLocomotion/Player_Katana_AnimationProfile.asset`  
+运行时：`PlayableAnimationPlayback` 会清空实例上的 `runtimeAnimatorController`。
 
 ### Action 状态下的动画锁
 
-进入 `ActionState` 时 `SetLocked(true)`，`Play` 调用被忽略；Exit 时解锁并重置 `_currentKey`。
+进入 `ActionState` 时 `SetLocked(true)`，`Play` 调用被忽略；Exit 时解锁并重置 `_currentKey`。招式走 `PlayClip(ActionDefinition.AnimationClip)`。
 
 ### 相关文件
 
+- `Assets/Scripts/Domain/Character/Animation/IAnimationPlayback.cs`
+- `Assets/Scripts/Domain/Character/Animation/PlayableAnimationPlayback.cs`
 - `Assets/Scripts/Domain/Character/Animation/CharacterAnimationService.cs`
 - `Assets/Scripts/Domain/Character/Animation/CharacterAnimationProfile.cs`
 - `Assets/Scripts/Domain/Character/StateMachine/States/LocomotionState.cs`
+- 迁移方案：`docs/ANIMATION_PLAYABLE_MIGRATION_PLAN.md`
 
 ---
 
@@ -438,3 +443,4 @@ ActionState.Tick
 | 2026-07-05 | 动作系统 Resolver 重构：`ActionResolver`(Single/Combo/Directional) + `ActionResolverService` 承接起手/连段/Dodge 方向/Cancel 选招；`ActionExecutor` 收敛为纯播放器；`Combat/Actions` 分 Definitions/Resolution/Execution/Frames；`IActionComboInput`→`IActionInputBuffer` |
 | 2026-07-09 | ActionNotify 时间轴重构：新增 `ActionTimeline` / `ActionNotify` / `ActionNotifyState` / `ActionTimelineRunner`；Hitbox/VFX/Cancel/Movement/Rotation 改为统一 Timeline 数据真源并删除旧字段路径 |
 | 2026-07-10 | VFX/SFX 改为区间窗口（`naturalDurationSeconds` / `playbackSpeed`）；新增 `ActionEditorWindow` 手动加轨与拖拽编辑；`ActionVfxPlayer` 改窗口 Enter/Exit 消费 |
+| 2026-07-12 | 动画改为 Clip + 薄层 Playable：`IAnimationPlayback` / `PlayableAnimationPlayback`；Profile 映射 Clip；HitStop 走 `SetSpeed`；废弃 Animator Controller 业务依赖 |

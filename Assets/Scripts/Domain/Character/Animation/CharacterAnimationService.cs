@@ -1,29 +1,41 @@
+using System;
 using UnityEngine;
 
-/// <summary>角色动画播放服务；运行时由 CharacterConfig 注入 Animator 与 Locomotion Profile。</summary>
-public sealed class CharacterAnimationService
+/// <summary>角色动画播放门面；调用层只依赖本类，后端通过 IAnimationPlayback 可替换为 Animancer。</summary>
+public sealed class CharacterAnimationService : IDisposable
 {
     CharacterAnimationProfile profile;
+    readonly IAnimationPlayback playback;
     readonly Animator animator;
-    readonly int layerIndex;
     AnimationKey? _currentKey;
     bool _locked;
 
     public AnimationKey? CurrentKey => _currentKey;
     public bool IsLocked => _locked;
 
-    /// <summary>驱动招式的 Animator；可能位于子节点。</summary>
+    /// <summary>驱动骨骼的 Animator（Playable 输出目标）；供 Root Motion 等桥接使用。</summary>
     public Animator Animator => animator;
 
-    /// <summary>创建角色动画服务；Animator 来自 CharacterConfig 实例化出的模型。</summary>
-    public CharacterAnimationService(
-        Animator targetAnimator,
-        CharacterAnimationProfile animationProfile,
-        int targetLayerIndex)
+    /// <summary>当前播放倍率；卡肉时置 0。</summary>
+    public float Speed
     {
+        get => playback != null ? playback.Speed : 1f;
+        set
+        {
+            if (playback != null)
+                playback.Speed = value;
+        }
+    }
+
+    /// <summary>创建角色动画服务；playback 由工厂注入（Playable 或未来 Animancer）。</summary>
+    public CharacterAnimationService(
+        IAnimationPlayback animationPlayback,
+        Animator targetAnimator,
+        CharacterAnimationProfile animationProfile)
+    {
+        playback = animationPlayback;
         animator = targetAnimator;
         profile = animationProfile;
-        layerIndex = targetLayerIndex;
     }
 
     /// <summary>切换 Locomotion Profile。</summary>
@@ -34,39 +46,48 @@ public sealed class CharacterAnimationService
 
     public void SetLocked(bool locked) => _locked = locked;
 
+    /// <summary>设置播放倍率；0 冻结骨骼（HitStop）。</summary>
+    public void SetSpeed(float speed) => Speed = speed;
+
     public void Play(AnimationKey key, float? fadeDuration = null)
     {
-        if (_locked || profile == null || animator == null)
+        if (_locked || profile == null || playback == null || !playback.IsValid)
             return;
 
         if (_currentKey == key)
             return;
 
+        if (!profile.TryGetClip(key, out AnimationClip clip))
+        {
+            Debug.LogError($"CharacterAnimationService: Profile 未绑定 {key} 的 Clip。", profile);
+            return;
+        }
+
         float fade = fadeDuration ?? profile.DefaultCrossFadeDuration;
-        int stateHash = Animator.StringToHash(profile.GetStateName(key));
-        animator.CrossFadeInFixedTime(stateHash, fade, layerIndex);
+        playback.Play(clip, fade);
         _currentKey = key;
     }
 
     public void PlayClip(AnimationClip clip, float fadeDuration = 0.1f)
     {
-        if (animator == null || clip == null)
+        if (playback == null || !playback.IsValid || clip == null)
             return;
 
-        animator.CrossFadeInFixedTime(clip.name, fadeDuration, layerIndex);
-        
+        playback.Play(clip, fadeDuration);
         _currentKey = null;
     }
 
     public bool HasFinishedClip(AnimationClip clip)
     {
-        if (animator == null || clip == null)
+        if (playback == null || clip == null)
             return true;
 
-        if (animator.IsInTransition(layerIndex))
-            return false;
-
-        AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(layerIndex);
-        return state.IsName(clip.name) && state.normalizedTime >= 1f;
+        return playback.CurrentClip == clip && playback.HasFinished;
     }
+
+    /// <summary>推进后端淡入等每帧逻辑；由 CharacterActor.Tick 调用。</summary>
+    public void Tick(float deltaTime) => playback?.Tick(deltaTime);
+
+    /// <summary>销毁播放后端（PlayableGraph 等）。</summary>
+    public void Dispose() => playback?.Dispose();
 }

@@ -13,7 +13,6 @@ public class CharacterConfig : ScriptableObject
 
     [Header("Animation")]
     [SerializeField] CharacterAnimationProfile defaultLocomotionProfile = null;
-    [SerializeField] int animatorLayerIndex = 0;
 
     [Header("Input")]
     [SerializeField] InputActionAsset inputActions = null;
@@ -36,9 +35,6 @@ public class CharacterConfig : ScriptableObject
 
     /// <summary>默认 Locomotion 动画映射。</summary>
     public CharacterAnimationProfile DefaultLocomotionProfile => defaultLocomotionProfile;
-
-    /// <summary>Animator 播放层索引。</summary>
-    public int AnimatorLayerIndex => animatorLayerIndex;
 
     /// <summary>玩家输入资产。</summary>
     public InputActionAsset InputActions => inputActions;
@@ -65,6 +61,10 @@ public class CharacterConfig : ScriptableObject
         if (defaultLocomotionProfile == null)
         {
             Debug.LogError("CharacterConfig: DefaultLocomotionProfile 未配置。", context);
+            valid = false;
+        }
+        else if (!defaultLocomotionProfile.ValidateClips(context))
+        {
             valid = false;
         }
 

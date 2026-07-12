@@ -62,11 +62,13 @@ public class MyBehaviour : MonoBehaviour
 
 ## 动画约定
 
-- 逻辑层使用 `AnimationKey`，不直接硬编码 Animator 状态名字符串（映射在 Profile）
-- 播放走纯 C# `CharacterAnimationService.Play`；需要独占时 `SetLocked(true)`
+- 逻辑层使用 `AnimationKey`，Profile 映射到 `AnimationClip`（不映射 Animator 状态名）
+- 播放走纯 C# `CharacterAnimationService`；后端为 `IAnimationPlayback`（当前 `PlayableAnimationPlayback`，可换 Animancer）
+- 需要独占时 `SetLocked(true)`；卡肉用 `SetSpeed(0)`，禁止业务直写 `Animator.speed`
 - Locomotion：`applyRootMotion = false`，位移由 `CharacterController` + `CharacterMotor` 负责
 - Action：`ActionDefinition.useRootMotion = true` 时由 `CharacterRootMotionDriver` 在 `OnAnimatorMove` 中把 `deltaPosition` 写入 `CharacterController`；`useRootMotion = false` 时可用 `MovementNotifyState` 脚本位移
-- 同 key 不重复 CrossFade（Controller 内部去重）
+- 同 key 不重复 Play（门面 `_currentKey` 去重）；无 Animator Controller 业务依赖
+- 角色销毁时 `CharacterActor.Dispose()` 释放 PlayableGraph
 
 ## 输入约定
 

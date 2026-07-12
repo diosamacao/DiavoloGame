@@ -74,7 +74,7 @@
 **选型理由（ACTGame 特有约束）：**
 
 - 已有 `CharacterStateMachine` + 薄层 `ActionState`，`CharacterAnimationService.PlayClip()` 已支持招式直播
-- 约定 **Animator Controller 只管 Locomotion**，招式由 `ActionDefinition` 引用 Clip
+- 约定 **无 Animator Controller 业务依赖**，Locomotion/招式均由 `ActionDefinition` / Profile 引用 Clip，经 Playable 播放
 - 玩家 / 敌人共用 `ActionExecutor`，不绑定单一品类插件
 - 当前规模适合 **ScriptableObject**；若后续要热更再考虑从 SO 导出二进制
 
@@ -478,7 +478,7 @@ Recovery [19───────────────41]
     → ActionGraph 解析下一动作 id（或 CancelWindow 直接指定）
     → ActionExecutor.Play(actionId)
         → 加载 ActionDefinition
-        → CharacterAnimationService.PlayClip(clip)  // AC 仅 Locomotion
+        → CharacterAnimationService.PlayClip(clip)  // Playable 后端
         → 每 Logic Tick：UpdateFrame(frameIndex)   // 与编辑器 scrub 同一套逻辑
             → 检查 Phase 变化（Startup / Active / Recovery）
             → 评估 ActionEvent（含 Custom Trigger+Ctrl）
@@ -661,7 +661,7 @@ transitions:
 | 风险 | 对策 |
 |------|------|
 | 编辑器开发量大 | Phase A→E 分阶段；M2 仅 SO 手写；M5 不做完整时间轴 |
-| 与 Animator Controller 双重维护 | 招式 clip 只由 ActionDefinition 引用；AC 只管 Locomotion |
+| 与 Animator Controller 双重维护 | 招式与 Locomotion 均只引用 Clip；运行时 Playable 驱动，无 Controller 状态图 |
 | Hitbox 逐帧数据膨胀 | 默认 **区间** 编辑；关键招再逐帧微调 |
 | 预览与运行时不一致 | 共用 `ActionExecutor.UpdateFrame`；Logic Tick = 编辑器帧 |
 | 策划学习成本 | 模板复制 + 文档示例 + 一体化窗口 |
