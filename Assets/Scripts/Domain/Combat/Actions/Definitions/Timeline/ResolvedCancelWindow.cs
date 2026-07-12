@@ -23,7 +23,7 @@ public readonly struct ResolvedCancelWindow
     /// <summary>窗口结束逻辑帧。</summary>
     public int EndFrame { get; }
 
-    /// <summary>取消类型：Action 或 Movement。</summary>
+    /// <summary>取消类型：Action 连招进位、Recovery 后摇重开，或 Movement 移动取消。</summary>
     public CancelType CancelType { get; }
 
     /// <summary>允许触发 Action 取消的输入 id 列表。</summary>

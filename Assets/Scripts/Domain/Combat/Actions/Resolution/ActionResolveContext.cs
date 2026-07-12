@@ -18,12 +18,14 @@ public readonly struct ActionResolveContext
         ActionResolveOrigin origin,
         ActionDefinition currentAction,
         Transform actorRoot,
-        IActionStartContext startContext)
+        IActionStartContext startContext,
+        CancelType cancelType = CancelType.Action)
     {
         Origin = origin;
         CurrentAction = currentAction;
         ActorRoot = actorRoot;
         StartContext = startContext;
+        CancelType = cancelType;
     }
 
     /// <summary>解析来源。</summary>
@@ -37,4 +39,10 @@ public readonly struct ActionResolveContext
 
     /// <summary>招式起手副作用上下文：读取闪避意图方向、修正朝向。</summary>
     public IActionStartContext StartContext { get; }
+
+    /// <summary>
+    /// 触发本次解析的 Cancel 窗类型；Locomotion 起手时无意义，默认 Action。
+    /// Recovery 时 ComboActionResolver 回到 steps[0]。
+    /// </summary>
+    public CancelType CancelType { get; }
 }

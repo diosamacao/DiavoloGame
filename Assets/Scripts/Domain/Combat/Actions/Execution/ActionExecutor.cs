@@ -168,7 +168,8 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
             if (!current.IsInCancelWindow(window, _session.ElapsedSeconds))
                 continue;
 
-            if (window.CancelType != CancelType.Action)
+            // Action = 连招进位；Recovery = 后摇重开首段；均消费输入并走 Resolver。
+            if (!window.CancelType.ResolvesNextAction())
                 continue;
 
             if (!TryConsumeMatchingInput(window, out string matchedInputId))
@@ -179,7 +180,8 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
                 ActionResolveOrigin.CancelWindow,
                 current,
                 _actorRoot,
-                _startContext);
+                _startContext,
+                window.CancelType);
 
             if (!_resolverService.TryResolveNext(in request, in context, out ActionDefinition nextAction))
                 continue;
