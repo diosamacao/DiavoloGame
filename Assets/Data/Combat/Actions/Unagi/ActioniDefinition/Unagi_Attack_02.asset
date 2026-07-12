@@ -42,7 +42,20 @@ MonoBehaviour:
       parentToAttachPoint: 0
       naturalDurationSeconds: 6
     playSfxStates: []
-    hitboxStates: []
+    hitboxStates:
+    - id: Hitbox_1
+      startFrame: 5
+      endFrame: 8
+      priority: 0
+      trackName: Hitbox_1
+      hitboxId: 
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 0}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 2, y: 2, z: 3}
+      damageWeight: 0
+      hitReactionId: 
     hurtboxStates: []
     cancelWindowStates:
     - id: Cancel_1
@@ -53,7 +66,7 @@ MonoBehaviour:
       cancelType: 1
       allowedInputs: []
     - id: Cancel_2
-      startFrame: 14
+      startFrame: 11
       endFrame: 24
       priority: 0
       trackName: Cancel_3
@@ -75,7 +88,7 @@ MonoBehaviour:
       endFrame: 4
       priority: 0
       trackName: Rotation_1
-      smoothTimeOverride: 0
+      smoothTimeOverride: 0.05
     tracks:
     - trackName: Cancel_1
       kind: 4
@@ -89,6 +102,9 @@ MonoBehaviour:
     - trackName: VFX_1
       kind: 2
       visible: 1
+    - trackName: Hitbox_1
+      kind: 0
+      visible: 1
   transitions: []
   startBehaviors: 
   switchCombatModeTarget: 0
@@ -101,7 +117,7 @@ MonoBehaviour:
   hitStopFrames: 3
   hitStopOncePerAction: 1
   targetLockSettings:
-    enabled: 0
+    enabled: 1
     lockRange: 8
     forwardConeAngle: 120
     policy: 0

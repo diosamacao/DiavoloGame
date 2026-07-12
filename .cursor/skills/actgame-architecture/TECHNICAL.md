@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-07-12
+> Last updated: 2026-07-13
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -263,7 +263,7 @@ MoveInputMagnitude ≤ RunThreshold → Walk
 
 ### 功能说明
 
-Cinemachine 第三人称跟随；鼠标控制 yaw/pitch；碰撞遮挡；启动时锁定光标。
+Cinemachine 第三人称跟随；鼠标控制 yaw/pitch；碰撞遮挡；启动时锁定光标。Orbit 锚点对 `CameraRoot` 做 SmoothDamp，减轻攻击多段位移时的镜头顿挫。
 
 ### 实现方案
 
@@ -271,25 +271,31 @@ Cinemachine 第三人称跟随；鼠标控制 yaw/pitch；碰撞遮挡；启动�
 
 ```
 Player
-  └── CameraRoot (y = 1.4)     ← 跟随锚点，LookAt 目标
+  └── CameraRoot (y = 1.4)     ← 角色跟随目标（硬绑角色）
 
 CameraManager (场景对象)
-  └── CameraOrbitPivot         ← 位置同步 CameraRoot，yaw 旋转
+  └── CameraOrbitPivot         ← SmoothDamp 追 CameraRoot；Follow/LookAt 共用此平滑点
         └── CameraPitchPivot   ← pitch 旋转
               └── CM ThirdPerson (CinemachineVirtualCamera)
-                    Follow = pitchPivot, LookAt = cameraRoot
+                    Follow = pitchPivot, LookAt = orbitPivot
 ```
 
 **Virtual Camera 组件**
 
-- `CinemachineTransposer`：后方 `-followDistance`，LockToTarget，无 damping
-- `CinemachineHardLookAt`：注视 cameraRoot
+- `CinemachineTransposer`：后方 `-followDistance`，LockToTarget，无 damping（平滑在 Orbit 层完成）
+- `CinemachineHardLookAt`：注视平滑后的 `orbitPivot`
 - `CinemachineCollider`：Default 层遮挡，PreserveCameraHeight
+
+**跟随平滑**
+
+- `LateUpdate`：`orbitPivot` 对 `cameraRoot` 做 `SmoothDamp`（`followSmoothTime`）
+- 首帧、`followSmoothTime <= 0`、或距离超过 `SnapDistance`(3) 时直接吸附
+- 对外提供 `SnapFollowToTarget()` 供传送等硬重置
 
 **输入**
 
 - `CameraManager` 引用玩家 `PlayerController`，通过 `PlayerController.Input.LookIntent` 获取视角输入
-- Update 累加 yaw/pitch；LateUpdate 同步 Pivot 变换
+- Update 累加 yaw/pitch；LateUpdate 平滑同步 Pivot 变换
 
 **初始化**
 
@@ -303,6 +309,7 @@ CameraManager (场景对象)
 |------|--------|------|
 | `cameraRootHeight` | 1.4 | 锚点高度 |
 | `followDistance` | 4 | 相机距离 |
+| `followSmoothTime` | 0.1 | Orbit 追 CameraRoot 的平滑时间 |
 | `initialPitch` | 15 | 初始俯角 |
 | `horizontalSensitivity` | 0.15 | 水平灵敏度 |
 | `verticalSensitivity` | 0.15 | 垂直灵敏度 |
@@ -313,6 +320,11 @@ CameraManager (场景对象)
 ### 与移动的协作
 
 `PlayerController` 用 `Camera.main`（或指定 `cameraTransform`）计算移动方向，与相机 yaw 一致。
+
+### 已知限制
+
+- 平滑仅抹平位置顿挫；未按 Action/Locomotion 切换不同 `followSmoothTime`（可后续做方案 C）
+- LookAt 已切到 `orbitPivot`，角色急速冲刺时镜头会略滞后于角色身体
 
 ### 相关文件
 
@@ -445,3 +457,4 @@ ActionState.Tick
 | 2026-07-10 | VFX/SFX 改为区间窗口（`naturalDurationSeconds` / `playbackSpeed`）；新增 `ActionEditorWindow` 手动加轨与拖拽编辑；`ActionVfxPlayer` 改窗口 Enter/Exit 消费 |
 | 2026-07-12 | 动画改为 Clip + 薄层 Playable：`IAnimationPlayback` / `PlayableAnimationPlayback`；Profile 映射 Clip；HitStop 走 `SetSpeed`；废弃 Animator Controller 业务依赖 |
 | 2026-07-12 | `ActionDefinition` 多段 `ActionAnimationSegment[]`：同招顺序播多 Clip；`ActionExecutor` 段边界自动切；旧 `animationClip` OnValidate 迁入 segments |
+| 2026-07-13 | 相机方案 B：`CameraOrbitPivot` 对 `CameraRoot` SmoothDamp；LookAt 改为 `orbitPivot`；新增 `followSmoothTime` / `SnapFollowToTarget` |

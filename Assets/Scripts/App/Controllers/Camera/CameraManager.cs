@@ -1,12 +1,15 @@
 using Cinemachine;
 using UnityEngine;
 
-/// <summary>场景相机控制器：创建第三人称虚拟相机并驱动 look 输入与相机层级同步。</summary>
+/// <summary>场景相机控制器：创建第三人称虚拟相机并驱动 look 输入与平滑跟随锚点。</summary>
 public class CameraManager : AppControllerBase
 {
     const string CameraRootName = "CameraRoot";
     const string OrbitPivotName = "CameraOrbitPivot";
     const string PitchPivotName = "CameraPitchPivot";
+
+    /// <summary>超过该距离时直接吸附，避免传送后长时间追赶。</summary>
+    const float SnapDistance = 3f;
 
     [Header("Targets")]
     [SerializeField] Transform followTarget;
@@ -28,6 +31,10 @@ public class CameraManager : AppControllerBase
     [SerializeField] float followDistance = 4f;
     [SerializeField] float initialPitch = 15f;
 
+    [Header("Follow Smoothing")]
+    [Tooltip("Orbit 锚点追 CameraRoot 的 SmoothDamp 时间；越大越稳，攻击多段位移越不易抖。")]
+    [SerializeField] float followSmoothTime = 0.1f;
+
     CinemachineVirtualCamera virtualCamera;
     Transform cameraRoot;
     Transform orbitPivot;
@@ -35,6 +42,8 @@ public class CameraManager : AppControllerBase
     float yaw;
     float pitch;
     bool lookEnabled = true;
+    Vector3 orbitFollowVelocity;
+    bool orbitPositionInitialized;
 
     public Transform FollowTarget => cameraRoot != null ? cameraRoot : followTarget;
 
@@ -177,8 +186,9 @@ public class CameraManager : AppControllerBase
 
     void ConfigureVirtualCamera(CinemachineVirtualCamera vcam)
     {
+        // Follow / LookAt 都走平滑后的 Orbit，避免 LookAt 仍锁 CameraRoot 造成朝向抽搐。
         vcam.Follow = pitchPivot;
-        vcam.LookAt = cameraRoot;
+        vcam.LookAt = orbitPivot;
         vcam.m_Lens.FieldOfView = 60f;
 
         CinemachineTransposer transposer = vcam.GetCinemachineComponent<CinemachineTransposer>();
@@ -226,15 +236,44 @@ public class CameraManager : AppControllerBase
         pitch = Mathf.Clamp(pitch, bottomClamp, topClamp);
     }
 
+    /// <summary>用 SmoothDamp 追 CameraRoot，削弱攻击多段位移带来的镜头顿挫。</summary>
     void SyncOrbitPivots()
     {
         if (orbitPivot == null || pitchPivot == null || cameraRoot == null)
             return;
 
-        orbitPivot.position = cameraRoot.position;
+        Vector3 targetPosition = cameraRoot.position;
+        if (!orbitPositionInitialized ||
+            followSmoothTime <= 0f ||
+            (orbitPivot.position - targetPosition).sqrMagnitude > SnapDistance * SnapDistance)
+        {
+            orbitPivot.position = targetPosition;
+            orbitFollowVelocity = Vector3.zero;
+            orbitPositionInitialized = true;
+        }
+        else
+        {
+            orbitPivot.position = Vector3.SmoothDamp(
+                orbitPivot.position,
+                targetPosition,
+                ref orbitFollowVelocity,
+                followSmoothTime);
+        }
+
         orbitPivot.rotation = Quaternion.Euler(0f, yaw, 0f);
         pitchPivot.localPosition = Vector3.zero;
         pitchPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+    }
+
+    /// <summary>立刻吸附到 CameraRoot（传送、切场景等场景用）。</summary>
+    public void SnapFollowToTarget()
+    {
+        if (orbitPivot == null || cameraRoot == null)
+            return;
+
+        orbitPivot.position = cameraRoot.position;
+        orbitFollowVelocity = Vector3.zero;
+        orbitPositionInitialized = true;
     }
 
     public void SetLookEnabled(bool enabled)

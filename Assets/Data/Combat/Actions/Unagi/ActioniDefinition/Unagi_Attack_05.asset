@@ -36,13 +36,52 @@ MonoBehaviour:
       priority: 0
       trackName: VFX_1
       prefab: {fileID: 6438811975416736645, guid: 9f9e5972d4aa84545b6da5d63c048d25, type: 3}
-      localOffset: {x: 0, y: 0.52, z: 2.48}
+      localOffset: {x: -0.23, y: 0.52, z: 1.72}
       localEulerAngles: {x: 0, y: 0, z: 0}
       localScale: {x: 1.5, y: 1.5, z: 1.5}
       parentToAttachPoint: 0
       naturalDurationSeconds: 6
     playSfxStates: []
-    hitboxStates: []
+    hitboxStates:
+    - id: Hitbox_1
+      startFrame: 4
+      endFrame: 5
+      priority: 0
+      trackName: Hitbox_1
+      hitboxId: 
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 0}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      damageWeight: 0
+      hitReactionId: 
+    - id: Hitbox_2
+      startFrame: 7
+      endFrame: 8
+      priority: 0
+      trackName: Hitbox_1
+      hitboxId: 
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 0}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      damageWeight: 0
+      hitReactionId: 
+    - id: Hitbox_3
+      startFrame: 10
+      endFrame: 11
+      priority: 0
+      trackName: Hitbox_1
+      hitboxId: 
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 0}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      damageWeight: 0
+      hitReactionId: 
     hurtboxStates: []
     cancelWindowStates:
     - id: Cancel_1
@@ -53,7 +92,7 @@ MonoBehaviour:
       cancelType: 1
       allowedInputs: []
     - id: Cancel_2
-      startFrame: 27
+      startFrame: 21
       endFrame: 39
       priority: 0
       trackName: Cancel_3
@@ -75,7 +114,7 @@ MonoBehaviour:
       endFrame: 9
       priority: 0
       trackName: Rotation_1
-      smoothTimeOverride: 0
+      smoothTimeOverride: 0.05
     tracks:
     - trackName: Cancel_1
       kind: 4
@@ -89,6 +128,9 @@ MonoBehaviour:
     - trackName: VFX_1
       kind: 2
       visible: 1
+    - trackName: Hitbox_1
+      kind: 0
+      visible: 1
   transitions: []
   startBehaviors: 
   switchCombatModeTarget: 0
@@ -101,7 +143,7 @@ MonoBehaviour:
   hitStopFrames: 3
   hitStopOncePerAction: 1
   targetLockSettings:
-    enabled: 0
+    enabled: 1
     lockRange: 8
     forwardConeAngle: 120
     policy: 0
