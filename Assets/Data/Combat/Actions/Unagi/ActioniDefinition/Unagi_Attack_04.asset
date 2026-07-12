@@ -42,7 +42,7 @@ MonoBehaviour:
       cancelType: 1
       allowedInputs: []
     - id: Cancel_2
-      startFrame: 18
+      startFrame: 13
       endFrame: 24
       priority: 0
       trackName: Cancel_3

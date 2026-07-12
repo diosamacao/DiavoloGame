@@ -13,9 +13,17 @@ MonoBehaviour:
   m_Name: Unagi_Attack_06
   m_EditorClassIdentifier: 
   animationClip: {fileID: 0}
-  animationSegments: []
+  animationSegments:
+  - clip: {fileID: -5632203348086795652, guid: 029f75ea841018541a3d1428e4d0fc30, type: 3}
+    startFrame: 0
+    endFrame: -1
+    crossFadeDuration: 0
+  - clip: {fileID: 6570486383973903216, guid: 1ce64969172e4dc43b3d2fb3bec95e3c, type: 3}
+    startFrame: 0
+    endFrame: -1
+    crossFadeDuration: 0
   sampleRate: 30
-  totalFrames: 1
+  totalFrames: 143
   actionType: 0
   crossFadeDuration: 0.1
   phases: []
@@ -25,10 +33,48 @@ MonoBehaviour:
     playSfxStates: []
     hitboxStates: []
     hurtboxStates: []
-    cancelWindowStates: []
+    cancelWindowStates:
+    - id: Cancel_1
+      startFrame: 27
+      endFrame: 142
+      priority: 0
+      trackName: Cancel_1
+      cancelType: 1
+      allowedInputs: []
+    - id: Cancel_2
+      startFrame: 17
+      endFrame: 34
+      priority: 0
+      trackName: Cancel_3
+      cancelType: 0
+      allowedInputs:
+      - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    - id: Cancel_3
+      startFrame: 35
+      endFrame: 142
+      priority: 0
+      trackName: Cancel_3
+      cancelType: 2
+      allowedInputs:
+      - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     movementStates: []
-    rotationStates: []
-    tracks: []
+    rotationStates:
+    - id: Rotation_1
+      startFrame: 0
+      endFrame: 7
+      priority: 0
+      trackName: Rotation_1
+      smoothTimeOverride: 0
+    tracks:
+    - trackName: Cancel_1
+      kind: 4
+      visible: 1
+    - trackName: Cancel_3
+      kind: 4
+      visible: 1
+    - trackName: Rotation_1
+      kind: 6
+      visible: 1
   transitions: []
   startBehaviors: 
   switchCombatModeTarget: 0

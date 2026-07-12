@@ -42,7 +42,7 @@ MonoBehaviour:
       cancelType: 1
       allowedInputs: []
     - id: Cancel_2
-      startFrame: 32
+      startFrame: 27
       endFrame: 39
       priority: 0
       trackName: Cancel_3
@@ -61,7 +61,7 @@ MonoBehaviour:
     rotationStates:
     - id: Rotation_1
       startFrame: 0
-      endFrame: 4
+      endFrame: 9
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0
