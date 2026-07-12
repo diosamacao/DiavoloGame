@@ -10,24 +10,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
-  m_Name: Unagi_Attack_03
+  m_Name: Unagi_Attack_04
   m_EditorClassIdentifier: 
   animationClip: {fileID: 0}
   animationSegments:
-  - clip: {fileID: 0}
+  - clip: {fileID: 6955578239024431997, guid: 1e39c51f511f51c4b9209e036daaccbd, type: 3}
     startFrame: 0
     endFrame: -1
     crossFadeDuration: 0
-  - clip: {fileID: 1121698263193600465, guid: 4ac9d420dc03daa49877a03ea7aaa266, type: 3}
-    startFrame: 0
-    endFrame: -1
-    crossFadeDuration: 0
-  - clip: {fileID: 5517811299036799263, guid: 1a8d79b9bf8dc4c4dbb5f7cf1433db35, type: 3}
+  - clip: {fileID: 260233695157918240, guid: b37ee3173a88ccf4faab7141578011d3, type: 3}
     startFrame: 0
     endFrame: -1
     crossFadeDuration: 0
   sampleRate: 30
-  totalFrames: 130
+  totalFrames: 131
   actionType: 0
   crossFadeDuration: 0.1
   phases: []
@@ -39,23 +35,23 @@ MonoBehaviour:
     hurtboxStates: []
     cancelWindowStates:
     - id: Cancel_1
-      startFrame: 33
-      endFrame: 129
+      startFrame: 18
+      endFrame: 130
       priority: 0
       trackName: Cancel_1
       cancelType: 1
       allowedInputs: []
     - id: Cancel_2
-      startFrame: 25
-      endFrame: 40
+      startFrame: 18
+      endFrame: 24
       priority: 0
       trackName: Cancel_3
       cancelType: 0
       allowedInputs:
       - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     - id: Cancel_3
-      startFrame: 41
-      endFrame: 129
+      startFrame: 25
+      endFrame: 130
       priority: 0
       trackName: Cancel_3
       cancelType: 2
@@ -65,13 +61,7 @@ MonoBehaviour:
     rotationStates:
     - id: Rotation_1
       startFrame: 0
-      endFrame: 4
-      priority: 0
-      trackName: Rotation_1
-      smoothTimeOverride: 0
-    - id: Rotation_2
-      startFrame: 0
-      endFrame: 4
+      endFrame: 5
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0
