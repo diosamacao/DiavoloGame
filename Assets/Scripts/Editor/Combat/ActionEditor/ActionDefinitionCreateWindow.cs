@@ -4,8 +4,7 @@ using UnityEngine;
 /// <summary>创建 ActionDefinition 的独立工具面板（非内联表单）。</summary>
 public sealed class ActionDefinitionCreateWindow : EditorWindow
 {
-    string _displayName = "New Action";
-    string _id = "new_action";
+    string _fileName = "new_action";
     AnimationClip _clip;
     string _folder = ActionDefinitionCreateUtility.DefaultFolder;
     System.Action<ActionDefinition> _onCreated;
@@ -16,8 +15,8 @@ public sealed class ActionDefinitionCreateWindow : EditorWindow
         ActionDefinitionCreateWindow window = CreateInstance<ActionDefinitionCreateWindow>();
         window.titleContent = new GUIContent("Create Action Definition");
         window._onCreated = onCreated;
-        window.minSize = new Vector2(440f, 200f);
-        window.maxSize = new Vector2(560f, 260f);
+        window.minSize = new Vector2(440f, 180f);
+        window.maxSize = new Vector2(560f, 240f);
         window.ShowUtility();
         window.Focus();
     }
@@ -28,8 +27,7 @@ public sealed class ActionDefinitionCreateWindow : EditorWindow
         EditorGUILayout.LabelField("New Action Definition", EditorStyles.boldLabel);
         EditorGUILayout.Space(4f);
 
-        _displayName = EditorGUILayout.TextField("Display Name", _displayName);
-        _id = EditorGUILayout.TextField("Id", _id);
+        _fileName = EditorGUILayout.TextField("File Name", _fileName);
         _clip = (AnimationClip)EditorGUILayout.ObjectField("Animation Clip", _clip, typeof(AnimationClip), false);
 
         EditorGUILayout.Space(4f);
@@ -54,16 +52,11 @@ public sealed class ActionDefinitionCreateWindow : EditorWindow
             if (GUILayout.Button("Cancel", GUILayout.Width(90f), GUILayout.Height(24f)))
                 Close();
 
-            using (new EditorGUI.DisabledScope(string.IsNullOrWhiteSpace(_displayName)))
+            using (new EditorGUI.DisabledScope(string.IsNullOrWhiteSpace(_fileName)))
             {
                 if (GUILayout.Button("Create", GUILayout.Width(90f), GUILayout.Height(24f)))
                 {
-                    ActionDefinition created = ActionDefinitionCreateUtility.Create(
-                        _displayName,
-                        _id,
-                        _clip,
-                        _folder);
-
+                    ActionDefinition created = ActionDefinitionCreateUtility.Create(_fileName, _clip, _folder);
                     if (created != null)
                     {
                         _onCreated?.Invoke(created);

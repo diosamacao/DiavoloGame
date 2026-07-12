@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-/// <summary>左侧 ActionDefinition 资产列表：搜索、创建入口与选择。</summary>
+/// <summary>左侧 ActionDefinition 资产列表：搜索、创建入口与选择；显示名为资产文件名。</summary>
 public sealed class ActionListPanel
 {
     string _search = string.Empty;
@@ -22,7 +22,7 @@ public sealed class ActionListPanel
                 _actions.Add(action);
         }
 
-        _actions.Sort((a, b) => string.CompareOrdinal(a.DisplayName, b.DisplayName));
+        _actions.Sort((a, b) => string.CompareOrdinal(a.name, b.name));
     }
 
     /// <summary>
@@ -54,8 +54,7 @@ public sealed class ActionListPanel
 
             bool selected = action == current;
             GUIStyle style = selected ? EditorStyles.selectionRect : EditorStyles.label;
-            string label = string.IsNullOrEmpty(action.DisplayName) ? action.name : action.DisplayName;
-            if (GUILayout.Toggle(selected, label, style))
+            if (GUILayout.Toggle(selected, action.name, style))
                 current = action;
         }
 
@@ -69,9 +68,6 @@ public sealed class ActionListPanel
         if (string.IsNullOrEmpty(_search))
             return true;
 
-        string key = _search.Trim();
-        return action.DisplayName.IndexOf(key, System.StringComparison.OrdinalIgnoreCase) >= 0
-            || action.Id.IndexOf(key, System.StringComparison.OrdinalIgnoreCase) >= 0
-            || action.name.IndexOf(key, System.StringComparison.OrdinalIgnoreCase) >= 0;
+        return action.name.IndexOf(_search.Trim(), System.StringComparison.OrdinalIgnoreCase) >= 0;
     }
 }

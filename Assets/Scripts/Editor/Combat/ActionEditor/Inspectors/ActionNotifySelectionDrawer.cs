@@ -75,11 +75,11 @@ public static class ActionNotifySelectionDrawer
     static void DrawActionBasics(SerializedObject so, ActionDefinition action)
     {
         EditorGUILayout.LabelField("Action", EditorStyles.boldLabel);
-        EditorGUILayout.HelpBox("选中时间轴窗口可编辑片段细节。", MessageType.None);
+        EditorGUILayout.HelpBox("选中时间轴窗口可编辑片段细节。显示名即资产文件名。", MessageType.None);
 
         EditorGUI.BeginChangeCheck();
-        EditorGUILayout.PropertyField(so.FindProperty("displayName"));
-        EditorGUILayout.PropertyField(so.FindProperty("id"));
+        using (new EditorGUI.DisabledScope(true))
+            EditorGUILayout.TextField("File Name", action.name);
         EditorGUILayout.PropertyField(so.FindProperty("animationClip"));
         EditorGUILayout.PropertyField(so.FindProperty("sampleRate"));
         using (new EditorGUI.DisabledScope(true))

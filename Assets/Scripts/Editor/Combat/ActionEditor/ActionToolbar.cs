@@ -57,7 +57,7 @@ public sealed class ActionToolbar
 
         GUILayout.FlexibleSpace();
         EditorGUILayout.LabelField(
-            action != null ? $"{action.DisplayName}  ({previewFrame}/{maxFrame})" : "No Action",
+            action != null ? $"{action.name}  ({previewFrame}/{maxFrame})" : "No Action",
             EditorStyles.miniLabel,
             GUILayout.Width(220f));
 

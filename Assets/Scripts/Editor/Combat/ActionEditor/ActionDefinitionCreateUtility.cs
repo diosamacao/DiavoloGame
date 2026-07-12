@@ -8,18 +8,17 @@ public static class ActionDefinitionCreateUtility
     public const string DefaultFolder = "Assets/Data/Combat/Actions/Player/ActioniDefinition";
 
     /// <summary>
-    /// 创建新招式资产并写入基础字段；成功返回资产，失败返回 null。
+    /// 创建新招式资产；文件名即显示名。成功返回资产，失败返回 null。
     /// 仅新建文件，不修改已有 .asset。
     /// </summary>
     public static ActionDefinition Create(
-        string displayName,
-        string id,
+        string fileName,
         AnimationClip animationClip,
         string folder = DefaultFolder)
     {
-        if (string.IsNullOrWhiteSpace(displayName))
+        if (string.IsNullOrWhiteSpace(fileName))
         {
-            EditorUtility.DisplayDialog("Create Action", "Display Name 不能为空。", "OK");
+            EditorUtility.DisplayDialog("Create Action", "文件名不能为空。", "OK");
             return null;
         }
 
@@ -28,17 +27,13 @@ public static class ActionDefinitionCreateUtility
 
         EnsureFolderExists(folder);
 
-        string fileName = SanitizeFileName(string.IsNullOrWhiteSpace(id) ? displayName : id);
-        string assetPath = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{fileName}.asset");
+        string safeName = SanitizeFileName(fileName);
+        string assetPath = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{safeName}.asset");
 
         var action = ScriptableObject.CreateInstance<ActionDefinition>();
         AssetDatabase.CreateAsset(action, assetPath);
 
         var so = new SerializedObject(action);
-        so.FindProperty("displayName").stringValue = displayName.Trim();
-        so.FindProperty("id").stringValue = string.IsNullOrWhiteSpace(id)
-            ? Path.GetFileNameWithoutExtension(assetPath)
-            : id.Trim();
         so.FindProperty("animationClip").objectReferenceValue = animationClip;
 
         // 与 ActionDefinition.OnValidate 对齐：有 Clip 时写入 totalFrames。

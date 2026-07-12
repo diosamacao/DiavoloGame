@@ -184,8 +184,7 @@ ActionExecutor                  # 动作执行器（Player / Enemy 共用）
 
 | 字段 | 说明 |
 |------|------|
-| `id` | 唯一标识，如 `player_attack_1` |
-| `displayName` | 显示名 |
+| 资产文件名 | 唯一标识与编辑器显示名（如 `player_attack_1`） |
 | `animationClip` | 绑定的 AnimationClip（M2 必填） |
 | `segments` | 可选 `ActionSegment[]`：多 Clip + 帧范围拼接（M7 评估） |
 | `sampleRate` | 采样率（默认与动画 import 一致，显式对齐 Logic Tick） |
