@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8cdf92a760a3da049b7a7787181f1500, type: 3}
-  m_Name: ComboActionResolver
+  m_Name: UnagiCombo
   m_EditorClassIdentifier: 
   steps:
   - {fileID: 11400000, guid: feed82bd9c2969e4d8503d7a7936b734, type: 2}
@@ -18,4 +18,5 @@ MonoBehaviour:
   - {fileID: 11400000, guid: b553179081bd8e84691c2d28f56eeeb1, type: 2}
   - {fileID: 11400000, guid: c18191bb1aeaeab4e8478467868d4e8f, type: 2}
   - {fileID: 11400000, guid: 19bd2b48cb1f7f64799b8c6066ff91ff, type: 2}
+  - {fileID: 11400000, guid: ec7c606a20e43e54ba1065507a9a2a4f, type: 2}
   leafPolicy: 0
