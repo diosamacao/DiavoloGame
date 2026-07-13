@@ -35,7 +35,7 @@ MonoBehaviour:
       endFrame: 119
       priority: 0
       trackName: VFX_1
-      prefab: {fileID: 6438811975416736645, guid: 9f9e5972d4aa84545b6da5d63c048d25, type: 3}
+      prefab: {fileID: 6855955652325114174, guid: 4984f2e2ad29497ab0ef086a14e2a187, type: 3}
       localOffset: {x: -0.23, y: 0.52, z: 1.72}
       localEulerAngles: {x: 0, y: 0, z: 0}
       localScale: {x: 1.5, y: 1.5, z: 1.5}
@@ -92,7 +92,7 @@ MonoBehaviour:
       cancelType: 1
       allowedInputs: []
     - id: Cancel_2
-      startFrame: 21
+      startFrame: 19
       endFrame: 39
       priority: 0
       trackName: Cancel_3
