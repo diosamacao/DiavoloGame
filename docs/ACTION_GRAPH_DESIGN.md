@@ -1,0 +1,441 @@
+# ActionGraph 连招图设计方案
+
+> 日期：2026-07-14  
+> 状态：**已实现（多入口 Graph）**；Held/Released 缓冲与 GraphView 润色待续  
+> 相关：`docs/ACTION_SYSTEM.md`、`docs/ACTION_SYSTEM_REFACTOR_PLAN.md`、`docs/ACTION_EDITOR.md`
+
+---
+
+## 1. 背景与问题
+
+当前选招层已完成 Resolver 拆分：
+
+```text
+PlayerActionSet
+  → ActionResolverService
+    → Single / Combo / Directional ActionResolver
+      → ActionDefinition
+        → ActionExecutor 播放
+```
+
+`ActionDefinition` 只描述单招时间轴；下一招由 `ActionResolver` 决定。攻击连段目前落在 `ComboActionResolver`（线性 `steps[]` + `ComboLeafPolicy`）。
+
+### 1.1 配置冗余：CancelWindow × AllowInput
+
+每个 `CancelWindowNotifyState` 都需配置 `allowedInputs`。当一段攻击同时允许「攻击进位」与「闪避取消」时，**每一个** Cancel 窗都要重复挂 Attack + Dodge。多窗、多段连招下配置噪音大、易漏配。
+
+根因：Cancel 窗同时承担了「何时可取消」与「允许什么输入」，而输入语义本应属于**被派生的那一招**。
+
+### 1.2 结构能力：线性序列无法表达环与分支
+
+`ComboActionResolver` 无法自然表达环（`A4→A2`）、同窗多输入分支、以及同一 `ActionDefinition` 在路径上多次出现且出边不同（身份被 SO 引用绑死）。
+
+### 1.3 同招多 CancelWindow：同触发、不同派生
+
+> **在不同 CancelWindow 内执行同一触发（如 Attack Pressed），可以派生到不同动作。**
+
+边必须绑定到具体 `cancelSlotId`，不能只按「当前节点」进位。
+
+### 1.4 决策：输入归属 ActionDefinition.Trigger（本方案采纳）
+
+将「用什么输入、何种方式触发本招」从 CancelWindow / 图边挪到 **`ActionDefinition.Trigger`**：
+
+| 招式 | Trigger（示意） |
+|------|-----------------|
+| `Attack_01` / `Attack_02_*` | Attack + Pressed |
+| `Dodge_*` | Dodge + Pressed |
+| 未来蓄力斩 | Attack + Held |
+| 未来长按闪避 | Dodge + Held |
+
+配置动作树时：
+
+> **只需为每个 Cancel 槽选择可派生到的 Action（节点）；不必在边上再选 Input。**  
+> 运行时用目标招的 `Trigger` 去匹配输入缓冲。
+
+这与已有 `ActionRequest(InputId, ActionInputTrigger)` / `ActionInputTrigger`（当前仅 `Pressed`，预留 Held/Released）对齐，并消除 Cancel 窗与边上的输入重复配置。
+
+---
+
+## 2. 设计目标
+
+1. 支持连招 **分支** 与 **环**（有向图，而非纯树）。
+2. **同一 Action 的不同 CancelWindow + 同一 Trigger → 可派生不同下一招**（边绑定 cancel 槽；Trigger 来自目标 Action）。
+3. **取消 `CancelWindow.allowedInputs` 作为主配置**；可用输入由该槽出边目标的 `Trigger` 集合推导。
+4. **`ActionDefinition.Trigger`** 描述本招由何种输入、何种触发类型启动（Pressed / Held / Released…）。
+5. 图边 **不携带 inputId**；编辑器连线 =「此窗可接到该 Action」。
+6. **保持** 选招拓扑在 Graph，不把连招图写进单招资产；时间轴只提供 Cancel 槽与帧区间。
+7. **保持** `ActionExecutor` 薄：扫窗 → 带上 slot → 交给 Graph Resolver。
+8. **必须提供 ActionGraph 编辑器**：拖入 Action、按 Cancel 槽连到目标 Action（Trigger 自动显示）。
+
+### 2.1 非目标（本阶段不做）
+
+- 把完整 Ability / GAS 式技能树塞进 ActionGraph。
+- 一次性强制迁移所有 `ComboActionResolver` 资产。
+- 在 Graph 编辑器内重做整套单招时间轴（Hitbox/VFX 等仍由 Action Editor 编辑）。
+
+---
+
+## 3. 核心原则
+
+```text
+ActionDefinition.Trigger = 本招如何被输入触发（唯一输入配置处）
+ActionDefinition.Timeline = 本招如何播放（含 Cancel 槽）
+ActionGraph               = 一张图可含多个 Entry（攻击/闪避…）+ Cancel 边
+PlayerActionSet           = 只挂 ActionGraph，不再配 input→Resolver 表
+边                        = (fromNode, cancelSlotId) → toNode（Trigger 取自目标）
+ActionResolverService     = 调 ActiveGraph.TryResolveStart / TryResolveCancel
+节点.VariantResolver      = 可选（Directional 闪避等）
+```
+
+命名上可用「连招树」，**数据模型按有向图 + 多入口**实现。
+
+---
+
+## 3.1 多入口起手（攻击 + 闪避同一张图）
+
+```text
+ActionGraph
+  Node Attack_01   [Entry] Trigger=Attack●
+  Node Attack_02           Trigger=Attack●
+  Node Dodge_Back  [Entry] Trigger=Dodge●  + VariantResolver=Directional
+  Node Dodge_Fwd / Left / Right   （变体落点，便于 Cancel 边）
+
+Locomotion + Attack → 命中 Attack_01 Entry
+Locomotion + Dodge  → 命中 Dodge Entry → Directional 选变体 → 游标落到对应 Dodge 节点
+```
+
+`PlayerActionSet` 仅引用该 Graph；InputReader 注册的离散输入由 Graph 内所有 Trigger 自动收集。
+
+---
+
+## 4. 数据模型
+
+### 4.1 ActionDefinition.Trigger
+
+在单招资产上配置（与时间轴并列的基础字段）：
+
+```text
+ActionDefinition
+  trigger :
+    input     : InputActionReference   // 解析为 inputId（Attack / Dodge / …）
+    kind      : ActionInputTrigger     // Pressed | Held | Released（扩展现有枚举）
+  timeline  : … CancelWindow(cancelSlotId, frames, cancelType, priority) …
+```
+
+约定：
+
+| 项 | 说明 |
+|----|------|
+| 语义 | 「要进入/派生到本招，需要满足的输入条件」 |
+| 与 `ActionRequest` | `Request.InputId` + `Request.Trigger`（kind）应对齐本字段；起手与 Cancel 共用同一套匹配 |
+| 扩展 | 长按攻击 = 新 Action + `kind=Held`；不必改 Cancel 窗或边结构 |
+| 命名 | 资产字段名 `Trigger`；kind 枚举继续用已有 `ActionInputTrigger`；文档中称 **Trigger.kind** 以免与 `ActionRequest.Trigger` 混淆 |
+
+**每个招式通常一个 Trigger。** 若同一动画既要「点按」又要「长按」进不同逻辑，拆成两个 `ActionDefinition`（或两个图节点引用不同资产），而不是在一个 Action 上挂多个 Trigger。
+
+### 4.2 Cancel 槽（时间轴）
+
+```text
+CancelWindowNotifyState
+  cancelSlotId : string      // 招式内唯一
+  cancelType   : CancelType  // Action / Recovery / Movement
+  startFrame / endFrame / priority
+  // 删除 allowedInputs —— 可用触发由本槽出边目标的 Trigger 推导
+```
+
+- `Movement` 取消仍不走 Trigger，继续用移动意图（与现网一致）。
+- `ResolvedCancelWindow` 携带 `CancelSlotId`，**不再**携带 AllowedInputs 列表（匹配只走 Graph）。
+
+### 4.3 ActionGraph
+
+```text
+ActionGraph
+  entryNodeId : string
+  nodes[] :
+    nodeId  : string
+    action  : ActionDefinition   // 其 Trigger 参与 Cancel 匹配
+  edges[] :
+    fromNodeId    : string
+    cancelSlotId  : string       // 来自 from.action 的某一扇窗
+    conditions    : EdgeCondition[]  // 可选：OnHit / OnWhiff …
+    to            : NodeRef        // 目标节点；Trigger = to.action.Trigger
+```
+
+**边匹配键：**
+
+```text
+结构键：  (fromNodeId, cancelSlotId) → toNode
+运行匹配：缓冲满足 to.action.Trigger 且 conditions 通过
+```
+
+同一 `from` + 同一 `cancelSlotId` 可连出多条边（例如同时挂 Attack 招与 Dodge 招）——它们靠**目标 Trigger 不同**区分。  
+同一槽下两条边指向 **Trigger 签名相同**（同一 inputId + 同一 kind）的两个目标 → **非法**（校验报错），除非 conditions 互斥（如 OnHit / OnWhiff）。
+
+闪避取消 = 连到带 `Trigger=Dodge` 的 Dodge 节点（或见 6.4 的 Directional 再解析）。
+
+### 4.4 GraphActionResolver
+
+```text
+GraphActionResolver : ActionResolver
+  graph : ActionGraph
+```
+
+`PlayerActionSet`：Attack Entry → 本 Resolver（Locomotion 起手进 entry）。  
+Cancel 路径：**先看当前槽有哪些出边，再用各目标 Trigger 反查缓冲**（见 §5）。
+
+### 4.5 关系一览
+
+| 概念 | 关系 |
+|------|------|
+| Action ↔ Trigger | 一对一（本方案） |
+| Graph Node ↔ Action | 多对一允许 |
+| Cancel 槽 ↔ 出边 | 一对多（多目标招 = 多 Trigger） |
+| 运行时位置 | `CurrentNodeId` |
+| 运行时取消上下文 | `CancelSlotId` |
+
+---
+
+## 5. 多窗派生 + Trigger 匹配
+
+### 5.1 编辑器心智模型（目标体验）
+
+```text
+Attack_01
+  Early 窗 ──连接──→ Attack_02_Quick     （Trigger: Attack Pressed）
+  Early 窗 ──连接──→ Dodge_Back          （Trigger: Dodge Pressed）
+  Late  窗 ──连接──→ Attack_02_Finisher  （Trigger: Attack Pressed）
+  Late  窗 ──连接──→ Dodge_Back
+  Recovery窗──连接──→ Attack_01          （Trigger: Attack Pressed，重开）
+```
+
+策划只选「窗 → Action」；边标签由目标 `Trigger` 自动显示为 `Attack●` / `Dodge●` / `Attack●Held`。
+
+### 5.2 运行时解析链
+
+```text
+ActionExecutor.Tick
+  → 按 priority 扫描开放 CancelWindow → 命中槽 W
+  → 枚举 Graph 中 (CurrentNodeId, W.cancelSlotId) 的全部出边
+  → 对每条边读取 to.action.Trigger，查询输入缓冲是否满足
+       （Pressed：HasBuffer(inputId)；Held：后续接入按住状态等）
+  → 若唯一命中（或 conditions 筛后唯一）→ 消费对应缓冲
+  → Context { CancelSlotId, CurrentNodeId, … }
+  → TransitionTo(to.action) + 游标 = to.nodeId
+```
+
+与旧方案差异：不是「先消费某个 allowedInput，再带 inputId 去 Resolver 找下一招」，而是「**先看本窗能接到哪些招，再用这些招的 Trigger 问缓冲**」。
+
+### 5.3 同帧多窗重叠
+
+仍按 Cancel **priority**：先命中的槽独占本帧 Cancel 解析；只枚举该槽出边。
+
+### 5.4 同槽多 Trigger / 冲突
+
+| 情况 | 处理 |
+|------|------|
+| Early → Quick(Attack●) + Dodge(Dodge●) | 合法；建议按边列表顺序匹配，校验禁止重复 Trigger |
+| Early → Quick(Attack●) + Finisher(Attack●) | **非法**（同槽同 Trigger）；应拆到不同窗或加互斥 conditions |
+| Attack● 与 Attack●Held 同时满足 | P2 建议 **Held 优先于 Pressed**（或可配置） |
+
+### 5.5 为何比「边上等 inputId」更好
+
+1. Trigger 与招式绑定一次，全图复用，改 Dodge 输入名只改 Action。  
+2. 配树时零 Input 选择，降低配错。  
+3. 长按等扩展只加 `ActionInputTrigger` + 新 Action，边模型不变。  
+4. Cancel 窗彻底只负责时间门，职责干净。
+
+---
+
+## 6. 运行时行为
+
+### 6.1 图游标
+
+`ActionSession`：`CurrentNodeId`（+ 可选 `CurrentGraph`）。  
+`ActionResolveContext`：`CurrentNodeId` + `CancelSlotId`。
+
+### 6.2 TryResolve
+
+| Origin | 行为 |
+|--------|------|
+| `LocomotionStart` | 返回 entry 的 action；游标 = entry（起手仍由 PlayerActionSet 按输入路由到本 GraphResolver） |
+| `CancelWindow` | 见 §5.2：按槽出边 + 目标 Trigger 匹配缓冲 |
+| 无匹配边 / 缓冲不满足 | 失败，不进位 |
+
+### 6.3 Executor
+
+```text
+扫窗(slot) → 列本槽出边 → Trigger 匹配缓冲 → TransitionTo
+```
+
+不在 Executor 内写死 Attack/Dodge；不读窗上的 allowedInputs。
+
+### 6.4 方向闪避（Directional）与「连到 Dodge Action」
+
+推荐：
+
+1. 图上 Early/Late 连到某个 `Dodge_*` 节点（其 `Trigger = Dodge Pressed`）。  
+2. 匹配成功后，若 `PlayerActionSet` 对 `Dodge` 绑定的是 `DirectionalActionResolver`，则 **用该 Resolver 再解析一次**（`Origin=CancelWindow`），以得到前/后/左/右变体；图节点上的 Action 可作为 default/占位。  
+3. 若 Dodge 仅为 `SingleActionResolver`，则直接播放边上的目标 Action。
+
+这样仍满足「配树只选 Action」，又保留现有方向闪避策略，无需在边上再标 Input。
+
+---
+
+## 7. 职责对照（最终）
+
+| 层 | 职责 | 不负责 |
+|----|------|--------|
+| `ActionDefinition.Trigger` | 本招由什么输入、何种 kind 触发 | 连招下一跳 |
+| `CancelWindow` | 何时可取消（帧 + slot + type） | 允许哪些输入、下一招是谁 |
+| `ActionGraph` 边 | 某槽可派生到哪些 Action 节点 | 再写一遍 Input |
+| `GraphActionResolver` | 槽 + 缓冲 ↔ 目标 Trigger | 播动画 |
+| `PlayerActionSet` | Locomotion 起手：输入 → Resolver | Cancel 窗内的 input 白名单 |
+
+**删除主路径上的 `CancelWindow.allowedInputs`**（按项目无兼容层约定，切 Graph 后不保留双轨）。
+
+---
+
+## 8. ActionGraph 编辑器（硬需求）
+
+### 8.1 目标
+
+1. 拖入 `ActionDefinition` 生成节点（节点上显示其 **Trigger** 徽章）。  
+2. 节点输出端口 = 该招 **Cancel 槽**（帧区间只读展示）。  
+3. **从槽端口拖到目标节点即可成边**——不弹 Input 选择。  
+4. 边标签自动显示目标 `Trigger`（如 `Attack●` / `Dodge●Held`）。  
+5. 校验同槽 Trigger 冲突、slot 丢失、缺 Entry 等。
+
+### 8.2 界面草图
+
+```text
+┌─ ActionGraph Editor ─────────────────────────────────────────┐
+│ Graph: Player_Sword_Combo              [Set Entry] [Validate] │
+├────────────┬──────────────────────────────────────────────────┤
+│ Action 库  │  ┌─ N1 Attack_01 [Attack●] ●Entry ─────┐       │
+│ (可拖入)   │  │  ◉ Early  10-20                       │──→ N2_Quick [Attack●]
+│            │  │  ◉ Late   28-40                       │──→ N2_Fin [Attack●]
+│            │  │  ◉ Early / Late 另线 ──→ N_Dodge [Dodge●]    │
+│            │  └──────────────────────────────────────┘       │
+│            │  连线时无需选择 Input；冲突 Trigger 标红         │
+└────────────┴──────────────────────────────────────────────────┘
+```
+
+| 操作 | 行为 |
+|------|------|
+| 拖入 Action | 建节点；展示 Trigger + Cancel 端口 |
+| 槽 → 节点连线 | 写入 edge；标签 = 目标 Trigger |
+| 改 Action.Trigger | 全图边标签刷新；同槽冲突重跑校验 |
+| 双击节点 | 打开 Action Editor 编时间轴 / Trigger |
+
+### 8.3 校验（最低集）
+
+1. Entry 存在。  
+2. 边的 `cancelSlotId` ∈ from.action 的 Cancel 列表。  
+3. 同一 `(fromNodeId, cancelSlotId)` 下，出边目标的 `(Trigger.inputId, Trigger.kind)` 在无互斥 conditions 时唯一。  
+4. 目标节点存在；目标 Action 已配置合法 Trigger。  
+5. Warning：某槽无出边。
+
+### 8.4 分期
+
+P0 即交付最小编辑器（拖入 + 按槽连 Action + 存盘 + Trigger 冲突校验）。
+
+---
+
+## 9. 配置示例
+
+### 9.1 多窗差异派生（Trigger 在 Action 上）
+
+```text
+Actions:
+  Attack_01.Trigger          = Attack Pressed
+  Attack_02_Quick.Trigger    = Attack Pressed
+  Attack_02_Finisher.Trigger = Attack Pressed
+  Dodge_Back.Trigger         = Dodge Pressed
+
+Edges:  // 无 input 字段
+  (N1, Early) → N2_Quick
+  (N1, Early) → N_Dodge
+  (N1, Late)  → N2_Finisher
+  (N1, Late)  → N_Dodge
+  (N1, Recovery) → N1
+```
+
+### 9.2 循环 A1→A2→A3→A4→A2…
+
+各 Attack 均为 `Attack Pressed`；边仅 `(Ni, ComboCancel) → N(i+1)`，末段 `(N4, ComboCancel) → N2`。
+
+### 9.3 未来：长按攻击
+
+```text
+Charge_Slash.Trigger = Attack Held
+(N1, Early) → N2_Quick          // Attack Pressed
+(N1, Early) → N_Charge          // Attack Held —— 同窗不同 kind，合法
+```
+
+---
+
+## 10. 与现有类型对照
+
+| 现有 | 本方案 |
+|------|--------|
+| `CancelWindow.allowedInputs` | **删除**；由目标 `ActionDefinition.Trigger` 推导 |
+| 边上 `inputId`（前一版草案） | **删除**；Trigger 在目标 Action |
+| `ActionInputTrigger`（仅 Pressed） | 扩展 Held / Released；挂到 `ActionDefinition.Trigger.kind` |
+| `ActionRequest(InputId, Trigger)` | 与 `ActionDefinition.Trigger` 对齐 |
+| `ComboActionResolver.steps[]` | `ActionGraph` 节点 + 槽边 |
+| `IndexOfStep(action)` | `CurrentNodeId` + 槽出边 + Trigger 匹配 |
+| 无 Graph 编辑器 | 按槽连 Action，自动带 Trigger |
+
+---
+
+## 11. 分期落地
+
+| 阶段 | 内容 | 验收 |
+|------|------|------|
+| **P0** | `ActionDefinition.Trigger`；`cancelSlotId`；无边 input 的 `ActionGraph` + Resolver；Session/Context；**最小 Graph 编辑器**；去掉 Cancel 主路径 `allowedInputs` | ① 环可玩 ② Early/Late 同 Attack Trigger 进不同招 ③ 同窗 Attack+Dodge 仅靠连两个 Action ④ 编辑器无需选 Input |
+| **P1** | 校验器完善；Directional 与 Dodge 节点再解析打通 | 闪避取消方向正确；冲突 Trigger 编辑期报错 |
+| **P2** | `ActionInputTrigger.Held/Released` + 缓冲/按住状态；边 conditions | 长按攻击/闪避；挥空分支 |
+| **P3** | GraphView 体验、播放中高亮当前槽/边 | 策划日常只维护图 |
+
+### 11.1 建议影响文件（实现时）
+
+**新增：** `ActionGraph`、`GraphActionResolver`、`ActionTrigger`（或嵌在 Definition 内）、`Editor/Combat/ActionGraph/`
+
+**修改：**
+
+- `ActionDefinition` — 增加 `Trigger`
+- `ActionInputTrigger` — 扩展 Held / Released（P2）
+- `CancelWindowNotifyState` / `ResolvedCancelWindow` — `cancelSlotId`；移除 allowedInputs 主路径
+- `ActionSession` / `ActionResolveContext` / `ActionExecutor` — 游标、槽、按目标 Trigger 匹配
+- 文档与 TECHNICAL 同步
+
+**不改：** 连招拓扑不写进 `ActionDefinition`（只加 Trigger 元数据）；玩法资产由 Editor 人工配置。
+
+---
+
+## 12. 风险与约束
+
+1. **nodeId + cancelSlotId** 仍是连段身份与多窗差异的必要条件。  
+2. **同槽同 Trigger** 必须校验禁止（或强制互斥 conditions）。  
+3. **改 Action.Trigger** 会影响所有指向该 Action 的边的匹配语义——属预期；编辑器应提示引用计数。  
+4. **Held / Pressed 同时满足** 需在 P2 定优先级。  
+5. **Directional Dodge**：图上连的是「带 Dodge Trigger 的节点」，真正左右闪由 Directional Resolver 二次解析（§6.4）。  
+6. **无兼容层**：切 Graph 后删除 `allowedInputs` 进位双轨与线性 Combo 主路径假设。
+
+---
+
+## 13. 结论
+
+**可以，且建议采用：** 在 `ActionDefinition` 上配置 **Trigger**（input + Pressed/Held/Released），CancelWindow 只保留时间门与 `cancelSlotId`，图边只表达「某窗 → 某 Action」。配置动作树时只需按窗口选择不同 Action；运行时用目标 Trigger 匹配缓冲。多窗差异派生仍依赖槽级边；长按等扩展只扩展 `ActionInputTrigger` 与新招式资产，不必改树边模型。
+
+---
+
+## 变更日志
+
+| 日期 | 说明 |
+|------|------|
+| 2026-07-14 | 初稿：问题分析、图模型、Cancel 减负、分期与风险 |
+| 2026-07-14 | 补充：多 CancelWindow 差异派生；ActionGraph 编辑器硬需求 |
+| 2026-07-14 | **采纳 Trigger 归属 ActionDefinition**：边去掉 inputId；删除 Cancel.allowedInputs 主路径；编辑器仅按窗连 Action；对齐 ActionInputTrigger 扩展 Held/Released |
+| 2026-07-14 | **P0 落地**：`ActionTrigger`、`ActionGraph`/`GraphActionResolver`、`ActionResolveResult` 图游标、Cancel 槽=时间轴 Id、Executor 按槽边候选输入、Inspector + GraphView 编辑器；移除 `allowedInputs` |
+| 2026-07-14 | **多入口**：删除 `GraphActionResolver` 与 `ActionEntry`；`PlayerActionSet` 直接挂 `ActionGraph`；节点 `Is Entry` + Trigger 同时支持攻击/闪避起手；可选 `VariantResolver`（Directional） |

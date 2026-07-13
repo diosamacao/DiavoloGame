@@ -75,11 +75,13 @@ public class MyBehaviour : MonoBehaviour
 - 使用 Input System + `.inputactions` 资产；Action Map 命名 `Player`
 - **采集**：输入源实现 `ICharacterInputSource`，玩家使用纯 C# `InputReader`，敌人可使用 AI 输入源
 - **中枢**：`InputManager` 由 `CharacterActor` 持有；`IngestFrame` + `RegisterPressed(string inputId, Action)`
-- **离散 id**：Input System Action **名**；出招表 `ActionEntry` → `ActionResolver`（`input` + `resolver` 两字段，缺一即无效）
-- **选招层**：起手 / 连段进位 / Dodge 方向分派 / Cancel 下一招统一由 `ActionResolverService` → `ActionResolver`（`Single` / `Combo` / `Directional`）解析；`ActionExecutor` 不做输入查表也不做 `CombatActionType` 特判
-- **连招**：Cancel 窗只配帧/输入/`CancelType`（`Action` 进位、`Recovery` 回首段）；下一招由 `ComboActionResolver` 解析（非 Cancel 内 targetAction）
-- **战斗模式**：`CombatModeProfile` + `CombatModeService`；与 `PlayerActionSet` 解耦
-- **缓冲**：招式中 `Buffer(inputId)`；`ActionExecutor` 经 `IActionInputBuffer` 在 `CancelWindow` 内消费
+- **离散 id**：Input System Action **名**；来自 `ActionDefinition.Trigger`，由 `PlayerActionSet`→`ActionGraph` 收集注册
+- **选招层**：`ActionResolverService` → 当前模式 `ActionGraph`（多 Entry × Trigger 起手 + Cancel 边）；`DirectionalActionResolver` 可作为节点 `VariantResolver`
+- **Trigger**：`ActionDefinition.Trigger`（input + kind）是输入唯一配置处；ActionSet **不再**配 input→Resolver 表
+- **连招图**：一张 `ActionGraph` 可同时含攻击/闪避等多个 Entry；边 = `(fromNode, cancelSlotId) → toNode`；编辑器 `ACT/Combat/Action Graph Editor`
+- **线性连招**：`ComboActionResolver` 仅作 Variant/遗留工具时可用；主路径为 Graph
+- **战斗模式**：`CombatModeProfile` + `CombatModeService`；`PlayerActionSet` 绑定一张 Graph
+- **缓冲**：招式中 `Buffer(inputId)`；`ActionExecutor` 经 `IActionInputBuffer` 在 `CancelWindow` 内消费（候选输入来自该槽出边目标 Trigger）
 - **后摇重开**：后摇段使用 `CancelType.Recovery`；与攻击末 `CancelType.Action` 分离
 - 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `CharacterMotor` / State）
 - **玩家装配**：`InputActionAsset` 由 `CharacterConfig` 注入 `InputReader`，不在玩家 Prefab 上重复配置

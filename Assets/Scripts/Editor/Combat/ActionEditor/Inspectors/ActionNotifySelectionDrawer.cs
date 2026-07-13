@@ -194,7 +194,10 @@ public static class ActionNotifySelectionDrawer
     static void DrawCancel(SerializedProperty element)
     {
         EditorGUILayout.PropertyField(element.FindPropertyRelative("cancelType"));
-        EditorGUILayout.PropertyField(element.FindPropertyRelative("allowedInputs"), true);
+        // Cancel 槽 id 复用时间轴条目 Id，供 ActionGraph 边绑定；不再配置 allowedInputs。
+        EditorGUILayout.PropertyField(element.FindPropertyRelative("id"), new GUIContent(
+            "Cancel Slot Id",
+            "图边绑定的槽身份；改帧不要改此 Id，否则会断边。"));
     }
 
     static void DrawMovement(SerializedProperty element)

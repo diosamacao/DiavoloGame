@@ -9,6 +9,10 @@ public class ActionDefinition : ScriptableObject
     [HideInInspector]
     [SerializeField] AnimationClip animationClip = null;
 
+    [Header("Trigger")]
+    [Tooltip("进入/派生到本招所需的输入与触发类型；Cancel 匹配与动作图边路由读取此字段。")]
+    [SerializeField] ActionTrigger trigger = new();
+
     [Header("Animation")]
     [Tooltip("按顺序播放的动画段；totalFrames 由各段有效帧累加。")]
     [SerializeField] ActionAnimationSegment[] animationSegments = Array.Empty<ActionAnimationSegment>();
@@ -62,6 +66,9 @@ public class ActionDefinition : ScriptableObject
     [Header("Movement")]
     [Tooltip("开启时由动画 Root Motion 驱动位移，脚本位移（Displacement Distance）将被忽略。")]
     [SerializeField] bool useRootMotion = true;
+
+    /// <summary>本招触发条件（input + Pressed/Held/Released）。</summary>
+    public ActionTrigger Trigger => trigger ?? new ActionTrigger();
 
     /// <summary>顺序动画段；运行时与编辑器均只认此列表。</summary>
     public ActionAnimationSegment[] AnimationSegments =>

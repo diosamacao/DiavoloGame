@@ -13,7 +13,7 @@ public sealed class CharacterActionDriver
     readonly ActionExecutor _actionExecutor;
     /// <summary>同物体 CombatModeService；用具体类型访问 Profile / TrySetMode 三参 overload。</summary>
     readonly CombatModeService _combatMode;
-    /// <summary>Locomotion 起手动作解析委托。</summary>
+    /// <summary>Locomotion 起手 / Cancel 解析（委托 ActionGraph）。</summary>
     readonly ActionResolverService _resolverService;
     /// <summary>角色根节点；方向 Resolver 读取朝向用。</summary>
     readonly Transform _actorRoot;
@@ -52,11 +52,10 @@ public sealed class CharacterActionDriver
     public void InitializeInputRouting()
     {
         inputSource.ConfigureDiscreteInputs(CollectDiscreteInputReferences());
-
         RegisterInputHandlers();
     }
 
-    /// <summary>全部战斗模式出招表的离散输入并集，供 InputReader 轮询。</summary>
+    /// <summary>全部战斗模式 Graph Trigger 输入并集，供 InputReader 轮询。</summary>
     UnityEngine.InputSystem.InputActionReference[] CollectDiscreteInputReferences()
     {
         if (_combatMode?.Profile != null)
@@ -84,7 +83,7 @@ public sealed class CharacterActionDriver
         _wasInAction = inAction;
     }
 
-    /// <summary>注册全部战斗模式出招表中的离散输入（并集，按 inputId 去重）。</summary>
+    /// <summary>注册全部模式 Graph 中 Trigger 对应的离散输入（按 inputId 去重）。</summary>
     public void RegisterInputHandlers()
     {
         if (_combatMode.Profile == null)
@@ -95,24 +94,20 @@ public sealed class CharacterActionDriver
 
         _registeredInputIds.Clear();
 
-        bool hasAnyEntry = false;
-        foreach (ActionEntry entry in _combatMode.Profile.EnumerateAllActionEntries())
+        bool hasAny = false;
+        foreach (string inputId in _combatMode.Profile.EnumerateAllTriggerInputIds())
         {
-            if (!entry.IsValid)
-                continue;
-
-            hasAnyEntry = true;
-            string inputId = entry.InputId;
+            hasAny = true;
             if (!_registeredInputIds.Add(inputId))
                 continue;
 
             _input.RegisterPressed(inputId, () => HandleDiscreteInput(inputId));
         }
 
-        if (!hasAnyEntry)
+        if (!hasAny)
         {
             Debug.LogWarning(
-                "CharacterActionDriver: CombatModeProfile 中无有效 ActionEntry，攻击/闪避输入未注册。");
+                "CharacterActionDriver: CombatModeProfile 的 ActionGraph 中无有效 Trigger，攻击/闪避输入未注册。");
         }
     }
 
@@ -123,12 +118,8 @@ public sealed class CharacterActionDriver
         if (actionSet == null)
             return false;
 
-        foreach (ActionEntry entry in actionSet.Entries)
+        foreach (string inputId in actionSet.EnumerateTriggerInputIds())
         {
-            if (!entry.IsValid)
-                continue;
-
-            string inputId = entry.InputId;
             if (!_input.HasBuffer(inputId))
                 continue;
 
@@ -144,11 +135,8 @@ public sealed class CharacterActionDriver
         if (_combatMode?.Profile == null)
             return;
 
-        foreach (ActionEntry entry in _combatMode.Profile.EnumerateAllActionEntries())
-        {
-            if (entry.IsValid)
-                _input.ClearBuffer(entry.InputId);
-        }
+        foreach (string inputId in _combatMode.Profile.EnumerateAllTriggerInputIds())
+            _input.ClearBuffer(inputId);
     }
 
     /// <summary>移动取消：在 CancelWindow(Movement) 内退回 Locomotion。</summary>
@@ -171,7 +159,7 @@ public sealed class CharacterActionDriver
             _input.Buffer(inputId);
     }
 
-    /// <summary>Locomotion 起手：经 ActionResolverService 解析后交给 ActionExecutor 播放。</summary>
+    /// <summary>Locomotion 起手：经 ActionGraph Entry×Trigger 解析后交给 ActionExecutor。</summary>
     void TryStartFromLocomotion(string inputId)
     {
         _input.ClearBuffer(inputId);
@@ -183,10 +171,10 @@ public sealed class CharacterActionDriver
             _actorRoot,
             _startContext);
 
-        if (!_resolverService.TryResolveStart(in request, in context, out ActionDefinition action))
+        if (!_resolverService.TryResolveStart(in request, in context, out ActionResolveResult resolveResult))
             return;
 
-        if (!_actionExecutor.TryStart(action))
+        if (!_actionExecutor.TryStart(in resolveResult))
             return;
 
         _stateMachine.TryChangeState(CharacterStateType.Action);
