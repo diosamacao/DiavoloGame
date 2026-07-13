@@ -1,6 +1,6 @@
 using System;
 
-/// <summary>动作时间轴区间窗口基类；用于 Hitbox、Hurtbox、VFX、SFX、Cancel、Movement、Rotation 等持续帧窗口。</summary>
+/// <summary>动作时间轴区间窗口基类；用于 Hitbox、Hurtbox、Cancel、Movement、Rotation 等持续帧窗口。</summary>
 [Serializable]
 public class ActionNotifyState : ActionTimelineItem
 {

@@ -37,7 +37,8 @@
 
 - [x] 2026-07-10：`ActionEditorWindow` 基础版（列表 + Scrub + 手动加轨/窗口拖拽）
 - [x] 2026-07-09：ActionNotify 时间轴入口：Hitbox/VFX/Cancel/Movement/Rotation 收敛到 `ActionTimeline`
-- [x] 2026-07-10：VFX/SFX 区间窗口 + 播放倍率语义
+- [x] 2026-07-10：VFX/SFX 区间窗口 + 播放倍率语义（已于 2026-07-13 改回点事件 + 显式 `playbackSpeed`）
+- [x] 2026-07-13：VFX/SFX 点事件 + `attachPointId` + 显式 `playbackSpeed`；`CharacterAttachPointResolver`；`ActionSfxPlayer`
 - [ ] `ActionDefinition` 子 SO 拆分（CombatData / PresentationData，可选）
 
 ### [P1] 战斗闭环

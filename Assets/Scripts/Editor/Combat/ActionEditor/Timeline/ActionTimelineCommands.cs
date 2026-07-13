@@ -148,7 +148,7 @@ public static class ActionTimelineCommands
         EditorUtility.SetDirty(so.targetObject);
     }
 
-    /// <summary>在指定轨上添加窗口；VFX/SFX 按自然时长设默认长度。</summary>
+    /// <summary>在指定轨上添加窗口；VFX/SFX/Event 为单帧点事件。</summary>
     public static ActionEditorSelection AddWindow(
         SerializedObject so,
         ActionTimelineTrackKind kind,
@@ -157,6 +157,7 @@ public static class ActionTimelineCommands
         float sampleRate,
         int totalFrames)
     {
+        _ = sampleRate;
         string arrayName = GetArrayPropertyName(kind);
         if (arrayName == null || kind == ActionTimelineTrackKind.Phase)
             return default;
@@ -172,7 +173,7 @@ public static class ActionTimelineCommands
 
         int maxFrame = Mathf.Max(0, totalFrames - 1);
         startFrame = Mathf.Clamp(startFrame, 0, maxFrame);
-        int endFrame = ResolveDefaultEndFrame(element, kind, startFrame, sampleRate, maxFrame);
+        int endFrame = ResolveDefaultEndFrame(element, kind, startFrame, maxFrame);
 
         SetIfExists(element, "id", $"{ActionEditorStyles.DisplayName(kind)}_{index + 1}");
         SetIfExists(element, "startFrame", startFrame);
@@ -272,28 +273,18 @@ public static class ActionTimelineCommands
         SerializedProperty element,
         ActionTimelineTrackKind kind,
         int startFrame,
-        float sampleRate,
         int maxFrame)
     {
-        if (kind == ActionTimelineTrackKind.Event)
+        // 点事件轨：触发帧单帧；区间轨：默认若干帧。
+        if (ActionEditorStyles.IsPointEventTrack(kind))
+        {
+            if (kind == ActionTimelineTrackKind.Vfx || kind == ActionTimelineTrackKind.Sfx)
+                SetIfExists(element, "playbackSpeed", 1f);
+
             return startFrame;
+        }
 
         int length = ActionEditorStyles.DefaultWindowFrames;
-        if (kind == ActionTimelineTrackKind.Vfx)
-        {
-            GameObject prefab = element.FindPropertyRelative("prefab")?.objectReferenceValue as GameObject;
-            float natural = ActionVfxPlayback.EstimateNaturalDurationSeconds(prefab);
-            SetIfExists(element, "naturalDurationSeconds", natural);
-            length = ActionVfxPlayback.DurationSecondsToFrameCount(natural, sampleRate);
-        }
-        else if (kind == ActionTimelineTrackKind.Sfx)
-        {
-            var clip = element.FindPropertyRelative("audioClip")?.objectReferenceValue as AudioClip;
-            float natural = clip != null ? clip.length : 0.5f;
-            SetIfExists(element, "naturalDurationSeconds", natural);
-            length = ActionVfxPlayback.DurationSecondsToFrameCount(natural, sampleRate);
-        }
-
         return Mathf.Min(maxFrame, startFrame + Mathf.Max(1, length) - 1);
     }
 

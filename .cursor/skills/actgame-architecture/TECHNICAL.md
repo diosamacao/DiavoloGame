@@ -379,7 +379,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 | 起手 / 缓冲 | `CharacterActionDriver` → `ActionResolverService.TryResolveStart` → `ActionExecutor.TryStart` |
 | 选招策略 | `ActionResolver`：`Single` / `Combo`（线性连段）/ `Directional`（方向闪避） |
 | Cancel 下一招 | `ActionExecutor` 扫描窗口消费输入后 → `ActionResolverService.TryResolveNext` |
-| 时间轴数据 | `ActionDefinition.Timeline`：`ActionNotify` 点事件 + `ActionNotifyState` 区间窗口 |
+| 时间轴数据 | `ActionDefinition.Timeline`：`ActionNotify` 点事件（Event/VFX/SFX）+ `ActionNotifyState` 区间窗口 |
 | 移动取消 | `CharacterActionDriver` + `CancelWindowNotifyState(Movement)` |
 | 招式旋转 | `ActionRotationDriver` + `RotationNotifyState` + `CombatTargetLock` |
 | Logic Tick | `ActionExecutor.UpdateFrame` → `ICombatFrameConsumer` + `ActionTimelineRunner` + `IActionNotifyConsumer` |
@@ -392,16 +392,17 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 ActionState.Tick
   → ActionExecutor.Tick(deltaTime)
       → SyncLogicFrameFromElapsed → DispatchCombatFrame
-          → HitboxFrameConsumer.OnCombatFrameAdvanced
+          → HitboxFrameConsumer.OnCombatFrameAdvanced（按 hitbox.attachPointId 解析挂点）
           → ActionTimelineRunner.Dispatch
-              → PlayVfxNotify Enter/Tick/Exit → ActionVfxPlayer.OnActionNotifyState（按 playbackSpeed）
+              → PlayVfxNotify 点触发 → ActionVfxPlayer.OnActionNotify（Resolve attachPointId + 显式 playbackSpeed）
+              → PlaySfxNotify 点触发 → ActionSfxPlayer.OnActionNotify（pitch = playbackSpeed）
               → 其他 ActionNotifyState Enter/Tick/Exit
       → CancelWindowNotifyState / Transition（含 OnHitConfirm）
 ```
 
-编辑器 Scrub：`UpdateFrame(frameIndex)` 与上列帧派发共用路径；`ACT/Action Editor` 窗口用 `ActionEditorPreviewSession` 做 Pose/VFX 预览。
+编辑器 Scrub：`UpdateFrame(frameIndex)` 与上列帧派发共用路径；`ACT/Action Editor` 窗口用 `ActionEditorPreviewSession` 做 Pose/VFX 预览（触发帧后 `Simulate(t * playbackSpeed)`）。
 
-### ActionEditor 对齐状态（2026-07-10）
+### ActionEditor 对齐状态（2026-07-13）
 
 | 对齐度 | 项 |
 |--------|-----|
@@ -409,8 +410,8 @@ ActionState.Tick
 | ✅ | 命中回流、`OnHitConfirm` / `OnWhiff` Transition 条件 |
 | ✅ | `CharacterActionDriver` 角色无关输入路由 |
 | ✅ | Hitbox/VFX/Cancel/Movement/Rotation 已收敛到 `ActionTimeline`，删除旧双轨数组 |
-| ✅ | `ActionEditorWindow`：手动加轨、轨内加窗、拖位置/长短、右侧细节；VFX/SFX 为可缩放时长窗口 |
-| 🟡 | SFX 运行时 Consumer / 完整 FramePlayer 窗口预览仍可增强 |
+| ✅ | `ActionEditorWindow`：手动加轨、拖拽；VFX/SFX 为单帧点事件（不可拉时长），显式 `playbackSpeed` + `attachPointId` |
+| ✅ | `ActionSfxPlayer` 运行时点触发；`CharacterAttachPointResolver` 供 VFX/Hitbox 共用 |
 | ⬜ | 伤害结算、Hit 状态、GM 热重载 |
 
 ### 已知限制
@@ -455,6 +456,7 @@ ActionState.Tick
 | 2026-07-05 | 动作系统 Resolver 重构：`ActionResolver`(Single/Combo/Directional) + `ActionResolverService` 承接起手/连段/Dodge 方向/Cancel 选招；`ActionExecutor` 收敛为纯播放器；`Combat/Actions` 分 Definitions/Resolution/Execution/Frames；`IActionComboInput`→`IActionInputBuffer` |
 | 2026-07-09 | ActionNotify 时间轴重构：新增 `ActionTimeline` / `ActionNotify` / `ActionNotifyState` / `ActionTimelineRunner`；Hitbox/VFX/Cancel/Movement/Rotation 改为统一 Timeline 数据真源并删除旧字段路径 |
 | 2026-07-10 | VFX/SFX 改为区间窗口（`naturalDurationSeconds` / `playbackSpeed`）；新增 `ActionEditorWindow` 手动加轨与拖拽编辑；`ActionVfxPlayer` 改窗口 Enter/Exit 消费 |
+| 2026-07-13 | VFX/SFX 改回点事件：显式 `playbackSpeed`、`PlayVfxNotify.attachPointId`、`CharacterAttachPointResolver`、`ActionSfxPlayer`；删除窗口派生倍率路径 |
 | 2026-07-12 | 动画改为 Clip + 薄层 Playable：`IAnimationPlayback` / `PlayableAnimationPlayback`；Profile 映射 Clip；HitStop 走 `SetSpeed`；废弃 Animator Controller 业务依赖 |
 | 2026-07-12 | `ActionDefinition` 多段 `ActionAnimationSegment[]`：同招顺序播多 Clip；`ActionExecutor` 段边界自动切；旧 `animationClip` OnValidate 迁入 segments |
 | 2026-07-13 | 相机方案 B：`CameraOrbitPivot` 对 `CameraRoot` SmoothDamp；LookAt 改为 `orbitPivot`；新增 `followSmoothTime` / `SnapFollowToTarget` |

@@ -8,7 +8,7 @@ public class ActionTimeline
 {
     [SerializeField] ActionEvent[] actionEvents = Array.Empty<ActionEvent>();
     [SerializeField] PlayVfxNotify[] playVfxNotifies = Array.Empty<PlayVfxNotify>();
-    [SerializeField] PlaySfxNotifyState[] playSfxStates = Array.Empty<PlaySfxNotifyState>();
+    [SerializeField] PlaySfxNotify[] playSfxStates = Array.Empty<PlaySfxNotify>();
     [SerializeField] HitboxNotifyState[] hitboxStates = Array.Empty<HitboxNotifyState>();
     [SerializeField] HurtboxNotifyState[] hurtboxStates = Array.Empty<HurtboxNotifyState>();
     [SerializeField] CancelWindowNotifyState[] cancelWindowStates = Array.Empty<CancelWindowNotifyState>();
@@ -19,11 +19,11 @@ public class ActionTimeline
     /// <summary>通用点事件列表，用于自定义信号、镜头等非专用事件。</summary>
     public ActionEvent[] ActionEvents => actionEvents ?? Array.Empty<ActionEvent>();
 
-    /// <summary>VFX 区间窗口列表（可拖时长，倍率由自然时长派生）。</summary>
+    /// <summary>VFX 点事件列表（触发帧播放，倍率由 playbackSpeed 显式配置）。</summary>
     public PlayVfxNotify[] PlayVfxNotifies => playVfxNotifies ?? Array.Empty<PlayVfxNotify>();
 
-    /// <summary>SFX 区间窗口列表。</summary>
-    public PlaySfxNotifyState[] PlaySfxStates => playSfxStates ?? Array.Empty<PlaySfxNotifyState>();
+    /// <summary>SFX 点事件列表（字段名 playSfxStates 保留以兼容已有资产 YAML）。</summary>
+    public PlaySfxNotify[] PlaySfxStates => playSfxStates ?? Array.Empty<PlaySfxNotify>();
 
     /// <summary>攻击判定框区间列表。</summary>
     public HitboxNotifyState[] HitboxStates => hitboxStates ?? Array.Empty<HitboxNotifyState>();
@@ -66,6 +66,18 @@ public class ActionTimeline
             if (actionEvent != null)
                 yield return actionEvent;
         }
+
+        foreach (PlayVfxNotify vfx in PlayVfxNotifies)
+        {
+            if (vfx != null)
+                yield return vfx;
+        }
+
+        foreach (PlaySfxNotify sfx in PlaySfxStates)
+        {
+            if (sfx != null)
+                yield return sfx;
+        }
     }
 
     /// <summary>枚举全部区间窗口，供 Runner 与编辑器轨道统一处理。</summary>
@@ -78,18 +90,6 @@ public class ActionTimeline
         }
 
         foreach (HurtboxNotifyState state in HurtboxStates)
-        {
-            if (state != null)
-                yield return state;
-        }
-
-        foreach (PlayVfxNotify state in PlayVfxNotifies)
-        {
-            if (state != null)
-                yield return state;
-        }
-
-        foreach (PlaySfxNotifyState state in PlaySfxStates)
         {
             if (state != null)
                 yield return state;

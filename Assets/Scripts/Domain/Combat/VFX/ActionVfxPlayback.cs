@@ -46,7 +46,7 @@ public static class ActionVfxPlayback
         return Mathf.Max(maxLifetime, 0.05f);
     }
 
-    /// <summary>将自然时长换算为逻辑帧数（至少 1 帧）。</summary>
+    /// <summary>将自然时长换算为逻辑帧数（至少 1 帧）；编辑器估测显示用。</summary>
     public static int DurationSecondsToFrameCount(float durationSeconds, float sampleRate)
     {
         float rate = sampleRate > 0f ? sampleRate : 30f;

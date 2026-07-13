@@ -117,6 +117,12 @@ public static class ActionEditorStyles
         EditorGUIUtility.AddCursorRect(splitterRect, MouseCursor.ResizeHorizontal);
     }
 
+    /// <summary>VFX / SFX / Event 为单帧点事件轨，不可拉时长。</summary>
+    public static bool IsPointEventTrack(ActionTimelineTrackKind kind) =>
+        kind is ActionTimelineTrackKind.Vfx
+            or ActionTimelineTrackKind.Sfx
+            or ActionTimelineTrackKind.Event;
+
     /// <summary>按轨道类型返回窗口条块颜色。</summary>
     public static Color ColorForTrack(ActionTimelineTrackKind kind) => kind switch
     {

@@ -21,7 +21,7 @@ public class HitboxNotifyState : ActionNotifyState
     /// <summary>判定形状；当前运行时仅处理 Box。</summary>
     public HitboxShape Shape => shape;
 
-    /// <summary>未来编辑器解析挂点用的 id；当前运行时仍使用注入的默认挂点。</summary>
+    /// <summary>挂点名；空则使用角色默认挂点，由 CharacterAttachPointResolver 解析。</summary>
     public string AttachPointId => attachPointId;
 
     /// <summary>相对挂点的局部位置偏移。</summary>

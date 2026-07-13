@@ -358,7 +358,6 @@ public sealed class ActionEditorWindow : EditorWindow
         if (_selectedAction == null || _previewCharacter == null)
             return;
 
-        Transform anchor = ActionEditorPreviewAttachPoint.Resolve(_previewCharacter);
         HitboxNotifyState[] hitboxes = _selectedAction.HitboxStates;
         for (int i = 0; i < hitboxes.Length; i++)
         {
@@ -366,11 +365,12 @@ public sealed class ActionEditorWindow : EditorWindow
             if (hitbox == null)
                 continue;
 
+            Transform hitboxAnchor = ActionEditorPreviewAttachPoint.Resolve(_previewCharacter, hitbox.AttachPointId);
             bool active = hitbox.IsActiveAtFrame(_previewFrame);
             Color color = active
                 ? new Color(1f, 0.35f, 0.15f, 0.95f)
                 : new Color(0.6f, 0.6f, 0.6f, 0.35f);
-            HitboxOrientedBox box = HitboxMath.BuildFromHitbox(_previewCharacter, anchor, hitbox);
+            HitboxOrientedBox box = HitboxMath.BuildFromHitbox(_previewCharacter, hitboxAnchor, hitbox);
             HitboxSceneDrawing.DrawWireOrientedBox(box, color);
         }
 
@@ -381,11 +381,13 @@ public sealed class ActionEditorWindow : EditorWindow
             if (vfx == null)
                 continue;
 
-            bool active = vfx.IsActiveAtFrame(_previewFrame);
+            Transform vfxAnchor = ActionEditorPreviewAttachPoint.Resolve(_previewCharacter, vfx.AttachPointId);
+            // 触发后仍高亮，便于 scrub 对照挂点姿态。
+            bool active = _previewFrame >= vfx.TriggerFrame;
             Color color = active
                 ? new Color(0.35f, 0.75f, 1f, 0.95f)
                 : new Color(0.5f, 0.5f, 0.55f, 0.4f);
-            ActionVfxSceneDrawing.DrawVfxMarker(anchor, vfx, color);
+            ActionVfxSceneDrawing.DrawVfxMarker(vfxAnchor, vfx, color);
         }
     }
 

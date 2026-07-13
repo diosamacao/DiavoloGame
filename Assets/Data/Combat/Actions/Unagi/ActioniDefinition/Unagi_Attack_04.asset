@@ -32,15 +32,28 @@ MonoBehaviour:
     playVfxNotifies:
     - id: VFX_1
       startFrame: 5
-      endFrame: 130
+      endFrame: 5
       priority: 0
       trackName: VFX_1
       prefab: {fileID: 7611201976539897820, guid: b8d5608cf850428083ba2d62a1a0b31a, type: 3}
-      localOffset: {x: -0.46, y: 0.2, z: 2.34}
+      attachPointId: 
+      localOffset: {x: -0.46, y: 0.2, z: 0}
       localEulerAngles: {x: 116.75, y: 85, z: 8.4}
       localScale: {x: 1.5, y: 1.5, z: 1.6}
-      parentToAttachPoint: 0
-      naturalDurationSeconds: 6
+      parentToAttachPoint: 1
+      playbackSpeed: 1
+    - id: VFX_2
+      startFrame: 80
+      endFrame: 80
+      priority: 0
+      trackName: VFX_1
+      prefab: {fileID: 2336738607144242677, guid: ccddab8d96f24c4e91399ea71a2353e4, type: 3}
+      attachPointId: Bn_katana_burst
+      localOffset: {x: 0, y: 0, z: 0}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      localScale: {x: 0.2, y: 0.2, z: 0.2}
+      parentToAttachPoint: 1
+      playbackSpeed: 1
     playSfxStates: []
     hitboxStates:
     - id: Hitbox_1
