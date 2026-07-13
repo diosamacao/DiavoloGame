@@ -1,6 +1,9 @@
 using System.Collections.Generic;
 
-/// <summary>动作解析服务：按当前战斗模式出招表把输入请求路由到对应 Resolver；起手与 Cancel 共用一条路由。</summary>
+/// <summary>
+/// 动作解析服务：当前模式的 ActionGraph 负责起手（多 Entry × Trigger）与 Cancel 边解析。
+/// 不再经 input→Resolver 查表；输入身份来自 ActionDefinition.Trigger。
+/// </summary>
 public sealed class ActionResolverService
 {
     readonly CombatModeService _combatMode;
@@ -11,48 +14,49 @@ public sealed class ActionResolverService
         _combatMode = combatMode;
     }
 
-    /// <summary>Locomotion 起手解析：按 request.InputId 找 Entry 并调用其 Resolver。</summary>
+    /// <summary>当前模式绑定的 ActionGraph。</summary>
+    public ActionGraph ActiveGraph => _combatMode?.ActiveActionSet?.ActionGraph;
+
+    /// <summary>Locomotion 起手：在 Graph 的 Entry 节点中按 Trigger 匹配。</summary>
     public bool TryResolveStart(
         in ActionRequest request,
         in ActionResolveContext context,
-        out ActionDefinition action)
-        => TryResolve(in request, in context, out action);
+        out ActionResolveResult result)
+    {
+        result = default;
+        ActionGraph graph = ActiveGraph;
+        if (graph == null || !request.IsValid)
+            return false;
 
-    /// <summary>Cancel 窗口下一招解析：与起手同路由，差异由 context.Origin / CurrentAction 表达。</summary>
+        return graph.TryResolveStart(in request, in context, out result);
+    }
+
+    /// <summary>Cancel 下一招：使用上下文中的图游标（CurrentNodeId + CancelSlotId）在 ActiveGraph 上解析。</summary>
     public bool TryResolveNext(
         in ActionRequest request,
         in ActionResolveContext context,
-        out ActionDefinition action)
-        => TryResolve(in request, in context, out action);
+        out ActionResolveResult result)
+    {
+        result = default;
+        ActionGraph graph = ActiveGraph;
+        if (graph == null || !request.IsValid)
+            return false;
 
-    /// <summary>枚举当前出招表中的全部有效离散输入 id，供输入缓冲清理使用。</summary>
+        // Cancel 必须在图游标内；无节点则无法派生。
+        if (context.Origin != ActionResolveOrigin.CancelWindow)
+            return false;
+
+        return graph.TryResolveCancel(in request, in context, out result);
+    }
+
+    /// <summary>枚举当前出招图表中的全部 Trigger inputId，供缓冲清理与无槽边时的候选。</summary>
     public IEnumerable<string> EnumerateActiveInputIds()
     {
         PlayerActionSet actionSet = _combatMode?.ActiveActionSet;
         if (actionSet == null)
             yield break;
 
-        foreach (ActionEntry entry in actionSet.Entries)
-        {
-            if (entry.IsValid)
-                yield return entry.InputId;
-        }
-    }
-
-    /// <summary>按输入 id 找 Entry 的 Resolver 并解析；无出招表 / 无匹配 Entry / 无 Resolver 时失败。</summary>
-    bool TryResolve(
-        in ActionRequest request,
-        in ActionResolveContext context,
-        out ActionDefinition action)
-    {
-        action = null;
-        PlayerActionSet actionSet = _combatMode?.ActiveActionSet;
-        if (actionSet == null || !request.IsValid)
-            return false;
-
-        if (!actionSet.TryGetResolver(request.InputId, out ActionResolver resolver))
-            return false;
-
-        return resolver.TryResolve(in request, in context, out action);
+        foreach (string inputId in actionSet.EnumerateTriggerInputIds())
+            yield return inputId;
     }
 }

@@ -37,10 +37,10 @@ public struct CombatModeEntry
     public PlayerActionSet ActionSet => actionSet;
     public CharacterAnimationProfile LocomotionProfile => locomotionProfile;
 
-    public bool IsValid => actionSet != null;
+    public bool IsValid => actionSet != null && actionSet.IsValid;
 }
 
-/// <summary>战斗模式配置：mode → PlayerActionSet / Locomotion Profile，供 CombatModeService 解析。</summary>
+/// <summary>战斗模式配置：mode → PlayerActionSet（内含 ActionGraph）/ Locomotion Profile。</summary>
 [CreateAssetMenu(fileName = "CombatModeProfile", menuName = "ACT/Combat/Combat Mode Profile")]
 public class CombatModeProfile : ScriptableObject
 {
@@ -87,7 +87,7 @@ public class CombatModeProfile : ScriptableObject
         return false;
     }
 
-    /// <summary>收集全部模式出招表中的离散输入（按 Action 名去重），供 InputReader 轮询。</summary>
+    /// <summary>收集全部模式 Graph 中 Trigger 的离散输入（按 Action 名去重），供 InputReader 轮询。</summary>
     public InputActionReference[] CollectAllInputReferences()
     {
         if (entries == null || entries.Length == 0)
@@ -99,7 +99,7 @@ public class CombatModeProfile : ScriptableObject
             if (!entry.IsValid)
                 continue;
 
-            InputActionReference[] setReferences = entry.ActionSet.CollectEntryInputReferences();
+            InputActionReference[] setReferences = entry.ActionSet.CollectTriggerInputReferences();
             if (setReferences.Length == 0)
                 continue;
 
@@ -109,21 +109,22 @@ public class CombatModeProfile : ScriptableObject
         return InputBindingUtils.CollectUniqueReferences(references);
     }
 
-    /// <summary>遍历全部模式的有效 ActionEntry（起手映射并集）。</summary>
-    public IEnumerable<ActionEntry> EnumerateAllActionEntries()
+    /// <summary>遍历全部模式 Graph 中的 Trigger inputId（去重）。</summary>
+    public IEnumerable<string> EnumerateAllTriggerInputIds()
     {
         if (entries == null)
             yield break;
 
+        var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (CombatModeEntry entry in entries)
         {
             if (!entry.IsValid)
                 continue;
 
-            foreach (ActionEntry actionEntry in entry.ActionSet.Entries)
+            foreach (string inputId in entry.ActionSet.EnumerateTriggerInputIds())
             {
-                if (actionEntry.IsValid)
-                    yield return actionEntry;
+                if (seen.Add(inputId))
+                    yield return inputId;
             }
         }
     }

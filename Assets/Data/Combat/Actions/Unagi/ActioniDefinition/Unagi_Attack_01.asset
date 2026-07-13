@@ -13,6 +13,9 @@ MonoBehaviour:
   m_Name: Unagi_Attack_01
   m_EditorClassIdentifier: 
   animationClip: {fileID: 0}
+  trigger:
+    input: {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    kind: 0
   animationSegments:
   - clip: {fileID: 2754811189149721877, guid: 6b84a4fde20facb4781831a8174d37bd, type: 3}
     startFrame: 0
@@ -77,23 +80,18 @@ MonoBehaviour:
       priority: 0
       trackName: Cancel_1
       cancelType: 1
-      allowedInputs: []
-    - id: Cancel_2
+    - id: Attack
       startFrame: 11
       endFrame: 26
       priority: 0
       trackName: Cancel_3
       cancelType: 0
-      allowedInputs:
-      - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    - id: Cancel_3
+    - id: RecoveryAttack
       startFrame: 27
       endFrame: 120
       priority: 0
       trackName: Cancel_3
       cancelType: 2
-      allowedInputs:
-      - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     movementStates: []
     rotationStates:
     - id: Rotation_1

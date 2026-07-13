@@ -4,6 +4,7 @@ using UnityEngine;
 /// <summary>
 /// 线性连段解析：Locomotion 起手与 Recovery Cancel 返回 steps[0]；
 /// Action Cancel 按当前招在 steps 中的位置进位。
+/// 无图游标；多窗差异派生与环请改用 ActionGraph。
 /// </summary>
 [CreateAssetMenu(fileName = "ComboActionResolver", menuName = "ACT/Combat/Resolvers/Combo Action Resolver")]
 public class ComboActionResolver : ActionResolver
@@ -15,9 +16,9 @@ public class ComboActionResolver : ActionResolver
     public override bool TryResolve(
         in ActionRequest request,
         in ActionResolveContext context,
-        out ActionDefinition action)
+        out ActionResolveResult result)
     {
-        action = null;
+        result = default;
         if (steps == null || steps.Length == 0)
             return false;
 
@@ -25,35 +26,32 @@ public class ComboActionResolver : ActionResolver
         if (rootAction == null)
             return false;
 
-        // 后摇 Cancel：不进位，重开连招首段（去向由本 Resolver 决定，不写在 Action 时间轴上）。
+        // 后摇 Cancel：不进位，重开连招首段。
         if (context.Origin == ActionResolveOrigin.CancelWindow
             && context.CancelType == CancelType.Recovery)
         {
-            action = rootAction;
-            return rootAction.HasAnimation;
+            result = ActionResolveResult.FromAction(rootAction);
+            return result.IsValid;
         }
 
-        // Locomotion 起手（current == null）或当前招不属于本连段：从首段起手。
         ActionDefinition current = context.CurrentAction;
         int index = current != null ? IndexOfStep(current) : -1;
         if (index < 0)
         {
-            action = rootAction;
-            return rootAction.HasAnimation;
+            result = ActionResolveResult.FromAction(rootAction);
+            return result.IsValid;
         }
 
-        // Action Cancel：进位到下一段。
         if (index + 1 < steps.Length)
         {
-            action = steps[index + 1];
-            return action != null && action.HasAnimation;
+            result = ActionResolveResult.FromAction(steps[index + 1]);
+            return result.IsValid;
         }
 
-        // 末段再次 Action Cancel：按叶策略循环回首段或终止连段。
         if (leafPolicy == ComboLeafPolicy.LoopToRoot)
         {
-            action = rootAction;
-            return rootAction.HasAnimation;
+            result = ActionResolveResult.FromAction(rootAction);
+            return result.IsValid;
         }
 
         return false;

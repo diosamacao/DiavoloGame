@@ -18,10 +18,17 @@ public class DirectionalActionResolver : ActionResolver
     public override bool TryResolve(
         in ActionRequest request,
         in ActionResolveContext context,
-        out ActionDefinition action)
+        out ActionResolveResult result)
     {
         ActionDefinition variant = ResolveVariant(in context);
-        return TryFinalize(variant, out action);
+        if (TryFinalize(variant, out ActionDefinition action))
+        {
+            result = ActionResolveResult.FromAction(action);
+            return true;
+        }
+
+        result = default;
+        return false;
     }
 
     /// <summary>按来源与方向选出方向变体；无法判定方向时回退后闪。</summary>

@@ -13,10 +13,17 @@ MonoBehaviour:
   m_Name: Unagi_Dodge_Forward
   m_EditorClassIdentifier: 
   animationClip: {fileID: 0}
-  animationSegments: []
+  trigger:
+    input: {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    kind: 0
+  animationSegments:
+  - clip: {fileID: -5144170095731181678, guid: 58da1b1ae3a663a4fa23fde41398a487, type: 3}
+    startFrame: 0
+    endFrame: -1
+    crossFadeDuration: 0
   sampleRate: 30
-  totalFrames: 1
-  actionType: 0
+  totalFrames: 121
+  actionType: 1
   crossFadeDuration: 0.1
   phases: []
   timeline:
@@ -25,10 +32,37 @@ MonoBehaviour:
     playSfxStates: []
     hitboxStates: []
     hurtboxStates: []
-    cancelWindowStates: []
+    cancelWindowStates:
+    - id: Cancel_1
+      startFrame: 18
+      endFrame: 120
+      priority: 0
+      trackName: Cancel_1
+      cancelType: 1
+    - id: EvadeAttack
+      startFrame: 0
+      endFrame: 120
+      priority: 0
+      trackName: Cancel_3
+      cancelType: 0
     movementStates: []
-    rotationStates: []
-    tracks: []
+    rotationStates:
+    - id: Rotation_1
+      startFrame: 0
+      endFrame: 8
+      priority: 0
+      trackName: Rotation_1
+      smoothTimeOverride: 0
+    tracks:
+    - trackName: Cancel_1
+      kind: 4
+      visible: 1
+    - trackName: Cancel_3
+      kind: 4
+      visible: 1
+    - trackName: Rotation_1
+      kind: 6
+      visible: 1
   transitions: []
   startBehaviors: 
   switchCombatModeTarget: 0

@@ -1,19 +1,17 @@
-using System;
-
-/// <summary>运行时解析后的取消窗口，避免执行阶段直接触碰 InputActionReference。</summary>
+/// <summary>运行时解析后的取消窗口。</summary>
 public readonly struct ResolvedCancelWindow
 {
     public ResolvedCancelWindow(
         int startFrame,
         int endFrame,
         CancelType cancelType,
-        string[] allowedInputIds,
+        string cancelSlotId,
         int priority)
     {
         StartFrame = startFrame;
         EndFrame = endFrame;
         CancelType = cancelType;
-        AllowedInputs = allowedInputIds ?? Array.Empty<string>();
+        CancelSlotId = cancelSlotId ?? string.Empty;
         Priority = priority;
     }
 
@@ -26,8 +24,8 @@ public readonly struct ResolvedCancelWindow
     /// <summary>取消类型：Action 连招进位、Recovery 后摇重开，或 Movement 移动取消。</summary>
     public CancelType CancelType { get; }
 
-    /// <summary>允许触发 Action 取消的输入 id 列表。</summary>
-    public string[] AllowedInputs { get; }
+    /// <summary>Cancel 槽 id（= CancelWindow 时间轴条目 Id），供图边匹配。</summary>
+    public string CancelSlotId { get; }
 
     /// <summary>同帧多个窗口命中时的优先级。</summary>
     public int Priority { get; }

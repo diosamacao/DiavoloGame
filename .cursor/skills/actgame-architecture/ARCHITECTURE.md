@@ -114,12 +114,13 @@ InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力
 
 | 类 | 职责 |
 |----|------|
-| `ActionDefinition` | 单招 SO：`ActionAnimationSegment[]`、`ActionTimeline`、Transition、Phase、反馈默认值 |
+| `ActionDefinition` | 单招 SO：Trigger、时间轴、Transition、Phase、反馈默认值 |
 | `ActionTimeline` / `ActionNotify` / `ActionNotifyState` | 动作帧数据唯一真源：点事件（Event / VFX / SFX）与区间窗口（Hitbox/Hurtbox/Cancel/Movement/Rotation）；`tracks[]` 为编辑器手动轨道；VFX 经 `CharacterAttachPointResolver` 解析 `attachPointId` |
-| `ActionExecutor` | 纯播放器：播放、Cancel（委托 Resolver 选下一招）、Transition、**UpdateFrame Logic Tick**、统一 Timeline 派发、命中回流；不做输入查表 / 动作类型特判 |
-| `ActionSession` | 当前招式唯一会话状态：CurrentAction、Elapsed、命中确认、卡肉暂停 |
-| `ActionResolverService` / `ActionResolver` | 选招策略层：输入请求 + 上下文 → ActionDefinition（Single / Combo / Directional） |
-| `CharacterActionDriver` | 角色无关：离散输入路由、起手（经 Resolver）切状态、移动取消 |
+| `ActionExecutor` | 纯播放器：播放、Cancel（委托 Graph 选下一招）、Transition、**UpdateFrame Logic Tick**、统一 Timeline 派发、命中回流 |
+| `ActionSession` | 当前招式唯一会话状态：CurrentAction、Elapsed、图游标、命中确认、卡肉暂停 |
+| `ActionGraph` | 连招/起手图：多 Entry×Trigger、Cancel 边、可选 VariantResolver |
+| `ActionResolverService` | 调当前模式 Graph 的起手/Cancel 解析 |
+| `CharacterActionDriver` | 角色无关：按 Graph Trigger 注册输入、起手切状态、移动取消 |
 | `ActionRotationDriver` | `RotationNotifyState` + 索敌转向 |
 | `CombatModeService` | 战斗模式、出招表、Locomotion Profile 切换 |
 | `CombatWorldController` | 场景级战斗系统生命周期锚点 |
@@ -128,7 +129,7 @@ InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力
 | `CombatActorSystem` / `TargetSystem` / `CombatFeedbackSystem` | 战斗角色注册、目标注册、反馈状态 |
 | `ApplyHitCommand` / `GetActiveTargetsQuery` / `AttackHitEvent` | 命中后的跨系统通信入口与无副作用目标查询 |
 | `HitboxFrameConsumer` / `HitDetector` / `TargetingResolver` | 动作帧命中检测与索敌纯计算入口，不直接访问 Architecture |
-| `PlayerActionSet` | 出招表：离散输入 → `ActionResolver` 映射 |
+| `PlayerActionSet` | 出招表：绑定一张 `ActionGraph`（输入来自图内 Trigger） |
 
 **Logic Tick 原则**：编辑器 Scrub 与 Play Mode 共用 `ActionExecutor.UpdateFrame(frameIndex)`；帧消费者实现 `ICombatFrameConsumer`，点事件/区间事件消费者实现 `IActionNotifyConsumer`。
 

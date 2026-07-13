@@ -215,5 +215,43 @@ public class ActionTimeline
 
         foreach (ActionNotifyState state in EnumerateStates())
             state.ClampToTotalFrames(totalFrames);
+
+        EnsureCancelSlotIds();
+    }
+
+    /// <summary>为 Cancel 窗生成招式内唯一槽 id（默认 timeline_item / 空时重写）。</summary>
+    public void EnsureCancelSlotIds()
+    {
+        var used = new HashSet<string>();
+        CancelWindowNotifyState[] windows = CancelWindowStates;
+        for (int i = 0; i < windows.Length; i++)
+        {
+            CancelWindowNotifyState window = windows[i];
+            if (window == null)
+                continue;
+
+            string id = window.Id;
+            bool needsNew = string.IsNullOrEmpty(id)
+                || id == "timeline_item"
+                || id == nameof(CancelWindowNotifyState)
+                || used.Contains(id);
+
+            if (needsNew)
+            {
+                string baseId = $"Cancel_{window.StartFrame}_{window.EndFrame}";
+                string candidate = baseId;
+                int suffix = 2;
+                while (used.Contains(candidate))
+                {
+                    candidate = $"{baseId}_{suffix}";
+                    suffix++;
+                }
+
+                window.SetId(candidate);
+                id = candidate;
+            }
+
+            used.Add(id);
+        }
     }
 }

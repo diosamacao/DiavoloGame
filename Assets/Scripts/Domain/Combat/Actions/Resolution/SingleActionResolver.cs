@@ -9,9 +9,9 @@ public class SingleActionResolver : ActionResolver
     public override bool TryResolve(
         in ActionRequest request,
         in ActionResolveContext context,
-        out ActionDefinition resolved)
+        out ActionResolveResult result)
     {
-        resolved = action;
-        return resolved != null && resolved.HasAnimation;
+        result = ActionResolveResult.FromAction(action);
+        return result.IsValid;
     }
 }

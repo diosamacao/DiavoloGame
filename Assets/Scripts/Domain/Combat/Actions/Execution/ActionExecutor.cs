@@ -17,6 +17,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
     readonly List<IActionNotifyConsumer> _notifyConsumers = new();
     readonly ActionTimelineRunner _timelineRunner = new();
     readonly ActionSession _session = new();
+    readonly HashSet<string> _cancelCandidateInputIds = new(StringComparer.Ordinal);
     IActionInputBuffer _inputBuffer;
     IActionStartContext _startContext;
     Transform _timelineAttachPoint;
@@ -86,13 +87,17 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 
     public void BindActionStartContext(IActionStartContext startContext) => _startContext = startContext;
 
-    public bool TryStart(ActionDefinition action)
+    public bool TryStart(ActionDefinition action) =>
+        TryStart(ActionResolveResult.FromAction(action));
+
+    /// <summary>播放解析结果（可带图游标）；仅在当前无招式时成功。</summary>
+    public bool TryStart(in ActionResolveResult resolveResult)
     {
-        if (_session.IsActive || action == null || !action.HasAnimation || animationController == null)
+        if (_session.IsActive || !resolveResult.IsValid || animationController == null)
             return false;
 
-        ExecuteStartBehaviors(action);
-        BeginAction(action);
+        ExecuteStartBehaviors(resolveResult.Action);
+        BeginAction(in resolveResult);
         return true;
     }
 
@@ -156,7 +161,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         _session.ConfirmHit();
     }
 
-    /// <summary>按 priority 扫描 CancelWindow：消费匹配输入，下一招解析委托给 ActionResolverService。</summary>
+    /// <summary>按 priority 扫描 CancelWindow：候选输入由图边 Trigger 或出招表推导，下一招走 ActionResolverService。</summary>
     bool TryResolveCancelWindows()
     {
         ActionDefinition current = _session.CurrentAction;
@@ -168,47 +173,58 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
             if (!current.IsInCancelWindow(window, _session.ElapsedSeconds))
                 continue;
 
-            // Action = 连招进位；Recovery = 后摇重开首段；均消费输入并走 Resolver。
             if (!window.CancelType.ResolvesNextAction())
                 continue;
 
-            if (!TryConsumeMatchingInput(window, out string matchedInputId))
-                continue;
-
-            var request = new ActionRequest(matchedInputId);
-            var context = new ActionResolveContext(
-                ActionResolveOrigin.CancelWindow,
-                current,
-                _actorRoot,
-                _startContext,
-                window.CancelType);
-
-            if (!_resolverService.TryResolveNext(in request, in context, out ActionDefinition nextAction))
-                continue;
-
-            if (nextAction == null || !nextAction.HasAnimation)
-                continue;
-
-            ClearOtherActionBuffers(matchedInputId);
-            TransitionTo(nextAction);
-            return true;
+            if (TryResolveCancelForWindow(window))
+                return true;
         }
 
         return false;
     }
 
-    bool TryConsumeMatchingInput(ResolvedCancelWindow window, out string matchedInputId)
+    /// <summary>对单个开放 Cancel 槽尝试候选输入；图内仅扫该槽出边 Trigger，否则扫出招表全部输入。</summary>
+    bool TryResolveCancelForWindow(ResolvedCancelWindow window)
     {
-        matchedInputId = null;
-
-        foreach (string inputId in window.AllowedInputs)
+        _cancelCandidateInputIds.Clear();
+        if (_session.HasGraphCursor)
         {
-            if (_inputBuffer.HasBuffer(inputId))
-            {
-                _inputBuffer.TryConsumeBuffer(inputId);
-                matchedInputId = inputId;
-                return true;
-            }
+            _session.CurrentGraph.CollectCancelCandidateInputIds(
+                _session.CurrentNodeId,
+                window.CancelSlotId,
+                _cancelCandidateInputIds);
+        }
+        else
+        {
+            foreach (string inputId in _resolverService.EnumerateActiveInputIds())
+                _cancelCandidateInputIds.Add(inputId);
+        }
+
+        foreach (string inputId in _cancelCandidateInputIds)
+        {
+            if (!_inputBuffer.HasBuffer(inputId))
+                continue;
+
+            var request = new ActionRequest(inputId);
+            var context = new ActionResolveContext(
+                ActionResolveOrigin.CancelWindow,
+                _session.CurrentAction,
+                _actorRoot,
+                _startContext,
+                window.CancelType,
+                _session.CurrentNodeId,
+                window.CancelSlotId);
+
+            if (!_resolverService.TryResolveNext(in request, in context, out ActionResolveResult resolveResult))
+                continue;
+
+            if (!resolveResult.IsValid)
+                continue;
+
+            _inputBuffer.TryConsumeBuffer(inputId);
+            ClearOtherActionBuffers(inputId);
+            TransitionTo(resolveResult);
+            return true;
         }
 
         return false;
@@ -246,7 +262,8 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 
             if (transition.TargetAction != null && transition.TargetAction.HasAnimation)
             {
-                TransitionTo(transition.TargetAction);
+                // 自动 Transition 离开图游标（非 Graph 边）。
+                TransitionTo(ActionResolveResult.FromAction(transition.TargetAction));
                 return true;
             }
 
@@ -257,12 +274,32 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         return false;
     }
 
-    void TransitionTo(ActionDefinition action)
+    void TransitionTo(in ActionResolveResult resolveResult)
     {
         NotifyActionEnded();
-        ExecuteStartBehaviors(action);
-        BeginAction(action);
+        ExecuteStartBehaviors(resolveResult.Action);
+        BeginAction(resolveResult);
     }
+
+    void BeginAction(in ActionResolveResult resolveResult)
+    {
+        ActionDefinition action = resolveResult.Action;
+        _session.Begin(action);
+        if (resolveResult.HasGraphCursor)
+            _session.SetGraphCursor(resolveResult.Graph, resolveResult.NodeId);
+
+        _rootMotion?.SetActive(action.UseRootMotion);
+        PlayAnimationSegment(action, 0);
+        Debug.Log($"BeginAction: {action.name} segment0={(action.AnimationClip != null ? action.AnimationClip.name : "null")}");
+
+        NotifyActionBegan(action);
+        DispatchCombatFrame(0, -1);
+        _session.LastProcessedFrame = 0;
+    }
+
+    /// <summary>无图游标的起手入口（兼容仅传 ActionDefinition）。</summary>
+    void BeginAction(ActionDefinition action) =>
+        BeginAction(ActionResolveResult.FromAction(action));
 
     void ExecuteStartBehaviors(ActionDefinition action)
     {
@@ -299,18 +336,6 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 
         Stop();
         _combatMode.TrySetMode(mode, policy, false);
-    }
-
-    void BeginAction(ActionDefinition action)
-    {
-        _session.Begin(action);
-        _rootMotion?.SetActive(action.UseRootMotion);
-        PlayAnimationSegment(action, 0);
-        Debug.Log($"BeginAction: {action.name} segment0={(action.AnimationClip != null ? action.AnimationClip.name : "null")}");
-
-        NotifyActionBegan(action);
-        DispatchCombatFrame(0, -1);
-        _session.LastProcessedFrame = 0;
     }
 
     /// <summary>按当前 elapsed 切入对应动画段；同段不重复 Play。</summary>

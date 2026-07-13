@@ -12,6 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ca7d0218503b29548be403a763a47b6e, type: 3}
   m_Name: UnagiActionSet
   m_EditorClassIdentifier: 
-  entries:
-  - input: {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    resolver: {fileID: 11400000, guid: b47c0cf53b2323d4f8391d59bbc406f6, type: 2}
+  actionGraph: {fileID: 11400000, guid: 67683ddb7043a6643814ab1931367335, type: 2}

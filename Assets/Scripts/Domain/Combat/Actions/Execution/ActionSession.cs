@@ -1,4 +1,4 @@
-/// <summary>单个角色当前招式会话；是 Action 是否激活、当前帧与命中状态的唯一权威。</summary>
+/// <summary>单个角色当前招式会话；是 Action 是否激活、当前帧、图游标与命中状态的唯一权威。</summary>
 public sealed class ActionSession
 {
     /// <summary>当前正在播放的招式；为空表示没有激活招式。</summary>
@@ -22,9 +22,18 @@ public sealed class ActionSession
     /// <summary>本招是否已经发生命中确认。</summary>
     public bool HasConfirmedHit { get; private set; }
 
+    /// <summary>当前连招图；不在图内时为 null。</summary>
+    public ActionGraph CurrentGraph { get; private set; }
+
+    /// <summary>当前图节点 id；不在图内时为 null。</summary>
+    public string CurrentNodeId { get; private set; }
+
+    /// <summary>是否处于连招图游标中。</summary>
+    public bool HasGraphCursor => CurrentGraph != null && !string.IsNullOrEmpty(CurrentNodeId);
+
     bool _hitStopTriggered;
 
-    /// <summary>开始一个新招式会话，并清空上一个会话的派生状态。</summary>
+    /// <summary>开始一个新招式会话，并清空上一个会话的派生状态（含图游标）。</summary>
     public void Begin(ActionDefinition action)
     {
         CurrentAction = action;
@@ -34,6 +43,21 @@ public sealed class ActionSession
         IsHitStopPaused = false;
         HasConfirmedHit = false;
         _hitStopTriggered = false;
+        ClearGraphCursor();
+    }
+
+    /// <summary>在 Begin 之后写入图游标（由 Graph 解析结果应用）。</summary>
+    public void SetGraphCursor(ActionGraph graph, string nodeId)
+    {
+        CurrentGraph = graph;
+        CurrentNodeId = nodeId;
+    }
+
+    /// <summary>离开连招图（例如取消进闪避）。</summary>
+    public void ClearGraphCursor()
+    {
+        CurrentGraph = null;
+        CurrentNodeId = null;
     }
 
     /// <summary>结束当前招式会话。</summary>
@@ -46,6 +70,7 @@ public sealed class ActionSession
         IsHitStopPaused = false;
         HasConfirmedHit = false;
         _hitStopTriggered = false;
+        ClearGraphCursor();
     }
 
     /// <summary>推进会话时间；调用方保证会话激活且未暂停。</summary>
