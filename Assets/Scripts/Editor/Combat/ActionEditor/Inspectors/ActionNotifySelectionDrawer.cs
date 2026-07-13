@@ -33,10 +33,11 @@ public static class ActionNotifySelectionDrawer
         }
         else
         {
-            EditorGUILayout.LabelField("Window", EditorStyles.boldLabel);
+            bool pointEvent = ActionEditorStyles.IsPointEventTrack(selection.Kind);
+            EditorGUILayout.LabelField(pointEvent ? "Event" : "Window", EditorStyles.boldLabel);
             SerializedProperty element = selection.ElementProperty;
 
-            DrawFrameFields(element, action);
+            DrawFrameFields(element, action, pointEvent);
             EditorGUILayout.PropertyField(element.FindPropertyRelative("id"));
             EditorGUILayout.PropertyField(element.FindPropertyRelative("priority"));
             EditorGUILayout.PropertyField(element.FindPropertyRelative("trackName"));
@@ -124,13 +125,21 @@ public static class ActionNotifySelectionDrawer
         }
     }
 
-    static void DrawFrameFields(SerializedProperty element, ActionDefinition action)
+    /// <summary>点事件只编辑触发帧；区间窗口编辑起止帧。</summary>
+    static void DrawFrameFields(SerializedProperty element, ActionDefinition action, bool pointEvent)
     {
         int maxFrame = Mathf.Max(0, action.TotalFrames - 1);
         SerializedProperty startProp = element.FindPropertyRelative("startFrame");
         SerializedProperty endProp = element.FindPropertyRelative("endFrame");
         if (startProp == null || endProp == null)
             return;
+
+        if (pointEvent)
+        {
+            startProp.intValue = EditorGUILayout.IntSlider("Trigger Frame", startProp.intValue, 0, maxFrame);
+            endProp.intValue = startProp.intValue;
+            return;
+        }
 
         startProp.intValue = EditorGUILayout.IntSlider("Start Frame", startProp.intValue, 0, maxFrame);
         endProp.intValue = EditorGUILayout.IntSlider(
@@ -164,57 +173,22 @@ public static class ActionNotifySelectionDrawer
 
     static void DrawVfx(SerializedProperty element, ActionDefinition action)
     {
-        SerializedProperty prefabProp = element.FindPropertyRelative("prefab");
-        EditorGUI.BeginChangeCheck();
-        EditorGUILayout.PropertyField(prefabProp);
-        if (EditorGUI.EndChangeCheck() && prefabProp.objectReferenceValue is GameObject prefab)
-        {
-            float natural = ActionVfxPlayback.EstimateNaturalDurationSeconds(prefab);
-            SerializedProperty naturalProp = element.FindPropertyRelative("naturalDurationSeconds");
-            if (naturalProp != null)
-                naturalProp.floatValue = natural;
-
-            // 换 Prefab 时按自然时长重置窗口长度，避免旧长度与新资源错配。
-            SerializedProperty startProp = element.FindPropertyRelative("startFrame");
-            SerializedProperty endProp = element.FindPropertyRelative("endFrame");
-            if (startProp != null && endProp != null)
-            {
-                int length = ActionVfxPlayback.DurationSecondsToFrameCount(natural, action.SampleRate);
-                int maxFrame = Mathf.Max(0, action.TotalFrames - 1);
-                endProp.intValue = Mathf.Min(maxFrame, startProp.intValue + length - 1);
-            }
-        }
-
+        EditorGUILayout.PropertyField(element.FindPropertyRelative("prefab"));
+        EditorGUILayout.PropertyField(
+            element.FindPropertyRelative("attachPointId"),
+            new GUIContent("Attach Point Id", "模型子节点名；空则用角色默认挂点"));
         EditorGUILayout.PropertyField(element.FindPropertyRelative("localOffset"));
         EditorGUILayout.PropertyField(element.FindPropertyRelative("localEulerAngles"));
         EditorGUILayout.PropertyField(element.FindPropertyRelative("localScale"));
         EditorGUILayout.PropertyField(element.FindPropertyRelative("parentToAttachPoint"));
-        DrawPlaybackReadouts(element, action);
+        DrawPlaybackSpeed(element, action, isVfx: true);
     }
 
     static void DrawSfx(SerializedProperty element, ActionDefinition action)
     {
-        SerializedProperty clipProp = element.FindPropertyRelative("audioClip");
-        EditorGUI.BeginChangeCheck();
-        EditorGUILayout.PropertyField(clipProp);
-        if (EditorGUI.EndChangeCheck() && clipProp.objectReferenceValue is AudioClip clip)
-        {
-            SerializedProperty naturalProp = element.FindPropertyRelative("naturalDurationSeconds");
-            if (naturalProp != null)
-                naturalProp.floatValue = clip.length;
-
-            SerializedProperty startProp = element.FindPropertyRelative("startFrame");
-            SerializedProperty endProp = element.FindPropertyRelative("endFrame");
-            if (startProp != null && endProp != null)
-            {
-                int length = ActionVfxPlayback.DurationSecondsToFrameCount(clip.length, action.SampleRate);
-                int maxFrame = Mathf.Max(0, action.TotalFrames - 1);
-                endProp.intValue = Mathf.Min(maxFrame, startProp.intValue + length - 1);
-            }
-        }
-
+        EditorGUILayout.PropertyField(element.FindPropertyRelative("audioClip"));
         EditorGUILayout.PropertyField(element.FindPropertyRelative("volume"));
-        DrawPlaybackReadouts(element, action);
+        DrawPlaybackSpeed(element, action, isVfx: false);
     }
 
     static void DrawCancel(SerializedProperty element)
@@ -239,23 +213,31 @@ public static class ActionNotifySelectionDrawer
         EditorGUILayout.PropertyField(element.FindPropertyRelative("payloadId"));
     }
 
-    static void DrawPlaybackReadouts(SerializedProperty element, ActionDefinition action)
+    /// <summary>显式播放倍率；可选显示资源估测自然时长（只读，不驱动倍率）。</summary>
+    static void DrawPlaybackSpeed(SerializedProperty element, ActionDefinition action, bool isVfx)
     {
-        SerializedProperty naturalProp = element.FindPropertyRelative("naturalDurationSeconds");
-        SerializedProperty startProp = element.FindPropertyRelative("startFrame");
-        SerializedProperty endProp = element.FindPropertyRelative("endFrame");
-        float natural = naturalProp != null ? naturalProp.floatValue : 0f;
-        int frames = startProp != null && endProp != null
-            ? Mathf.Max(1, endProp.intValue - startProp.intValue + 1)
-            : 1;
-        float windowSeconds = frames / action.SampleRate;
-        float speed = natural > 0f ? natural / Mathf.Max(windowSeconds, 0.0001f) : 1f;
+        SerializedProperty speedProp = element.FindPropertyRelative("playbackSpeed");
+        if (speedProp != null)
+            speedProp.floatValue = EditorGUILayout.FloatField("Playback Speed", Mathf.Max(0.0001f, speedProp.floatValue));
 
-        using (new EditorGUI.DisabledScope(true))
+        float natural = 0f;
+        if (isVfx)
         {
-            EditorGUILayout.FloatField("Natural Duration (s)", natural);
-            EditorGUILayout.FloatField("Window Duration (s)", windowSeconds);
-            EditorGUILayout.FloatField("Playback Speed", speed);
+            var prefab = element.FindPropertyRelative("prefab")?.objectReferenceValue as GameObject;
+            if (prefab != null)
+                natural = ActionVfxPlayback.EstimateNaturalDurationSeconds(prefab);
+        }
+        else
+        {
+            var clip = element.FindPropertyRelative("audioClip")?.objectReferenceValue as AudioClip;
+            if (clip != null)
+                natural = clip.length;
+        }
+
+        if (natural > 0f)
+        {
+            using (new EditorGUI.DisabledScope(true))
+                EditorGUILayout.FloatField("Estimated Duration (s)", natural);
         }
     }
 }

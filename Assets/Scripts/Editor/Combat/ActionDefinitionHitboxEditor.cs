@@ -190,32 +190,33 @@ public class ActionDefinitionHitboxEditor : Editor
             SerializedProperty selectedProp = _playVfxNotifiesProp.GetArrayElementAtIndex(_selectedVfxIndex);
             SerializedProperty startFrameProp = selectedProp.FindPropertyRelative("startFrame");
             SerializedProperty endFrameProp = selectedProp.FindPropertyRelative("endFrame");
-            SerializedProperty naturalProp = selectedProp.FindPropertyRelative("naturalDurationSeconds");
+            SerializedProperty speedProp = selectedProp.FindPropertyRelative("playbackSpeed");
+            SerializedProperty attachProp = selectedProp.FindPropertyRelative("attachPointId");
 
-            if (startFrameProp != null && endFrameProp != null)
+            if (startFrameProp != null)
             {
                 startFrameProp.intValue = EditorGUILayout.IntSlider(
-                    "Start Frame",
+                    "Trigger Frame",
                     startFrameProp.intValue,
                     0,
                     maxFrame);
-                endFrameProp.intValue = EditorGUILayout.IntSlider(
-                    "End Frame",
-                    Mathf.Max(endFrameProp.intValue, startFrameProp.intValue),
-                    startFrameProp.intValue,
-                    maxFrame);
+                if (endFrameProp != null)
+                    endFrameProp.intValue = startFrameProp.intValue;
             }
 
-            ActionDefinition action = (ActionDefinition)target;
-            float natural = naturalProp != null ? naturalProp.floatValue : 0f;
-            int frameCount = endFrameProp != null && startFrameProp != null
-                ? Mathf.Max(1, endFrameProp.intValue - startFrameProp.intValue + 1)
-                : 1;
-            float windowSeconds = frameCount / action.SampleRate;
-            float speed = natural > 0f ? natural / Mathf.Max(windowSeconds, 0.0001f) : 1f;
-            EditorGUILayout.LabelField("Natural Duration", $"{natural:0.###} s");
-            EditorGUILayout.LabelField("Window Duration", $"{windowSeconds:0.###} s");
-            EditorGUILayout.LabelField("Playback Speed", $"{speed:0.###}x");
+            if (attachProp != null)
+                EditorGUILayout.PropertyField(attachProp, new GUIContent("Attach Point Id"));
+
+            if (speedProp != null)
+                speedProp.floatValue = EditorGUILayout.FloatField("Playback Speed", Mathf.Max(0.0001f, speedProp.floatValue));
+
+            GameObject prefab = selectedProp.FindPropertyRelative("prefab")?.objectReferenceValue as GameObject;
+            if (prefab != null)
+            {
+                float natural = ActionVfxPlayback.EstimateNaturalDurationSeconds(prefab);
+                using (new EditorGUI.DisabledScope(true))
+                    EditorGUILayout.FloatField("Estimated Duration (s)", natural);
+            }
 
             if (EditorGUI.EndChangeCheck())
             {
@@ -223,15 +224,14 @@ public class ActionDefinitionHitboxEditor : Editor
                 SceneView.RepaintAll();
             }
 
-            GameObject prefab = selectedProp.FindPropertyRelative("prefab")?.objectReferenceValue as GameObject;
             if (prefab == null)
             {
-                EditorGUILayout.HelpBox("为选中的 VFX 窗口指定 Prefab 后可在 Scene 中预览刀光位置。", MessageType.Info);
+                EditorGUILayout.HelpBox("为选中的 VFX 指定 Prefab 后可在 Scene 中预览刀光位置。", MessageType.Info);
             }
             else if (ActionVfxEditorPreview.HasParticleSystems(prefab))
             {
                 EditorGUILayout.HelpBox(
-                    "该 Prefab 含 ParticleSystem：Scene 视图需开启 Effects（Gizmo 菜单），预览会自动循环播放粒子。",
+                    "该 Prefab 含 ParticleSystem：Scene 视图需开启 Effects（Gizmo 菜单），拖动时间轴可按 Playback Speed 逐帧预览。",
                     MessageType.Info);
 
                 if (GUILayout.Button("Replay VFX Preview"))
@@ -240,7 +240,7 @@ public class ActionDefinitionHitboxEditor : Editor
         }
         else
         {
-            EditorGUILayout.HelpBox("在 Timeline / Play Vfx Notifies 列表中添加至少一条 VFX 区间窗口。", MessageType.Info);
+            EditorGUILayout.HelpBox("在 Timeline / Play Vfx Notifies 列表中添加至少一条 VFX 点事件。", MessageType.Info);
         }
     }
 
@@ -250,27 +250,32 @@ public class ActionDefinitionHitboxEditor : Editor
             return;
 
         Transform root = _previewCharacter;
-        Transform anchor = ActionEditorPreviewAttachPoint.Resolve(root);
 
         if (_previewHitboxEnabled)
         {
-            DrawAllHitboxPreviews(action, root, anchor);
+            DrawAllHitboxPreviews(action, root);
 
             if (_hitboxStatesProp != null && _hitboxStatesProp.arraySize > 0)
             {
                 int hitboxIndex = Mathf.Clamp(_selectedHitboxIndex, 0, _hitboxStatesProp.arraySize - 1);
-                DrawSelectedHitboxHandles(_hitboxStatesProp.GetArrayElementAtIndex(hitboxIndex), anchor);
+                SerializedProperty hitboxProp = _hitboxStatesProp.GetArrayElementAtIndex(hitboxIndex);
+                string attachId = hitboxProp.FindPropertyRelative("attachPointId")?.stringValue;
+                Transform hitboxAnchor = ActionEditorPreviewAttachPoint.Resolve(root, attachId);
+                DrawSelectedHitboxHandles(hitboxProp, hitboxAnchor);
             }
         }
 
         if (_previewVfxEnabled)
         {
-            DrawAllVfxPreviews(action, anchor);
+            DrawAllVfxPreviews(action, root);
 
             if (_playVfxNotifiesProp != null && _playVfxNotifiesProp.arraySize > 0)
             {
                 int vfxIndex = Mathf.Clamp(_selectedVfxIndex, 0, _playVfxNotifiesProp.arraySize - 1);
-                DrawSelectedVfxHandles(_playVfxNotifiesProp.GetArrayElementAtIndex(vfxIndex), anchor);
+                SerializedProperty vfxProp = _playVfxNotifiesProp.GetArrayElementAtIndex(vfxIndex);
+                string attachId = vfxProp.FindPropertyRelative("attachPointId")?.stringValue;
+                Transform vfxAnchor = ActionEditorPreviewAttachPoint.Resolve(root, attachId);
+                DrawSelectedVfxHandles(vfxProp, vfxAnchor);
             }
         }
     }
@@ -284,8 +289,8 @@ public class ActionDefinitionHitboxEditor : Editor
         return _playVfxNotifiesProp.GetArrayElementAtIndex(vfxIndex);
     }
 
-    /// <summary>绘制全部 Hitbox 线框：当前帧生效高亮，选中项黄色。</summary>
-    void DrawAllHitboxPreviews(ActionDefinition action, Transform root, Transform anchor)
+    /// <summary>绘制全部 Hitbox 线框：按各自 attachPointId 解析挂点。</summary>
+    void DrawAllHitboxPreviews(ActionDefinition action, Transform root)
     {
         HitboxNotifyState[] hitboxes = action.HitboxStates;
         for (int i = 0; i < hitboxes.Length; i++)
@@ -294,6 +299,7 @@ public class ActionDefinitionHitboxEditor : Editor
             if (hitbox == null)
                 continue;
 
+            Transform anchor = ActionEditorPreviewAttachPoint.Resolve(root, hitbox.AttachPointId);
             bool isActive = hitbox.IsActiveAtFrame(_previewFrame);
             bool isSelected = i == _selectedHitboxIndex;
             Color color = isSelected
@@ -307,8 +313,8 @@ public class ActionDefinitionHitboxEditor : Editor
         }
     }
 
-    /// <summary>绘制全部 VFX 标记：当前帧落在窗口内时高亮，选中项青色。</summary>
-    void DrawAllVfxPreviews(ActionDefinition action, Transform anchor)
+    /// <summary>绘制全部 VFX 标记：触发帧后高亮，选中项青色。</summary>
+    void DrawAllVfxPreviews(ActionDefinition action, Transform root)
     {
         PlayVfxNotify[] playVfxNotifies = action.PlayVfxNotifies;
         for (int i = 0; i < playVfxNotifies.Length; i++)
@@ -317,7 +323,8 @@ public class ActionDefinitionHitboxEditor : Editor
             if (vfxEvent == null)
                 continue;
 
-            bool isActive = vfxEvent.IsActiveAtFrame(_previewFrame);
+            Transform anchor = ActionEditorPreviewAttachPoint.Resolve(root, vfxEvent.AttachPointId);
+            bool isActive = _previewFrame >= vfxEvent.TriggerFrame;
             bool isSelected = i == _selectedVfxIndex;
             Color color = isSelected
                 ? new Color(0.2f, 0.95f, 1f, 1f)

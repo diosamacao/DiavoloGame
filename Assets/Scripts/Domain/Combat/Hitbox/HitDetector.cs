@@ -10,7 +10,7 @@ public static class HitDetector
         ActionDefinition action,
         int frame,
         Transform root,
-        Transform anchor,
+        Func<HitboxNotifyState, Transform> resolveAnchor,
         HashSet<(string HitboxId, int TargetId)> hitPairs,
         IActionHitReceiver hitReceiver,
         IReadOnlyList<IHurtboxTarget> activeTargets,
@@ -25,6 +25,7 @@ public static class HitDetector
 
         foreach (HitboxNotifyState hitbox in activeHitboxes)
         {
+            Transform anchor = resolveAnchor != null ? resolveAnchor(hitbox) : root;
             HitboxOrientedBox attackBox = HitboxMath.BuildFromHitbox(root, anchor, hitbox);
             foreach (IHurtboxTarget target in activeTargets)
             {

@@ -440,12 +440,17 @@ public sealed class ActionTimelineView
         // 用 Label 仅作绘制，不参与控件焦点，避免抢走拖拽事件。
         GUI.Label(clipRect, idProp != null ? idProp.stringValue : itemSelection.Kind.ToString(), EditorStyles.miniLabel);
 
+        bool pointEvent = ActionEditorStyles.IsPointEventTrack(itemSelection.Kind);
         float edge = Mathf.Min(ActionEditorStyles.EdgeHandleWidth, width * 0.35f);
         Rect leftHandle = new(clipRect.x, clipRect.y, edge, clipRect.height);
         Rect rightHandle = new(clipRect.xMax - edge, clipRect.y, edge, clipRect.height);
 
-        EditorGUIUtility.AddCursorRect(leftHandle, MouseCursor.ResizeHorizontal);
-        EditorGUIUtility.AddCursorRect(rightHandle, MouseCursor.ResizeHorizontal);
+        if (!pointEvent)
+        {
+            EditorGUIUtility.AddCursorRect(leftHandle, MouseCursor.ResizeHorizontal);
+            EditorGUIUtility.AddCursorRect(rightHandle, MouseCursor.ResizeHorizontal);
+        }
+
         EditorGUIUtility.AddCursorRect(clipRect, MouseCursor.MoveArrow);
 
         Event evt = Event.current;
@@ -465,9 +470,10 @@ public sealed class ActionTimelineView
         _dragControlId = GUIUtility.GetControlID(FocusType.Passive);
         GUIUtility.hotControl = _dragControlId;
 
-        if (leftHandle.Contains(evt.mousePosition))
+        // 点事件只允许平移触发帧，禁止拉边改时长。
+        if (!pointEvent && leftHandle.Contains(evt.mousePosition))
             _dragMode = DragMode.ResizeStart;
-        else if (rightHandle.Contains(evt.mousePosition))
+        else if (!pointEvent && rightHandle.Contains(evt.mousePosition))
             _dragMode = DragMode.ResizeEnd;
         else
             _dragMode = DragMode.Move;

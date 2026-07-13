@@ -6,7 +6,7 @@ using UnityEngine;
 public sealed class HitboxFrameConsumer : ICombatFrameConsumer
 {
     readonly Transform root;
-    readonly Transform attachPoint;
+    readonly CharacterAttachPointResolver attachPoints;
     readonly ActionExecutor actionExecutor;
     readonly Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider;
     readonly Action<ActionHitContext, IHurtboxTarget, IActionHitReceiver, Transform> hitDetected;
@@ -14,23 +14,23 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
     readonly HashSet<(string HitboxId, int TargetId)> _hitPairs = new();
     ActionDefinition _trackedAction;
 
-    /// <summary>Hitbox 局部变换挂点；为空时使用本物体 Transform。</summary>
-    public Transform AttachPoint => attachPoint;
+    /// <summary>默认挂点；为空时使用角色根。</summary>
+    public Transform AttachPoint => attachPoints != null ? attachPoints.DefaultAttach : root;
 
     /// <summary>招式运行时只读访问，供帧采样与 Hitbox 检测。</summary>
     IActionExecutor Runtime => actionExecutor;
 
-    /// <summary>创建纯 C# Hitbox 帧消费者；目标查询与命中应用由 App 层委托提供。</summary>
+    /// <summary>创建纯 C# Hitbox 帧消费者；按 Hitbox.attachPointId 解析挂点。</summary>
     public HitboxFrameConsumer(
         Transform actorRoot,
         ActionExecutor executor,
-        Transform hitboxAttachPoint,
+        CharacterAttachPointResolver attachPointResolver,
         Func<IReadOnlyList<IHurtboxTarget>> targetsProvider,
         Action<ActionHitContext, IHurtboxTarget, IActionHitReceiver, Transform> onHitDetected)
     {
         root = actorRoot;
         actionExecutor = executor;
-        attachPoint = hitboxAttachPoint != null ? hitboxAttachPoint : actorRoot;
+        attachPoints = attachPointResolver;
         activeTargetsProvider = targetsProvider;
         hitDetected = onHitDetected;
     }
@@ -64,11 +64,20 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
             action,
             frame,
             root,
-            attachPoint,
+            ResolveHitboxAnchor,
             _hitPairs,
             actionExecutor,
             activeTargets,
             hitDetected);
+    }
+
+    /// <summary>按 Hitbox 自身 attachPointId 解析世界挂点。</summary>
+    Transform ResolveHitboxAnchor(HitboxNotifyState hitbox)
+    {
+        if (attachPoints == null)
+            return root;
+
+        return attachPoints.Resolve(hitbox != null ? hitbox.AttachPointId : null);
     }
 
     /// <summary>切换招式时清空命中缓存，避免跨招误判。</summary>
@@ -106,7 +115,8 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
             if (!editorPreview && !isActive)
                 continue;
 
-            HitboxOrientedBox box = HitboxMath.BuildFromHitbox(root, attachPoint, hitbox);
+            Transform anchor = ResolveHitboxAnchor(hitbox);
+            HitboxOrientedBox box = HitboxMath.BuildFromHitbox(root, anchor, hitbox);
             HitboxGizmoDrawing.DrawWireOrientedBox(box, color);
         }
     }

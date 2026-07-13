@@ -48,13 +48,24 @@ public interface IActionEditorPreviewExtension
     void OnPreviewEnd(in ActionEditorPreviewContext context);
 }
 
-/// <summary>解析 Preview Character 上 Hitbox / VFX 共用的 attachPoint。</summary>
+/// <summary>解析 Preview Character 上 Hitbox / VFX 的挂点；支持 per-item attachPointId。</summary>
 public static class ActionEditorPreviewAttachPoint
 {
-    /// <summary>纯运行时不再挂载 HitboxFrameConsumer / ActionVfxPlayer，预览默认使用 Preview Character 根节点。</summary>
-    public static Transform Resolve(Transform previewCharacter)
+    /// <summary>无指定 id 时返回 Preview Character 根节点。</summary>
+    public static Transform Resolve(Transform previewCharacter) =>
+        Resolve(previewCharacter, null);
+
+    /// <summary>按 attachPointId 在 Preview Character 层级下查找；空或找不到则回退根节点。</summary>
+    public static Transform Resolve(Transform previewCharacter, string attachPointId)
     {
-        return previewCharacter;
+        if (previewCharacter == null)
+            return null;
+
+        if (string.IsNullOrWhiteSpace(attachPointId))
+            return previewCharacter;
+
+        Transform found = CharacterAttachPointResolver.FindByName(previewCharacter, attachPointId);
+        return found != null ? found : previewCharacter;
     }
 }
 
@@ -352,40 +363,44 @@ public sealed class ActionEditorVfxPreviewExtension : IActionEditorPreviewExtens
         }
 
         SerializedProperty vfxProp = _getSelectedVfxProp?.Invoke();
-        if (vfxProp == null || context.AttachPoint == null)
+        if (vfxProp == null || context.PreviewCharacter == null)
         {
             DestroyPreviewInstance();
             return;
         }
 
-        UpdatePreviewInstance(vfxProp, context.AttachPoint);
+        SerializedProperty attachIdProp = vfxProp.FindPropertyRelative("attachPointId");
+        string attachId = attachIdProp != null ? attachIdProp.stringValue : null;
+        Transform anchor = ActionEditorPreviewAttachPoint.Resolve(context.PreviewCharacter, attachId);
+        if (anchor == null)
+        {
+            DestroyPreviewInstance();
+            return;
+        }
+
+        UpdatePreviewInstance(vfxProp, anchor);
         if (_previewInstance == null)
             return;
 
-        // 选中编辑辅模式：始终显示；若当前帧落在窗口内则按倍率采样粒子进度。
+        // 触发帧前停在 0；触发后按显式 playbackSpeed 采样粒子进度。
         SerializedProperty startProp = vfxProp.FindPropertyRelative("startFrame");
-        SerializedProperty endProp = vfxProp.FindPropertyRelative("endFrame");
-        SerializedProperty naturalProp = vfxProp.FindPropertyRelative("naturalDurationSeconds");
-        if (startProp == null || endProp == null)
+        SerializedProperty speedProp = vfxProp.FindPropertyRelative("playbackSpeed");
+        if (startProp == null)
         {
             ActionVfxEditorPreview.Simulate(_previewInstance);
             return;
         }
 
-        int start = startProp.intValue;
-        int end = endProp.intValue;
-        if (context.PreviewFrame < start || context.PreviewFrame > end)
+        int trigger = startProp.intValue;
+        if (context.PreviewFrame < trigger)
         {
             ActionVfxEditorPreview.SimulateAt(_previewInstance, 0f);
             return;
         }
 
         float sampleRate = context.SampleRate > 0f ? context.SampleRate : 30f;
-        float localTime = (context.PreviewFrame - start) / sampleRate;
-        float natural = naturalProp != null ? naturalProp.floatValue : 0f;
-        int frameCount = Mathf.Max(1, end - start + 1);
-        float windowSeconds = frameCount / sampleRate;
-        float speed = natural > 0f ? natural / Mathf.Max(windowSeconds, 0.0001f) : 1f;
+        float localTime = (context.PreviewFrame - trigger) / sampleRate;
+        float speed = speedProp != null ? Mathf.Max(0.0001f, speedProp.floatValue) : 1f;
         ActionVfxEditorPreview.SimulateAt(_previewInstance, localTime * speed);
     }
 

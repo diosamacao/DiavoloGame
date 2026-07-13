@@ -42,15 +42,18 @@ public static class CharacterActorFactory
         actionExecutor = new ActionExecutor(root, controller, animation, rootMotion, combatMode, resolverService);
         context.ActionExecutor = actionExecutor;
 
-        Transform attachPoint = ResolveModelPoint(config.Combat.AttachPointName, modelRoot, root);
+        Transform defaultAttach = ResolveModelPoint(config.Combat.AttachPointName, modelRoot, root);
         Transform aimOrigin = ResolveModelPoint(config.Combat.AimOriginName, modelRoot, root);
+        var attachPoints = new CharacterAttachPointResolver(modelRoot, defaultAttach);
         var targetLock = new CombatTargetLock(root, config.Combat.TeamId, aimOrigin, activeTargetsProvider);
-        var hitboxFrameConsumer = new HitboxFrameConsumer(root, actionExecutor, attachPoint, activeTargetsProvider, hitDetected);
-        var vfxPlayer = new ActionVfxPlayer(root, attachPoint);
+        var hitboxFrameConsumer = new HitboxFrameConsumer(root, actionExecutor, attachPoints, activeTargetsProvider, hitDetected);
+        var vfxPlayer = new ActionVfxPlayer(root, attachPoints);
+        var sfxPlayer = new ActionSfxPlayer(root);
 
         actionExecutor.RegisterFrameConsumer(hitboxFrameConsumer);
         actionExecutor.RegisterNotifyConsumer(vfxPlayer);
-        actionExecutor.BindTimelineAttachPoint(attachPoint);
+        actionExecutor.RegisterNotifyConsumer(sfxPlayer);
+        actionExecutor.BindTimelineAttachPoint(defaultAttach);
 
         var actionDriver = new CharacterActionDriver(
             inputSource,
@@ -106,7 +109,7 @@ public static class CharacterActorFactory
         if (string.IsNullOrWhiteSpace(pointName))
             return fallback;
 
-        Transform point = FindChildRecursive(modelRoot, pointName);
+        Transform point = CharacterAttachPointResolver.FindByName(modelRoot, pointName);
         if (point == null)
         {
             Debug.LogWarning($"CharacterActorFactory: 模型中找不到挂点 {pointName}，已回退到角色根节点。");
@@ -114,23 +117,5 @@ public static class CharacterActorFactory
         }
 
         return point;
-    }
-
-    static Transform FindChildRecursive(Transform root, string childName)
-    {
-        if (root == null)
-            return null;
-
-        if (root.name == childName)
-            return root;
-
-        foreach (Transform child in root)
-        {
-            Transform match = FindChildRecursive(child, childName);
-            if (match != null)
-                return match;
-        }
-
-        return null;
     }
 }
