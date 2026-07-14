@@ -629,13 +629,21 @@ public sealed class ActionTimelineView
         }
     }
 
+    /// <summary>
+    /// Delete 删除当前选中窗口；正在 Inspector 文本框编辑时忽略，避免改 Id 时 Backspace 误删整段窗口。
+    /// </summary>
     void HandleDeleteKey(SerializedObject so, ref ActionEditorSelection selection, ref bool changed)
     {
         Event evt = Event.current;
         if (evt.type != EventType.KeyDown)
             return;
 
-        if (evt.keyCode != KeyCode.Delete && evt.keyCode != KeyCode.Backspace)
+        // Backspace 留给文本编辑；仅 Delete 删除时间轴窗口。
+        if (evt.keyCode != KeyCode.Delete)
+            return;
+
+        // 右侧详情/任意文本字段获得焦点时，不拦截按键。
+        if (EditorGUIUtility.editingTextField)
             return;
 
         if (!selection.IsValid)
