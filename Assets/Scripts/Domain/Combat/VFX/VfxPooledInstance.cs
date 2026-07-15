@@ -138,9 +138,15 @@ public sealed class VfxPooledInstance : AppControllerBase, IPoolable
         }
     }
 
-    /// <summary>生命周期倒计时；卡肉期间不递减，避免未播完就被回收。</summary>
+    /// <summary>
+    /// 生命周期倒计时；等一帧让 Spawn 后的 simulationSpeed 生效，再按倍率换算墙钟时长。
+    /// 卡肉期间不递减，避免未播完就被回收。
+    /// </summary>
     IEnumerator AutoReturnAfterLifetime()
     {
+        // ActionVfxPlayer 在 Spawn 返回后才 ApplyPlaybackSpeed，需延后一帧再估算。
+        yield return null;
+
         float remaining = ResolveLifetime();
         while (remaining > 0f)
         {
@@ -167,7 +173,10 @@ public sealed class VfxPooledInstance : AppControllerBase, IPoolable
             && ShouldPauseForHitStop(feedbackSystem.ActiveHitStopAttackerRoot);
     }
 
-    /// <summary>根据子级 ParticleSystem 估算最长可见时间；无粒子时用 fallbackLifetime。</summary>
+    /// <summary>
+    /// 根据子级 ParticleSystem 估算最长可见墙钟时间；按 simulationSpeed 换算。
+    /// 无粒子时用 fallbackLifetime。
+    /// </summary>
     float ResolveLifetime()
     {
         float maxLifetime = 0f;
@@ -184,7 +193,9 @@ public sealed class VfxPooledInstance : AppControllerBase, IPoolable
                 _ => main.startLifetime.constantMax,
             };
 
-            maxLifetime = Mathf.Max(maxLifetime, main.duration + startLifetime);
+            // simulationSpeed 加速/减速粒子时间，墙钟回收需除以倍率。
+            float speed = Mathf.Max(0.0001f, main.simulationSpeed);
+            maxLifetime = Mathf.Max(maxLifetime, (main.duration + startLifetime) / speed);
         }
 
         if (!hasParticle)

@@ -1,14 +1,13 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
 /// 订阅统一 ActionNotify 时间轴；在 PlayVfxNotify 触发帧生成实例，并按显式倍率驱动粒子。
+/// 特效生命周期由池化实例自行管理，招式切换时不强制回收。
 /// </summary>
 public sealed class ActionVfxPlayer : IActionNotifyConsumer
 {
     readonly Transform root;
     readonly CharacterAttachPointResolver attachPoints;
-    readonly List<GameObject> _spawnedInstances = new();
 
     /// <summary>创建纯 C# VFX 点事件消费者。</summary>
     public ActionVfxPlayer(Transform actorRoot, CharacterAttachPointResolver attachPointResolver)
@@ -31,32 +30,23 @@ public sealed class ActionVfxPlayer : IActionNotifyConsumer
             return;
 
         ActionVfxPlayback.ApplyPlaybackSpeed(instance, vfx.PlaybackSpeed);
-        _spawnedInstances.Add(instance);
+
+        // 无 VFXManager 时无自动回池，按时长 Destroy，避免连招后泄漏。
+        if (!VFXManager.TryGetInstance(out _))
+            ScheduleFallbackDestroy(instance, vfx);
     }
 
     /// <summary>VFX 已改为点事件，不再消费区间窗口。</summary>
     public void OnActionNotifyState(in ActionNotifyContext context) { }
 
-    /// <summary>招式结束时清理本招生成的实例，避免跨招残留。</summary>
-    public void OnActionEnded() => ClearSpawnedInstances();
+    /// <summary>招式结束；不强制 Despawn，交由 VfxPooledInstance 按自然生命周期回收。</summary>
+    public void OnActionEnded() { }
 
-    /// <summary>销毁/回收全部本消费者生成的实例。</summary>
-    public void ClearSpawnedInstances()
+    /// <summary>无对象池回退路径：按 Prefab 自然时长 / playbackSpeed 延时销毁。</summary>
+    static void ScheduleFallbackDestroy(GameObject instance, PlayVfxNotify vfx)
     {
-        for (int i = 0; i < _spawnedInstances.Count; i++)
-            DespawnInstance(_spawnedInstances[i]);
-
-        _spawnedInstances.Clear();
-    }
-
-    static void DespawnInstance(GameObject instance)
-    {
-        if (instance == null)
-            return;
-
-        if (VFXManager.TryGetInstance(out VFXManager manager))
-            manager.Despawn(instance);
-        else
-            Object.Destroy(instance);
+        float naturalSeconds = ActionVfxPlayback.EstimateNaturalDurationSeconds(vfx.Prefab);
+        float speed = Mathf.Max(0.0001f, vfx.PlaybackSpeed);
+        Object.Destroy(instance, naturalSeconds / speed);
     }
 }
