@@ -3,7 +3,52 @@ guid: 6b84a4fde20facb4781831a8174d37bd
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: MAT_Unagi_Body_1
+    second: {fileID: 2100000, guid: 2fcd181cfbb0498b877102b56ba444b8, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: MAT_Unagi_Body_2
+    second: {fileID: 2100000, guid: 65e6d82b9eaa4886abba7398579dc812, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: MAT_Unagi_Eye
+    second: {fileID: 2100000, guid: f160c50c8691457a90a20e8170dc3e2c, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: MAT_Unagi_Eyebrows
+    second: {fileID: 2100000, guid: 3422c76d87e3434b83f5cd4ca14ac97a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: MAT_Unagi_Face
+    second: {fileID: 2100000, guid: 3c0ba4afec6a44239a8ddf195c0f09d8, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: MAT_Unagi_Hair_T
+    second: {fileID: 2100000, guid: dc788e5a53be4befb0f9a7c5f280ee83, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: MAT_Unagi_Hairpin
+    second: {fileID: 2100000, guid: 9e85bfc7fcec4102963fc1ae608a4f0e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: MAT_Unagi_Weapon
+    second: {fileID: 2100000, guid: 9d353d667e164f0babaef2da5bd31f95, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: MAT_Unagi_Weapon_UI
+    second: {fileID: 2100000, guid: 2790716c61ed4a95b27bedff0a300ddf, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
