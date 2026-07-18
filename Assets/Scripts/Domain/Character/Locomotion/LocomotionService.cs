@@ -10,12 +10,15 @@ public sealed class LocomotionService
     readonly CharacterLocomotionProfile _profile;
     readonly LocomotionFootCycle _footCycle = new();
     readonly LocomotionFootstepPlayer _footstepPlayer;
+    readonly LocomotionRootMotionPlayer _rootMotionPlayer;
 
     LocomotionPhase _phase = LocomotionPhase.Idle;
     LocomotionGait _gait = LocomotionGait.Walk;
     Vector3 _pivotTargetDirection = Vector3.forward;
     /// <summary>进入 Pivot 瞬间的根朝向；含 Y 转向的 Clip 播放期间锁在此方向，避免与代码转根双重叠加。</summary>
     Vector3 _pivotEnterFacing = Vector3.forward;
+    /// <summary>进入 Stop 时的朝向；烘焙根位移的局部→世界基。</summary>
+    Vector3 _stopEnterFacing = Vector3.forward;
     AnimationKey _stopKey = AnimationKey.StopR;
     /// <summary>当前在 Run 步态下已连续保持跑输入的时长；进 Sprint 或离开跑档时清零。</summary>
     float _runHoldSeconds;
@@ -48,6 +51,7 @@ public sealed class LocomotionService
         _input = input;
         _profile = profile;
         _footstepPlayer = footstepPlayer;
+        _rootMotionPlayer = new LocomotionRootMotionPlayer(profile);
     }
 
     /// <summary>进入顶层 Locomotion；相位从 Idle 起，保留落脚记录。</summary>
@@ -56,6 +60,7 @@ public sealed class LocomotionService
         _phase = LocomotionPhase.Idle;
         _runHoldSeconds = 0f;
         _gaitInputGapSeconds = 0f;
+        _rootMotionPlayer.End();
         _footCycle.Unfreeze();
         _footCycle.SetMarkers(System.Array.Empty<FootPlantMarker>());
     }
@@ -64,6 +69,7 @@ public sealed class LocomotionService
     public void Exit()
     {
         _footCycle.Freeze();
+        _rootMotionPlayer.End();
         _phase = LocomotionPhase.Idle;
         _runHoldSeconds = 0f;
         _gaitInputGapSeconds = 0f;
@@ -75,10 +81,42 @@ public sealed class LocomotionService
         LocomotionInputSnapshot snapshot = BuildSnapshot();
         EvaluateTransitions(snapshot, deltaTime);
         TickFootCycle();
-        LocomotionMotorCommand command = BuildMotorCommand(snapshot);
-        _motor.ApplyLocomotion(command, deltaTime);
+        // 先保证当前相位 Clip 在播，再按 NormalizedTime 消费烘焙根位移
         PlayPhaseAnimation();
+        LocomotionMotorCommand command = BuildMotorCommand(snapshot);
+        if (UsesBakedRootMotion)
+            ApplyBakedRootMotion(deltaTime);
+        else
+            _motor.ApplyLocomotion(command, deltaTime);
         _footstepPlayer.PlayIfPlanted(_footCycle.PlantedThisFrame);
+    }
+
+    bool UsesBakedRootMotion =>
+        _rootMotionPlayer.IsActive
+        && (_phase == LocomotionPhase.Stop || _phase == LocomotionPhase.PivotTurn);
+
+    /// <summary>Stop/Pivot：用烘焙轨位移；Pivot 可选烘焙偏航，否则锁进入朝向。</summary>
+    void ApplyBakedRootMotion(float deltaTime)
+    {
+        bool applyYaw = _phase == LocomotionPhase.PivotTurn
+            && _profile != null
+            && _profile.PivotApplyRootYaw;
+
+        if (_phase == LocomotionPhase.PivotTurn && !applyYaw)
+            _motor.FaceWorldDirection(_pivotEnterFacing);
+        else if (_phase == LocomotionPhase.Stop)
+            _motor.FaceWorldDirection(_stopEnterFacing);
+
+        if (_rootMotionPlayer.TryConsume(
+                _animation.NormalizedTime,
+                applyYaw,
+                out Vector3 worldDelta,
+                out float yawDelta))
+        {
+            _motor.MovePlanar(worldDelta, deltaTime);
+            if (applyYaw)
+                _motor.ApplyYawDegrees(yawDelta);
+        }
     }
 
     LocomotionInputSnapshot BuildSnapshot()
@@ -264,6 +302,8 @@ public sealed class LocomotionService
         bool resumeSprint = _pivotMoveLatched || hasMove;
         _pivotMoveLatched = false;
 
+        _rootMotionPlayer.End();
+
         if (resumeSprint)
         {
             EnterGait(LocomotionGait.Sprint);
@@ -298,6 +338,7 @@ public sealed class LocomotionService
         _gait = LocomotionGait.Walk;
         _runHoldSeconds = 0f;
         _gaitInputGapSeconds = 0f;
+        _rootMotionPlayer.End();
         _footCycle.Freeze();
         _footCycle.SetMarkers(System.Array.Empty<FootPlantMarker>());
     }
@@ -306,6 +347,7 @@ public sealed class LocomotionService
     {
         _runHoldSeconds = 0f;
         _gaitInputGapSeconds = 0f;
+        _rootMotionPlayer.End();
         if (!_animation.HasClip(AnimationKey.Start))
         {
             if (!_loggedMissingStart)
@@ -327,6 +369,7 @@ public sealed class LocomotionService
     void EnterGait(LocomotionGait gait)
     {
         _phase = LocomotionPhase.Gait;
+        _rootMotionPlayer.End();
         if (gait == LocomotionGait.Run)
             _runHoldSeconds = 0f;
         else if (gait != LocomotionGait.Sprint)
@@ -375,6 +418,7 @@ public sealed class LocomotionService
         _animation.ResetPlaybackState();
         // 转身起手尽量硬切，避免与 Sprint CrossFade 把朝向混花
         _animation.Play(AnimationKey.PivotTurn, 0f);
+        _rootMotionPlayer.Begin(AnimationKey.PivotTurn, Quaternion.LookRotation(_pivotEnterFacing));
     }
 
     void EnterStop()
@@ -405,8 +449,17 @@ public sealed class LocomotionService
         }
 
         _phase = LocomotionPhase.Stop;
+        _stopEnterFacing = _root.forward;
+        _stopEnterFacing.y = 0f;
+        if (_stopEnterFacing.sqrMagnitude < 0.0001f)
+            _stopEnterFacing = Vector3.forward;
+        else
+            _stopEnterFacing.Normalize();
+
         _footCycle.SetMarkers(System.Array.Empty<FootPlantMarker>());
         _animation.ResetPlaybackState();
+        _animation.Play(_stopKey, _profile != null ? _profile.InterruptFadeDuration : 0.08f);
+        _rootMotionPlayer.Begin(_stopKey, Quaternion.LookRotation(_stopEnterFacing));
     }
 
     FootPlantMarker[] GetMarkersForCurrentPhase()
@@ -433,20 +486,26 @@ public sealed class LocomotionService
     }
 
     /// <summary>
-    /// 默认（Clip 含 Y 转向）：全程锁进入朝向，由动画表现转身，结束再对齐输入。
-    /// pivotRootFollowsInput 时（Clip 朝前）：对齐 zzzdemo ReturnRun，前段 Hold、其后慢跟输入。
+    /// Pivot 位移由烘焙根运动负责时关闭输入推移。
+    /// 无烘焙时：可选 pivotRootFollowsInput（ReturnRun）或锁进入朝向。
     /// </summary>
     LocomotionMotorCommand BuildPivotMotorCommand(in LocomotionInputSnapshot snapshot)
     {
-        bool applyMove = snapshot.HasMoveInput;
-        bool rootFollows = _profile != null && _profile.PivotRootFollowsInput;
+        if (_rootMotionPlayer.IsActive)
+        {
+            return new LocomotionMotorCommand(
+                false,
+                LocomotionRotationMode.Hold,
+                _pivotEnterFacing,
+                LocomotionGait.Sprint);
+        }
 
+        bool rootFollows = _profile != null && _profile.PivotRootFollowsInput;
         if (!rootFollows)
         {
-            // 每帧钉回进入朝向，防止其它系统改根
             _motor.FaceWorldDirection(_pivotEnterFacing);
             return new LocomotionMotorCommand(
-                applyMove,
+                false,
                 LocomotionRotationMode.Hold,
                 _pivotEnterFacing,
                 LocomotionGait.Sprint);
@@ -458,14 +517,14 @@ public sealed class LocomotionService
         {
             _motor.FaceWorldDirection(_pivotEnterFacing);
             return new LocomotionMotorCommand(
-                applyMove,
+                false,
                 LocomotionRotationMode.Hold,
                 _pivotEnterFacing,
                 LocomotionGait.Sprint);
         }
 
         return new LocomotionMotorCommand(
-            applyMove,
+            false,
             LocomotionRotationMode.FollowInput,
             _pivotTargetDirection,
             LocomotionGait.Sprint,
@@ -490,6 +549,12 @@ public sealed class LocomotionService
                     _gait);
             case LocomotionPhase.PivotTurn:
                 return BuildPivotMotorCommand(snapshot);
+            case LocomotionPhase.Stop:
+                return new LocomotionMotorCommand(
+                    false,
+                    LocomotionRotationMode.Hold,
+                    _stopEnterFacing,
+                    LocomotionGait.Walk);
             default:
                 return new LocomotionMotorCommand(
                     false,

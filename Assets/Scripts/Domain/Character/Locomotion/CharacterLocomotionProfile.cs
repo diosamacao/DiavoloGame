@@ -35,6 +35,18 @@ public class CharacterLocomotionProfile : ScriptableObject
     [SerializeField] AudioClip footstepRight;
     [SerializeField, Range(0f, 1f)] float footstepVolume = 1f;
 
+    [Header("Root Motion Bake (Stop / Pivot)")]
+    [Tooltip("急停是否使用烘焙根位移。")]
+    [SerializeField] bool stopUseRootMotion = true;
+    [Tooltip("转身是否使用烘焙根位移。")]
+    [SerializeField] bool pivotUseRootMotion = true;
+    [Tooltip("转身是否应用烘焙偏航；Clip 已含骨骼转向时保持 false。")]
+    [SerializeField] bool pivotApplyRootYaw = false;
+    [SerializeField] float rootMotionPositionScale = 1f;
+    [SerializeField] LocomotionRootMotionTrack stopLRootMotion;
+    [SerializeField] LocomotionRootMotionTrack stopRRootMotion;
+    [SerializeField] LocomotionRootMotionTrack pivotTurnRootMotion;
+
     public float IdleInputThreshold => idleInputThreshold;
     public float StopMinSpeedFactor => stopMinSpeedFactor;
     public float PivotAngleDegrees => pivotAngleDegrees;
@@ -55,6 +67,59 @@ public class CharacterLocomotionProfile : ScriptableObject
 
     public AudioClip FootstepLeft => footstepLeft;
     public AudioClip FootstepRight => footstepRight;
+
+    public bool StopUseRootMotion => stopUseRootMotion;
+    public bool PivotUseRootMotion => pivotUseRootMotion;
+    public bool PivotApplyRootYaw => pivotApplyRootYaw;
+    public float RootMotionPositionScale => rootMotionPositionScale;
+
+    /// <summary>按 AnimationKey 取烘焙根位移轨。</summary>
+    public LocomotionRootMotionTrack GetRootMotionTrack(AnimationKey key)
+    {
+        switch (key)
+        {
+            case AnimationKey.StopL:
+                return stopLRootMotion;
+            case AnimationKey.StopR:
+                return stopRRootMotion;
+            case AnimationKey.PivotTurn:
+                return pivotTurnRootMotion;
+            default:
+                return LocomotionRootMotionTrack.Empty;
+        }
+    }
+
+    /// <summary>该键是否启用根位移驱动。</summary>
+    public bool IsRootMotionEnabled(AnimationKey key)
+    {
+        switch (key)
+        {
+            case AnimationKey.StopL:
+            case AnimationKey.StopR:
+                return stopUseRootMotion;
+            case AnimationKey.PivotTurn:
+                return pivotUseRootMotion;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>写入烘焙轨（仅 Editor 烘焙工具调用）。</summary>
+    public void SetRootMotionTrack(AnimationKey key, LocomotionRootMotionTrack track)
+    {
+        switch (key)
+        {
+            case AnimationKey.StopL:
+                stopLRootMotion = track;
+                break;
+            case AnimationKey.StopR:
+                stopRRootMotion = track;
+                break;
+            case AnimationKey.PivotTurn:
+                pivotTurnRootMotion = track;
+                break;
+        }
+    }
 
     /// <summary>按步态取落脚表；Sprint 未配置时回退 Run。</summary>
     public FootPlantMarker[] GetGaitFootPlants(LocomotionGait gait)
