@@ -1,6 +1,13 @@
+/// <summary>Locomotion / 表现逻辑动画键；由 CharacterAnimationProfile 映射到 Clip。</summary>
 public enum AnimationKey
 {
     Idle = 0,
     Walk = 1,
     Run = 2,
+    Start = 3,
+    PivotTurn = 4,
+    StopL = 5,
+    StopR = 6,
+    /// <summary>Run 持续达标后进入的冲刺循环。</summary>
+    Sprint = 7,
 }

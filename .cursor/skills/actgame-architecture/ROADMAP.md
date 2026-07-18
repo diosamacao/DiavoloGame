@@ -22,6 +22,17 @@
 
 **状态**：已完成（2026-06-21）
 
+### [P1] Locomotion Phase / FootCycle ✅ 2026-07-18
+
+**已完成**：
+
+- `LocomotionService` 内嵌 Phase：Idle → Start → Gait(Walk/Run/Sprint) →（Sprint 大角度）PivotTurn / Stop
+- Run 持续 `sprintAfterRunSeconds`（默认 3s）后进 Sprint；仅 Sprint 可 Pivot
+- `LocomotionFootCycle` + SO 落脚标记；急停默认右脚；Stop 取消回 Start
+- 首版不做急停减速 / 转身专用位移（见 `docs/LOCOMOTION_OPTIMIZATION_PLAN.md` Phase D）
+
+**待做（Phase D）**：减速曲线、Pivot 位移手感、敲定 Profile 挂载与落脚编辑器工具
+
 ### [P1] ActionEditor 准备 — 动作系统职责收敛 ✅ 2026-06-21
 
 **已完成**：

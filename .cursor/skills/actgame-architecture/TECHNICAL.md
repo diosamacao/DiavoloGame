@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-07-16
+> Last updated: 2026-07-18
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -11,7 +11,8 @@
 | 输入（移动 + 视角 + 离散按键） | ✅ 已实现 | `ICharacterInputSource`、纯 C# `InputReader`、`InputManager` | `GameInputActions.inputactions` |
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
 | 架构通信框架 | ✅ 已实现 | `ACTGameArchitecture`、`ArchitectureSystemBase`、`AppControllerBase`、Command / Query / Event | — |
-| Locomotion 动画驱动 | ✅ 已实现 | `LocomotionState` | `Player_KatanaGirl_AnimationProfile.asset` |
+| Locomotion 动画驱动 | ✅ 已实现 | `LocomotionService` + `LocomotionState` | AnimationProfile + `CharacterLocomotionProfile` |
+| Locomotion 起步/急停/转身 | 🟡 代码已接、资产待绑 | `LocomotionService` Phase FSM | Start/Stop/Pivot Clip + 落脚标记 |
 | 第三人称相机 | ✅ 已实现 | `CameraManager` | 场景内 CameraManager 对象 |
 | 动作系统（选招 / 播放 / 取消 / 连段 / 战斗模式） | ✅ 已实现 | 纯 C# `ActionResolverService` + `ActionExecutor` + `CombatModeService` | `CombatModeProfile`、`PlayerActionSet`、`ActionResolver`(Single/Combo/Directional) |
 | Action Editor（时间轴编辑） | 🟡 骨架/部分 | `ActionEditorWindow` + `ActionTimeline` 手动加轨/窗口 | Menu：`ACT/Action Editor` |
@@ -74,7 +75,7 @@ AppControllerBase
 | 项 | 方案 |
 |----|------|
 | 碰撞体 | `CharacterController`（非 Rigidbody） |
-| 位移执行 | `LocomotionState.Tick` 调用 `CharacterMotor.TickLocomotion` |
+| 位移执行 | `LocomotionService` → `CharacterMotor.ApplyLocomotion` |
 | 方向计算 | 输入 Vector2 → 相机 forward/right 投影到 XZ 平面 → 归一化方向 |
 | 速度 | `moveInputMagnitude × speed`；幅度 > `runThreshold` 用 `runSpeed`，否则 `walkSpeed` |
 | 旋转 | `SmoothDampAngle` 绕 Y 轴对齐移动方向 |
@@ -107,7 +108,7 @@ Update
 
 ### 已知限制
 
-- Locomotion 水平移动由 `LocomotionState` 拥有；重力仍由 `CharacterActor` 每帧统一推进
+- Locomotion 水平移动由 `LocomotionService` → `ApplyLocomotion` 拥有；重力仍由 `CharacterActor` 每帧统一推进
 - `cameraTransform` 未绑定时回退为世界 XZ 平面移动
 
 ### 相关文件
@@ -182,7 +183,7 @@ StateMachine<TStateId, TContext>
 
 | State | Id | Enter | Tick | Exit |
 |-------|-----|-------|------|------|
-| `LocomotionState` | 10 | — | `CharacterMotor.TickLocomotion` + 选 AnimationKey 并 Play | — |
+| `LocomotionState` | 10 | `Locomotion.Enter` | `LocomotionService.Tick` | `Locomotion.Exit` |
 | `ActionState` | 60 | `Animation.SetLocked(true)` | `ActionExecutor.Tick` + `ActionRotationDriver.Tick` | Unlock + ResetPlaybackState |
 
 ### 运行时流程（玩家）
@@ -193,7 +194,7 @@ CharacterActor.Tick
   → CharacterActionDriver.ProcessGameplayInput
   → CharacterMotor.TickGravity
   → CharacterStateMachine.Tick
-      → LocomotionState.Tick → CharacterMotor.TickLocomotion → CharacterAnimationService.Play(key)
+      → LocomotionState.Tick → LocomotionService → Motor.ApplyLocomotion + Animation.Play
       → ActionState.Tick → ActionExecutor.Tick → ActionRotationDriver.Tick
 ```
 
@@ -205,57 +206,79 @@ CharacterActor.Tick
 
 ---
 
-## 4. Locomotion 动画
+## 4. Locomotion 动画与相位
 
 ### 功能说明
 
-根据移动输入幅度在 Idle / Walk / Run 间切换；由 Playable 双槽 CrossFade 过渡；Profile 映射 `AnimationKey` → `AnimationClip`，**不依赖 Animator Controller**。
+顶层仍为 `Locomotion` 状态；内部由 `LocomotionService` 驱动 Idle / Start / Gait(Walk|Run|Sprint) / PivotTurn / Stop。满跑输入先进 Run，连续约 3s 后进 Sprint；仅 Sprint 可大角度转身。落脚标记驱动脚步声与急停选脚。
 
 ### 实现方案
 
 | 项 | 方案 |
 |----|------|
-| 逻辑键 | `AnimationKey` 枚举（Idle, Walk, Run） |
+| 相位 | `LocomotionPhase`：Idle→Start→Gait；Sprint 大角度→PivotTurn；松输入→Stop |
+| 逻辑键 | `AnimationKey`：Idle/Walk/Run/Sprint/Start/PivotTurn/StopL/StopR |
 | 映射 | `CharacterAnimationProfile` → `AnimationClip` |
-| 门面 | `CharacterAnimationService.Play(key)` |
-| 后端 | `IAnimationPlayback` / `PlayableAnimationPlayback` |
-| 去重 | 相同 key 不重复 Play |
-| 卡肉 | `CharacterAnimationService.SetSpeed(0)` |
-| Root Motion（Locomotion） | 关闭（`applyRootMotion = false`） |
+| 相位参数 | `CharacterLocomotionProfile`（阈值、落脚、脚步音） |
+| 脚步 | `LocomotionFootCycle` 按 `NormalizedTime` 采样标记 |
+| 门面 | `CharacterAnimationService.Play` + `NormalizedTime` / `HasFinishedCurrent` |
+| 位移 | `CharacterMotor.ApplyLocomotion`（首版无急停减速/转身专用位移） |
+| Root Motion（Locomotion） | 不做 |
 
-### 动画选择规则（LocomotionState）
+### 相位规则（摘要）
 
 ```
-MoveInputMagnitude < 0.01        → Idle
-MoveInputMagnitude ≤ RunThreshold → Walk
-否则                              → Run
+Idle + 有输入                         → Start（必经）
+Start 播完                            → Gait(Walk|Run)，不直接 Sprint
+Gait：跑输入持续 sprintAfterRunSeconds → Run→Sprint
+Start / Pivot 松输入                  → Stop（立刻）
+Gait 松输入 + 速度够或 Run/Sprint     → Stop；否则 Idle
+Gait(Sprint) + |yaw| ≥ pivotAngle    → PivotTurn（Walk/Run 只平滑转）
+Stop 前半再输入                       → Start
 ```
 
-`RunThreshold` 来自 Context（与 PlayerController 一致，默认 0.6）。
+无落脚记录时急停默认右脚。缺少 Start/Pivot/Stop Clip 时 LogError 并跳过对应表现（不保留旧 Idle/Walk/Run 内联分支）。
+
+### 关键参数（LocomotionProfile 默认）
+
+| 字段 | 默认 | 含义 |
+|------|------|------|
+| `idleInputThreshold` | 0.01 | 静止判定 |
+| `stopMinSpeedFactor` | 0.5 | Gait→Stop 相对 runSpeed |
+| `pivotAngleDegrees` | 135 | 仅 Sprint；对齐 zzzdemo turnBackAngle |
+| `pivotRootFollowsInput` | false | false=Clip 含 Y 转向时锁根；true=ReturnRun 式代码转根 |
+| `pivotLockNormalizedTime` | 0.08 | 仅 rootFollows 时：前段不转根 |
+| `pivotRotationSmoothTime` | 0.5 | 仅 rootFollows 时：其后 SmoothDamp |
+| `sprintAfterRunSeconds` | 3 | Run 连续满输入后进 Sprint |
+| `gaitInputGapGraceSeconds` | 0.15 | Gait 松手宽限；超时才 Stop，便于键盘换向 Pivot |
+| `stopCancelNormalized` | 0.4 | 急停前半可取消回 Start |
+| `interruptFadeDuration` | 0.08 | 切入 Stop 短淡入 |
+| Motor `sprintSpeed` | 9 | 冲刺水平速度（旧资产为 0 时回退 runSpeed） |
 
 ### Profile 配置（Katana）
 
-| AnimationKey | AnimationClip | CrossFade 默认 |
-|--------------|---------------|----------------|
-| Idle | （Inspector 绑定，原 Sp_Idle 等） | 0.15s |
-| Walk | （Inspector 绑定） | 0.15s |
-| Run | （Inspector 绑定） | 0.15s |
+| AnimationKey | 说明 |
+|--------------|------|
+| Idle / Walk / Run | 原有循环 |
+| Start / PivotTurn / StopL / StopR | 需在 Editor 绑定后方可完整体验 |
 
-资产路径：`Assets/Data/CharacterLocomotion/Player_Katana_AnimationProfile.asset`  
-运行时：`PlayableAnimationPlayback` 会清空实例上的 `runtimeAnimatorController`。
+资产：`Assets/Data/CharacterLocomotion/`（AnimationProfile）；LocomotionProfile 在 CharacterConfig 上引用（可空，运行时默认阈值）。
 
 ### Action 状态下的动画锁
 
-进入 `ActionState` 时 `SetLocked(true)`，`Play` 调用被忽略；Exit 时解锁并重置 `_currentKey`。招式走 `animationSegments` 顺序 PlayClip，段边界由 `ActionExecutor` 自动切换。
+进入 `ActionState` 时 `SetLocked(true)`；`LocomotionService.Exit` 冻结落脚采样。Exit Action 后回 Locomotion 从 Idle 再起。
+
+### 已知限制
+
+- 未实现急停减速曲线与 Pivot 专用位移（计划 Phase D）
+- Start/Stop/Pivot Clip 与落脚标记需人工配置
 
 ### 相关文件
 
-- `Assets/Scripts/Domain/Character/Animation/IAnimationPlayback.cs`
-- `Assets/Scripts/Domain/Character/Animation/PlayableAnimationPlayback.cs`
-- `Assets/Scripts/Domain/Character/Animation/CharacterAnimationService.cs`
-- `Assets/Scripts/Domain/Character/Animation/CharacterAnimationProfile.cs`
+- `Assets/Scripts/Domain/Character/Locomotion/*`
+- `Assets/Scripts/Domain/Character/Animation/*`
 - `Assets/Scripts/Domain/Character/StateMachine/States/LocomotionState.cs`
-- 迁移方案：`docs/ANIMATION_PLAYABLE_MIGRATION_PLAN.md`
+- `docs/LOCOMOTION_OPTIMIZATION_PLAN.md`
 
 ---
 
@@ -463,3 +486,5 @@ VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强
 | 2026-07-12 | `ActionDefinition` 多段 `ActionAnimationSegment[]`：同招顺序播多 Clip；`ActionExecutor` 段边界自动切；旧 `animationClip` OnValidate 迁入 segments |
 | 2026-07-13 | 相机方案 B：`CameraOrbitPivot` 对 `CameraRoot` SmoothDamp；LookAt 改为 `orbitPivot`；新增 `followSmoothTime` / `SnapFollowToTarget` |
 | 2026-07-16 | VFX：连招切招不再强制回收；`VfxPooledInstance` 按自然生命周期（含 playbackSpeed）自行回池 |
+| 2026-07-18 | Locomotion Phase/FootCycle：`LocomotionService`（Start/Gait/PivotTurn/Stop）、落脚脚步、`ApplyLocomotion`；方案见 `docs/LOCOMOTION_OPTIMIZATION_PLAN.md` |
+| 2026-07-18 | 拆分 Run/Sprint：满输入先进 Run，持续 `sprintAfterRunSeconds` 后 Sprint；Pivot 仅 Sprint |

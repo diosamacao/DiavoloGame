@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-07-13
+> Last audited: 2026-07-18
 
 ## 项目概述
 
@@ -16,6 +16,7 @@ Assets/
 │   ├── Core/StateMachine/     # 泛型状态机（与角色无关）
 │   ├── Character/
 │   │   ├── Animation/         # 动画播放与 Profile
+│   │   ├── Locomotion/        # 相位 FSM、FootCycle、脚步
 │   │   └── StateMachine/      # 角色状态机基类与共享 State
 │   ├── Player/                # PlayerController（玩家输入源适配）
 │   ├── Enemy/                 # （占位）
@@ -87,10 +88,11 @@ flowchart TB
 | `CharacterStateType` | 状态枚举（Locomotion, Action, …） |
 | `CharacterContext` | 运行时共享数据（Transform、Animation、Motor、ActionRuntime） |
 | `CharacterStateMachine` | 纯 C# 状态机宿主：RegisterStates、Tick |
-| `LocomotionState` | Tick `CharacterMotor`，再根据 MoveInputMagnitude 选择 Idle/Walk/Run 动画 |
+| `LocomotionState` | 委托 `LocomotionService`：相位 / FootCycle / 动画 / Motor 命令 |
+| `LocomotionService` | 内嵌 Phase（Idle/Start/Gait/PivotTurn/Stop）与脚步真源 |
 | `ActionState` | Tick `IActionExecutor` + `ActionRotationDriver`，结束回 Locomotion |
-| `CharacterConfig` | 角色装配根配置：模型、输入、动画、移动、战斗模式 |
-| `CharacterMotor` | 纯 C# 移动服务：Locomotion 位移、重力、移动意图解析 |
+| `CharacterConfig` | 角色装配根配置：模型、输入、动画、LocomotionProfile、移动、战斗 |
+| `CharacterMotor` | 纯 C# 移动执行：`ApplyLocomotion`、重力、移动意图解析 |
 | `CharacterActor` | 单角色纯 C# Actor：输入、Motor、状态机、动作、旋转 |
 | `CharacterActorFactory` | 通过 `CharacterConfig` + `ICharacterInputSource` 创建角色实例 |
 
@@ -104,7 +106,7 @@ InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力
               CharacterActionDriver（起手 / 缓冲 / 移动取消）
                     ↓
               CharacterStateMachine
-                    ├─ LocomotionState.Tick → CharacterMotor.TickLocomotion
+                    ├─ LocomotionState → LocomotionService → Motor.ApplyLocomotion + Animation
                     └─ ActionState.Tick → ActionExecutor + ActionRotationDriver
                     ↓ UpdateFrame（Logic Tick）
               HitboxFrameConsumer（ICombatFrameConsumer）/ ActionVfxPlayer + ActionSfxPlayer（IActionNotifyConsumer）
@@ -147,8 +149,9 @@ InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力
 
 | 类 | 职责 |
 |----|------|
-| `AnimationKey` | 逻辑动画键枚举 |
+| `AnimationKey` | 逻辑动画键（Idle/Walk/Run/Sprint/Start/PivotTurn/StopL/StopR） |
 | `CharacterAnimationProfile` | AnimationKey → AnimationClip 映射 |
+| `CharacterLocomotionProfile` | 相位阈值、落脚标记、脚步音 |
 | `IAnimationPlayback` | 可替换播放后端契约（Playable / 未来 Animancer） |
 | `PlayableAnimationPlayback` | 双槽 CrossFade PlayableGraph 实现 |
 | `CharacterAnimationService` | 调用层门面：Locomotion `Play`、招式 `PlayClip`、`SetSpeed` |
