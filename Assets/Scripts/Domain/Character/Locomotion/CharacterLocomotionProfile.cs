@@ -21,7 +21,6 @@ public class CharacterLocomotionProfile : ScriptableObject
     [Tooltip("Gait 下松手后仍保持当前步态的宽限秒数；用于键盘换向空窗，避免立刻 Stop 导致无法 Pivot。")]
     [SerializeField] float gaitInputGapGraceSeconds = 0.15f;
     [SerializeField, Range(0f, 1f)] float startToGaitNormalized = 1f;
-    [SerializeField, Range(0f, 1f)] float stopCancelNormalized = 0.4f;
     [SerializeField] float interruptFadeDuration = 0.08f;
 
     [Header("Foot Plants")]
@@ -56,7 +55,6 @@ public class CharacterLocomotionProfile : ScriptableObject
     public float SprintAfterRunSeconds => sprintAfterRunSeconds;
     public float GaitInputGapGraceSeconds => gaitInputGapGraceSeconds;
     public float StartToGaitNormalized => startToGaitNormalized;
-    public float StopCancelNormalized => stopCancelNormalized;
     public float InterruptFadeDuration => interruptFadeDuration;
     public float FootstepVolume => footstepVolume;
 
