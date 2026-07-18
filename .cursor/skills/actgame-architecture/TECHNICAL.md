@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-07-18
+> Last updated: 2026-07-19
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -234,7 +234,8 @@ Gait：跑输入持续 sprintAfterRunSeconds → Run→Sprint
 Start / Pivot 松输入                  → Stop（立刻）
 Gait 松输入 + 速度够或 Run/Sprint     → Stop；否则 Idle
 Gait(Sprint) + |yaw| ≥ pivotAngle    → PivotTurn（Walk/Run 只平滑转）
-Stop 前半再输入                       → Start
+Stop 任意时刻再输入                  → Start
+Pivot→Stop 时急停朝向用转身目标方向
 ```
 
 无落脚记录时急停默认右脚。缺少 Start/Pivot/Stop Clip 时 LogError 并跳过对应表现（不保留旧 Idle/Walk/Run 内联分支）。
@@ -253,7 +254,6 @@ Stop 前半再输入                       → Start
 | `rootMotionPositionScale` | 1 | 烘焙位移缩放 |
 | `sprintAfterRunSeconds` | 3 | Run 连续满输入后进 Sprint |
 | `gaitInputGapGraceSeconds` | 0.15 | Gait 松手宽限；超时才 Stop，便于键盘换向 Pivot |
-| `stopCancelNormalized` | 0.4 | 急停前半可取消回 Start |
 | `interruptFadeDuration` | 0.08 | 切入 Stop 短淡入 |
 | Motor `sprintSpeed` | 9 | 冲刺水平速度（旧资产为 0 时回退 runSpeed） |
 
@@ -491,3 +491,4 @@ VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强
 | 2026-07-18 | Locomotion Phase/FootCycle：`LocomotionService`（Start/Gait/PivotTurn/Stop）、落脚脚步、`ApplyLocomotion`；方案见 `docs/LOCOMOTION_OPTIMIZATION_PLAN.md` |
 | 2026-07-18 | 拆分 Run/Sprint：满输入先进 Run，持续 `sprintAfterRunSeconds` 后 Sprint；Pivot 仅 Sprint |
 | 2026-07-18 | Locomotion 方案 B：Stop/Pivot 烘焙根位移轨（`LocomotionRootMotionBaker`）+ 运行时采样驱动 |
+| 2026-07-19 | Stop 全程可取消进 Start；移除 `stopCancelNormalized`；Pivot→Stop 用转身目标朝向 |

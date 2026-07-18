@@ -204,7 +204,7 @@ Walk/Run 各配左右落脚；Start 可选。无任何落脚记录时 Stop 用�
 | `stopMinSpeedFactor` | ~0.5× runSpeed | **仅 Gait→Stop** |
 | `pivotAngleDegrees` | 110–135 | **仅 Run** |
 | `startToGaitNormalized` | 1.0 或标记 | 起步结束 |
-| `stopCancelNormalized` | 0.35–0.5 | 取消后 → Start |
+| （已移除 `stopCancelNormalized`） | — | Stop 全程有输入即可 → Start |
 | `interruptFadeDuration` | ≤ 0.1s | Start/Pivot → Stop |
 
 ---
@@ -248,20 +248,21 @@ Walk/Run 各配左右落脚；Start 可选。无任何落脚记录时 Stop 用�
 3) Gait(Run) ∧ 可 Pivot → PivotTurn
 4) Start 播完 → Gait(Walk|Run)
 5) PivotTurn 播完 ∧ 有输入 → Gait(Run)
-6) Stop 播完 → Idle；Stop 可取消 ∧ 有输入 → Start
+6) Stop 有输入 → Start；Stop 播完 ∧ 无输入 → Idle
 ```
 
 ### 5.2 起步（必经）
 
 ```text
-Idle|StopCancel + HasMoveInput → Start →（播完）→ Gait(Walk|Run)
+Idle|Stop 取消 + HasMoveInput → Start →（播完）→ Gait(Walk|Run)
 Start 全程 FollowInput
 ```
 
 ### 5.3 起步秒停 / 转身秒停
 
 ```text
-Start|PivotTurn + !HasMoveInput → Stop（默认脚 Right 若无记录）
+Start + !HasMoveInput → Stop（朝向=当前根）
+PivotTurn + !HasMoveInput → Stop（朝向=转身目标，避免扭回旧向）
 ```
 
 ### 5.4 Run 大角度转身

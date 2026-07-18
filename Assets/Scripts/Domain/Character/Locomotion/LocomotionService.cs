@@ -156,9 +156,10 @@ public sealed class LocomotionService
             return;
         }
 
+        // Pivot 中松手：急停朝向用转身目标，避免根仍锁在转身前朝向导致急停「扭回去」
         if (!hasMove && _phase == LocomotionPhase.PivotTurn && !IsCurrentPhaseClipFinished())
         {
-            EnterStop();
+            EnterStop(_pivotTargetDirection);
             return;
         }
 
@@ -179,24 +180,17 @@ public sealed class LocomotionService
             return;
         }
 
-        // 3) Stop：可取消 → Start；播完 → Idle / Start
+        // 3) Stop：任意时刻有移动输入均可取消进 Start（含后半段）；播完无输入 → Idle
         if (_phase == LocomotionPhase.Stop)
         {
-            float norm = _animation.NormalizedTime;
-            float cancelNorm = _profile != null ? _profile.StopCancelNormalized : 0.4f;
-            if (hasMove && norm < cancelNorm)
+            if (hasMove)
             {
                 EnterStart();
                 return;
             }
 
             if (IsCurrentPhaseClipFinished())
-            {
-                if (hasMove)
-                    EnterStart();
-                else
-                    EnterIdle();
-            }
+                EnterIdle();
 
             return;
         }
@@ -315,11 +309,11 @@ public sealed class LocomotionService
             return;
         }
 
-        EnterStop();
+        EnterStop(faceDir);
         if (_phase != LocomotionPhase.Stop)
             return;
 
-        // EnterStop 已 ResetPlayback；先播急停再转根，避免与转身末帧叠姿态
+        // EnterStop 已 ResetPlayback；硬切急停并钉在目标朝向
         _animation.Play(_stopKey, 0f);
         _motor.FaceWorldDirection(faceDir);
         _motor.ResetRotationDamping();
@@ -421,7 +415,11 @@ public sealed class LocomotionService
         _rootMotionPlayer.Begin(AnimationKey.PivotTurn, Quaternion.LookRotation(_pivotEnterFacing));
     }
 
-    void EnterStop()
+    /// <summary>
+    /// 进入急停。preferredFacing：从 Pivot 切入时传入转身目标朝向，
+    /// 避免根节点仍停在转身前朝向导致急停瞬间扭回旧方向。
+    /// </summary>
+    void EnterStop(Vector3 preferredFacing = default)
     {
         _runHoldSeconds = 0f;
         _gaitInputGapSeconds = 0f;
@@ -449,17 +447,23 @@ public sealed class LocomotionService
         }
 
         _phase = LocomotionPhase.Stop;
-        _stopEnterFacing = _root.forward;
-        _stopEnterFacing.y = 0f;
-        if (_stopEnterFacing.sqrMagnitude < 0.0001f)
-            _stopEnterFacing = Vector3.forward;
-        else
-            _stopEnterFacing.Normalize();
+        _stopEnterFacing = ResolveStopEnterFacing(preferredFacing);
+        _motor.FaceWorldDirection(_stopEnterFacing);
 
         _footCycle.SetMarkers(System.Array.Empty<FootPlantMarker>());
         _animation.ResetPlaybackState();
         _animation.Play(_stopKey, _profile != null ? _profile.InterruptFadeDuration : 0.08f);
         _rootMotionPlayer.Begin(_stopKey, Quaternion.LookRotation(_stopEnterFacing));
+    }
+
+    /// <summary>优先用调用方指定朝向，否则用当前根朝向。</summary>
+    Vector3 ResolveStopEnterFacing(Vector3 preferredFacing)
+    {
+        Vector3 facing = preferredFacing.sqrMagnitude > 0.0001f ? preferredFacing : _root.forward;
+        facing.y = 0f;
+        if (facing.sqrMagnitude < 0.0001f)
+            return Vector3.forward;
+        return facing.normalized;
     }
 
     FootPlantMarker[] GetMarkersForCurrentPhase()
