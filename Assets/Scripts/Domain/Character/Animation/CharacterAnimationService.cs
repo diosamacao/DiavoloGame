@@ -16,6 +16,13 @@ public sealed class CharacterAnimationService : IDisposable
     /// <summary>驱动骨骼的 Animator（Playable 输出目标）；供 Root Motion 等桥接使用。</summary>
     public Animator Animator => animator;
 
+    /// <summary>当前主 Clip 归一化时间；供 Locomotion 落脚与相位结束判定。</summary>
+    public float NormalizedTime => playback != null ? playback.NormalizedTime : 0f;
+
+    /// <summary>当前主 Clip 是否已播完（循环 Clip 视为未结束）。</summary>
+    public bool HasFinishedCurrent =>
+        playback != null && playback.CurrentClip != null && playback.HasFinished;
+
     /// <summary>当前播放倍率；卡肉时置 0。</summary>
     public float Speed
     {
@@ -48,6 +55,10 @@ public sealed class CharacterAnimationService : IDisposable
 
     /// <summary>设置播放倍率；0 冻结骨骼（HitStop）。</summary>
     public void SetSpeed(float speed) => Speed = speed;
+
+    /// <summary>Profile 是否已绑定该逻辑键的 Clip。</summary>
+    public bool HasClip(AnimationKey key) =>
+        profile != null && profile.TryGetClip(key, out AnimationClip clip) && clip != null;
 
     public void Play(AnimationKey key, float? fadeDuration = null)
     {

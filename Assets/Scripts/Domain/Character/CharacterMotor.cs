@@ -12,6 +12,7 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     Vector3 _velocity;
     float _rotationVelocity;
     float _moveInputMagnitude;
+    float _planarSpeedEstimate;
 
     /// <summary>创建角色移动服务；由状态机决定何时调用 Locomotion 移动。</summary>
     public CharacterMotor(
@@ -34,8 +35,17 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     /// <summary>跑步阈值。</summary>
     public float RunThreshold => _config.RunThreshold;
 
+    /// <summary>跑速配置，供急停速度门槛计算。</summary>
+    public float RunSpeed => _config.RunSpeed;
+
+    /// <summary>冲刺速度配置。</summary>
+    public float SprintSpeed => _config.SprintSpeed;
+
     /// <summary>当前是否着地。</summary>
     public bool IsGrounded => _controller.isGrounded;
+
+    /// <summary>上一帧水平位移估算速度（m/s）。</summary>
+    public float PlanarSpeedEstimate => _planarSpeedEstimate;
 
     public float DefaultRotationSmoothTime => _config.RotationSmoothTime;
 
@@ -45,27 +55,63 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         _cameraTransform = cameraTransform;
     }
 
-    /// <summary>Locomotion 状态下根据移动意图执行水平位移。</summary>
-    public void TickLocomotion(float deltaTime)
+    /// <summary>按 LocomotionService 命令执行水平位移与旋转（首版无加减速/转身专用位移）。</summary>
+    public void ApplyLocomotion(in LocomotionMotorCommand command, float deltaTime)
     {
         Vector2 moveIntent = _input.MoveIntent;
         Vector3 moveDirection = ResolveWorldMoveDirection(moveIntent);
         _moveInputMagnitude = _input.MoveMagnitude;
-        float speed = _moveInputMagnitude > _config.RunThreshold
-            ? _config.RunSpeed
-            : _config.WalkSpeed;
 
-        if (moveDirection.sqrMagnitude <= 0.001f)
+        ApplyRotation(command, moveDirection);
+
+        if (!command.ApplyHorizontalMove || moveDirection.sqrMagnitude <= 0.001f)
+        {
+            // 本帧快照已在 Apply 前采样上一帧速度；此处清零供后续帧使用。
+            _planarSpeedEstimate = 0f;
             return;
+        }
 
-        _root.rotation = GetSmoothedRotation(moveDirection);
-        _controller.Move(moveDirection * (speed * _moveInputMagnitude) * deltaTime);
+        float speed = ResolveSpeed(command.Gait);
+        float planarSpeed = speed * _moveInputMagnitude;
+        _planarSpeedEstimate = planarSpeed;
+        _controller.Move(moveDirection * (planarSpeed * deltaTime));
+    }
+
+    float ResolveSpeed(LocomotionGait gait)
+    {
+        switch (gait)
+        {
+            case LocomotionGait.Sprint:
+                return _config.SprintSpeed;
+            case LocomotionGait.Run:
+                return _config.RunSpeed;
+            default:
+                return _config.WalkSpeed;
+        }
     }
 
     /// <summary>非 Locomotion 状态下清空移动幅度，避免动画继续判定为移动。</summary>
     public void ClearMoveSnapshot()
     {
         _moveInputMagnitude = 0f;
+        _planarSpeedEstimate = 0f;
+    }
+
+    void ApplyRotation(in LocomotionMotorCommand command, Vector3 moveDirection)
+    {
+        switch (command.RotationMode)
+        {
+            case LocomotionRotationMode.FollowInput:
+                if (moveDirection.sqrMagnitude > 0.001f)
+                    _root.rotation = GetSmoothedRotation(moveDirection, command.RotationSmoothTimeOverride);
+                break;
+            case LocomotionRotationMode.PivotTarget:
+                if (command.PivotTargetDirection.sqrMagnitude > 0.001f)
+                    FaceWorldDirection(command.PivotTargetDirection);
+                break;
+            default:
+                break;
+        }
     }
 
     /// <summary>每帧应用重力；不属于某个 State，保持和物理执行同步。</summary>
@@ -98,14 +144,18 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         return direction.sqrMagnitude >= 0.001f;
     }
 
-    /// <summary>按世界方向立即旋转角色；忽略 y 分量与极小向量。</summary>
+    /// <summary>按世界方向立即旋转角色；忽略 y 分量与极小向量，并清空转向阻尼避免回弹。</summary>
     public void FaceWorldDirection(Vector3 direction)
     {
         if (!TryNormalizePlanar(direction, out Vector3 normalizedDirection))
             return;
 
         _root.rotation = Quaternion.LookRotation(normalizedDirection);
+        _rotationVelocity = 0f;
     }
+
+    /// <summary>清空 SmoothDamp 转向速度；Pivot 进出时调用，防止结束后朝向回摆。</summary>
+    public void ResetRotationDamping() => _rotationVelocity = 0f;
 
     public Vector3 ResolveWorldMoveDirection(Vector2 moveIntent)
     {
@@ -125,9 +175,11 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         return (forward * moveIntent.y + right * moveIntent.x).normalized;
     }
 
-    Quaternion GetSmoothedRotation(Vector3 moveDirection)
+    /// <summary>按目标方向 SmoothDamp 转向；可覆盖平滑时间（Pivot 跟 demo ReturnRun 用更长阻尼）。</summary>
+    Quaternion GetSmoothedRotation(Vector3 moveDirection, float? smoothTimeOverride = null)
     {
-        if (_config.RotationSmoothTime <= 0.001f)
+        float smoothTime = smoothTimeOverride ?? _config.RotationSmoothTime;
+        if (smoothTime <= 0.001f)
             return Quaternion.LookRotation(moveDirection);
 
         float targetAngle = Mathf.Atan2(moveDirection.x, moveDirection.z) * Mathf.Rad2Deg;
@@ -135,7 +187,7 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
             _root.eulerAngles.y,
             targetAngle,
             ref _rotationVelocity,
-            _config.RotationSmoothTime);
+            smoothTime);
 
         return Quaternion.Euler(0f, angle, 0f);
     }

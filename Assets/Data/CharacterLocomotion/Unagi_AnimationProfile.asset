@@ -19,4 +19,14 @@ MonoBehaviour:
     Clip: {fileID: -4846296226035918508, guid: 74d1892ae56796344a9d376a65b9e047, type: 3}
   - Key: 2
     Clip: {fileID: -2054543369474740052, guid: e12a5724e446f264c95078a5ee1448b6, type: 3}
+  - Key: 3
+    Clip: {fileID: 5466847419763761274, guid: aec76126025988f4599fff6b20f5d220, type: 3}
+  - Key: 6
+    Clip: {fileID: -7489994829168811264, guid: 39615fc18966d904eb024131210f2c60, type: 3}
+  - Key: 5
+    Clip: {fileID: -7489994829168811264, guid: 39615fc18966d904eb024131210f2c60, type: 3}
+  - Key: 4
+    Clip: {fileID: 2532879371419110160, guid: 1872ec27cf58dcc47b1693ac7a16380c, type: 3}
+  - Key: 7
+    Clip: {fileID: -700270024888318473, guid: 4b8bb84a23d045c468598fb439bedc97, type: 3}
   defaultCrossFadeDuration: 0.15

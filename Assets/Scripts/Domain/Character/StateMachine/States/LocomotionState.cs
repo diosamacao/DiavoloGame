@@ -1,7 +1,6 @@
+/// <summary>顶层 Locomotion 状态：委托 LocomotionService 推进相位、位移与动画。</summary>
 public class LocomotionState : CharacterState
 {
-    const float MoveInputThreshold = 0.01f;
-
     public override CharacterStateType Id => CharacterStateType.Locomotion;
 
     public override bool CanTransitionTo(CharacterStateType next)
@@ -12,30 +11,21 @@ public class LocomotionState : CharacterState
         return base.CanTransitionTo(next);
     }
 
+    public override void Enter() => Context.Locomotion.Enter();
+
+    public override void Exit() => Context.Locomotion.Exit();
+
     public override void Tick(float deltaTime)
     {
-        Context.Movement.TickLocomotion(deltaTime);
+        Context.Locomotion.Tick(deltaTime);
         SyncMotorSnapshot();
-        AnimationKey target = ResolveLocomotionKey();
-        Context.Animation.Play(target);
     }
 
-    /// <summary>Locomotion 移动后同步当前帧快照，供动画选择读取。</summary>
+    /// <summary>同步 Motor 快照到 Context，供外部只读。</summary>
     void SyncMotorSnapshot()
     {
         Context.MoveInputMagnitude = Context.Movement.MoveInputMagnitude;
         Context.RunThreshold = Context.Movement.RunThreshold;
         Context.IsGrounded = Context.Movement.IsGrounded;
-    }
-
-    AnimationKey ResolveLocomotionKey()
-    {
-        if (Context.MoveInputMagnitude < MoveInputThreshold)
-            return AnimationKey.Idle;
-
-        if (Context.MoveInputMagnitude <= Context.RunThreshold)
-            return AnimationKey.Walk;
-
-        return AnimationKey.Run;
     }
 }

@@ -37,6 +37,20 @@ public static class CharacterActorFactory
         var combatMode = new CombatModeService(config.CombatProfile, animation);
 
         var context = new CharacterContext(root, animation, controller, motor);
+        CharacterLocomotionProfile locomotionProfile = config.LocomotionProfile;
+        if (locomotionProfile == null)
+            locomotionProfile = ScriptableObject.CreateInstance<CharacterLocomotionProfile>();
+
+        var footstepPlayer = new LocomotionFootstepPlayer(root, locomotionProfile);
+        var locomotionService = new LocomotionService(
+            root,
+            motor,
+            animation,
+            sharedInput,
+            locomotionProfile,
+            footstepPlayer);
+        context.Locomotion = locomotionService;
+
         var stateMachine = new CharacterStateMachine(context);
         var resolverService = new ActionResolverService(combatMode);
         actionExecutor = new ActionExecutor(root, controller, animation, rootMotion, combatMode, resolverService);

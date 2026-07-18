@@ -14,6 +14,10 @@ public class CharacterConfig : ScriptableObject
     [Header("Animation")]
     [SerializeField] CharacterAnimationProfile defaultLocomotionProfile = null;
 
+    [Header("Locomotion")]
+    [Tooltip("相位阈值、落脚标记与脚步音；为空时运行时使用默认阈值实例。")]
+    [SerializeField] CharacterLocomotionProfile locomotionProfile = null;
+
     [Header("Input")]
     [SerializeField] InputActionAsset inputActions = null;
 
@@ -35,6 +39,9 @@ public class CharacterConfig : ScriptableObject
 
     /// <summary>默认 Locomotion 动画映射。</summary>
     public CharacterAnimationProfile DefaultLocomotionProfile => defaultLocomotionProfile;
+
+    /// <summary>Locomotion 相位与落脚配置；可为空。</summary>
+    public CharacterLocomotionProfile LocomotionProfile => locomotionProfile;
 
     /// <summary>玩家输入资产。</summary>
     public InputActionAsset InputActions => inputActions;
@@ -90,6 +97,7 @@ public struct CharacterMotorConfig
 {
     [SerializeField] float walkSpeed;
     [SerializeField] float runSpeed;
+    [SerializeField] float sprintSpeed;
     [SerializeField] float runThreshold;
     [SerializeField] float rotationSmoothTime;
     [SerializeField] float gravity;
@@ -103,6 +111,7 @@ public struct CharacterMotorConfig
     {
         walkSpeed = 4f,
         runSpeed = 7f,
+        sprintSpeed = 9f,
         runThreshold = 0.6f,
         rotationSmoothTime = 0.12f,
         gravity = -20f,
@@ -118,7 +127,10 @@ public struct CharacterMotorConfig
     /// <summary>跑速。</summary>
     public float RunSpeed => runSpeed;
 
-    /// <summary>输入幅度超过该值视为跑。</summary>
+    /// <summary>冲刺速度（Run 持续后进入 Sprint）。</summary>
+    public float SprintSpeed => sprintSpeed > 0f ? sprintSpeed : runSpeed;
+
+    /// <summary>输入幅度超过该值视为跑（尚未满 Sprint 计时）。</summary>
     public float RunThreshold => runThreshold;
 
     /// <summary>移动转向平滑时间。</summary>
