@@ -249,6 +249,8 @@ Stop 前半再输入                       → Start
 | `pivotRootFollowsInput` | false | false=Clip 含 Y 转向时锁根；true=ReturnRun 式代码转根 |
 | `pivotLockNormalizedTime` | 0.08 | 仅 rootFollows 时：前段不转根 |
 | `pivotRotationSmoothTime` | 0.5 | 仅 rootFollows 时：其后 SmoothDamp |
+| `stopUseRootMotion` / `pivotUseRootMotion` | true | 方案 B：用烘焙根位移轨驱动 Stop/Pivot |
+| `rootMotionPositionScale` | 1 | 烘焙位移缩放 |
 | `sprintAfterRunSeconds` | 3 | Run 连续满输入后进 Sprint |
 | `gaitInputGapGraceSeconds` | 0.15 | Gait 松手宽限；超时才 Stop，便于键盘换向 Pivot |
 | `stopCancelNormalized` | 0.4 | 急停前半可取消回 Start |
@@ -488,3 +490,4 @@ VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强
 | 2026-07-16 | VFX：连招切招不再强制回收；`VfxPooledInstance` 按自然生命周期（含 playbackSpeed）自行回池 |
 | 2026-07-18 | Locomotion Phase/FootCycle：`LocomotionService`（Start/Gait/PivotTurn/Stop）、落脚脚步、`ApplyLocomotion`；方案见 `docs/LOCOMOTION_OPTIMIZATION_PLAN.md` |
 | 2026-07-18 | 拆分 Run/Sprint：满输入先进 Run，持续 `sprintAfterRunSeconds` 后 Sprint；Pivot 仅 Sprint |
+| 2026-07-18 | Locomotion 方案 B：Stop/Pivot 烘焙根位移轨（`LocomotionRootMotionBaker`）+ 运行时采样驱动 |

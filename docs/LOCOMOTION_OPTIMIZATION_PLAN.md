@@ -347,9 +347,9 @@ Assets/Scripts/Domain/Character/Locomotion/
 
 **验证**：Run 大角度先转身再跑；转身中松手急停；Walk 大角度无转身动画。
 
-### Phase D — Motor / 数据抛光（P2，可选）
+### Phase D — Motor / 数据抛光（P2）
 
-- 急停减速、Pivot 位移手感
+- [x] 2026-07-18：Stop/Pivot **方案 B** 烘焙根位移（`LocomotionRootMotionTrack` + Editor 烘焙按钮）
 - 敲定 #10/#11；编辑器写回落脚时间
 - 脚步材质等
 

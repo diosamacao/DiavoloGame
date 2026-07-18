@@ -157,6 +157,28 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     /// <summary>清空 SmoothDamp 转向速度；Pivot 进出时调用，防止结束后朝向回摆。</summary>
     public void ResetRotationDamping() => _rotationVelocity = 0f;
 
+    /// <summary>应用世界平面位移（烘焙根运动）；不改朝向。</summary>
+    public void MovePlanar(Vector3 worldDelta, float deltaTime)
+    {
+        worldDelta.y = 0f;
+        if (worldDelta.sqrMagnitude < 0.0000001f)
+            return;
+
+        _controller.Move(worldDelta);
+        if (deltaTime > 0.0001f)
+            _planarSpeedEstimate = worldDelta.magnitude / deltaTime;
+    }
+
+    /// <summary>绕 Y 叠加偏航（烘焙根旋转）。</summary>
+    public void ApplyYawDegrees(float yawDeltaDegrees)
+    {
+        if (Mathf.Abs(yawDeltaDegrees) < 0.0001f)
+            return;
+
+        _root.rotation = Quaternion.Euler(0f, yawDeltaDegrees, 0f) * _root.rotation;
+        _rotationVelocity = 0f;
+    }
+
     public Vector3 ResolveWorldMoveDirection(Vector2 moveIntent)
     {
         if (moveIntent.sqrMagnitude < 0.01f)
