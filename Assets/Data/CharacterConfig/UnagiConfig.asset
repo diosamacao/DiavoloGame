@@ -17,6 +17,8 @@ MonoBehaviour:
   modelLocalEulerAngles: {x: 0, y: 0, z: 0}
   defaultLocomotionProfile: {fileID: 11400000, guid: 5c1b5a8bfed658e4ba2834fc0c7814b4, type: 2}
   locomotionProfile: {fileID: 11400000, guid: 4fabcefb4e3a82a40b0b5b23dc253981, type: 2}
+  leftFootBoneName: Bip001 L Toe0
+  rightFootBoneName: Bip001 R Toe0
   inputActions: {fileID: -944628639613478452, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
   motor:
     walkSpeed: 4

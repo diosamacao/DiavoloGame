@@ -21,14 +21,13 @@ MonoBehaviour:
   sprintAfterRunSeconds: 3
   gaitInputGapGraceSeconds: 0.15
   startToGaitNormalized: 1
-  stopCancelNormalized: 0.4
   interruptFadeDuration: 0.08
   walkFootPlants: []
   runFootPlants: []
   sprintFootPlants: []
   startFootPlants: []
-  footstepLeft: {fileID: 0}
-  footstepRight: {fileID: 0}
+  footstepLeft: {fileID: 8300000, guid: a7d39bb78dd35ed438aa29d107294902, type: 3}
+  footstepRight: {fileID: 8300000, guid: a7d39bb78dd35ed438aa29d107294902, type: 3}
   footstepVolume: 1
   stopUseRootMotion: 1
   pivotUseRootMotion: 1
