@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 
 /// <summary>
-/// 动作解析服务：当前模式的 ActionGraph 负责起手（多 Entry × Trigger）与 Cancel 边解析。
-/// 不再经 input→Resolver 查表；输入身份来自 ActionDefinition.Trigger。
+/// 动作解析服务：当前模式的 ActionGraph 负责起手 / 高优打断（多 Entry × Trigger）与 Cancel 边解析。
+/// 输入身份来自 ActionDefinition.Trigger。
 /// </summary>
 public sealed class ActionResolverService
 {
@@ -17,7 +17,9 @@ public sealed class ActionResolverService
     /// <summary>当前模式绑定的 ActionGraph。</summary>
     public ActionGraph ActiveGraph => _combatMode?.ActiveActionSet?.ActionGraph;
 
-    /// <summary>Locomotion 起手：在 Graph 的 Entry 节点中按 Trigger 匹配。</summary>
+    /// <summary>
+    /// Graph Entry 起手解析：服务于 Locomotion 起手与 Action 态 PriorityInterrupt。
+    /// </summary>
     public bool TryResolveStart(
         in ActionRequest request,
         in ActionResolveContext context,
@@ -26,6 +28,10 @@ public sealed class ActionResolverService
         result = default;
         ActionGraph graph = ActiveGraph;
         if (graph == null || !request.IsValid)
+            return false;
+
+        if (context.Origin != ActionResolveOrigin.LocomotionStart
+            && context.Origin != ActionResolveOrigin.PriorityInterrupt)
             return false;
 
         return graph.TryResolveStart(in request, in context, out result);

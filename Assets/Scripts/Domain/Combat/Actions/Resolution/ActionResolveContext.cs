@@ -22,7 +22,7 @@ public readonly struct ActionResolveContext
         CancelSlotId = cancelSlotId;
     }
 
-    /// <summary>解析来源。</summary>
+    /// <summary>解析来源（LocomotionStart / CancelWindow / PriorityInterrupt）。</summary>
     public ActionResolveOrigin Origin { get; }
 
     /// <summary>当前正在播放的招式；Locomotion 起手时为 null。</summary>
@@ -47,7 +47,7 @@ public readonly struct ActionResolveContext
     public string CancelSlotId { get; }
 }
 
-/// <summary>动作解析来源：区分 Locomotion 起手与 Action Cancel 窗口。</summary>
+/// <summary>动作解析来源：区分 Locomotion 起手、高优硬打断与 Action Cancel 窗口。</summary>
 public enum ActionResolveOrigin
 {
     /// <summary>从 Locomotion 起手解析（当前无激活招式）。</summary>
@@ -55,4 +55,7 @@ public enum ActionResolveOrigin
 
     /// <summary>从当前招式的 CancelWindow 内解析下一招。</summary>
     CancelWindow = 1,
+
+    /// <summary>Action 态高优硬打断：按 Graph Entry 解析候选招。</summary>
+    PriorityInterrupt = 2,
 }

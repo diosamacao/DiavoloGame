@@ -1,7 +1,7 @@
 # ACTGame — 动作系统技术实现文档
 
 > 本文档描述**当前已落地**的动作系统：架构、实现细节、使用方式，以及与 [ACTION_EDITOR.md](./ACTION_EDITOR.md) 长期目标的对齐分析。  
-> Last updated: 2026-07-05（Resolver 重构：出招表 Entry 绑定 ActionResolver；ActionExecutor 不再做输入/Dodge 特判；Actions 目录按 Definitions / Resolution / Execution / Frames 分层）
+> Last updated: 2026-07-19（动作优先级打断：`interruptPriority` + `TryInterrupt`；Action 态高优经 Graph Entry 硬切）
 
 ---
 
@@ -38,9 +38,9 @@
 | Action 状态 | `Assets/Scripts/Domain/Character/StateMachine/States/ActionState.cs` | 纯 C# State | Tick `IActionExecutor`；招式结束回 Locomotion |
 | 战斗模式 | `Assets/Scripts/Domain/Combat/CombatModeService.cs` | 纯 C# | 当前模式、出招表、Locomotion Profile 切换 |
 | 战斗模式配置 | `Assets/Scripts/Domain/Combat/CombatModeProfile.cs` | `ScriptableObject` 定义类 | mode → PlayerActionSet / Locomotion Profile 绑定 |
-| 动作执行 | `Assets/Scripts/Domain/Combat/Actions/Execution/ActionExecutor.cs` | 纯 C# | Action 播放、Cancel、Transition、Logic Tick、事件派发、命中回流（不做输入/动作类型特判） |
+| 动作执行 | `Assets/Scripts/Domain/Combat/Actions/Execution/ActionExecutor.cs` | 纯 C# | Action 播放、Cancel、高优硬打断、Transition、Logic Tick、事件派发、命中回流 |
 | 动作会话 | `Assets/Scripts/Domain/Combat/Actions/Execution/ActionSession.cs` | 纯 C# | 当前招式、时间、逻辑帧、命中确认、卡肉暂停 |
-| 输入路由 | `Assets/Scripts/Domain/Combat/Actions/Execution/CharacterActionDriver.cs` | 纯 C# | 起手（经 Resolver 解析）、输入缓冲、移动取消、离开 Action 后预输入消费 |
+| 输入路由 | `Assets/Scripts/Domain/Combat/Actions/Execution/CharacterActionDriver.cs` | 纯 C# | 起手、高优打断尝试、输入缓冲、移动取消、离开 Action 后预输入消费 |
 | 动作旋转 | `Assets/Scripts/Domain/Combat/Actions/Execution/ActionRotationDriver.cs` | 纯 C# | RotationWindow 内按输入/锁定目标修正朝向 |
 | 动作解析服务 | `Assets/Scripts/Domain/Combat/Actions/Resolution/ActionResolverService.cs` | 纯 C# | 按当前出招表把输入请求路由到对应 ActionResolver（起手 + Cancel 共用） |
 | 动作解析策略 | `Assets/Scripts/Domain/Combat/Actions/Resolution/ActionResolver.cs`（+ Single / Combo / Directional 子类） | `ScriptableObject` | 把 ActionRequest + 上下文解析为最终 ActionDefinition |
@@ -103,11 +103,11 @@ PlayerController.Update
           → RegisterPressed(inputId) callbacks
               → CharacterActionDriver.HandleDiscreteInput
       → CharacterActionDriver.ProcessGameplayInput
-          → Locomotion: TryStartFromLocomotion(inputId)
-              → ActionResolverService.TryResolveStart(request, context)
+          → Locomotion: TryStartFromLocomotion(intent)
+              → ActionResolverService.TryResolveStart(Origin=LocomotionStart)
               → ActionExecutor.TryStart(resolvedAction)
               → CharacterStateMachine.TryChangeState(Action)
-          → Action: Buffer(inputId) / Movement Cancel
+          → Action: TryPriorityInterrupt(intent) 或 Buffer(intent) / Movement Cancel
       → CharacterMotor.TickGravity
       → CharacterStateMachine.Tick
           → LocomotionState.Tick
@@ -282,7 +282,8 @@ CharacterActor ── InputManager（唯一持有者）
 | 区块 | 字段 | 说明 |
 |------|------|------|
 | 基础 | `animationSegments[]`, `sampleRate`, `totalFrames`, `actionType`, `crossFadeDuration` | 多段动画顺序播放；`totalFrames` 为各段有效帧之和；显示名即资产文件名 |
-| Cancel Windows | `cancelWindows[]` | 帧区间、`cancelType`、`allowedInputs`、`priority` |
+| Interrupt | `interruptPriority` | 招式级打断优先级；越大越优先；同级不互硬打断（Cancel 连招不受此限制） |
+| Cancel Windows | Timeline `CancelWindowNotifyState` | 帧区间、`cancelType`、`cancelSlotId`、`priority` |
 | Transitions | `transitions[]` | `condition`, `startFrame`, `targetAction`, `priority` |
 | Start Behaviors | `startBehaviors[]` | 起手副作用 |
 | Combat Mode | `switchCombatModeTarget`, `switchCombatModePolicy` | 配合 `SwitchCombatMode` 行为 |
@@ -330,13 +331,13 @@ bool TryResolve(in ActionRequest request, in ActionResolveContext context, out A
 ```
 
 - `ActionRequest`：输入侧意图（`InputId` + `ActionInputTrigger`，当前仅 `Pressed`）。
-- `ActionResolveContext`：世界/状态侧信息（`Origin` = LocomotionStart / CancelWindow、`CancelType`、`CurrentAction`、`ActorRoot`、`IActionStartContext`）。
+- `ActionResolveContext`：世界/状态侧信息（`Origin` = LocomotionStart / CancelWindow / PriorityInterrupt、`CancelType`、`CurrentAction`、`ActorRoot`、`IActionStartContext`）。
 
 | 子类 | 数据 | 行为 |
 |------|------|------|
 | `SingleActionResolver` | `action` | 始终返回固定招；用于切模式、单段技能、单段闪避 |
 | `ComboActionResolver` | `steps[]` + `ComboLeafPolicy` | `CurrentAction==null` 或不在队列 → `steps[0]`；在队列则 `index+1`；末段按 `LoopToRoot / StopCombo` |
-| `DirectionalActionResolver` | `defaultAction` + 前/后/左/右 + `sideThresholdDeg` + `rotateToInputOnForward` | 依 `Origin`：Locomotion 起手偏前闪并可先转向；CancelWindow 按输入与朝向夹角判左右/前后；变体缺失回退 `defaultAction`，仍无效则失败 |
+| `DirectionalActionResolver` | `defaultAction` + 前/后/左/右 + `sideThresholdDeg` + `rotateToInputOnForward` | 依 `Origin`：Locomotion 起手偏前闪并可先转向；CancelWindow / PriorityInterrupt 按输入与朝向夹角判左右/前后；变体缺失回退 `defaultAction`，仍无效则失败 |
 
 Resolver 作为资产绑定在 `PlayerActionSet.ActionEntry.resolver`。
 
@@ -398,15 +399,33 @@ HitBoxSystem.OnCombatFrameAdvanced（ActionExecutor 同步派发）
 ### 5.3 招内 Cancel（连段 / 方向派生）
 
 ```
-输入 → Buffer(inputId)
+输入 → Buffer(intent)（高优打断失败后）
 
 ActionExecutor.Tick → TryResolveCancelWindows:
   → 按 priority 扫描 CancelType.Action / Recovery 窗口
-  → HasBuffer(allowedInput) → Consume
-  → ActionResolverService.TryResolveNext(request, context{Origin=CancelWindow, CancelType, CurrentAction})
-      → Combo：Action 进位 / Recovery 回 steps[0]；Directional 方向派生
+  → HasBuffer(intent) → Consume
+  → ActionResolverService.TryResolveNext(request, context{Origin=CancelWindow, CancelSlotId, CurrentNodeId})
+      → ActionGraph 边匹配 Trigger；可选 VariantResolver
   → ClearOtherActionBuffers → TransitionTo(next)
 ```
+
+Cancel 路径**不做** `interruptPriority` 比较：同级连招在窗内仍可进位。
+
+### 5.3.1 高优硬打断（Action 态）
+
+```
+Action 态意图
+  → CharacterActionDriver.TryPriorityInterrupt(intent)
+  → ActionResolverService.TryResolveStart(Origin=PriorityInterrupt)  // Graph Entry
+  → ActionExecutor.TryInterrupt(resolveResult)
+      → candidate.InterruptPriority > current.InterruptPriority
+      → current.IsInterruptibleAtFrame(CurrentFrame)
+          （无 Phase 覆盖 → true；有覆盖则看 Interruptible）
+      → ClearOtherActionBuffers → TransitionTo
+  → 失败则 Buffer(intent) 留给 CancelWindow
+```
+
+建议配置：普攻 `interruptPriority=0`，闪避更高（如 `10`）；霸体段将对应 `ActionPhase.interruptible=false`。
 
 ### 5.4 移动取消
 
@@ -789,3 +808,4 @@ Assets/Data/Combat/Actions/Player/
 | 2026-06-17 | **全面重写**：`ActionComboSequence`、`CombatModeProfile`、Transition `AtFrame`、对齐 ACTION_EDITOR 分析、编辑器适配度评估 |
 | 2026-06-21 | ActionEditor 准备：CharacterActionDriver、UpdateFrame、ICombatFrameConsumer、Phase/Event 骨架、命中回流 |
 | 2026-07-05 | **Resolver 重构**：新增 `ActionResolver`（Single/Combo/Directional）+ `ActionResolverService`；起手/连段/Dodge 方向/ Cancel 解析全部走 Resolver；删除 `ActionExecutor.TryStartByInput`、Dodge 特判、`ActionComboSequence`、`DodgeDirectionVariants`、`PlayerActionSet.TryGetStartAction/TryResolveNext/TryGetDodgeDirectionVariants`；`IActionComboInput` 改名 `IActionInputBuffer`；`Actions` 目录按 Definitions/Resolution/Execution/Frames 分层；`CombatModeProfile` 移至 Combat 层根目录 |
+| 2026-07-19 | **动作优先级打断**：`ActionDefinition.interruptPriority`；`ActionResolveOrigin.PriorityInterrupt`；`ActionExecutor.TryInterrupt`；Action 态先高优 Entry 硬切再 Buffer；CancelWindow 连招不变；`IsInterruptibleAtFrame` 无 Phase 默认可打断 |

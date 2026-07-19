@@ -25,6 +25,11 @@ public interface IActionExecutor
     /// <summary>直接播放已解析好的招式（起手 / Cancel / Transition 内部共用）。</summary>
     bool TryStart(ActionDefinition action);
 
+    /// <summary>
+    /// 高优硬打断：候选招优先级严格大于当前招且当前帧可打断时，强制切到已解析结果。
+    /// </summary>
+    bool TryInterrupt(in ActionResolveResult resolveResult);
+
     /// <summary>绑定 Cancel 窗口消费的离散输入缓冲桥接。</summary>
     void BindInputBuffer(IActionInputBuffer inputBuffer);
 

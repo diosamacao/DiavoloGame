@@ -22,6 +22,10 @@ public class ActionDefinition : ScriptableObject
     [SerializeField] CombatActionType actionType = CombatActionType.Attack;
     [SerializeField] float crossFadeDuration = 0.1f;
 
+    [Header("Interrupt")]
+    [Tooltip("招式打断优先级；更大则可硬打断更小者。同级不互打断，连招 Cancel 不受此限制。")]
+    [SerializeField] int interruptPriority = 0;
+
     [Header("Phases (Editor)")]
     [Tooltip("Startup / Active / Recovery 与无敌、霸体覆盖；编辑器时间轴数据源。")]
     [SerializeField] ActionPhase[] phases = Array.Empty<ActionPhase>();
@@ -114,6 +118,9 @@ public class ActionDefinition : ScriptableObject
 
     /// <summary>动作类型，用于反馈默认值和上层分类。</summary>
     public CombatActionType ActionType => actionType;
+
+    /// <summary>招式打断优先级；高优可经 Entry 硬打断低优（严格大于）。</summary>
+    public int InterruptPriority => interruptPriority;
 
     /// <summary>切入招式首段时的默认淡入时长；段可自带 crossFadeDuration 覆盖。</summary>
     public float CrossFadeDuration => crossFadeDuration;
@@ -340,12 +347,15 @@ public class ActionDefinition : ScriptableObject
         return active;
     }
 
-    /// <summary>指定帧是否落在可被打断的阶段区间内。</summary>
+    /// <summary>
+    /// 指定帧是否允许高优硬打断。
+    /// 无 Phase 覆盖时默认可打断；有覆盖时任一 Interruptible 即可，全部不可打断则拒绝。
+    /// </summary>
     public bool IsInterruptibleAtFrame(int frame)
     {
         IReadOnlyList<ActionPhase> activePhases = GetActivePhasesAtFrame(frame);
         if (activePhases.Count == 0)
-            return false;
+            return true;
 
         foreach (ActionPhase phase in activePhases)
         {

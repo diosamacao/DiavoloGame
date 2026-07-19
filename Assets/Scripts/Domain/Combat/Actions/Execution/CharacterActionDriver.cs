@@ -1,6 +1,6 @@
 using UnityEngine;
 
-/// <summary>角色招式输入路由：离散输入起手/缓冲、移动取消与离开 Action 后的预输入消费；玩家与敌人共用。</summary>
+/// <summary>角色招式输入路由：起手、高优硬打断、缓冲、移动取消与离开 Action 后的预输入消费；玩家与敌人共用。</summary>
 public sealed class CharacterActionDriver
 {
     readonly CombatTargetLock targetLock;
@@ -110,7 +110,40 @@ public sealed class CharacterActionDriver
         if (_stateMachine.CurrentStateId == CharacterStateType.Locomotion)
             TryStartFromLocomotion(intent);
         else if (_stateMachine.CurrentStateId == CharacterStateType.Action)
-            _intentBuffer.Buffer(intent);
+        {
+            // 先尝试高优 Entry 硬打断；失败则缓冲留给 CancelWindow 连招。
+            if (!TryPriorityInterrupt(intent))
+                _intentBuffer.Buffer(intent);
+        }
+    }
+
+    /// <summary>
+    /// Action 态高优硬打断：按 Graph Entry 解析候选招，成功则消费意图缓冲。
+    /// </summary>
+    bool TryPriorityInterrupt(GameplayIntentType intent)
+    {
+        if (_resolverService == null || _actionExecutor == null)
+            return false;
+
+        ActionDefinition current = _actionExecutor.CurrentAction;
+        if (current == null)
+            return false;
+
+        var request = new ActionRequest(intent);
+        var context = new ActionResolveContext(
+            ActionResolveOrigin.PriorityInterrupt,
+            current,
+            _actorRoot,
+            _startContext);
+
+        if (!_resolverService.TryResolveStart(in request, in context, out ActionResolveResult resolveResult))
+            return false;
+
+        if (!_actionExecutor.TryInterrupt(in resolveResult))
+            return false;
+
+        _intentBuffer?.ClearBuffer(intent);
+        return true;
     }
 
     /// <summary>Locomotion 起手：经 ActionGraph Entry×Trigger 解析后交给 ActionExecutor。</summary>

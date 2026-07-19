@@ -14,7 +14,7 @@
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionService` + `LocomotionState` | AnimationProfile + `CharacterLocomotionProfile` |
 | Locomotion 起步/急停/转身 | 🟡 代码已接、资产待绑 | `LocomotionService` Phase FSM | Start/Stop/Pivot Clip + 落脚标记 |
 | 第三人称相机 | ✅ 已实现 | `CameraManager` | 场景内 CameraManager 对象 |
-| 动作系统（选招 / 播放 / 取消 / 连段 / 战斗模式） | ✅ 已实现 | 纯 C# `ActionResolverService` + `ActionExecutor` + `CombatModeService` | `CombatModeProfile`、`PlayerActionSet`、`ActionResolver`(Single/Combo/Directional) |
+| 动作系统（选招 / 播放 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ 已实现 | 纯 C# `ActionResolverService` + `ActionExecutor` + `CombatModeService` | `CombatModeProfile`、`PlayerActionSet`、`ActionGraph`、`ActionDefinition.interruptPriority` |
 | Action Editor（时间轴编辑） | 🟡 骨架/部分 | `ActionEditorWindow` + `ActionTimeline` 手动加轨/窗口 | Menu：`ACT/Action Editor` |
 | 攻击 / 战斗判定 | 🟡 部分实现 | 纯 C# `HitboxFrameConsumer` + `HitDetector` OBB + 命中回流 | 无伤害、Hit 状态 |
 | 敌人 AI | ⬜ 未实现 | — | `Enemy/` 占位 |
@@ -403,7 +403,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 
 ### 功能说明
 
-多战斗模式下，玩家通过出招表（`ActionEntry` → `ActionResolver`）起手攻击/闪避；起手、连段进位、Dodge 方向分派、招内 Cancel 下一招统一由 `ActionResolverService` 解析，`ActionExecutor` 只负责播放已解析好的招；`ActionTransition` 收招（含 **OnHitConfirm / OnWhiff**）；**Logic Tick 由 `UpdateFrame` 统一驱动** `ActionTimeline`、Hitbox 与 VFX。
+多战斗模式下，玩家通过 `ActionGraph` Entry×Trigger 起手攻击/闪避；起手、连段进位、Dodge 方向分派、招内 Cancel 下一招统一由 `ActionResolverService` 解析，`ActionExecutor` 只负责播放已解析好的招；Action 态下更高 `interruptPriority` 可经 Graph Entry **硬打断**当前招；`ActionTransition` 收招（含 **OnHitConfirm / OnWhiff**）；**Logic Tick 由 `UpdateFrame` 统一驱动** `ActionTimeline`、Hitbox 与 VFX。
 
 ### 实现方案
 
@@ -411,8 +411,9 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 |----|------|
 | 起手 / 缓冲 | `GameplayIntentBuffer` → `CharacterActionDriver` → `ActionResolverService.TryResolveStart` → `ActionExecutor.TryStart` |
 | Trigger | `ActionDefinition.Trigger = GameplayIntentType`；不保存 InputActionReference |
-| 选招策略 | `ActionResolver`：`Single` / `Combo`（线性连段）/ `Directional`（方向闪避） |
-| Cancel 下一招 | `ActionExecutor` 扫描窗口消费输入后 → `ActionResolverService.TryResolveNext` |
+| 选招策略 | `ActionGraph` Entry / Cancel 边；节点可选 `VariantResolver`（Directional 等） |
+| Cancel 下一招 | `ActionExecutor` 扫描窗口消费输入后 → `ActionResolverService.TryResolveNext`（**不做**优先级强制比较） |
+| 高优硬打断 | Action 态：`TryResolveStart(PriorityInterrupt)` → `ActionExecutor.TryInterrupt`（候选 `interruptPriority` 严格大于当前，且 `IsInterruptibleAtFrame`） |
 | 时间轴数据 | `ActionDefinition.Timeline`：`ActionNotify` 点事件（Event/VFX/SFX）+ `ActionNotifyState` 区间窗口 |
 | 移动取消 | `CharacterActionDriver` + `CancelWindowNotifyState(Movement)` |
 | 招式旋转 | `ActionRotationDriver` + `RotationNotifyState` + `CombatTargetLock` |
@@ -420,9 +421,23 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 | 命中回流 | `HitboxFrameConsumer` → `IActionHitReceiver.NotifyHit` |
 | Motor | `CharacterMotor`（Locomotion 位移）+ `CharacterActor`（重力调度） |
 
-### 运行时流程（Logic Tick）
+### 关键参数（打断）
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `ActionDefinition.interruptPriority` | `0` | 越大越优先；同级不互硬打断 |
+| `ActionPhase.interruptible` | `true` | 有 Phase 覆盖时：任一可打断则允许硬打断；全部 false 则拒绝 |
+| 无 Phase 覆盖帧 | — | `IsInterruptibleAtFrame` 返回 `true`（默认可硬打断） |
+
+### 运行时流程（高优打断 + Logic Tick）
 
 ```
+CharacterActionDriver.ProcessGameplayInput（Action 态）
+  → TryPriorityInterrupt(intent)
+      → ActionResolverService.TryResolveStart(Origin=PriorityInterrupt)  // Graph Entry
+      → ActionExecutor.TryInterrupt → TransitionTo
+  → 失败则 Buffer(intent)  // 留给 CancelWindow
+
 ActionState.Tick
   → ActionExecutor.Tick(deltaTime)
       → SyncLogicFrameFromElapsed → DispatchCombatFrame
@@ -431,7 +446,7 @@ ActionState.Tick
               → PlayVfxNotify 点触发 → ActionVfxPlayer.OnActionNotify（Resolve attachPointId + 显式 playbackSpeed）
               → PlaySfxNotify 点触发 → ActionSfxPlayer.OnActionNotify（pitch = playbackSpeed）
               → 其他 ActionNotifyState Enter/Tick/Exit
-      → CancelWindowNotifyState / Transition（含 OnHitConfirm）
+      → CancelWindow / Transition（含 OnHitConfirm）
 ```
 
 VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强制 Despawn；池化实例由 `VfxPooledInstance` 按粒子自然时长（含 `playbackSpeed` / 卡肉冻结）自行回池。无 `VFXManager` 时回退 `Destroy(lifetime)`。
@@ -452,8 +467,8 @@ VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强
 
 ### 已知限制
 
-- 现有资产需要在 Unity Editor 中把旧字段配置迁移到 `ActionTimeline` 对应列表；Agent 未直接修改 `.asset`
-- 连招仍线性 `ComboActionResolver`（分支连招需新增 Resolver 子类）
+- 现有资产需要在 Unity Editor 中填写 `interruptPriority`（如闪避 > 普攻）并按需配置 Phase 霸体；Agent 未直接修改 `.asset`
+- 硬打断走 Graph Entry，不要求 Cancel 边；连招进位仍依赖 CancelWindow + 图边
 - Scene 玩家入口已改为 Empty + `PlayerController` + `CharacterConfig`
 
 ### Editor 操作（Prefab）
@@ -503,3 +518,4 @@ VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强
 | 2026-07-19 | Stop 全程可取消进 Start；移除 `stopCancelNormalized`；Pivot→Stop 用转身目标朝向 |
 | 2026-07-19 | Start 急停播 `StartEnd`（Run_Start_End）；Gait/Pivot 仍用 StopL/R；烘焙轨含 StartEnd |
 | 2026-07-19 | 输入语义化：GameplayIntentProfile/Producer/Buffer；Action Trigger 改为枚举；SprintAttack、PressedThenLong、Dodge 后直入 Sprint |
+| 2026-07-19 | 动作优先级打断：`interruptPriority` + `TryInterrupt`；Action 态高优走 Graph Entry 硬切；CancelWindow 连招路径不变；`IsInterruptibleAtFrame` 无 Phase 默认可打断 |
