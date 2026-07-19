@@ -1,19 +1,19 @@
 using UnityEngine;
 
-/// <summary>方向动作解析：按闪避输入方向与角色朝向在前/后/左/右动作间分派，替代旧 DodgeDirectionVariants。</summary>
+/// <summary>六向动作解析：按角色朝向分派前、后、左前、左后、右前、右后变体。</summary>
 [CreateAssetMenu(fileName = "DirectionalActionResolver", menuName = "ACT/Combat/Resolvers/Directional Action Resolver")]
 public class DirectionalActionResolver : ActionResolver
 {
     [Tooltip("无方向输入或方向动作缺失时的回退动作（通常是原地/后闪根动作）。")]
-    [SerializeField] ActionDefinition defaultAction;
-    [Tooltip("Cancel 窗口内输入与朝向夹角超过该阈值时优先走左右。")]
-    [SerializeField] float sideThresholdDeg = 80f;
-    [Tooltip("Locomotion 起手前闪时是否先朝输入方向转向。")]
-    [SerializeField] bool rotateToInputOnForward = true;
-    [SerializeField] ActionDefinition forwardAction;
-    [SerializeField] ActionDefinition backwardAction;
-    [SerializeField] ActionDefinition leftAction;
-    [SerializeField] ActionDefinition rightAction;
+    [SerializeField] ActionDefinition defaultAction = null;
+    [Tooltip("前/后正向扇区的半角；其余方向按左右与前后半区分为四个斜向闪避。")]
+    [SerializeField, Range(0f, 89f)] float cardinalSectorHalfAngleDeg = 30f;
+    [SerializeField] ActionDefinition forwardAction = null;
+    [SerializeField] ActionDefinition backwardAction = null;
+    [SerializeField] ActionDefinition forwardLeftAction = null;
+    [SerializeField] ActionDefinition backwardLeftAction = null;
+    [SerializeField] ActionDefinition forwardRightAction = null;
+    [SerializeField] ActionDefinition backwardRightAction = null;
 
     public override bool TryResolve(
         in ActionRequest request,
@@ -31,7 +31,7 @@ public class DirectionalActionResolver : ActionResolver
         return false;
     }
 
-    /// <summary>按来源与方向选出方向变体；无法判定方向时回退后闪。</summary>
+    /// <summary>按角色平面朝向把输入划分为两个正向扇区与四个斜向扇区。</summary>
     ActionDefinition ResolveVariant(in ActionResolveContext context)
     {
         IActionStartContext startContext = context.StartContext;
@@ -41,25 +41,22 @@ public class DirectionalActionResolver : ActionResolver
         if (!TryGetPlanarForward(context.ActorRoot, out Vector3 actorForward))
             return backwardAction;
 
-        // Locomotion 起手偏前闪，并可先朝输入方向转向。
-        if (context.Origin == ActionResolveOrigin.LocomotionStart)
-        {
-            if (rotateToInputOnForward)
-                startContext.FaceWorldDirection(intentDirection);
+        float signedAngle = Vector3.SignedAngle(actorForward, intentDirection, Vector3.up);
+        float absoluteAngle = Mathf.Abs(signedAngle);
+        float cardinalHalfAngle = Mathf.Clamp(cardinalSectorHalfAngleDeg, 0f, 89f);
 
+        if (absoluteAngle <= cardinalHalfAngle)
             return forwardAction;
-        }
 
-        // Cancel 窗口与 PriorityInterrupt：先按阈值分左右，再按前后。
-        float angle = Vector3.Angle(actorForward, intentDirection);
-        if (angle > Mathf.Clamp(sideThresholdDeg, 0f, 180f))
-        {
-            float crossY = Vector3.Cross(actorForward, intentDirection).y;
-            return crossY >= 0f ? rightAction : leftAction;
-        }
+        if (absoluteAngle >= 180f - cardinalHalfAngle)
+            return backwardAction;
 
-        float dot = Vector3.Dot(actorForward, intentDirection);
-        return dot >= 0f ? forwardAction : backwardAction;
+        bool rightSide = signedAngle > 0f;
+        // 纯左/右输入位于 90° 边界，统一偏向左前/右前，避免无纵向分量时随机后闪。
+        bool forwardHalf = absoluteAngle <= 90f;
+        if (rightSide)
+            return forwardHalf ? forwardRightAction : backwardRightAction;
+        return forwardHalf ? forwardLeftAction : backwardLeftAction;
     }
 
     /// <summary>方向动作缺失时回退 defaultAction；仍无效则解析失败，不启动动作。</summary>

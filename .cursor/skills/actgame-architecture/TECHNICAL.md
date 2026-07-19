@@ -412,6 +412,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 | 起手 / 缓冲 | `GameplayIntentBuffer` → `CharacterActionDriver` → `ActionResolverService.TryResolveStart` → `ActionExecutor.TryStart` |
 | Trigger | `ActionDefinition.Trigger = GameplayIntentType`；不保存 InputActionReference |
 | 选招策略 | `ActionGraph` Entry / Cancel 边；节点可选 `VariantResolver`（Directional 等） |
+| 六向闪避 | `DirectionalActionResolver` 统一解析前、后、左前、左后、右前、右后；前后扇区半角默认 `30°`，纯左/右输入偏向前侧变体 |
 | Cancel 下一招 | `ActionExecutor` 扫描窗口消费输入后 → `ActionResolverService.TryResolveNext`（**不做**优先级强制比较） |
 | 高优硬打断 | Action 态：`TryResolveStart(PriorityInterrupt)` → `ActionExecutor.TryInterrupt`（候选 `interruptPriority` 严格大于当前，且 `IsInterruptibleAtFrame`） |
 | 时间轴数据 | `ActionDefinition.Timeline`：`ActionNotify` 点事件（Event/VFX/SFX）+ `ActionNotifyState` 区间窗口 |
@@ -519,3 +520,5 @@ VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强
 | 2026-07-19 | Start 急停播 `StartEnd`（Run_Start_End）；Gait/Pivot 仍用 StopL/R；烘焙轨含 StartEnd |
 | 2026-07-19 | 输入语义化：GameplayIntentProfile/Producer/Buffer；Action Trigger 改为枚举；SprintAttack、PressedThenLong、Dodge 后直入 Sprint |
 | 2026-07-19 | 动作优先级打断：`interruptPriority` + `TryInterrupt`；Action 态高优走 Graph Entry 硬切；CancelWindow 连招路径不变；`IsInterruptibleAtFrame` 无 Phase 默认可打断 |
+| 2026-07-19 | `DirectionalActionResolver` 改为统一六向闪避解析；删除纯左/纯右字段及 Locomotion 起手强制前闪/转向旧路径 |
+| 2026-07-19 | Action Graph 可视化节点新增 `Variant Resolver` 编辑与保存；修复 Graph Editor Save 未写回 Resolver 引用的问题 |
