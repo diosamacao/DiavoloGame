@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>单角色动作执行器：只播放已解析好的招式，负责帧推进、Cancel、Transition 与统一 Timeline 派发。</summary>
+/// <summary>单角色动作执行器：只播放已解析好的招式，负责帧推进、Cancel、高优硬打断、Transition 与统一 Timeline 派发。</summary>
 public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 {
     readonly Transform _actorRoot;
@@ -98,6 +98,31 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 
         ExecuteStartBehaviors(resolveResult.Action);
         BeginAction(in resolveResult);
+        return true;
+    }
+
+    /// <summary>
+    /// 高优硬打断：Session 活跃时，候选招 InterruptPriority 严格大于当前招，
+    /// 且当前帧 IsInterruptibleAtFrame，则 TransitionTo 并清理其它动作缓冲。
+    /// </summary>
+    public bool TryInterrupt(in ActionResolveResult resolveResult)
+    {
+        if (!_session.IsActive || !resolveResult.IsValid || animationController == null)
+            return false;
+
+        ActionDefinition current = _session.CurrentAction;
+        ActionDefinition next = resolveResult.Action;
+        if (current == null || next == null)
+            return false;
+
+        if (next.InterruptPriority <= current.InterruptPriority)
+            return false;
+
+        if (!current.IsInterruptibleAtFrame(CurrentFrame))
+            return false;
+
+        ClearOtherActionBuffers(next.Trigger);
+        TransitionTo(in resolveResult);
         return true;
     }
 

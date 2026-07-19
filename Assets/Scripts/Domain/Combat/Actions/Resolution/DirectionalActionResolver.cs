@@ -50,7 +50,7 @@ public class DirectionalActionResolver : ActionResolver
             return forwardAction;
         }
 
-        // Cancel 窗口：先按阈值分左右，再按前后。
+        // Cancel 窗口与 PriorityInterrupt：先按阈值分左右，再按前后。
         float angle = Vector3.Angle(actorForward, intentDirection);
         if (angle > Mathf.Clamp(sideThresholdDeg, 0f, 180f))
         {
