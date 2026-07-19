@@ -10,18 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
-  m_Name: Unagi_Dodge_Forward
+  m_Name: Unagi_Dodge_Forward_Right
   m_EditorClassIdentifier: 
   animationClip: {fileID: 0}
   trigger: 4
   animationSegments:
-  - clip: {fileID: -5144170095731181678, guid: 58da1b1ae3a663a4fa23fde41398a487, type: 3}
+  - clip: {fileID: 3016590578434544778, guid: 73f30d999b5b3ca488c80fb91e56ed69, type: 3}
     startFrame: 0
     endFrame: -1
     crossFadeDuration: 0
   sampleRate: 30
-  totalFrames: 121
-  actionType: 1
+  totalFrames: 116
+  actionType: 0
   crossFadeDuration: 0.1
   interruptPriority: 10
   phases: []
@@ -33,14 +33,14 @@ MonoBehaviour:
     hurtboxStates: []
     cancelWindowStates:
     - id: Cancel_1
-      startFrame: 12
-      endFrame: 120
+      startFrame: 13
+      endFrame: 115
       priority: 0
       trackName: Cancel_1
       cancelType: 1
     - id: EvadeAttack
       startFrame: 0
-      endFrame: 120
+      endFrame: 115
       priority: 0
       trackName: Cancel_3
       cancelType: 0
@@ -48,7 +48,7 @@ MonoBehaviour:
     rotationStates:
     - id: Rotation_1
       startFrame: 0
-      endFrame: 120
+      endFrame: 115
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0

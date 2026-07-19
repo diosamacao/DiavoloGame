@@ -337,9 +337,9 @@ bool TryResolve(in ActionRequest request, in ActionResolveContext context, out A
 |------|------|------|
 | `SingleActionResolver` | `action` | 始终返回固定招；用于切模式、单段技能、单段闪避 |
 | `ComboActionResolver` | `steps[]` + `ComboLeafPolicy` | `CurrentAction==null` 或不在队列 → `steps[0]`；在队列则 `index+1`；末段按 `LoopToRoot / StopCombo` |
-| `DirectionalActionResolver` | `defaultAction` + 前/后/左/右 + `sideThresholdDeg` + `rotateToInputOnForward` | 依 `Origin`：Locomotion 起手偏前闪并可先转向；CancelWindow / PriorityInterrupt 按输入与朝向夹角判左右/前后；变体缺失回退 `defaultAction`，仍无效则失败 |
+| `DirectionalActionResolver` | `defaultAction` + 前/后/左前/左后/右前/右后 + `cardinalSectorHalfAngleDeg` | 所有 `Origin` 使用同一六向判定：前后正向扇区外按左右侧与前后半区选择斜向闪避；纯左/右边界偏向左前/右前；变体缺失回退 `defaultAction`，仍无效则失败 |
 
-Resolver 作为资产绑定在 `PlayerActionSet.ActionEntry.resolver`。
+方向等变体 Resolver 作为资产绑定在 `ActionGraphNode.variantResolver`。
 
 ### 4.5 PlayerActionSet / CombatModeProfile
 
@@ -347,12 +347,12 @@ Resolver 作为资产绑定在 `PlayerActionSet.ActionEntry.resolver`。
 CombatModeProfile
   └─ CombatModeEntry[] (mode, actionSet, locomotionProfile)
        └─ PlayerActionSet
-            └─ ActionEntry[] (input → ActionResolver)
+            └─ ActionGraph（Entry×Trigger + 节点 VariantResolver）
 ```
 
 | 组件 | 职责 |
 |------|------|
-| `PlayerActionSet.TryGetResolver(inputId, out resolver)` | 按输入 id 找绑定的 Resolver |
+| `PlayerActionSet.ActionGraph` | 提供当前模式的多入口动作图 |
 | `ActionResolverService.TryResolveStart / TryResolveNext` | 起手 / Cancel 解析（同一路由，差异由 context 表达） |
 | `CombatModeService` | 运行时当前 mode、挂起切换、Locomotion Profile |
 
@@ -489,9 +489,9 @@ ActionExecutor                   HitBoxSystem              受击方
 ### 6.1b 配置方向闪避
 
 1. 创建 `DirectionalActionResolver`（Create → ACT/Combat/Resolvers/Directional Action Resolver）。
-2. 填入 `defaultAction`（根/后闪回退）与前/后/左/右动作，调 `sideThresholdDeg`、`rotateToInputOnForward`。
-3. `PlayerActionSet` Entry：`Dodge` → 上述 `DirectionalActionResolver`。
-4. 单招技能 / 切模式用 `SingleActionResolver`（Create → ACT/Combat/Resolvers/Single Action Resolver）。
+2. 填入 `defaultAction` 与前、后、左前、左后、右前、右后六个动作；`cardinalSectorHalfAngleDeg` 默认 `30°`，控制前/后正向扇区宽度。
+3. 将六个 Dodge `ActionDefinition` 都加入 `ActionGraph`；在可视化 Graph Editor 中只选一个代表节点设为 Entry，并将该节点展开区的 `Variant Resolver` 指向上述资产，最后点击 Save。
+4. 六个动作的 `Trigger` 均设为 `Dodge`，其余五个变体节点不要再标 Entry；Resolver 会按输入方向落到对应节点。
 
 ### 6.2 多战斗模式
 

@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8c8db652d4426246acbf0b8cfc050e4, type: 3}
+  m_Name: DirectionalActionResolver
+  m_EditorClassIdentifier: 
+  defaultAction: {fileID: 11400000, guid: 9b8a4ec0ba7bc3840a101d608c26e9f0, type: 2}
+  cardinalSectorHalfAngleDeg: 30
+  forwardAction: {fileID: 11400000, guid: 9b8a4ec0ba7bc3840a101d608c26e9f0, type: 2}
+  backwardAction: {fileID: 11400000, guid: 4abae900c0f901a42bd9d9c57d0a764b, type: 2}
+  forwardLeftAction: {fileID: 11400000, guid: cd1958f8bc2ce694d94c87a0515ecd5d, type: 2}
+  backwardLeftAction: {fileID: 11400000, guid: 3b08cb5f6e545a74fad80193d64470eb, type: 2}
+  forwardRightAction: {fileID: 11400000, guid: 894a679d57a3c864f8f5614aa6c39e19, type: 2}
+  backwardRightAction: {fileID: 11400000, guid: 5d739c9089db32049afb8e8b500f9d1a, type: 2}

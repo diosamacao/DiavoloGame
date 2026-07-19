@@ -274,7 +274,7 @@ ActionExecutor.Tick
 推荐：
 
 1. 图上 Early/Late 连到某个 `Dodge_*` 节点（其 `Trigger = Dodge Pressed`）。  
-2. 匹配成功后，若 `PlayerActionSet` 对 `Dodge` 绑定的是 `DirectionalActionResolver`，则 **用该 Resolver 再解析一次**（`Origin=CancelWindow`），以得到前/后/左/右变体；图节点上的 Action 可作为 default/占位。  
+2. 匹配成功后，若 `PlayerActionSet` 对 `Dodge` 绑定的是 `DirectionalActionResolver`，则 **用该 Resolver 再解析一次**（`Origin=CancelWindow`），以得到前/后/左前/左后/右前/右后六向变体；图节点上的 Action 可作为 default/占位。
 3. 若 Dodge 仅为 `SingleActionResolver`，则直接播放边上的目标 Action。
 
 这样仍满足「配树只选 Action」，又保留现有方向闪避策略，无需在边上再标 Input。

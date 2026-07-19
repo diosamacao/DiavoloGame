@@ -224,6 +224,7 @@ sealed class ActionGraphView : GraphView
             node.FindPropertyRelative("nodeId").stringValue = view.NodeId;
             node.FindPropertyRelative("action").objectReferenceValue = view.Action;
             node.FindPropertyRelative("isEntry").boolValue = view.IsEntry;
+            node.FindPropertyRelative("variantResolver").objectReferenceValue = view.VariantResolver;
             Rect layout = view.GetPosition();
             node.FindPropertyRelative("editorPosition").vector2Value = new Vector2(layout.x, layout.y);
         }
@@ -276,9 +277,10 @@ sealed class ActionGraphView : GraphView
             _nodeViews[pair.Key] = pair.Value;
     }
 
+    /// <summary>用资产节点数据创建画布节点，并恢复 Entry、Resolver 与布局。</summary>
     void AddNodeView(ActionGraphNode data)
     {
-        var view = new ActionGraphNodeView(data.NodeId, data.Action, data.IsEntry);
+        var view = new ActionGraphNodeView(data.NodeId, data.Action, data.IsEntry, data.VariantResolver);
         view.SetPosition(new Rect(data.EditorPosition, new Vector2(220, 140)));
         _nodeViews[data.NodeId] = view;
         AddElement(view);
@@ -290,6 +292,7 @@ sealed class ActionGraphView : GraphView
             DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
     }
 
+    /// <summary>接收拖入的 ActionDefinition，并以空 Resolver 创建新节点后立即落盘。</summary>
     void OnDragPerform(DragPerformEvent evt)
     {
         if (!HasActionDefinitionDrag())
@@ -303,7 +306,7 @@ sealed class ActionGraphView : GraphView
                 continue;
 
             string nodeId = MakeUniqueId(action.name);
-            var view = new ActionGraphNodeView(nodeId, action, entry: false);
+            var view = new ActionGraphNodeView(nodeId, action, entry: false, variantResolver: null);
             view.SetPosition(new Rect(local, new Vector2(220, 140)));
             _nodeViews[nodeId] = view;
             AddElement(view);
@@ -340,19 +343,26 @@ sealed class ActionGraphView : GraphView
         return baseId + "_" + i;
     }
 }
-/// <summary>单个 Action 节点视图：Entry 开关 + 输入端口 + 每个 Cancel 槽一个输出端口。</summary>
+/// <summary>单个 Action 节点视图：Entry、变体 Resolver、输入端口与 Cancel 输出端口。</summary>
 sealed class ActionGraphNodeView : Node
 {
     readonly Dictionary<string, Port> _cancelPorts = new();
     readonly Dictionary<Port, string> _portToSlot = new();
     readonly UnityEngine.UIElements.Toggle _entryToggle;
+    readonly UnityEditor.UIElements.ObjectField _variantResolverField;
 
     public string NodeId { get; }
     public ActionDefinition Action { get; }
     public bool IsEntry => _entryToggle != null && _entryToggle.value;
+    public ActionResolver VariantResolver => _variantResolverField?.value as ActionResolver;
     public Port InputPort { get; private set; }
 
-    public ActionGraphNodeView(string nodeId, ActionDefinition action, bool entry = false)
+    /// <summary>创建节点视图，并恢复可直接在画布中编辑的 Entry 与 Resolver 配置。</summary>
+    public ActionGraphNodeView(
+        string nodeId,
+        ActionDefinition action,
+        bool entry = false,
+        ActionResolver variantResolver = null)
     {
         NodeId = nodeId;
         Action = action;
@@ -360,6 +370,15 @@ sealed class ActionGraphNodeView : Node
 
         _entryToggle = new UnityEngine.UIElements.Toggle("Entry") { value = entry };
         titleContainer.Add(_entryToggle);
+
+        _variantResolverField = new UnityEditor.UIElements.ObjectField("Variant Resolver")
+        {
+            objectType = typeof(ActionResolver),
+            allowSceneObjects = false,
+            value = variantResolver,
+            tooltip = "进入该节点前执行的可选变体解析器，例如六向闪避 DirectionalActionResolver。",
+        };
+        extensionContainer.Add(_variantResolverField);
 
         InputPort = InstantiatePort(Orientation.Horizontal, Direction.Input, Port.Capacity.Multi, typeof(bool));
         InputPort.portName = "In";
@@ -385,6 +404,7 @@ sealed class ActionGraphNodeView : Node
             }
         }
 
+        expanded = true;
         RefreshExpandedState();
         RefreshPorts();
     }
