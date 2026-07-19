@@ -49,14 +49,14 @@ public sealed class ActionResolverService
         return graph.TryResolveCancel(in request, in context, out result);
     }
 
-    /// <summary>枚举当前出招图表中的全部 Trigger inputId，供缓冲清理与无槽边时的候选。</summary>
-    public IEnumerable<string> EnumerateActiveInputIds()
+    /// <summary>枚举当前出招图表中的全部 Trigger 意图，供缓冲清理与无槽边时的候选。</summary>
+    public IEnumerable<GameplayIntentType> EnumerateActiveIntents()
     {
         PlayerActionSet actionSet = _combatMode?.ActiveActionSet;
         if (actionSet == null)
             yield break;
 
-        foreach (string inputId in actionSet.EnumerateTriggerInputIds())
-            yield return inputId;
+        foreach (GameplayIntentType intent in actionSet.EnumerateTriggerIntents())
+            yield return intent;
     }
 }

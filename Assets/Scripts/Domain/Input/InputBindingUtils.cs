@@ -1,15 +1,7 @@
 using System.Collections.Generic;
-using UnityEngine;
 using UnityEngine.InputSystem;
 
-/// <summary>特殊输入 id：连续意图或玩法语义，不对应离散 InputActionReference。</summary>
-public static class InputIds
-{
-    /// <summary>移动取消占位 id；实际由 PlayerController.HasMoveIntent 判定。</summary>
-    public const string Move = "Move";
-}
-
-/// <summary>从 InputActionReference 解析运行时输入 id（即 Input System Action 名）。</summary>
+/// <summary>解析并去重 GameplayIntentProfile 使用的 InputActionReference。</summary>
 public static class InputBindingUtils
 {
     public static bool IsValid(InputActionReference reference) =>
@@ -18,6 +10,7 @@ public static class InputBindingUtils
     public static string GetInputId(InputActionReference reference) =>
         IsValid(reference) ? reference.action.name : null;
 
+    /// <summary>把物理输入引用转换为有效 Action 名。</summary>
     public static string[] ResolveInputIds(InputActionReference[] references)
     {
         if (references == null || references.Length == 0)

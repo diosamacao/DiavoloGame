@@ -13,9 +13,7 @@ MonoBehaviour:
   m_Name: Unagi_Dodge_Forward
   m_EditorClassIdentifier: 
   animationClip: {fileID: 0}
-  trigger:
-    input: {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    kind: 0
+  trigger: 4
   animationSegments:
   - clip: {fileID: -5144170095731181678, guid: 58da1b1ae3a663a4fa23fde41398a487, type: 3}
     startFrame: 0

@@ -17,7 +17,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
     readonly List<IActionNotifyConsumer> _notifyConsumers = new();
     readonly ActionTimelineRunner _timelineRunner = new();
     readonly ActionSession _session = new();
-    readonly HashSet<string> _cancelCandidateInputIds = new(StringComparer.Ordinal);
+    readonly HashSet<GameplayIntentType> _cancelCandidateIntents = new();
     IActionInputBuffer _inputBuffer;
     IActionStartContext _startContext;
     Transform _timelineAttachPoint;
@@ -186,26 +186,26 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
     /// <summary>对单个开放 Cancel 槽尝试候选输入；图内仅扫该槽出边 Trigger，否则扫出招表全部输入。</summary>
     bool TryResolveCancelForWindow(ResolvedCancelWindow window)
     {
-        _cancelCandidateInputIds.Clear();
+        _cancelCandidateIntents.Clear();
         if (_session.HasGraphCursor)
         {
-            _session.CurrentGraph.CollectCancelCandidateInputIds(
+            _session.CurrentGraph.CollectCancelCandidateIntents(
                 _session.CurrentNodeId,
                 window.CancelSlotId,
-                _cancelCandidateInputIds);
+                _cancelCandidateIntents);
         }
         else
         {
-            foreach (string inputId in _resolverService.EnumerateActiveInputIds())
-                _cancelCandidateInputIds.Add(inputId);
+            foreach (GameplayIntentType intent in _resolverService.EnumerateActiveIntents())
+                _cancelCandidateIntents.Add(intent);
         }
 
-        foreach (string inputId in _cancelCandidateInputIds)
+        foreach (GameplayIntentType intent in _cancelCandidateIntents)
         {
-            if (!_inputBuffer.HasBuffer(inputId))
+            if (!_inputBuffer.HasBuffer(intent))
                 continue;
 
-            var request = new ActionRequest(inputId);
+            var request = new ActionRequest(intent);
             var context = new ActionResolveContext(
                 ActionResolveOrigin.CancelWindow,
                 _session.CurrentAction,
@@ -221,8 +221,8 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
             if (!resolveResult.IsValid)
                 continue;
 
-            _inputBuffer.TryConsumeBuffer(inputId);
-            ClearOtherActionBuffers(inputId);
+            _inputBuffer.TryConsumeBuffer(intent);
+            ClearOtherActionBuffers(intent);
             TransitionTo(resolveResult);
             return true;
         }
@@ -231,17 +231,17 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
     }
 
     /// <summary>清空除已消费输入外的其它出招表输入缓冲，避免 Cancel 后残留触发。</summary>
-    void ClearOtherActionBuffers(string keepInputId)
+    void ClearOtherActionBuffers(GameplayIntentType keepIntent)
     {
         if (_inputBuffer == null || _resolverService == null)
             return;
 
-        foreach (string inputId in _resolverService.EnumerateActiveInputIds())
+        foreach (GameplayIntentType intent in _resolverService.EnumerateActiveIntents())
         {
-            if (inputId == keepInputId)
+            if (intent == keepIntent)
                 continue;
 
-            _inputBuffer.TryConsumeBuffer(inputId);
+            _inputBuffer.TryConsumeBuffer(intent);
         }
     }
 

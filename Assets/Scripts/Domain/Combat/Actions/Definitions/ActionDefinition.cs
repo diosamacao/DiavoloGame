@@ -10,8 +10,8 @@ public class ActionDefinition : ScriptableObject
     [SerializeField] AnimationClip animationClip = null;
 
     [Header("Trigger")]
-    [Tooltip("进入/派生到本招所需的输入与触发类型；Cancel 匹配与动作图边路由读取此字段。")]
-    [SerializeField] ActionTrigger trigger = new();
+    [Tooltip("进入/派生到本招所需的设备无关玩法意图；Cancel 与动作图边按此枚举匹配。")]
+    [SerializeField] GameplayIntentType trigger = GameplayIntentType.None;
 
     [Header("Animation")]
     [Tooltip("按顺序播放的动画段；totalFrames 由各段有效帧累加。")]
@@ -67,8 +67,8 @@ public class ActionDefinition : ScriptableObject
     [Tooltip("开启时由动画 Root Motion 驱动位移，脚本位移（Displacement Distance）将被忽略。")]
     [SerializeField] bool useRootMotion = true;
 
-    /// <summary>本招触发条件（input + Pressed/Held/Released）。</summary>
-    public ActionTrigger Trigger => trigger ?? new ActionTrigger();
+    /// <summary>本招所需的设备无关玩法意图。</summary>
+    public GameplayIntentType Trigger => trigger;
 
     /// <summary>顺序动画段；运行时与编辑器均只认此列表。</summary>
     public ActionAnimationSegment[] AnimationSegments =>

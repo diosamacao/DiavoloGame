@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-07-18
+> Last audited: 2026-07-19
 
 ## 项目概述
 
@@ -89,8 +89,8 @@ flowchart TB
 | `CharacterContext` | 运行时共享数据（Transform、Animation、Motor、ActionRuntime） |
 | `CharacterStateMachine` | 纯 C# 状态机宿主：RegisterStates、Tick |
 | `LocomotionState` | 委托 `LocomotionService`：相位 / FootCycle / 动画 / Motor 命令 |
-| `LocomotionService` | 内嵌 Phase（Idle/Start/Gait/PivotTurn/Stop）与脚步真源 |
-| `ActionState` | Tick `IActionExecutor` + `ActionRotationDriver`，结束回 Locomotion |
+| `LocomotionService` | 内嵌 Phase（Idle/Start/Gait/PivotTurn/Stop）、脚步真源与一次性步态恢复 |
+| `ActionState` | Tick `IActionExecutor` + `ActionRotationDriver`；Dodge 退出写入 `LocomotionResumeRequest` |
 | `CharacterConfig` | 角色装配根配置：模型、输入、动画、LocomotionProfile、移动、战斗 |
 | `CharacterMotor` | 纯 C# 移动执行：`ApplyLocomotion`、重力、移动意图解析 |
 | `CharacterActor` | 单角色纯 C# Actor：输入、Motor、状态机、动作、旋转 |
@@ -101,9 +101,9 @@ flowchart TB
 ```
 CharacterConfig → PlayerController（Empty 根创建玩家输入源）
                     ↓
-InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力 + 状态机）
+InputReader（原始帧）→ InputManager → GameplayIntentProducer / GameplayIntentBuffer
                     ↓
-              CharacterActionDriver（起手 / 缓冲 / 移动取消）
+              CharacterActionDriver（语义意图起手 / 缓冲 / 移动取消）
                     ↓
               CharacterStateMachine
                     ├─ LocomotionState → LocomotionService → Motor.ApplyLocomotion + Animation
@@ -116,13 +116,13 @@ InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力
 
 | 类 | 职责 |
 |----|------|
-| `ActionDefinition` | 单招 SO：Trigger、时间轴、Transition、Phase、反馈默认值 |
+| `ActionDefinition` | 单招 SO：`GameplayIntentType Trigger`、时间轴、Transition、Phase、反馈默认值 |
 | `ActionTimeline` / `ActionNotify` / `ActionNotifyState` | 动作帧数据唯一真源：点事件（Event / VFX / SFX）与区间窗口（Hitbox/Hurtbox/Cancel/Movement/Rotation）；`tracks[]` 为编辑器手动轨道；VFX 经 `CharacterAttachPointResolver` 解析 `attachPointId` |
 | `ActionExecutor` | 纯播放器：播放、Cancel（委托 Graph 选下一招）、Transition、**UpdateFrame Logic Tick**、统一 Timeline 派发、命中回流 |
 | `ActionSession` | 当前招式唯一会话状态：CurrentAction、Elapsed、图游标、命中确认、卡肉暂停 |
 | `ActionGraph` | 连招/起手图：多 Entry×Trigger、Cancel 边、可选 VariantResolver |
 | `ActionResolverService` | 调当前模式 Graph 的起手/Cancel 解析 |
-| `CharacterActionDriver` | 角色无关：按 Graph Trigger 注册输入、起手切状态、移动取消 |
+| `CharacterActionDriver` | 角色无关：消费语义意图、起手切状态、动作缓冲与移动取消 |
 | `ActionRotationDriver` | `RotationNotifyState` + 索敌转向 |
 | `CombatModeService` | 战斗模式、出招表、Locomotion Profile 切换 |
 | `CombatWorldController` | 场景级战斗系统生命周期锚点 |
@@ -131,7 +131,7 @@ InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力
 | `CombatActorSystem` / `TargetSystem` / `CombatFeedbackSystem` | 战斗角色注册、目标注册、反馈状态 |
 | `ApplyHitCommand` / `GetActiveTargetsQuery` / `AttackHitEvent` | 命中后的跨系统通信入口与无副作用目标查询 |
 | `HitboxFrameConsumer` / `HitDetector` / `TargetingResolver` | 动作帧命中检测与索敌纯计算入口，不直接访问 Architecture |
-| `PlayerActionSet` | 出招表：绑定一张 `ActionGraph`（输入来自图内 Trigger） |
+| `PlayerActionSet` | 出招表：绑定一张 `ActionGraph`（节点按语义 Trigger 匹配） |
 
 **Logic Tick 原则**：编辑器 Scrub 与 Play Mode 共用 `ActionExecutor.UpdateFrame(frameIndex)`；帧消费者实现 `ICombatFrameConsumer`，点事件/区间事件消费者实现 `IActionNotifyConsumer`。
 
@@ -160,9 +160,12 @@ InputReader（ICharacterInputSource）→ CharacterActor（InputManager + 重力
 
 | 类 | 职责 |
 |----|------|
-| `InputManager` | 帧快照、离散缓冲、移动意图 |
+| `InputManager` | 原始帧快照、Pressed/Held/Released 生命周期、移动意图 |
 | `ICharacterInputSource` | 角色输入源抽象：玩家、AI、回放、网络 |
 | `InputReader` | 玩家纯 C# 输入源：绑定 GameInputActions |
+| `GameplayIntentProfile` | 物理 InputAction → 语义意图映射与长按阈值 |
+| `GameplayIntentProducer` | 结合 Sprint 上下文输出 Attack/LongPressedAttack/SprintAttack/Dodge |
+| `GameplayIntentBuffer` | 当帧语义事件与 Action Cancel 跨帧缓冲 |
 
 ### 7. 相机（Camera）
 

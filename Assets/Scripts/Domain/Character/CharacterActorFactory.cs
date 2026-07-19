@@ -27,6 +27,7 @@ public static class CharacterActorFactory
         motorConfig.ApplyTo(controller);
 
         var sharedInput = new InputManager();
+        inputSource.ConfigureDiscreteInputs(config.GameplayIntentProfile.CollectInputReferences());
         var motor = new CharacterMotor(root, controller, motorConfig, sharedInput, cameraTransform);
         IAnimationPlayback playback = new PlayableAnimationPlayback(animator);
         animation = new CharacterAnimationService(
@@ -52,6 +53,13 @@ public static class CharacterActorFactory
         context.Locomotion = locomotionService;
 
         var stateMachine = new CharacterStateMachine(context);
+        var intentBuffer = new GameplayIntentBuffer();
+        var intentProducer = new GameplayIntentProducer(
+            config.GameplayIntentProfile,
+            sharedInput,
+            intentBuffer,
+            stateMachine,
+            locomotionService);
         var resolverService = new ActionResolverService(combatMode);
         actionExecutor = new ActionExecutor(root, controller, animation, rootMotion, combatMode, resolverService);
         context.ActionExecutor = actionExecutor;
@@ -70,8 +78,8 @@ public static class CharacterActorFactory
         actionExecutor.BindTimelineAttachPoint(defaultAttach);
 
         var actionDriver = new CharacterActionDriver(
-            inputSource,
             sharedInput,
+            intentBuffer,
             stateMachine,
             actionExecutor,
             combatMode,
@@ -79,11 +87,12 @@ public static class CharacterActorFactory
             resolverService,
             root,
             motor);
-        actionExecutor.BindInputBuffer(actionDriver.CreateInputBufferBridge());
+        actionExecutor.BindInputBuffer(intentBuffer);
 
         var actor = new CharacterActor(
             inputSource,
             sharedInput,
+            intentProducer,
             motor,
             stateMachine,
             actionDriver,

@@ -17,7 +17,7 @@ MonoBehaviour:
     action: {fileID: 11400000, guid: feed82bd9c2969e4d8503d7a7936b734, type: 2}
     isEntry: 1
     variantResolver: {fileID: 0}
-    editorPosition: {x: -403.33334, y: -384}
+    editorPosition: {x: -508, y: -330.66666}
   - nodeId: Unagi_Attack_02
     action: {fileID: 11400000, guid: db8e9e4036cf5714e83eed8c568a9874, type: 2}
     isEntry: 0
@@ -29,10 +29,10 @@ MonoBehaviour:
     variantResolver: {fileID: 0}
     editorPosition: {x: 260.66666, y: 15.333332}
   - nodeId: Unagi_Attack_04
-    action: {fileID: 11400000, guid: c18191bb1aeaeab4e8478467868d4e8f, type: 2}
+    action: {fileID: 11400000, guid: 32ceab3172e1d3e4da7ee72d80dea1a8, type: 2}
     isEntry: 0
     variantResolver: {fileID: 0}
-    editorPosition: {x: 518, y: -384}
+    editorPosition: {x: 214.66667, y: -433.33334}
   - nodeId: Unagi_Attack_05
     action: {fileID: 11400000, guid: 19bd2b48cb1f7f64799b8c6066ff91ff, type: 2}
     isEntry: 0
@@ -43,11 +43,16 @@ MonoBehaviour:
     isEntry: 0
     variantResolver: {fileID: 0}
     editorPosition: {x: 1001.3333, y: 15.333332}
+  - nodeId: Unagi_Attack_Rush
+    action: {fileID: 11400000, guid: c18191bb1aeaeab4e8478467868d4e8f, type: 2}
+    isEntry: 1
+    variantResolver: {fileID: 0}
+    editorPosition: {x: -1034, y: -222.66667}
   - nodeId: Unagi_Dodge_Forward
     action: {fileID: 11400000, guid: 9b8a4ec0ba7bc3840a101d608c26e9f0, type: 2}
     isEntry: 1
     variantResolver: {fileID: 0}
-    editorPosition: {x: 106, y: -512}
+    editorPosition: {x: -484.66666, y: -512}
   edges:
   - fromNodeId: Unagi_Attack_01
     cancelSlotId: Attack
@@ -83,8 +88,14 @@ MonoBehaviour:
     cancelSlotId: EvadeAttack
     toNodeId: Unagi_Attack_04
   - fromNodeId: Unagi_Attack_04
+    cancelSlotId: Attack
+    toNodeId: Unagi_Attack_02
+  - fromNodeId: Unagi_Attack_04
     cancelSlotId: RecoveryAttack
     toNodeId: Unagi_Attack_01
-  - fromNodeId: Unagi_Attack_04
+  - fromNodeId: Unagi_Attack_Rush
     cancelSlotId: Attack
-    toNodeId: Unagi_Attack_03
+    toNodeId: Unagi_Attack_02
+  - fromNodeId: Unagi_Attack_Rush
+    cancelSlotId: RecoveryAttack
+    toNodeId: Unagi_Attack_01

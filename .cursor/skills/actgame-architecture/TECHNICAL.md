@@ -8,7 +8,7 @@
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
-| 输入（移动 + 视角 + 离散按键） | ✅ 已实现 | `ICharacterInputSource`、纯 C# `InputReader`、`InputManager` | `GameInputActions.inputactions` |
+| 输入（原始帧 + 语义意图） | ✅ 已实现 | `InputReader`、`InputManager`、`GameplayIntentProducer` | `GameInputActions.inputactions` + `GameplayIntentProfile` |
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
 | 架构通信框架 | ✅ 已实现 | `ACTGameArchitecture`、`ArchitectureSystemBase`、`AppControllerBase`、Command / Query / Event | — |
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionService` + `LocomotionState` | AnimationProfile + `CharacterLocomotionProfile` |
@@ -122,7 +122,7 @@ Update
 
 ### 功能说明
 
-使用 Unity **Input System**；Player Map 提供 Move（WASD / 左摇杆）与 Look（鼠标 / 右摇杆）。
+使用 Unity **Input System** 采集原始帧，再由 `GameplayIntentProducer` 将离散输入转换为设备无关意图；ActionGraph 不再依赖 InputAction 名。
 
 ### 实现方案
 
@@ -130,9 +130,12 @@ Update
 |----|------|
 | 资产 | `GameInputActions.inputactions` |
 | 形态 | `InputReader` 为玩家纯 C# 输入源，实现 `ICharacterInputSource` |
-| 绑定 | Awake 时 `FindActionMap("Player")`，缓存 Move/Look Action |
+| 绑定 | Move/Look 从 Player Map 读取；离散引用来自 `GameplayIntentProfile` |
 | 生命周期 | OnEnable/OnDisable 启用/禁用整个 Asset |
-| 消费方 | `CharacterActor` 读 Move；`CameraManager` 通过 `PlayerController.Input` 读 Look |
+| 原始中枢 | `InputManager` 保存 Move/Look 与 Pressed/IsPressed/Released |
+| 语义生产 | `GameplayIntentProducer`：SprintAttack 优先、PressedThenLong、Dodge |
+| 语义缓冲 | `GameplayIntentBuffer`：当帧事件 + Action Cancel 跨帧消费 |
+| 消费方 | `CharacterActionDriver` 消费动作意图；Locomotion 继续消费连续 Move 快照 |
 
 ### 绑定摘要
 
@@ -140,14 +143,17 @@ Update
 |--------|------|----------|
 | Move | Vector2 | WASD 复合键；Gamepad 左 Stick |
 | Look | Vector2 | 鼠标 Delta；Gamepad 右 Stick |
+| Attack | Button | Pressed→Attack（Sprint 时 SprintAttack）；HoldReached→LongPressedAttack |
+| Dodge | Button | Pressed→Dodge |
 
 ### 错误处理
 
-未分配 `inputActions` 时 `LogError` 并 `enabled = false`。
+未分配 `inputActions` 或 `GameplayIntentProfile` 时 CharacterConfig 校验失败，不创建角色运行时。
 
 ### 相关文件
 
 - `Assets/Scripts/Infrastructure/Input/InputReader.cs`
+- `Assets/Scripts/Domain/Input/GameplayIntent*.cs`
 - `Assets/Scripts/Input/GameInputActions.inputactions`
 
 ---
@@ -191,6 +197,7 @@ StateMachine<TStateId, TContext>
 ```
 CharacterActor.Tick
   → InputReader.CaptureFrame / InputManager.IngestFrame
+  → GameplayIntentProducer.Tick
   → CharacterActionDriver.ProcessGameplayInput
   → CharacterMotor.TickGravity
   → CharacterStateMachine.Tick
@@ -236,6 +243,7 @@ Pivot 松输入                          → Stop（StopL/R；朝向=转身目�
 Gait 松输入 + 速度够或 Run/Sprint     → Stop（StopL/R）；否则 Idle
 Gait(Sprint) + |yaw| ≥ pivotAngle    → PivotTurn（Walk/Run 只平滑转）
 Stop 任意时刻再输入                  → Start
+Dodge Action 退出 + 仍有移动输入      → 直接 Gait(Sprint)，跳过 Start/Run 计时
 ```
 
 无落脚记录时急停默认右脚。缺少 StartEnd 时回退 StopL/R；缺少 Start/Pivot/Stop Clip 时 LogError 并跳过对应表现。
@@ -401,7 +409,8 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 
 | 项 | 方案 |
 |----|------|
-| 起手 / 缓冲 | `CharacterActionDriver` → `ActionResolverService.TryResolveStart` → `ActionExecutor.TryStart` |
+| 起手 / 缓冲 | `GameplayIntentBuffer` → `CharacterActionDriver` → `ActionResolverService.TryResolveStart` → `ActionExecutor.TryStart` |
+| Trigger | `ActionDefinition.Trigger = GameplayIntentType`；不保存 InputActionReference |
 | 选招策略 | `ActionResolver`：`Single` / `Combo`（线性连段）/ `Directional`（方向闪避） |
 | Cancel 下一招 | `ActionExecutor` 扫描窗口消费输入后 → `ActionResolverService.TryResolveNext` |
 | 时间轴数据 | `ActionDefinition.Timeline`：`ActionNotify` 点事件（Event/VFX/SFX）+ `ActionNotifyState` 区间窗口 |
@@ -493,3 +502,4 @@ VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强
 | 2026-07-18 | Locomotion 方案 B：Stop/Pivot 烘焙根位移轨（`LocomotionRootMotionBaker`）+ 运行时采样驱动 |
 | 2026-07-19 | Stop 全程可取消进 Start；移除 `stopCancelNormalized`；Pivot→Stop 用转身目标朝向 |
 | 2026-07-19 | Start 急停播 `StartEnd`（Run_Start_End）；Gait/Pivot 仍用 StopL/R；烘焙轨含 StartEnd |
+| 2026-07-19 | 输入语义化：GameplayIntentProfile/Producer/Buffer；Action Trigger 改为枚举；SprintAttack、PressedThenLong、Dodge 后直入 Sprint |

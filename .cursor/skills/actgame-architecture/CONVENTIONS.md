@@ -74,17 +74,19 @@ public class MyBehaviour : MonoBehaviour
 
 - 使用 Input System + `.inputactions` 资产；Action Map 命名 `Player`
 - **采集**：输入源实现 `ICharacterInputSource`，玩家使用纯 C# `InputReader`，敌人可使用 AI 输入源
-- **中枢**：`InputManager` 由 `CharacterActor` 持有；`IngestFrame` + `RegisterPressed(string inputId, Action)`
-- **离散 id**：Input System Action **名**；来自 `ActionDefinition.Trigger`，由 `PlayerActionSet`→`ActionGraph` 收集注册
+- **原始中枢**：`InputManager` 由 `CharacterActor` 持有；保存 Move/Look 与 Pressed/IsPressed/Released，不承担动作缓冲
+- **设备映射**：`GameplayIntentProfile` 是 InputActionReference、长按阈值与上下文映射的唯一配置源
+- **语义生产**：`GameplayIntentProducer` 在 `InputManager.IngestFrame` 后输出 `GameplayIntentType`
 - **选招层**：`ActionResolverService` → 当前模式 `ActionGraph`（多 Entry × Trigger 起手 + Cancel 边）；`DirectionalActionResolver` 可作为节点 `VariantResolver`
-- **Trigger**：`ActionDefinition.Trigger`（input + kind）是输入唯一配置处；ActionSet **不再**配 input→Resolver 表
+- **Trigger**：`ActionDefinition.Trigger` 只保存 `GameplayIntentType`，禁止重新绑定 InputActionReference
 - **连招图**：一张 `ActionGraph` 可同时含攻击/闪避等多个 Entry；边 = `(fromNode, cancelSlotId) → toNode`；编辑器 `ACT/Combat/Action Graph Editor`
 - **线性连招**：`ComboActionResolver` 仅作 Variant/遗留工具时可用；主路径为 Graph
 - **战斗模式**：`CombatModeProfile` + `CombatModeService`；`PlayerActionSet` 绑定一张 Graph
-- **缓冲**：招式中 `Buffer(inputId)`；`ActionExecutor` 经 `IActionInputBuffer` 在 `CancelWindow` 内消费（候选输入来自该槽出边目标 Trigger）
+- **缓冲**：招式中 `Buffer(GameplayIntentType)`；`ActionExecutor` 经 `IActionInputBuffer` 在 `CancelWindow` 内消费
+- **Locomotion 边界**：连续 Move 不枚举化；Action→Locomotion 特殊恢复使用一次性 `LocomotionResumeRequest`
 - **后摇重开**：后摇段使用 `CancelType.Recovery`；与攻击末 `CancelType.Action` 分离
 - 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `CharacterMotor` / State）
-- **玩家装配**：`InputActionAsset` 由 `CharacterConfig` 注入 `InputReader`，不在玩家 Prefab 上重复配置
+- **玩家装配**：`InputActionAsset` 与 `GameplayIntentProfile` 由 `CharacterConfig` 注入，不在玩家 Prefab 上重复配置
 
 ## 相机约定
 

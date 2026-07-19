@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 /// <summary>
 /// 连招图资产：节点引用 ActionDefinition，边从 Cancel 槽派生到目标节点。
@@ -76,8 +75,8 @@ public class ActionGraph : ScriptableObject
             if (node == null || !node.IsEntry || node.Action == null)
                 continue;
 
-            ActionTrigger trigger = node.Action.Trigger;
-            if (trigger == null || !trigger.Matches(in request))
+            GameplayIntentType trigger = node.Action.Trigger;
+            if (trigger == GameplayIntentType.None || trigger != request.Intent)
                 continue;
 
             return FinalizeNodeResolve(node, in request, in context, out result);
@@ -105,8 +104,8 @@ public class ActionGraph : ScriptableObject
             if (!TryGetNode(edge.ToNodeId, out ActionGraphNode toNode))
                 continue;
 
-            ActionTrigger trigger = toNode.Action.Trigger;
-            if (trigger == null || !trigger.Matches(in request))
+            GameplayIntentType trigger = toNode.Action.Trigger;
+            if (trigger == GameplayIntentType.None || trigger != request.Intent)
                 continue;
 
             return FinalizeNodeResolve(toNode, in request, in context, out result);
@@ -133,8 +132,11 @@ public class ActionGraph : ScriptableObject
         }
     }
 
-    /// <summary>收集某节点某槽出边目标招的 Trigger inputId（去重）。</summary>
-    public void CollectCancelCandidateInputIds(string fromNodeId, string cancelSlotId, HashSet<string> results)
+    /// <summary>收集某节点某槽出边目标招的玩法意图（去重）。</summary>
+    public void CollectCancelCandidateIntents(
+        string fromNodeId,
+        string cancelSlotId,
+        HashSet<GameplayIntentType> results)
     {
         results.Clear();
         if (edges == null)
@@ -149,39 +151,14 @@ public class ActionGraph : ScriptableObject
             if (!TryGetNode(edge.ToNodeId, out ActionGraphNode toNode))
                 continue;
 
-            ActionTrigger trigger = toNode.Action.Trigger;
-            if (trigger != null && trigger.IsValid)
-                results.Add(trigger.InputId);
+            GameplayIntentType trigger = toNode.Action.Trigger;
+            if (trigger != GameplayIntentType.None)
+                results.Add(trigger);
         }
     }
 
-    /// <summary>收集图中全部有效 Trigger 的 InputActionReference（起手 Entry + 任意节点，供输入注册）。</summary>
-    public void CollectTriggerInputReferences(List<InputActionReference> results)
-    {
-        results.Clear();
-        if (nodes == null)
-            return;
-
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        for (int i = 0; i < nodes.Length; i++)
-        {
-            ActionGraphNode node = nodes[i];
-            ActionTrigger trigger = node?.Action?.Trigger;
-            if (trigger == null || !trigger.IsValid)
-                continue;
-
-            string inputId = trigger.InputId;
-            if (!seen.Add(inputId))
-                continue;
-
-            InputActionReference reference = trigger.InputReference;
-            if (reference != null)
-                results.Add(reference);
-        }
-    }
-
-    /// <summary>枚举图中全部 Trigger inputId（去重）。</summary>
-    public void CollectTriggerInputIds(HashSet<string> results)
+    /// <summary>收集图中全部有效 Trigger 意图（去重）。</summary>
+    public void CollectTriggerIntents(HashSet<GameplayIntentType> results)
     {
         results.Clear();
         if (nodes == null)
@@ -189,9 +166,11 @@ public class ActionGraph : ScriptableObject
 
         for (int i = 0; i < nodes.Length; i++)
         {
-            ActionTrigger trigger = nodes[i]?.Action?.Trigger;
-            if (trigger != null && trigger.IsValid)
-                results.Add(trigger.InputId);
+            GameplayIntentType trigger = nodes[i]?.Action != null
+                ? nodes[i].Action.Trigger
+                : GameplayIntentType.None;
+            if (trigger != GameplayIntentType.None)
+                results.Add(trigger);
         }
     }
 

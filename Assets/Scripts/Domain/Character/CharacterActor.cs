@@ -5,6 +5,7 @@ public sealed class CharacterActor : System.IDisposable
 {
     readonly ICharacterInputSource _inputSource;
     readonly InputManager _inputManager;
+    readonly GameplayIntentProducer _intentProducer;
     readonly CharacterMotor _motor;
     readonly CharacterStateMachine _stateMachine;
     readonly CharacterActionDriver _actionDriver;
@@ -33,6 +34,7 @@ public sealed class CharacterActor : System.IDisposable
     public CharacterActor(
         ICharacterInputSource inputSource,
         InputManager inputManager,
+        GameplayIntentProducer intentProducer,
         CharacterMotor motor,
         CharacterStateMachine stateMachine,
         CharacterActionDriver actionDriver,
@@ -41,6 +43,7 @@ public sealed class CharacterActor : System.IDisposable
     {
         _inputSource = inputSource;
         _inputManager = inputManager;
+        _intentProducer = intentProducer;
         _motor = motor;
         _stateMachine = stateMachine;
         _actionDriver = actionDriver;
@@ -64,6 +67,7 @@ public sealed class CharacterActor : System.IDisposable
     public void Tick(float deltaTime)
     {
         _inputManager.IngestFrame(_inputSource.CaptureFrame());
+        _intentProducer.Tick(deltaTime);
         _actionDriver.ProcessGameplayInput();
         _motor.TickGravity(deltaTime);
         _stateMachine.Tick(deltaTime);
