@@ -10,4 +10,6 @@ public enum AnimationKey
     StopR = 6,
     /// <summary>Run 持续达标后进入的冲刺循环。</summary>
     Sprint = 7,
+    /// <summary>起步未完成松手时的收束（资产名 Run_Start_End）。</summary>
+    StartEnd = 8,
 }

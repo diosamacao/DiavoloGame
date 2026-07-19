@@ -217,7 +217,7 @@ CharacterActor.Tick
 | 项 | 方案 |
 |----|------|
 | 相位 | `LocomotionPhase`：Idle→Start→Gait；Sprint 大角度→PivotTurn；松输入→Stop |
-| 逻辑键 | `AnimationKey`：Idle/Walk/Run/Sprint/Start/PivotTurn/StopL/StopR |
+| 逻辑键 | `AnimationKey`：Idle/Walk/Run/Sprint/Start/StartEnd/PivotTurn/StopL/StopR |
 | 映射 | `CharacterAnimationProfile` → `AnimationClip` |
 | 相位参数 | `CharacterLocomotionProfile`（阈值、落脚、脚步音） |
 | 脚步 | `LocomotionFootCycle` 按 `NormalizedTime` 采样标记 |
@@ -231,14 +231,14 @@ CharacterActor.Tick
 Idle + 有输入                         → Start（必经）
 Start 播完                            → Gait(Walk|Run)，不直接 Sprint
 Gait：跑输入持续 sprintAfterRunSeconds → Run→Sprint
-Start / Pivot 松输入                  → Stop（立刻）
-Gait 松输入 + 速度够或 Run/Sprint     → Stop；否则 Idle
+Start 松输入                          → Stop（播 StartEnd / Run_Start_End）
+Pivot 松输入                          → Stop（StopL/R；朝向=转身目标）
+Gait 松输入 + 速度够或 Run/Sprint     → Stop（StopL/R）；否则 Idle
 Gait(Sprint) + |yaw| ≥ pivotAngle    → PivotTurn（Walk/Run 只平滑转）
 Stop 任意时刻再输入                  → Start
-Pivot→Stop 时急停朝向用转身目标方向
 ```
 
-无落脚记录时急停默认右脚。缺少 Start/Pivot/Stop Clip 时 LogError 并跳过对应表现（不保留旧 Idle/Walk/Run 内联分支）。
+无落脚记录时急停默认右脚。缺少 StartEnd 时回退 StopL/R；缺少 Start/Pivot/Stop Clip 时 LogError 并跳过对应表现。
 
 ### 关键参数（LocomotionProfile 默认）
 
@@ -250,7 +250,7 @@ Pivot→Stop 时急停朝向用转身目标方向
 | `pivotRootFollowsInput` | false | false=Clip 含 Y 转向时锁根；true=ReturnRun 式代码转根 |
 | `pivotLockNormalizedTime` | 0.08 | 仅 rootFollows 时：前段不转根 |
 | `pivotRotationSmoothTime` | 0.5 | 仅 rootFollows 时：其后 SmoothDamp |
-| `stopUseRootMotion` / `pivotUseRootMotion` | true | 方案 B：用烘焙根位移轨驱动 Stop/Pivot |
+| `stopUseRootMotion` / `pivotUseRootMotion` | true | 方案 B：烘焙根位移驱动 StartEnd/Stop/Pivot |
 | `rootMotionPositionScale` | 1 | 烘焙位移缩放 |
 | `sprintAfterRunSeconds` | 3 | Run 连续满输入后进 Sprint |
 | `gaitInputGapGraceSeconds` | 0.15 | Gait 松手宽限；超时才 Stop，便于键盘换向 Pivot |
@@ -262,7 +262,7 @@ Pivot→Stop 时急停朝向用转身目标方向
 | AnimationKey | 说明 |
 |--------------|------|
 | Idle / Walk / Run | 原有循环 |
-| Start / PivotTurn / StopL / StopR | 需在 Editor 绑定后方可完整体验 |
+| Start / StartEnd / PivotTurn / StopL / StopR | 需在 Editor 绑定；StartEnd 对应 Run_Start_End |
 
 资产：`Assets/Data/CharacterLocomotion/`（AnimationProfile）；LocomotionProfile 在 CharacterConfig 上引用（可空，运行时默认阈值）。
 
@@ -492,3 +492,4 @@ VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强
 | 2026-07-18 | 拆分 Run/Sprint：满输入先进 Run，持续 `sprintAfterRunSeconds` 后 Sprint；Pivot 仅 Sprint |
 | 2026-07-18 | Locomotion 方案 B：Stop/Pivot 烘焙根位移轨（`LocomotionRootMotionBaker`）+ 运行时采样驱动 |
 | 2026-07-19 | Stop 全程可取消进 Start；移除 `stopCancelNormalized`；Pivot→Stop 用转身目标朝向 |
+| 2026-07-19 | Start 急停播 `StartEnd`（Run_Start_End）；Gait/Pivot 仍用 StopL/R；烘焙轨含 StartEnd |

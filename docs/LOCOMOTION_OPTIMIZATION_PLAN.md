@@ -1,7 +1,7 @@
 # Locomotion 扩展方案 — Phase / FootCycle
 
 > 状态：**已实施（Phase A–C 代码）** — 2026-07-18（决议已锁定 §7#1–9；Phase D Motor 抛光未做）  
-> 资产待办：AnimationProfile 绑定 Start / PivotTurn / StopL / StopR；创建并配置 `CharacterLocomotionProfile`（落脚时间与脚步音）后挂到 CharacterConfig。  
+> 资产待办：AnimationProfile 绑定 Start / StartEnd / PivotTurn / StopL / StopR；创建并配置 `CharacterLocomotionProfile`（落脚时间与脚步音）后挂到 CharacterConfig。  
 > 目标：在不破坏 `Locomotion` ↔ `Action` 顶层边界的前提下，支持起步、脚步相位、急停分脚、**Run（即冲刺）**大角度转身，以及过渡相位被松手时立刻接急停。  
 > 相关：[`ANIMATION_PLAYABLE_MIGRATION_PLAN.md`](./ANIMATION_PLAYABLE_MIGRATION_PLAN.md)、架构文档 `LocomotionState` / `CharacterMotor`
 
@@ -58,7 +58,7 @@ CharacterActor.Tick
 | # | 需求 | 方案落点 |
 |---|------|----------|
 | 1 | 起步动画 | Phase `Start`：任何移动意图必须先 Start |
-| 2 | 起步中立刻松手 → 急停 | `Start` → `Stop` |
+| 2 | 起步中立刻松手 → 急停 | `Start` → `Stop`（播 `StartEnd` / Run_Start_End） |
 | 3 | 转身中松手 → 急停 | `PivotTurn` → `Stop` |
 | 4 | 仅「冲刺」大角度播转身 | 冲刺 ≡ **Run**；守卫 `Gait == Run`；**Walk 只平滑转** |
 
@@ -105,17 +105,17 @@ CharacterActor.Tick
 | Phase | 进入 | 行为（首版） | 主要退出 |
 |-------|------|--------------|----------|
 | `Idle` | 静止 | 播 Idle；无移动意图 | 有输入 → **`Start`（必经）** |
-| `Start` | Idle / Stop 取消后 | 播单条 `Start`；朝向 **FollowInput**；位移暂用现有逻辑 | 播完 → `Gait`；松输入 → `Stop` |
+| `Start` | Idle / Stop 取消后 | 播单条 `Start`；朝向 **FollowInput**；位移暂用现有逻辑 | 播完 → `Gait`；松输入 → `Stop(StartEnd)` |
 | `Gait` | Start 完成 | Walk/Run 循环 + FootCycle | 松输入 → Stop 或 Idle；**Run + 大角度 → PivotTurn** |
 | `PivotTurn` | `Gait(Run)` 且 \|yaw\| ≥ 阈值 | 播单条 `PivotTurn`；朝向跟 Pivot 目标（动画切换）；**不做专用位移** | 完成 → `Gait(Run)`；松输入 → `Stop` |
-| `Stop` | Start / Gait / Pivot 松输入 | 按脚播 `StopL`/`StopR`；**暂不实现减速曲线**（位移可停或沿用简单位移） | 结束 → Idle；可取消 → **`Start`** |
+| `Stop` | Start / Gait / Pivot 松输入 | Start 来源播 `StartEnd`；否则按脚 `StopL`/`StopR` | 结束 → Idle；可取消 → **`Start`** |
 
 ```mermaid
 stateDiagram-v2
     [*] --> Idle
     Idle --> Start: 有移动输入(必经)
     Start --> Gait: 起步播完
-    Start --> Stop: 松输入(立刻急停)
+    Start --> Stop: 松输入(播 StartEnd)
     Gait --> Stop: 松输入且需急停
     Gait --> Idle: 低速松输入无需急停
     Gait --> PivotTurn: Run且大角度
@@ -173,7 +173,7 @@ bool CanEnterPivotTurn(...) =>
 |------|--------|
 | `LocomotionState` | 委托 `LocomotionService` |
 | `CharacterMotor` | 首版：薄 `Apply` 或仍走现 `TickLocomotion`；**不加**减速/转身位移 |
-| `AnimationKey` | + `Start`、`PivotTurn`、`StopL`、`StopR`（**无 Sprint**） |
+| `AnimationKey` | + `Start`、`StartEnd`、`PivotTurn`、`StopL`、`StopR`、`Sprint` |
 | Profile | 动画 Profile 映射 Clip；Locomotion Profile（暂定）阈值 + 落脚 |
 
 ---
@@ -261,8 +261,8 @@ Start 全程 FollowInput
 ### 5.3 起步秒停 / 转身秒停
 
 ```text
-Start + !HasMoveInput → Stop（朝向=当前根）
-PivotTurn + !HasMoveInput → Stop（朝向=转身目标，避免扭回旧向）
+Start + !HasMoveInput → Stop(StartEnd / Run_Start_End；朝向=当前根)
+PivotTurn + !HasMoveInput → Stop(StopL/R；朝向=转身目标，避免扭回旧向)
 ```
 
 ### 5.4 Run 大角度转身
@@ -296,7 +296,7 @@ Assets/Scripts/Domain/Character/Locomotion/
   LocomotionState.cs
   CharacterMotor.cs               // 薄接入；不加减速/转身位移
   CharacterAnimationService.cs    // 透传 NormalizedTime / HasFinished
-  AnimationKey.cs                 // Start, PivotTurn, StopL, StopR
+  AnimationKey.cs                 // Start, StartEnd, PivotTurn, StopL, StopR
   CharacterAnimationProfile.cs
   CharacterActorFactory.cs
   CharacterConfig.cs              // 暂定挂 LocomotionProfile

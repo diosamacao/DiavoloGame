@@ -35,13 +35,14 @@ public class CharacterLocomotionProfile : ScriptableObject
     [SerializeField, Range(0f, 1f)] float footstepVolume = 1f;
 
     [Header("Root Motion Bake (Stop / Pivot)")]
-    [Tooltip("急停是否使用烘焙根位移。")]
+    [Tooltip("急停（含 StartEnd）是否使用烘焙根位移。")]
     [SerializeField] bool stopUseRootMotion = true;
     [Tooltip("转身是否使用烘焙根位移。")]
     [SerializeField] bool pivotUseRootMotion = true;
     [Tooltip("转身是否应用烘焙偏航；Clip 已含骨骼转向时保持 false。")]
     [SerializeField] bool pivotApplyRootYaw = false;
     [SerializeField] float rootMotionPositionScale = 1f;
+    [SerializeField] LocomotionRootMotionTrack startEndRootMotion;
     [SerializeField] LocomotionRootMotionTrack stopLRootMotion;
     [SerializeField] LocomotionRootMotionTrack stopRRootMotion;
     [SerializeField] LocomotionRootMotionTrack pivotTurnRootMotion;
@@ -76,6 +77,8 @@ public class CharacterLocomotionProfile : ScriptableObject
     {
         switch (key)
         {
+            case AnimationKey.StartEnd:
+                return startEndRootMotion;
             case AnimationKey.StopL:
                 return stopLRootMotion;
             case AnimationKey.StopR:
@@ -92,6 +95,7 @@ public class CharacterLocomotionProfile : ScriptableObject
     {
         switch (key)
         {
+            case AnimationKey.StartEnd:
             case AnimationKey.StopL:
             case AnimationKey.StopR:
                 return stopUseRootMotion;
@@ -107,6 +111,9 @@ public class CharacterLocomotionProfile : ScriptableObject
     {
         switch (key)
         {
+            case AnimationKey.StartEnd:
+                startEndRootMotion = track;
+                break;
             case AnimationKey.StopL:
                 stopLRootMotion = track;
                 break;
