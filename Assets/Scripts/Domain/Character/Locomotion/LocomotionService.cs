@@ -29,6 +29,7 @@ public sealed class LocomotionService
     bool _loggedMissingStart;
     bool _loggedMissingPivot;
     bool _loggedMissingStop;
+    bool _loggedMissingStartEnd;
     bool _loggedMissingSprint;
 
     /// <summary>当前内嵌相位（调试 / 外部只读）。</summary>
@@ -149,7 +150,7 @@ public sealed class LocomotionService
             _pivotMoveLatched = true;
         }
 
-        // 1) Start / Pivot 松输入 → 立刻 Stop（起步秒停仍立即；Pivot 结束帧用锁存，见步骤 7）
+        // 1) Start / Pivot 松输入 → 立刻 Stop（Start 用 StartEnd Clip；Pivot 结束帧用锁存，见步骤 7）
         if (!hasMove && _phase == LocomotionPhase.Start)
         {
             EnterStop();
@@ -418,33 +419,18 @@ public sealed class LocomotionService
     /// <summary>
     /// 进入急停。preferredFacing：从 Pivot 切入时传入转身目标朝向，
     /// 避免根节点仍停在转身前朝向导致急停瞬间扭回旧方向。
+    /// 从 Start 切入时优先播 StartEnd（Run_Start_End）；缺绑则回退 StopL/R。
     /// </summary>
     void EnterStop(Vector3 preferredFacing = default)
     {
+        // 须在改 phase 前判定来源：起步秒停用独立收束 Clip
+        bool fromStart = _phase == LocomotionPhase.Start;
         _runHoldSeconds = 0f;
         _gaitInputGapSeconds = 0f;
         _pivotMoveLatched = false;
-        FootSide foot = _footCycle.CaptureForStop();
-        _stopKey = foot == FootSide.Left ? AnimationKey.StopL : AnimationKey.StopR;
-        if (!_animation.HasClip(_stopKey))
-        {
-            AnimationKey fallback = _stopKey == AnimationKey.StopL ? AnimationKey.StopR : AnimationKey.StopL;
-            if (_animation.HasClip(fallback))
-            {
-                _stopKey = fallback;
-            }
-            else
-            {
-                if (!_loggedMissingStop)
-                {
-                    Debug.LogError("LocomotionService: AnimationProfile 未绑定 StopL/StopR，急停直接回 Idle。");
-                    _loggedMissingStop = true;
-                }
 
-                EnterIdle();
-                return;
-            }
-        }
+        if (!TryResolveStopKey(fromStart))
+            return;
 
         _phase = LocomotionPhase.Stop;
         _stopEnterFacing = ResolveStopEnterFacing(preferredFacing);
@@ -454,6 +440,46 @@ public sealed class LocomotionService
         _animation.ResetPlaybackState();
         _animation.Play(_stopKey, _profile != null ? _profile.InterruptFadeDuration : 0.08f);
         _rootMotionPlayer.Begin(_stopKey, Quaternion.LookRotation(_stopEnterFacing));
+    }
+
+    /// <summary>
+    /// 解析急停 Clip：Start→StartEnd；否则按落脚 StopL/R。
+    /// 失败时进 Idle 并返回 false。
+    /// </summary>
+    bool TryResolveStopKey(bool fromStart)
+    {
+        if (fromStart && _animation.HasClip(AnimationKey.StartEnd))
+        {
+            _stopKey = AnimationKey.StartEnd;
+            return true;
+        }
+
+        if (fromStart && !_loggedMissingStartEnd)
+        {
+            Debug.LogError("LocomotionService: AnimationProfile 未绑定 StartEnd，起步急停回退 StopL/R。");
+            _loggedMissingStartEnd = true;
+        }
+
+        FootSide foot = _footCycle.CaptureForStop();
+        _stopKey = foot == FootSide.Left ? AnimationKey.StopL : AnimationKey.StopR;
+        if (_animation.HasClip(_stopKey))
+            return true;
+
+        AnimationKey fallback = _stopKey == AnimationKey.StopL ? AnimationKey.StopR : AnimationKey.StopL;
+        if (_animation.HasClip(fallback))
+        {
+            _stopKey = fallback;
+            return true;
+        }
+
+        if (!_loggedMissingStop)
+        {
+            Debug.LogError("LocomotionService: AnimationProfile 未绑定 StopL/StopR，急停直接回 Idle。");
+            _loggedMissingStop = true;
+        }
+
+        EnterIdle();
+        return false;
     }
 
     /// <summary>优先用调用方指定朝向，否则用当前根朝向。</summary>
