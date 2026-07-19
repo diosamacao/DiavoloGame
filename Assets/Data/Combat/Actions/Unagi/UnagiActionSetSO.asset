@@ -10,6 +10,6 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ca7d0218503b29548be403a763a47b6e, type: 3}
-  m_Name: UnagiActionSet
+  m_Name: UnagiActionSetSO
   m_EditorClassIdentifier: 
   actionGraph: {fileID: 11400000, guid: 67683ddb7043a6643814ab1931367335, type: 2}
