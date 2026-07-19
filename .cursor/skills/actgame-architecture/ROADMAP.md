@@ -95,10 +95,11 @@
 - [x] 2026-07-12：动画薄层 Playable（`IAnimationPlayback` + `PlayableAnimationPlayback`）；Action/Locomotion 同切 Clip；HitStop 走门面 Speed；Animancer 可替换预留
 - [x] 2026-07-14：ActionGraph P0——`ActionDefinition.Trigger`、`ActionGraph`、图游标、Cancel 槽边路由、移除 `allowedInputs`、编辑器（见 `docs/ACTION_GRAPH_DESIGN.md`）
 - [x] 2026-07-14：ActionGraph 多入口——删除 `GraphActionResolver` 与 `ActionEntry` 输入表；`PlayerActionSet` 直接绑 Graph；Entry×Trigger 同时支持攻击/闪避起手
+- [x] 2026-07-19：语义化玩法意图层——物理输入经 `GameplayIntentProducer` 转为枚举 Trigger；实现 SprintAttack、PressedThenLong 与 Dodge 后 Sprint 恢复
 
 ## 剩余项
 
-- [ ] 输入生命周期扩展：`ActionInputTrigger.Held / Released` 缓冲匹配、`HoldActionResolver`（枚举已预留；见 ActionGraph P2）
+- [x] 2026-07-19：输入生命周期扩展：Pressed / IsPressed / Released 原始帧与 HoldReached 一次触发
 - [ ] ActionGraph P1–P3：校验强化、Directional 与图边再解析体验、conditions、GraphView 润色
 - [ ] `ActionEditorWindow`（多轨道时间轴，基于 `ActionTimeline`）与 ActionMap 可视化编辑 — 实现方案见 `docs/ACTION_EDITOR_IMPLEMENTATION.md`
 

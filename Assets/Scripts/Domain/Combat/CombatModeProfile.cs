@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 /// <summary>战斗模式标识：每种模式绑定独立 PlayerActionSet 出招表。</summary>
 public enum CombatModeType
@@ -87,45 +85,4 @@ public class CombatModeProfile : ScriptableObject
         return false;
     }
 
-    /// <summary>收集全部模式 Graph 中 Trigger 的离散输入（按 Action 名去重），供 InputReader 轮询。</summary>
-    public InputActionReference[] CollectAllInputReferences()
-    {
-        if (entries == null || entries.Length == 0)
-            return Array.Empty<InputActionReference>();
-
-        var references = new List<InputActionReference>();
-        foreach (CombatModeEntry entry in entries)
-        {
-            if (!entry.IsValid)
-                continue;
-
-            InputActionReference[] setReferences = entry.ActionSet.CollectTriggerInputReferences();
-            if (setReferences.Length == 0)
-                continue;
-
-            references.AddRange(setReferences);
-        }
-
-        return InputBindingUtils.CollectUniqueReferences(references);
-    }
-
-    /// <summary>遍历全部模式 Graph 中的 Trigger inputId（去重）。</summary>
-    public IEnumerable<string> EnumerateAllTriggerInputIds()
-    {
-        if (entries == null)
-            yield break;
-
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (CombatModeEntry entry in entries)
-        {
-            if (!entry.IsValid)
-                continue;
-
-            foreach (string inputId in entry.ActionSet.EnumerateTriggerInputIds())
-            {
-                if (seen.Add(inputId))
-                    yield return inputId;
-            }
-        }
-    }
 }

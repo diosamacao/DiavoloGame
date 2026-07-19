@@ -78,7 +78,7 @@ public class ActionGraphInspector : Editor
                 if (def != null)
                 {
                     EditorGUILayout.LabelField(
-                        $"Trigger: {def.Trigger.DisplayLabel}",
+                        $"Trigger: {def.Trigger}",
                         EditorStyles.miniLabel);
                     DrawCancelSlotsPreview(def);
                 }
@@ -258,7 +258,7 @@ public class ActionGraphInspector : Editor
     string ResolveTargetTriggerLabel(string toNodeId)
     {
         ActionDefinition action = FindNodeAction(toNodeId);
-        return action != null ? action.Trigger.DisplayLabel : null;
+        return action != null ? action.Trigger.ToString() : null;
     }
 
     static void DrawCancelSlotsPreview(ActionDefinition action)
@@ -281,7 +281,7 @@ public class ActionGraphInspector : Editor
 
         var errors = new List<string>();
         int entryCount = 0;
-        var entryTriggers = new HashSet<string>();
+        var entryTriggers = new HashSet<GameplayIntentType>();
 
         foreach (ActionGraphNode node in graph.Nodes)
         {
@@ -289,19 +289,18 @@ public class ActionGraphInspector : Editor
                 continue;
 
             entryCount++;
-            ActionTrigger trigger = node.Action.Trigger;
-            if (trigger == null || !trigger.IsValid)
+            GameplayIntentType trigger = node.Action.Trigger;
+            if (trigger == GameplayIntentType.None)
             {
                 errors.Add($"Entry '{node.NodeId}' 的 Action.Trigger 未配置。");
                 continue;
             }
 
             // 同 Trigger 的多个 Entry 仅在挂了 VariantResolver（方向分派）时允许。
-            string key = $"{trigger.InputId}|{trigger.Kind}";
-            if (!entryTriggers.Add(key) && node.VariantResolver == null)
+            if (!entryTriggers.Add(trigger) && node.VariantResolver == null)
             {
                 errors.Add(
-                    $"多个 Entry 使用相同 Trigger {trigger.DisplayLabel} 且无 Variant Resolver：'{node.NodeId}'。");
+                    $"多个 Entry 使用相同 Trigger {trigger} 且无 Variant Resolver：'{node.NodeId}'。");
             }
         }
 
@@ -339,16 +338,16 @@ public class ActionGraphInspector : Editor
             if (!slotFound)
                 errors.Add($"节点 {edge.FromNodeId} 缺少 Cancel 槽 '{edge.CancelSlotId}'。");
 
-            ActionTrigger trigger = to.Action.Trigger;
-            if (trigger == null || !trigger.IsValid)
+            GameplayIntentType trigger = to.Action.Trigger;
+            if (trigger == GameplayIntentType.None)
             {
                 errors.Add($"目标 {edge.ToNodeId} 的 Action.Trigger 未配置。");
                 continue;
             }
 
-            string edgeKey = $"{edge.FromNodeId}|{edge.CancelSlotId}|{trigger.InputId}|{trigger.Kind}";
+            string edgeKey = $"{edge.FromNodeId}|{edge.CancelSlotId}|{trigger}";
             if (!triggerKeys.Add(edgeKey))
-                errors.Add($"同槽 Trigger 冲突: {edge.FromNodeId}/{edge.CancelSlotId} → {trigger.DisplayLabel}");
+                errors.Add($"同槽 Trigger 冲突: {edge.FromNodeId}/{edge.CancelSlotId} → {trigger}");
         }
 
         if (errors.Count == 0)

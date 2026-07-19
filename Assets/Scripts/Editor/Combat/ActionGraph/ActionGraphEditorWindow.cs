@@ -356,7 +356,7 @@ sealed class ActionGraphNodeView : Node
     {
         NodeId = nodeId;
         Action = action;
-        title = action != null ? $"{nodeId}  [{action.Trigger.DisplayLabel}]" : nodeId;
+        title = action != null ? $"{nodeId}  [{action.Trigger}]" : nodeId;
 
         _entryToggle = new UnityEngine.UIElements.Toggle("Entry") { value = entry };
         titleContainer.Add(_entryToggle);

@@ -20,6 +20,8 @@ public class CharacterConfig : ScriptableObject
 
     [Header("Input")]
     [SerializeField] InputActionAsset inputActions = null;
+    [Tooltip("物理输入到 GameplayIntentType 的唯一映射配置。")]
+    [SerializeField] GameplayIntentProfile gameplayIntentProfile = null;
 
     [Header("Movement")]
     [SerializeField] CharacterMotorConfig motor = CharacterMotorConfig.Default;
@@ -45,6 +47,9 @@ public class CharacterConfig : ScriptableObject
 
     /// <summary>玩家输入资产。</summary>
     public InputActionAsset InputActions => inputActions;
+
+    /// <summary>设备输入到玩法语义的映射。</summary>
+    public GameplayIntentProfile GameplayIntentProfile => gameplayIntentProfile;
 
     /// <summary>移动和 CharacterController 参数。</summary>
     public CharacterMotorConfig Motor => motor;
@@ -78,6 +83,12 @@ public class CharacterConfig : ScriptableObject
         if (inputActions == null)
         {
             Debug.LogError("CharacterConfig: InputActions 未配置。", context);
+            valid = false;
+        }
+
+        if (gameplayIntentProfile == null)
+        {
+            Debug.LogError("CharacterConfig: GameplayIntentProfile 未配置。", context);
             valid = false;
         }
 

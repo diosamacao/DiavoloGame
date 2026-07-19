@@ -1,7 +1,7 @@
-/// <summary>招式运行时消费的离散输入缓冲（多输入 id）。</summary>
+/// <summary>招式运行时消费的设备无关玩法意图缓冲。</summary>
 public interface IActionInputBuffer
 {
-    bool HasBuffer(string inputId);
+    bool HasBuffer(GameplayIntentType intent);
 
-    bool TryConsumeBuffer(string inputId);
+    bool TryConsumeBuffer(GameplayIntentType intent);
 }

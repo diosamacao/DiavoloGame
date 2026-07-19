@@ -11,7 +11,12 @@ public class LocomotionState : CharacterState
         return base.CanTransitionTo(next);
     }
 
-    public override void Enter() => Context.Locomotion.Enter();
+    /// <summary>进入 Locomotion，并消费 Action 边界留下的一次性恢复请求。</summary>
+    public override void Enter()
+    {
+        LocomotionResumeRequest request = Context.ConsumeLocomotionResumeRequest();
+        Context.Locomotion.Enter(in request);
+    }
 
     public override void Exit() => Context.Locomotion.Exit();
 

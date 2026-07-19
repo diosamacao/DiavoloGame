@@ -11,6 +11,8 @@ public sealed class InputReader : ICharacterInputSource
     InputActionReference[] _discreteInputs = Array.Empty<InputActionReference>();
 
     readonly System.Collections.Generic.List<string> _pressedScratch = new(4);
+    readonly System.Collections.Generic.List<string> _heldScratch = new(4);
+    readonly System.Collections.Generic.List<string> _releasedScratch = new(4);
 
     public Vector2 MoveInput => moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
     public Vector2 LookInput => lookAction != null ? lookAction.ReadValue<Vector2>() : Vector2.zero;
@@ -28,20 +30,33 @@ public sealed class InputReader : ICharacterInputSource
         _discreteInputs = references ?? Array.Empty<InputActionReference>();
     }
 
+    /// <summary>采集连续轴与离散输入的 Pressed/IsPressed/Released 生命周期。</summary>
     public PlayerInputFrame CaptureFrame()
     {
         _pressedScratch.Clear();
+        _heldScratch.Clear();
+        _releasedScratch.Clear();
 
         foreach (InputActionReference reference in _discreteInputs)
         {
             if (!InputBindingUtils.IsValid(reference))
                 continue;
 
-            if (reference.action.WasPressedThisFrame())
-                _pressedScratch.Add(reference.action.name);
+            InputAction action = reference.action;
+            if (action.WasPressedThisFrame())
+                _pressedScratch.Add(action.name);
+            if (action.IsPressed())
+                _heldScratch.Add(action.name);
+            if (action.WasReleasedThisFrame())
+                _releasedScratch.Add(action.name);
         }
 
-        return new PlayerInputFrame(MoveInput, LookInput, _pressedScratch.ToArray());
+        return new PlayerInputFrame(
+            MoveInput,
+            LookInput,
+            _pressedScratch.ToArray(),
+            _heldScratch.ToArray(),
+            _releasedScratch.ToArray());
     }
 
     /// <summary>启用输入资产；由 PlayerController.OnEnable 调用。</summary>

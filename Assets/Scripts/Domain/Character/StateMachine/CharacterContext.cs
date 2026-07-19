@@ -3,6 +3,8 @@ using UnityEngine;
 /// <summary>角色状态机共享上下文；State 只读取快照和服务引用，不直接查找场景对象。</summary>
 public class CharacterContext
 {
+    LocomotionResumeRequest _pendingLocomotionResume;
+
     public CharacterContext(
         Transform transform,
         CharacterAnimationService animation,
@@ -33,4 +35,18 @@ public class CharacterContext
 
     /// <summary>动作状态下的转向服务。</summary>
     public ActionRotationDriver ActionRotation { get; set; }
+
+    /// <summary>写入 Action→Locomotion 的一次性恢复请求；后写入覆盖前请求。</summary>
+    public void SetLocomotionResumeRequest(in LocomotionResumeRequest request)
+    {
+        _pendingLocomotionResume = request;
+    }
+
+    /// <summary>取出并清空一次性恢复请求，防止影响后续状态切换。</summary>
+    public LocomotionResumeRequest ConsumeLocomotionResumeRequest()
+    {
+        LocomotionResumeRequest request = _pendingLocomotionResume;
+        _pendingLocomotionResume = default;
+        return request;
+    }
 }

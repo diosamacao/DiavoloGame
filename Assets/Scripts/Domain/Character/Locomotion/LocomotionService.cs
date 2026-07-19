@@ -55,8 +55,8 @@ public sealed class LocomotionService
         _rootMotionPlayer = new LocomotionRootMotionPlayer(profile);
     }
 
-    /// <summary>进入顶层 Locomotion；相位从 Idle 起，保留落脚记录。</summary>
-    public void Enter()
+    /// <summary>进入顶层 Locomotion；可消费 Action 边界传入的一次性步态恢复请求。</summary>
+    public void Enter(in LocomotionResumeRequest resumeRequest)
     {
         _phase = LocomotionPhase.Idle;
         _runHoldSeconds = 0f;
@@ -64,6 +64,16 @@ public sealed class LocomotionService
         _rootMotionPlayer.End();
         _footCycle.Unfreeze();
         _footCycle.SetMarkers(System.Array.Empty<FootPlantMarker>());
+
+        bool canResume = resumeRequest.IsValid
+            && (!resumeRequest.RequireMoveIntent || _input.HasMoveIntent);
+        if (canResume && resumeRequest.SkipStart)
+        {
+            // Dodge 恢复属于显式过渡语义：直接进目标步态，不走 Idle→Start→Run 计时。
+            EnterGait(resumeRequest.InitialGait);
+            _animation.ResetPlaybackState();
+            _animation.Play(ResolveGaitAnimationKey(resumeRequest.InitialGait), 0f);
+        }
     }
 
     /// <summary>离开顶层 Locomotion（进 Action 等）；停止落脚采样与派发。</summary>
