@@ -31,6 +31,7 @@ MonoBehaviour:
   totalFrames: 130
   actionType: 0
   crossFadeDuration: 0.1
+  interruptPriority: 0
   phases: []
   timeline:
     actionEvents: []
@@ -42,10 +43,10 @@ MonoBehaviour:
       trackName: VFX_1
       prefab: {fileID: 1713045243172065375, guid: f791790f35137b946b82347edb9264f2, type: 3}
       attachPointId: 
-      localOffset: {x: 0, y: 0.78, z: 0}
+      localOffset: {x: 0, y: 0.78, z: 2}
       localEulerAngles: {x: 0, y: 180, z: 180}
       localScale: {x: 1.3, y: 1.3, z: 1.3}
-      parentToAttachPoint: 1
+      parentToAttachPoint: 0
       playbackSpeed: 1
     - id: VFX_2
       startFrame: 12

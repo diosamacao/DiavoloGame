@@ -27,6 +27,7 @@ MonoBehaviour:
   totalFrames: 120
   actionType: 0
   crossFadeDuration: 0.1
+  interruptPriority: 0
   phases: []
   timeline:
     actionEvents: []

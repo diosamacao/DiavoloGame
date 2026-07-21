@@ -27,6 +27,7 @@ MonoBehaviour:
   totalFrames: 123
   actionType: 0
   crossFadeDuration: 0.1
+  interruptPriority: 0
   phases: []
   timeline:
     actionEvents: []
@@ -41,7 +42,7 @@ MonoBehaviour:
       localOffset: {x: -0.1, y: 0.73, z: 0}
       localEulerAngles: {x: 156.22, y: 0, z: -90}
       localScale: {x: 1.3, y: 1, z: 1.3}
-      parentToAttachPoint: 1
+      parentToAttachPoint: 0
       playbackSpeed: 1
     - id: VFX_2
       startFrame: 82

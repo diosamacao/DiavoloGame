@@ -21,7 +21,7 @@ MonoBehaviour:
     crossFadeDuration: 0
   sampleRate: 30
   totalFrames: 116
-  actionType: 0
+  actionType: 1
   crossFadeDuration: 0.1
   interruptPriority: 10
   phases: []
@@ -48,7 +48,7 @@ MonoBehaviour:
     rotationStates:
     - id: Rotation_1
       startFrame: 0
-      endFrame: 115
+      endFrame: 12
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0
