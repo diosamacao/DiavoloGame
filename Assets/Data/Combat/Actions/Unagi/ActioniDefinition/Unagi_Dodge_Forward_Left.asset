@@ -44,6 +44,12 @@ MonoBehaviour:
       priority: 0
       trackName: EvadeAttack
       cancelType: 0
+    - id: Cancel_3
+      startFrame: 12
+      endFrame: 115
+      priority: 0
+      trackName: Cancel_3
+      cancelType: 0
     movementStates: []
     rotationStates:
     - id: Rotation_1
@@ -61,6 +67,9 @@ MonoBehaviour:
       visible: 1
     - trackName: Rotation_1
       kind: 6
+      visible: 1
+    - trackName: Cancel_3
+      kind: 4
       visible: 1
   transitions: []
   startBehaviors: 

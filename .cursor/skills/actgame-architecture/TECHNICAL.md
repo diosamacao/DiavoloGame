@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-07-19
+> Last updated: 2026-07-22
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -230,7 +230,7 @@ CharacterActor.Tick
 | 脚步 | `LocomotionFootCycle` 按 `NormalizedTime` 采样标记 |
 | 门面 | `CharacterAnimationService.Play` + `NormalizedTime` / `HasFinishedCurrent` |
 | 位移 | `CharacterMotor.ApplyLocomotion`（首版无急停减速/转身专用位移） |
-| Root Motion（Locomotion） | 不做 |
+| Root Motion（Locomotion） | StartEnd/Stop/Pivot 使用 Profile 内烘焙轨；TurnBack 解锁后仅把当前输入相对初始折返输入的方向差叠加到角色根，位移同步重定向 |
 
 ### 相位规则（摘要）
 
@@ -242,6 +242,8 @@ Start 松输入                          → Stop（播 StartEnd / Run_Start_End
 Pivot 松输入                          → Stop（StopL/R；朝向=转身目标）
 Gait 松输入 + 速度够或 Run/Sprint     → Stop（StopL/R）；否则 Idle
 Gait(Sprint) + |yaw| ≥ pivotAngle    → PivotTurn（Walk/Run 只平滑转）
+PivotTurn 播放 < 0.08s               → 锁定进入朝向
+PivotTurn 播放 ≥ 0.08s               → Clip 保留自身转身；角色根只叠加实时输入相对初始折返输入的方向差
 Stop 任意时刻再输入                  → Start
 Dodge Action 退出 + 仍有移动输入      → 直接 Gait(Sprint)，跳过 Start/Run 计时
 ```
@@ -255,9 +257,8 @@ Dodge Action 退出 + 仍有移动输入      → 直接 Gait(Sprint)，跳过 S
 | `idleInputThreshold` | 0.01 | 静止判定 |
 | `stopMinSpeedFactor` | 0.5 | Gait→Stop 相对 runSpeed |
 | `pivotAngleDegrees` | 135 | 仅 Sprint；对齐 zzzdemo turnBackAngle |
-| `pivotRootFollowsInput` | false | false=Clip 含 Y 转向时锁根；true=ReturnRun 式代码转根 |
-| `pivotLockNormalizedTime` | 0.08 | 仅 rootFollows 时：前段不转根 |
-| `pivotRotationSmoothTime` | 0.5 | 仅 rootFollows 时：其后 SmoothDamp |
+| `pivotInputUnlockSeconds` | 0.08s | TurnBack 起手锁根时长；到时后允许实时输入修正 Clip 的目标方向 |
+| `pivotRotationSmoothTime` | 0.5s | 解锁后对输入方向差形成的角色根偏移做 SmoothDamp |
 | `stopUseRootMotion` / `pivotUseRootMotion` | true | 方案 B：烘焙根位移驱动 StartEnd/Stop/Pivot |
 | `rootMotionPositionScale` | 1 | 烘焙位移缩放 |
 | `sprintAfterRunSeconds` | 3 | Run 连续满输入后进 Sprint |
@@ -522,3 +523,4 @@ VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强
 | 2026-07-19 | 动作优先级打断：`interruptPriority` + `TryInterrupt`；Action 态高优走 Graph Entry 硬切；CancelWindow 连招路径不变；`IsInterruptibleAtFrame` 无 Phase 默认可打断 |
 | 2026-07-19 | `DirectionalActionResolver` 改为统一六向闪避解析；删除纯左/纯右字段及 Locomotion 起手强制前闪/转向旧路径 |
 | 2026-07-19 | Action Graph 可视化节点新增 `Variant Resolver` 编辑与保存；修复 Graph Editor Save 未写回 Resolver 引用的问题 |
+| 2026-07-22 | TurnBack 固定锁根 0.08 秒后，将实时输入相对初始折返输入的方向差叠加到角色根；避免绝对输入朝向与 Clip 自带约 180° 转身重复累加，烘焙位移同步重定向 |

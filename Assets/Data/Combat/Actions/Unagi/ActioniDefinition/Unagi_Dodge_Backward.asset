@@ -44,6 +44,12 @@ MonoBehaviour:
       priority: 0
       trackName: Cancel_3
       cancelType: 0
+    - id: Cancel_3
+      startFrame: 10
+      endFrame: 120
+      priority: 0
+      trackName: Cancel_4
+      cancelType: 0
     movementStates: []
     rotationStates: []
     tracks:
@@ -51,6 +57,9 @@ MonoBehaviour:
       kind: 4
       visible: 1
     - trackName: Cancel_3
+      kind: 4
+      visible: 1
+    - trackName: Cancel_4
       kind: 4
       visible: 1
   transitions: []
