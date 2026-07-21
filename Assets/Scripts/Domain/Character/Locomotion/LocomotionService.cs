@@ -15,6 +15,8 @@ public sealed class LocomotionService
     LocomotionPhase _phase = LocomotionPhase.Idle;
     LocomotionGait _gait = LocomotionGait.Walk;
     Vector3 _pivotTargetDirection = Vector3.forward;
+    /// <summary>进入 TurnBack 时的输入目标；解锁后用“当前输入相对初始输入的偏移”修正角色根，避免与 Clip 自带转身叠加。</summary>
+    Vector3 _pivotInitialTargetDirection = Vector3.forward;
     /// <summary>进入 Pivot 瞬间的根朝向；含 Y 转向的 Clip 播放期间锁在此方向，避免与代码转根双重叠加。</summary>
     Vector3 _pivotEnterFacing = Vector3.forward;
     /// <summary>进入 Stop 时的朝向；烘焙根位移的局部→世界基。</summary>
@@ -22,6 +24,8 @@ public sealed class LocomotionService
     AnimationKey _stopKey = AnimationKey.StopR;
     /// <summary>当前在 Run 步态下已连续保持跑输入的时长；进 Sprint 或离开跑档时清零。</summary>
     float _runHoldSeconds;
+    /// <summary>当前 TurnBack 相位已经持续的秒数；达到解锁时间后输入接管角色根朝向。</summary>
+    float _pivotElapsedSeconds;
     /// <summary>本次 Pivot 期间是否出现过移动输入；用于结束时衔接 Sprint，避免单帧松手误进 Stop→Start。</summary>
     bool _pivotMoveLatched;
     /// <summary>Gait 下连续无移动输入的累计时间；未超过宽限则不进 Stop。</summary>
@@ -91,12 +95,14 @@ public sealed class LocomotionService
     {
         LocomotionInputSnapshot snapshot = BuildSnapshot();
         EvaluateTransitions(snapshot, deltaTime);
+        if (_phase == LocomotionPhase.PivotTurn)
+            _pivotElapsedSeconds += Mathf.Max(0f, deltaTime);
         TickFootCycle();
         // 先保证当前相位 Clip 在播，再按 NormalizedTime 消费烘焙根位移
         PlayPhaseAnimation();
         LocomotionMotorCommand command = BuildMotorCommand(snapshot);
         if (UsesBakedRootMotion)
-            ApplyBakedRootMotion(deltaTime);
+            ApplyBakedRootMotion(in command, deltaTime);
         else
             _motor.ApplyLocomotion(command, deltaTime);
         _footstepPlayer.PlayIfPlanted(_footCycle.PlantedThisFrame);
@@ -106,14 +112,22 @@ public sealed class LocomotionService
         _rootMotionPlayer.IsActive
         && (_phase == LocomotionPhase.Stop || _phase == LocomotionPhase.PivotTurn);
 
-    /// <summary>Stop/Pivot：用烘焙轨位移；Pivot 可选烘焙偏航，否则锁进入朝向。</summary>
-    void ApplyBakedRootMotion(float deltaTime)
+    /// <summary>
+    /// Stop/Pivot 使用烘焙位移；TurnBack 解锁后把输入变化作为动画转身的附加偏移，
+    /// 并把后续局部位移转到修正后的角色根朝向。
+    /// </summary>
+    void ApplyBakedRootMotion(in LocomotionMotorCommand command, float deltaTime)
     {
+        bool inputOwnsPivotRotation = _phase == LocomotionPhase.PivotTurn
+            && command.RotationMode == LocomotionRotationMode.PivotTarget;
         bool applyYaw = _phase == LocomotionPhase.PivotTurn
             && _profile != null
-            && _profile.PivotApplyRootYaw;
+            && _profile.PivotApplyRootYaw
+            && !inputOwnsPivotRotation;
 
-        if (_phase == LocomotionPhase.PivotTurn && !applyYaw)
+        if (inputOwnsPivotRotation)
+            _motor.ApplyLocomotion(command, deltaTime);
+        else if (_phase == LocomotionPhase.PivotTurn && !applyYaw)
             _motor.FaceWorldDirection(_pivotEnterFacing);
         else if (_phase == LocomotionPhase.Stop)
             _motor.FaceWorldDirection(_stopEnterFacing);
@@ -124,10 +138,26 @@ public sealed class LocomotionService
                 out Vector3 worldDelta,
                 out float yawDelta))
         {
+            if (inputOwnsPivotRotation)
+                worldDelta = ReorientPivotDeltaToCurrentFacing(worldDelta);
+
             _motor.MovePlanar(worldDelta, deltaTime);
             if (applyYaw)
                 _motor.ApplyYawDegrees(yawDelta);
         }
+    }
+
+    /// <summary>把以 Pivot 进入朝向烘焙的世界位移转到当前玩家输入朝向，避免转向后沿旧方向滑动。</summary>
+    Vector3 ReorientPivotDeltaToCurrentFacing(Vector3 worldDelta)
+    {
+        Vector3 currentFacing = _root.forward;
+        currentFacing.y = 0f;
+        if (currentFacing.sqrMagnitude < 0.0001f || _pivotEnterFacing.sqrMagnitude < 0.0001f)
+            return worldDelta;
+
+        Quaternion enterRotation = Quaternion.LookRotation(_pivotEnterFacing.normalized);
+        Quaternion currentRotation = Quaternion.LookRotation(currentFacing.normalized);
+        return currentRotation * Quaternion.Inverse(enterRotation) * worldDelta;
     }
 
     LocomotionInputSnapshot BuildSnapshot()
@@ -404,10 +434,12 @@ public sealed class LocomotionService
         }
 
         _phase = LocomotionPhase.PivotTurn;
+        _pivotElapsedSeconds = 0f;
         _pivotMoveLatched = true;
         _pivotTargetDirection = worldDirection.sqrMagnitude > 0.001f
             ? worldDirection.normalized
             : _root.forward;
+        _pivotInitialTargetDirection = _pivotTargetDirection;
         // 锁进入时朝向：Clip 若自带 180° 转向，代码再 FollowInput 会在中段叠成「朝回旧方向」
         _pivotEnterFacing = _root.forward;
         _pivotEnterFacing.y = 0f;
@@ -527,33 +559,13 @@ public sealed class LocomotionService
 
     /// <summary>
     /// Pivot 位移由烘焙根运动负责时关闭输入推移。
-    /// 无烘焙时：可选 pivotRootFollowsInput（ReturnRun）或锁进入朝向。
+    /// TurnBack 起手固定锁根 0.08 秒；解锁后将实时输入相对初始折返输入的变化叠加到角色根。
     /// </summary>
-    LocomotionMotorCommand BuildPivotMotorCommand(in LocomotionInputSnapshot snapshot)
+    LocomotionMotorCommand BuildPivotMotorCommand()
     {
-        if (_rootMotionPlayer.IsActive)
-        {
-            return new LocomotionMotorCommand(
-                false,
-                LocomotionRotationMode.Hold,
-                _pivotEnterFacing,
-                LocomotionGait.Sprint);
-        }
-
-        bool rootFollows = _profile != null && _profile.PivotRootFollowsInput;
-        if (!rootFollows)
-        {
-            _motor.FaceWorldDirection(_pivotEnterFacing);
-            return new LocomotionMotorCommand(
-                false,
-                LocomotionRotationMode.Hold,
-                _pivotEnterFacing,
-                LocomotionGait.Sprint);
-        }
-
-        float lockNorm = _profile.PivotLockNormalizedTime;
-        float pivotSmooth = _profile.PivotRotationSmoothTime;
-        if (_animation.NormalizedTime < lockNorm)
+        float unlockSeconds = _profile != null ? _profile.PivotInputUnlockSeconds : 0.08f;
+        float pivotSmooth = _profile != null ? _profile.PivotRotationSmoothTime : 0.5f;
+        if (_pivotElapsedSeconds < unlockSeconds)
         {
             _motor.FaceWorldDirection(_pivotEnterFacing);
             return new LocomotionMotorCommand(
@@ -565,10 +577,29 @@ public sealed class LocomotionService
 
         return new LocomotionMotorCommand(
             false,
-            LocomotionRotationMode.FollowInput,
-            _pivotTargetDirection,
+            LocomotionRotationMode.PivotTarget,
+            ResolvePivotSteeringRootDirection(),
             LocomotionGait.Sprint,
             pivotSmooth);
+    }
+
+    /// <summary>
+    /// Clip 已负责从进入朝向转到初始折返方向；代码只叠加玩家后来修改的输入偏移，
+    /// 避免把绝对输入朝向再次叠到动画的 180° 转身上。
+    /// </summary>
+    Vector3 ResolvePivotSteeringRootDirection()
+    {
+        Vector3 initialTarget = _pivotInitialTargetDirection;
+        Vector3 currentTarget = _pivotTargetDirection;
+        initialTarget.y = 0f;
+        currentTarget.y = 0f;
+        if (initialTarget.sqrMagnitude < 0.0001f || currentTarget.sqrMagnitude < 0.0001f)
+            return _pivotEnterFacing;
+
+        Quaternion initialRotation = Quaternion.LookRotation(initialTarget.normalized);
+        Quaternion currentRotation = Quaternion.LookRotation(currentTarget.normalized);
+        Quaternion inputOffset = currentRotation * Quaternion.Inverse(initialRotation);
+        return inputOffset * _pivotEnterFacing;
     }
 
     LocomotionMotorCommand BuildMotorCommand(in LocomotionInputSnapshot snapshot)
@@ -588,7 +619,7 @@ public sealed class LocomotionService
                     Vector3.zero,
                     _gait);
             case LocomotionPhase.PivotTurn:
-                return BuildPivotMotorCommand(snapshot);
+                return BuildPivotMotorCommand();
             case LocomotionPhase.Stop:
                 return new LocomotionMotorCommand(
                     false,

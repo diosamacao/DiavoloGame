@@ -10,11 +10,9 @@ public class CharacterLocomotionProfile : ScriptableObject
     [SerializeField] float stopMinSpeedFactor = 0.5f;
     [Tooltip("Sprint 下与输入方向夹角达到该值触发转身（度）；对齐 zzzdemo turnBackAngle。")]
     [SerializeField] float pivotAngleDegrees = 135f;
-    [Tooltip("若转身 Clip 本身含 Y 转向：保持 false（全程锁根，由 Clip 表现转向）。仅当 Clip 始终朝前、靠代码转根时才开 true（zzzdemo ReturnRun）。")]
-    [SerializeField] bool pivotRootFollowsInput = false;
-    [Tooltip("pivotRootFollowsInput 时：前段不转根的归一化时间。")]
-    [SerializeField, Range(0f, 1f)] float pivotLockNormalizedTime = 0.08f;
-    [Tooltip("pivotRootFollowsInput 时：锁定期后跟输入的 SmoothDamp 时间。")]
+    [Tooltip("TurnBack 起手锁定角色根朝向的秒数；到时后由实时玩家输入接管朝向。")]
+    [SerializeField, Min(0f)] float pivotInputUnlockSeconds = 0.08f;
+    [Tooltip("TurnBack 解锁后跟随实时输入方向的 SmoothDamp 时间。")]
     [SerializeField] float pivotRotationSmoothTime = 0.5f;
     [Tooltip("在 Run 步态下连续保持跑输入达到该秒数后进入 Sprint。")]
     [SerializeField] float sprintAfterRunSeconds = 3f;
@@ -30,8 +28,8 @@ public class CharacterLocomotionProfile : ScriptableObject
     [SerializeField] FootPlantMarker[] startFootPlants = Array.Empty<FootPlantMarker>();
 
     [Header("Footstep Audio")]
-    [SerializeField] AudioClip footstepLeft;
-    [SerializeField] AudioClip footstepRight;
+    [SerializeField] AudioClip footstepLeft = null;
+    [SerializeField] AudioClip footstepRight = null;
     [SerializeField, Range(0f, 1f)] float footstepVolume = 1f;
 
     [Header("Root Motion Bake (Stop / Pivot)")]
@@ -50,8 +48,8 @@ public class CharacterLocomotionProfile : ScriptableObject
     public float IdleInputThreshold => idleInputThreshold;
     public float StopMinSpeedFactor => stopMinSpeedFactor;
     public float PivotAngleDegrees => pivotAngleDegrees;
-    public bool PivotRootFollowsInput => pivotRootFollowsInput;
-    public float PivotLockNormalizedTime => pivotLockNormalizedTime;
+    /// <summary>TurnBack 起手锁根秒数；到时后实时玩家输入接管朝向。</summary>
+    public float PivotInputUnlockSeconds => Mathf.Max(0f, pivotInputUnlockSeconds);
     public float PivotRotationSmoothTime => pivotRotationSmoothTime;
     public float SprintAfterRunSeconds => sprintAfterRunSeconds;
     public float GaitInputGapGraceSeconds => gaitInputGapGraceSeconds;

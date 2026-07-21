@@ -5,6 +5,6 @@ public enum LocomotionRotationMode
     Hold = 0,
     /// <summary>平滑转向当前移动输入方向（可用 RotationSmoothTimeOverride）。</summary>
     FollowInput = 1,
-    /// <summary>立即对齐进入 Pivot 时锁定的目标方向。</summary>
+    /// <summary>转向显式 Pivot 目标；提供 RotationSmoothTimeOverride 时使用平滑旋转。</summary>
     PivotTarget = 2,
 }
