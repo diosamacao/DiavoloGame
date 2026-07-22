@@ -143,7 +143,7 @@ Update
 |--------|------|----------|
 | Move | Vector2 | WASD 复合键；Gamepad 左 Stick |
 | Look | Vector2 | 鼠标 Delta；Gamepad 右 Stick |
-| Attack | Button | Pressed→Attack（Sprint 时 SprintAttack）；HoldReached→LongPressedAttack |
+| Attack | Button | Pressed→Attack（Sprint 时 SprintAttack）；HoldReached→LongPressedAttack；Released→AttackRelease（Profile 需配置） |
 | Dodge | Button | Pressed→Dodge |
 
 ### 错误处理
@@ -527,3 +527,4 @@ VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强
 | 2026-07-19 | Action Graph 可视化节点新增 `Variant Resolver` 编辑与保存；修复 Graph Editor Save 未写回 Resolver 引用的问题 |
 | 2026-07-22 | TurnBack 固定锁根 0.08 秒后，将实时输入相对初始折返输入的方向差叠加到角色根；避免绝对输入朝向与 Clip 自带约 180° 转身重复累加，烘焙位移同步重定向 |
 | 2026-07-22 | Locomotion 内层改为纯状态机：删除 `LocomotionService`；新增 `LocomotionStateMachine` / `LocomotionContext` / 五相位 State；`CharacterContext.LocomotionStateMachine` |
+| 2026-07-22 | 新增 `GameplayIntentType.AttackRelease`（攻击键松开语义）；供蓄力释放等 Action.Trigger 使用；Profile 需映射 Released→AttackRelease |

@@ -11,4 +11,6 @@ public enum GameplayIntentType
     SprintAttack = 3,
     /// <summary>闪避按下。</summary>
     Dodge = 4,
+    /// <summary>攻击键松开；蓄力释放等招式的 Trigger。</summary>
+    AttackRelease = 5,
 }

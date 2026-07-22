@@ -165,7 +165,7 @@ InputReader（原始帧）→ InputManager → GameplayIntentProducer / Gameplay
 | `ICharacterInputSource` | 角色输入源抽象：玩家、AI、回放、网络 |
 | `InputReader` | 玩家纯 C# 输入源：绑定 GameInputActions |
 | `GameplayIntentProfile` | 物理 InputAction → 语义意图映射与长按阈值 |
-| `GameplayIntentProducer` | 结合 Sprint 上下文输出 Attack/LongPressedAttack/SprintAttack/Dodge |
+| `GameplayIntentProducer` | 结合 Sprint 上下文输出 Attack/LongPressedAttack/SprintAttack/Dodge/AttackRelease |
 | `GameplayIntentBuffer` | 当帧语义事件与 Action Cancel 跨帧缓冲 |
 
 ### 7. 相机（Camera）
