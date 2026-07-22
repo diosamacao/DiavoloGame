@@ -43,14 +43,14 @@ public static class CharacterActorFactory
             locomotionProfile = ScriptableObject.CreateInstance<CharacterLocomotionProfile>();
 
         var footstepPlayer = new LocomotionFootstepPlayer(root, locomotionProfile);
-        var locomotionService = new LocomotionService(
+        var locomotionStateMachine = new LocomotionStateMachine(
             root,
             motor,
             animation,
             sharedInput,
             locomotionProfile,
             footstepPlayer);
-        context.Locomotion = locomotionService;
+        context.LocomotionStateMachine = locomotionStateMachine;
 
         var stateMachine = new CharacterStateMachine(context);
         var intentBuffer = new GameplayIntentBuffer();
@@ -59,7 +59,7 @@ public static class CharacterActorFactory
             sharedInput,
             intentBuffer,
             stateMachine,
-            locomotionService);
+            locomotionStateMachine);
         var resolverService = new ActionResolverService(combatMode);
         actionExecutor = new ActionExecutor(root, controller, animation, rootMotion, combatMode, resolverService);
         context.ActionExecutor = actionExecutor;

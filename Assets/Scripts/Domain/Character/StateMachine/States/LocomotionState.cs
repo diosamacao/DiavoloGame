@@ -1,4 +1,4 @@
-/// <summary>顶层 Locomotion 状态：委托 LocomotionService 推进相位、位移与动画。</summary>
+/// <summary>顶层 Locomotion 状态：托管内层 LocomotionStateMachine。</summary>
 public class LocomotionState : CharacterState
 {
     public override CharacterStateType Id => CharacterStateType.Locomotion;
@@ -15,14 +15,14 @@ public class LocomotionState : CharacterState
     public override void Enter()
     {
         LocomotionResumeRequest request = Context.ConsumeLocomotionResumeRequest();
-        Context.Locomotion.Enter(in request);
+        Context.LocomotionStateMachine.Enter(in request);
     }
 
-    public override void Exit() => Context.Locomotion.Exit();
+    public override void Exit() => Context.LocomotionStateMachine.Exit();
 
     public override void Tick(float deltaTime)
     {
-        Context.Locomotion.Tick(deltaTime);
+        Context.LocomotionStateMachine.Tick(deltaTime);
         SyncMotorSnapshot();
     }
 

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-/// <summary>LocomotionService 下发给 CharacterMotor 的单帧执行命令。</summary>
+/// <summary>Locomotion 内层状态下发给 CharacterMotor 的单帧执行命令。</summary>
 public readonly struct LocomotionMotorCommand
 {
     public LocomotionMotorCommand(

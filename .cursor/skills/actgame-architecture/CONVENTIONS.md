@@ -59,6 +59,7 @@ public class MyBehaviour : MonoBehaviour
    - 新 State 在 `CharacterStateMachine.RegisterStates()` 或子类 override 中注册
 3. **子类 StateMachine**（如 Player）只负责 `UpdateContext()` 填充 Context，不重复 Tick 逻辑
 4. 状态切换对外用 `TryChangeState`；内部强制切换才用 `force: true`
+5. **Locomotion 内层机**：顶层保持 `CharacterStateType.Locomotion`；相位用嵌套 `LocomotionStateMachine`（`LocomotionPhase`）。相位 `CanTransitionTo` 默认全开，由各态 `Tick` 主动切；`Tick` 只做转换，`ExecuteFrame` 做 Motor/动画（由宿主在转换后调用）。禁止再引入手写 `_phase` 袋式 `LocomotionService`
 
 ## 动画约定
 

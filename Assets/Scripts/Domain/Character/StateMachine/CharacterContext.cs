@@ -22,8 +22,8 @@ public class CharacterContext
     public CharacterController Motor { get; }
     public CharacterMotor Movement { get; }
 
-    /// <summary>Locomotion 相位服务；由工厂注入。</summary>
-    public LocomotionService Locomotion { get; set; }
+    /// <summary>Locomotion 内层状态机；由工厂注入。</summary>
+    public LocomotionStateMachine LocomotionStateMachine { get; set; }
 
     public float MoveInputMagnitude { get; set; }
     public float RunThreshold { get; set; }
