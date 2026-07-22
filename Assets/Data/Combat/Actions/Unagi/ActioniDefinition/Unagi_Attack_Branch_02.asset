@@ -49,16 +49,16 @@ MonoBehaviour:
     hurtboxStates: []
     cancelWindowStates:
     - id: Cancel_1
-      startFrame: 11
-      endFrame: 25
+      startFrame: 16
+      endFrame: 97
       priority: 0
       trackName: Cancel_1
       cancelType: 0
     - id: Cancel_2
-      startFrame: 26
+      startFrame: 25
       endFrame: 97
       priority: 0
-      trackName: Cancel_1
+      trackName: Cancel_2
       cancelType: 1
     movementStates: []
     rotationStates: []
@@ -68,6 +68,9 @@ MonoBehaviour:
       visible: 1
     - trackName: VFX_1
       kind: 2
+      visible: 1
+    - trackName: Cancel_2
+      kind: 4
       visible: 1
   transitions: []
   startBehaviors: 
