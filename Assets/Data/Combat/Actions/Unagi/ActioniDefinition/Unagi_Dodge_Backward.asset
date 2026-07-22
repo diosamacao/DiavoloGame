@@ -15,12 +15,12 @@ MonoBehaviour:
   animationClip: {fileID: 0}
   trigger: 4
   animationSegments:
-  - clip: {fileID: 6731562531987872576, guid: 3fe3c97fa6f8db94ab934b222f6d54ea, type: 3}
+  - clip: {fileID: 543294882841510832, guid: 84956c42beb196842bbca67852b90a3a, type: 3}
     startFrame: 0
     endFrame: -1
     crossFadeDuration: 0
   sampleRate: 30
-  totalFrames: 121
+  totalFrames: 116
   actionType: 1
   crossFadeDuration: 0.1
   interruptPriority: 10
@@ -34,19 +34,19 @@ MonoBehaviour:
     cancelWindowStates:
     - id: Cancel_1
       startFrame: 11
-      endFrame: 120
+      endFrame: 115
       priority: 0
       trackName: Cancel_1
       cancelType: 1
     - id: EvadeAttack
       startFrame: 0
-      endFrame: 120
+      endFrame: 115
       priority: 0
       trackName: Cancel_3
       cancelType: 0
     - id: Cancel_3
       startFrame: 10
-      endFrame: 120
+      endFrame: 115
       priority: 0
       trackName: Cancel_4
       cancelType: 0
