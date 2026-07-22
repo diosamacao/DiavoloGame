@@ -17,17 +17,17 @@ MonoBehaviour:
     action: {fileID: 11400000, guid: feed82bd9c2969e4d8503d7a7936b734, type: 2}
     isEntry: 1
     variantResolver: {fileID: 0}
-    editorPosition: {x: -440, y: -285.3333}
+    editorPosition: {x: -287.33334, y: -443.33334}
   - nodeId: Unagi_Attack_02
     action: {fileID: 11400000, guid: db8e9e4036cf5714e83eed8c568a9874, type: 2}
     isEntry: 0
     variantResolver: {fileID: 0}
-    editorPosition: {x: -104, y: 15.333332}
+    editorPosition: {x: 48.666668, y: -20.666666}
   - nodeId: Unagi_Attack_03
     action: {fileID: 11400000, guid: b553179081bd8e84691c2d28f56eeeb1, type: 2}
     isEntry: 0
     variantResolver: {fileID: 0}
-    editorPosition: {x: 260.66666, y: 15.333332}
+    editorPosition: {x: 413.33334, y: -20.666666}
   - nodeId: Unagi_Attack_04
     action: {fileID: 11400000, guid: 32ceab3172e1d3e4da7ee72d80dea1a8, type: 2}
     isEntry: 0
@@ -37,37 +37,37 @@ MonoBehaviour:
     action: {fileID: 11400000, guid: 19bd2b48cb1f7f64799b8c6066ff91ff, type: 2}
     isEntry: 0
     variantResolver: {fileID: 0}
-    editorPosition: {x: 632.6667, y: 15.333332}
+    editorPosition: {x: 785.3333, y: -20.666666}
   - nodeId: Unagi_Attack_06
     action: {fileID: 11400000, guid: ec7c606a20e43e54ba1065507a9a2a4f, type: 2}
     isEntry: 0
     variantResolver: {fileID: 0}
-    editorPosition: {x: 1001.3333, y: 15.333332}
+    editorPosition: {x: 1154, y: -20.666666}
   - nodeId: Unagi_Attack_Branch_01
     action: {fileID: 11400000, guid: 4756f9d82a242dd40a535249ef2b4771, type: 2}
     isEntry: 0
     variantResolver: {fileID: 0}
-    editorPosition: {x: 488.66666, y: -912}
+    editorPosition: {x: 695.3333, y: -1189.3334}
   - nodeId: Unagi_Attack_Branch_02
     action: {fileID: 11400000, guid: 36239327dd50e6945a178edda90d407e, type: 2}
     isEntry: 0
     variantResolver: {fileID: 0}
-    editorPosition: {x: 520, y: -752}
+    editorPosition: {x: 695.3333, y: -999.3333}
   - nodeId: Unagi_Attack_Branch_03
     action: {fileID: 11400000, guid: 7a7e279f3fea53544be07873000e4b92, type: 2}
     isEntry: 0
     variantResolver: {fileID: 0}
-    editorPosition: {x: 520, y: -518}
+    editorPosition: {x: 695.3333, y: -792}
   - nodeId: Unagi_Attack_Branch_Start
     action: {fileID: 11400000, guid: 9a980e3a4de96d24899394e1394b530e, type: 2}
     isEntry: 1
     variantResolver: {fileID: 0}
-    editorPosition: {x: -116.666664, y: -725.3333}
+    editorPosition: {x: 58.666668, y: -999.3333}
   - nodeId: Unagi_Attack_Rush
     action: {fileID: 11400000, guid: c18191bb1aeaeab4e8478467868d4e8f, type: 2}
     isEntry: 1
     variantResolver: {fileID: 0}
-    editorPosition: {x: -1034, y: -222.66667}
+    editorPosition: {x: -1289.3334, y: -20.666666}
   - nodeId: Unagi_Dodge_Backward
     action: {fileID: 11400000, guid: 4abae900c0f901a42bd9d9c57d0a764b, type: 2}
     isEntry: 0
@@ -189,3 +189,24 @@ MonoBehaviour:
   - fromNodeId: Unagi_Attack_Branch_Start
     cancelSlotId: Cancel_3
     toNodeId: Unagi_Attack_Branch_03
+  - fromNodeId: Unagi_Attack_02
+    cancelSlotId: Attack
+    toNodeId: Unagi_Attack_Branch_Start
+  - fromNodeId: Unagi_Attack_03
+    cancelSlotId: Attack
+    toNodeId: Unagi_Attack_Branch_Start
+  - fromNodeId: Unagi_Attack_05
+    cancelSlotId: Attack
+    toNodeId: Unagi_Attack_Branch_Start
+  - fromNodeId: Unagi_Attack_06
+    cancelSlotId: Attack
+    toNodeId: Unagi_Attack_Branch_Start
+  - fromNodeId: Unagi_Attack_Branch_01
+    cancelSlotId: Cancel_1
+    toNodeId: Unagi_Attack_01
+  - fromNodeId: Unagi_Attack_Branch_02
+    cancelSlotId: Cancel_1
+    toNodeId: Unagi_Attack_01
+  - fromNodeId: Unagi_Attack_Branch_03
+    cancelSlotId: Cancel_1
+    toNodeId: Unagi_Attack_01

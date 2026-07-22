@@ -95,7 +95,11 @@ MonoBehaviour:
     - trackName: VFX_1
       kind: 2
       visible: 1
-  transitions: []
+  transitions:
+  - condition: 0
+    startFrame: 0
+    targetAction: {fileID: 11400000, guid: 7a7e279f3fea53544be07873000e4b92, type: 2}
+    priority: 0
   startBehaviors: 
   switchCombatModeTarget: 0
   switchCombatModePolicy: 0

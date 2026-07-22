@@ -95,7 +95,7 @@ MonoBehaviour:
     rotationStates:
     - id: Rotation_1
       startFrame: 0
-      endFrame: 5
+      endFrame: 4
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0.05

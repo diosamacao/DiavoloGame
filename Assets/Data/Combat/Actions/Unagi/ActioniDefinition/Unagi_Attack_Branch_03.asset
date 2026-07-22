@@ -35,10 +35,25 @@ MonoBehaviour:
     playSfxStates: []
     hitboxStates: []
     hurtboxStates: []
-    cancelWindowStates: []
+    cancelWindowStates:
+    - id: Cancel_1
+      startFrame: 26
+      endFrame: 49
+      priority: 0
+      trackName: Cancel_1
+      cancelType: 0
+    - id: Cancel_2
+      startFrame: 50
+      endFrame: 135
+      priority: 0
+      trackName: Cancel_1
+      cancelType: 1
     movementStates: []
     rotationStates: []
-    tracks: []
+    tracks:
+    - trackName: Cancel_1
+      kind: 4
+      visible: 1
   transitions: []
   startBehaviors: 
   switchCombatModeTarget: 0

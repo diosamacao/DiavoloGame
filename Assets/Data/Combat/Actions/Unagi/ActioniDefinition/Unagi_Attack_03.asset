@@ -99,13 +99,13 @@ MonoBehaviour:
     rotationStates:
     - id: Rotation_1
       startFrame: 0
-      endFrame: 4
+      endFrame: 2
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0.05
     - id: Rotation_2
       startFrame: 0
-      endFrame: 4
+      endFrame: 2
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0

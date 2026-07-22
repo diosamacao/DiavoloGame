@@ -15,10 +15,6 @@ MonoBehaviour:
   animationClip: {fileID: 0}
   trigger: 5
   animationSegments:
-  - clip: {fileID: 0}
-    startFrame: 0
-    endFrame: -1
-    crossFadeDuration: 0
   - clip: {fileID: -1868662973764822358, guid: 837f3a6edef2fbb4bb8b51069737fd82, type: 3}
     startFrame: 0
     endFrame: -1
@@ -39,10 +35,25 @@ MonoBehaviour:
     playSfxStates: []
     hitboxStates: []
     hurtboxStates: []
-    cancelWindowStates: []
+    cancelWindowStates:
+    - id: Cancel_1
+      startFrame: 11
+      endFrame: 25
+      priority: 0
+      trackName: Cancel_1
+      cancelType: 0
+    - id: Cancel_2
+      startFrame: 26
+      endFrame: 97
+      priority: 0
+      trackName: Cancel_1
+      cancelType: 1
     movementStates: []
     rotationStates: []
-    tracks: []
+    tracks:
+    - trackName: Cancel_1
+      kind: 4
+      visible: 1
   transitions: []
   startBehaviors: 
   switchCombatModeTarget: 0
