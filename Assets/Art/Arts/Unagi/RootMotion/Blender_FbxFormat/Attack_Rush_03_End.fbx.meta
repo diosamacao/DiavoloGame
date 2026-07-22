@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: c4605005eb53e624b97ef7b0e89e7850
+guid: a64d00119f90e274cb8b7d9c681b7f86
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
@@ -33,11 +33,11 @@ ModelImporter:
     extraUserProperties: []
     clipAnimations:
     - serializedVersion: 16
-      name: Unagi|Stagger_Walk_Loop
-      takeName: Unagi|Stagger_Walk_Loop
-      internalID: 1705044623130250186
+      name: Unagi|Attack_Rush_03_End
+      takeName: Unagi|Attack_Rush_03_End
+      internalID: 1970207432693358984
       firstFrame: 0
-      lastFrame: 141
+      lastFrame: 237
       wrapMode: 0
       orientationOffsetY: 0
       level: 0
