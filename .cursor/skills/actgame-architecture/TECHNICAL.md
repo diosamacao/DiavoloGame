@@ -416,7 +416,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 | Trigger | `ActionDefinition.Trigger = GameplayIntentType`；不保存 InputActionReference |
 | 选招策略 | `ActionGraph` Entry / Cancel 边；节点可选 `VariantResolver`（Directional 等） |
 | 六向闪避 | `DirectionalActionResolver` 统一解析前、后、左前、左后、右前、右后；前后扇区半角默认 `30°`，纯左/右输入偏向前侧变体 |
-| Cancel 下一招 | `ActionExecutor` 扫描窗口消费输入后 → `ActionResolverService.TryResolveNext`（**不做**优先级强制比较） |
+| Cancel 下一招 | `ActionExecutor` 扫描窗口消费输入后 → `ActionResolverService.TryResolveNext`；同槽多缓冲意图按 `GameplayIntentCancelPriority`（如 LongPressedAttack &gt; Attack） |
 | 高优硬打断 | Action 态：`TryResolveStart(PriorityInterrupt)` → `ActionExecutor.TryInterrupt`（候选 `interruptPriority` 严格大于当前，且 `IsInterruptibleAtFrame`） |
 | 时间轴数据 | `ActionDefinition.Timeline`：`ActionNotify` 点事件（Event/VFX/SFX）+ `ActionNotifyState` 区间窗口 |
 | 移动取消 | `CharacterActionDriver` + `CancelWindowNotifyState(Movement)` |
@@ -528,3 +528,4 @@ VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强
 | 2026-07-22 | TurnBack 固定锁根 0.08 秒后，将实时输入相对初始折返输入的方向差叠加到角色根；避免绝对输入朝向与 Clip 自带约 180° 转身重复累加，烘焙位移同步重定向 |
 | 2026-07-22 | Locomotion 内层改为纯状态机：删除 `LocomotionService`；新增 `LocomotionStateMachine` / `LocomotionContext` / 五相位 State；`CharacterContext.LocomotionStateMachine` |
 | 2026-07-22 | 新增 `GameplayIntentType.AttackRelease`（攻击键松开语义）；供蓄力释放等 Action.Trigger 使用；Profile 需映射 Released→AttackRelease |
+| 2026-07-23 | Cancel 同槽多缓冲意图按 `GameplayIntentCancelPriority` 降序解析（LongPressedAttack &gt; Attack），避免连段边抢赢蓄力 |
