@@ -11,8 +11,8 @@
 | 输入（原始帧 + 语义意图） | ✅ 已实现 | `InputReader`、`InputManager`、`GameplayIntentProducer` | `GameInputActions.inputactions` + `GameplayIntentProfile` |
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
 | 架构通信框架 | ✅ 已实现 | `ACTGameArchitecture`、`ArchitectureSystemBase`、`AppControllerBase`、Command / Query / Event | — |
-| Locomotion 动画驱动 | ✅ 已实现 | `LocomotionService` + `LocomotionState` | AnimationProfile + `CharacterLocomotionProfile` |
-| Locomotion 起步/急停/转身 | 🟡 代码已接、资产待绑 | `LocomotionService` Phase FSM | Start/Stop/Pivot Clip + 落脚标记 |
+| Locomotion 动画驱动 | ✅ 已实现 | `LocomotionStateMachine` + `LocomotionState` | AnimationProfile + `CharacterLocomotionProfile` |
+| Locomotion 起步/急停/转身 | 🟡 代码已接、资产待绑 | 内层 `LocomotionPhase` 纯状态机 | Start/Stop/Pivot Clip + 落脚标记 |
 | 第三人称相机 | ✅ 已实现 | `CameraManager` | 场景内 CameraManager 对象 |
 | 动作系统（选招 / 播放 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ 已实现 | 纯 C# `ActionResolverService` + `ActionExecutor` + `CombatModeService` | `CombatModeProfile`、`PlayerActionSet`、`ActionGraph`、`ActionDefinition.interruptPriority` |
 | Action Editor（时间轴编辑） | 🟡 骨架/部分 | `ActionEditorWindow` + `ActionTimeline` 手动加轨/窗口 | Menu：`ACT/Action Editor` |
@@ -75,7 +75,7 @@ AppControllerBase
 | 项 | 方案 |
 |----|------|
 | 碰撞体 | `CharacterController`（非 Rigidbody） |
-| 位移执行 | `LocomotionService` → `CharacterMotor.ApplyLocomotion` |
+| 位移执行 | `LocomotionStateMachine` 各相位 → `CharacterMotor.ApplyLocomotion` |
 | 方向计算 | 输入 Vector2 → 相机 forward/right 投影到 XZ 平面 → 归一化方向 |
 | 速度 | `moveInputMagnitude × speed`；幅度 > `runThreshold` 用 `runSpeed`，否则 `walkSpeed` |
 | 旋转 | `SmoothDampAngle` 绕 Y 轴对齐移动方向 |
@@ -108,7 +108,7 @@ Update
 
 ### 已知限制
 
-- Locomotion 水平移动由 `LocomotionService` → `ApplyLocomotion` 拥有；重力仍由 `CharacterActor` 每帧统一推进
+- Locomotion 水平移动由内层相位 State → `ApplyLocomotion` 拥有；重力仍由 `CharacterActor` 每帧统一推进
 - `cameraTransform` 未绑定时回退为世界 XZ 平面移动
 
 ### 相关文件
@@ -189,7 +189,7 @@ StateMachine<TStateId, TContext>
 
 | State | Id | Enter | Tick | Exit |
 |-------|-----|-------|------|------|
-| `LocomotionState` | 10 | `Locomotion.Enter` | `LocomotionService.Tick` | `Locomotion.Exit` |
+| `LocomotionState` | 10 | `LocomotionStateMachine.Enter` | `LocomotionStateMachine.Tick` | `LocomotionStateMachine.Exit` |
 | `ActionState` | 60 | `Animation.SetLocked(true)` | `ActionExecutor.Tick` + `ActionRotationDriver.Tick` | Unlock + ResetPlaybackState |
 
 ### 运行时流程（玩家）
@@ -201,7 +201,7 @@ CharacterActor.Tick
   → CharacterActionDriver.ProcessGameplayInput
   → CharacterMotor.TickGravity
   → CharacterStateMachine.Tick
-      → LocomotionState.Tick → LocomotionService → Motor.ApplyLocomotion + Animation.Play
+      → LocomotionState.Tick → LocomotionStateMachine（转换→ExecuteFrame）→ Motor + Animation
       → ActionState.Tick → ActionExecutor.Tick → ActionRotationDriver.Tick
 ```
 
@@ -217,13 +217,15 @@ CharacterActor.Tick
 
 ### 功能说明
 
-顶层仍为 `Locomotion` 状态；内部由 `LocomotionService` 驱动 Idle / Start / Gait(Walk|Run|Sprint) / PivotTurn / Stop。满跑输入先进 Run，连续约 3s 后进 Sprint；仅 Sprint 可大角度转身。落脚标记驱动脚步声与急停选脚。
+顶层仍为 `Locomotion` 状态；内部由 `LocomotionStateMachine`（Core `StateMachine<>`）驱动 Idle / Start / Gait(Walk|Run|Sprint) / PivotTurn / Stop。各相位为独立 State；转换默认全开、由各态主动 `RequestPhase`。满跑输入先进 Run，连续约 3s 后进 Sprint；仅 Sprint 可大角度转身。落脚标记驱动脚步声与急停选脚。
 
 ### 实现方案
 
 | 项 | 方案 |
 |----|------|
-| 相位 | `LocomotionPhase`：Idle→Start→Gait；Sprint 大角度→PivotTurn；松输入→Stop |
+| 内层机 | `LocomotionStateMachine` + `LocomotionContext`；Tick = 转换后 `ExecuteFrame` |
+| 相位 State | `Idle/Start/Gait/PivotTurn/StopLocomotionState`（`Locomotion/States/`） |
+| 相位 Id | `LocomotionPhase`：Idle→Start→Gait；Sprint 大角度→PivotTurn；松输入→Stop |
 | 逻辑键 | `AnimationKey`：Idle/Walk/Run/Sprint/Start/StartEnd/PivotTurn/StopL/StopR |
 | 映射 | `CharacterAnimationProfile` → `AnimationClip` |
 | 相位参数 | `CharacterLocomotionProfile`（阈值、落脚、脚步音） |
@@ -277,7 +279,7 @@ Dodge Action 退出 + 仍有移动输入      → 直接 Gait(Sprint)，跳过 S
 
 ### Action 状态下的动画锁
 
-进入 `ActionState` 时 `SetLocked(true)`；`LocomotionService.Exit` 冻结落脚采样。Exit Action 后回 Locomotion 从 Idle 再起。
+进入 `ActionState` 时 `SetLocked(true)`；`LocomotionStateMachine.Exit` 冻结落脚采样。Exit Action 后回 Locomotion 从 Idle 再起（可消费 Resume）。
 
 ### 已知限制
 
@@ -524,3 +526,4 @@ VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强
 | 2026-07-19 | `DirectionalActionResolver` 改为统一六向闪避解析；删除纯左/纯右字段及 Locomotion 起手强制前闪/转向旧路径 |
 | 2026-07-19 | Action Graph 可视化节点新增 `Variant Resolver` 编辑与保存；修复 Graph Editor Save 未写回 Resolver 引用的问题 |
 | 2026-07-22 | TurnBack 固定锁根 0.08 秒后，将实时输入相对初始折返输入的方向差叠加到角色根；避免绝对输入朝向与 Clip 自带约 180° 转身重复累加，烘焙位移同步重定向 |
+| 2026-07-22 | Locomotion 内层改为纯状态机：删除 `LocomotionService`；新增 `LocomotionStateMachine` / `LocomotionContext` / 五相位 State；`CharacterContext.LocomotionStateMachine` |

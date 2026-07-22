@@ -26,10 +26,11 @@
 
 **已完成**：
 
-- `LocomotionService` 内嵌 Phase：Idle → Start → Gait(Walk/Run/Sprint) →（Sprint 大角度）PivotTurn / Stop
+- `LocomotionStateMachine` 内层纯状态机：Idle → Start → Gait(Walk/Run/Sprint) →（Sprint 大角度）PivotTurn / Stop
 - Run 持续 `sprintAfterRunSeconds`（默认 3s）后进 Sprint；仅 Sprint 可 Pivot
 - `LocomotionFootCycle` + SO 落脚标记；急停默认右脚；Stop 全程可取消回 Start；Pivot→Stop 用转身目标朝向；Start 急停播 StartEnd
 - 首版不做急停减速 / 转身专用位移（见 `docs/LOCOMOTION_OPTIMIZATION_PLAN.md` Phase D）
+- [x] 2026-07-22：删除手写 `LocomotionService` Phase 袋，改为 Core `StateMachine` 嵌套机
 
 **待做（Phase D）**：减速曲线、Pivot 位移手感、敲定 Profile 挂载与落脚编辑器工具
 
@@ -98,6 +99,7 @@
 - [x] 2026-07-19：语义化玩法意图层——物理输入经 `GameplayIntentProducer` 转为枚举 Trigger；实现 SprintAttack、PressedThenLong 与 Dodge 后 Sprint 恢复
 - [x] 2026-07-19：方向闪避统一为前/后/左前/左后/右前/右后六向解析，移除 Locomotion 起手固定前闪旧路径
 - [x] 2026-07-22：TurnBack 输入接管——锁根 0.08 秒后实时输入控制朝向，烘焙位移随新朝向重定向
+- [x] 2026-07-22：Locomotion 内层纯状态机——`LocomotionStateMachine` + 五相位 State，删除 `LocomotionService`
 
 ## 剩余项
 

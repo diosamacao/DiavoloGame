@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-07-19
+> Last audited: 2026-07-22
 
 ## 项目概述
 
@@ -88,8 +88,9 @@ flowchart TB
 | `CharacterStateType` | 状态枚举（Locomotion, Action, …） |
 | `CharacterContext` | 运行时共享数据（Transform、Animation、Motor、ActionRuntime） |
 | `CharacterStateMachine` | 纯 C# 状态机宿主：RegisterStates、Tick |
-| `LocomotionState` | 委托 `LocomotionService`：相位 / FootCycle / 动画 / Motor 命令 |
-| `LocomotionService` | 内嵌 Phase（Idle/Start/Gait/PivotTurn/Stop）、脚步真源与一次性步态恢复 |
+| `LocomotionState` | 顶层门面：托管 `LocomotionStateMachine` |
+| `LocomotionStateMachine` | 内层纯状态机（Idle/Start/Gait/PivotTurn/Stop）+ `LocomotionContext` |
+| `LocomotionContext` | 内层共享依赖、跨相位数据与 RootMotion/落脚辅助 |
 | `ActionState` | Tick `IActionExecutor` + `ActionRotationDriver`；Dodge 退出写入 `LocomotionResumeRequest` |
 | `CharacterConfig` | 角色装配根配置：模型、输入、动画、LocomotionProfile、移动、战斗 |
 | `CharacterMotor` | 纯 C# 移动执行：`ApplyLocomotion`、重力、移动意图解析 |
@@ -106,7 +107,7 @@ InputReader（原始帧）→ InputManager → GameplayIntentProducer / Gameplay
               CharacterActionDriver（语义意图起手 / 缓冲 / 移动取消）
                     ↓
               CharacterStateMachine
-                    ├─ LocomotionState → LocomotionService → Motor.ApplyLocomotion + Animation
+                    ├─ LocomotionState → LocomotionStateMachine → 各相位 State → Motor + Animation
                     └─ ActionState.Tick → ActionExecutor + ActionRotationDriver
                     ↓ UpdateFrame（Logic Tick）
               HitboxFrameConsumer（ICombatFrameConsumer）/ ActionVfxPlayer + ActionSfxPlayer（IActionNotifyConsumer）

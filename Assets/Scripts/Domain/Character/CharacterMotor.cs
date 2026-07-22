@@ -55,7 +55,7 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         _cameraTransform = cameraTransform;
     }
 
-    /// <summary>按 LocomotionService 命令执行水平位移与旋转（首版无加减速/转身专用位移）。</summary>
+    /// <summary>按 Locomotion 内层状态命令执行水平位移与旋转（首版无加减速/转身专用位移）。</summary>
     public void ApplyLocomotion(in LocomotionMotorCommand command, float deltaTime)
     {
         Vector2 moveIntent = _input.MoveIntent;

@@ -44,12 +44,12 @@
 CharacterActor.Tick
   → CharacterStateMachine
       → LocomotionState.Tick
-            → LocomotionService.Tick
-                 ├─ 输入快照 / 朝向误差 / 着地
-                 ├─ Phase FSM：Idle | Start | Gait | PivotTurn | Stop
-                 ├─ FootCycle：支撑脚 + 落地点（共享真源）
-                 ├─ MotorCommand → CharacterMotor.Apply（首版位移逻辑从简，见 §5.0）
-                 └─ AnimationKey + FootPlanted → FootstepPlayer
+            → LocomotionStateMachine.Tick
+                 ├─ 输入快照 → LocomotionContext
+                 ├─ 内层纯状态机：Idle | Start | Gait | PivotTurn | Stop
+                 ├─ 各态 Tick 主动切相位 → 当前态 ExecuteFrame
+                 ├─ FootCycle / RootMotionPlayer（Context 共享）
+                 └─ MotorCommand → CharacterMotor.Apply
       → ActionState（不变，仍锁动画）
 ```
 
@@ -171,7 +171,7 @@ bool CanEnterPivotTurn(...) =>
 
 | 现有 | 扩展后 |
 |------|--------|
-| `LocomotionState` | 委托 `LocomotionService` |
+| `LocomotionState` | 委托 `LocomotionStateMachine` |
 | `CharacterMotor` | 首版：薄 `Apply` 或仍走现 `TickLocomotion`；**不加**减速/转身位移 |
 | `AnimationKey` | + `Start`、`StartEnd`、`PivotTurn`、`StopL`、`StopR`、`Sprint` |
 | Profile | 动画 Profile 映射 Clip；Locomotion Profile（暂定）阈值 + 落脚 |
@@ -287,7 +287,7 @@ Assets/Scripts/Domain/Character/Locomotion/
   LocomotionGait.cs               // Walk, Run（无 Sprint）
   LocomotionInputSnapshot.cs
   LocomotionMotorCommand.cs       // RotationMode 等；位移字段首版可最少
-  LocomotionService.cs
+  LocomotionStateMachine.cs / LocomotionContext.cs / States/*
   LocomotionFootCycle.cs
   LocomotionFootstepPlayer.cs
   CharacterLocomotionProfile.cs   // 暂定

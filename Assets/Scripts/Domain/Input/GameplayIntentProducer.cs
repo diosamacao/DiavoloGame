@@ -8,7 +8,7 @@ public sealed class GameplayIntentProducer
     readonly InputManager _input;
     readonly GameplayIntentBuffer _output;
     readonly CharacterStateMachine _stateMachine;
-    readonly LocomotionService _locomotion;
+    readonly LocomotionStateMachine _locomotion;
     readonly string[] _inputIds;
     readonly Dictionary<string, float> _heldSeconds = new(StringComparer.Ordinal);
     readonly HashSet<string> _holdIntentEmitted = new(StringComparer.Ordinal);
@@ -19,7 +19,7 @@ public sealed class GameplayIntentProducer
         InputManager input,
         GameplayIntentBuffer output,
         CharacterStateMachine stateMachine,
-        LocomotionService locomotion)
+        LocomotionStateMachine locomotion)
     {
         _profile = profile;
         _input = input;
