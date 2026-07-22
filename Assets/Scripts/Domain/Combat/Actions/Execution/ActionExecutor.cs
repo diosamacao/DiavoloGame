@@ -18,6 +18,8 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
     readonly ActionTimelineRunner _timelineRunner = new();
     readonly ActionSession _session = new();
     readonly HashSet<GameplayIntentType> _cancelCandidateIntents = new();
+    /// <summary>同槽已缓冲候选，按 Cancel 优先级降序尝试。</summary>
+    readonly List<GameplayIntentType> _cancelBufferedIntents = new(8);
     IActionInputBuffer _inputBuffer;
     IActionStartContext _startContext;
     Transform _timelineAttachPoint;
@@ -208,7 +210,10 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         return false;
     }
 
-    /// <summary>对单个开放 Cancel 槽尝试候选输入；图内仅扫该槽出边 Trigger，否则扫出招表全部输入。</summary>
+    /// <summary>
+    /// 对单个开放 Cancel 槽尝试候选输入；图内仅扫该槽出边 Trigger，否则扫出招表全部输入。
+    /// 同槽多个已缓冲意图时按 <see cref="GameplayIntentCancelPriority"/> 降序（如 LongPressedAttack &gt; Attack）。
+    /// </summary>
     bool TryResolveCancelForWindow(ResolvedCancelWindow window)
     {
         _cancelCandidateIntents.Clear();
@@ -225,11 +230,10 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
                 _cancelCandidateIntents.Add(intent);
         }
 
-        foreach (GameplayIntentType intent in _cancelCandidateIntents)
+        CollectBufferedCancelIntentsSorted();
+        for (int i = 0; i < _cancelBufferedIntents.Count; i++)
         {
-            if (!_inputBuffer.HasBuffer(intent))
-                continue;
-
+            GameplayIntentType intent = _cancelBufferedIntents[i];
             var request = new ActionRequest(intent);
             var context = new ActionResolveContext(
                 ActionResolveOrigin.CancelWindow,
@@ -253,6 +257,26 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         }
 
         return false;
+    }
+
+    /// <summary>从候选集筛出已缓冲意图，并按 Cancel 优先级降序排列。</summary>
+    void CollectBufferedCancelIntentsSorted()
+    {
+        _cancelBufferedIntents.Clear();
+        foreach (GameplayIntentType intent in _cancelCandidateIntents)
+        {
+            if (_inputBuffer.HasBuffer(intent))
+                _cancelBufferedIntents.Add(intent);
+        }
+
+        _cancelBufferedIntents.Sort(CompareCancelIntentPriority);
+    }
+
+    /// <summary>Cancel 候选比较：优先级高者在前；同级保持稳定无关的枚举序。</summary>
+    static int CompareCancelIntentPriority(GameplayIntentType a, GameplayIntentType b)
+    {
+        int byPriority = GameplayIntentCancelPriority.Get(b).CompareTo(GameplayIntentCancelPriority.Get(a));
+        return byPriority != 0 ? byPriority : a.CompareTo(b);
     }
 
     /// <summary>清空除已消费输入外的其它出招表输入缓冲，避免 Cancel 后残留触发。</summary>
