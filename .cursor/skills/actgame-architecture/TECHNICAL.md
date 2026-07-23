@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-07-22
+> Last updated: 2026-07-23
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -451,9 +451,12 @@ ActionState.Tick
               → PlaySfxNotify 点触发 → ActionSfxPlayer.OnActionNotify（pitch = playbackSpeed）
               → 其他 ActionNotifyState Enter/Tick/Exit
       → CancelWindow / Transition（含 OnHitConfirm）
+          → NotifyActionEnded → ActionSfxPlayer.OnActionEnded → 专用 AudioSource.Stop
 ```
 
 VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强制 Despawn；池化实例由 `VfxPooledInstance` 按粒子自然时长（含 `playbackSpeed` / 卡肉冻结）自行回池。无 `VFXManager` 时回退 `Destroy(lifetime)`。
+
+SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSfx` 的 `AudioSource`（与脚步声隔离）；`Stop` / `TransitionTo`（含硬打断与 Cancel 切招）经 `OnActionEnded` 调用 `AudioSource.Stop`，打断未播完的动作音效。
 
 编辑器 Scrub：`UpdateFrame(frameIndex)` 与上列帧派发共用路径；`ACT/Action Editor` 窗口用 `ActionEditorPreviewSession` 做 Pose/VFX 预览（触发帧后 `Simulate(t * playbackSpeed)`）。
 
@@ -466,7 +469,7 @@ VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强
 | ✅ | `CharacterActionDriver` 角色无关输入路由 |
 | ✅ | Hitbox/VFX/Cancel/Movement/Rotation 已收敛到 `ActionTimeline`，删除旧双轨数组 |
 | ✅ | `ActionEditorWindow`：手动加轨、拖拽；VFX/SFX 为单帧点事件（不可拉时长），显式 `playbackSpeed` + `attachPointId` |
-| ✅ | `ActionSfxPlayer` 运行时点触发；`CharacterAttachPointResolver` 供 VFX/Hitbox 共用 |
+| ✅ | `ActionSfxPlayer` 运行时点触发；招式结束/打断时 `Stop`；`CharacterAttachPointResolver` 供 VFX/Hitbox 共用 |
 | ⬜ | 伤害结算、Hit 状态、GM 热重载 |
 
 ### 已知限制
@@ -527,6 +530,7 @@ VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强
 | 2026-07-19 | Action Graph 可视化节点新增 `Variant Resolver` 编辑与保存；修复 Graph Editor Save 未写回 Resolver 引用的问题 |
 | 2026-07-22 | TurnBack 固定锁根 0.08 秒后，将实时输入相对初始折返输入的方向差叠加到角色根；避免绝对输入朝向与 Clip 自带约 180° 转身重复累加，烘焙位移同步重定向 |
 | 2026-07-22 | Locomotion 内层改为纯状态机：删除 `LocomotionService`；新增 `LocomotionStateMachine` / `LocomotionContext` / 五相位 State；`CharacterContext.LocomotionStateMachine` |
+| 2026-07-23 | `ActionSfxPlayer`：专用 `ActionSfx` AudioSource；`OnActionEnded`（打断/切招/自然结束）`Stop` 未播完动作音效 |
 | 2026-07-22 | 新增 `GameplayIntentType.AttackRelease`（攻击键松开语义）；供蓄力释放等 Action.Trigger 使用；Profile 需映射 Released→AttackRelease |
 | 2026-07-23 | Cancel 同槽多缓冲意图按 `GameplayIntentCancelPriority` 降序解析（LongPressedAttack &gt; Attack），避免连段边抢赢蓄力 |
 | 2026-07-23 | 蓄力修复：自动 Transition 回写 Graph 游标；连段 Cancel 保留 LongPressedAttack；Locomotion 起手清残留 AttackRelease 防秒放 |
