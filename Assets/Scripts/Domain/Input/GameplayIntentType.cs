@@ -13,4 +13,6 @@ public enum GameplayIntentType
     Dodge = 4,
     /// <summary>攻击键松开；蓄力释放等招式的 Trigger。</summary>
     AttackRelease = 5,
+    /// <summary>技能招式 Trigger。</summary>
+    Skill = 6,
 }
