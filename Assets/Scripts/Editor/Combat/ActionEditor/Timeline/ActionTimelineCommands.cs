@@ -206,6 +206,26 @@ public static class ActionTimelineCommands
         return new ActionEditorSelection(segmentsProp, index, ActionTimelineTrackKind.Animation);
     }
 
+    /// <summary>
+    /// 调整 animationSegments 顺序；fromIndex/toIndex 为数组下标。
+    /// 成功时返回新下标对应的选中项，失败返回 default。
+    /// </summary>
+    public static ActionEditorSelection ReorderAnimationSegment(SerializedObject so, int fromIndex, int toIndex)
+    {
+        SerializedProperty segmentsProp = so.FindProperty("animationSegments");
+        if (segmentsProp == null || fromIndex == toIndex)
+            return default;
+
+        if (fromIndex < 0 || toIndex < 0 || fromIndex >= segmentsProp.arraySize || toIndex >= segmentsProp.arraySize)
+            return default;
+
+        Undo.RecordObject(so.targetObject, "Reorder Animation Segment");
+        segmentsProp.MoveArrayElement(fromIndex, toIndex);
+        so.ApplyModifiedProperties();
+        EditorUtility.SetDirty(so.targetObject);
+        return new ActionEditorSelection(segmentsProp, toIndex, ActionTimelineTrackKind.Animation);
+    }
+
     /// <summary>删除选中窗口。</summary>
     public static void RemoveWindow(SerializedObject so, ActionEditorSelection selection)
     {
