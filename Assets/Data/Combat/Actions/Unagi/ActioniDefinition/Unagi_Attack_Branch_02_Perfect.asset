@@ -10,70 +10,51 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
-  m_Name: Unagi_Attack_Branch_02
+  m_Name: Unagi_Attack_Branch_02_Perfect
   m_EditorClassIdentifier: 
   animationClip: {fileID: 0}
   trigger: 6
   animationSegments:
-  - clip: {fileID: 2891608527564185243, guid: 81232e85963c44e4180e01106694daf1, type: 3}
+  - clip: {fileID: -2852162484749314428, guid: ff69f3b0311b8bb4a93d5e4f5b954478, type: 3}
     startFrame: 0
     endFrame: -1
     crossFadeDuration: 0
-  - clip: {fileID: -1868662973764822358, guid: 837f3a6edef2fbb4bb8b51069737fd82, type: 3}
-    startFrame: 0
-    endFrame: -1
-    crossFadeDuration: 0
-  - clip: {fileID: 5108457586729028822, guid: e952c3536caa8294598af6151a02c651, type: 3}
+  - clip: {fileID: 6152017084965249097, guid: 7fc40b6979422704ba892fc9244f73b0, type: 3}
     startFrame: 0
     endFrame: -1
     crossFadeDuration: 0
   sampleRate: 30
-  totalFrames: 108
+  totalFrames: 100
   actionType: 0
   crossFadeDuration: 0.1
   interruptPriority: 0
   phases: []
   timeline:
     actionEvents: []
-    playVfxNotifies:
-    - id: VFX_1
-      startFrame: 66
-      endFrame: 66
-      priority: 0
-      trackName: VFX_1
-      prefab: {fileID: 2336738607144242677, guid: ccddab8d96f24c4e91399ea71a2353e4, type: 3}
-      attachPointId: Bn_katana_burst
-      localOffset: {x: 0, y: 0, z: 0}
-      localEulerAngles: {x: 0, y: 0, z: 0}
-      localScale: {x: 0.2, y: 0.2, z: 0.2}
-      parentToAttachPoint: 1
-      playbackSpeed: 1
+    playVfxNotifies: []
     playSfxStates: []
     hitboxStates: []
     hurtboxStates: []
     cancelWindowStates:
     - id: Cancel_1
-      startFrame: 26
-      endFrame: 107
+      startFrame: 23
+      endFrame: 99
       priority: 0
       trackName: Cancel_1
-      cancelType: 0
-    - id: Cancel_2
-      startFrame: 35
-      endFrame: 107
-      priority: 0
-      trackName: Cancel_2
       cancelType: 1
+    - id: Cancel_2
+      startFrame: 16
+      endFrame: 99
+      priority: 0
+      trackName: Cancel_3
+      cancelType: 0
     movementStates: []
     rotationStates: []
     tracks:
     - trackName: Cancel_1
       kind: 4
       visible: 1
-    - trackName: VFX_1
-      kind: 2
-      visible: 1
-    - trackName: Cancel_2
+    - trackName: Cancel_3
       kind: 4
       visible: 1
   transitions: []

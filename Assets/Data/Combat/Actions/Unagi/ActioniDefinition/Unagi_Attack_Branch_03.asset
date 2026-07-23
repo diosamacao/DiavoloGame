@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Unagi_Attack_Branch_03
   m_EditorClassIdentifier: 
   animationClip: {fileID: 0}
-  trigger: 5
+  trigger: 6
   animationSegments:
   - clip: {fileID: -3857812397617067658, guid: 29906f74c814e9a4e876a87836590bc1, type: 3}
     startFrame: 0

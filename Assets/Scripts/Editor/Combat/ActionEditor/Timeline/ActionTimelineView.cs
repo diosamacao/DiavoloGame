@@ -11,6 +11,8 @@ public sealed class ActionTimelineView
         ResizeStart,
         ResizeEnd,
         Scrub,
+        /// <summary>拖动 Animation 轨片段以调整 animationSegments 数组顺序。</summary>
+        ReorderAnimation,
     }
 
     Vector2 _scroll;
@@ -21,6 +23,12 @@ public sealed class ActionTimelineView
     int _dragOriginalStart;
     int _dragOriginalEnd;
     int _dragControlId = -1;
+    /// <summary>动画段换序：鼠标按下位置，用于区分点击选中与真正拖拽。</summary>
+    Vector2 _reorderMouseDownPos;
+    /// <summary>动画段换序：是否已超过拖拽阈值并开始改序。</summary>
+    bool _reorderDragActivated;
+    /// <summary>本帧绘制的 Animation 轨 lane，供换序命中与指示线使用。</summary>
+    Rect _animationLaneRect;
     /// <summary>每帧像素宽；每帧按中栏可用宽度 / totalFrames 自动计算，铺满时间轴。</summary>
     float _pixelsPerFrame = 8f;
     bool _pendingRepaint;
@@ -145,6 +153,9 @@ public sealed class ActionTimelineView
         }
 
         // 拖拽期间在 ScrollView 内统一处理，避免依赖每帧重建的 SerializedProperty 引用。
+        if (ProcessActiveAnimationReorder(so, action, ref selection, ref changed))
+            changed = true;
+
         if (ProcessActiveWindowDrag(so, totalFrames, ref changed))
             changed = true;
 
@@ -169,7 +180,7 @@ public sealed class ActionTimelineView
             EditorStyles.wordWrappedLabel);
     }
 
-    /// <summary>绘制默认 Animation 轨：按全局帧铺开各 animationSegments。</summary>
+    /// <summary>绘制默认 Animation 轨：按全局帧铺开各 animationSegments；支持拖拽改序。</summary>
     void DrawAnimationTrack(
         Rect trackRect,
         SerializedObject so,
@@ -184,6 +195,7 @@ public sealed class ActionTimelineView
             trackRect.y,
             Mathf.Max(1f, trackRect.width - ActionEditorStyles.TrackHeaderWidth),
             trackRect.height);
+        _animationLaneRect = laneRect;
 
         EditorGUI.DrawRect(headerRect, new Color(0.22f, 0.22f, 0.25f, 1f));
         EditorGUI.DrawRect(laneRect, ActionEditorStyles.Background);
@@ -231,16 +243,18 @@ public sealed class ActionTimelineView
                 new ActionEditorSelection(segmentsProp, i, ActionTimelineTrackKind.Animation),
                 globalStart,
                 globalEnd,
-                totalFrames,
                 ref selection,
                 ref changed);
         }
+
+        if (_dragMode == DragMode.ReorderAnimation && _reorderDragActivated)
+            DrawAnimationReorderGhost(laneRect, segmentsProp, sampleRate, evt.mousePosition.x);
 
         if (segmentsProp.arraySize == 0)
         {
             GUI.Label(
                 new Rect(laneRect.x + 8f, laneRect.y + 4f, laneRect.width - 16f, laneRect.height - 8f),
-                "双击或菜单添加 Animation Segment",
+                "双击或菜单添加 Animation Segment；拖动片段可调整顺序",
                 EditorStyles.miniLabel);
         }
     }
@@ -257,14 +271,13 @@ public sealed class ActionTimelineView
         menu.ShowAsContext();
     }
 
-    /// <summary>绘制单段动画条块（只读展示全局帧范围；选中后右侧改 Clip）。</summary>
+    /// <summary>绘制单段动画条块；左键拖拽改序，选中后右侧改 Clip。</summary>
     void DrawAnimationSegmentClip(
         Rect laneRect,
         SerializedProperty element,
         ActionEditorSelection itemSelection,
         int globalStart,
         int globalEnd,
-        int totalFrames,
         ref ActionEditorSelection selection,
         ref bool changed)
     {
@@ -273,15 +286,22 @@ public sealed class ActionTimelineView
         Rect clipRect = new(x, laneRect.y + 3f, width, laneRect.height - 6f);
 
         bool selected = selection.Equals(itemSelection);
+        // 换序拖拽中：源片段半透明，提示正在移动。
+        bool dimSource = _dragMode == DragMode.ReorderAnimation
+            && _reorderDragActivated
+            && itemSelection.Index == _dragIndex;
         Color color = selected
             ? ActionEditorStyles.ColorForSelectedTrack(ActionTimelineTrackKind.Animation)
             : ActionEditorStyles.ColorForTrack(ActionTimelineTrackKind.Animation);
+        if (dimSource)
+            color.a *= 0.35f;
 
-        ActionEditorStyles.DrawRoundedWindowClip(clipRect, color, selected);
+        ActionEditorStyles.DrawRoundedWindowClip(clipRect, color, selected && !dimSource);
 
         var clip = element.FindPropertyRelative("clip").objectReferenceValue as AnimationClip;
         string label = clip != null ? clip.name : $"Segment {itemSelection.Index}";
         GUI.Label(clipRect, label, EditorStyles.miniLabel);
+        EditorGUIUtility.AddCursorRect(clipRect, MouseCursor.MoveArrow);
 
         Event evt = Event.current;
         if (evt.type != EventType.MouseDown || evt.button != 0 || !clipRect.Contains(evt.mousePosition))
@@ -291,8 +311,270 @@ public sealed class ActionTimelineView
             return;
 
         selection = itemSelection;
+        _dragMode = DragMode.ReorderAnimation;
+        _dragKind = ActionTimelineTrackKind.Animation;
+        _dragIndex = itemSelection.Index;
+        _reorderMouseDownPos = evt.mousePosition;
+        _reorderDragActivated = false;
+        _dragControlId = GUIUtility.GetControlID(FocusType.Passive);
+        GUIUtility.hotControl = _dragControlId;
         changed = true;
         evt.Use();
+    }
+
+    /// <summary>换序拖拽时在鼠标处绘制半透明幽灵条，指示落点。</summary>
+    void DrawAnimationReorderGhost(
+        Rect laneRect,
+        SerializedProperty segmentsProp,
+        float sampleRate,
+        float mouseX)
+    {
+        if (segmentsProp == null || _dragIndex < 0 || _dragIndex >= segmentsProp.arraySize)
+            return;
+
+        SerializedProperty element = segmentsProp.GetArrayElementAtIndex(_dragIndex);
+        int frameCount = ResolveSegmentFrameCount(element, sampleRate);
+        if (frameCount <= 0)
+            return;
+
+        float width = Mathf.Max(_pixelsPerFrame, frameCount * _pixelsPerFrame);
+        float x = Mathf.Clamp(mouseX - width * 0.5f, laneRect.x, laneRect.xMax - width);
+        Rect ghostRect = new(x, laneRect.y + 3f, width, laneRect.height - 6f);
+
+        Color ghost = ActionEditorStyles.ColorForSelectedTrack(ActionTimelineTrackKind.Animation);
+        ghost.a = 0.55f;
+        ActionEditorStyles.DrawRoundedWindowClip(ghostRect, ghost, true);
+
+        var clip = element.FindPropertyRelative("clip").objectReferenceValue as AnimationClip;
+        string label = clip != null ? clip.name : $"Segment {_dragIndex}";
+        GUI.Label(ghostRect, label, EditorStyles.miniLabel);
+
+        // 落点指示线：按鼠标位置计算目标下标后画在目标槽左侧。
+        int targetIndex = ResolveAnimationReorderTargetIndex(segmentsProp, sampleRate, mouseX, _dragIndex);
+        float indicatorX = GetAnimationSegmentLeftX(laneRect, segmentsProp, sampleRate, targetIndex, _dragIndex);
+        Handles.BeginGUI();
+        Handles.color = new Color(1f, 0.9f, 0.35f, 0.95f);
+        Handles.DrawLine(
+            new Vector3(indicatorX, laneRect.y + 1f),
+            new Vector3(indicatorX, laneRect.yMax - 1f));
+        Handles.EndGUI();
+    }
+
+    /// <summary>
+    /// 处理 Animation 段换序拖拽：超过像素阈值后按鼠标 X 相对各段中点决定目标下标并 MoveArrayElement。
+    /// </summary>
+    bool ProcessActiveAnimationReorder(
+        SerializedObject so,
+        ActionDefinition action,
+        ref ActionEditorSelection selection,
+        ref bool changed)
+    {
+        if (_dragMode != DragMode.ReorderAnimation || _dragIndex < 0)
+            return false;
+
+        Event evt = Event.current;
+        if (evt.type != EventType.MouseDrag && evt.type != EventType.MouseUp && evt.type != EventType.Ignore)
+            return false;
+
+        if (_dragControlId >= 0 && GUIUtility.hotControl != _dragControlId && evt.type != EventType.MouseUp)
+        {
+            EndWindowDrag();
+            return false;
+        }
+
+        SerializedProperty segmentsProp = so.FindProperty("animationSegments");
+        if (segmentsProp == null)
+        {
+            EndWindowDrag();
+            return false;
+        }
+
+        if (evt.type == EventType.MouseDrag)
+        {
+            bool reorderChanged = false;
+            if (!_reorderDragActivated
+                && (evt.mousePosition - _reorderMouseDownPos).sqrMagnitude >= 16f)
+            {
+                _reorderDragActivated = true;
+            }
+
+            if (_reorderDragActivated)
+            {
+                // 邻段中点穿越：一次最多与左右邻交换，避免整表重算导致抖动。
+                int targetIndex = ResolveAnimationNeighborReorderTarget(
+                    segmentsProp,
+                    action.SampleRate,
+                    evt.mousePosition.x,
+                    _dragIndex);
+
+                if (targetIndex != _dragIndex)
+                {
+                    ActionEditorSelection reordered =
+                        ActionTimelineCommands.ReorderAnimationSegment(so, _dragIndex, targetIndex);
+                    if (reordered.IsValid)
+                    {
+                        _dragIndex = reordered.Index;
+                        selection = reordered;
+                        reorderChanged = true;
+                        changed = true;
+                    }
+                }
+
+                // 幽灵条需要每帧重绘，但不代表数据一定变更。
+                _pendingRepaint = true;
+            }
+
+            evt.Use();
+            return reorderChanged;
+        }
+
+        // MouseUp / Ignore：结束换序。
+        EndWindowDrag();
+        _pendingRepaint = true;
+        evt.Use();
+        return false;
+    }
+
+    /// <summary>
+    /// 相对当前拖拽段的左右邻段中点决定是否互换；无 Clip 空段跳过。
+    /// </summary>
+    int ResolveAnimationNeighborReorderTarget(
+        SerializedProperty segmentsProp,
+        float sampleRate,
+        float mouseX,
+        int draggedIndex)
+    {
+        int size = segmentsProp.arraySize;
+        if (draggedIndex < 0 || draggedIndex >= size)
+            return draggedIndex;
+
+        if (!TryGetAnimationSegmentMidX(segmentsProp, sampleRate, draggedIndex, out float draggedMid))
+            return draggedIndex;
+
+        int prevIndex = FindPreviousDrawableSegmentIndex(segmentsProp, sampleRate, draggedIndex);
+        if (prevIndex >= 0
+            && TryGetAnimationSegmentMidX(segmentsProp, sampleRate, prevIndex, out float prevMid)
+            && mouseX < (prevMid + draggedMid) * 0.5f)
+        {
+            return prevIndex;
+        }
+
+        int nextIndex = FindNextDrawableSegmentIndex(segmentsProp, sampleRate, draggedIndex);
+        if (nextIndex >= 0
+            && TryGetAnimationSegmentMidX(segmentsProp, sampleRate, nextIndex, out float nextMid)
+            && mouseX > (draggedMid + nextMid) * 0.5f)
+        {
+            return nextIndex;
+        }
+
+        return draggedIndex;
+    }
+
+    /// <summary>幽灵条落点指示：仍按全局中点扫描给出目标下标（仅用于绘制）。</summary>
+    int ResolveAnimationReorderTargetIndex(
+        SerializedProperty segmentsProp,
+        float sampleRate,
+        float mouseX,
+        int draggedIndex)
+    {
+        int size = segmentsProp.arraySize;
+        if (size <= 1)
+            return Mathf.Clamp(draggedIndex, 0, Mathf.Max(0, size - 1));
+
+        int cursor = 0;
+        int target = size - 1;
+        for (int i = 0; i < size; i++)
+        {
+            int frameCount = ResolveSegmentFrameCount(segmentsProp.GetArrayElementAtIndex(i), sampleRate);
+            if (frameCount <= 0)
+                continue;
+
+            float startX = _animationLaneRect.x + cursor * _pixelsPerFrame;
+            float midX = startX + frameCount * _pixelsPerFrame * 0.5f;
+            if (mouseX < midX)
+            {
+                target = i;
+                break;
+            }
+
+            cursor += frameCount;
+        }
+
+        return Mathf.Clamp(target, 0, size - 1);
+    }
+
+    /// <summary>计算换序指示线 X：目标下标左侧。</summary>
+    float GetAnimationSegmentLeftX(
+        Rect laneRect,
+        SerializedProperty segmentsProp,
+        float sampleRate,
+        int targetIndex,
+        int draggedIndex)
+    {
+        int cursor = 0;
+        for (int i = 0; i < segmentsProp.arraySize; i++)
+        {
+            if (i == targetIndex)
+                break;
+
+            if (i == draggedIndex && draggedIndex < targetIndex)
+                continue;
+
+            int frameCount = ResolveSegmentFrameCount(segmentsProp.GetArrayElementAtIndex(i), sampleRate);
+            if (frameCount > 0)
+                cursor += frameCount;
+        }
+
+        return laneRect.x + cursor * _pixelsPerFrame;
+    }
+
+    static int FindPreviousDrawableSegmentIndex(SerializedProperty segmentsProp, float sampleRate, int fromIndex)
+    {
+        for (int i = fromIndex - 1; i >= 0; i--)
+        {
+            if (ResolveSegmentFrameCount(segmentsProp.GetArrayElementAtIndex(i), sampleRate) > 0)
+                return i;
+        }
+
+        return -1;
+    }
+
+    static int FindNextDrawableSegmentIndex(SerializedProperty segmentsProp, float sampleRate, int fromIndex)
+    {
+        for (int i = fromIndex + 1; i < segmentsProp.arraySize; i++)
+        {
+            if (ResolveSegmentFrameCount(segmentsProp.GetArrayElementAtIndex(i), sampleRate) > 0)
+                return i;
+        }
+
+        return -1;
+    }
+
+    /// <summary>返回指定段在 Animation 轨上的中心 X；无帧贡献时失败。</summary>
+    bool TryGetAnimationSegmentMidX(
+        SerializedProperty segmentsProp,
+        float sampleRate,
+        int index,
+        out float midX)
+    {
+        midX = 0f;
+        int cursor = 0;
+        for (int i = 0; i < segmentsProp.arraySize; i++)
+        {
+            int frameCount = ResolveSegmentFrameCount(segmentsProp.GetArrayElementAtIndex(i), sampleRate);
+            if (frameCount <= 0)
+                continue;
+
+            if (i == index)
+            {
+                midX = _animationLaneRect.x + (cursor + frameCount * 0.5f) * _pixelsPerFrame;
+                return true;
+            }
+
+            cursor += frameCount;
+        }
+
+        return false;
     }
 
     /// <summary>从 SerializedProperty 计算段贡献帧数（与 ActionAnimationSegment.GetFrameCount 对齐）。</summary>
@@ -485,7 +767,8 @@ public sealed class ActionTimelineView
     /// <summary>在持有 hotControl 期间处理窗口平移/缩放；用 Kind+Index 重新取属性。</summary>
     bool ProcessActiveWindowDrag(SerializedObject so, int totalFrames, ref bool changed)
     {
-        if (_dragMode is DragMode.None or DragMode.Scrub || _dragIndex < 0)
+        // Animation 换序由 ProcessActiveAnimationReorder 单独处理。
+        if (_dragMode is DragMode.None or DragMode.Scrub or DragMode.ReorderAnimation || _dragIndex < 0)
             return false;
 
         Event evt = Event.current;
@@ -561,6 +844,8 @@ public sealed class ActionTimelineView
         _dragMode = DragMode.None;
         _dragIndex = -1;
         _dragControlId = -1;
+        _reorderDragActivated = false;
+        _reorderMouseDownPos = default;
     }
 
     void DrawRuler(Rect rect, int totalFrames)
@@ -596,8 +881,8 @@ public sealed class ActionTimelineView
     {
         Event evt = Event.current;
 
-        // 窗口拖拽进行中时不处理标尺。
-        if (_dragMode is DragMode.Move or DragMode.ResizeStart or DragMode.ResizeEnd)
+        // 窗口/动画段拖拽进行中时不处理标尺。
+        if (_dragMode is DragMode.Move or DragMode.ResizeStart or DragMode.ResizeEnd or DragMode.ReorderAnimation)
             return;
 
         if (!rulerRect.Contains(evt.mousePosition) && _dragMode != DragMode.Scrub)
