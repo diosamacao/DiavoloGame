@@ -63,7 +63,7 @@ MonoBehaviour:
       priority: 0
       trackName: SFX_1
       audioClip: {fileID: 8300000, guid: 50c6eee1046971248a2dc8eab74f9eb0, type: 3}
-      volume: 0
+      volume: 1
       playbackSpeed: 1
     hitboxStates:
     - id: Hitbox_1
@@ -88,7 +88,7 @@ MonoBehaviour:
       trackName: Cancel_1
       cancelType: 1
     - id: Attack
-      startFrame: 13
+      startFrame: 21
       endFrame: 34
       priority: 0
       trackName: Cancel_3

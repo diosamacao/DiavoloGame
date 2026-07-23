@@ -63,7 +63,7 @@ MonoBehaviour:
       priority: 0
       trackName: SFX_1
       audioClip: {fileID: 8300000, guid: 2959aa5bbff0d6f44b256bcc88f599a0, type: 3}
-      volume: 0
+      volume: 1
       playbackSpeed: 1
     hitboxStates:
     - id: Hitbox_1
