@@ -56,7 +56,15 @@ MonoBehaviour:
       localScale: {x: 0.2, y: 0.2, z: 0.2}
       parentToAttachPoint: 1
       playbackSpeed: 1
-    playSfxStates: []
+    playSfxStates:
+    - id: SFX_1
+      startFrame: 0
+      endFrame: 0
+      priority: 0
+      trackName: SFX_1
+      audioClip: {fileID: 8300000, guid: 2959aa5bbff0d6f44b256bcc88f599a0, type: 3}
+      volume: 0
+      playbackSpeed: 1
     hitboxStates:
     - id: Hitbox_1
       startFrame: 4
@@ -140,6 +148,9 @@ MonoBehaviour:
       visible: 1
     - trackName: Hitbox_1
       kind: 0
+      visible: 1
+    - trackName: SFX_1
+      kind: 3
       visible: 1
   transitions: []
   startBehaviors: 
