@@ -279,7 +279,10 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         return byPriority != 0 ? byPriority : a.CompareTo(b);
     }
 
-    /// <summary>清空除已消费输入外的其它出招表输入缓冲，避免 Cancel 后残留触发。</summary>
+    /// <summary>
+    /// 清空除已消费输入外的其它出招表输入缓冲。
+    /// 连段消费 Attack 时按 <see cref="GameplayIntentCancelPriority.ShouldRetainAfterConsume"/> 保留 LongPressedAttack。
+    /// </summary>
     void ClearOtherActionBuffers(GameplayIntentType keepIntent)
     {
         if (_inputBuffer == null || _resolverService == null)
@@ -287,7 +290,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 
         foreach (GameplayIntentType intent in _resolverService.EnumerateActiveIntents())
         {
-            if (intent == keepIntent)
+            if (GameplayIntentCancelPriority.ShouldRetainAfterConsume(keepIntent, intent))
                 continue;
 
             _inputBuffer.TryConsumeBuffer(intent);
@@ -311,8 +314,8 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 
             if (transition.TargetAction != null && transition.TargetAction.HasAnimation)
             {
-                // 自动 Transition 离开图游标（非 Graph 边）。
-                TransitionTo(ActionResolveResult.FromAction(transition.TargetAction));
+                // 目标若在当前/活动图中有节点，保留图游标（满蓄 AnimationEnd→Branch_03 等）。
+                TransitionTo(ResolveTransitionResult(transition.TargetAction));
                 return true;
             }
 
@@ -321,6 +324,16 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         }
 
         return false;
+    }
+
+    /// <summary>自动 Transition 目标：优先落回 ActionGraph 节点，避免后续 Cancel 边失效。</summary>
+    ActionResolveResult ResolveTransitionResult(ActionDefinition targetAction)
+    {
+        ActionGraph graph = _session.CurrentGraph ?? _resolverService?.ActiveGraph;
+        if (graph != null && graph.TryFindNodeByAction(targetAction, out ActionGraphNode node))
+            return ActionResolveResult.FromGraph(targetAction, graph, node.NodeId);
+
+        return ActionResolveResult.FromAction(targetAction);
     }
 
     void TransitionTo(in ActionResolveResult resolveResult)
