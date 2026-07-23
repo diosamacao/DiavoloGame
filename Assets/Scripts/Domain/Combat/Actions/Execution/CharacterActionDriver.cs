@@ -164,6 +164,23 @@ public sealed class CharacterActionDriver
         if (!_actionExecutor.TryStart(in resolveResult))
             return;
 
+        // 清掉残留意图（尤其 AttackRelease），避免进蓄力首帧 Cancel 窗立刻秒放 1 档。
+        ClearOtherBufferedIntents(intent);
         _stateMachine.TryChangeState(CharacterStateType.Action);
+    }
+
+    /// <summary>起手成功后清除其它动作缓冲；不保留任何旁路意图。</summary>
+    void ClearOtherBufferedIntents(GameplayIntentType keepIntent)
+    {
+        if (_intentBuffer == null || _resolverService == null)
+            return;
+
+        foreach (GameplayIntentType intent in _resolverService.EnumerateActiveIntents())
+        {
+            if (intent == keepIntent)
+                continue;
+
+            _intentBuffer.ClearBuffer(intent);
+        }
     }
 }
