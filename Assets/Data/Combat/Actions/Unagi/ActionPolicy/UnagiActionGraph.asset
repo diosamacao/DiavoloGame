@@ -47,17 +47,17 @@ MonoBehaviour:
     action: {fileID: 11400000, guid: 4756f9d82a242dd40a535249ef2b4771, type: 2}
     isEntry: 0
     variantResolver: {fileID: 0}
-    editorPosition: {x: 695.3333, y: -1189.3334}
+    editorPosition: {x: -832, y: -1570.6666}
   - nodeId: Unagi_Attack_Branch_02
     action: {fileID: 11400000, guid: 36239327dd50e6945a178edda90d407e, type: 2}
     isEntry: 0
     variantResolver: {fileID: 0}
-    editorPosition: {x: 695.3333, y: -999.3333}
+    editorPosition: {x: -832, y: -1380.6666}
   - nodeId: Unagi_Attack_Branch_03
     action: {fileID: 11400000, guid: 7a7e279f3fea53544be07873000e4b92, type: 2}
     isEntry: 0
     variantResolver: {fileID: 0}
-    editorPosition: {x: 695.3333, y: -792}
+    editorPosition: {x: -832, y: -1173.3334}
   - nodeId: Unagi_Attack_Branch_Start
     action: {fileID: 11400000, guid: 9a980e3a4de96d24899394e1394b530e, type: 2}
     isEntry: 1
@@ -68,6 +68,11 @@ MonoBehaviour:
     isEntry: 1
     variantResolver: {fileID: 0}
     editorPosition: {x: -1289.3334, y: -20.666666}
+  - nodeId: Unagi_ChargeAttack_01
+    action: {fileID: 11400000, guid: 7d8cee984a26d1b488757963d558c447, type: 2}
+    isEntry: 0
+    variantResolver: {fileID: 0}
+    editorPosition: {x: 760, y: -1124.6666}
   - nodeId: Unagi_Dodge_Backward
     action: {fileID: 11400000, guid: 4abae900c0f901a42bd9d9c57d0a764b, type: 2}
     isEntry: 0
@@ -180,15 +185,6 @@ MonoBehaviour:
   - fromNodeId: Unagi_Attack_01
     cancelSlotId: Attack
     toNodeId: Unagi_Attack_Branch_Start
-  - fromNodeId: Unagi_Attack_Branch_Start
-    cancelSlotId: Cancel_1
-    toNodeId: Unagi_Attack_Branch_01
-  - fromNodeId: Unagi_Attack_Branch_Start
-    cancelSlotId: Cancel_2
-    toNodeId: Unagi_Attack_Branch_02
-  - fromNodeId: Unagi_Attack_Branch_Start
-    cancelSlotId: Cancel_3
-    toNodeId: Unagi_Attack_Branch_03
   - fromNodeId: Unagi_Attack_02
     cancelSlotId: Attack
     toNodeId: Unagi_Attack_Branch_Start
@@ -209,4 +205,16 @@ MonoBehaviour:
     toNodeId: Unagi_Attack_01
   - fromNodeId: Unagi_Attack_Branch_03
     cancelSlotId: Cancel_1
+    toNodeId: Unagi_Attack_01
+  - fromNodeId: Unagi_Attack_Branch_Start
+    cancelSlotId: Cancel_1
+    toNodeId: Unagi_ChargeAttack_01
+  - fromNodeId: Unagi_Attack_Branch_Start
+    cancelSlotId: Cancel_2
+    toNodeId: Unagi_ChargeAttack_01
+  - fromNodeId: Unagi_Attack_Branch_Start
+    cancelSlotId: Cancel_3
+    toNodeId: Unagi_ChargeAttack_01
+  - fromNodeId: Unagi_ChargeAttack_01
+    cancelSlotId: Cancel_2
     toNodeId: Unagi_Attack_01
