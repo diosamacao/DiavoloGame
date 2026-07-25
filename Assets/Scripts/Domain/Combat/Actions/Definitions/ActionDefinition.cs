@@ -26,12 +26,8 @@ public class ActionDefinition : ScriptableObject
     [Tooltip("招式打断优先级；更大则可硬打断更小者。同级不互打断，连招 Cancel 不受此限制。")]
     [SerializeField] int interruptPriority = 0;
 
-    [Header("Phases (Editor)")]
-    [Tooltip("Startup / Active / Recovery 与无敌、霸体覆盖；编辑器时间轴数据源。")]
-    [SerializeField] ActionPhase[] phases = Array.Empty<ActionPhase>();
-
     [Header("Timeline")]
-    [Tooltip("动作帧数据唯一真源：点事件与区间窗口均从此处读取。")]
+    [Tooltip("动作帧数据唯一真源：Phase、点事件与其它区间窗口均从此处读取。")]
     [SerializeField] ActionTimeline timeline = new();
 
     [Header("Transitions")]
@@ -158,8 +154,8 @@ public class ActionDefinition : ScriptableObject
     /// <summary>SFX 点事件列表，来自统一 Timeline。</summary>
     public PlaySfxNotify[] PlaySfxStates => Timeline.PlaySfxStates;
 
-    /// <summary>阶段标记列表；暂保留为独立编辑数据。</summary>
-    public ActionPhase[] Phases => phases ?? Array.Empty<ActionPhase>();
+    /// <summary>阶段窗口列表，来自统一 Timeline。</summary>
+    public ActionPhaseNotifyState[] Phases => Timeline.PhaseStates;
 
     /// <summary>通用点事件列表，来自统一 Timeline。</summary>
     public ActionEvent[] ActionEvents => Timeline.ActionEvents;
@@ -332,34 +328,48 @@ public class ActionDefinition : ScriptableObject
     }
 
     /// <summary>返回指定帧上全部生效的阶段（按数组顺序）。</summary>
-    public IReadOnlyList<ActionPhase> GetActivePhasesAtFrame(int frame)
-    {
-        if (phases == null || phases.Length == 0)
-            return Array.Empty<ActionPhase>();
-
-        var active = new List<ActionPhase>();
-        foreach (ActionPhase phase in phases)
-        {
-            if (phase != null && phase.IsActiveAtFrame(frame))
-                active.Add(phase);
-        }
-
-        return active;
-    }
+    public IReadOnlyList<ActionPhaseNotifyState> GetActivePhasesAtFrame(int frame) =>
+        Timeline.GetActivePhaseStatesAtFrame(frame);
 
     /// <summary>
     /// 指定帧是否允许高优硬打断。
-    /// 无 Phase 覆盖时默认可打断；有覆盖时任一 Interruptible 即可，全部不可打断则拒绝。
+    /// 无三相窗口覆盖时默认可打断；有覆盖时任一 Interruptible 即可；Invincible/SuperArmor 不参与。
     /// </summary>
     public bool IsInterruptibleAtFrame(int frame)
     {
-        IReadOnlyList<ActionPhase> activePhases = GetActivePhasesAtFrame(frame);
-        if (activePhases.Count == 0)
-            return true;
-
-        foreach (ActionPhase phase in activePhases)
+        bool hasControllingPhase = false;
+        IReadOnlyList<ActionPhaseNotifyState> activePhases = GetActivePhasesAtFrame(frame);
+        foreach (ActionPhaseNotifyState phase in activePhases)
         {
+            if (!phase.ControlsInterruptibility)
+                continue;
+
+            hasControllingPhase = true;
             if (phase.Interruptible)
+                return true;
+        }
+
+        return !hasControllingPhase;
+    }
+
+    /// <summary>指定帧的 Recovery 窗口是否允许移动输入退出到 Locomotion。</summary>
+    public bool AllowsRecoveryMovementCancelAtFrame(int frame)
+    {
+        foreach (ActionPhaseNotifyState phase in Timeline.PhaseStates)
+        {
+            if (phase != null && phase.IsActiveAtFrame(frame) && phase.AllowMovementCancel)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>指定帧的 Recovery 窗口是否允许有效动作输入按 Graph Entry 重开。</summary>
+    public bool AllowsRecoveryEntryRestartAtFrame(int frame)
+    {
+        foreach (ActionPhaseNotifyState phase in Timeline.PhaseStates)
+        {
+            if (phase != null && phase.IsActiveAtFrame(frame) && phase.AllowEntryRestart)
                 return true;
         }
 
@@ -436,12 +446,6 @@ public class ActionDefinition : ScriptableObject
 
         timeline ??= new ActionTimeline();
         timeline.ClampToTotalFrames(totalFrames);
-
-        if (phases != null)
-        {
-            foreach (ActionPhase phase in phases)
-                phase?.ClampToTotalFrames(totalFrames);
-        }
 
         hitStopFrames = Mathf.Max(0, hitStopFrames);
     }

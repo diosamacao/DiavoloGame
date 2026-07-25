@@ -59,6 +59,9 @@ public static class ActionNotifySelectionDrawer
                 case ActionTimelineTrackKind.Cancel:
                     DrawCancel(element);
                     break;
+                case ActionTimelineTrackKind.Phase:
+                    DrawPhase(element);
+                    break;
                 case ActionTimelineTrackKind.Movement:
                     DrawMovement(element);
                     break;
@@ -198,6 +201,34 @@ public static class ActionNotifySelectionDrawer
         EditorGUILayout.PropertyField(element.FindPropertyRelative("id"), new GUIContent(
             "Cancel Slot Id",
             "图边绑定的槽身份；改帧不要改此 Id，否则会断边。"));
+    }
+
+    /// <summary>绘制语义阶段；Recovery 额外集成移动取消与 Graph Entry 重开能力。</summary>
+    static void DrawPhase(SerializedProperty element)
+    {
+        SerializedProperty kindProp = element.FindPropertyRelative("kind");
+        EditorGUILayout.PropertyField(kindProp);
+        ActionPhaseKind kind = kindProp != null
+            ? (ActionPhaseKind)kindProp.intValue
+            : ActionPhaseKind.Startup;
+        bool controlsInterruptibility =
+            kind is ActionPhaseKind.Startup or ActionPhaseKind.Active or ActionPhaseKind.Recovery;
+        if (controlsInterruptibility)
+            EditorGUILayout.PropertyField(element.FindPropertyRelative("interruptible"));
+
+        if (kind != ActionPhaseKind.Recovery)
+        {
+            return;
+        }
+
+        EditorGUILayout.Space(4f);
+        EditorGUILayout.LabelField("Recovery Exit", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(
+            element.FindPropertyRelative("allowMovementCancel"),
+            new GUIContent("Allow Movement Cancel", "有移动输入时退出 Action 返回 Locomotion。"));
+        EditorGUILayout.PropertyField(
+            element.FindPropertyRelative("allowEntryRestart"),
+            new GUIContent("Allow Entry Restart", "有效动作输入按当前 ActionGraph Entry 重开。"));
     }
 
     static void DrawMovement(SerializedProperty element)

@@ -4,13 +4,50 @@ using System.Collections.Generic;
 public sealed class GameplayIntentBuffer : IActionInputBuffer
 {
     readonly List<GameplayIntentType> _frameIntents = new(4);
-    readonly HashSet<GameplayIntentType> _bufferedIntents = new();
+    readonly Dictionary<GameplayIntentType, float> _bufferedIntents = new();
+    readonly List<GameplayIntentType> _expiredIntents = new(4);
+    readonly List<GameplayIntentType> _activeIntents = new(8);
+    readonly float _bufferDurationSeconds;
+
+    /// <summary>创建带统一过期时间的意图缓冲；时长至少为一个极小正值。</summary>
+    public GameplayIntentBuffer(float bufferDurationSeconds)
+    {
+        _bufferDurationSeconds = System.Math.Max(0.01f, bufferDurationSeconds);
+    }
 
     /// <summary>本帧按生产顺序输出的去重意图。</summary>
     public IReadOnlyList<GameplayIntentType> FrameIntents => _frameIntents;
 
     /// <summary>开始新帧；只清当帧事件，不清跨帧 Cancel 缓冲。</summary>
     public void BeginFrame() => _frameIntents.Clear();
+
+    /// <summary>推进跨帧缓冲有效期并删除过期意图；在生产本帧意图前调用。</summary>
+    public void Tick(float deltaTime)
+    {
+        if (_bufferedIntents.Count == 0)
+            return;
+
+        float elapsed = System.Math.Max(0f, deltaTime);
+        _expiredIntents.Clear();
+
+        // Dictionary 迭代中不可写回，先收集过期项，再统一更新剩余时间。
+        _activeIntents.Clear();
+        foreach (GameplayIntentType intent in _bufferedIntents.Keys)
+            _activeIntents.Add(intent);
+
+        for (int i = 0; i < _activeIntents.Count; i++)
+        {
+            GameplayIntentType intent = _activeIntents[i];
+            float remaining = _bufferedIntents[intent] - elapsed;
+            if (remaining <= 0f)
+                _expiredIntents.Add(intent);
+            else
+                _bufferedIntents[intent] = remaining;
+        }
+
+        for (int i = 0; i < _expiredIntents.Count; i++)
+            _bufferedIntents.Remove(_expiredIntents[i]);
+    }
 
     /// <summary>输出一次语义意图；同帧同类型只保留一次。</summary>
     public void Emit(GameplayIntentType intent)
@@ -25,12 +62,12 @@ public sealed class GameplayIntentBuffer : IActionInputBuffer
     public void Buffer(GameplayIntentType intent)
     {
         if (intent != GameplayIntentType.None)
-            _bufferedIntents.Add(intent);
+            _bufferedIntents[intent] = _bufferDurationSeconds;
     }
 
     /// <summary>查询指定语义是否仍在 Action Cancel 缓冲中。</summary>
     public bool HasBuffer(GameplayIntentType intent) =>
-        intent != GameplayIntentType.None && _bufferedIntents.Contains(intent);
+        intent != GameplayIntentType.None && _bufferedIntents.ContainsKey(intent);
 
     /// <summary>消费指定语义缓冲；不存在时返回 false。</summary>
     public bool TryConsumeBuffer(GameplayIntentType intent) =>

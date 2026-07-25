@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-07-23
+> Last updated: 2026-07-25
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -414,9 +414,9 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 |----|------|
 | 起手 / 缓冲 | `GameplayIntentBuffer` → `CharacterActionDriver` → `ActionResolverService.TryResolveStart` → `ActionExecutor.TryStart` |
 | Trigger | `ActionDefinition.Trigger = GameplayIntentType`；不保存 InputActionReference |
-| 选招策略 | `ActionGraph` Entry / Cancel 边；节点可选 `VariantResolver`（Directional 等） |
+| 选招策略 | `ActionGraph` Entry / 独特 Cancel 边 / `ActionGraphSharedRoute`；节点可选 `VariantResolver` |
 | 六向闪避 | `DirectionalActionResolver` 统一解析前、后、左前、左后、右前、右后；前后扇区半角默认 `30°`，纯左/右输入偏向前侧变体 |
-| Cancel 下一招 | `ActionExecutor` 扫描窗口消费输入后 → `ActionResolverService.TryResolveNext`；同槽多缓冲意图按 `GameplayIntentCancelPriority`（如 LongPressedAttack &gt; Attack） |
+| Cancel 下一招 | Combo 窗优先显式边、再 SharedRoute；Recovery Phase 按 `allowEntryRestart` 决定是否从 Entry 软重开 |
 | 高优硬打断 | Action 态：`TryResolveStart(PriorityInterrupt)` → `ActionExecutor.TryInterrupt`（候选 `interruptPriority` 严格大于当前，且 `IsInterruptibleAtFrame`） |
 | 时间轴数据 | `ActionDefinition.Timeline`：`ActionNotify` 点事件（Event/VFX/SFX）+ `ActionNotifyState` 区间窗口 |
 | 移动取消 | `CharacterActionDriver` + `CancelWindowNotifyState(Movement)` |
@@ -430,8 +430,11 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 | 参数 | 默认 | 说明 |
 |------|------|------|
 | `ActionDefinition.interruptPriority` | `0` | 越大越优先；同级不互硬打断 |
-| `ActionPhase.interruptible` | `true` | 有 Phase 覆盖时：任一可打断则允许硬打断；全部 false 则拒绝 |
+| `ActionPhaseNotifyState.interruptible` | `true` | Startup/Active/Recovery 覆盖时参与硬打断；Invincible/SuperArmor 标签不参与 |
+| Recovery `allowMovementCancel` | `true` | 有移动输入时退出 Action 返回 Locomotion |
+| Recovery `allowEntryRestart` | `true` | 有效动作缓冲按当前 Graph Entry 重开 |
 | 无 Phase 覆盖帧 | — | `IsInterruptibleAtFrame` 返回 `true`（默认可硬打断） |
+| `GameplayIntentProfile.actionBufferDurationSeconds` | `0.15` | Action 内预输入有效期；过期后不再于 Recovery/收招误触发 |
 
 ### 运行时流程（高优打断 + Logic Tick）
 
@@ -451,6 +454,8 @@ ActionState.Tick
               → PlaySfxNotify 点触发 → ActionSfxPlayer.OnActionNotify（pitch = playbackSpeed）
               → 其他 ActionNotifyState Enter/Tick/Exit
       → CancelWindow / Transition（含 OnHitConfirm）
+          → Combo Window：显式边优先，未命中再查 SharedRoute
+          → Recovery Phase：按窗口开关处理移动取消 / Graph Entry 软重开
           → NotifyActionEnded → ActionSfxPlayer.OnActionEnded → 专用 AudioSource.Stop
 ```
 
@@ -460,7 +465,7 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 
 编辑器 Scrub：`UpdateFrame(frameIndex)` 与上列帧派发共用路径；`ACT/Action Editor` 窗口用 `ActionEditorPreviewSession` 做 Pose/VFX 预览（触发帧后 `Simulate(t * playbackSpeed)`）。
 
-### ActionEditor 对齐状态（2026-07-13）
+### ActionEditor 对齐状态（2026-07-25）
 
 | 对齐度 | 项 |
 |--------|-----|
@@ -468,14 +473,15 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 | ✅ | 命中回流、`OnHitConfirm` / `OnWhiff` Transition 条件 |
 | ✅ | `CharacterActionDriver` 角色无关输入路由 |
 | ✅ | Hitbox/VFX/Cancel/Movement/Rotation 已收敛到 `ActionTimeline`，删除旧双轨数组 |
-| ✅ | `ActionEditorWindow`：手动加轨、拖拽；VFX/SFX 为单帧点事件（不可拉时长），显式 `playbackSpeed` + `attachPointId` |
+| ✅ | `ActionEditorWindow`：手动加轨、轨头纵向拖拽排序、窗口拖拽；VFX/SFX 为单帧点事件，Phase 为区间窗口 |
 | ✅ | `ActionSfxPlayer` 运行时点触发；招式结束/打断时 `Stop`；`CharacterAttachPointResolver` 供 VFX/Hitbox 共用 |
 | ⬜ | 伤害结算、Hit 状态、GM 热重载 |
 
 ### 已知限制
 
-- 现有资产需要在 Unity Editor 中填写 `interruptPriority`（如闪避 > 普攻）并按需配置 Phase 霸体；Agent 未直接修改 `.asset`
-- 硬打断走 Graph Entry，不要求 Cancel 边；连招进位仍依赖 CancelWindow + 图边
+- 现有资产需要在 Unity Editor 的 Phase 轨重建原 `phases[]`，并为 Recovery 配置移动取消 / Entry 重开开关；Agent 未直接修改 `.asset`
+- 硬打断与 Recovery 软重开走 Graph Entry，不要求 Cancel 边；独特连招进位仍依赖 Combo Window + 显式边
+- 旧 `CancelType.Recovery` 窗与重复回根边需在 Editor 人工删除；共享 Evade/蓄力等路由需迁入 Graph Shared Routes
 - Scene 玩家入口已改为 Empty + `PlayerController` + `CharacterConfig`
 
 ### Editor 操作（Prefab）
@@ -534,3 +540,6 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 | 2026-07-22 | 新增 `GameplayIntentType.AttackRelease`（攻击键松开语义）；供蓄力释放等 Action.Trigger 使用；Profile 需映射 Released→AttackRelease |
 | 2026-07-23 | Cancel 同槽多缓冲意图按 `GameplayIntentCancelPriority` 降序解析（LongPressedAttack &gt; Attack），避免连段边抢赢蓄力 |
 | 2026-07-23 | 蓄力修复：自动 Transition 回写 Graph 游标；连段 Cancel 保留 LongPressedAttack；Locomotion 起手清残留 AttackRelease 防秒放 |
+| 2026-07-25 | ActionGraph 稀疏路由：显式边仅保留独特拓扑；新增 SharedRoute、Recovery Phase→Entry、Directional 逻辑节点；删除 Recovery Cancel 与 ComboResolver；输入缓冲增加 0.15s 过期 |
+| 2026-07-25 | Phase 收敛到 `ActionTimeline.phaseStates`；Action Editor 开放 Phase 轨；Recovery 窗口集成移动取消与 Entry 重开；删除独立 `ActionPhase` 数据路径 |
+| 2026-07-25 | Action Editor 手动轨道支持拖拽换序：轨头手柄、插入线、松开写回 `timeline.tracks`，完整支持 Undo |

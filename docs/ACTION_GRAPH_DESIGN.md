@@ -1,7 +1,7 @@
 # ActionGraph 连招图设计方案
 
-> 日期：2026-07-14  
-> 状态：**已实现（多入口 Graph）**；Held/Released 缓冲与 GraphView 润色待续  
+> 日期：2026-07-25
+> 状态：**已实现（稀疏多入口 Graph）**；玩法资产需在 Editor 人工迁移
 > 相关：`docs/ACTION_SYSTEM.md`、`docs/ACTION_SYSTEM_REFACTOR_PLAN.md`、`docs/ACTION_EDITOR.md`
 
 ---
@@ -18,7 +18,8 @@ PlayerActionSet
         → ActionExecutor 播放
 ```
 
-`ActionDefinition` 只描述单招时间轴；下一招由 `ActionResolver` 决定。攻击连段目前落在 `ComboActionResolver`（线性 `steps[]` + `ComboLeafPolicy`）。
+`ActionDefinition` 只描述单招时间轴；下一招由 `ActionGraph` 决定。旧线性
+`ComboActionResolver` 已在稀疏图落地后删除。
 
 ### 1.1 配置冗余：CancelWindow × AllowInput
 
@@ -70,7 +71,7 @@ PlayerActionSet
 ### 2.1 非目标（本阶段不做）
 
 - 把完整 Ability / GAS 式技能树塞进 ActionGraph。
-- 一次性强制迁移所有 `ComboActionResolver` 资产。
+- 自动修改现有 `.asset`（资产迁移由 Unity Editor 人工完成）。
 - 在 Graph 编辑器内重做整套单招时间轴（Hitbox/VFX 等仍由 Action Editor 编辑）。
 
 ---
@@ -91,7 +92,28 @@ ActionResolverService     = 调 ActiveGraph.TryResolveStart / TryResolveCancel
 
 ---
 
-## 3.1 多入口起手（攻击 + 闪避同一张图）
+## 3.1 稀疏路由（2026-07-25 定稿）
+
+Graph 不再把所有可达关系都展开为线：
+
+| 关系 | 表达方式 |
+|------|----------|
+| 独特连招、分支、环 | 显式边 `(fromNode, cancelSlotId) → toNode` |
+| 多来源共用同槽、同意图、同目标 | `ActionGraphSharedRoute`（显式边未命中时回退） |
+| 后摇退出 | Timeline Recovery Phase：`allowMovementCancel` / `allowEntryRestart` |
+| 高优硬打断 | Entry + `interruptPriority` |
+| 自然收招 | Stop → Locomotion；有效预输入再次走 Entry |
+| Directional 六向变体 | 一个逻辑节点 + VariantResolver；变体不改变图游标 |
+
+`CancelType.Recovery`、`ComboActionResolver`、`ComboLeafPolicy` 已删除。CancelWindow
+只保留 `Combo` 与 `Movement`。共享路由不会画成重复连线，Graph Editor 顶栏仅显示数量；
+Inspector 负责配置和冗余校验。
+
+输入缓冲改为有时效数据，默认 `0.15s`，避免动作早期输入在很久以后自然收招时误触发。
+
+---
+
+## 3.2 多入口起手（攻击 + 闪避同一张图）
 
 ```text
 ActionGraph
@@ -138,7 +160,7 @@ ActionDefinition
 ```text
 CancelWindowNotifyState
   cancelSlotId : string      // 招式内唯一
-  cancelType   : CancelType  // Action / Recovery / Movement
+  cancelType   : CancelType  // Combo / Movement
   startFrame / endFrame / priority
   // 删除 allowedInputs —— 可用触发由本槽出边目标的 Trigger 推导
 ```
@@ -205,7 +227,7 @@ Attack_01
   Early 窗 ──连接──→ Dodge_Back          （Trigger: Dodge Pressed）
   Late  窗 ──连接──→ Attack_02_Finisher  （Trigger: Attack Pressed）
   Late  窗 ──连接──→ Dodge_Back
-  Recovery窗──连接──→ Attack_01          （Trigger: Attack Pressed，重开）
+  Recovery Phase ──隐式 Entry──→ Attack_01（Trigger: Attack，重开；不画边）
 ```
 
 策划只选「窗 → Action」；边标签由目标 `Trigger` 自动显示为 `Attack●` / `Dodge●` / `Attack●Held`。
@@ -273,9 +295,9 @@ ActionExecutor.Tick
 
 推荐：
 
-1. 图上 Early/Late 连到某个 `Dodge_*` 节点（其 `Trigger = Dodge Pressed`）。  
-2. 匹配成功后，若 `PlayerActionSet` 对 `Dodge` 绑定的是 `DirectionalActionResolver`，则 **用该 Resolver 再解析一次**（`Origin=CancelWindow`），以得到前/后/左前/左后/右前/右后六向变体；图节点上的 Action 可作为 default/占位。
-3. 若 Dodge 仅为 `SingleActionResolver`，则直接播放边上的目标 Action。
+1. 图上只保留一个 Dodge 逻辑节点（`Trigger = Dodge`），并绑定 `DirectionalActionResolver`。
+2. 匹配成功后 Resolver 选择前、后、左前、左后、右前、右后实际 Action，但图游标仍停在 Dodge 逻辑节点。
+3. 所有方向共享同一套显式边 / SharedRoute；只有拓扑确实不同的方向才拆独立节点。
 
 这样仍满足「配树只选 Action」，又保留现有方向闪避策略，无需在边上再标 Input。
 
@@ -357,7 +379,7 @@ Edges:  // 无 input 字段
   (N1, Early) → N_Dodge
   (N1, Late)  → N2_Finisher
   (N1, Late)  → N_Dodge
-  (N1, Recovery) → N1
+  Recovery Phase → Attack Entry（隐式，不保存边）
 ```
 
 ### 9.2 循环 A1→A2→A3→A4→A2…
@@ -382,7 +404,7 @@ Charge_Slash.Trigger = Attack Held
 | 边上 `inputId`（前一版草案） | **删除**；Trigger 在目标 Action |
 | `ActionInputTrigger`（仅 Pressed） | 扩展 Held / Released；挂到 `ActionDefinition.Trigger.kind` |
 | `ActionRequest(InputId, Trigger)` | 与 `ActionDefinition.Trigger` 对齐 |
-| `ComboActionResolver.steps[]` | `ActionGraph` 节点 + 槽边 |
+| `ComboActionResolver.steps[]` | 已删除；改为 `ActionGraph` 显式边 + SharedRoute |
 | `IndexOfStep(action)` | `CurrentNodeId` + 槽出边 + Trigger 匹配 |
 | 无 Graph 编辑器 | 按槽连 Action，自动带 Trigger |
 

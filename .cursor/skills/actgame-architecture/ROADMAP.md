@@ -51,6 +51,9 @@
 - [x] 2026-07-09：ActionNotify 时间轴入口：Hitbox/VFX/Cancel/Movement/Rotation 收敛到 `ActionTimeline`
 - [x] 2026-07-10：VFX/SFX 区间窗口 + 播放倍率语义（已于 2026-07-13 改回点事件 + 显式 `playbackSpeed`）
 - [x] 2026-07-13：VFX/SFX 点事件 + `attachPointId` + 显式 `playbackSpeed`；`CharacterAttachPointResolver`；`ActionSfxPlayer`
+- [x] 2026-07-25：ActionGraph 稀疏路由——SharedRoute、Recovery Phase→Entry、Directional 共用逻辑节点；删除 Recovery Cancel 与 ComboResolver 旧路径
+- [x] 2026-07-25：Phase 帧数据迁入 ActionTimeline；Action Editor 开放 Phase 轨；Recovery 窗口集成移动取消与 Entry 重开
+- [x] 2026-07-25：Action Editor 手动轨道支持轨头拖拽排序与 Undo
 - [ ] `ActionDefinition` 子 SO 拆分（CombatData / PresentationData，可选）
 
 ### [P1] 战斗闭环

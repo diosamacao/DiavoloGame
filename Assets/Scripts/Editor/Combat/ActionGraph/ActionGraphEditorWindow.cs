@@ -66,6 +66,13 @@ public sealed class ActionGraphEditorWindow : EditorWindow
         toolbar.Add(validateButton);
         toolbar.Add(reloadButton);
         toolbar.Add(new Label($"  {_graph.name}") { style = { unityTextAlign = TextAnchor.MiddleLeft, marginLeft = 8 } });
+        // 隐式关系只显示摘要，不在 GraphView 复制成视觉连线。
+        toolbar.Add(new Label(
+            $"  显式边 {_graph.Edges.Count} · 隐式共享路由 {_graph.SharedRoutes.Count} · Recovery→Entry")
+        {
+            tooltip = "画布只显示独特拓扑；共享路由与 Recovery Phase Entry 不画重复连线。",
+            style = { unityTextAlign = TextAnchor.MiddleLeft, marginLeft = 12 },
+        });
         rootVisualElement.Add(toolbar);
 
         _graphView = new ActionGraphView(_graph);
@@ -388,7 +395,7 @@ sealed class ActionGraphNodeView : Node
         {
             foreach (CancelWindowNotifyState window in action.Timeline.CancelWindowStates)
             {
-                if (window == null || window.CancelType == CancelType.Movement)
+                if (window == null || window.CancelType != CancelType.Combo)
                     continue;
 
                 string slot = window.CancelSlotId;

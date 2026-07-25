@@ -53,7 +53,9 @@ public static class CharacterActorFactory
         context.LocomotionStateMachine = locomotionStateMachine;
 
         var stateMachine = new CharacterStateMachine(context);
-        var intentBuffer = new GameplayIntentBuffer();
+        // 缓冲时长由输入 Profile 统一配置，避免工厂与动作执行器各自维护不同窗口。
+        var intentBuffer = new GameplayIntentBuffer(
+            config.GameplayIntentProfile.ActionBufferDurationSeconds);
         var intentProducer = new GameplayIntentProducer(
             config.GameplayIntentProfile,
             sharedInput,

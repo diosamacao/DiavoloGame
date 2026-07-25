@@ -1,14 +1,13 @@
 using System;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
-/// <summary>取消窗口区间；Action/Recovery 取消走 Resolver，Movement 允许退回移动。</summary>
+/// <summary>取消窗口区间；Combo 走 ActionGraph 显式/共享路由，Movement 允许退回移动。</summary>
 [Serializable]
 public class CancelWindowNotifyState : ActionNotifyState
 {
-    [SerializeField] CancelType cancelType = CancelType.Action;
+    [SerializeField] CancelType cancelType = CancelType.Combo;
 
-    /// <summary>窗口取消类型：连招进位、后摇重开或移动取消。</summary>
+    /// <summary>窗口取消类型：显式连招路由或移动取消。</summary>
     public CancelType CancelType => cancelType;
 
     /// <summary>

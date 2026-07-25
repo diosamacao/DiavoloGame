@@ -8,11 +8,13 @@ public class ActionGraphInspector : Editor
 {
     SerializedProperty _nodes;
     SerializedProperty _edges;
+    SerializedProperty _sharedRoutes;
 
     void OnEnable()
     {
         _nodes = serializedObject.FindProperty("nodes");
         _edges = serializedObject.FindProperty("edges");
+        _sharedRoutes = serializedObject.FindProperty("sharedRoutes");
     }
 
     public override void OnInspectorGUI()
@@ -22,13 +24,15 @@ public class ActionGraphInspector : Editor
         EditorGUILayout.LabelField("Action Graph", EditorStyles.boldLabel);
         EditorGUILayout.HelpBox(
             "勾选节点 Is Entry 作为 Locomotion 起手；同一图可有多个 Entry（Attack / Dodge 等靠 Action.Trigger 区分）。\n" +
-            "边只绑定 Cancel 槽 → 目标节点 In；可连回自身 In（同招再派生/重开）。\n" +
-            "输入不再在 ActionSet 重复配置。方向闪避：Entry 上挂 Variant Resolver（Directional）。",
+            "显式边只表达独特连招；重复的同槽去向用 Shared Route，Recovery Phase 自动按 Entry 重开。\n" +
+            "方向闪避只保留一个 Entry + Directional Resolver，六向变体共用该逻辑节点。",
             MessageType.Info);
 
         DrawNodes();
         EditorGUILayout.Space(6);
         DrawEdges();
+        EditorGUILayout.Space(8);
+        DrawSharedRoutes();
         EditorGUILayout.Space(8);
 
         using (new EditorGUILayout.HorizontalScope())
@@ -41,6 +45,52 @@ public class ActionGraphInspector : Editor
         }
 
         serializedObject.ApplyModifiedProperties();
+    }
+
+    /// <summary>绘制图级共享路由；一条规则替代多个来源节点的重复连线。</summary>
+    void DrawSharedRoutes()
+    {
+        EditorGUILayout.LabelField("Shared Routes (Implicit)", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox(
+            "显式边未匹配时才使用。Source=None 表示任意来源；按 Source Trigger + Cancel Slot + Intent 路由到目标节点。",
+            MessageType.None);
+
+        if (GUILayout.Button("Add Shared Route"))
+            _sharedRoutes.arraySize++;
+
+        List<string> nodeIds = CollectNodeIds();
+        for (int i = 0; i < _sharedRoutes.arraySize; i++)
+        {
+            SerializedProperty route = _sharedRoutes.GetArrayElementAtIndex(i);
+            using (new EditorGUILayout.VerticalScope("box"))
+            {
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    EditorGUILayout.PropertyField(
+                        route.FindPropertyRelative("sourceTrigger"),
+                        new GUIContent("Source"),
+                        GUILayout.MinWidth(130));
+                    EditorGUILayout.PropertyField(
+                        route.FindPropertyRelative("intent"),
+                        new GUIContent("Intent"),
+                        GUILayout.MinWidth(130));
+                    if (GUILayout.Button("×", GUILayout.Width(24)))
+                    {
+                        _sharedRoutes.DeleteArrayElementAtIndex(i);
+                        break;
+                    }
+                }
+
+                EditorGUILayout.PropertyField(
+                    route.FindPropertyRelative("cancelSlotId"),
+                    new GUIContent("Cancel Slot"));
+                DrawStringPopup(
+                    route.FindPropertyRelative("toNodeId"),
+                    nodeIds,
+                    "Target",
+                    180);
+            }
+        }
     }
 
     void DrawNodes()
@@ -296,11 +346,11 @@ public class ActionGraphInspector : Editor
                 continue;
             }
 
-            // 同 Trigger 的多个 Entry 仅在挂了 VariantResolver（方向分派）时允许。
-            if (!entryTriggers.Add(trigger) && node.VariantResolver == null)
+            // 每种 Trigger 只允许一个逻辑 Entry；Directional 变体由该 Entry 的 Resolver 折叠。
+            if (!entryTriggers.Add(trigger))
             {
                 errors.Add(
-                    $"多个 Entry 使用相同 Trigger {trigger} 且无 Variant Resolver：'{node.NodeId}'。");
+                    $"多个 Entry 使用相同 Trigger {trigger}：'{node.NodeId}'。请折叠为一个逻辑 Entry。");
             }
         }
 
@@ -331,6 +381,9 @@ public class ActionGraphInspector : Editor
                 if (window != null && window.CancelSlotId == edge.CancelSlotId)
                 {
                     slotFound = true;
+                    if (window.CancelType != CancelType.Combo)
+                        errors.Add(
+                            $"边 {edge.FromNodeId}/{edge.CancelSlotId} 引用了非 Combo 窗口。");
                     break;
                 }
             }
@@ -348,6 +401,108 @@ public class ActionGraphInspector : Editor
             string edgeKey = $"{edge.FromNodeId}|{edge.CancelSlotId}|{trigger}";
             if (!triggerKeys.Add(edgeKey))
                 errors.Add($"同槽 Trigger 冲突: {edge.FromNodeId}/{edge.CancelSlotId} → {trigger}");
+        }
+
+        var validatedSharedRoutes = new List<ActionGraphSharedRoute>();
+        foreach (ActionGraphSharedRoute route in graph.SharedRoutes)
+        {
+            if (route == null)
+                continue;
+
+            if (string.IsNullOrWhiteSpace(route.CancelSlotId))
+                errors.Add("Shared Route 的 CancelSlotId 不能为空。");
+            if (route.Intent == GameplayIntentType.None)
+                errors.Add($"Shared Route '{route.CancelSlotId}' 的 Intent 不能为 None。");
+            if (!graph.TryGetNode(route.ToNodeId, out ActionGraphNode target))
+            {
+                errors.Add($"Shared Route 目标节点无效: {route.ToNodeId}");
+                continue;
+            }
+
+            if (target.Action.Trigger != route.Intent)
+            {
+                errors.Add(
+                    $"Shared Route '{route.CancelSlotId}' Intent={route.Intent} 与目标 " +
+                    $"'{route.ToNodeId}' Trigger={target.Action.Trigger} 不一致。");
+            }
+
+            foreach (ActionGraphSharedRoute existing in validatedSharedRoutes)
+            {
+                bool sourceOverlaps = existing.SourceTrigger == GameplayIntentType.None
+                    || route.SourceTrigger == GameplayIntentType.None
+                    || existing.SourceTrigger == route.SourceTrigger;
+                if (sourceOverlaps
+                    && existing.CancelSlotId == route.CancelSlotId
+                    && existing.Intent == route.Intent)
+                {
+                    errors.Add(
+                        $"Shared Route 冲突: {route.SourceTrigger}/{route.CancelSlotId}/{route.Intent}");
+                    break;
+                }
+            }
+
+            validatedSharedRoutes.Add(route);
+
+            bool matchingComboSlotFound = false;
+            foreach (ActionGraphNode node in graph.Nodes)
+            {
+                if (node?.Action == null
+                    || (route.SourceTrigger != GameplayIntentType.None
+                        && node.Action.Trigger != route.SourceTrigger))
+                {
+                    continue;
+                }
+
+                foreach (CancelWindowNotifyState window in node.Action.Timeline.CancelWindowStates)
+                {
+                    if (window != null
+                        && window.CancelSlotId == route.CancelSlotId
+                        && window.CancelType == CancelType.Combo)
+                    {
+                        matchingComboSlotFound = true;
+                        break;
+                    }
+                }
+
+                if (matchingComboSlotFound)
+                    break;
+            }
+
+            if (!matchingComboSlotFound)
+            {
+                errors.Add(
+                    $"Shared Route '{route.CancelSlotId}' 找不到匹配来源的 Combo 窗口。");
+            }
+        }
+
+        // 显式边与完全覆盖它的共享路由同时存在只会制造视觉噪音，应删除显式边。
+        foreach (ActionGraphEdge edge in graph.Edges)
+        {
+            if (edge == null
+                || !graph.TryGetNode(edge.FromNodeId, out ActionGraphNode from)
+                || !graph.TryGetNode(edge.ToNodeId, out ActionGraphNode to))
+            {
+                continue;
+            }
+
+            foreach (ActionGraphSharedRoute route in graph.SharedRoutes)
+            {
+                if (route == null
+                    || route.CancelSlotId != edge.CancelSlotId
+                    || route.Intent != to.Action.Trigger
+                    || route.ToNodeId != edge.ToNodeId)
+                {
+                    continue;
+                }
+
+                if (route.SourceTrigger == GameplayIntentType.None
+                    || route.SourceTrigger == from.Action.Trigger)
+                {
+                    errors.Add(
+                        $"冗余显式边: {edge.FromNodeId}/{edge.CancelSlotId} → {edge.ToNodeId} " +
+                        "已由 Shared Route 覆盖。");
+                }
+            }
         }
 
         if (errors.Count == 0)

@@ -11,12 +11,18 @@ public class ActionGraph : ScriptableObject
 {
     [SerializeField] ActionGraphNode[] nodes = Array.Empty<ActionGraphNode>();
     [SerializeField] ActionGraphEdge[] edges = Array.Empty<ActionGraphEdge>();
+    [Tooltip("共享路由在当前节点没有匹配显式边时生效，用一条规则替代同槽、同意图的大量重复连线。")]
+    [SerializeField] ActionGraphSharedRoute[] sharedRoutes = Array.Empty<ActionGraphSharedRoute>();
 
     /// <summary>图节点列表。</summary>
     public IReadOnlyList<ActionGraphNode> Nodes => nodes ?? Array.Empty<ActionGraphNode>();
 
     /// <summary>图边列表。</summary>
     public IReadOnlyList<ActionGraphEdge> Edges => edges ?? Array.Empty<ActionGraphEdge>();
+
+    /// <summary>图级共享路由；仅作显式边未命中时的回退。</summary>
+    public IReadOnlyList<ActionGraphSharedRoute> SharedRoutes =>
+        sharedRoutes ?? Array.Empty<ActionGraphSharedRoute>();
 
     /// <summary>按 nodeId 查找节点；未找到返回 false。</summary>
     public bool TryGetNode(string nodeId, out ActionGraphNode node)
@@ -58,7 +64,7 @@ public class ActionGraph : ScriptableObject
 
     /// <summary>
     /// Locomotion 起手：在标记为 Entry 的节点中，按 Action.Trigger 匹配 request；
-    /// 若节点配置了 VariantResolver（如 Directional），则再解析变体并尽量落到对应节点。
+    /// 若节点配置了 VariantResolver（如 Directional），则解析实际播放变体并保持逻辑节点不变。
     /// </summary>
     public bool TryResolveStart(
         in ActionRequest request,
@@ -111,6 +117,41 @@ public class ActionGraph : ScriptableObject
             return FinalizeNodeResolve(toNode, in request, in context, out result);
         }
 
+        return TryResolveSharedRoute(in request, in context, out result);
+    }
+
+    /// <summary>
+    /// 显式边未命中时按「来源 Trigger（None=任意）+ Cancel 槽 + 输入意图」匹配共享路由。
+    /// 共享路由用于回根、统一反击、统一蓄力入口等横切关系，不替代独特连招拓扑。
+    /// </summary>
+    bool TryResolveSharedRoute(
+        in ActionRequest request,
+        in ActionResolveContext context,
+        out ActionResolveResult result)
+    {
+        result = default;
+        if (sharedRoutes == null || context.CurrentAction == null)
+            return false;
+
+        GameplayIntentType sourceTrigger = context.CurrentAction.Trigger;
+        for (int i = 0; i < sharedRoutes.Length; i++)
+        {
+            ActionGraphSharedRoute route = sharedRoutes[i];
+            if (route == null
+                || route.CancelSlotId != context.CancelSlotId
+                || route.Intent != request.Intent
+                || (route.SourceTrigger != GameplayIntentType.None
+                    && route.SourceTrigger != sourceTrigger))
+            {
+                continue;
+            }
+
+            if (!TryGetNode(route.ToNodeId, out ActionGraphNode toNode))
+                continue;
+
+            return FinalizeNodeResolve(toNode, in request, in context, out result);
+        }
+
         return false;
     }
 
@@ -155,6 +196,25 @@ public class ActionGraph : ScriptableObject
             if (trigger != GameplayIntentType.None)
                 results.Add(trigger);
         }
+
+        if (!TryGetNode(fromNodeId, out ActionGraphNode fromNode) || sharedRoutes == null)
+            return;
+
+        GameplayIntentType sourceTrigger = fromNode.Action.Trigger;
+        for (int i = 0; i < sharedRoutes.Length; i++)
+        {
+            ActionGraphSharedRoute route = sharedRoutes[i];
+            if (route == null
+                || route.CancelSlotId != cancelSlotId
+                || route.Intent == GameplayIntentType.None
+                || (route.SourceTrigger != GameplayIntentType.None
+                    && route.SourceTrigger != sourceTrigger))
+            {
+                continue;
+            }
+
+            results.Add(route.Intent);
+        }
     }
 
     /// <summary>收集图中全部有效 Trigger 意图（去重）。</summary>
@@ -174,7 +234,7 @@ public class ActionGraph : ScriptableObject
         }
     }
 
-    /// <summary>进入节点：可选 VariantResolver（方向闪避）后再定位游标节点。</summary>
+    /// <summary>进入逻辑节点：可选 VariantResolver 决定播放变体，但游标始终保持在该节点。</summary>
     bool FinalizeNodeResolve(
         ActionGraphNode node,
         in ActionRequest request,
@@ -191,13 +251,7 @@ public class ActionGraph : ScriptableObject
                 return false;
             }
 
-            // 优先落到与变体 Action 对应的图节点，便于 Cancel 边按正确节点配置。
-            if (TryFindNodeByAction(variantResult.Action, out ActionGraphNode variantNode))
-            {
-                result = ActionResolveResult.FromGraph(variantResult.Action, this, variantNode.NodeId);
-                return true;
-            }
-
+            // 变体只改变实际播放 Action，不改变逻辑图游标；六向 Dodge 因此共享一套出边。
             result = ActionResolveResult.FromGraph(variantResult.Action, this, node.NodeId);
             return true;
         }
@@ -215,7 +269,7 @@ public class ActionGraphNode
     [SerializeField] ActionDefinition action;
     [Tooltip("可作为 Locomotion 起手；同一图可有多个 Entry（Attack / Dodge 等，靠 Trigger 区分）。")]
     [SerializeField] bool isEntry;
-    [Tooltip("可选：进入本节点前再解析变体（如 Directional 闪避）。变体 Action 最好也在图中有对应节点。")]
+    [Tooltip("可选：进入本节点前解析实际播放变体（如 Directional 闪避）；变体共用当前逻辑节点和出边。")]
     [SerializeField] ActionResolver variantResolver;
     [SerializeField] Vector2 editorPosition;
 

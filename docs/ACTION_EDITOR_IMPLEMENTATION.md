@@ -64,7 +64,7 @@
 | 播放控制 | 无 ▶/⏸/步进；无 `EditorApplication.update` 按 `sampleRate` 推进 |
 | Scrub ↔ Runtime 同链 | 当前仅 AnimationMode 采样，未走 `UpdateFrame` / Timeline 跨帧规则 |
 | VFX 预览语义 | 点事件 + 显式 `playbackSpeed` + `attachPointId` Scrub |
-| Hurtbox / Cancel / Movement / Rotation / Phase 可视化 | 仅默认 Inspector 填表 |
+| Hurtbox / Cancel / Movement / Rotation / Phase 可视化 | Action Editor 多轨窗口；Phase 可直接创建、拖拽与配置 |
 | 校验 / 模板复制 / 热重载 | 未实现 |
 | 旧资产迁移 | 旧字段已删；现有 `.asset` 需人工或菜单迁入 `timeline` |
 
@@ -157,7 +157,7 @@
 - **时间轴条目**：统一为可拖拽的**窗口/标记**（`ActionTimelineItem`：`startFrame` / `endFrame` / `priority` / `trackName`）
 - **区间窗口**（`ActionNotifyState`）：Hitbox / Hurtbox / Cancel / Movement / Rotation
 - **点事件**（`ActionNotify`）：ActionEvent / **PlayVfx** / **PlaySfx**（`startFrame == endFrame`）
-- **暂留独立字段**：`phases[]`、`transitions[]`（可显示为轨道，Phase 1–2 不强制迁入 Timeline）
+- **非帧字段**：仅 `transitions[]` 保持独立；Phase 已迁入 `ActionTimeline.phaseStates`
 - **禁止**：再引入 `hitboxes[]` / `vfxEvents[]` / 散字段位移 / 单例 `RotationWindow`
 
 #### 4.2.1 VFX / SFX 点事件数据
@@ -241,7 +241,7 @@ VFX/SFX 为 **单帧点事件**（`ActionNotify`，`startFrame == endFrame`）�
 
 | 轨道类型 | 数据源 | 窗口类型 | 颜色建议 |
 |----------|--------|----------|----------|
-| Phase | `phases[]` | 区间 | 灰 / 蓝 / 绿 |
+| Phase | `timeline.phaseStates` | 区间 | 灰 / 蓝 / 绿；Recovery 集成移动取消与 Entry 重开 |
 | Hitbox | `timeline.hitboxStates` | 区间 | 橙红 |
 | Hurtbox | `timeline.hurtboxStates` | 区间 | 蓝 |
 | VFX | `timeline.playVfxNotifies` | **点事件** | 青 |
@@ -397,7 +397,7 @@ Assets/Scripts/Editor/Combat/
 | 任务 | 细节 |
 |------|------|
 | 添加轨道 | 工具栏「添加轨道」选类型；生成空轨 + 默认 `trackName` |
-| 删除/重命名轨 | 轨头菜单；删轨确认 |
+| 删除/重命名/排序轨 | 轨头菜单；删轨确认；拖动轨头手柄纵向换序并显示插入线 |
 | 添加窗口 | 轨内 `+` / 右键 → 指定类型 → 插入对应数组 |
 | 拖拽交互 | 中部平移；左右改 `start/end`；最小 1 帧；夹紧到 `totalFrames` |
 | 右侧 Inspector | `ActionNotifySelectionDrawer` 按类型画字段；帧数字与轨道双向同步 |
@@ -409,6 +409,7 @@ Assets/Scripts/Editor/Combat/
 **验收：**
 
 - [ ] 可从零添加 Hitbox 轨并放入窗口，拖长短后保存
+- [x] 手动轨道可通过轨头拖拽排序，Undo/Redo 正常
 - [ ] 选中窗口右侧可改 Hitbox size / VFX Prefab 等
 - [ ] 创建 VFX 窗口时默认长度≈自然时长；拖长后倍率 &lt; 1，拖短后倍率 &gt; 1
 - [ ] Undo/Redo 正常
@@ -553,7 +554,7 @@ EditorUtility.SetDirty(action);
 | 风险 | 对策 |
 |------|------|
 | 时间轴 UI 工作量大 | Phase 1 骨架；Phase 2 先做加轨/加窗/拖拽三件套 |
-| VFX 点事件语义过时 | Phase 2/3 直接改为区间窗口 + 倍率；删除点事件双轨 |
+| Phase 与 Timeline 双真源 | 已删除独立 `phases[]`；统一由 Phase 轨创建和拖拽 |
 | 自然时长读取不准 | 缓存字段；允许右侧手动覆盖 naturalDuration |
 | 预览与运行时不一致 | FramePlayer 与 Runner 共用窗口 Enter/Tick/Exit；VFX 同用 playbackSpeed |
 | Undo 丢失 | 强制 SerializedProperty / RecordObject |

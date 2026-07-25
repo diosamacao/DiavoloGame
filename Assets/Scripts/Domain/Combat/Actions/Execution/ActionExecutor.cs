@@ -30,8 +30,11 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
     public bool IsPlaying => _session.IsActive;
     public bool IsHitStopPaused => _session.IsHitStopPaused;
     public bool HasConfirmedHitThisAction => _session.HasConfirmedHit;
+    /// <summary>显式 Movement 窗，或开启移动取消的 Recovery Phase 均允许返回 Locomotion。</summary>
     public bool CanCancelByMovement =>
-        _session.IsActive && _session.CurrentAction.IsInMovementCancelWindow(_session.ElapsedSeconds);
+        _session.IsActive
+        && (_session.CurrentAction.IsInMovementCancelWindow(_session.ElapsedSeconds)
+            || _session.CurrentAction.AllowsRecoveryMovementCancelAtFrame(CurrentFrame));
     public bool CanRotateByInput =>
         _session.IsActive && _session.CurrentAction.IsInRotationWindow(_session.ElapsedSeconds);
     public ActionDefinition CurrentAction => _session.CurrentAction;
@@ -140,6 +143,9 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         SyncLogicFrameFromElapsed();
 
         if (TryResolveCancelWindows())
+            return;
+
+        if (TryResolveRecoveryEntry())
             return;
 
         if (TryResolveTransitions())
@@ -253,6 +259,52 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
             _inputBuffer.TryConsumeBuffer(intent);
             ClearOtherActionBuffers(intent);
             TransitionTo(resolveResult);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// 开启 Entry Restart 的 Recovery Phase 软重开：无需 CancelWindow 或逐节点回根边，
+    /// 直接用有效缓冲匹配当前 Graph 的 Entry；显式 Combo 窗已在此前优先处理。
+    /// </summary>
+    bool TryResolveRecoveryEntry()
+    {
+        ActionDefinition current = _session.CurrentAction;
+        if (_inputBuffer == null
+            || current == null
+            || _resolverService == null
+            || !current.AllowsRecoveryEntryRestartAtFrame(CurrentFrame))
+        {
+            return false;
+        }
+
+        _cancelCandidateIntents.Clear();
+        foreach (GameplayIntentType intent in _resolverService.EnumerateActiveIntents())
+            _cancelCandidateIntents.Add(intent);
+
+        CollectBufferedCancelIntentsSorted();
+        for (int i = 0; i < _cancelBufferedIntents.Count; i++)
+        {
+            GameplayIntentType intent = _cancelBufferedIntents[i];
+            var request = new ActionRequest(intent);
+            var context = new ActionResolveContext(
+                ActionResolveOrigin.RecoveryEntry,
+                current,
+                _actorRoot,
+                _startContext,
+                currentNodeId: _session.CurrentNodeId);
+
+            if (!_resolverService.TryResolveStart(in request, in context, out ActionResolveResult result)
+                || !result.IsValid)
+            {
+                continue;
+            }
+
+            _inputBuffer.TryConsumeBuffer(intent);
+            ClearOtherActionBuffers(intent);
+            TransitionTo(in result);
             return true;
         }
 

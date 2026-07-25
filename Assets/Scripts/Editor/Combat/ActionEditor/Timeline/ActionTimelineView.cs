@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
@@ -13,6 +14,8 @@ public sealed class ActionTimelineView
         Scrub,
         /// <summary>拖动 Animation 轨片段以调整 animationSegments 数组顺序。</summary>
         ReorderAnimation,
+        /// <summary>拖动手动轨道头以调整 timeline.tracks 数组顺序。</summary>
+        ReorderTrack,
     }
 
     Vector2 _scroll;
@@ -29,6 +32,12 @@ public sealed class ActionTimelineView
     bool _reorderDragActivated;
     /// <summary>本帧绘制的 Animation 轨 lane，供换序命中与指示线使用。</summary>
     Rect _animationLaneRect;
+    /// <summary>当前帧可见手动轨道的数组下标与矩形，用于纵向换序命中。</summary>
+    readonly List<int> _drawnTrackIndices = new();
+    readonly List<Rect> _drawnTrackRects = new();
+    Vector2 _trackReorderMouseDownPos;
+    bool _trackReorderActivated;
+    int _trackReorderTargetIndex = -1;
     /// <summary>每帧像素宽；每帧按中栏可用宽度 / totalFrames 自动计算，铺满时间轴。</summary>
     float _pixelsPerFrame = 8f;
     bool _pendingRepaint;
@@ -141,6 +150,8 @@ public sealed class ActionTimelineView
         if (trackCount == 0)
             DrawEmptyTracksHint(new Rect(ActionEditorStyles.TrackHeaderWidth + 8f, y, Mathf.Max(200f, laneWidth - 16f), 72f));
 
+        _drawnTrackIndices.Clear();
+        _drawnTrackRects.Clear();
         for (int trackIndex = 0; trackIndex < trackCount; trackIndex++)
         {
             SerializedProperty trackProp = tracksProp.GetArrayElementAtIndex(trackIndex);
@@ -151,6 +162,9 @@ public sealed class ActionTimelineView
             DrawTrack(trackRect, so, action, trackProp, trackIndex, totalFrames, ref selection, previewFrame, ref changed);
             y += ActionEditorStyles.TrackHeight + 2f;
         }
+
+        if (ProcessActiveTrackReorder(so, ref changed))
+            changed = true;
 
         // 拖拽期间在 ScrollView 内统一处理，避免依赖每帧重建的 SerializedProperty 引用。
         if (ProcessActiveAnimationReorder(so, action, ref selection, ref changed))
@@ -605,6 +619,8 @@ public sealed class ActionTimelineView
     {
         var kind = (ActionTimelineTrackKind)trackProp.FindPropertyRelative("kind").enumValueIndex;
         string trackName = trackProp.FindPropertyRelative("trackName").stringValue;
+        _drawnTrackIndices.Add(trackIndex);
+        _drawnTrackRects.Add(trackRect);
 
         Rect headerRect = new(trackRect.x, trackRect.y, ActionEditorStyles.TrackHeaderWidth, trackRect.height);
         // 轨道路面宽度铺满中栏剩余区域（与标尺同宽）。
@@ -617,7 +633,11 @@ public sealed class ActionTimelineView
         EditorGUI.DrawRect(headerRect, new Color(0.22f, 0.22f, 0.25f, 1f));
         EditorGUI.DrawRect(laneRect, ActionEditorStyles.Background);
 
-        Rect nameRect = new(headerRect.x + 4f, headerRect.y + 4f, headerRect.width - 28f, headerRect.height - 8f);
+        Rect reorderHandleRect = new(headerRect.x + 2f, headerRect.y + 4f, 18f, headerRect.height - 8f);
+        GUI.Label(reorderHandleRect, "≡", EditorStyles.miniLabel);
+        EditorGUIUtility.AddCursorRect(reorderHandleRect, MouseCursor.ResizeVertical);
+
+        Rect nameRect = new(headerRect.x + 22f, headerRect.y + 4f, headerRect.width - 46f, headerRect.height - 8f);
         string newName = EditorGUI.DelayedTextField(nameRect, trackName);
         if (newName != trackName)
         {
@@ -631,6 +651,22 @@ public sealed class ActionTimelineView
             ShowTrackMenu(so, action, kind, trackName, trackIndex, previewFrame);
 
         Event evt = Event.current;
+        if (evt.type == EventType.MouseDown
+            && evt.button == 0
+            && reorderHandleRect.Contains(evt.mousePosition)
+            && _dragMode == DragMode.None)
+        {
+            _dragMode = DragMode.ReorderTrack;
+            _dragIndex = trackIndex;
+            _trackReorderTargetIndex = trackIndex;
+            _trackReorderMouseDownPos = evt.mousePosition;
+            _trackReorderActivated = false;
+            _dragControlId = GUIUtility.GetControlID(FocusType.Passive);
+            GUIUtility.hotControl = _dragControlId;
+            evt.Use();
+            return;
+        }
+
         if (evt.type == EventType.MouseDown
             && evt.clickCount == 2
             && evt.button == 0
@@ -662,6 +698,97 @@ public sealed class ActionTimelineView
             var itemSelection = new ActionEditorSelection(arrayProp, i, kind);
             DrawWindow(laneRect, element, itemSelection, totalFrames, ref selection, ref changed);
         }
+    }
+
+    /// <summary>处理轨头纵向拖拽；松开时一次性 MoveArrayElement，并绘制黄色插入线。</summary>
+    bool ProcessActiveTrackReorder(SerializedObject so, ref bool changed)
+    {
+        if (_dragMode != DragMode.ReorderTrack || _dragIndex < 0)
+            return false;
+
+        Event evt = Event.current;
+        if (_trackReorderActivated && evt.type == EventType.Repaint)
+            DrawTrackReorderIndicator(_trackReorderTargetIndex, evt.mousePosition.y);
+
+        if (evt.type != EventType.MouseDrag
+            && evt.type != EventType.MouseUp
+            && evt.type != EventType.Ignore)
+        {
+            return false;
+        }
+
+        if (_dragControlId >= 0
+            && GUIUtility.hotControl != _dragControlId
+            && evt.type != EventType.MouseUp)
+        {
+            EndWindowDrag();
+            return false;
+        }
+
+        if (evt.type == EventType.MouseDrag)
+        {
+            if (!_trackReorderActivated
+                && (evt.mousePosition - _trackReorderMouseDownPos).sqrMagnitude >= 16f)
+            {
+                _trackReorderActivated = true;
+            }
+
+            if (_trackReorderActivated)
+                _trackReorderTargetIndex = ResolveTrackReorderTarget(evt.mousePosition.y);
+
+            _pendingRepaint = true;
+            evt.Use();
+            return false;
+        }
+
+        if (_trackReorderActivated
+            && _trackReorderTargetIndex >= 0
+            && ActionTimelineCommands.ReorderTrack(so, _dragIndex, _trackReorderTargetIndex))
+        {
+            changed = true;
+        }
+
+        EndWindowDrag();
+        _pendingRepaint = true;
+        evt.Use();
+        return changed;
+    }
+
+    /// <summary>按鼠标纵坐标与可见轨道中点解析目标数组下标。</summary>
+    int ResolveTrackReorderTarget(float mouseY)
+    {
+        if (_drawnTrackIndices.Count == 0)
+            return _dragIndex;
+
+        int target = _drawnTrackIndices[_drawnTrackIndices.Count - 1];
+        for (int i = 0; i < _drawnTrackRects.Count; i++)
+        {
+            if (mouseY < _drawnTrackRects[i].center.y)
+            {
+                target = _drawnTrackIndices[i];
+                break;
+            }
+        }
+
+        return target;
+    }
+
+    /// <summary>在当前目标轨道上方或下方绘制换序落点。</summary>
+    void DrawTrackReorderIndicator(int targetIndex, float mouseY)
+    {
+        int visibleIndex = _drawnTrackIndices.IndexOf(targetIndex);
+        if (visibleIndex < 0 || visibleIndex >= _drawnTrackRects.Count)
+            return;
+
+        Rect targetRect = _drawnTrackRects[visibleIndex];
+        float y = mouseY < targetRect.center.y ? targetRect.yMin : targetRect.yMax;
+        Handles.BeginGUI();
+        Handles.color = new Color(1f, 0.85f, 0.2f, 1f);
+        Handles.DrawAAPolyLine(
+            3f,
+            new Vector3(targetRect.xMin, y),
+            new Vector3(targetRect.xMax, y));
+        Handles.EndGUI();
     }
 
     void ShowTrackMenu(
@@ -767,8 +894,12 @@ public sealed class ActionTimelineView
     /// <summary>在持有 hotControl 期间处理窗口平移/缩放；用 Kind+Index 重新取属性。</summary>
     bool ProcessActiveWindowDrag(SerializedObject so, int totalFrames, ref bool changed)
     {
-        // Animation 换序由 ProcessActiveAnimationReorder 单独处理。
-        if (_dragMode is DragMode.None or DragMode.Scrub or DragMode.ReorderAnimation || _dragIndex < 0)
+        // Animation 片段与轨道换序分别由专用处理器消费。
+        if (_dragMode is DragMode.None
+            or DragMode.Scrub
+            or DragMode.ReorderAnimation
+            or DragMode.ReorderTrack
+            || _dragIndex < 0)
             return false;
 
         Event evt = Event.current;
@@ -846,6 +977,9 @@ public sealed class ActionTimelineView
         _dragControlId = -1;
         _reorderDragActivated = false;
         _reorderMouseDownPos = default;
+        _trackReorderActivated = false;
+        _trackReorderMouseDownPos = default;
+        _trackReorderTargetIndex = -1;
     }
 
     void DrawRuler(Rect rect, int totalFrames)
@@ -882,7 +1016,11 @@ public sealed class ActionTimelineView
         Event evt = Event.current;
 
         // 窗口/动画段拖拽进行中时不处理标尺。
-        if (_dragMode is DragMode.Move or DragMode.ResizeStart or DragMode.ResizeEnd or DragMode.ReorderAnimation)
+        if (_dragMode is DragMode.Move
+            or DragMode.ResizeStart
+            or DragMode.ResizeEnd
+            or DragMode.ReorderAnimation
+            or DragMode.ReorderTrack)
             return;
 
         if (!rulerRect.Contains(evt.mousePosition) && _dragMode != DragMode.Scrub)

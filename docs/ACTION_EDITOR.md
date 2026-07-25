@@ -321,7 +321,7 @@ Recovery [19───────────────41]
 | 时机 | 机制 |
 |------|------|
 | 播放中 + 玩家输入 | `CancelWindow` |
-| 播放中 + 被击中 | `ActionPhase.interruptible` + Combat → `Hit` 状态 / 受击 `ActionDefinition` |
+| 播放中 + 被击中 | `ActionPhaseNotifyState.interruptible` + Combat → `Hit` 状态 / 受击 `ActionDefinition` |
 | 播放结束或命中/挥空等 | `ActionTransition` |
 
 ### 3.8 ActionGraph（连招 / 状态图，可选）
@@ -518,7 +518,7 @@ Assets/
 │   ├── Combat/
 │   │   ├── Actions/                    # 运行时
 │   │   │   ├── ActionDefinition.cs
-│   │   │   ├── ActionPhase.cs
+│   │   │   ├── Timeline/ActionPhaseNotifyState.cs
 │   │   │   ├── ActionEvent.cs
 │   │   │   ├── HitboxKeyframe.cs
 │   │   │   ├── HurtboxKeyframe.cs
