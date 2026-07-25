@@ -11,7 +11,7 @@ public class ActionGraphSharedRoute
     [Tooltip("限制来源 Action.Trigger；None 表示任意来源。")]
     [SerializeField] GameplayIntentType sourceTrigger = GameplayIntentType.None;
     [Tooltip("匹配普通或 Perfect Cancel 通道。")]
-    [SerializeField] ActionCancelRouteKind routeKind = ActionCancelRouteKind.Cancel;
+    [SerializeField] CancelWindowType routeKind = CancelWindowType.Normal;
     [Tooltip("匹配已缓冲的玩法意图。")]
     [SerializeField] GameplayIntentType intent = GameplayIntentType.None;
     [Tooltip("共享路由目标节点。")]
@@ -21,7 +21,7 @@ public class ActionGraphSharedRoute
     public GameplayIntentType SourceTrigger => sourceTrigger;
 
     /// <summary>匹配的普通或 Perfect Cancel 通道。</summary>
-    public ActionCancelRouteKind RouteKind => routeKind;
+    public CancelWindowType RouteKind => routeKind;
 
     /// <summary>匹配的玩法意图。</summary>
     public GameplayIntentType Intent => intent;

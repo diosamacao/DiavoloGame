@@ -18,7 +18,8 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
     readonly ActionTimelineRunner _timelineRunner = new();
     readonly ActionSession _session = new();
     readonly HashSet<GameplayIntentType> _cancelCandidateIntents = new();
-    /// <summary>同路由已缓冲候选，按 Cancel 优先级降序尝试。</summary>
+    readonly HashSet<GameplayIntentType> _cancelRouteCandidateIntents = new();
+    /// <summary>当前开放窗口的已缓冲候选，按 Cancel 优先级降序尝试。</summary>
     readonly List<GameplayIntentType> _cancelBufferedIntents = new(8);
     IActionInputBuffer _inputBuffer;
     IActionStartContext _startContext;
@@ -193,29 +194,44 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         _session.ConfirmHit();
     }
 
-    /// <summary>解析唯一 CancelWindow 当前所处的普通或 Perfect 通道。</summary>
+    /// <summary>
+    /// 汇总当前帧的 Normal / Perfect 窗口；先按输入意图优先级，再对同一意图优先尝试 Perfect。
+    /// </summary>
     bool TryResolveCancelWindows()
     {
         ActionDefinition current = _session.CurrentAction;
         if (_inputBuffer == null || current == null || _resolverService == null)
             return false;
 
-        return current.TryGetCancelRouteAtFrame(CurrentFrame, out ActionCancelRouteKind routeKind)
-            && TryResolveCancelRoute(routeKind);
-    }
+        bool perfectActive =
+            current.IsCancelWindowActiveAtFrame(CancelWindowType.Perfect, CurrentFrame);
+        bool normalActive =
+            current.IsCancelWindowActiveAtFrame(CancelWindowType.Normal, CurrentFrame);
+        if (!perfectActive && !normalActive)
+            return false;
 
-    /// <summary>
-    /// 对当前 Cancel / PerfectCancel 通道尝试候选输入；多个缓冲意图按优先级降序。
-    /// </summary>
-    bool TryResolveCancelRoute(ActionCancelRouteKind routeKind)
-    {
         _cancelCandidateIntents.Clear();
         if (_session.HasGraphCursor)
         {
-            _session.CurrentGraph.CollectCancelCandidateIntents(
-                _session.CurrentNodeId,
-                routeKind,
-                _cancelCandidateIntents);
+            if (perfectActive)
+            {
+                _cancelRouteCandidateIntents.Clear();
+                _session.CurrentGraph.CollectCancelCandidateIntents(
+                    _session.CurrentNodeId,
+                    CancelWindowType.Perfect,
+                    _cancelRouteCandidateIntents);
+                _cancelCandidateIntents.UnionWith(_cancelRouteCandidateIntents);
+            }
+
+            if (normalActive)
+            {
+                _cancelRouteCandidateIntents.Clear();
+                _session.CurrentGraph.CollectCancelCandidateIntents(
+                    _session.CurrentNodeId,
+                    CancelWindowType.Normal,
+                    _cancelRouteCandidateIntents);
+                _cancelCandidateIntents.UnionWith(_cancelRouteCandidateIntents);
+            }
         }
         else
         {
@@ -227,29 +243,48 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         for (int i = 0; i < _cancelBufferedIntents.Count; i++)
         {
             GameplayIntentType intent = _cancelBufferedIntents[i];
-            var request = new ActionRequest(intent);
-            var context = new ActionResolveContext(
-                ActionResolveOrigin.CancelWindow,
-                _session.CurrentAction,
-                _actorRoot,
-                _startContext,
-                routeKind,
-                _session.CurrentNodeId,
-                hasCancelRoute: true);
+            if (perfectActive
+                && TryResolveCancelIntent(CancelWindowType.Perfect, intent))
+            {
+                return true;
+            }
 
-            if (!_resolverService.TryResolveNext(in request, in context, out ActionResolveResult resolveResult))
-                continue;
-
-            if (!resolveResult.IsValid)
-                continue;
-
-            _inputBuffer.TryConsumeBuffer(intent);
-            ClearOtherActionBuffers(intent);
-            TransitionTo(resolveResult);
-            return true;
+            if (normalActive
+                && TryResolveCancelIntent(CancelWindowType.Normal, intent))
+            {
+                return true;
+            }
         }
 
         return false;
+    }
+
+    /// <summary>解析单个意图在指定窗口类型上的边，并在成功时消费缓冲、切换 Action。</summary>
+    bool TryResolveCancelIntent(CancelWindowType windowType, GameplayIntentType intent)
+    {
+        var request = new ActionRequest(intent);
+        var context = new ActionResolveContext(
+            ActionResolveOrigin.CancelWindow,
+            _session.CurrentAction,
+            _actorRoot,
+            _startContext,
+            windowType,
+            _session.CurrentNodeId,
+            hasCancelRoute: true);
+
+        if (!_resolverService.TryResolveNext(
+                in request,
+                in context,
+                out ActionResolveResult resolveResult)
+            || !resolveResult.IsValid)
+        {
+            return false;
+        }
+
+        _inputBuffer.TryConsumeBuffer(intent);
+        ClearOtherActionBuffers(intent);
+        TransitionTo(resolveResult);
+        return true;
     }
 
     /// <summary>

@@ -414,9 +414,9 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 |----|------|
 | 起手 / 缓冲 | `GameplayIntentBuffer` → `CharacterActionDriver` → `ActionResolverService.TryResolveStart` → `ActionExecutor.TryStart` |
 | Trigger | `ActionDefinition.Trigger = GameplayIntentType`；不保存 InputActionReference |
-| 选招策略 | `ActionGraph` Entry / Cancel 与 PerfectCancel 双通道边 / `ActionGraphSharedRoute`；顺序组出口展开到全部符合通道条件的子节点 |
+| 选招策略 | `ActionGraph` Entry / Normal 与 Perfect CancelWindow 边 / `ActionGraphSharedRoute`；顺序组按类型聚合子节点 |
 | 六向闪避 | `DirectionalActionResolver` 统一解析前、后、左前、左后、右前、右后；前后扇区半角默认 `30°`，纯左/右输入偏向前侧变体 |
-| Cancel 下一招 | 每招唯一 CancelWindow；`perfectFrame` 之前走 Cancel、该帧及之后走 PerfectCancel；显式边优先、再 SharedRoute |
+| Cancel 下一招 | 每招一个 Normal、可选一个 Perfect；窗口重叠且同 Trigger 时 Perfect 优先；不同 Trigger 仍按意图优先级竞争 |
 | 高优硬打断 | Action 态：`TryResolveStart(PriorityInterrupt)` → `ActionExecutor.TryInterrupt`（候选 `interruptPriority` 严格大于当前，且 `IsInterruptibleAtFrame`） |
 | 时间轴数据 | `ActionDefinition.Timeline`：`ActionNotify` 点事件（Event/VFX/SFX）+ `ActionNotifyState` 区间窗口 |
 | 移动取消 | `CharacterActionDriver` + `CancelWindowNotifyState(Movement)` |
@@ -454,7 +454,7 @@ ActionState.Tick
               → PlaySfxNotify 点触发 → ActionSfxPlayer.OnActionNotify（pitch = playbackSpeed）
               → 其他 ActionNotifyState Enter/Tick/Exit
       → CancelWindow / Transition（含 OnHitConfirm）
-          → CancelWindow：按当前帧选择 Cancel / PerfectCancel，显式边优先，未命中再查 SharedRoute
+          → CancelWindow：汇总当前帧 Normal / Perfect；同一意图先 Perfect 后 Normal，再按显式边 / SharedRoute 解析
           → Recovery Phase：按窗口开关处理移动取消 / Graph Entry 软重开
           → NotifyActionEnded → ActionSfxPlayer.OnActionEnded → 专用 AudioSource.Stop
 ```
@@ -481,7 +481,7 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 
 - 现有资产需要在 Unity Editor 的 Phase 轨重建原 `phases[]`，并为 Recovery 配置移动取消 / Entry 重开开关；Agent 未直接修改 `.asset`
 - 硬打断与 Recovery 软重开走 Graph Entry，不要求 Cancel 边；独特连招进位仍依赖 Combo Window + 显式边
-- 旧 `CancelType`、Cancel 槽 Id 与多窗口配置不再受支持；每个 Action 需在 Editor 中整理为唯一 CancelWindow
+- 旧 `perfectFrame`、Cancel 槽 Id 与同类型多窗口不再受支持；资产需整理为一个 Normal 与可选一个 Perfect
 - Scene 玩家入口已改为 Empty + `PlayerController` + `CharacterConfig`
 
 ### Editor 操作（Prefab）
@@ -543,5 +543,5 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 | 2026-07-25 | ActionGraph 稀疏路由：显式边仅保留独特拓扑；新增 SharedRoute、Recovery Phase→Entry、Directional 逻辑节点；删除 Recovery Cancel 与 ComboResolver；输入缓冲增加 0.15s 过期 |
 | 2026-07-25 | Phase 收敛到 `ActionTimeline.phaseStates`；Action Editor 开放 Phase 轨；Recovery 窗口集成移动取消与 Entry 重开；删除独立 `ActionPhase` 数据路径 |
 | 2026-07-25 | Action Editor 手动轨道支持拖拽换序：轨头手柄、插入线、松开写回 `timeline.tracks`，完整支持 Undo |
-| 2026-07-25 | Cancel 双通道与顺序组：唯一 CancelWindow、Perfect 分割帧、组出口聚合全部符合通道条件的子节点；组内行顺序自动生成普通链并保留独立 In |
+| 2026-07-26 | Perfect 独立窗口：CancelWindowType=Normal/Perfect；允许重叠，同一 Trigger 优先 Perfect；删除 perfectFrame 分割路径 |
 | 2026-07-25 | 新增 DodgeAttack 语义：GameplayIntentProfile 通过 IsDodging 条件将闪避 Action 中的 Attack Pressed 映射为闪避攻击 |

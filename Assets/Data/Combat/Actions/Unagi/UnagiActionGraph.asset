@@ -45,29 +45,29 @@ MonoBehaviour:
     editorPosition: {x: 986, y: 188.66667}
   - nodeId: Unagi_Attack_Branch_01
     action: {fileID: 11400000, guid: 4756f9d82a242dd40a535249ef2b4771, type: 2}
-    isEntry: 0
+    isEntry: 1
     variantResolver: {fileID: 0}
-    editorPosition: {x: 1405.3334, y: -256.6667}
+    editorPosition: {x: 1512, y: -578.6667}
   - nodeId: Unagi_Attack_Branch_01_Perfect
     action: {fileID: 11400000, guid: 3e79dc3aaf3a97a40b921d55dab6542a, type: 2}
     isEntry: 0
     variantResolver: {fileID: 0}
-    editorPosition: {x: 1405.3334, y: -381.33334}
+    editorPosition: {x: 1512, y: -708}
   - nodeId: Unagi_Attack_Branch_02
     action: {fileID: 11400000, guid: 36239327dd50e6945a178edda90d407e, type: 2}
     isEntry: 1
     variantResolver: {fileID: 0}
-    editorPosition: {x: 1360.6666, y: -24.666666}
+    editorPosition: {x: 893.3333, y: -559.3333}
   - nodeId: Unagi_Attack_Branch_02_Perfect
     action: {fileID: 11400000, guid: 06815d13e71fa4344aa893b2a53a81be, type: 2}
-    isEntry: 1
+    isEntry: 0
     variantResolver: {fileID: 0}
-    editorPosition: {x: 1358.6666, y: -126}
+    editorPosition: {x: 893.3333, y: 132}
   - nodeId: Unagi_Attack_Branch_03
     action: {fileID: 11400000, guid: 7a7e279f3fea53544be07873000e4b92, type: 2}
     isEntry: 0
     variantResolver: {fileID: 0}
-    editorPosition: {x: 1819.3334, y: -75.333336}
+    editorPosition: {x: 1898.6666, y: -278}
   - nodeId: Unagi_Attack_Branch_Start
     action: {fileID: 11400000, guid: 9a980e3a4de96d24899394e1394b530e, type: 2}
     isEntry: 1
@@ -87,7 +87,7 @@ MonoBehaviour:
     action: {fileID: 11400000, guid: 9b8a4ec0ba7bc3840a101d608c26e9f0, type: 2}
     isEntry: 1
     variantResolver: {fileID: 11400000, guid: cd749318cea11fe4992142b817d6d890, type: 2}
-    editorPosition: {x: 780, y: -508.66666}
+    editorPosition: {x: 724.6667, y: -903.3333}
   edges:
   - fromNodeId: Unagi_Attack_02
     routeKind: 0
@@ -116,30 +116,33 @@ MonoBehaviour:
   - fromNodeId: Unagi_Attack_Branch_Start
     routeKind: 0
     toNodeId: Unagi_ChargeAttack_01
+  - fromNodeId: Unagi_Attack_03
+    routeKind: 1
+    toNodeId: Unagi_Attack_Branch_02_Perfect
+  - fromNodeId: Unagi_Attack_05
+    routeKind: 1
+    toNodeId: Unagi_Attack_Branch_02_Perfect
   - fromNodeId: Unagi_Attack_02
     routeKind: 0
-    toNodeId: Unagi_Attack_Branch_01_Perfect
+    toNodeId: Unagi_Attack_Branch_02
   - fromNodeId: Unagi_Attack_03
     routeKind: 0
-    toNodeId: Unagi_Attack_Branch_01_Perfect
+    toNodeId: Unagi_Attack_Branch_02
   - fromNodeId: Unagi_Attack_05
     routeKind: 0
-    toNodeId: Unagi_Attack_Branch_01_Perfect
+    toNodeId: Unagi_Attack_Branch_02
   - fromNodeId: Unagi_Attack_06
     routeKind: 0
-    toNodeId: Unagi_Attack_Branch_01_Perfect
-  - fromNodeId: Unagi_Attack_02
+    toNodeId: Unagi_Attack_Branch_02
+  - fromNodeId: Unagi_Attack_Branch_02
     routeKind: 0
-    toNodeId: Unagi_Attack_Branch_01
-  - fromNodeId: Unagi_Attack_03
+    toNodeId: Unagi_Attack_03
+  - fromNodeId: Unagi_Attack_Branch_02_Perfect
     routeKind: 0
-    toNodeId: Unagi_Attack_Branch_01
-  - fromNodeId: Unagi_Attack_05
+    toNodeId: Unagi_Attack_03
+  - fromNodeId: Unagi_Attack_Branch_03
     routeKind: 0
-    toNodeId: Unagi_Attack_Branch_01
-  - fromNodeId: Unagi_Attack_06
-    routeKind: 0
-    toNodeId: Unagi_Attack_Branch_01
+    toNodeId: Unagi_Attack_02
   sharedRoutes: []
   nodeGroups:
   - groupId: Sequence

@@ -97,7 +97,7 @@ public class ActionGraph : ScriptableObject
         return false;
     }
 
-    /// <summary>Cancel：按 (CurrentNodeId, CancelRoute) 出边，目标 Trigger 匹配 request。</summary>
+    /// <summary>Cancel：按 (CurrentNodeId, CancelWindowType) 出边，目标 Trigger 匹配 request。</summary>
     public bool TryResolveCancel(
         in ActionRequest request,
         in ActionResolveContext context,
@@ -108,7 +108,7 @@ public class ActionGraph : ScriptableObject
             return false;
 
         var edgeBuffer = new List<ActionGraphEdge>(8);
-        CollectEdges(context.CurrentNodeId, context.CancelRoute, edgeBuffer);
+        CollectEdges(context.CurrentNodeId, context.CancelWindowType, edgeBuffer);
 
         for (int i = 0; i < edgeBuffer.Count; i++)
         {
@@ -144,7 +144,7 @@ public class ActionGraph : ScriptableObject
         {
             ActionGraphSharedRoute route = sharedRoutes[i];
             if (route == null
-                || route.RouteKind != context.CancelRoute
+                || route.RouteKind != context.CancelWindowType
                 || route.Intent != request.Intent
                 || (route.SourceTrigger != GameplayIntentType.None
                     && route.SourceTrigger != sourceTrigger))
@@ -164,7 +164,7 @@ public class ActionGraph : ScriptableObject
     /// <summary>枚举从指定节点、指定 Cancel 路由出发的边。</summary>
     public void CollectEdges(
         string fromNodeId,
-        ActionCancelRouteKind routeKind,
+        CancelWindowType routeKind,
         List<ActionGraphEdge> results)
     {
         results.Clear();
@@ -185,7 +185,7 @@ public class ActionGraph : ScriptableObject
     /// <summary>收集某节点某槽出边目标招的玩法意图（去重）。</summary>
     public void CollectCancelCandidateIntents(
         string fromNodeId,
-        ActionCancelRouteKind routeKind,
+        CancelWindowType routeKind,
         HashSet<GameplayIntentType> results)
     {
         results.Clear();
@@ -317,20 +317,20 @@ public class ActionGraphNode
 public class ActionGraphEdge
 {
     [SerializeField] string fromNodeId;
-    [SerializeField] ActionCancelRouteKind routeKind;
+    [SerializeField] CancelWindowType routeKind;
     [SerializeField] string toNodeId;
 
     /// <summary>边起点节点。</summary>
     public string FromNodeId => fromNodeId;
 
     /// <summary>绑定的普通或 Perfect Cancel 通道。</summary>
-    public ActionCancelRouteKind RouteKind => routeKind;
+    public CancelWindowType RouteKind => routeKind;
 
     /// <summary>边终点节点。</summary>
     public string ToNodeId => toNodeId;
 
     /// <summary>编辑器创建边时赋值。</summary>
-    public void Set(string from, ActionCancelRouteKind route, string to)
+    public void Set(string from, CancelWindowType route, string to)
     {
         fromNodeId = from;
         routeKind = route;

@@ -24,7 +24,7 @@ public class ActionGraphInspector : Editor
         EditorGUILayout.LabelField("Action Graph", EditorStyles.boldLabel);
         EditorGUILayout.HelpBox(
             "勾选节点 Is Entry 作为 Locomotion 起手；同一图可有多个 Entry（Attack / Dodge 等靠 Action.Trigger 区分）。\n" +
-            "每招唯一 CancelWindow；边仅分 Cancel / PerfectCancel，重复去向用 Shared Route。\n" +
+            "每招一个 Normal、可选一个 Perfect CancelWindow；同 Trigger 重叠时 Perfect 优先。\n" +
             "Graph Editor 可将节点合并为顺序组：每行独立 In，普通 Cancel 自动进入下一行。\n" +
             "方向闪避只保留一个 Entry + Directional Resolver，六向变体共用该逻辑节点。",
             MessageType.Info);
@@ -53,7 +53,7 @@ public class ActionGraphInspector : Editor
     {
         EditorGUILayout.LabelField("Shared Routes (Implicit)", EditorStyles.boldLabel);
         EditorGUILayout.HelpBox(
-            "显式边未匹配时才使用。Source=None 表示任意来源；按 Source Trigger + Cancel/PerfectCancel + Intent 路由。",
+            "显式边未匹配时才使用。Source=None 表示任意来源；按 Source Trigger + Normal/Perfect + Intent 路由。",
             MessageType.None);
 
         if (GUILayout.Button("Add Shared Route"))
@@ -285,9 +285,7 @@ public class ActionGraphInspector : Editor
             if (window == null)
                 continue;
             EditorGUILayout.LabelField(
-                window.HasPerfectSplit
-                    ? $"  Cancel f{window.StartFrame}-{window.EndFrame} · Perfect f{window.PerfectFrame}+"
-                    : $"  Cancel f{window.StartFrame}-{window.EndFrame}",
+                $"  {window.WindowType} Cancel f{window.StartFrame}-{window.EndFrame}",
                 EditorStyles.miniLabel);
         }
     }
@@ -347,15 +345,13 @@ public class ActionGraphInspector : Editor
 
                 if (!groupedNodes.Add(childNodeId))
                     errors.Add($"节点 '{childNodeId}' 同时属于多个顺序组。");
-                if (child.Action.Timeline.CancelWindowStates.Length != 1)
-                    errors.Add($"组内 Action '{child.Action.name}' 必须且只能有一个 CancelWindow。");
             }
         }
 
         foreach (ActionGraphNode node in graph.Nodes)
         {
-            if (node?.Action != null && node.Action.Timeline.CancelWindowStates.Length != 1)
-                errors.Add($"Action '{node.Action.name}' 必须且只能配置一个 CancelWindow。");
+            if (node?.Action != null)
+                ValidateCancelWindows(node.Action, errors);
         }
 
         var triggerKeys = new HashSet<string>();
@@ -376,11 +372,9 @@ public class ActionGraphInspector : Editor
                 continue;
             }
 
-            CancelWindowNotifyState window = from.Action.CancelWindow;
+            CancelWindowNotifyState window = from.Action.GetCancelWindow(edge.RouteKind);
             if (window == null)
-                errors.Add($"节点 {edge.FromNodeId} 缺少唯一 CancelWindow。");
-            else if (edge.RouteKind == ActionCancelRouteKind.PerfectCancel && !window.HasPerfectSplit)
-                errors.Add($"节点 {edge.FromNodeId} 未配置 Perfect 分割帧，却存在 PerfectCancel 边。");
+                errors.Add($"节点 {edge.FromNodeId} 缺少 {edge.RouteKind} CancelWindow。");
 
             GameplayIntentType trigger = to.Action.Trigger;
             if (trigger == GameplayIntentType.None)
@@ -442,10 +436,9 @@ public class ActionGraphInspector : Editor
                     continue;
                 }
 
-                CancelWindowNotifyState sourceWindow = node.Action.CancelWindow;
-                if (sourceWindow != null
-                    && (route.RouteKind == ActionCancelRouteKind.Cancel
-                        || sourceWindow.HasPerfectSplit))
+                CancelWindowNotifyState sourceWindow =
+                    node.Action.GetCancelWindow(route.RouteKind);
+                if (sourceWindow != null)
                 {
                     matchingRouteFound = true;
                     break;
@@ -496,5 +489,27 @@ public class ActionGraphInspector : Editor
             foreach (string error in errors)
                 Debug.LogError($"[ActionGraph] {error}", graph);
         }
+    }
+
+    /// <summary>校验每个 Action 恰有一个 Normal，且最多一个 Perfect CancelWindow。</summary>
+    static void ValidateCancelWindows(ActionDefinition action, List<string> errors)
+    {
+        int normalCount = 0;
+        int perfectCount = 0;
+        foreach (CancelWindowNotifyState window in action.Timeline.CancelWindowStates)
+        {
+            if (window == null)
+                continue;
+
+            if (window.WindowType == CancelWindowType.Perfect)
+                perfectCount++;
+            else
+                normalCount++;
+        }
+
+        if (normalCount != 1)
+            errors.Add($"Action '{action.name}' 必须且只能配置一个 Normal CancelWindow。");
+        if (perfectCount > 1)
+            errors.Add($"Action '{action.name}' 最多只能配置一个 Perfect CancelWindow。");
     }
 }

@@ -52,7 +52,7 @@ MonoBehaviour:
       endFrame: 49
       priority: 0
       trackName: Cancel_1
-      perfectFrame: -1
+      windowType: 0
     phaseStates:
     - id: Phase_1
       startFrame: 50

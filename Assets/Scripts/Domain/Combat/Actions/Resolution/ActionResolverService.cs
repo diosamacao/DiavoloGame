@@ -38,7 +38,7 @@ public sealed class ActionResolverService
         return graph.TryResolveStart(in request, in context, out result);
     }
 
-    /// <summary>Cancel 下一招：使用 CurrentNodeId + CancelRoute 在 ActiveGraph 上解析。</summary>
+    /// <summary>Cancel 下一招：使用 CurrentNodeId + CancelWindowType 在 ActiveGraph 上解析。</summary>
     public bool TryResolveNext(
         in ActionRequest request,
         in ActionResolveContext context,

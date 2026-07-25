@@ -111,7 +111,13 @@ MonoBehaviour:
       endFrame: 39
       priority: 0
       trackName: Cancel_3
-      perfectFrame: -1
+      windowType: 0
+    - id: PerfectCancel
+      startFrame: 19
+      endFrame: 39
+      priority: 0
+      trackName: Cancel_2
+      windowType: 1
     phaseStates:
     - id: Phase_1
       startFrame: 40
@@ -135,6 +141,9 @@ MonoBehaviour:
       kind: 8
       visible: 1
     - trackName: Cancel_3
+      kind: 4
+      visible: 1
+    - trackName: Cancel_2
       kind: 4
       visible: 1
     - trackName: Rotation_1

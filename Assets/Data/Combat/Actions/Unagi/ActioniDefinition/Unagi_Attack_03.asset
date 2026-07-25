@@ -89,7 +89,13 @@ MonoBehaviour:
       endFrame: 32
       priority: 0
       trackName: Cancel_3
-      perfectFrame: -1
+      windowType: 0
+    - id: PerfectCancel
+      startFrame: 14
+      endFrame: 32
+      priority: 0
+      trackName: Cancel_2
+      windowType: 1
     phaseStates:
     - id: Phase_1
       startFrame: 33
@@ -116,6 +122,9 @@ MonoBehaviour:
       smoothTimeOverride: 0
     tracks:
     - trackName: Cancel_3
+      kind: 4
+      visible: 1
+    - trackName: Cancel_2
       kind: 4
       visible: 1
     - trackName: Phase_1

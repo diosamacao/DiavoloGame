@@ -9,7 +9,7 @@ public readonly struct ActionResolveContext
         ActionDefinition currentAction,
         Transform actorRoot,
         IActionStartContext startContext,
-        ActionCancelRouteKind cancelRoute = ActionCancelRouteKind.Cancel,
+        CancelWindowType cancelWindowType = CancelWindowType.Normal,
         string currentNodeId = null,
         bool hasCancelRoute = false)
     {
@@ -17,7 +17,7 @@ public readonly struct ActionResolveContext
         CurrentAction = currentAction;
         ActorRoot = actorRoot;
         StartContext = startContext;
-        CancelRoute = cancelRoute;
+        CancelWindowType = cancelWindowType;
         CurrentNodeId = currentNodeId;
         HasCancelRoute = hasCancelRoute;
     }
@@ -34,8 +34,8 @@ public readonly struct ActionResolveContext
     /// <summary>招式起手副作用上下文：读取闪避意图方向、修正朝向。</summary>
     public IActionStartContext StartContext { get; }
 
-    /// <summary>单一 CancelWindow 当前命中的普通或 Perfect 路由。</summary>
-    public ActionCancelRouteKind CancelRoute { get; }
+    /// <summary>当前命中的 Normal 或 Perfect CancelWindow 类型。</summary>
+    public CancelWindowType CancelWindowType { get; }
 
     /// <summary>当前连招图节点 id；不在图内时为 null。</summary>
     public string CurrentNodeId { get; }
