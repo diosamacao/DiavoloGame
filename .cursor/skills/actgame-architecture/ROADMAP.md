@@ -52,6 +52,7 @@
 - [x] 2026-07-10：VFX/SFX 区间窗口 + 播放倍率语义（已于 2026-07-13 改回点事件 + 显式 `playbackSpeed`）
 - [x] 2026-07-13：VFX/SFX 点事件 + `attachPointId` + 显式 `playbackSpeed`；`CharacterAttachPointResolver`；`ActionSfxPlayer`
 - [x] 2026-07-25：ActionGraph 稀疏路由——SharedRoute、Recovery Phase→Entry、Directional 共用逻辑节点；删除 Recovery Cancel 与 ComboResolver 旧路径
+- [x] 2026-07-25：ActionGraph 顺序组与双通道——单 CancelWindow、Perfect 分割帧、每行独立 In、顺序自动普通 Cancel 链
 - [x] 2026-07-25：Phase 帧数据迁入 ActionTimeline；Action Editor 开放 Phase 轨；Recovery 窗口集成移动取消与 Entry 重开
 - [x] 2026-07-25：Action Editor 手动轨道支持轨头拖拽排序与 Undo
 - [ ] `ActionDefinition` 子 SO 拆分（CombatData / PresentationData，可选）
@@ -97,7 +98,7 @@
 - [x] 2026-06-29：`HitBoxSystem` / `HitDetectionSystem` / `TargetingSystem` 命名收敛为 `HitboxFrameConsumer` / `HitDetector` / `TargetingResolver`，`System` 后缀仅保留给架构 IOC
 - [x] 2026-07-05：动作系统 Resolver 重构——新增 `ActionResolver`（Single/Combo/Directional）+ `ActionResolverService`；起手/连段/Dodge 方向/Cancel 解析全部走 Resolver；删除 `ActionExecutor.TryStartByInput` 与 Dodge 特判、`ActionComboSequence`、`DodgeDirectionVariants`；`IActionComboInput`→`IActionInputBuffer`；`Combat/Actions` 按 Definitions/Resolution/Execution/Frames 分层
 - [x] 2026-07-12：动画薄层 Playable（`IAnimationPlayback` + `PlayableAnimationPlayback`）；Action/Locomotion 同切 Clip；HitStop 走门面 Speed；Animancer 可替换预留
-- [x] 2026-07-14：ActionGraph P0——`ActionDefinition.Trigger`、`ActionGraph`、图游标、Cancel 槽边路由、移除 `allowedInputs`、编辑器（见 `docs/ACTION_GRAPH_DESIGN.md`）
+- [x] 2026-07-14：ActionGraph P0——`ActionDefinition.Trigger`、`ActionGraph`、图游标与编辑器（现已收敛为 Cancel/PerfectCancel 双通道）
 - [x] 2026-07-14：ActionGraph 多入口——删除 `GraphActionResolver` 与 `ActionEntry` 输入表；`PlayerActionSet` 直接绑 Graph；Entry×Trigger 同时支持攻击/闪避起手
 - [x] 2026-07-19：语义化玩法意图层——物理输入经 `GameplayIntentProducer` 转为枚举 Trigger；实现 SprintAttack、PressedThenLong 与 Dodge 后 Sprint 恢复
 - [x] 2026-07-19：方向闪避统一为前/后/左前/左后/右前/右后六向解析，移除 Locomotion 起手固定前闪旧路径

@@ -196,11 +196,28 @@ public static class ActionNotifySelectionDrawer
 
     static void DrawCancel(SerializedProperty element)
     {
-        EditorGUILayout.PropertyField(element.FindPropertyRelative("cancelType"));
-        // Cancel 槽 id 复用时间轴条目 Id，供 ActionGraph 边绑定；不再配置 allowedInputs。
-        EditorGUILayout.PropertyField(element.FindPropertyRelative("id"), new GUIContent(
-            "Cancel Slot Id",
-            "图边绑定的槽身份；改帧不要改此 Id，否则会断边。"));
+        SerializedProperty perfectProp = element.FindPropertyRelative("perfectFrame");
+        SerializedProperty startProp = element.FindPropertyRelative("startFrame");
+        SerializedProperty endProp = element.FindPropertyRelative("endFrame");
+        bool enabled = perfectProp != null && perfectProp.intValue >= 0;
+        bool nextEnabled = EditorGUILayout.Toggle(
+            new GUIContent("Enable Perfect Split", "分割帧及之后走 PerfectCancel，之前走普通 Cancel。"),
+            enabled);
+
+        if (!nextEnabled)
+        {
+            if (perfectProp != null)
+                perfectProp.intValue = -1;
+            return;
+        }
+
+        int start = startProp?.intValue ?? 0;
+        int end = Mathf.Max(start, endProp?.intValue ?? start);
+        if (perfectProp != null)
+        {
+            int current = enabled ? perfectProp.intValue : start;
+            perfectProp.intValue = EditorGUILayout.IntSlider("Perfect Start Frame", current, start, end);
+        }
     }
 
     /// <summary>绘制语义阶段；Recovery 额外集成移动取消与 Graph Entry 重开能力。</summary>

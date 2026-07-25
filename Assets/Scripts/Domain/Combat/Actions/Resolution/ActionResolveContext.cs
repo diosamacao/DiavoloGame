@@ -9,17 +9,17 @@ public readonly struct ActionResolveContext
         ActionDefinition currentAction,
         Transform actorRoot,
         IActionStartContext startContext,
-        CancelType cancelType = CancelType.Combo,
+        ActionCancelRouteKind cancelRoute = ActionCancelRouteKind.Cancel,
         string currentNodeId = null,
-        string cancelSlotId = null)
+        bool hasCancelRoute = false)
     {
         Origin = origin;
         CurrentAction = currentAction;
         ActorRoot = actorRoot;
         StartContext = startContext;
-        CancelType = cancelType;
+        CancelRoute = cancelRoute;
         CurrentNodeId = currentNodeId;
-        CancelSlotId = cancelSlotId;
+        HasCancelRoute = hasCancelRoute;
     }
 
     /// <summary>解析来源（Locomotion 起手、显式 Cancel、Recovery 软重开或高优打断）。</summary>
@@ -34,14 +34,14 @@ public readonly struct ActionResolveContext
     /// <summary>招式起手副作用上下文：读取闪避意图方向、修正朝向。</summary>
     public IActionStartContext StartContext { get; }
 
-    /// <summary>触发本次解析的 Cancel 窗类型；非 CancelWindow 来源时无意义。</summary>
-    public CancelType CancelType { get; }
+    /// <summary>单一 CancelWindow 当前命中的普通或 Perfect 路由。</summary>
+    public ActionCancelRouteKind CancelRoute { get; }
 
     /// <summary>当前连招图节点 id；不在图内时为 null。</summary>
     public string CurrentNodeId { get; }
 
-    /// <summary>本次 Cancel 命中的槽 id；非 Cancel 解析时为 null。</summary>
-    public string CancelSlotId { get; }
+    /// <summary>是否携带有效 Cancel 路由；仅 CancelWindow 来源为 true。</summary>
+    public bool HasCancelRoute { get; }
 }
 
 /// <summary>动作解析来源：区分起手、显式 Cancel、Recovery Entry 与高优硬打断。</summary>

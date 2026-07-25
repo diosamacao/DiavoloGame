@@ -18,7 +18,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
     readonly ActionTimelineRunner _timelineRunner = new();
     readonly ActionSession _session = new();
     readonly HashSet<GameplayIntentType> _cancelCandidateIntents = new();
-    /// <summary>同槽已缓冲候选，按 Cancel 优先级降序尝试。</summary>
+    /// <summary>同路由已缓冲候选，按 Cancel 优先级降序尝试。</summary>
     readonly List<GameplayIntentType> _cancelBufferedIntents = new(8);
     IActionInputBuffer _inputBuffer;
     IActionStartContext _startContext;
@@ -30,11 +30,10 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
     public bool IsPlaying => _session.IsActive;
     public bool IsHitStopPaused => _session.IsHitStopPaused;
     public bool HasConfirmedHitThisAction => _session.HasConfirmedHit;
-    /// <summary>显式 Movement 窗，或开启移动取消的 Recovery Phase 均允许返回 Locomotion。</summary>
+    /// <summary>开启移动取消的 Recovery Phase 允许返回 Locomotion。</summary>
     public bool CanCancelByMovement =>
         _session.IsActive
-        && (_session.CurrentAction.IsInMovementCancelWindow(_session.ElapsedSeconds)
-            || _session.CurrentAction.AllowsRecoveryMovementCancelAtFrame(CurrentFrame));
+        && _session.CurrentAction.AllowsRecoveryMovementCancelAtFrame(CurrentFrame);
     public bool CanRotateByInput =>
         _session.IsActive && _session.CurrentAction.IsInRotationWindow(_session.ElapsedSeconds);
     public ActionDefinition CurrentAction => _session.CurrentAction;
@@ -194,40 +193,28 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         _session.ConfirmHit();
     }
 
-    /// <summary>按 priority 扫描 CancelWindow：候选输入由图边 Trigger 或出招表推导，下一招走 ActionResolverService。</summary>
+    /// <summary>解析唯一 CancelWindow 当前所处的普通或 Perfect 通道。</summary>
     bool TryResolveCancelWindows()
     {
         ActionDefinition current = _session.CurrentAction;
         if (_inputBuffer == null || current == null || _resolverService == null)
             return false;
 
-        foreach (ResolvedCancelWindow window in current.GetCancelWindowsSorted())
-        {
-            if (!current.IsInCancelWindow(window, _session.ElapsedSeconds))
-                continue;
-
-            if (!window.CancelType.ResolvesNextAction())
-                continue;
-
-            if (TryResolveCancelForWindow(window))
-                return true;
-        }
-
-        return false;
+        return current.TryGetCancelRouteAtFrame(CurrentFrame, out ActionCancelRouteKind routeKind)
+            && TryResolveCancelRoute(routeKind);
     }
 
     /// <summary>
-    /// 对单个开放 Cancel 槽尝试候选输入；图内仅扫该槽出边 Trigger，否则扫出招表全部输入。
-    /// 同槽多个已缓冲意图时按 <see cref="GameplayIntentCancelPriority"/> 降序（如 LongPressedAttack &gt; Attack）。
+    /// 对当前 Cancel / PerfectCancel 通道尝试候选输入；多个缓冲意图按优先级降序。
     /// </summary>
-    bool TryResolveCancelForWindow(ResolvedCancelWindow window)
+    bool TryResolveCancelRoute(ActionCancelRouteKind routeKind)
     {
         _cancelCandidateIntents.Clear();
         if (_session.HasGraphCursor)
         {
             _session.CurrentGraph.CollectCancelCandidateIntents(
                 _session.CurrentNodeId,
-                window.CancelSlotId,
+                routeKind,
                 _cancelCandidateIntents);
         }
         else
@@ -246,9 +233,9 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
                 _session.CurrentAction,
                 _actorRoot,
                 _startContext,
-                window.CancelType,
+                routeKind,
                 _session.CurrentNodeId,
-                window.CancelSlotId);
+                hasCancelRoute: true);
 
             if (!_resolverService.TryResolveNext(in request, in context, out ActionResolveResult resolveResult))
                 continue;

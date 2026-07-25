@@ -24,7 +24,8 @@ public class ActionGraphInspector : Editor
         EditorGUILayout.LabelField("Action Graph", EditorStyles.boldLabel);
         EditorGUILayout.HelpBox(
             "勾选节点 Is Entry 作为 Locomotion 起手；同一图可有多个 Entry（Attack / Dodge 等靠 Action.Trigger 区分）。\n" +
-            "显式边只表达独特连招；重复的同槽去向用 Shared Route，Recovery Phase 自动按 Entry 重开。\n" +
+            "每招唯一 CancelWindow；边仅分 Cancel / PerfectCancel，重复去向用 Shared Route。\n" +
+            "Graph Editor 可将节点合并为顺序组：每行独立 In，普通 Cancel 自动进入下一行。\n" +
             "方向闪避只保留一个 Entry + Directional Resolver，六向变体共用该逻辑节点。",
             MessageType.Info);
 
@@ -52,7 +53,7 @@ public class ActionGraphInspector : Editor
     {
         EditorGUILayout.LabelField("Shared Routes (Implicit)", EditorStyles.boldLabel);
         EditorGUILayout.HelpBox(
-            "显式边未匹配时才使用。Source=None 表示任意来源；按 Source Trigger + Cancel Slot + Intent 路由到目标节点。",
+            "显式边未匹配时才使用。Source=None 表示任意来源；按 Source Trigger + Cancel/PerfectCancel + Intent 路由。",
             MessageType.None);
 
         if (GUILayout.Button("Add Shared Route"))
@@ -82,8 +83,8 @@ public class ActionGraphInspector : Editor
                 }
 
                 EditorGUILayout.PropertyField(
-                    route.FindPropertyRelative("cancelSlotId"),
-                    new GUIContent("Cancel Slot"));
+                    route.FindPropertyRelative("routeKind"),
+                    new GUIContent("Route"));
                 DrawStringPopup(
                     route.FindPropertyRelative("toNodeId"),
                     nodeIds,
@@ -147,7 +148,7 @@ public class ActionGraphInspector : Editor
         {
             SerializedProperty edge = _edges.GetArrayElementAtIndex(i);
             SerializedProperty from = edge.FindPropertyRelative("fromNodeId");
-            SerializedProperty slot = edge.FindPropertyRelative("cancelSlotId");
+            SerializedProperty route = edge.FindPropertyRelative("routeKind");
             SerializedProperty to = edge.FindPropertyRelative("toNodeId");
 
             using (new EditorGUILayout.VerticalScope("box"))
@@ -155,7 +156,7 @@ public class ActionGraphInspector : Editor
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     DrawStringPopup(from, nodeIds, "From", 80);
-                    DrawSlotPopup(from, slot);
+                    EditorGUILayout.PropertyField(route, GUIContent.none, GUILayout.Width(110));
                     DrawStringPopup(to, nodeIds, "To", 80);
                     if (GUILayout.Button("×", GUILayout.Width(24)))
                     {
@@ -169,21 +170,6 @@ public class ActionGraphInspector : Editor
                     EditorGUILayout.LabelField($"匹配 Trigger: {triggerLabel}", EditorStyles.miniLabel);
             }
         }
-    }
-
-    void DrawSlotPopup(SerializedProperty fromNodeId, SerializedProperty slotProp)
-    {
-        List<string> slots = CollectCancelSlotIds(fromNodeId.stringValue);
-        if (slots.Count == 0)
-        {
-            EditorGUILayout.PropertyField(slotProp, GUIContent.none, GUILayout.MinWidth(100));
-            return;
-        }
-
-        int index = Mathf.Max(0, slots.IndexOf(slotProp.stringValue));
-        int next = EditorGUILayout.Popup(index, slots.ToArray(), GUILayout.MinWidth(100));
-        if (next >= 0 && next < slots.Count)
-            slotProp.stringValue = slots[next];
     }
 
     static void DrawStringPopup(SerializedProperty prop, List<string> options, string label, float width)
@@ -273,25 +259,6 @@ public class ActionGraphInspector : Editor
         return ids;
     }
 
-    List<string> CollectCancelSlotIds(string fromNodeId)
-    {
-        var slots = new List<string>();
-        ActionDefinition action = FindNodeAction(fromNodeId);
-        if (action == null)
-            return slots;
-
-        foreach (CancelWindowNotifyState window in action.Timeline.CancelWindowStates)
-        {
-            if (window == null)
-                continue;
-            string slot = window.CancelSlotId;
-            if (!string.IsNullOrEmpty(slot) && !slots.Contains(slot))
-                slots.Add(slot);
-        }
-
-        return slots;
-    }
-
     ActionDefinition FindNodeAction(string nodeId)
     {
         for (int i = 0; i < _nodes.arraySize; i++)
@@ -318,12 +285,14 @@ public class ActionGraphInspector : Editor
             if (window == null)
                 continue;
             EditorGUILayout.LabelField(
-                $"  Cancel [{window.CancelSlotId}] {window.CancelType} f{window.StartFrame}-{window.EndFrame}",
+                window.HasPerfectSplit
+                    ? $"  Cancel f{window.StartFrame}-{window.EndFrame} · Perfect f{window.PerfectFrame}+"
+                    : $"  Cancel f{window.StartFrame}-{window.EndFrame}",
                 EditorStyles.miniLabel);
         }
     }
 
-    /// <summary>校验多 Entry Trigger、边、槽与同槽冲突。</summary>
+    /// <summary>校验多 Entry Trigger、双通道边、顺序组与同路由冲突。</summary>
     public static void ValidateGraph(ActionGraph graph)
     {
         if (graph == null)
@@ -357,6 +326,38 @@ public class ActionGraphInspector : Editor
         if (entryCount == 0)
             errors.Add("至少需要一个 Is Entry 节点作为 Locomotion 起手。");
 
+        var groupIds = new HashSet<string>();
+        var groupedNodes = new HashSet<string>();
+        foreach (ActionGraphNodeGroup group in graph.NodeGroups)
+        {
+            if (group == null)
+                continue;
+            if (string.IsNullOrWhiteSpace(group.GroupId) || !groupIds.Add(group.GroupId))
+                errors.Add($"顺序组 Id 为空或重复: '{group.GroupId}'。");
+            if (group.ChildNodeIds.Count == 0)
+                errors.Add($"顺序组 '{group.GroupId}' 没有 Action。");
+
+            foreach (string childNodeId in group.ChildNodeIds)
+            {
+                if (!graph.TryGetNode(childNodeId, out ActionGraphNode child))
+                {
+                    errors.Add($"顺序组 '{group.GroupId}' 包含无效节点: {childNodeId}");
+                    continue;
+                }
+
+                if (!groupedNodes.Add(childNodeId))
+                    errors.Add($"节点 '{childNodeId}' 同时属于多个顺序组。");
+                if (child.Action.Timeline.CancelWindowStates.Length != 1)
+                    errors.Add($"组内 Action '{child.Action.name}' 必须且只能有一个 CancelWindow。");
+            }
+        }
+
+        foreach (ActionGraphNode node in graph.Nodes)
+        {
+            if (node?.Action != null && node.Action.Timeline.CancelWindowStates.Length != 1)
+                errors.Add($"Action '{node.Action.name}' 必须且只能配置一个 CancelWindow。");
+        }
+
         var triggerKeys = new HashSet<string>();
         foreach (ActionGraphEdge edge in graph.Edges)
         {
@@ -375,21 +376,11 @@ public class ActionGraphInspector : Editor
                 continue;
             }
 
-            bool slotFound = false;
-            foreach (CancelWindowNotifyState window in from.Action.Timeline.CancelWindowStates)
-            {
-                if (window != null && window.CancelSlotId == edge.CancelSlotId)
-                {
-                    slotFound = true;
-                    if (window.CancelType != CancelType.Combo)
-                        errors.Add(
-                            $"边 {edge.FromNodeId}/{edge.CancelSlotId} 引用了非 Combo 窗口。");
-                    break;
-                }
-            }
-
-            if (!slotFound)
-                errors.Add($"节点 {edge.FromNodeId} 缺少 Cancel 槽 '{edge.CancelSlotId}'。");
+            CancelWindowNotifyState window = from.Action.CancelWindow;
+            if (window == null)
+                errors.Add($"节点 {edge.FromNodeId} 缺少唯一 CancelWindow。");
+            else if (edge.RouteKind == ActionCancelRouteKind.PerfectCancel && !window.HasPerfectSplit)
+                errors.Add($"节点 {edge.FromNodeId} 未配置 Perfect 分割帧，却存在 PerfectCancel 边。");
 
             GameplayIntentType trigger = to.Action.Trigger;
             if (trigger == GameplayIntentType.None)
@@ -398,9 +389,9 @@ public class ActionGraphInspector : Editor
                 continue;
             }
 
-            string edgeKey = $"{edge.FromNodeId}|{edge.CancelSlotId}|{trigger}";
+            string edgeKey = $"{edge.FromNodeId}|{edge.RouteKind}|{trigger}";
             if (!triggerKeys.Add(edgeKey))
-                errors.Add($"同槽 Trigger 冲突: {edge.FromNodeId}/{edge.CancelSlotId} → {trigger}");
+                errors.Add($"同路由 Trigger 冲突: {edge.FromNodeId}/{edge.RouteKind} → {trigger}");
         }
 
         var validatedSharedRoutes = new List<ActionGraphSharedRoute>();
@@ -409,10 +400,8 @@ public class ActionGraphInspector : Editor
             if (route == null)
                 continue;
 
-            if (string.IsNullOrWhiteSpace(route.CancelSlotId))
-                errors.Add("Shared Route 的 CancelSlotId 不能为空。");
             if (route.Intent == GameplayIntentType.None)
-                errors.Add($"Shared Route '{route.CancelSlotId}' 的 Intent 不能为 None。");
+                errors.Add($"Shared Route '{route.RouteKind}' 的 Intent 不能为 None。");
             if (!graph.TryGetNode(route.ToNodeId, out ActionGraphNode target))
             {
                 errors.Add($"Shared Route 目标节点无效: {route.ToNodeId}");
@@ -422,7 +411,7 @@ public class ActionGraphInspector : Editor
             if (target.Action.Trigger != route.Intent)
             {
                 errors.Add(
-                    $"Shared Route '{route.CancelSlotId}' Intent={route.Intent} 与目标 " +
+                    $"Shared Route '{route.RouteKind}' Intent={route.Intent} 与目标 " +
                     $"'{route.ToNodeId}' Trigger={target.Action.Trigger} 不一致。");
             }
 
@@ -432,18 +421,18 @@ public class ActionGraphInspector : Editor
                     || route.SourceTrigger == GameplayIntentType.None
                     || existing.SourceTrigger == route.SourceTrigger;
                 if (sourceOverlaps
-                    && existing.CancelSlotId == route.CancelSlotId
+                    && existing.RouteKind == route.RouteKind
                     && existing.Intent == route.Intent)
                 {
                     errors.Add(
-                        $"Shared Route 冲突: {route.SourceTrigger}/{route.CancelSlotId}/{route.Intent}");
+                        $"Shared Route 冲突: {route.SourceTrigger}/{route.RouteKind}/{route.Intent}");
                     break;
                 }
             }
 
             validatedSharedRoutes.Add(route);
 
-            bool matchingComboSlotFound = false;
+            bool matchingRouteFound = false;
             foreach (ActionGraphNode node in graph.Nodes)
             {
                 if (node?.Action == null
@@ -453,25 +442,20 @@ public class ActionGraphInspector : Editor
                     continue;
                 }
 
-                foreach (CancelWindowNotifyState window in node.Action.Timeline.CancelWindowStates)
+                CancelWindowNotifyState sourceWindow = node.Action.CancelWindow;
+                if (sourceWindow != null
+                    && (route.RouteKind == ActionCancelRouteKind.Cancel
+                        || sourceWindow.HasPerfectSplit))
                 {
-                    if (window != null
-                        && window.CancelSlotId == route.CancelSlotId
-                        && window.CancelType == CancelType.Combo)
-                    {
-                        matchingComboSlotFound = true;
-                        break;
-                    }
-                }
-
-                if (matchingComboSlotFound)
+                    matchingRouteFound = true;
                     break;
+                }
             }
 
-            if (!matchingComboSlotFound)
+            if (!matchingRouteFound)
             {
                 errors.Add(
-                    $"Shared Route '{route.CancelSlotId}' 找不到匹配来源的 Combo 窗口。");
+                    $"Shared Route '{route.RouteKind}' 找不到匹配来源窗口。");
             }
         }
 
@@ -488,7 +472,7 @@ public class ActionGraphInspector : Editor
             foreach (ActionGraphSharedRoute route in graph.SharedRoutes)
             {
                 if (route == null
-                    || route.CancelSlotId != edge.CancelSlotId
+                    || route.RouteKind != edge.RouteKind
                     || route.Intent != to.Action.Trigger
                     || route.ToNodeId != edge.ToNodeId)
                 {
@@ -499,7 +483,7 @@ public class ActionGraphInspector : Editor
                     || route.SourceTrigger == from.Action.Trigger)
                 {
                     errors.Add(
-                        $"冗余显式边: {edge.FromNodeId}/{edge.CancelSlotId} → {edge.ToNodeId} " +
+                        $"冗余显式边: {edge.FromNodeId}/{edge.RouteKind} → {edge.ToNodeId} " +
                         "已由 Shared Route 覆盖。");
                 }
             }

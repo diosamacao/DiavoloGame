@@ -848,6 +848,8 @@ public sealed class ActionTimelineView
         ActionEditorStyles.DrawRoundedWindowClip(clipRect, color, selected);
         // 用 Label 仅作绘制，不参与控件焦点，避免抢走拖拽事件。
         GUI.Label(clipRect, idProp != null ? idProp.stringValue : itemSelection.Kind.ToString(), EditorStyles.miniLabel);
+        if (itemSelection.Kind == ActionTimelineTrackKind.Cancel)
+            DrawPerfectCancelSplit(element, laneRect, clipRect);
 
         bool pointEvent = ActionEditorStyles.IsPointEventTrack(itemSelection.Kind);
         float edge = Mathf.Min(ActionEditorStyles.EdgeHandleWidth, width * 0.35f);
@@ -889,6 +891,29 @@ public sealed class ActionTimelineView
 
         changed = true;
         evt.Use();
+    }
+
+    /// <summary>在 CancelWindow 内绘制 Perfect 起始帧分割线与右半区提示。</summary>
+    void DrawPerfectCancelSplit(SerializedProperty element, Rect laneRect, Rect clipRect)
+    {
+        SerializedProperty perfectProp = element.FindPropertyRelative("perfectFrame");
+        SerializedProperty startProp = element.FindPropertyRelative("startFrame");
+        SerializedProperty endProp = element.FindPropertyRelative("endFrame");
+        if (perfectProp == null || startProp == null || endProp == null)
+            return;
+
+        int perfect = perfectProp.intValue;
+        if (perfect < startProp.intValue || perfect > endProp.intValue)
+            return;
+
+        float splitX = laneRect.x + perfect * _pixelsPerFrame;
+        EditorGUI.DrawRect(
+            new Rect(splitX, clipRect.y, Mathf.Max(2f, _pixelsPerFrame * 0.08f), clipRect.height),
+            new Color(1f, 0.85f, 0.2f, 0.95f));
+        GUI.Label(
+            new Rect(splitX + 3f, clipRect.y, Mathf.Max(0f, clipRect.xMax - splitX - 3f), clipRect.height),
+            "Perfect",
+            EditorStyles.miniLabel);
     }
 
     /// <summary>在持有 hotControl 期间处理窗口平移/缩放；用 Kind+Index 重新取属性。</summary>

@@ -80,14 +80,15 @@ public class MyBehaviour : MonoBehaviour
 - **语义生产**：`GameplayIntentProducer` 在 `InputManager.IngestFrame` 后输出 `GameplayIntentType`
 - **选招层**：`ActionResolverService` → 当前模式 `ActionGraph`（多 Entry × Trigger 起手 + Cancel 边）；`DirectionalActionResolver` 可作为节点 `VariantResolver`
 - **Trigger**：`ActionDefinition.Trigger` 只保存 `GameplayIntentType`，禁止重新绑定 InputActionReference
-- **连招图**：一张 `ActionGraph` 可同时含攻击/闪避等多个 Entry；显式边仅表达独特拓扑，重复的「同来源 Trigger + 同 Cancel 槽 + 同意图」使用 `ActionGraphSharedRoute`
+- **连招图**：一张 `ActionGraph` 可同时含攻击/闪避等多个 Entry；边按 `Cancel` / `PerfectCancel` 通道解析，重复的「同来源 Trigger + 同路由 + 同意图」使用 `ActionGraphSharedRoute`
+- **顺序组**：组内 Action 按行顺序自动生成普通 Cancel 链；每行保留独立 In；组级 Cancel 出口展开到全部有效子窗口，Perfect 出口展开到全部配置分割帧的子节点
 - **变体节点**：Directional 等 Resolver 只改变实际播放 Action，不改变逻辑 Graph 节点；同语义六向变体禁止复制节点和出边
 - **线性连招**：`ComboActionResolver` / `ComboLeafPolicy` 已删除；`ActionGraph` 是唯一连招拓扑真源
 - **战斗模式**：`CombatModeProfile` + `CombatModeService`；`PlayerActionSet` 绑定一张 Graph
 - **缓冲**：招式中 `Buffer(GameplayIntentType)`；`ActionExecutor` 经 `IActionInputBuffer` 在 `CancelWindow` 内消费
 - **Locomotion 边界**：连续 Move 不枚举化；Action→Locomotion 特殊恢复使用一次性 `LocomotionResumeRequest`
 - **后摇窗口**：Timeline 的 `ActionPhaseNotifyState(Recovery)` 同时配置 `allowMovementCancel` 与 `allowEntryRestart`；禁止创建 Recovery CancelWindow、独立 phases 或回根显式边
-- **CancelWindow**：仅保留 `CancelType.Combo`（显式/共享 Graph 路由）与 `CancelType.Movement`
+- **CancelWindow**：每个 Action 必须且只能有一个；`perfectFrame` 之前走 `Cancel`，该帧及之后走 `PerfectCancel`；禁止重新引入 CancelType、槽 Id 或多窗口
 - 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `CharacterMotor` / State）
 - **玩家装配**：`InputActionAsset` 与 `GameplayIntentProfile` 由 `CharacterConfig` 注入，不在玩家 Prefab 上重复配置
 

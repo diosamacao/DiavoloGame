@@ -1,5 +1,5 @@
 /// <summary>
-/// Cancel 同槽多意图同时缓冲时的解析优先级，以及清缓冲时的保留策略。
+/// 同一 Cancel 路由多意图同时缓冲时的解析优先级，以及清缓冲时的保留策略。
 /// 数值越大越优先，避免连段 Attack 边在 HashSet 遍历顺序下永远抢赢蓄力。
 /// </summary>
 public static class GameplayIntentCancelPriority

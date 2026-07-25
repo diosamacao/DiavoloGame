@@ -14,7 +14,7 @@ public abstract class ActionTimelineItem
     /// <summary>编辑器和运行时日志使用的稳定条目标识。</summary>
     public string Id => string.IsNullOrEmpty(id) ? GetType().Name : id;
 
-    /// <summary>写入稳定 id（Cancel 槽 / 编辑器生成）；已有非默认 id 时不会被空串覆盖。</summary>
+    /// <summary>写入稳定时间轴条目 id；已有非默认 id 时不会被空串覆盖。</summary>
     public void SetId(string newId)
     {
         if (!string.IsNullOrEmpty(newId))
