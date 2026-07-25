@@ -29,9 +29,10 @@ public sealed class GameplayIntentProducer
         _inputIds = InputBindingUtils.ResolveInputIds(profile?.CollectInputReferences());
     }
 
-    /// <summary>推进按住计时，并按优先级输出本帧语义意图。</summary>
+    /// <summary>先推进旧缓冲有效期，再推进按住计时并按优先级输出本帧语义意图。</summary>
     public void Tick(float deltaTime)
     {
+        _output.Tick(deltaTime);
         _output.BeginFrame();
         if (_profile == null || _input == null)
             return;

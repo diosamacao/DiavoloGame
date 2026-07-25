@@ -12,6 +12,7 @@ public static class ActionTimelineCommands
         ActionTimelineTrackKind.Vfx => "playVfxNotifies",
         ActionTimelineTrackKind.Sfx => "playSfxStates",
         ActionTimelineTrackKind.Cancel => "cancelWindowStates",
+        ActionTimelineTrackKind.Phase => "phaseStates",
         ActionTimelineTrackKind.Movement => "movementStates",
         ActionTimelineTrackKind.Rotation => "rotationStates",
         ActionTimelineTrackKind.Event => "actionEvents",
@@ -34,6 +35,7 @@ public static class ActionTimelineCommands
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Vfx);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Sfx);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Cancel);
+        anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Phase);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Movement);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Rotation);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Event);
@@ -85,10 +87,10 @@ public static class ActionTimelineCommands
         return true;
     }
 
-    /// <summary>添加一条空轨并写入默认 trackName；不允许添加默认 Animation 轨。</summary>
+    /// <summary>添加一条空轨并写入默认 trackName；仅默认 Animation 轨不可手动添加。</summary>
     public static void AddTrack(SerializedObject so, ActionTimelineTrackKind kind)
     {
-        if (kind == ActionTimelineTrackKind.Animation || kind == ActionTimelineTrackKind.Phase)
+        if (kind == ActionTimelineTrackKind.Animation)
             return;
 
         SerializedProperty tracksProp = so.FindProperty("timeline.tracks");
@@ -125,6 +127,27 @@ public static class ActionTimelineCommands
         EditorUtility.SetDirty(so.targetObject);
     }
 
+    /// <summary>调整手动轨道顺序；窗口仍按 trackName 归属，不修改任何窗口数据。</summary>
+    public static bool ReorderTrack(SerializedObject so, int fromIndex, int toIndex)
+    {
+        SerializedProperty tracksProp = so.FindProperty("timeline.tracks");
+        if (tracksProp == null
+            || fromIndex < 0
+            || toIndex < 0
+            || fromIndex >= tracksProp.arraySize
+            || toIndex >= tracksProp.arraySize
+            || fromIndex == toIndex)
+        {
+            return false;
+        }
+
+        Undo.RecordObject(so.targetObject, "Reorder Action Track");
+        tracksProp.MoveArrayElement(fromIndex, toIndex);
+        so.ApplyModifiedProperties();
+        EditorUtility.SetDirty(so.targetObject);
+        return true;
+    }
+
     /// <summary>重命名轨道，并同步该轨上全部窗口的 trackName。</summary>
     public static void RenameTrack(SerializedObject so, int trackIndex, string newName)
     {
@@ -159,7 +182,7 @@ public static class ActionTimelineCommands
     {
         _ = sampleRate;
         string arrayName = GetArrayPropertyName(kind);
-        if (arrayName == null || kind == ActionTimelineTrackKind.Phase)
+        if (arrayName == null)
             return default;
 
         SerializedProperty arrayProp = so.FindProperty($"timeline.{arrayName}");
@@ -180,6 +203,12 @@ public static class ActionTimelineCommands
         SetIfExists(element, "endFrame", endFrame);
         SetIfExists(element, "priority", 0);
         SetIfExists(element, "trackName", trackName);
+        if (kind == ActionTimelineTrackKind.Phase)
+        {
+            SetIfExists(element, "interruptible", true);
+            SetIfExists(element, "allowMovementCancel", true);
+            SetIfExists(element, "allowEntryRestart", true);
+        }
 
         so.ApplyModifiedProperties();
         EditorUtility.SetDirty(so.targetObject);
@@ -373,6 +402,13 @@ public static class ActionTimelineCommands
         SerializedProperty prop = element.FindPropertyRelative(field);
         if (prop != null)
             prop.floatValue = value;
+    }
+
+    static void SetIfExists(SerializedProperty element, string field, bool value)
+    {
+        SerializedProperty prop = element.FindPropertyRelative(field);
+        if (prop != null)
+            prop.boolValue = value;
     }
 
     static void SetIfExists(SerializedProperty element, string field, string value)

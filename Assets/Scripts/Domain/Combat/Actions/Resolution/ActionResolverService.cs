@@ -18,7 +18,7 @@ public sealed class ActionResolverService
     public ActionGraph ActiveGraph => _combatMode?.ActiveActionSet?.ActionGraph;
 
     /// <summary>
-    /// Graph Entry 起手解析：服务于 Locomotion 起手与 Action 态 PriorityInterrupt。
+    /// Graph Entry 解析：服务于 Locomotion 起手、Recovery 软重开与 Action 态 PriorityInterrupt。
     /// </summary>
     public bool TryResolveStart(
         in ActionRequest request,
@@ -31,7 +31,8 @@ public sealed class ActionResolverService
             return false;
 
         if (context.Origin != ActionResolveOrigin.LocomotionStart
-            && context.Origin != ActionResolveOrigin.PriorityInterrupt)
+            && context.Origin != ActionResolveOrigin.PriorityInterrupt
+            && context.Origin != ActionResolveOrigin.RecoveryEntry)
             return false;
 
         return graph.TryResolveStart(in request, in context, out result);

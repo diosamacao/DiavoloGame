@@ -28,7 +28,6 @@ MonoBehaviour:
   actionType: 0
   crossFadeDuration: 0.1
   interruptPriority: 0
-  phases: []
   timeline:
     actionEvents: []
     playVfxNotifies: []
@@ -36,26 +35,30 @@ MonoBehaviour:
     hitboxStates: []
     hurtboxStates: []
     cancelWindowStates:
-    - id: Cancel_1
-      startFrame: 23
-      endFrame: 99
-      priority: 0
-      trackName: Cancel_1
-      cancelType: 1
     - id: Cancel_2
       startFrame: 16
-      endFrame: 99
+      endFrame: 25
       priority: 0
       trackName: Cancel_3
       cancelType: 0
+    phaseStates:
+    - id: Phase_1
+      startFrame: 26
+      endFrame: 99
+      priority: 0
+      trackName: Phase_1
+      kind: 0
+      interruptible: 1
+      allowMovementCancel: 1
+      allowEntryRestart: 1
     movementStates: []
     rotationStates: []
     tracks:
-    - trackName: Cancel_1
-      kind: 4
-      visible: 1
     - trackName: Cancel_3
       kind: 4
+      visible: 1
+    - trackName: Phase_1
+      kind: 8
       visible: 1
   transitions: []
   startBehaviors: 

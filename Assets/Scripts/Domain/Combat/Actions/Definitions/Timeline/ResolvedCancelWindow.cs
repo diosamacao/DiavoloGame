@@ -21,7 +21,7 @@ public readonly struct ResolvedCancelWindow
     /// <summary>窗口结束逻辑帧。</summary>
     public int EndFrame { get; }
 
-    /// <summary>取消类型：Action 连招进位、Recovery 后摇重开，或 Movement 移动取消。</summary>
+    /// <summary>取消类型：Combo 显式连招路由，或 Movement 移动取消。</summary>
     public CancelType CancelType { get; }
 
     /// <summary>Cancel 槽 id（= CancelWindow 时间轴条目 Id），供图边匹配。</summary>

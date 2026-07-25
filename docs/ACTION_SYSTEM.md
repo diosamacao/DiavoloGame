@@ -1,7 +1,7 @@
 # ACTGame — 动作系统技术实现文档
 
 > 本文档描述**当前已落地**的动作系统：架构、实现细节、使用方式，以及与 [ACTION_EDITOR.md](./ACTION_EDITOR.md) 长期目标的对齐分析。  
-> Last updated: 2026-07-19（动作优先级打断：`interruptPriority` + `TryInterrupt`；Action 态高优经 Graph Entry 硬切）
+> Last updated: 2026-07-25（ActionGraph 稀疏路由：SharedRoute、Recovery Phase→Entry、逻辑 Variant 节点）
 
 ---
 
@@ -208,8 +208,8 @@ HitDetectionSystem
 | `ActionState` + 动画锁定 | ✅ 已实现 | 薄层状态机 |
 | `HitboxKeyframe` + `HitBoxSystem` | 🟡 部分 | `ActionDefinition` 帧表 + OBB 检测；无 Physics |
 | `HurtboxTarget` / `IHurtboxTarget` | 🟡 部分 | `TargetSystem` 注册 + `OnHit` 回调；现阶段仅测试日志 |
-| `ActionPhase` / `ActionEvent` | 🟡 骨架 | SO 字段与类型已建；`ActionEvent` 已有运行时派发入口，消费者待扩展 |
-| `ActionGraph` 节点图 | ⬜ 未实现 | 由 `ComboActionResolver` 线性折中 |
+| `ActionPhaseNotifyState` / `ActionEvent` | ✅ 已实现 | Phase 为 Timeline 区间窗口；Event 为点事件 |
+| `ActionGraph` 稀疏图 | ✅ 已实现 | Entry、独特显式边、SharedRoute、逻辑 Variant 节点 |
 | `UpdateFrame(frameIndex)` 统一 Logic Tick | ✅ 已实现 | `ActionExecutor` + `ICombatFrameConsumer` |
 | Combat 伤害 / `Hit` 状态 / OnHit 回流 | 🟡 部分 | `IActionHitReceiver` + OnHitConfirm Transition；无伤害/Hit 状态 |
 | `ActionEditorWindow` | ⬜ 未实现 | M5 目标 |
@@ -230,7 +230,7 @@ CharacterActor ── InputManager（唯一持有者）
        │    └─ Movement 取消 → Locomotion
        │
        ├── CombatModeService ── CombatModeProfile
-       │         └─ mode → PlayerActionSet → ActionEntry(input → ActionResolver)
+       │         └─ mode → PlayerActionSet → ActionGraph
        │
        ├── ActionResolverService ── 按出招表把 ActionRequest 路由到 Resolver
        │         └─ Single / Combo / Directional Resolver → ActionDefinition
@@ -308,8 +308,8 @@ CharacterActor ── InputManager（唯一持有者）
 |------|------|
 | `startFrame` / `endFrame` | 生效帧区间 |
 | `cancelType` | `Action`：消费缓冲并衔接下一招；`Movement`：由 `CharacterActionDriver` 读取 `InputManager.HasMoveIntent` |
-| `allowedInputs` | `InputActionReference[]`；运行时 id = Action 名 |
-| `priority` | 降序扫描，首个匹配生效 |
+| `cancelType` | `Combo`：显式边/SharedRoute；`Movement`：回 Locomotion |
+| `priority` | 多窗口重叠时降序扫描，首个匹配生效 |
 
 **与 ACTION_EDITOR 的差异：** 当前 **无 `targetAction` 字段**。Action 取消的下一招由 `ActionExecutor` 消费匹配输入后委托 `ActionResolverService.TryResolveNext` → 对应 `ActionResolver` 解析，而非取消窗直接指向目标 SO。
 
@@ -336,10 +336,10 @@ bool TryResolve(in ActionRequest request, in ActionResolveContext context, out A
 | 子类 | 数据 | 行为 |
 |------|------|------|
 | `SingleActionResolver` | `action` | 始终返回固定招；用于切模式、单段技能、单段闪避 |
-| `ComboActionResolver` | `steps[]` + `ComboLeafPolicy` | `CurrentAction==null` 或不在队列 → `steps[0]`；在队列则 `index+1`；末段按 `LoopToRoot / StopCombo` |
 | `DirectionalActionResolver` | `defaultAction` + 前/后/左前/左后/右前/右后 + `cardinalSectorHalfAngleDeg` | 所有 `Origin` 使用同一六向判定：前后正向扇区外按左右侧与前后半区选择斜向闪避；纯左/右边界偏向左前/右前；变体缺失回退 `defaultAction`，仍无效则失败 |
 
-方向等变体 Resolver 作为资产绑定在 `ActionGraphNode.variantResolver`。
+`ComboActionResolver` / `ComboLeafPolicy` 已删除。方向等变体 Resolver 绑定在
+`ActionGraphNode.variantResolver`，仅改变播放 Action，不改变逻辑节点。
 
 ### 4.5 PlayerActionSet / CombatModeProfile
 
@@ -360,7 +360,7 @@ CombatModeProfile
 
 - 离散输入 id = Input System **Action 名**（`Attack`、`Dodge` 等）。
 - 移动取消不走路由表，由 `InputManager.HasMoveIntent` + `CancelType.Movement` 窗口判定。
-- 后摇重开连招首段：`CancelType.Recovery` 窗 + `ComboActionResolver`（回 `steps[0]`）；去向不写在 Action 时间轴上。
+- 后摇：Timeline Recovery Phase 可分别开启移动取消与 Graph Entry 重开；无需 Recovery CancelWindow 或回根边。
 
 ---
 
@@ -390,7 +390,7 @@ HitBoxSystem.OnCombatFrameAdvanced（ActionExecutor 同步派发）
 离散输入 → InputManager.NotifyPressed
   → CharacterActionDriver.TryStartFromLocomotion(inputId)
   → ActionResolverService.TryResolveStart(request, context{Origin=LocomotionStart})
-      → ActionEntry.resolver.TryResolve → ActionDefinition
+      → ActionGraph Entry×Trigger → 可选 VariantResolver → ActionDefinition
   → ActionExecutor.TryStart(resolvedAction)
       → ExecuteStartBehaviors → BeginAction(PlayClip)
   → TryChangeState(Action)
@@ -402,11 +402,14 @@ HitBoxSystem.OnCombatFrameAdvanced（ActionExecutor 同步派发）
 输入 → Buffer(intent)（高优打断失败后）
 
 ActionExecutor.Tick → TryResolveCancelWindows:
-  → 按 priority 扫描 CancelType.Action / Recovery 窗口
+  → 按 priority 扫描 CancelType.Combo 窗口
   → HasBuffer(intent) → Consume
   → ActionResolverService.TryResolveNext(request, context{Origin=CancelWindow, CancelSlotId, CurrentNodeId})
-      → ActionGraph 边匹配 Trigger；可选 VariantResolver
+      → ActionGraph 显式边优先；未命中再查 SharedRoute；可选 VariantResolver
   → ClearOtherActionBuffers → TransitionTo(next)
+
+无显式 Combo 命中且当前为 Recovery Phase:
+  → 有效缓冲按 Graph Entry×Trigger 软重开
 ```
 
 Cancel 路径**不做** `interruptPriority` 比较：同级连招在窗内仍可进位。
@@ -425,7 +428,7 @@ Action 态意图
   → 失败则 Buffer(intent) 留给 CancelWindow
 ```
 
-建议配置：普攻 `interruptPriority=0`，闪避更高（如 `10`）；霸体段将对应 `ActionPhase.interruptible=false`。
+建议配置：普攻 `interruptPriority=0`，闪避更高（如 `10`）；霸体段将对应 `ActionPhaseNotifyState.interruptible=false`。
 
 ### 5.4 移动取消
 
@@ -481,17 +484,18 @@ ActionExecutor                   HitBoxSystem              受击方
 
 ### 6.1 配置三连招
 
-1. 创建 `ComboActionResolver`（Create → ACT/Combat/Resolvers/Combo Action Resolver），`steps` = [attack_1, attack_2, attack_3]，设置 `leafPolicy`。
-2. `PlayerActionSet` Entry：`Attack` → 上述 `ComboActionResolver`。
-3. 各 `ActionDefinition`：攻击末加 `CancelType.Action` 窗、后摇加 `CancelType.Recovery` 窗，`allowedInputs: [Attack]`（无需填目标招）。
-4. 可选 **Movement** 取消窗 + `ActionTransition(AnimationEnd)` 收招。
+1. 在 `ActionGraph` 加入 Attack1/2/3 节点，仅 Attack1 标记 Entry。
+2. 各段攻击末添加 `CancelType.Combo` 窗；从槽端口连接到独特下一段。
+3. 在 Phase 轨添加 Recovery，按需勾选 `Allow Movement Cancel` 与 `Allow Entry Restart`。
+4. 多来源共用去向时在 Graph Inspector 添加 Shared Route；不要复制显式边。
+5. 可选 **Movement** 取消窗；自然结束不需要 `Transition → Attack1`。
 
 ### 6.1b 配置方向闪避
 
 1. 创建 `DirectionalActionResolver`（Create → ACT/Combat/Resolvers/Directional Action Resolver）。
 2. 填入 `defaultAction` 与前、后、左前、左后、右前、右后六个动作；`cardinalSectorHalfAngleDeg` 默认 `30°`，控制前/后正向扇区宽度。
-3. 将六个 Dodge `ActionDefinition` 都加入 `ActionGraph`；在可视化 Graph Editor 中只选一个代表节点设为 Entry，并将该节点展开区的 `Variant Resolver` 指向上述资产，最后点击 Save。
-4. 六个动作的 `Trigger` 均设为 `Dodge`，其余五个变体节点不要再标 Entry；Resolver 会按输入方向落到对应节点。
+3. Graph 只加入一个代表 Dodge 逻辑节点并标记 Entry；该节点绑定上述 Resolver。
+4. 六个实际变体只保存在 Resolver 资产中；运行时选择播放变体，但 Graph 游标保持在代表节点。
 
 ### 6.2 多战斗模式
 
@@ -529,7 +533,7 @@ ActionExecutor                   HitBoxSystem              受击方
 |------|------|------|
 | **技术路线** | ✅ 一致 | SO 帧表 + `ActionExecutor` + 自研 Editor（路线 A） |
 | **核心单招 Schema** | 🟡 约 55% | 基础字段 + Cancel/Transition + HitboxKeyframe 已有；Phase/Event 缺失 |
-| **连招编排** | 🟡 有偏差 | 线性 `ComboActionResolver` 代替 `ActionGraph` / Cancel 内 `targetActionId` |
+| **连招编排** | ✅ 已对齐 | ActionGraph Entry + 显式边 + SharedRoute；Recovery 隐式回 Entry |
 | **运行时 Tick** | 🟡 有偏差 | 无统一 `UpdateFrame`；编辑器预览需补入口 |
 | **输入与取消语义** | ✅ 基本一致 | Action/Movement 取消、priority、缓冲消费 |
 | **编辑器 UI 适配** | ⬜ 未开始 | 数据结构可部分复用；需补轨道类型与校验 |
@@ -540,14 +544,14 @@ ActionExecutor                   HitBoxSystem              受击方
 
 | ACTION_EDITOR 概念 | 当前实现 | 对齐度 | 编辑器适配备注 |
 |--------------------|----------|--------|----------------|
-| `ActionDefinition` | `ActionDefinition.cs` | 🟡 | 已有 `HitboxKeyframe[]`；缺 `tags`, `ActionPhase[]`, `ActionEvent[]`, `damageWeight` |
+| `ActionDefinition` | `ActionDefinition.cs` | ✅ | 动画段、Timeline、Transition 与反馈参数已收敛 |
 | `CancelWindow` | `CancelWindow.cs` | 🟡 | 有帧区间/type/priority/inputs；**无 `targetActionId`**，改由 ComboSequence 解析 |
 | `ActionTransition` | `ActionTransition.cs` | 🟡 | 有 `AnimationEnd`；新增 `AtFrame`（编辑器文档未列）；缺 OnHit/OnWhiff/OnBlocked |
-| `ActionGraph` | `ComboActionResolver` | 🔀 偏差 | 线性队列 vs 节点图；可作为新的 `ActionResolver` 子类接入，不破坏分层 |
+| `ActionGraph` | 稀疏 `ActionGraph` | ✅ | 独特拓扑画边；重复路由进 SharedRoute；Directional 共用逻辑节点 |
 | `CharacterCombatProfile` | `CombatModeProfile` + `PlayerActionSet` | 🔀 扩展 | 多模式武器切换；编辑器需否纳入「角色战斗根配置」待定义 |
 | `ActionExecutor` | 已实现 | ✅ | 编辑器预览应共用同一套 Cancel/Transition 解析 |
 | `UpdateFrame(frameIndex)` | 未实现 | ⬜ | **编辑器 Phase C 阻塞项**：预览与 Play Mode 须统一 |
-| `ActionPhase` | 未实现 | ⬜ | 时间轴 Phases 轨道无数据源 |
+| `ActionPhaseNotifyState` | Timeline `phaseStates` | ✅ | Phase 轨唯一数据源；Recovery 集成退出策略 |
 | `HitboxKeyframe` | `HitboxKeyframe.cs` + `HitBoxSystem` | 🟡 | 运行时 OBB 已通；编辑器时间轴轨道与校验待建 |
 | `HurtboxKeyframe`（动画驱动） | `HurtboxDefinition` + `HurtboxTarget` | 🟡 | 静态局部 Box；无逐帧 Hurtbox 轨道 |
 | `ActionEvent` | 未实现 | ⬜ | VFX/SFX/顿帧轨道无数据源 |
@@ -570,7 +574,7 @@ ActionExecutor                   HitBoxSystem              受击方
 | 偏差 | 原因 | 编辑器影响 | 建议 |
 |------|------|------------|------|
 | Cancel 无 `targetAction` | 选招交给 Resolver 简化配置 | 编辑器 Cancels 轨道不能只编辑「边到目标招」；需联动 `ActionResolver` 或 Graph | M5 Inspector 显示「下一招 = Resolver 进位」；M7 评估恢复 `targetActionId` 或 Graph 边 |
-| `ComboActionResolver` 代替 `ActionGraph` | Demo 三连招够用 | 无法表达分支连招（挥空、多输入树） | 保留线性 Resolver 作「线性模板」；新增 Graph 类 Resolver 作高级层 |
+| Graph 重复边 | 所有关系显式展开 | 星型 hub 难维护 | SharedRoute + Recovery Entry + 逻辑 Variant 节点 |
 | `AtFrame` Transition | 项目新增，支持中段自动切招 | ACTION_EDITOR 需补充枚举 | 更新 ACTION_EDITOR 变更日志 |
 | `CombatModeProfile` | 多武器 ACT 需求 | 编辑器角色配置需增加 mode 维度 | 纳入 `CharacterCombatProfile` 设计或单列「模式」面板 |
 | 无 `UpdateFrame` | 实现成本低 | **预览与运行时易不一致** | 编辑器开发前优先重构 `ActionExecutor.Tick` |
@@ -732,7 +736,7 @@ event Action<CombatModeType, CombatModeType> ModeChanged;
 | 碰撞仅 OBB 骨架 | 有重叠检测、`OnHit` 与命中回流；无伤害、击退、无敌帧、`Hit` 状态 |
 | Hitbox/VFX 双轨 | `ActionEvent` 已派发，但 Hitbox/VFX 仍通过旧数组消费 |
 | 受击框静态 | `HurtboxDefinition` 无逐帧动画驱动 |
-| 连招仅线性 | 无分支、挥空、多输入树 |
+| Graph 资产需人工迁移 | 旧 Recovery 窗、重复回根边与变体节点不会自动修改 |
 | Transition 条件仍少 | 已有 AnimationEnd / AtFrame / OnHitConfirm / OnWhiff，缺更丰富条件组合 |
 | 敌人未接入 | 纯 C# runtime 可复用，输入源和 AI 驱动需替换 |
 
@@ -758,13 +762,13 @@ Assets/Scripts/Domain/
   Character/StateMachine/CharacterStateMachine.cs, CharacterContext.cs
   Character/StateMachine/States/ActionState.cs, States/LocomotionState.cs
   Combat/CombatModeService.cs, ICombatModeService.cs, CombatModeSwitchResult.cs, CombatModeProfile.cs
-  Combat/Actions/Definitions/ActionDefinition.cs, ActionPhase.cs, ActionPhaseKind.cs
+  Combat/Actions/Definitions/ActionDefinition.cs, Timeline/ActionPhaseNotifyState.cs, ActionPhaseKind.cs
   Combat/Actions/Definitions/ActionEvent.cs, ActionEventKind.cs, ActionEventContext.cs
   Combat/Actions/Definitions/ActionTransition.cs, ActionTransitionCondition.cs
   Combat/Actions/Definitions/CancelWindow.cs, CancelType.cs, RotationWindow.cs, CombatActionType.cs
   Combat/Actions/Resolution/PlayerActionSet.cs, IMoveIntentResolver.cs
   Combat/Actions/Resolution/ActionRequest.cs, ActionInputTrigger.cs, ActionResolveContext.cs
-  Combat/Actions/Resolution/ActionResolver.cs, SingleActionResolver.cs, ComboActionResolver.cs, ComboLeafPolicy.cs, DirectionalActionResolver.cs
+  Combat/Actions/Resolution/ActionResolver.cs, SingleActionResolver.cs, DirectionalActionResolver.cs, ActionGraphSharedRoute.cs
   Combat/Actions/Resolution/ActionResolverService.cs
   Combat/Actions/Execution/ActionExecutor.cs, IActionExecutor.cs, ActionSession.cs
   Combat/Actions/Execution/CharacterActionDriver.cs, ActionRotationDriver.cs

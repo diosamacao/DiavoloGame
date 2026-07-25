@@ -24,7 +24,6 @@ MonoBehaviour:
   actionType: 0
   crossFadeDuration: 0.1
   interruptPriority: 0
-  phases: []
   timeline:
     actionEvents: []
     playVfxNotifies:
@@ -86,6 +85,7 @@ MonoBehaviour:
       priority: 0
       trackName: Cancel_1
       cancelType: 0
+    phaseStates: []
     movementStates: []
     rotationStates: []
     tracks:

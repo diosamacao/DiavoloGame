@@ -49,3 +49,4 @@ MonoBehaviour:
     condition: 0
     holdSeconds: 0
     priority: 0
+  actionBufferDurationSeconds: 1

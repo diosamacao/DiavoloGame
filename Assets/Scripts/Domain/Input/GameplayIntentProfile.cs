@@ -8,10 +8,16 @@ using UnityEngine.InputSystem;
 public sealed class GameplayIntentProfile : ScriptableObject
 {
     [SerializeField] GameplayIntentBinding[] bindings = Array.Empty<GameplayIntentBinding>();
+    [Tooltip("Action 内输入缓冲有效期（秒）；小于等于 0 时使用 0.15 秒。")]
+    [SerializeField] float actionBufferDurationSeconds = 0.15f;
 
     /// <summary>全部意图映射；运行时只读取有效项。</summary>
     public IReadOnlyList<GameplayIntentBinding> Bindings =>
         bindings ?? Array.Empty<GameplayIntentBinding>();
+
+    /// <summary>Action Cancel / Recovery 预输入的统一有效期，避免早期输入在动作结束后误触发。</summary>
+    public float ActionBufferDurationSeconds =>
+        actionBufferDurationSeconds > 0f ? actionBufferDurationSeconds : 0.15f;
 
     /// <summary>收集需要 InputReader 轮询的物理输入引用。</summary>
     public InputActionReference[] CollectInputReferences()

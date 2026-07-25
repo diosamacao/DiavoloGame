@@ -26,7 +26,7 @@
 - `System` 后缀仅用于 `App/Systems` 下注册进 `ACTGameArchitecture` 的架构系统，并继承 `ArchitectureSystemBase` 或实现 `IArchitectureSystem`
 - `Domain` 纯 C# 业务类优先使用 `Service` / `Actor` / `Executor` / `Resolver` / `Detector` / `Consumer`，不得直接访问 `ACTGameArchitecture.Interface`
 - **动作系统目录分层**：`Combat/Actions/` 下按职责分四个子目录——`Definitions/`（动作数据 Schema，含 `Definitions/Timeline/`）、`Resolution/`（输入 → 动作选招）、`Execution/`（播放/帧推进/输入路由/旋转）、`Frames/`（Logic Tick 帧上下文契约）；核心脚本不散落在 `Actions/` 根目录
-- **动作时间轴数据**：帧相关配置以 `ActionDefinition.Timeline` 为唯一真源；点事件用 `ActionNotify`（含 Event / `PlayVfxNotify` / `PlaySfxNotify`），区间窗口用 `ActionNotifyState`（Hitbox/Hurtbox/Cancel/Movement/Rotation）；VFX/SFX 为单帧触发，`playbackSpeed` 为 Inspector 显式字段；VFX/Hitbox 用 `attachPointId` + `CharacterAttachPointResolver`；禁止重新引入 `hitboxes[]`、`vfxEvents[]`、散字段位移或单例 `RotationWindow`
+- **动作时间轴数据**：帧相关配置以 `ActionDefinition.Timeline` 为唯一真源；点事件用 `ActionNotify`（Event/VFX/SFX），区间窗口用 `ActionNotifyState`（Phase/Hitbox/Hurtbox/Cancel/Movement/Rotation）；禁止在 `ActionDefinition` 重新引入独立 `phases[]` 等双轨帧数据
 - 跨系统通信使用 `ACTGameArchitecture` 的 Command / Query / Event；动作帧内部可保留 `ActionExecutor` → `ICombatFrameConsumer` / `IActionNotifyConsumer` 的强时序直连
 - 架构事件必须实现 `IArchitectureEvent`；架构查询继承 `ArchitectureQueryBase<TResult>` 或实现 `IArchitectureQuery<TResult>`
 
@@ -80,12 +80,14 @@ public class MyBehaviour : MonoBehaviour
 - **语义生产**：`GameplayIntentProducer` 在 `InputManager.IngestFrame` 后输出 `GameplayIntentType`
 - **选招层**：`ActionResolverService` → 当前模式 `ActionGraph`（多 Entry × Trigger 起手 + Cancel 边）；`DirectionalActionResolver` 可作为节点 `VariantResolver`
 - **Trigger**：`ActionDefinition.Trigger` 只保存 `GameplayIntentType`，禁止重新绑定 InputActionReference
-- **连招图**：一张 `ActionGraph` 可同时含攻击/闪避等多个 Entry；边 = `(fromNode, cancelSlotId) → toNode`；编辑器 `ACT/Combat/Action Graph Editor`
-- **线性连招**：`ComboActionResolver` 仅作 Variant/遗留工具时可用；主路径为 Graph
+- **连招图**：一张 `ActionGraph` 可同时含攻击/闪避等多个 Entry；显式边仅表达独特拓扑，重复的「同来源 Trigger + 同 Cancel 槽 + 同意图」使用 `ActionGraphSharedRoute`
+- **变体节点**：Directional 等 Resolver 只改变实际播放 Action，不改变逻辑 Graph 节点；同语义六向变体禁止复制节点和出边
+- **线性连招**：`ComboActionResolver` / `ComboLeafPolicy` 已删除；`ActionGraph` 是唯一连招拓扑真源
 - **战斗模式**：`CombatModeProfile` + `CombatModeService`；`PlayerActionSet` 绑定一张 Graph
 - **缓冲**：招式中 `Buffer(GameplayIntentType)`；`ActionExecutor` 经 `IActionInputBuffer` 在 `CancelWindow` 内消费
 - **Locomotion 边界**：连续 Move 不枚举化；Action→Locomotion 特殊恢复使用一次性 `LocomotionResumeRequest`
-- **后摇重开**：后摇段使用 `CancelType.Recovery`；与攻击末 `CancelType.Action` 分离
+- **后摇窗口**：Timeline 的 `ActionPhaseNotifyState(Recovery)` 同时配置 `allowMovementCancel` 与 `allowEntryRestart`；禁止创建 Recovery CancelWindow、独立 phases 或回根显式边
+- **CancelWindow**：仅保留 `CancelType.Combo`（显式/共享 Graph 路由）与 `CancelType.Movement`
 - 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `CharacterMotor` / State）
 - **玩家装配**：`InputActionAsset` 与 `GameplayIntentProfile` 由 `CharacterConfig` 注入，不在玩家 Prefab 上重复配置
 

@@ -9,7 +9,7 @@ public readonly struct ActionResolveContext
         ActionDefinition currentAction,
         Transform actorRoot,
         IActionStartContext startContext,
-        CancelType cancelType = CancelType.Action,
+        CancelType cancelType = CancelType.Combo,
         string currentNodeId = null,
         string cancelSlotId = null)
     {
@@ -22,7 +22,7 @@ public readonly struct ActionResolveContext
         CancelSlotId = cancelSlotId;
     }
 
-    /// <summary>解析来源（LocomotionStart / CancelWindow / PriorityInterrupt）。</summary>
+    /// <summary>解析来源（Locomotion 起手、显式 Cancel、Recovery 软重开或高优打断）。</summary>
     public ActionResolveOrigin Origin { get; }
 
     /// <summary>当前正在播放的招式；Locomotion 起手时为 null。</summary>
@@ -34,10 +34,7 @@ public readonly struct ActionResolveContext
     /// <summary>招式起手副作用上下文：读取闪避意图方向、修正朝向。</summary>
     public IActionStartContext StartContext { get; }
 
-    /// <summary>
-    /// 触发本次解析的 Cancel 窗类型；Locomotion 起手时无意义，默认 Action。
-    /// Recovery 时 ComboActionResolver 回到 steps[0]。
-    /// </summary>
+    /// <summary>触发本次解析的 Cancel 窗类型；非 CancelWindow 来源时无意义。</summary>
     public CancelType CancelType { get; }
 
     /// <summary>当前连招图节点 id；不在图内时为 null。</summary>
@@ -47,7 +44,7 @@ public readonly struct ActionResolveContext
     public string CancelSlotId { get; }
 }
 
-/// <summary>动作解析来源：区分 Locomotion 起手、高优硬打断与 Action Cancel 窗口。</summary>
+/// <summary>动作解析来源：区分起手、显式 Cancel、Recovery Entry 与高优硬打断。</summary>
 public enum ActionResolveOrigin
 {
     /// <summary>从 Locomotion 起手解析（当前无激活招式）。</summary>
@@ -58,4 +55,7 @@ public enum ActionResolveOrigin
 
     /// <summary>Action 态高优硬打断：按 Graph Entry 解析候选招。</summary>
     PriorityInterrupt = 2,
+
+    /// <summary>当前招式处于 Recovery Phase：按 Graph Entry 软切换，不要求显式图边。</summary>
+    RecoveryEntry = 3,
 }

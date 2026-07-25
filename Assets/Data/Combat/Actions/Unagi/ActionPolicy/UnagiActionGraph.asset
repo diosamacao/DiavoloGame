@@ -83,36 +83,11 @@ MonoBehaviour:
     isEntry: 0
     variantResolver: {fileID: 0}
     editorPosition: {x: 1205.3334, y: -1044.6667}
-  - nodeId: Unagi_Dodge_Backward
-    action: {fileID: 11400000, guid: 4abae900c0f901a42bd9d9c57d0a764b, type: 2}
-    isEntry: 0
-    variantResolver: {fileID: 0}
-    editorPosition: {x: -1788.6666, y: -1072}
-  - nodeId: Unagi_Dodge_Backward_Left
-    action: {fileID: 11400000, guid: 3b08cb5f6e545a74fad80193d64470eb, type: 2}
-    isEntry: 0
-    variantResolver: {fileID: 0}
-    editorPosition: {x: -1788.6666, y: -788.6667}
-  - nodeId: Unagi_Dodge_Backward_Right
-    action: {fileID: 11400000, guid: 5d739c9089db32049afb8e8b500f9d1a, type: 2}
-    isEntry: 0
-    variantResolver: {fileID: 0}
-    editorPosition: {x: -1788.6666, y: -917.3333}
   - nodeId: Unagi_Dodge_Forward
     action: {fileID: 11400000, guid: 9b8a4ec0ba7bc3840a101d608c26e9f0, type: 2}
     isEntry: 1
     variantResolver: {fileID: 11400000, guid: cd749318cea11fe4992142b817d6d890, type: 2}
     editorPosition: {x: -1080, y: -824.6667}
-  - nodeId: Unagi_Dodge_Forward_Left
-    action: {fileID: 11400000, guid: cd1958f8bc2ce694d94c87a0515ecd5d, type: 2}
-    isEntry: 0
-    variantResolver: {fileID: 0}
-    editorPosition: {x: -1788.6666, y: -687.3333}
-  - nodeId: Unagi_Dodge_Forward_Right
-    action: {fileID: 11400000, guid: 894a679d57a3c864f8f5614aa6c39e19, type: 2}
-    isEntry: 0
-    variantResolver: {fileID: 0}
-    editorPosition: {x: -1788.6666, y: -568.6667}
   edges:
   - fromNodeId: Unagi_Attack_01
     cancelSlotId: Attack
@@ -126,69 +101,18 @@ MonoBehaviour:
   - fromNodeId: Unagi_Attack_05
     cancelSlotId: Attack
     toNodeId: Unagi_Attack_06
-  - fromNodeId: Unagi_Attack_02
-    cancelSlotId: RecoveryAttack
-    toNodeId: Unagi_Attack_01
-  - fromNodeId: Unagi_Attack_03
-    cancelSlotId: RecoveryAttack
-    toNodeId: Unagi_Attack_01
-  - fromNodeId: Unagi_Attack_05
-    cancelSlotId: RecoveryAttack
-    toNodeId: Unagi_Attack_01
-  - fromNodeId: Unagi_Attack_06
-    cancelSlotId: RecoveryAttack
-    toNodeId: Unagi_Attack_01
   - fromNodeId: Unagi_Attack_06
     cancelSlotId: Attack
     toNodeId: Unagi_Attack_02
-  - fromNodeId: Unagi_Attack_01
-    cancelSlotId: RecoveryAttack
-    toNodeId: Unagi_Attack_01
   - fromNodeId: Unagi_Dodge_Forward
     cancelSlotId: EvadeAttack
     toNodeId: Unagi_Attack_04
   - fromNodeId: Unagi_Attack_04
     cancelSlotId: Attack
     toNodeId: Unagi_Attack_02
-  - fromNodeId: Unagi_Attack_04
-    cancelSlotId: RecoveryAttack
-    toNodeId: Unagi_Attack_01
   - fromNodeId: Unagi_Attack_Rush
     cancelSlotId: Attack
     toNodeId: Unagi_Attack_02
-  - fromNodeId: Unagi_Attack_Rush
-    cancelSlotId: RecoveryAttack
-    toNodeId: Unagi_Attack_01
-  - fromNodeId: Unagi_Dodge_Backward
-    cancelSlotId: EvadeAttack
-    toNodeId: Unagi_Attack_04
-  - fromNodeId: Unagi_Dodge_Backward_Right
-    cancelSlotId: EvadeAttack
-    toNodeId: Unagi_Attack_04
-  - fromNodeId: Unagi_Dodge_Backward_Left
-    cancelSlotId: EvadeAttack
-    toNodeId: Unagi_Attack_04
-  - fromNodeId: Unagi_Dodge_Forward_Left
-    cancelSlotId: EvadeAttack
-    toNodeId: Unagi_Attack_04
-  - fromNodeId: Unagi_Dodge_Forward_Right
-    cancelSlotId: EvadeAttack
-    toNodeId: Unagi_Attack_04
-  - fromNodeId: Unagi_Dodge_Forward_Right
-    cancelSlotId: Cancel_3
-    toNodeId: Unagi_Dodge_Forward
-  - fromNodeId: Unagi_Dodge_Forward_Left
-    cancelSlotId: Cancel_3
-    toNodeId: Unagi_Dodge_Forward
-  - fromNodeId: Unagi_Dodge_Backward_Left
-    cancelSlotId: Cancel_3
-    toNodeId: Unagi_Dodge_Forward
-  - fromNodeId: Unagi_Dodge_Backward_Right
-    cancelSlotId: Cancel_3
-    toNodeId: Unagi_Dodge_Forward
-  - fromNodeId: Unagi_Dodge_Backward
-    cancelSlotId: Cancel_3
-    toNodeId: Unagi_Dodge_Forward
   - fromNodeId: Unagi_Dodge_Forward
     cancelSlotId: Cancel_3
     toNodeId: Unagi_Dodge_Forward
@@ -264,3 +188,4 @@ MonoBehaviour:
   - fromNodeId: Unagi_Attack_Branch_01
     cancelSlotId: Cancel_1
     toNodeId: Unagi_Attack_01
+  sharedRoutes: []
