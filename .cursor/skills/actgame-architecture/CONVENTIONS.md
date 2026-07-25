@@ -78,6 +78,7 @@ public class MyBehaviour : MonoBehaviour
 - **原始中枢**：`InputManager` 由 `CharacterActor` 持有；保存 Move/Look 与 Pressed/IsPressed/Released，不承担动作缓冲
 - **设备映射**：`GameplayIntentProfile` 是 InputActionReference、长按阈值与上下文映射的唯一配置源
 - **语义生产**：`GameplayIntentProducer` 在 `InputManager.IngestFrame` 后输出 `GameplayIntentType`
+- **上下文意图**：SprintAttack / DodgeAttack 由 `GameplayIntentProfile` 条件映射产生；闪避攻击使用 `IsDodging + Attack Pressed`，禁止在 Driver 中按键名特判
 - **选招层**：`ActionResolverService` → 当前模式 `ActionGraph`（多 Entry × Trigger 起手 + Cancel 边）；`DirectionalActionResolver` 可作为节点 `VariantResolver`
 - **Trigger**：`ActionDefinition.Trigger` 只保存 `GameplayIntentType`，禁止重新绑定 InputActionReference
 - **连招图**：一张 `ActionGraph` 可同时含攻击/闪避等多个 Entry；边按 `Cancel` / `PerfectCancel` 通道解析，重复的「同来源 Trigger + 同路由 + 同意图」使用 `ActionGraphSharedRoute`

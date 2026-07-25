@@ -133,7 +133,7 @@ Update
 | 绑定 | Move/Look 从 Player Map 读取；离散引用来自 `GameplayIntentProfile` |
 | 生命周期 | OnEnable/OnDisable 启用/禁用整个 Asset |
 | 原始中枢 | `InputManager` 保存 Move/Look 与 Pressed/IsPressed/Released |
-| 语义生产 | `GameplayIntentProducer`：SprintAttack 优先、PressedThenLong、Dodge |
+| 语义生产 | `GameplayIntentProducer`：SprintAttack、DodgeAttack 上下文映射，PressedThenLong、Dodge |
 | 语义缓冲 | `GameplayIntentBuffer`：当帧事件 + Action Cancel 跨帧消费 |
 | 消费方 | `CharacterActionDriver` 消费动作意图；Locomotion 继续消费连续 Move 快照 |
 
@@ -143,7 +143,7 @@ Update
 |--------|------|----------|
 | Move | Vector2 | WASD 复合键；Gamepad 左 Stick |
 | Look | Vector2 | 鼠标 Delta；Gamepad 右 Stick |
-| Attack | Button | Pressed→Attack（Sprint 时 SprintAttack）；HoldReached→LongPressedAttack；Released→AttackRelease（Profile 需配置） |
+| Attack | Button | Pressed→Attack（Sprint 时 SprintAttack；Dodge Action 中为 DodgeAttack）；HoldReached→LongPressedAttack；Released→AttackRelease |
 | Dodge | Button | Pressed→Dodge |
 
 ### 错误处理
@@ -544,3 +544,4 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 | 2026-07-25 | Phase 收敛到 `ActionTimeline.phaseStates`；Action Editor 开放 Phase 轨；Recovery 窗口集成移动取消与 Entry 重开；删除独立 `ActionPhase` 数据路径 |
 | 2026-07-25 | Action Editor 手动轨道支持拖拽换序：轨头手柄、插入线、松开写回 `timeline.tracks`，完整支持 Undo |
 | 2026-07-25 | Cancel 双通道与顺序组：唯一 CancelWindow、Perfect 分割帧、组出口聚合全部符合通道条件的子节点；组内行顺序自动生成普通链并保留独立 In |
+| 2026-07-25 | 新增 DodgeAttack 语义：GameplayIntentProfile 通过 IsDodging 条件将闪避 Action 中的 Attack Pressed 映射为闪避攻击 |

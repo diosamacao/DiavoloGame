@@ -102,7 +102,7 @@ flowchart TB
 ```
 CharacterConfig → PlayerController（Empty 根创建玩家输入源）
                     ↓
-InputReader（原始帧）→ InputManager → GameplayIntentProducer / GameplayIntentBuffer
+InputReader（原始帧）→ InputManager → GameplayIntentProducer（含 Sprint/Dodge 上下文意图）/ GameplayIntentBuffer
                     ↓
               CharacterActionDriver（语义意图起手 / 缓冲 / 移动取消）
                     ↓
