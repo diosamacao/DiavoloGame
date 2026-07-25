@@ -31,11 +31,11 @@ PlayerActionSet
 
 `ComboActionResolver` 无法自然表达环（`A4→A2`）、同窗多输入分支、以及同一 `ActionDefinition` 在路径上多次出现且出边不同（身份被 SO 引用绑死）。
 
-### 1.3 单窗口双路由：普通与 Perfect 派生
+### 1.3 双窗口双路由：Normal 与 Perfect 派生
 
-> **同一 CancelWindow 由 Perfect 分割帧切成两段，可派生到普通或特殊分支。**
+> **每个 Action 有一个 Normal CancelWindow，可另配一个独立 Perfect CancelWindow。**
 
-边绑定到 `Cancel` 或 `PerfectCancel` 通道，不再使用窗口槽 Id。
+边绑定到 `Normal` 或 `Perfect` 类型；两窗重叠且目标 Trigger 相同时，Perfect 优先。
 
 ### 1.4 决策：输入归属 ActionDefinition.Trigger（本方案采纳）
 
@@ -50,7 +50,7 @@ PlayerActionSet
 
 配置动作树时：
 
-> **每个 Action 只有一个 CancelWindow；图上只连接 Cancel / PerfectCancel 到目标 Action。**
+> **每个 Action 必须有一个 Normal、可选一个 Perfect CancelWindow；图上按窗口类型连接目标 Action。**
 > 运行时用目标招的 `Trigger` 去匹配输入缓冲。
 
 这与已有 `ActionRequest(InputId, ActionInputTrigger)` / `ActionInputTrigger`（当前仅 `Pressed`，预留 Held/Released）对齐，并消除 Cancel 窗与边上的输入重复配置。
@@ -60,13 +60,13 @@ PlayerActionSet
 ## 2. 设计目标
 
 1. 支持连招 **分支** 与 **环**（有向图，而非纯树）。
-2. CancelWindow 由 `perfectFrame` 分成普通与 Perfect 两段，可派生不同下一招。
+2. Normal / Perfect CancelWindow 独立配置帧范围，可重叠并派生不同下一招。
 3. 可用输入由当前路由通道出边目标的 `Trigger` 集合推导。
 4. **`ActionDefinition.Trigger`** 描述本招由何种输入、何种触发类型启动（Pressed / Held / Released…）。
 5. 图边 **不携带 inputId**；编辑器连线 =「此窗可接到该 Action」。
-6. **保持** 选招拓扑在 Graph；时间轴只提供唯一 CancelWindow 与 Perfect 分割帧。
-7. **保持** `ActionExecutor` 薄：判断当前 Cancel 路由 → 交给 Graph Resolver。
-8. **必须提供 ActionGraph 编辑器**：节点/顺序组出口固定为 CancelWindow 与 PerfectCancelWindow。
+6. **保持** 选招拓扑在 Graph；时间轴只提供 Normal / Perfect 时间门。
+7. **保持** `ActionExecutor` 薄：同一意图先尝试 Perfect，再尝试 Normal，并交给 Graph Resolver。
+8. **必须提供 ActionGraph 编辑器**：节点/顺序组出口固定为 NormalCancelWindow 与 PerfectCancelWindow。
 
 ### 2.1 非目标（本阶段不做）
 
@@ -80,10 +80,10 @@ PlayerActionSet
 
 ```text
 ActionDefinition.Trigger = 本招如何被输入触发（唯一输入配置处）
-ActionDefinition.Timeline = 本招如何播放（含唯一 CancelWindow）
+ActionDefinition.Timeline = 本招如何播放（含 Normal / Perfect CancelWindow）
 ActionGraph               = 一张图可含多个 Entry（攻击/闪避…）+ Cancel 边
 PlayerActionSet           = 只挂 ActionGraph，不再配 input→Resolver 表
-边                        = (fromNode, CancelRoute) → toNode（Trigger 取自目标）
+边                        = (fromNode, CancelWindowType) → toNode（Trigger 取自目标）
 ActionResolverService     = 调 ActiveGraph.TryResolveStart / TryResolveCancel
 节点.VariantResolver      = 可选（Directional 闪避等）
 ```
@@ -98,7 +98,7 @@ Graph 不再把所有可达关系都展开为线：
 
 | 关系 | 表达方式 |
 |------|----------|
-| 独特连招、分支、环 | 显式边 `(fromNode, CancelRoute) → toNode` |
+| 独特连招、分支、环 | 显式边 `(fromNode, CancelWindowType) → toNode` |
 | 多来源共用同路由、同意图、同目标 | `ActionGraphSharedRoute`（显式边未命中时回退） |
 | 线性连招 | 顺序组按行自动生成普通 Cancel 边；每行保留独立 In |
 | 后摇退出 | Timeline Recovery Phase：`allowMovementCancel` / `allowEntryRestart` |
@@ -141,7 +141,7 @@ ActionDefinition
   trigger :
     input     : InputActionReference   // 解析为 inputId（Attack / Dodge / …）
     kind      : ActionInputTrigger     // Pressed | Held | Released（扩展现有枚举）
-  timeline  : … CancelWindow(frames, perfectFrame) …
+  timeline  : … NormalCancelWindow(frames), PerfectCancelWindow?(frames) …
 ```
 
 约定：
@@ -155,17 +155,18 @@ ActionDefinition
 
 **每个招式通常一个 Trigger。** 若同一动画既要「点按」又要「长按」进不同逻辑，拆成两个 `ActionDefinition`（或两个图节点引用不同资产），而不是在一个 Action 上挂多个 Trigger。
 
-### 4.2 唯一 CancelWindow（时间轴）
+### 4.2 独立 CancelWindow（时间轴）
 
 ```text
 CancelWindowNotifyState
   startFrame / endFrame
-  perfectFrame : int         // < 0 表示无 Perfect；该帧及之后为 PerfectCancel
+  windowType : Normal | Perfect
 ```
 
-- 每个 Action 必须且只能有一个 CancelWindow。
+- 每个 Action 必须且只能有一个 Normal CancelWindow，最多一个 Perfect CancelWindow。
+- 两个窗口可以重叠；同一 Trigger 在重叠帧优先走 Perfect。
 - 移动取消由 Recovery Phase 的 `allowMovementCancel` 承担，不再复用 CancelWindow。
-- `CancelType`、`CancelSlotId`、`ResolvedCancelWindow` 已删除。
+- `perfectFrame`、`CancelType`、`CancelSlotId`、`ResolvedCancelWindow` 已删除。
 
 ### 4.3 ActionGraph
 
@@ -177,7 +178,7 @@ ActionGraph
     action  : ActionDefinition   // 其 Trigger 参与 Cancel 匹配
   edges[] :
     fromNodeId    : string
-    routeKind     : Cancel | PerfectCancel
+    routeKind     : Normal | Perfect
     conditions    : EdgeCondition[]  // 可选：OnHit / OnWhiff …
     to            : NodeRef        // 目标节点；Trigger = to.action.Trigger
 ```
@@ -202,7 +203,7 @@ GraphActionResolver : ActionResolver
 ```
 
 `PlayerActionSet`：Attack Entry → 本 Resolver（Locomotion 起手进 entry）。  
-Cancel 路径：先看当前 Cancel / PerfectCancel 通道有哪些出边，再用各目标 Trigger 反查缓冲。
+Cancel 路径：汇总当前帧开放的 Normal / Perfect 窗口，再用各目标 Trigger 反查缓冲。
 
 ### 4.5 关系一览
 
@@ -212,17 +213,17 @@ Cancel 路径：先看当前 Cancel / PerfectCancel 通道有哪些出边，再�
 | Graph Node ↔ Action | 多对一允许 |
 | Cancel 路由 ↔ 出边 | 一对多（多目标招 = 多 Trigger） |
 | 运行时位置 | `CurrentNodeId` |
-| 运行时取消上下文 | `ActionCancelRouteKind` |
+| 运行时取消上下文 | `CancelWindowType` |
 
 ---
 
-## 5. 双通道派生 + Trigger 匹配
+## 5. 双窗口派生 + Trigger 匹配
 
 ### 5.1 编辑器心智模型（目标体验）
 
 ```text
 Attack_01
-  CancelWindow        ──连接──→ Attack_02
+  NormalCancelWindow  ──连接──→ Attack_02
   PerfectCancelWindow ──连接──→ BranchPerfect
   Recovery Phase ──隐式 Entry──→ Attack_01（Trigger: Attack，重开；不画边）
 ```
@@ -233,13 +234,13 @@ Attack_01
 
 ```text
 ActionExecutor.Tick
-  → 判断唯一 CancelWindow 是否开放
-  → 当前帧 < perfectFrame：Cancel；否则：PerfectCancel
-  → 枚举 Graph 中 (CurrentNodeId, routeKind) 的全部出边
+  → 判断 Normal / Perfect CancelWindow 是否开放
+  → 按输入意图优先级枚举；同一意图先尝试 Perfect，再尝试 Normal
+  → 枚举 Graph 中 (CurrentNodeId, windowType) 的全部出边
   → 对每条边读取 to.action.Trigger，查询输入缓冲是否满足
        （Pressed：HasBuffer(inputId)；Held：后续接入按住状态等）
   → 若唯一命中（或 conditions 筛后唯一）→ 消费对应缓冲
-  → Context { CancelRoute, CurrentNodeId, … }
+  → Context { CancelWindowType, CurrentNodeId, … }
   → TransitionTo(to.action) + 游标 = to.nodeId
 ```
 
@@ -249,8 +250,9 @@ ActionExecutor.Tick
 
 | 情况 | 处理 |
 |------|------|
-| Cancel → Quick(Attack●) + Dodge(Dodge●) | 合法；按输入优先级匹配 |
-| Cancel → Quick(Attack●) + Finisher(Attack●) | **非法**（同路由同 Trigger） |
+| Normal → Quick(Attack●) + Dodge(Dodge●) | 合法；按输入优先级匹配 |
+| Normal → Quick(Attack●) + Finisher(Attack●) | **非法**（同路由同 Trigger） |
+| Normal → Quick(Attack●) + Perfect → Finisher(Attack●)，两窗重叠 | 合法；该帧优先 Finisher |
 | Attack● 与 Attack●Held 同时满足 | P2 建议 **Held 优先于 Pressed**（或可配置） |
 
 ### 5.5 为何比「边上等 inputId」更好
@@ -258,7 +260,7 @@ ActionExecutor.Tick
 1. Trigger 与招式绑定一次，全图复用，改 Dodge 输入名只改 Action。  
 2. 配树时零 Input 选择，降低配错。  
 3. 长按等扩展只加 `ActionInputTrigger` + 新 Action，边模型不变。  
-4. CancelWindow 只负责时间门与 Perfect 分割，职责干净。
+4. CancelWindow 只负责类型与时间门，职责干净。
 
 ---
 
@@ -267,7 +269,7 @@ ActionExecutor.Tick
 ### 6.1 图游标
 
 `ActionSession`：`CurrentNodeId`（+ 可选 `CurrentGraph`）。  
-`ActionResolveContext`：`CurrentNodeId` + `CancelRoute`。
+`ActionResolveContext`：`CurrentNodeId` + `CancelWindowType`。
 
 ### 6.2 TryResolve
 
@@ -280,7 +282,7 @@ ActionExecutor.Tick
 ### 6.3 Executor
 
 ```text
-扫窗(slot) → 列本槽出边 → Trigger 匹配缓冲 → TransitionTo
+扫 Normal / Perfect 窗 → 同意图 Perfect 优先 → Trigger 匹配缓冲 → TransitionTo
 ```
 
 不在 Executor 内写死 Attack/Dodge；不读窗上的 allowedInputs。
@@ -302,9 +304,9 @@ ActionExecutor.Tick
 | 层 | 职责 | 不负责 |
 |----|------|--------|
 | `ActionDefinition.Trigger` | 本招由什么输入、何种 kind 触发 | 连招下一跳 |
-| `CancelWindow` | 何时可取消（帧 + slot + type） | 允许哪些输入、下一招是谁 |
-| `ActionGraph` 边 | 某槽可派生到哪些 Action 节点 | 再写一遍 Input |
-| `GraphActionResolver` | 槽 + 缓冲 ↔ 目标 Trigger | 播动画 |
+| `CancelWindow` | 何时、以 Normal 或 Perfect 取消 | 允许哪些输入、下一招是谁 |
+| `ActionGraph` 边 | 某窗口类型可派生到哪些 Action 节点 | 再写一遍 Input |
+| `GraphActionResolver` | 窗口类型 + 缓冲 ↔ 目标 Trigger | 播动画 |
 | `PlayerActionSet` | Locomotion 起手：输入 → Resolver | Cancel 窗内的 input 白名单 |
 
 **删除主路径上的 `CancelWindow.allowedInputs`**（按项目无兼容层约定，切 Graph 后不保留双轨）。
@@ -316,10 +318,10 @@ ActionExecutor.Tick
 ### 8.1 目标
 
 1. 拖入 `ActionDefinition` 生成节点（节点上显示其 **Trigger** 徽章）。  
-2. 节点输出端口固定为 **CancelWindow / PerfectCancelWindow**。
+2. 节点输出端口固定为 **NormalCancelWindow / PerfectCancelWindow**。
 3. 多选 Action 可合并为顺序组；普通 Cancel 按行自动进入下一 Action。
 4. 组内每行 Action 保留独立 In，因此可明确连到 `Branch` 或 `BranchPerfect`。
-5. 组级 Cancel 出口展开到所有内部节点的有效 CancelWindow；Perfect 出口展开到所有配置分割帧的子节点。
+5. 组级 Normal / Perfect 出口分别展开到所有配置对应窗口类型的子节点。
 6. 可直接把 `ActionDefinition` 拖入组末尾，并用上下按钮调整顺序。
 
 ### 8.2 界面草图
@@ -340,7 +342,7 @@ ActionExecutor.Tick
 | 操作 | 行为 |
 |------|------|
 | 拖入 Action | 建节点；展示 Trigger + Cancel 端口 |
-| Cancel / Perfect → 节点连线 | 写入双通道 edge；标签 = 目标 Trigger |
+| Normal / Perfect → 节点连线 | 写入对应窗口类型 edge；标签 = 目标 Trigger |
 | 多选 Merge Sequence | 按画布顺序生成组；每行独立 In，普通 Cancel 自动进下一行 |
 | 拖 Action 到组 | 追加一行；上下按钮调整自动链顺序 |
 | 改 Action.Trigger | 全图边标签刷新；同路由冲突重跑校验 |
@@ -349,14 +351,14 @@ ActionExecutor.Tick
 ### 8.3 校验（最低集）
 
 1. Entry 存在。  
-2. 每个 Action 必须且只能有一个 CancelWindow；Perfect 边要求有效分割帧。
+2. 每个 Action 必须且只能有一个 Normal、最多一个 Perfect；边要求来源 Action 存在对应类型窗口。
 3. 同一 `(fromNodeId, routeKind)` 下，出边目标 Trigger 唯一。
 4. 目标节点存在；目标 Action 已配置合法 Trigger。  
 5. 顺序组 Id / 成员唯一，组内 Action 均有 CancelWindow。
 
 ### 8.4 分期
 
-当前编辑器支持拖入、双通道连线、顺序组、多行入口、自动链、存盘与冲突校验。
+当前编辑器支持拖入、双窗口连线、顺序组、多行入口、自动链、存盘与冲突校验。
 
 ---
 
@@ -371,21 +373,21 @@ Actions:
   BranchPerfect.Trigger      = Attack Pressed
 
 Edges:  // 无 input 字段
-  (N1, Cancel)        → N2
-  (N1, PerfectCancel) → BranchPerfect
+  (N1, Normal)  → N2
+  (N1, Perfect) → BranchPerfect
   Recovery Phase → Attack Entry（隐式，不保存边）
 ```
 
 ### 9.2 循环 A1→A2→A3→A4→A2…
 
-各 Attack 均为 `Attack Pressed`；合并为顺序组后自动生成 `(Ni, Cancel) → N(i+1)`，末段可显式回到 N2。
+各 Attack 均为 `Attack Pressed`；合并为顺序组后自动生成 `(Ni, Normal) → N(i+1)`，末段可显式回到 N2。
 
 ### 9.3 未来：长按攻击
 
 ```text
 Charge_Slash.Trigger = Attack Held
-(N1, Cancel) → N2_Quick          // Attack Pressed
-(N1, Cancel) → N_Charge          // Attack Held —— 同路由不同 kind，合法
+(N1, Normal) → N2_Quick          // Attack Pressed
+(N1, Normal) → N_Charge          // Attack Held —— 同路由不同 kind，合法
 ```
 
 ---
@@ -399,8 +401,8 @@ Charge_Slash.Trigger = Attack Held
 | `ActionInputTrigger`（仅 Pressed） | 扩展 Held / Released；挂到 `ActionDefinition.Trigger.kind` |
 | `ActionRequest(InputId, Trigger)` | 与 `ActionDefinition.Trigger` 对齐 |
 | `ComboActionResolver.steps[]` | 已删除；改为 `ActionGraph` 显式边 + SharedRoute |
-| `IndexOfStep(action)` | `CurrentNodeId` + CancelRoute + Trigger 匹配 |
-| 无 Graph 编辑器 | 双通道连 Action；顺序组自动生成普通链 |
+| `IndexOfStep(action)` | `CurrentNodeId` + CancelWindowType + Trigger 匹配 |
+| 无 Graph 编辑器 | 双窗口类型连 Action；顺序组自动生成 Normal 链 |
 
 ---
 
@@ -408,7 +410,7 @@ Charge_Slash.Trigger = Attack Held
 
 | 阶段 | 内容 | 验收 |
 |------|------|------|
-| **P0** | `ActionDefinition.Trigger`；双通道 `ActionGraph` + Resolver；Session/Context；Graph 编辑器；唯一 CancelWindow | ① 环可玩 ② 普通/Perfect 派生 ③ 编辑器无需选 Input |
+| **P0** | `ActionDefinition.Trigger`；双窗口 `ActionGraph` + Resolver；Session/Context；Graph 编辑器 | ① 环可玩 ② Normal/Perfect 派生 ③ 编辑器无需选 Input |
 | **P1** | 校验器完善；Directional 与 Dodge 节点再解析打通 | 闪避取消方向正确；冲突 Trigger 编辑期报错 |
 | **P2** | `ActionInputTrigger.Held/Released` + 缓冲/按住状态；边 conditions | 长按攻击/闪避；挥空分支 |
 | **P3** | GraphView 体验、播放中高亮当前槽/边 | 策划日常只维护图 |
@@ -421,8 +423,8 @@ Charge_Slash.Trigger = Attack Held
 
 - `ActionDefinition` — 增加 `Trigger`
 - `ActionInputTrigger` — 扩展 Held / Released（P2）
-- `CancelWindowNotifyState` — 唯一窗口 + `perfectFrame`
-- `ActionSession` / `ActionResolveContext` / `ActionExecutor` — 游标、双通道、按目标 Trigger 匹配
+- `CancelWindowNotifyState` — `CancelWindowType.Normal / Perfect` 独立窗口
+- `ActionSession` / `ActionResolveContext` / `ActionExecutor` — 游标、双窗口与同 Trigger Perfect 优先
 - 文档与 TECHNICAL 同步
 
 **不改：** 连招拓扑不写进 `ActionDefinition`（只加 Trigger 元数据）；玩法资产由 Editor 人工配置。
@@ -442,7 +444,7 @@ Charge_Slash.Trigger = Attack Held
 
 ## 13. 结论
 
-最终模型：`ActionDefinition.Trigger` 定义输入语义；唯一 CancelWindow 定义时间门和 Perfect 分割帧；图边仅表达 Cancel / PerfectCancel 到目标 Action。顺序组用行顺序生成普通链，同时每行独立 In 支持从外部精确进入 Branch 或 BranchPerfect。
+最终模型：`ActionDefinition.Trigger` 定义输入语义；Normal / Perfect CancelWindow 独立定义时间门；图边按窗口类型连接目标 Action。重叠时同一 Trigger 优先 Perfect；顺序组用 Normal 自动生成链，同时每行独立 In 支持精确进入分支。
 
 ---
 
@@ -454,5 +456,5 @@ Charge_Slash.Trigger = Attack Held
 | 2026-07-14 | 补充：多 CancelWindow 差异派生；ActionGraph 编辑器硬需求 |
 | 2026-07-14 | **采纳 Trigger 归属 ActionDefinition**：边去掉 inputId；删除 Cancel.allowedInputs 主路径；编辑器仅按窗连 Action；对齐 ActionInputTrigger 扩展 Held/Released |
 | 2026-07-14 | **P0 落地**：`ActionTrigger`、`ActionGraph`/`GraphActionResolver`、`ActionResolveResult` 图游标、Cancel 槽=时间轴 Id、Executor 按槽边候选输入、Inspector + GraphView 编辑器；移除 `allowedInputs` |
-| 2026-07-25 | **双通道与顺序组**：删除 CancelType / 槽 Id；唯一 CancelWindow + Perfect 分割帧；组内多行 In、自动普通链、聚合 Perfect 出口 |
+| 2026-07-26 | **Perfect 独立窗口**：删除 perfectFrame；Normal 必需、Perfect 可选；重叠且同 Trigger 时 Perfect 优先 |
 | 2026-07-14 | **多入口**：删除 `GraphActionResolver` 与 `ActionEntry`；`PlayerActionSet` 直接挂 `ActionGraph`；节点 `Is Entry` + Trigger 同时支持攻击/闪避起手；可选 `VariantResolver`（Directional） |

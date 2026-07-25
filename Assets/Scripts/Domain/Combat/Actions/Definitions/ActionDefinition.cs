@@ -285,8 +285,9 @@ public class ActionDefinition : ScriptableObject
         return Mathf.Max(0f, segmentFade);
     }
 
-    /// <summary>本 Action 唯一 CancelWindow；未配置时为 null。</summary>
-    public CancelWindowNotifyState CancelWindow => Timeline.CancelWindow;
+    /// <summary>返回指定类型的唯一 CancelWindow；缺失或重复配置时返回 null。</summary>
+    public CancelWindowNotifyState GetCancelWindow(CancelWindowType windowType) =>
+        Timeline.GetCancelWindow(windowType);
 
     /// <summary>Transition 衔接，按 priority 降序。</summary>
     public IReadOnlyList<ActionTransition> GetTransitionsSorted()
@@ -373,18 +374,11 @@ public class ActionDefinition : ScriptableObject
         return false;
     }
 
-    /// <summary>指定帧位于唯一 CancelWindow 时返回普通或 Perfect 图路由。</summary>
-    public bool TryGetCancelRouteAtFrame(int frame, out ActionCancelRouteKind routeKind)
+    /// <summary>指定类型的唯一 CancelWindow 是否覆盖当前帧。</summary>
+    public bool IsCancelWindowActiveAtFrame(CancelWindowType windowType, int frame)
     {
-        CancelWindowNotifyState window = CancelWindow;
-        if (window == null || !window.IsActiveAtFrame(frame))
-        {
-            routeKind = default;
-            return false;
-        }
-
-        routeKind = window.ResolveRouteAtFrame(frame);
-        return true;
+        CancelWindowNotifyState window = GetCancelWindow(windowType);
+        return window != null && window.IsActiveAtFrame(frame);
     }
 
     public bool IsInDisplacementWindow(float elapsedSeconds)

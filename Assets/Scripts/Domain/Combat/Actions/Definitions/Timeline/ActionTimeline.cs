@@ -35,9 +35,22 @@ public class ActionTimeline
     /// <summary>取消窗口区间列表。</summary>
     public CancelWindowNotifyState[] CancelWindowStates => cancelWindowStates ?? Array.Empty<CancelWindowNotifyState>();
 
-    /// <summary>Action 唯一 CancelWindow；未配置时为 null。</summary>
-    public CancelWindowNotifyState CancelWindow =>
-        CancelWindowStates.Length == 1 ? CancelWindowStates[0] : null;
+    /// <summary>返回指定类型的唯一 CancelWindow；缺失或重复配置时返回 null。</summary>
+    public CancelWindowNotifyState GetCancelWindow(CancelWindowType windowType)
+    {
+        CancelWindowNotifyState match = null;
+        foreach (CancelWindowNotifyState window in CancelWindowStates)
+        {
+            if (window == null || window.WindowType != windowType)
+                continue;
+            if (match != null)
+                return null;
+
+            match = window;
+        }
+
+        return match;
+    }
 
     /// <summary>动作阶段区间列表；后摇退出能力也由对应 Recovery 窗口声明。</summary>
     public ActionPhaseNotifyState[] PhaseStates => phaseStates ?? Array.Empty<ActionPhaseNotifyState>();
@@ -229,6 +242,5 @@ public class ActionTimeline
         foreach (ActionNotifyState state in EnumerateStates())
             state.ClampToTotalFrames(totalFrames);
 
-        CancelWindow?.ClampPerfectFrame();
     }
 }

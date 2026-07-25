@@ -188,8 +188,21 @@ public static class ActionTimelineCommands
         SerializedProperty arrayProp = so.FindProperty($"timeline.{arrayName}");
         if (arrayProp == null)
             return default;
-        if (kind == ActionTimelineTrackKind.Cancel && arrayProp.arraySize > 0)
-            return new ActionEditorSelection(arrayProp, 0, kind);
+        CancelWindowType newWindowType = CancelWindowType.Normal;
+        if (kind == ActionTimelineTrackKind.Cancel)
+        {
+            if (arrayProp.arraySize >= 2)
+                return new ActionEditorSelection(arrayProp, arrayProp.arraySize - 1, kind);
+
+            for (int i = 0; i < arrayProp.arraySize; i++)
+            {
+                SerializedProperty typeProp = arrayProp
+                    .GetArrayElementAtIndex(i)
+                    .FindPropertyRelative("windowType");
+                if (typeProp != null && typeProp.enumValueIndex == (int)CancelWindowType.Normal)
+                    newWindowType = CancelWindowType.Perfect;
+            }
+        }
 
         Undo.RecordObject(so.targetObject, "Add Action Window");
         int index = arrayProp.arraySize;
@@ -200,13 +213,16 @@ public static class ActionTimelineCommands
         startFrame = Mathf.Clamp(startFrame, 0, maxFrame);
         int endFrame = ResolveDefaultEndFrame(element, kind, startFrame, maxFrame);
 
-        SetIfExists(element, "id", $"{ActionEditorStyles.DisplayName(kind)}_{index + 1}");
+        string itemId = kind == ActionTimelineTrackKind.Cancel
+            ? $"{newWindowType}Cancel"
+            : $"{ActionEditorStyles.DisplayName(kind)}_{index + 1}";
+        SetIfExists(element, "id", itemId);
         SetIfExists(element, "startFrame", startFrame);
         SetIfExists(element, "endFrame", endFrame);
         SetIfExists(element, "priority", 0);
         SetIfExists(element, "trackName", trackName);
         if (kind == ActionTimelineTrackKind.Cancel)
-            SetIfExists(element, "perfectFrame", -1);
+            SetIfExists(element, "windowType", (int)newWindowType);
         if (kind == ActionTimelineTrackKind.Phase)
         {
             SetIfExists(element, "interruptible", true);
@@ -287,16 +303,10 @@ public static class ActionTimelineCommands
 
         int oldStart = startProp.intValue;
         int length = endProp.intValue - oldStart;
-        SerializedProperty perfectProp = element.FindPropertyRelative("perfectFrame");
-        int perfectOffset = perfectProp != null && perfectProp.intValue >= oldStart
-            ? perfectProp.intValue - oldStart
-            : -1;
         int maxFrame = Mathf.Max(0, totalFrames - 1);
         int newStart = Mathf.Clamp(oldStart + deltaFrames, 0, maxFrame - length);
         startProp.intValue = newStart;
         endProp.intValue = newStart + length;
-        if (perfectOffset >= 0)
-            perfectProp.intValue = newStart + perfectOffset;
     }
 
     /// <summary>改左边缘（startFrame），保持最小 1 帧。</summary>
@@ -312,9 +322,6 @@ public static class ActionTimelineCommands
 
         int maxFrame = Mathf.Max(0, totalFrames - 1);
         startProp.intValue = Mathf.Clamp(newStart, 0, Mathf.Min(endProp.intValue, maxFrame));
-        SerializedProperty perfectProp = element.FindPropertyRelative("perfectFrame");
-        if (perfectProp != null && perfectProp.intValue >= 0)
-            perfectProp.intValue = Mathf.Clamp(perfectProp.intValue, startProp.intValue, endProp.intValue);
     }
 
     /// <summary>改右边缘（endFrame），保持最小 1 帧。</summary>
@@ -330,9 +337,6 @@ public static class ActionTimelineCommands
 
         int maxFrame = Mathf.Max(0, totalFrames - 1);
         endProp.intValue = Mathf.Clamp(newEnd, startProp.intValue, maxFrame);
-        SerializedProperty perfectProp = element.FindPropertyRelative("perfectFrame");
-        if (perfectProp != null && perfectProp.intValue >= 0)
-            perfectProp.intValue = Mathf.Clamp(perfectProp.intValue, startProp.intValue, endProp.intValue);
     }
 
     static int ResolveDefaultEndFrame(

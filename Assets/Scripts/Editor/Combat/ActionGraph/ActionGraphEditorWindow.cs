@@ -104,7 +104,7 @@ public sealed class ActionGraphEditorWindow : EditorWindow
     }
 }
 
-/// <summary>GraphView 画布：节点/顺序组输出固定为 Cancel 与 PerfectCancel。</summary>
+/// <summary>GraphView 画布：节点/顺序组输出固定为 Normal 与 Perfect CancelWindow。</summary>
 sealed class ActionGraphView : GraphView
 {
     readonly ActionGraph _graph;
@@ -340,7 +340,7 @@ sealed class ActionGraphView : GraphView
                 nodeToGroup[childNodeId] = group.GroupId;
         }
 
-        var edgeList = new List<(string from, ActionCancelRouteKind route, string to)>();
+        var edgeList = new List<(string from, CancelWindowType route, string to)>();
         var seenEdges = new HashSet<string>();
         foreach (ActionGraphEdge edge in _graph.Edges)
         {
@@ -348,7 +348,7 @@ sealed class ActionGraphView : GraphView
                 continue;
 
             bool isInternalSequenceEdge =
-                edge.RouteKind == ActionCancelRouteKind.Cancel
+                edge.RouteKind == CancelWindowType.Normal
                 && nodeToGroup.TryGetValue(edge.FromNodeId, out string fromGroup)
                 && nodeToGroup.TryGetValue(edge.ToNodeId, out string toGroup)
                 && fromGroup == toGroup;
@@ -374,7 +374,7 @@ sealed class ActionGraphView : GraphView
                     edgeList,
                     seenEdges,
                     group.ChildNodeIds[i],
-                    ActionCancelRouteKind.Cancel,
+                    CancelWindowType.Normal,
                     group.ChildNodeIds[i + 1]);
             }
         }
@@ -493,7 +493,7 @@ sealed class ActionGraphView : GraphView
         for (int i = 0; i < orderedGroups.Count; i++)
             WriteGroupView(groupsProp.GetArrayElementAtIndex(i), orderedGroups[i]);
 
-        var edgeList = new List<(string from, ActionCancelRouteKind route, string to)>();
+        var edgeList = new List<(string from, CancelWindowType route, string to)>();
         var seenEdges = new HashSet<string>();
 
         // 组顺序是普通 Cancel 链的唯一配置源。
@@ -505,7 +505,7 @@ sealed class ActionGraphView : GraphView
                     edgeList,
                     seenEdges,
                     group.ChildNodeIds[i],
-                    ActionCancelRouteKind.Cancel,
+                    CancelWindowType.Normal,
                     group.ChildNodeIds[i + 1]);
             }
         }
@@ -526,7 +526,7 @@ sealed class ActionGraphView : GraphView
 
             if (edge.output.node is ActionGraphNodeView fromNode)
             {
-                ActionCancelRouteKind? nodeRoute = fromNode.GetRouteForPort(edge.output);
+                CancelWindowType? nodeRoute = fromNode.GetRouteForPort(edge.output);
                 if (nodeRoute.HasValue)
                 {
                     AddConcreteEdge(
@@ -543,7 +543,7 @@ sealed class ActionGraphView : GraphView
             if (edge.output.node is not ActionGraphGroupView fromGroup)
                 return;
 
-            ActionCancelRouteKind? groupRoute = fromGroup.GetRouteForPort(edge.output);
+            CancelWindowType? groupRoute = fromGroup.GetRouteForPort(edge.output);
             if (!groupRoute.HasValue)
                 return;
 
@@ -621,10 +621,10 @@ sealed class ActionGraphView : GraphView
     }
 
     static void AddConcreteEdge(
-        List<(string from, ActionCancelRouteKind route, string to)> edges,
+        List<(string from, CancelWindowType route, string to)> edges,
         HashSet<string> seen,
         string from,
-        ActionCancelRouteKind route,
+        CancelWindowType route,
         string to)
     {
         if (string.IsNullOrEmpty(from) || string.IsNullOrEmpty(to))
@@ -658,7 +658,7 @@ sealed class ActionGraphView : GraphView
         AddElement(view);
     }
 
-    /// <summary>创建顺序组；每行保留独立输入，组级仅显示 Cancel / PerfectCancel 输出。</summary>
+    /// <summary>创建顺序组；每行保留独立输入，组级按窗口类型聚合输出。</summary>
     void AddGroupView(ActionGraphNodeGroup data)
     {
         var children = new List<ActionGraphNode>();
@@ -686,7 +686,7 @@ sealed class ActionGraphView : GraphView
     /// <summary>判断边是否是组顺序自动生成的相邻普通 Cancel，折叠视图不绘制。</summary>
     bool IsGeneratedSequenceEdge(ActionGraphEdge edge)
     {
-        if (edge.RouteKind != ActionCancelRouteKind.Cancel
+        if (edge.RouteKind != CancelWindowType.Normal
             || !_nodeToGroupId.TryGetValue(edge.FromNodeId, out string fromGroup)
             || !_nodeToGroupId.TryGetValue(edge.ToNodeId, out string toGroup)
             || fromGroup != toGroup
@@ -834,8 +834,8 @@ sealed class ActionGraphView : GraphView
 /// <summary>单个 Action 节点视图：Entry、变体 Resolver、输入端口与 Cancel 输出端口。</summary>
 sealed class ActionGraphNodeView : Node
 {
-    readonly Dictionary<ActionCancelRouteKind, Port> _cancelPorts = new();
-    readonly Dictionary<Port, ActionCancelRouteKind> _portToRoute = new();
+    readonly Dictionary<CancelWindowType, Port> _cancelPorts = new();
+    readonly Dictionary<Port, CancelWindowType> _portToRoute = new();
     readonly UnityEngine.UIElements.Toggle _entryToggle;
     readonly UnityEditor.UIElements.ObjectField _variantResolverField;
 
@@ -874,13 +874,10 @@ sealed class ActionGraphNodeView : Node
 
         if (action != null)
         {
-            CancelWindowNotifyState window = action.CancelWindow;
-            if (window != null)
-            {
-                AddCancelPort(ActionCancelRouteKind.Cancel, "CancelWindow");
-                if (window.HasPerfectSplit)
-                    AddCancelPort(ActionCancelRouteKind.PerfectCancel, "PerfectCancelWindow");
-            }
+            if (action.GetCancelWindow(CancelWindowType.Normal) != null)
+                AddCancelPort(CancelWindowType.Normal, "NormalCancelWindow");
+            if (action.GetCancelWindow(CancelWindowType.Perfect) != null)
+                AddCancelPort(CancelWindowType.Perfect, "PerfectCancelWindow");
         }
 
         expanded = true;
@@ -889,15 +886,15 @@ sealed class ActionGraphNodeView : Node
     }
 
     /// <summary>查询普通或 Perfect Cancel 输出端口。</summary>
-    public bool TryGetCancelPort(ActionCancelRouteKind route, out Port port) =>
+    public bool TryGetCancelPort(CancelWindowType route, out Port port) =>
         _cancelPorts.TryGetValue(route, out port);
 
     /// <summary>从输出端口反查普通或 Perfect 路由。</summary>
-    public ActionCancelRouteKind? GetRouteForPort(Port port) =>
-        _portToRoute.TryGetValue(port, out ActionCancelRouteKind route) ? route : null;
+    public CancelWindowType? GetRouteForPort(Port port) =>
+        _portToRoute.TryGetValue(port, out CancelWindowType route) ? route : null;
 
     /// <summary>创建一个固定语义的 Cancel 输出端口。</summary>
-    void AddCancelPort(ActionCancelRouteKind route, string label)
+    void AddCancelPort(CancelWindowType route, string label)
     {
         Port port = InstantiatePort(
             Orientation.Horizontal,
@@ -913,7 +910,7 @@ sealed class ActionGraphNodeView : Node
 
 /// <summary>
 /// 顺序组视图：每行 Action 一个输入端口；普通 Cancel 自动进入下一行，
-/// 组级 Cancel 聚合全部子节点，PerfectCancel 聚合全部配置分割帧的子节点。
+/// 组级 Normal / Perfect 输出分别聚合全部配置对应窗口类型的子节点。
 /// </summary>
 sealed class ActionGraphGroupView : Node
 {
@@ -921,8 +918,8 @@ sealed class ActionGraphGroupView : Node
     readonly List<string> _childNodeIds;
     readonly Dictionary<string, Port> _inputPorts = new();
     readonly Dictionary<Port, string> _portToNodeId = new();
-    readonly Dictionary<ActionCancelRouteKind, Port> _outputPorts = new();
-    readonly Dictionary<Port, ActionCancelRouteKind> _portToRoute = new();
+    readonly Dictionary<CancelWindowType, Port> _outputPorts = new();
+    readonly Dictionary<Port, CancelWindowType> _portToRoute = new();
     readonly System.Action<ActionDefinition> _addAction;
 
     public string GroupId { get; }
@@ -970,10 +967,17 @@ sealed class ActionGraphGroupView : Node
             extensionContainer.Add(row);
         }
 
-        if (_children.Any(child => child.Action?.CancelWindow != null))
-            AddOutput(ActionCancelRouteKind.Cancel, "CancelWindow");
-        if (_children.Any(child => child.Action?.CancelWindow?.HasPerfectSplit == true))
-            AddOutput(ActionCancelRouteKind.PerfectCancel, "PerfectCancelWindow");
+        if (_children.Any(
+                child => child.Action?.GetCancelWindow(CancelWindowType.Normal) != null))
+        {
+            AddOutput(CancelWindowType.Normal, "NormalCancelWindow");
+        }
+
+        if (_children.Any(
+                child => child.Action?.GetCancelWindow(CancelWindowType.Perfect) != null))
+        {
+            AddOutput(CancelWindowType.Perfect, "PerfectCancelWindow");
+        }
 
         extensionContainer.Add(new Label("拖入 ActionDefinition 可追加到序列末尾"));
         extensionContainer.Add(new Button(ungroup) { text = "Ungroup" });
@@ -986,16 +990,11 @@ sealed class ActionGraphGroupView : Node
     }
 
     /// <summary>指定边是否应显示为组级外部出口。</summary>
-    public bool AcceptsExternalSource(string nodeId, ActionCancelRouteKind route)
+    public bool AcceptsExternalSource(string nodeId, CancelWindowType route)
     {
-        if (route == ActionCancelRouteKind.Cancel)
-        {
-            return _children.Any(
-                child => child.NodeId == nodeId && child.Action?.CancelWindow != null);
-        }
-
         return _children.Any(
-            child => child.NodeId == nodeId && child.Action?.CancelWindow?.HasPerfectSplit == true);
+            child => child.NodeId == nodeId
+                && child.Action?.GetCancelWindow(route) != null);
     }
 
     /// <summary>判断两个节点是否为顺序组内相邻项。</summary>
@@ -1013,37 +1012,26 @@ sealed class ActionGraphGroupView : Node
     public string GetNodeIdForInput(Port port) =>
         _portToNodeId.TryGetValue(port, out string nodeId) ? nodeId : null;
 
-    public bool TryGetCancelPort(ActionCancelRouteKind route, out Port port) =>
+    public bool TryGetCancelPort(CancelWindowType route, out Port port) =>
         _outputPorts.TryGetValue(route, out port);
 
-    public ActionCancelRouteKind? GetRouteForPort(Port port) =>
-        _portToRoute.TryGetValue(port, out ActionCancelRouteKind route) ? route : null;
+    public CancelWindowType? GetRouteForPort(Port port) =>
+        _portToRoute.TryGetValue(port, out CancelWindowType route) ? route : null;
 
-    /// <summary>展开组级出口：普通覆盖全部有效窗口，Perfect 覆盖全部已配置分割帧的行。</summary>
+    /// <summary>展开组级出口：覆盖全部配置指定窗口类型的子节点。</summary>
     public void CollectExternalSourceNodeIds(
-        ActionCancelRouteKind route,
+        CancelWindowType route,
         List<string> results)
     {
         results.Clear();
-        if (route == ActionCancelRouteKind.Cancel)
-        {
-            foreach (ActionGraphNode child in _children)
-            {
-                if (child.Action?.CancelWindow != null)
-                    results.Add(child.NodeId);
-            }
-
-            return;
-        }
-
         foreach (ActionGraphNode child in _children)
         {
-            if (child.Action?.CancelWindow?.HasPerfectSplit == true)
+            if (child.Action?.GetCancelWindow(route) != null)
                 results.Add(child.NodeId);
         }
     }
 
-    void AddOutput(ActionCancelRouteKind route, string label)
+    void AddOutput(CancelWindowType route, string label)
     {
         Port output = InstantiatePort(
             Orientation.Horizontal,
