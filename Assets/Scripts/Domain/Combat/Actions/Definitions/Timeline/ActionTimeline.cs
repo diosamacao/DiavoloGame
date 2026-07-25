@@ -35,6 +35,10 @@ public class ActionTimeline
     /// <summary>取消窗口区间列表。</summary>
     public CancelWindowNotifyState[] CancelWindowStates => cancelWindowStates ?? Array.Empty<CancelWindowNotifyState>();
 
+    /// <summary>Action 唯一 CancelWindow；未配置时为 null。</summary>
+    public CancelWindowNotifyState CancelWindow =>
+        CancelWindowStates.Length == 1 ? CancelWindowStates[0] : null;
+
     /// <summary>动作阶段区间列表；后摇退出能力也由对应 Recovery 窗口声明。</summary>
     public ActionPhaseNotifyState[] PhaseStates => phaseStates ?? Array.Empty<ActionPhaseNotifyState>();
 
@@ -171,20 +175,6 @@ public class ActionTimeline
         return active;
     }
 
-    /// <summary>按优先级返回全部 CancelWindow 状态窗口。</summary>
-    public IReadOnlyList<ResolvedCancelWindow> GetCancelWindowsSorted()
-    {
-        var sorted = new List<ResolvedCancelWindow>();
-        foreach (CancelWindowNotifyState state in CancelWindowStates)
-        {
-            if (state != null)
-                sorted.Add(state.ToResolved());
-        }
-
-        sorted.Sort((a, b) => b.Priority.CompareTo(a.Priority));
-        return sorted;
-    }
-
     /// <summary>返回指定帧上全部生效的语义阶段窗口。</summary>
     public IReadOnlyList<ActionPhaseNotifyState> GetActivePhaseStatesAtFrame(int frame)
     {
@@ -239,42 +229,6 @@ public class ActionTimeline
         foreach (ActionNotifyState state in EnumerateStates())
             state.ClampToTotalFrames(totalFrames);
 
-        EnsureCancelSlotIds();
-    }
-
-    /// <summary>为 Cancel 窗生成招式内唯一槽 id（默认 timeline_item / 空时重写）。</summary>
-    public void EnsureCancelSlotIds()
-    {
-        var used = new HashSet<string>();
-        CancelWindowNotifyState[] windows = CancelWindowStates;
-        for (int i = 0; i < windows.Length; i++)
-        {
-            CancelWindowNotifyState window = windows[i];
-            if (window == null)
-                continue;
-
-            string id = window.Id;
-            bool needsNew = string.IsNullOrEmpty(id)
-                || id == "timeline_item"
-                || id == nameof(CancelWindowNotifyState)
-                || used.Contains(id);
-
-            if (needsNew)
-            {
-                string baseId = $"Cancel_{window.StartFrame}_{window.EndFrame}";
-                string candidate = baseId;
-                int suffix = 2;
-                while (used.Contains(candidate))
-                {
-                    candidate = $"{baseId}_{suffix}";
-                    suffix++;
-                }
-
-                window.SetId(candidate);
-                id = candidate;
-            }
-
-            used.Add(id);
-        }
+        CancelWindow?.ClampPerfectFrame();
     }
 }

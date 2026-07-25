@@ -188,6 +188,8 @@ public static class ActionTimelineCommands
         SerializedProperty arrayProp = so.FindProperty($"timeline.{arrayName}");
         if (arrayProp == null)
             return default;
+        if (kind == ActionTimelineTrackKind.Cancel && arrayProp.arraySize > 0)
+            return new ActionEditorSelection(arrayProp, 0, kind);
 
         Undo.RecordObject(so.targetObject, "Add Action Window");
         int index = arrayProp.arraySize;
@@ -203,6 +205,8 @@ public static class ActionTimelineCommands
         SetIfExists(element, "endFrame", endFrame);
         SetIfExists(element, "priority", 0);
         SetIfExists(element, "trackName", trackName);
+        if (kind == ActionTimelineTrackKind.Cancel)
+            SetIfExists(element, "perfectFrame", -1);
         if (kind == ActionTimelineTrackKind.Phase)
         {
             SetIfExists(element, "interruptible", true);
@@ -281,11 +285,18 @@ public static class ActionTimelineCommands
         if (startProp == null || endProp == null)
             return;
 
-        int length = endProp.intValue - startProp.intValue;
+        int oldStart = startProp.intValue;
+        int length = endProp.intValue - oldStart;
+        SerializedProperty perfectProp = element.FindPropertyRelative("perfectFrame");
+        int perfectOffset = perfectProp != null && perfectProp.intValue >= oldStart
+            ? perfectProp.intValue - oldStart
+            : -1;
         int maxFrame = Mathf.Max(0, totalFrames - 1);
-        int newStart = Mathf.Clamp(startProp.intValue + deltaFrames, 0, maxFrame - length);
+        int newStart = Mathf.Clamp(oldStart + deltaFrames, 0, maxFrame - length);
         startProp.intValue = newStart;
         endProp.intValue = newStart + length;
+        if (perfectOffset >= 0)
+            perfectProp.intValue = newStart + perfectOffset;
     }
 
     /// <summary>改左边缘（startFrame），保持最小 1 帧。</summary>
@@ -301,6 +312,9 @@ public static class ActionTimelineCommands
 
         int maxFrame = Mathf.Max(0, totalFrames - 1);
         startProp.intValue = Mathf.Clamp(newStart, 0, Mathf.Min(endProp.intValue, maxFrame));
+        SerializedProperty perfectProp = element.FindPropertyRelative("perfectFrame");
+        if (perfectProp != null && perfectProp.intValue >= 0)
+            perfectProp.intValue = Mathf.Clamp(perfectProp.intValue, startProp.intValue, endProp.intValue);
     }
 
     /// <summary>改右边缘（endFrame），保持最小 1 帧。</summary>
@@ -316,6 +330,9 @@ public static class ActionTimelineCommands
 
         int maxFrame = Mathf.Max(0, totalFrames - 1);
         endProp.intValue = Mathf.Clamp(newEnd, startProp.intValue, maxFrame);
+        SerializedProperty perfectProp = element.FindPropertyRelative("perfectFrame");
+        if (perfectProp != null && perfectProp.intValue >= 0)
+            perfectProp.intValue = Mathf.Clamp(perfectProp.intValue, startProp.intValue, endProp.intValue);
     }
 
     static int ResolveDefaultEndFrame(

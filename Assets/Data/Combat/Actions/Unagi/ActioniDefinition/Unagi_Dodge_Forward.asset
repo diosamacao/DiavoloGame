@@ -24,32 +24,23 @@ MonoBehaviour:
   actionType: 1
   crossFadeDuration: 0.1
   interruptPriority: 10
-  phases: []
   timeline:
     actionEvents: []
     playVfxNotifies: []
     playSfxStates: []
     hitboxStates: []
     hurtboxStates: []
-    cancelWindowStates:
-    - id: Cancel_1
+    cancelWindowStates: []
+    phaseStates:
+    - id: Phase_1
       startFrame: 12
       endFrame: 120
       priority: 0
-      trackName: Cancel_1
-      cancelType: 1
-    - id: EvadeAttack
-      startFrame: 0
-      endFrame: 120
-      priority: 0
-      trackName: Cancel_4
-      cancelType: 0
-    - id: Cancel_3
-      startFrame: 11
-      endFrame: 120
-      priority: 0
-      trackName: Cancel_3
-      cancelType: 0
+      trackName: Phase_1
+      kind: 2
+      interruptible: 1
+      allowMovementCancel: 1
+      allowEntryRestart: 1
     movementStates: []
     rotationStates:
     - id: Rotation_1
@@ -59,17 +50,11 @@ MonoBehaviour:
       trackName: Rotation_1
       smoothTimeOverride: 0
     tracks:
-    - trackName: Cancel_1
-      kind: 4
-      visible: 1
-    - trackName: Cancel_3
-      kind: 4
-      visible: 1
     - trackName: Rotation_1
       kind: 6
       visible: 1
-    - trackName: Cancel_4
-      kind: 4
+    - trackName: Phase_1
+      kind: 8
       visible: 1
   transitions: []
   startBehaviors: 

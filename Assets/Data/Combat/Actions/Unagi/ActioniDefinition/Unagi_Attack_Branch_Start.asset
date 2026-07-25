@@ -69,22 +69,10 @@ MonoBehaviour:
     cancelWindowStates:
     - id: Cancel_1
       startFrame: 0
-      endFrame: 28
-      priority: 0
-      trackName: Cancel_1
-      cancelType: 0
-    - id: Cancel_2
-      startFrame: 29
-      endFrame: 47
-      priority: 0
-      trackName: Cancel_1
-      cancelType: 0
-    - id: Cancel_3
-      startFrame: 48
       endFrame: 63
       priority: 0
       trackName: Cancel_1
-      cancelType: 0
+      perfectFrame: -1
     phaseStates: []
     movementStates: []
     rotationStates: []

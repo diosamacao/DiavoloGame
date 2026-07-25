@@ -285,11 +285,8 @@ public class ActionDefinition : ScriptableObject
         return Mathf.Max(0f, segmentFade);
     }
 
-    /// <summary>按 priority 降序返回 CancelWindow。</summary>
-    public IReadOnlyList<ResolvedCancelWindow> GetCancelWindowsSorted()
-    {
-        return Timeline.GetCancelWindowsSorted();
-    }
+    /// <summary>本 Action 唯一 CancelWindow；未配置时为 null。</summary>
+    public CancelWindowNotifyState CancelWindow => Timeline.CancelWindow;
 
     /// <summary>Transition 衔接，按 priority 降序。</summary>
     public IReadOnlyList<ActionTransition> GetTransitionsSorted()
@@ -376,32 +373,18 @@ public class ActionDefinition : ScriptableObject
         return false;
     }
 
-    public bool IsInCancelWindow(ResolvedCancelWindow window, float elapsedSeconds)
+    /// <summary>指定帧位于唯一 CancelWindow 时返回普通或 Perfect 图路由。</summary>
+    public bool TryGetCancelRouteAtFrame(int frame, out ActionCancelRouteKind routeKind)
     {
-        if (totalFrames <= 0)
-            return false;
-
-        return window.IsActiveAtFrame(FrameAt(elapsedSeconds));
-    }
-
-    /// <summary>当前时刻是否落在 CancelType.Movement 窗口内。</summary>
-    public bool IsInMovementCancelWindow(float elapsedSeconds)
-    {
-        if (totalFrames <= 0)
-            return false;
-
-        int frame = FrameAt(elapsedSeconds);
-        foreach (CancelWindowNotifyState window in Timeline.CancelWindowStates)
+        CancelWindowNotifyState window = CancelWindow;
+        if (window == null || !window.IsActiveAtFrame(frame))
         {
-            if (window != null
-                && window.CancelType == CancelType.Movement
-                && window.IsActiveAtFrame(frame))
-            {
-                return true;
-            }
+            routeKind = default;
+            return false;
         }
 
-        return false;
+        routeKind = window.ResolveRouteAtFrame(frame);
+        return true;
     }
 
     public bool IsInDisplacementWindow(float elapsedSeconds)

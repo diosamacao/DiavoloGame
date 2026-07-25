@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 连招图资产：节点引用 ActionDefinition，边从 Cancel 槽派生到目标节点。
+/// 连招图资产：节点引用 ActionDefinition，边从 Cancel / PerfectCancel 通道派生到目标节点。
 /// 支持多个 Locomotion 起手入口（按目标招 Trigger 匹配，可同时含攻击/闪避等）。
 /// </summary>
 [CreateAssetMenu(fileName = "ActionGraph", menuName = "ACT/Combat/Action Graph")]
@@ -11,8 +11,10 @@ public class ActionGraph : ScriptableObject
 {
     [SerializeField] ActionGraphNode[] nodes = Array.Empty<ActionGraphNode>();
     [SerializeField] ActionGraphEdge[] edges = Array.Empty<ActionGraphEdge>();
-    [Tooltip("共享路由在当前节点没有匹配显式边时生效，用一条规则替代同槽、同意图的大量重复连线。")]
+    [Tooltip("共享路由在当前节点没有匹配显式边时生效，用一条规则替代同通道、同意图的大量重复连线。")]
     [SerializeField] ActionGraphSharedRoute[] sharedRoutes = Array.Empty<ActionGraphSharedRoute>();
+    [Tooltip("Graph Editor 顺序组；保存时将相邻子节点生成为普通 Cancel 边。")]
+    [SerializeField] ActionGraphNodeGroup[] nodeGroups = Array.Empty<ActionGraphNodeGroup>();
 
     /// <summary>图节点列表。</summary>
     public IReadOnlyList<ActionGraphNode> Nodes => nodes ?? Array.Empty<ActionGraphNode>();
@@ -23,6 +25,10 @@ public class ActionGraph : ScriptableObject
     /// <summary>图级共享路由；仅作显式边未命中时的回退。</summary>
     public IReadOnlyList<ActionGraphSharedRoute> SharedRoutes =>
         sharedRoutes ?? Array.Empty<ActionGraphSharedRoute>();
+
+    /// <summary>有序节点组；运行时仍执行生成后的具体节点边。</summary>
+    public IReadOnlyList<ActionGraphNodeGroup> NodeGroups =>
+        nodeGroups ?? Array.Empty<ActionGraphNodeGroup>();
 
     /// <summary>按 nodeId 查找节点；未找到返回 false。</summary>
     public bool TryGetNode(string nodeId, out ActionGraphNode node)
@@ -91,18 +97,18 @@ public class ActionGraph : ScriptableObject
         return false;
     }
 
-    /// <summary>Cancel：按 (CurrentNodeId, CancelSlotId) 出边，目标 Trigger 匹配 request。</summary>
+    /// <summary>Cancel：按 (CurrentNodeId, CancelRoute) 出边，目标 Trigger 匹配 request。</summary>
     public bool TryResolveCancel(
         in ActionRequest request,
         in ActionResolveContext context,
         out ActionResolveResult result)
     {
         result = default;
-        if (string.IsNullOrEmpty(context.CurrentNodeId) || string.IsNullOrEmpty(context.CancelSlotId))
+        if (string.IsNullOrEmpty(context.CurrentNodeId) || !context.HasCancelRoute)
             return false;
 
         var edgeBuffer = new List<ActionGraphEdge>(8);
-        CollectEdges(context.CurrentNodeId, context.CancelSlotId, edgeBuffer);
+        CollectEdges(context.CurrentNodeId, context.CancelRoute, edgeBuffer);
 
         for (int i = 0; i < edgeBuffer.Count; i++)
         {
@@ -121,7 +127,7 @@ public class ActionGraph : ScriptableObject
     }
 
     /// <summary>
-    /// 显式边未命中时按「来源 Trigger（None=任意）+ Cancel 槽 + 输入意图」匹配共享路由。
+    /// 显式边未命中时按「来源 Trigger（None=任意）+ Cancel 路由 + 输入意图」匹配共享路由。
     /// 共享路由用于回根、统一反击、统一蓄力入口等横切关系，不替代独特连招拓扑。
     /// </summary>
     bool TryResolveSharedRoute(
@@ -138,7 +144,7 @@ public class ActionGraph : ScriptableObject
         {
             ActionGraphSharedRoute route = sharedRoutes[i];
             if (route == null
-                || route.CancelSlotId != context.CancelSlotId
+                || route.RouteKind != context.CancelRoute
                 || route.Intent != request.Intent
                 || (route.SourceTrigger != GameplayIntentType.None
                     && route.SourceTrigger != sourceTrigger))
@@ -155,11 +161,14 @@ public class ActionGraph : ScriptableObject
         return false;
     }
 
-    /// <summary>枚举从指定节点、指定 Cancel 槽出发的边。</summary>
-    public void CollectEdges(string fromNodeId, string cancelSlotId, List<ActionGraphEdge> results)
+    /// <summary>枚举从指定节点、指定 Cancel 路由出发的边。</summary>
+    public void CollectEdges(
+        string fromNodeId,
+        ActionCancelRouteKind routeKind,
+        List<ActionGraphEdge> results)
     {
         results.Clear();
-        if (edges == null || string.IsNullOrEmpty(fromNodeId) || string.IsNullOrEmpty(cancelSlotId))
+        if (edges == null || string.IsNullOrEmpty(fromNodeId))
             return;
 
         for (int i = 0; i < edges.Length; i++)
@@ -168,7 +177,7 @@ public class ActionGraph : ScriptableObject
             if (edge == null)
                 continue;
 
-            if (edge.FromNodeId == fromNodeId && edge.CancelSlotId == cancelSlotId)
+            if (edge.FromNodeId == fromNodeId && edge.RouteKind == routeKind)
                 results.Add(edge);
         }
     }
@@ -176,7 +185,7 @@ public class ActionGraph : ScriptableObject
     /// <summary>收集某节点某槽出边目标招的玩法意图（去重）。</summary>
     public void CollectCancelCandidateIntents(
         string fromNodeId,
-        string cancelSlotId,
+        ActionCancelRouteKind routeKind,
         HashSet<GameplayIntentType> results)
     {
         results.Clear();
@@ -186,7 +195,7 @@ public class ActionGraph : ScriptableObject
         for (int i = 0; i < edges.Length; i++)
         {
             ActionGraphEdge edge = edges[i];
-            if (edge == null || edge.FromNodeId != fromNodeId || edge.CancelSlotId != cancelSlotId)
+            if (edge == null || edge.FromNodeId != fromNodeId || edge.RouteKind != routeKind)
                 continue;
 
             if (!TryGetNode(edge.ToNodeId, out ActionGraphNode toNode))
@@ -205,7 +214,7 @@ public class ActionGraph : ScriptableObject
         {
             ActionGraphSharedRoute route = sharedRoutes[i];
             if (route == null
-                || route.CancelSlotId != cancelSlotId
+                || route.RouteKind != routeKind
                 || route.Intent == GameplayIntentType.None
                 || (route.SourceTrigger != GameplayIntentType.None
                     && route.SourceTrigger != sourceTrigger))
@@ -303,28 +312,28 @@ public class ActionGraphNode
     public void SetEntry(bool entry) => isEntry = entry;
 }
 
-/// <summary>连招图边：从某节点的 Cancel 槽派生到目标节点（可与起点相同，表示连回自身 In）。</summary>
+/// <summary>连招图边：从节点的普通或 Perfect Cancel 通道派生到目标节点。</summary>
 [Serializable]
 public class ActionGraphEdge
 {
     [SerializeField] string fromNodeId;
-    [SerializeField] string cancelSlotId;
+    [SerializeField] ActionCancelRouteKind routeKind;
     [SerializeField] string toNodeId;
 
     /// <summary>边起点节点。</summary>
     public string FromNodeId => fromNodeId;
 
-    /// <summary>绑定的 Cancel 槽 id（= CancelWindow 时间轴条目 Id）。</summary>
-    public string CancelSlotId => cancelSlotId;
+    /// <summary>绑定的普通或 Perfect Cancel 通道。</summary>
+    public ActionCancelRouteKind RouteKind => routeKind;
 
     /// <summary>边终点节点。</summary>
     public string ToNodeId => toNodeId;
 
     /// <summary>编辑器创建边时赋值。</summary>
-    public void Set(string from, string slotId, string to)
+    public void Set(string from, ActionCancelRouteKind route, string to)
     {
         fromNodeId = from;
-        cancelSlotId = slotId;
+        routeKind = route;
         toNodeId = to;
     }
 }

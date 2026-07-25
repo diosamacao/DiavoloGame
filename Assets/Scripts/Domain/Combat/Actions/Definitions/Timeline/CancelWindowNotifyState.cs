@@ -1,22 +1,32 @@
 using System;
 using UnityEngine;
 
-/// <summary>取消窗口区间；Combo 走 ActionGraph 显式/共享路由，Movement 允许退回移动。</summary>
+/// <summary>
+/// 每个 Action 唯一的取消窗口；Perfect 分割帧之前走 Cancel，分割帧及之后走 PerfectCancel。
+/// </summary>
 [Serializable]
 public class CancelWindowNotifyState : ActionNotifyState
 {
-    [SerializeField] CancelType cancelType = CancelType.Combo;
+    [Tooltip("小于 0 表示没有 Perfect 区间；有效值会限制在 CancelWindow 内。")]
+    [SerializeField] int perfectFrame = -1;
 
-    /// <summary>窗口取消类型：显式连招路由或移动取消。</summary>
-    public CancelType CancelType => cancelType;
+    /// <summary>Perfect 区间起始帧；小于 0 表示仅有普通 Cancel。</summary>
+    public int PerfectFrame => perfectFrame;
 
-    /// <summary>
-    /// Cancel 槽稳定 id，供 ActionGraph 边绑定；复用时间轴条目 Id。
-    /// 改帧不改 Id；改 Id 会断开图边。
-    /// </summary>
-    public string CancelSlotId => Id;
+    /// <summary>窗口是否被有效 Perfect 帧划分为两段。</summary>
+    public bool HasPerfectSplit =>
+        perfectFrame >= StartFrame && perfectFrame <= EndFrame;
 
-    /// <summary>转为运行时只读窗口。</summary>
-    public ResolvedCancelWindow ToResolved() =>
-        new(StartFrame, EndFrame, cancelType, CancelSlotId, Priority);
+    /// <summary>按当前帧返回普通或 Perfect 路由；调用方应先确认窗口有效。</summary>
+    public ActionCancelRouteKind ResolveRouteAtFrame(int frame) =>
+        HasPerfectSplit && frame >= perfectFrame
+            ? ActionCancelRouteKind.PerfectCancel
+            : ActionCancelRouteKind.Cancel;
+
+    /// <summary>将 Perfect 分割帧限制在窗口内；负值保持“未配置”。</summary>
+    public void ClampPerfectFrame()
+    {
+        if (perfectFrame >= 0)
+            perfectFrame = Mathf.Clamp(perfectFrame, StartFrame, EndFrame);
+    }
 }

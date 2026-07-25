@@ -331,7 +331,7 @@ bool TryResolve(in ActionRequest request, in ActionResolveContext context, out A
 ```
 
 - `ActionRequest`：输入侧意图（`InputId` + `ActionInputTrigger`，当前仅 `Pressed`）。
-- `ActionResolveContext`：世界/状态侧信息（`Origin` = LocomotionStart / CancelWindow / PriorityInterrupt、`CancelType`、`CurrentAction`、`ActorRoot`、`IActionStartContext`）。
+- `ActionResolveContext`：世界/状态侧信息（`Origin`、`CancelRoute`、`CurrentNodeId`、`CurrentAction`、`ActorRoot`、`IActionStartContext`）。
 
 | 子类 | 数据 | 行为 |
 |------|------|------|
@@ -359,7 +359,7 @@ CombatModeProfile
 ### 4.6 输入 id
 
 - 离散输入 id = Input System **Action 名**（`Attack`、`Dodge` 等）。
-- 移动取消不走路由表，由 `InputManager.HasMoveIntent` + `CancelType.Movement` 窗口判定。
+- 移动取消不走 Cancel 路由，由 `InputManager.HasMoveIntent` + Recovery Phase 的 `allowMovementCancel` 判定。
 - 后摇：Timeline Recovery Phase 可分别开启移动取消与 Graph Entry 重开；无需 Recovery CancelWindow 或回根边。
 
 ---
@@ -402,9 +402,10 @@ HitBoxSystem.OnCombatFrameAdvanced（ActionExecutor 同步派发）
 输入 → Buffer(intent)（高优打断失败后）
 
 ActionExecutor.Tick → TryResolveCancelWindows:
-  → 按 priority 扫描 CancelType.Combo 窗口
+  → 判断唯一 CancelWindow 是否开放
+  → 分割帧之前选择 Cancel；该帧及之后选择 PerfectCancel
   → HasBuffer(intent) → Consume
-  → ActionResolverService.TryResolveNext(request, context{Origin=CancelWindow, CancelSlotId, CurrentNodeId})
+  → ActionResolverService.TryResolveNext(request, context{Origin=CancelWindow, CancelRoute, CurrentNodeId})
       → ActionGraph 显式边优先；未命中再查 SharedRoute；可选 VariantResolver
   → ClearOtherActionBuffers → TransitionTo(next)
 
@@ -485,10 +486,10 @@ ActionExecutor                   HitBoxSystem              受击方
 ### 6.1 配置三连招
 
 1. 在 `ActionGraph` 加入 Attack1/2/3 节点，仅 Attack1 标记 Entry。
-2. 各段攻击末添加 `CancelType.Combo` 窗；从槽端口连接到独特下一段。
+2. 每段攻击配置唯一 CancelWindow；需要特殊派生时设置 `Perfect Start Frame`。
 3. 在 Phase 轨添加 Recovery，按需勾选 `Allow Movement Cancel` 与 `Allow Entry Restart`。
-4. 多来源共用去向时在 Graph Inspector 添加 Shared Route；不要复制显式边。
-5. 可选 **Movement** 取消窗；自然结束不需要 `Transition → Attack1`。
+4. 多选线性节点执行 `Merge Sequence`；每行独立 In，普通 Cancel 自动进入下一行。
+5. 从 `PerfectCancelWindow` 连到特殊分支行；移动取消只配置 Recovery Phase。
 
 ### 6.1b 配置方向闪避
 
@@ -765,7 +766,7 @@ Assets/Scripts/Domain/
   Combat/Actions/Definitions/ActionDefinition.cs, Timeline/ActionPhaseNotifyState.cs, ActionPhaseKind.cs
   Combat/Actions/Definitions/ActionEvent.cs, ActionEventKind.cs, ActionEventContext.cs
   Combat/Actions/Definitions/ActionTransition.cs, ActionTransitionCondition.cs
-  Combat/Actions/Definitions/CancelWindow.cs, CancelType.cs, RotationWindow.cs, CombatActionType.cs
+  Combat/Actions/Definitions/Timeline/CancelWindowNotifyState.cs, ActionCancelRouteKind.cs
   Combat/Actions/Resolution/PlayerActionSet.cs, IMoveIntentResolver.cs
   Combat/Actions/Resolution/ActionRequest.cs, ActionInputTrigger.cs, ActionResolveContext.cs
   Combat/Actions/Resolution/ActionResolver.cs, SingleActionResolver.cs, DirectionalActionResolver.cs, ActionGraphSharedRoute.cs

@@ -121,7 +121,7 @@ InputReader（原始帧）→ InputManager → GameplayIntentProducer / Gameplay
 | `ActionTimeline` / `ActionNotify` / `ActionNotifyState` | 动作帧数据唯一真源：点事件（Event / VFX / SFX）与区间窗口（Phase/Hitbox/Hurtbox/Cancel/Movement/Rotation）；Recovery Phase 集成移动取消与 Entry 重开；`tracks[]` 为编辑器手动轨道 |
 | `ActionExecutor` | 纯播放器：播放、Cancel（委托 Graph 选下一招）、Transition、**UpdateFrame Logic Tick**、统一 Timeline 派发、命中回流 |
 | `ActionSession` | 当前招式唯一会话状态：CurrentAction、Elapsed、图游标、命中确认、卡肉暂停 |
-| `ActionGraph` | 稀疏连招图：多 Entry×Trigger、独特 Combo 边、图级 SharedRoute；Recovery Phase 按窗口开关重启 Entry |
+| `ActionGraph` | 双通道连招图：多 Entry×Trigger、Cancel / PerfectCancel 边、图级 SharedRoute；顺序组自动生成普通 Cancel 链且每行保留独立 In |
 | `ActionResolverService` | 调当前模式 Graph 的起手/Cancel 解析 |
 | `CharacterActionDriver` | 角色无关：消费语义意图、起手切状态、动作缓冲与移动取消 |
 | `ActionRotationDriver` | `RotationNotifyState` + 索敌转向 |

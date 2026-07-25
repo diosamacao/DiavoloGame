@@ -5,7 +5,7 @@ using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-/// <summary>ActionGraph 可视化编辑器：拖入 ActionDefinition、从 Cancel 槽端口连到目标节点。</summary>
+/// <summary>ActionGraph 可视化编辑器：双通道节点连线与可直接编辑的顺序组。</summary>
 public sealed class ActionGraphEditorWindow : EditorWindow
 {
     ActionGraph _graph;
@@ -62,9 +62,19 @@ public sealed class ActionGraphEditorWindow : EditorWindow
         var saveButton = new Button(SaveFromView) { text = "Save" };
         var validateButton = new Button(() => ActionGraphInspector.ValidateGraph(_graph)) { text = "Validate" };
         var reloadButton = new Button(RebuildView) { text = "Reload" };
+        var mergeButton = new Button(() =>
+        {
+            if (_graphView != null && _graphView.MergeSelectedNodes())
+                RebuildView();
+        })
+        {
+            text = "Merge Sequence",
+            tooltip = "将选中的 Action 节点按画布纵向顺序合并为自动 Cancel 序列。",
+        };
         toolbar.Add(saveButton);
         toolbar.Add(validateButton);
         toolbar.Add(reloadButton);
+        toolbar.Add(mergeButton);
         toolbar.Add(new Label($"  {_graph.name}") { style = { unityTextAlign = TextAnchor.MiddleLeft, marginLeft = 8 } });
         // 隐式关系只显示摘要，不在 GraphView 复制成视觉连线。
         toolbar.Add(new Label(
@@ -94,11 +104,14 @@ public sealed class ActionGraphEditorWindow : EditorWindow
     }
 }
 
-/// <summary>GraphView 画布：节点 = Action，输出端口 = Cancel 槽。</summary>
+/// <summary>GraphView 画布：节点/顺序组输出固定为 Cancel 与 PerfectCancel。</summary>
 sealed class ActionGraphView : GraphView
 {
     readonly ActionGraph _graph;
     readonly Dictionary<string, ActionGraphNodeView> _nodeViews = new();
+    readonly Dictionary<string, ActionGraphGroupView> _groupViews = new();
+    readonly Dictionary<string, string> _nodeToGroupId = new();
+    bool _isLoading;
 
     public ActionGraphView(ActionGraph graph)
     {
@@ -120,6 +133,10 @@ sealed class ActionGraphView : GraphView
     /// <summary>节点/边从画布移除时更新 _nodeViews，并延迟写回 SO。</summary>
     GraphViewChange OnGraphViewChanged(GraphViewChange change)
     {
+        // LoadFromAsset 会批量移除旧视图；这不是用户删除，不能反向覆盖资产布局。
+        if (_isLoading)
+            return change;
+
         if (change.elementsToRemove == null || change.elementsToRemove.Count == 0)
             return change;
 
@@ -180,33 +197,257 @@ sealed class ActionGraphView : GraphView
         return compatible;
     }
 
-    /// <summary>从资产重建视图。</summary>
-    public void LoadFromAsset()
+    /// <summary>将选中普通节点按画布纵坐标排序后合并为自动 Cancel 序列。</summary>
+    public bool MergeSelectedNodes()
     {
-        DeleteElements(graphElements.ToList());
-        _nodeViews.Clear();
-
-        foreach (ActionGraphNode node in _graph.Nodes)
+        List<ActionGraphNodeView> selectedNodes = selection
+            .OfType<ActionGraphNodeView>()
+            .OrderBy(view => view.GetPosition().y)
+            .ThenBy(view => view.GetPosition().x)
+            .ToList();
+        if (selectedNodes.Count < 2)
         {
-            if (node == null || string.IsNullOrEmpty(node.NodeId))
-                continue;
-            AddNodeView(node);
+            EditorUtility.DisplayDialog("Merge Sequence", "请至少选择两个未分组 Action 节点。", "OK");
+            return false;
         }
 
+        PersistViewToAsset();
+        string groupId = MakeUniqueGroupId("Sequence");
+        Vector2 center = Vector2.zero;
+        for (int i = 0; i < selectedNodes.Count; i++)
+            center += selectedNodes[i].GetPosition().position;
+        center /= selectedNodes.Count;
+
+        var so = new SerializedObject(_graph);
+        SerializedProperty groups = so.FindProperty("nodeGroups");
+        int groupIndex = groups.arraySize;
+        groups.arraySize++;
+        SerializedProperty group = groups.GetArrayElementAtIndex(groupIndex);
+        group.FindPropertyRelative("groupId").stringValue = groupId;
+        group.FindPropertyRelative("displayName").stringValue = groupId;
+        group.FindPropertyRelative("editorPosition").vector2Value = center;
+        SerializedProperty children = group.FindPropertyRelative("childNodeIds");
+        children.arraySize = selectedNodes.Count;
+        for (int i = 0; i < selectedNodes.Count; i++)
+            children.GetArrayElementAtIndex(i).stringValue = selectedNodes[i].NodeId;
+
+        so.ApplyModifiedProperties();
+        EditorUtility.SetDirty(_graph);
+        RebuildGeneratedSequenceEdges();
+        return true;
+    }
+
+    /// <summary>删除组元数据；子节点与已生成的具体边保留。</summary>
+    void Ungroup(string groupId)
+    {
+        PersistViewToAsset();
+        MutateGroup(groupId, (groups, index) => groups.DeleteArrayElementAtIndex(index));
+        EditorApplication.delayCall += LoadFromAsset;
+    }
+
+    /// <summary>调整组内 Action 行顺序；下次保存会重建相邻普通 Cancel 边。</summary>
+    void MoveGroupChild(string groupId, int index, int delta)
+    {
+        PersistViewToAsset();
+        MutateGroup(groupId, (groups, groupIndex) =>
+        {
+            SerializedProperty children = groups
+                .GetArrayElementAtIndex(groupIndex)
+                .FindPropertyRelative("childNodeIds");
+            int target = Mathf.Clamp(index + delta, 0, children.arraySize - 1);
+            if (target != index)
+                children.MoveArrayElement(index, target);
+        });
+        RebuildGeneratedSequenceEdges();
+        EditorApplication.delayCall += LoadFromAsset;
+    }
+
+    /// <summary>把拖入的 ActionDefinition 创建为新图节点并追加到指定顺序组。</summary>
+    void AddActionToGroup(string groupId, ActionDefinition action)
+    {
+        if (action == null)
+            return;
+
+        PersistViewToAsset();
+        var so = new SerializedObject(_graph);
+        SerializedProperty nodes = so.FindProperty("nodes");
+        int nodeIndex = nodes.arraySize;
+        nodes.arraySize++;
+        SerializedProperty node = nodes.GetArrayElementAtIndex(nodeIndex);
+        string nodeId = MakeUniqueId(action.name);
+        node.FindPropertyRelative("nodeId").stringValue = nodeId;
+        node.FindPropertyRelative("action").objectReferenceValue = action;
+        node.FindPropertyRelative("isEntry").boolValue = false;
+        node.FindPropertyRelative("variantResolver").objectReferenceValue = null;
+        Vector2 childPosition = _groupViews.TryGetValue(groupId, out ActionGraphGroupView groupView)
+            ? groupView.GetPosition().position + new Vector2(32f, 32f * groupView.ChildNodeIds.Count)
+            : new Vector2(80f, 80f);
+        node.FindPropertyRelative("editorPosition").vector2Value = childPosition;
+
+        SerializedProperty groups = so.FindProperty("nodeGroups");
+        for (int i = 0; i < groups.arraySize; i++)
+        {
+            SerializedProperty group = groups.GetArrayElementAtIndex(i);
+            if (group.FindPropertyRelative("groupId").stringValue != groupId)
+                continue;
+
+            SerializedProperty children = group.FindPropertyRelative("childNodeIds");
+            int childIndex = children.arraySize;
+            children.arraySize++;
+            children.GetArrayElementAtIndex(childIndex).stringValue = nodeId;
+            break;
+        }
+
+        so.ApplyModifiedProperties();
+        EditorUtility.SetDirty(_graph);
+        RebuildGeneratedSequenceEdges();
+        EditorApplication.delayCall += LoadFromAsset;
+    }
+
+    /// <summary>按 groupId 修改一个 Serialized 节点组并标脏。</summary>
+    void MutateGroup(
+        string groupId,
+        System.Action<SerializedProperty, int> mutation)
+    {
+        var so = new SerializedObject(_graph);
+        SerializedProperty groups = so.FindProperty("nodeGroups");
+        for (int i = 0; i < groups.arraySize; i++)
+        {
+            if (groups.GetArrayElementAtIndex(i).FindPropertyRelative("groupId").stringValue != groupId)
+                continue;
+
+            mutation(groups, i);
+            break;
+        }
+
+        so.ApplyModifiedProperties();
+        EditorUtility.SetDirty(_graph);
+    }
+
+    /// <summary>
+    /// 直接按资产中的最新组顺序重建内部普通 Cancel 边。
+    /// 不读取刚重载的 GraphView 布局，避免 UI 尚未布局时以原点覆盖持久化坐标。
+    /// </summary>
+    void RebuildGeneratedSequenceEdges()
+    {
+        var nodeToGroup = new Dictionary<string, string>();
+        foreach (ActionGraphNodeGroup group in _graph.NodeGroups)
+        {
+            if (group == null)
+                continue;
+
+            foreach (string childNodeId in group.ChildNodeIds)
+                nodeToGroup[childNodeId] = group.GroupId;
+        }
+
+        var edgeList = new List<(string from, ActionCancelRouteKind route, string to)>();
+        var seenEdges = new HashSet<string>();
         foreach (ActionGraphEdge edge in _graph.Edges)
         {
             if (edge == null)
                 continue;
-            if (!_nodeViews.TryGetValue(edge.FromNodeId, out ActionGraphNodeView fromView))
-                continue;
-            if (!_nodeViews.TryGetValue(edge.ToNodeId, out ActionGraphNodeView toView))
-                continue;
-            if (!fromView.TryGetCancelPort(edge.CancelSlotId, out Port output))
+
+            bool isInternalSequenceEdge =
+                edge.RouteKind == ActionCancelRouteKind.Cancel
+                && nodeToGroup.TryGetValue(edge.FromNodeId, out string fromGroup)
+                && nodeToGroup.TryGetValue(edge.ToNodeId, out string toGroup)
+                && fromGroup == toGroup;
+            if (!isInternalSequenceEdge)
+            {
+                AddConcreteEdge(
+                    edgeList,
+                    seenEdges,
+                    edge.FromNodeId,
+                    edge.RouteKind,
+                    edge.ToNodeId);
+            }
+        }
+
+        foreach (ActionGraphNodeGroup group in _graph.NodeGroups)
+        {
+            if (group == null)
                 continue;
 
-            Port input = toView.InputPort;
-            Edge graphEdge = output.ConnectTo(input);
-            AddElement(graphEdge);
+            for (int i = 0; i < group.ChildNodeIds.Count - 1; i++)
+            {
+                AddConcreteEdge(
+                    edgeList,
+                    seenEdges,
+                    group.ChildNodeIds[i],
+                    ActionCancelRouteKind.Cancel,
+                    group.ChildNodeIds[i + 1]);
+            }
+        }
+
+        var so = new SerializedObject(_graph);
+        SerializedProperty edges = so.FindProperty("edges");
+        edges.arraySize = edgeList.Count;
+        for (int i = 0; i < edgeList.Count; i++)
+        {
+            SerializedProperty edge = edges.GetArrayElementAtIndex(i);
+            edge.FindPropertyRelative("fromNodeId").stringValue = edgeList[i].from;
+            edge.FindPropertyRelative("routeKind").enumValueIndex = (int)edgeList[i].route;
+            edge.FindPropertyRelative("toNodeId").stringValue = edgeList[i].to;
+        }
+
+        so.ApplyModifiedProperties();
+        EditorUtility.SetDirty(_graph);
+    }
+
+    /// <summary>从资产重建视图。</summary>
+    public void LoadFromAsset()
+    {
+        _isLoading = true;
+        try
+        {
+            DeleteElements(graphElements.ToList());
+            _nodeViews.Clear();
+            _groupViews.Clear();
+            _nodeToGroupId.Clear();
+
+            foreach (ActionGraphNodeGroup group in _graph.NodeGroups)
+            {
+                if (group == null || string.IsNullOrEmpty(group.GroupId))
+                    continue;
+
+                AddGroupView(group);
+                foreach (string childNodeId in group.ChildNodeIds)
+                    _nodeToGroupId[childNodeId] = group.GroupId;
+            }
+
+            foreach (ActionGraphNode node in _graph.Nodes)
+            {
+                if (node == null || string.IsNullOrEmpty(node.NodeId))
+                    continue;
+                if (_nodeToGroupId.ContainsKey(node.NodeId))
+                    continue;
+                AddNodeView(node);
+            }
+
+            var visualEdges = new HashSet<string>();
+            foreach (ActionGraphEdge edge in _graph.Edges)
+            {
+                if (edge == null)
+                    continue;
+
+                if (IsGeneratedSequenceEdge(edge))
+                    continue;
+
+                if (!TryResolveVisualOutput(edge, out Port output, out string sourceKey))
+                    continue;
+                if (!TryResolveVisualInput(edge.ToNodeId, out Port input, out string targetKey))
+                    continue;
+
+                if (!visualEdges.Add($"{sourceKey}|{targetKey}"))
+                    continue;
+
+                Edge graphEdge = output.ConnectTo(input);
+                AddElement(graphEdge);
+            }
+        }
+        finally
+        {
+            _isLoading = false;
         }
     }
 
@@ -218,44 +459,105 @@ sealed class ActionGraphView : GraphView
         var so = new SerializedObject(_graph);
         SerializedProperty nodesProp = so.FindProperty("nodes");
         SerializedProperty edgesProp = so.FindProperty("edges");
+        SerializedProperty groupsProp = so.FindProperty("nodeGroups");
 
-        // 用稳定顺序写出，避免 Dictionary 枚举顺序抖动。
-        var orderedNodes = new List<ActionGraphNodeView>(_nodeViews.Values);
-        orderedNodes.Sort((a, b) => string.CompareOrdinal(a.NodeId, b.NodeId));
-
-        nodesProp.arraySize = orderedNodes.Count;
-        for (int i = 0; i < orderedNodes.Count; i++)
+        // SerializedProperty 写入会原地修改托管数组对象，必须在重排数组前复制全部值。
+        var existingNodes = _graph.Nodes
+            .Where(node => node != null && !string.IsNullOrEmpty(node.NodeId))
+            .ToDictionary(
+                node => node.NodeId,
+                node => new NodeSnapshot(node));
+        var retainedNodeIds = new HashSet<string>(_nodeViews.Keys);
+        foreach (ActionGraphGroupView group in _groupViews.Values)
         {
-            ActionGraphNodeView view = orderedNodes[i];
-            SerializedProperty node = nodesProp.GetArrayElementAtIndex(i);
-            node.FindPropertyRelative("nodeId").stringValue = view.NodeId;
-            node.FindPropertyRelative("action").objectReferenceValue = view.Action;
-            node.FindPropertyRelative("isEntry").boolValue = view.IsEntry;
-            node.FindPropertyRelative("variantResolver").objectReferenceValue = view.VariantResolver;
-            Rect layout = view.GetPosition();
-            node.FindPropertyRelative("editorPosition").vector2Value = new Vector2(layout.x, layout.y);
+            foreach (string childNodeId in group.ChildNodeIds)
+                retainedNodeIds.Add(childNodeId);
         }
 
-        var edgeList = new List<(string from, string slot, string to)>();
+        List<string> orderedNodeIds = retainedNodeIds.OrderBy(id => id).ToList();
+        nodesProp.arraySize = orderedNodeIds.Count;
+        for (int i = 0; i < orderedNodeIds.Count; i++)
+        {
+            string nodeId = orderedNodeIds[i];
+            SerializedProperty node = nodesProp.GetArrayElementAtIndex(i);
+            if (_nodeViews.TryGetValue(nodeId, out ActionGraphNodeView view))
+                WriteNodeView(node, view);
+            else if (existingNodes.TryGetValue(nodeId, out NodeSnapshot existing))
+                WriteExistingNode(node, existing);
+        }
+
+        List<ActionGraphGroupView> orderedGroups = _groupViews.Values
+            .OrderBy(group => group.GroupId)
+            .ToList();
+        groupsProp.arraySize = orderedGroups.Count;
+        for (int i = 0; i < orderedGroups.Count; i++)
+            WriteGroupView(groupsProp.GetArrayElementAtIndex(i), orderedGroups[i]);
+
+        var edgeList = new List<(string from, ActionCancelRouteKind route, string to)>();
         var seenEdges = new HashSet<string>();
+
+        // 组顺序是普通 Cancel 链的唯一配置源。
+        foreach (ActionGraphGroupView group in orderedGroups)
+        {
+            for (int i = 0; i < group.ChildNodeIds.Count - 1; i++)
+            {
+                AddConcreteEdge(
+                    edgeList,
+                    seenEdges,
+                    group.ChildNodeIds[i],
+                    ActionCancelRouteKind.Cancel,
+                    group.ChildNodeIds[i + 1]);
+            }
+        }
+
         edges.ForEach(edge =>
         {
-            if (edge?.output?.node is not ActionGraphNodeView fromView)
-                return;
-            if (edge.input?.node is not ActionGraphNodeView toView)
-                return;
-            if (!_nodeViews.ContainsKey(fromView.NodeId) || !_nodeViews.ContainsKey(toView.NodeId))
+            if (edge?.output == null || edge.input == null)
                 return;
 
-            string slot = fromView.GetSlotIdForPort(edge.output);
-            if (string.IsNullOrEmpty(slot))
+            string targetNodeId = edge.input.node switch
+            {
+                ActionGraphNodeView targetNode => targetNode.NodeId,
+                ActionGraphGroupView targetGroup => targetGroup.GetNodeIdForInput(edge.input),
+                _ => null,
+            };
+            if (string.IsNullOrEmpty(targetNodeId))
                 return;
 
-            string key = $"{fromView.NodeId}|{slot}|{toView.NodeId}";
-            if (!seenEdges.Add(key))
+            if (edge.output.node is ActionGraphNodeView fromNode)
+            {
+                ActionCancelRouteKind? nodeRoute = fromNode.GetRouteForPort(edge.output);
+                if (nodeRoute.HasValue)
+                {
+                    AddConcreteEdge(
+                        edgeList,
+                        seenEdges,
+                        fromNode.NodeId,
+                        nodeRoute.Value,
+                        targetNodeId);
+                }
+
+                return;
+            }
+
+            if (edge.output.node is not ActionGraphGroupView fromGroup)
                 return;
 
-            edgeList.Add((fromView.NodeId, slot, toView.NodeId));
+            ActionCancelRouteKind? groupRoute = fromGroup.GetRouteForPort(edge.output);
+            if (!groupRoute.HasValue)
+                return;
+
+            var sources = new List<string>();
+            fromGroup.CollectExternalSourceNodeIds(groupRoute.Value, sources);
+            for (int i = 0; i < sources.Count; i++)
+            {
+                AddConcreteEdge(
+                    edgeList,
+                    seenEdges,
+                    sources[i],
+                    groupRoute.Value,
+                    targetNodeId);
+            }
         });
 
         edgesProp.arraySize = edgeList.Count;
@@ -263,11 +565,74 @@ sealed class ActionGraphView : GraphView
         {
             SerializedProperty edge = edgesProp.GetArrayElementAtIndex(i);
             edge.FindPropertyRelative("fromNodeId").stringValue = edgeList[i].from;
-            edge.FindPropertyRelative("cancelSlotId").stringValue = edgeList[i].slot;
+            edge.FindPropertyRelative("routeKind").enumValueIndex = (int)edgeList[i].route;
             edge.FindPropertyRelative("toNodeId").stringValue = edgeList[i].to;
         }
 
         so.ApplyModifiedProperties();
+    }
+
+    static void WriteNodeView(SerializedProperty node, ActionGraphNodeView view)
+    {
+        node.FindPropertyRelative("nodeId").stringValue = view.NodeId;
+        node.FindPropertyRelative("action").objectReferenceValue = view.Action;
+        node.FindPropertyRelative("isEntry").boolValue = view.IsEntry;
+        node.FindPropertyRelative("variantResolver").objectReferenceValue = view.VariantResolver;
+        node.FindPropertyRelative("editorPosition").vector2Value = view.GetPosition().position;
+    }
+
+    static void WriteExistingNode(SerializedProperty node, NodeSnapshot existing)
+    {
+        node.FindPropertyRelative("nodeId").stringValue = existing.NodeId;
+        node.FindPropertyRelative("action").objectReferenceValue = existing.Action;
+        node.FindPropertyRelative("isEntry").boolValue = existing.IsEntry;
+        node.FindPropertyRelative("variantResolver").objectReferenceValue = existing.VariantResolver;
+        node.FindPropertyRelative("editorPosition").vector2Value = existing.EditorPosition;
+    }
+
+    /// <summary>在 SerializedProperty 重排前冻结节点数据，避免原地写入污染后续节点。</summary>
+    readonly struct NodeSnapshot
+    {
+        public readonly string NodeId;
+        public readonly ActionDefinition Action;
+        public readonly bool IsEntry;
+        public readonly ActionResolver VariantResolver;
+        public readonly Vector2 EditorPosition;
+
+        public NodeSnapshot(ActionGraphNode node)
+        {
+            NodeId = node.NodeId;
+            Action = node.Action;
+            IsEntry = node.IsEntry;
+            VariantResolver = node.VariantResolver;
+            EditorPosition = node.EditorPosition;
+        }
+    }
+
+    static void WriteGroupView(SerializedProperty group, ActionGraphGroupView view)
+    {
+        group.FindPropertyRelative("groupId").stringValue = view.GroupId;
+        group.FindPropertyRelative("displayName").stringValue = view.DisplayName;
+        group.FindPropertyRelative("editorPosition").vector2Value = view.GetPosition().position;
+        SerializedProperty children = group.FindPropertyRelative("childNodeIds");
+        children.arraySize = view.ChildNodeIds.Count;
+        for (int i = 0; i < view.ChildNodeIds.Count; i++)
+            children.GetArrayElementAtIndex(i).stringValue = view.ChildNodeIds[i];
+    }
+
+    static void AddConcreteEdge(
+        List<(string from, ActionCancelRouteKind route, string to)> edges,
+        HashSet<string> seen,
+        string from,
+        ActionCancelRouteKind route,
+        string to)
+    {
+        if (string.IsNullOrEmpty(from) || string.IsNullOrEmpty(to))
+            return;
+
+        string key = $"{from}|{route}|{to}";
+        if (seen.Add(key))
+            edges.Add((from, route, to));
     }
 
     /// <summary>以画布 nodes 为准重建字典，清掉已删除但仍留在字典里的幽灵节点。</summary>
@@ -291,6 +656,99 @@ sealed class ActionGraphView : GraphView
         view.SetPosition(new Rect(data.EditorPosition, new Vector2(220, 140)));
         _nodeViews[data.NodeId] = view;
         AddElement(view);
+    }
+
+    /// <summary>创建顺序组；每行保留独立输入，组级仅显示 Cancel / PerfectCancel 输出。</summary>
+    void AddGroupView(ActionGraphNodeGroup data)
+    {
+        var children = new List<ActionGraphNode>();
+        foreach (string childNodeId in data.ChildNodeIds)
+        {
+            if (_graph.TryGetNode(childNodeId, out ActionGraphNode child))
+                children.Add(child);
+        }
+
+        if (children.Count == 0)
+            return;
+
+        var view = new ActionGraphGroupView(
+            data.GroupId,
+            data.DisplayName,
+            children,
+            () => Ungroup(data.GroupId),
+            (index, delta) => MoveGroupChild(data.GroupId, index, delta),
+            action => AddActionToGroup(data.GroupId, action));
+        view.SetPosition(new Rect(data.EditorPosition, new Vector2(300, 190)));
+        _groupViews[data.GroupId] = view;
+        AddElement(view);
+    }
+
+    /// <summary>判断边是否是组顺序自动生成的相邻普通 Cancel，折叠视图不绘制。</summary>
+    bool IsGeneratedSequenceEdge(ActionGraphEdge edge)
+    {
+        if (edge.RouteKind != ActionCancelRouteKind.Cancel
+            || !_nodeToGroupId.TryGetValue(edge.FromNodeId, out string fromGroup)
+            || !_nodeToGroupId.TryGetValue(edge.ToNodeId, out string toGroup)
+            || fromGroup != toGroup
+            || !_groupViews.TryGetValue(fromGroup, out ActionGraphGroupView group))
+        {
+            return false;
+        }
+
+        return group.IsNextNode(edge.FromNodeId, edge.ToNodeId);
+    }
+
+    /// <summary>映射具体边起点到普通节点端口或顺序组的两个聚合出口。</summary>
+    bool TryResolveVisualOutput(ActionGraphEdge edge, out Port output, out string sourceKey)
+    {
+        output = null;
+        sourceKey = null;
+        if (_nodeToGroupId.TryGetValue(edge.FromNodeId, out string groupId))
+        {
+            if (!_groupViews.TryGetValue(groupId, out ActionGraphGroupView group)
+                || !group.AcceptsExternalSource(edge.FromNodeId, edge.RouteKind)
+                || !group.TryGetCancelPort(edge.RouteKind, out output))
+            {
+                return false;
+            }
+
+            sourceKey = $"G:{groupId}:{edge.RouteKind}";
+            return true;
+        }
+
+        if (!_nodeViews.TryGetValue(edge.FromNodeId, out ActionGraphNodeView node)
+            || !node.TryGetCancelPort(edge.RouteKind, out output))
+        {
+            return false;
+        }
+
+        sourceKey = $"N:{edge.FromNodeId}:{edge.RouteKind}";
+        return true;
+    }
+
+    /// <summary>映射目标到普通节点 In，或顺序组内对应 Action 行的独立 In。</summary>
+    bool TryResolveVisualInput(string targetNodeId, out Port input, out string targetKey)
+    {
+        input = null;
+        targetKey = null;
+        if (_nodeToGroupId.TryGetValue(targetNodeId, out string groupId))
+        {
+            if (!_groupViews.TryGetValue(groupId, out ActionGraphGroupView group)
+                || !group.TryGetInputPort(targetNodeId, out input))
+            {
+                return false;
+            }
+
+            targetKey = $"G:{groupId}:{targetNodeId}";
+            return true;
+        }
+
+        if (!_nodeViews.TryGetValue(targetNodeId, out ActionGraphNodeView node))
+            return false;
+
+        input = node.InputPort;
+        targetKey = $"N:{targetNodeId}";
+        return true;
     }
 
     void OnDragUpdated(DragUpdatedEvent evt)
@@ -341,11 +799,34 @@ sealed class ActionGraphView : GraphView
             baseId = "Node";
         // 标题里的换行在部分 UI 会显示成 \，id 只用合法单行名。
         baseId = baseId.Replace('\n', '_').Replace('\\', '_').Trim();
-        if (!_nodeViews.ContainsKey(baseId))
+        var usedIds = new HashSet<string>(
+            _graph.Nodes
+                .Where(node => node != null)
+                .Select(node => node.NodeId));
+        foreach (string visibleId in _nodeViews.Keys)
+            usedIds.Add(visibleId);
+
+        if (!usedIds.Contains(baseId))
             return baseId;
 
         int i = 2;
-        while (_nodeViews.ContainsKey(baseId + "_" + i))
+        while (usedIds.Contains(baseId + "_" + i))
+            i++;
+        return baseId + "_" + i;
+    }
+
+    /// <summary>生成不与现有顺序组冲突的 Id。</summary>
+    string MakeUniqueGroupId(string baseId)
+    {
+        var ids = new HashSet<string>(
+            _graph.NodeGroups
+                .Where(group => group != null)
+                .Select(group => group.GroupId));
+        if (!ids.Contains(baseId))
+            return baseId;
+
+        int i = 2;
+        while (ids.Contains(baseId + "_" + i))
             i++;
         return baseId + "_" + i;
     }
@@ -353,8 +834,8 @@ sealed class ActionGraphView : GraphView
 /// <summary>单个 Action 节点视图：Entry、变体 Resolver、输入端口与 Cancel 输出端口。</summary>
 sealed class ActionGraphNodeView : Node
 {
-    readonly Dictionary<string, Port> _cancelPorts = new();
-    readonly Dictionary<Port, string> _portToSlot = new();
+    readonly Dictionary<ActionCancelRouteKind, Port> _cancelPorts = new();
+    readonly Dictionary<Port, ActionCancelRouteKind> _portToRoute = new();
     readonly UnityEngine.UIElements.Toggle _entryToggle;
     readonly UnityEditor.UIElements.ObjectField _variantResolverField;
 
@@ -393,21 +874,12 @@ sealed class ActionGraphNodeView : Node
 
         if (action != null)
         {
-            foreach (CancelWindowNotifyState window in action.Timeline.CancelWindowStates)
+            CancelWindowNotifyState window = action.CancelWindow;
+            if (window != null)
             {
-                if (window == null || window.CancelType != CancelType.Combo)
-                    continue;
-
-                string slot = window.CancelSlotId;
-                Port port = InstantiatePort(
-                    Orientation.Horizontal,
-                    Direction.Output,
-                    Port.Capacity.Multi,
-                    typeof(bool));
-                port.portName = $"{slot} ({window.CancelType} {window.StartFrame}-{window.EndFrame})";
-                outputContainer.Add(port);
-                _cancelPorts[slot] = port;
-                _portToSlot[port] = slot;
+                AddCancelPort(ActionCancelRouteKind.Cancel, "CancelWindow");
+                if (window.HasPerfectSplit)
+                    AddCancelPort(ActionCancelRouteKind.PerfectCancel, "PerfectCancelWindow");
             }
         }
 
@@ -416,9 +888,191 @@ sealed class ActionGraphNodeView : Node
         RefreshPorts();
     }
 
-    public bool TryGetCancelPort(string slotId, out Port port) =>
-        _cancelPorts.TryGetValue(slotId, out port);
+    /// <summary>查询普通或 Perfect Cancel 输出端口。</summary>
+    public bool TryGetCancelPort(ActionCancelRouteKind route, out Port port) =>
+        _cancelPorts.TryGetValue(route, out port);
 
-    public string GetSlotIdForPort(Port port) =>
-        _portToSlot.TryGetValue(port, out string slot) ? slot : null;
+    /// <summary>从输出端口反查普通或 Perfect 路由。</summary>
+    public ActionCancelRouteKind? GetRouteForPort(Port port) =>
+        _portToRoute.TryGetValue(port, out ActionCancelRouteKind route) ? route : null;
+
+    /// <summary>创建一个固定语义的 Cancel 输出端口。</summary>
+    void AddCancelPort(ActionCancelRouteKind route, string label)
+    {
+        Port port = InstantiatePort(
+            Orientation.Horizontal,
+            Direction.Output,
+            Port.Capacity.Multi,
+            typeof(bool));
+        port.portName = label;
+        outputContainer.Add(port);
+        _cancelPorts[route] = port;
+        _portToRoute[port] = route;
+    }
+}
+
+/// <summary>
+/// 顺序组视图：每行 Action 一个输入端口；普通 Cancel 自动进入下一行，
+/// 组级 Cancel 聚合全部子节点，PerfectCancel 聚合全部配置分割帧的子节点。
+/// </summary>
+sealed class ActionGraphGroupView : Node
+{
+    readonly List<ActionGraphNode> _children;
+    readonly List<string> _childNodeIds;
+    readonly Dictionary<string, Port> _inputPorts = new();
+    readonly Dictionary<Port, string> _portToNodeId = new();
+    readonly Dictionary<ActionCancelRouteKind, Port> _outputPorts = new();
+    readonly Dictionary<Port, ActionCancelRouteKind> _portToRoute = new();
+    readonly System.Action<ActionDefinition> _addAction;
+
+    public string GroupId { get; }
+    public string DisplayName { get; }
+    public IReadOnlyList<string> ChildNodeIds => _childNodeIds;
+
+    /// <summary>创建可直接接收 ActionDefinition 的顺序组。</summary>
+    public ActionGraphGroupView(
+        string groupId,
+        string displayName,
+        List<ActionGraphNode> children,
+        System.Action ungroup,
+        System.Action<int, int> moveChild,
+        System.Action<ActionDefinition> addAction)
+    {
+        GroupId = groupId;
+        DisplayName = string.IsNullOrEmpty(displayName) ? groupId : displayName;
+        _children = children ?? new List<ActionGraphNode>();
+        _childNodeIds = _children.Select(child => child.NodeId).ToList();
+        _addAction = addAction;
+        title = $"{DisplayName}  [Sequence]";
+        capabilities &= ~Capabilities.Deletable;
+
+        for (int i = 0; i < _children.Count; i++)
+        {
+            ActionGraphNode child = _children[i];
+            Port input = InstantiatePort(
+                Orientation.Horizontal,
+                Direction.Input,
+                Port.Capacity.Multi,
+                typeof(bool));
+            input.portName = $"{i + 1}. {child.NodeId}";
+            inputContainer.Add(input);
+            _inputPorts[child.NodeId] = input;
+            _portToNodeId[input] = child.NodeId;
+
+            var row = new VisualElement { style = { flexDirection = FlexDirection.Row } };
+            row.Add(new Label(child.Action != null ? child.Action.name : child.NodeId)
+            {
+                style = { flexGrow = 1 },
+            });
+            int capturedIndex = i;
+            row.Add(new Button(() => moveChild(capturedIndex, -1)) { text = "↑" });
+            row.Add(new Button(() => moveChild(capturedIndex, 1)) { text = "↓" });
+            extensionContainer.Add(row);
+        }
+
+        if (_children.Any(child => child.Action?.CancelWindow != null))
+            AddOutput(ActionCancelRouteKind.Cancel, "CancelWindow");
+        if (_children.Any(child => child.Action?.CancelWindow?.HasPerfectSplit == true))
+            AddOutput(ActionCancelRouteKind.PerfectCancel, "PerfectCancelWindow");
+
+        extensionContainer.Add(new Label("拖入 ActionDefinition 可追加到序列末尾"));
+        extensionContainer.Add(new Button(ungroup) { text = "Ungroup" });
+        RegisterCallback<DragUpdatedEvent>(OnDragUpdated);
+        RegisterCallback<DragPerformEvent>(OnDragPerform);
+
+        expanded = true;
+        RefreshExpandedState();
+        RefreshPorts();
+    }
+
+    /// <summary>指定边是否应显示为组级外部出口。</summary>
+    public bool AcceptsExternalSource(string nodeId, ActionCancelRouteKind route)
+    {
+        if (route == ActionCancelRouteKind.Cancel)
+        {
+            return _children.Any(
+                child => child.NodeId == nodeId && child.Action?.CancelWindow != null);
+        }
+
+        return _children.Any(
+            child => child.NodeId == nodeId && child.Action?.CancelWindow?.HasPerfectSplit == true);
+    }
+
+    /// <summary>判断两个节点是否为顺序组内相邻项。</summary>
+    public bool IsNextNode(string fromNodeId, string toNodeId)
+    {
+        int index = _childNodeIds.IndexOf(fromNodeId);
+        return index >= 0
+            && index + 1 < _childNodeIds.Count
+            && _childNodeIds[index + 1] == toNodeId;
+    }
+
+    public bool TryGetInputPort(string nodeId, out Port port) =>
+        _inputPorts.TryGetValue(nodeId, out port);
+
+    public string GetNodeIdForInput(Port port) =>
+        _portToNodeId.TryGetValue(port, out string nodeId) ? nodeId : null;
+
+    public bool TryGetCancelPort(ActionCancelRouteKind route, out Port port) =>
+        _outputPorts.TryGetValue(route, out port);
+
+    public ActionCancelRouteKind? GetRouteForPort(Port port) =>
+        _portToRoute.TryGetValue(port, out ActionCancelRouteKind route) ? route : null;
+
+    /// <summary>展开组级出口：普通覆盖全部有效窗口，Perfect 覆盖全部已配置分割帧的行。</summary>
+    public void CollectExternalSourceNodeIds(
+        ActionCancelRouteKind route,
+        List<string> results)
+    {
+        results.Clear();
+        if (route == ActionCancelRouteKind.Cancel)
+        {
+            foreach (ActionGraphNode child in _children)
+            {
+                if (child.Action?.CancelWindow != null)
+                    results.Add(child.NodeId);
+            }
+
+            return;
+        }
+
+        foreach (ActionGraphNode child in _children)
+        {
+            if (child.Action?.CancelWindow?.HasPerfectSplit == true)
+                results.Add(child.NodeId);
+        }
+    }
+
+    void AddOutput(ActionCancelRouteKind route, string label)
+    {
+        Port output = InstantiatePort(
+            Orientation.Horizontal,
+            Direction.Output,
+            Port.Capacity.Multi,
+            typeof(bool));
+        output.portName = label;
+        outputContainer.Add(output);
+        _outputPorts[route] = output;
+        _portToRoute[output] = route;
+    }
+
+    void OnDragUpdated(DragUpdatedEvent evt)
+    {
+        if (DragAndDrop.objectReferences.Any(obj => obj is ActionDefinition))
+        {
+            DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
+            evt.StopPropagation();
+        }
+    }
+
+    void OnDragPerform(DragPerformEvent evt)
+    {
+        ActionDefinition action = DragAndDrop.objectReferences.OfType<ActionDefinition>().FirstOrDefault();
+        if (action == null)
+            return;
+
+        DragAndDrop.AcceptDrag();
+        _addAction?.Invoke(action);
+        evt.StopPropagation();
+    }
 }

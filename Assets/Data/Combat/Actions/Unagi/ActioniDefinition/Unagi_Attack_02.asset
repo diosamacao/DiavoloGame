@@ -85,14 +85,14 @@ MonoBehaviour:
       endFrame: 17
       priority: 0
       trackName: Cancel_3
-      cancelType: 0
+      perfectFrame: -1
     phaseStates:
     - id: Phase_1
       startFrame: 18
       endFrame: 122
       priority: 0
       trackName: Phase_1
-      kind: 0
+      kind: 2
       interruptible: 1
       allowMovementCancel: 1
       allowEntryRestart: 1
