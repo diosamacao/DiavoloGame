@@ -55,6 +55,7 @@
 - [x] 2026-07-25：ActionGraph 顺序组与双通道——单 CancelWindow、Perfect 分割帧、每行独立 In、顺序自动普通 Cancel 链
 - [x] 2026-07-25：Phase 帧数据迁入 ActionTimeline；Action Editor 开放 Phase 轨；Recovery 窗口集成移动取消与 Entry 重开
 - [x] 2026-07-25：Action Editor 手动轨道支持轨头拖拽排序与 Undo
+- [x] 2026-07-25：新增 DodgeAttack 上下文意图——闪避 Action 中 Attack Pressed 映射为闪避攻击
 - [ ] `ActionDefinition` 子 SO 拆分（CombatData / PresentationData，可选）
 
 ### [P1] 战斗闭环

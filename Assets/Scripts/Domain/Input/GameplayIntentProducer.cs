@@ -9,6 +9,7 @@ public sealed class GameplayIntentProducer
     readonly GameplayIntentBuffer _output;
     readonly CharacterStateMachine _stateMachine;
     readonly LocomotionStateMachine _locomotion;
+    readonly IActionExecutor _actionExecutor;
     readonly string[] _inputIds;
     readonly Dictionary<string, float> _heldSeconds = new(StringComparer.Ordinal);
     readonly HashSet<string> _holdIntentEmitted = new(StringComparer.Ordinal);
@@ -19,13 +20,15 @@ public sealed class GameplayIntentProducer
         InputManager input,
         GameplayIntentBuffer output,
         CharacterStateMachine stateMachine,
-        LocomotionStateMachine locomotion)
+        LocomotionStateMachine locomotion,
+        IActionExecutor actionExecutor)
     {
         _profile = profile;
         _input = input;
         _output = output;
         _stateMachine = stateMachine;
         _locomotion = locomotion;
+        _actionExecutor = actionExecutor;
         _inputIds = InputBindingUtils.ResolveInputIds(profile?.CollectInputReferences());
     }
 
@@ -128,6 +131,11 @@ public sealed class GameplayIntentProducer
                     && _locomotion != null
                     && _locomotion.Phase == LocomotionPhase.Gait
                     && _locomotion.Gait == LocomotionGait.Sprint;
+            case GameplayIntentCondition.IsDodging:
+                return _stateMachine != null
+                    && _stateMachine.CurrentStateId == CharacterStateType.Action
+                    && _actionExecutor?.CurrentAction != null
+                    && _actionExecutor.CurrentAction.ActionType == CombatActionType.Dodge;
             default:
                 return true;
         }

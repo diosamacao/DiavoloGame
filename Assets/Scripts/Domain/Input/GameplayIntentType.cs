@@ -15,4 +15,6 @@ public enum GameplayIntentType
     AttackRelease = 5,
     /// <summary>技能招式 Trigger。</summary>
     Skill = 6,
+    /// <summary>闪避 Action 播放期间按下攻击。</summary>
+    DodgeAttack = 7,
 }

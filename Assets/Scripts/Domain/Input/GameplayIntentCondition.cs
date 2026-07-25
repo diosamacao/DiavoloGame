@@ -5,4 +5,6 @@ public enum GameplayIntentCondition
     Always = 0,
     /// <summary>角色处于 Locomotion/Gait/Sprint。</summary>
     IsSprinting = 1,
+    /// <summary>角色当前正在播放 Dodge 类型 Action。</summary>
+    IsDodging = 2,
 }
