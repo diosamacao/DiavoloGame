@@ -43,6 +43,66 @@ MonoBehaviour:
       localScale: {x: 0.2, y: 0.2, z: 0.2}
       parentToAttachPoint: 1
       playbackSpeed: 1
+    - id: VFX_2
+      startFrame: 2
+      endFrame: 2
+      priority: 0
+      trackName: VFX_1
+      prefab: {fileID: 2336738607144242677, guid: ccddab8d96f24c4e91399ea71a2353e4, type: 3}
+      attachPointId: Bn_katana_burst
+      localOffset: {x: 0, y: 0, z: 0}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      localScale: {x: 0.2, y: 0.2, z: 0.2}
+      parentToAttachPoint: 1
+      playbackSpeed: 1
+    - id: VFX_3
+      startFrame: 4
+      endFrame: 4
+      priority: 0
+      trackName: VFX_1
+      prefab: {fileID: 6855955652325114174, guid: 9b46a484efe4de54da682f6bbfc2ece2, type: 3}
+      attachPointId: 
+      localOffset: {x: 0, y: 0.64, z: 0.25}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      localScale: {x: 1, y: 1, z: 1.3}
+      parentToAttachPoint: 0
+      playbackSpeed: 1
+    - id: VFX_4
+      startFrame: 11
+      endFrame: 11
+      priority: 0
+      trackName: VFX_1
+      prefab: {fileID: 6855955652325114174, guid: 9b46a484efe4de54da682f6bbfc2ece2, type: 3}
+      attachPointId: 
+      localOffset: {x: 0, y: 0.64, z: 1.71}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      localScale: {x: 1, y: 1, z: 1}
+      parentToAttachPoint: 0
+      playbackSpeed: 1
+    - id: VFX_5
+      startFrame: 19
+      endFrame: 19
+      priority: 0
+      trackName: VFX_1
+      prefab: {fileID: 6855955652325114174, guid: c02543e57b00460393df4a8216a35d90, type: 3}
+      attachPointId: 
+      localOffset: {x: 0, y: 0.64, z: 1.74}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      localScale: {x: 1.3, y: 1.3, z: 1.3}
+      parentToAttachPoint: 0
+      playbackSpeed: 1
+    - id: VFX_6
+      startFrame: 21
+      endFrame: 21
+      priority: 0
+      trackName: VFX_1
+      prefab: {fileID: 6855955652325114174, guid: c02543e57b00460393df4a8216a35d90, type: 3}
+      attachPointId: 
+      localOffset: {x: 0, y: 0.64, z: 1.72}
+      localEulerAngles: {x: 0, y: 45, z: 45}
+      localScale: {x: 1.3, y: 1.3, z: 1.3}
+      parentToAttachPoint: 0
+      playbackSpeed: 1
     playSfxStates: []
     hitboxStates: []
     hurtboxStates: []
