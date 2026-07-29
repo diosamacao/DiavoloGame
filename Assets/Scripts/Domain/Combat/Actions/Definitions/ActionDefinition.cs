@@ -26,6 +26,10 @@ public class ActionDefinition : ScriptableObject
     [Tooltip("招式打断优先级；更大则可硬打断更小者。同级不互打断，连招 Cancel 不受此限制。")]
     [SerializeField] int interruptPriority = 0;
 
+    [Header("Damage")]
+    [Tooltip("招式基础伤害；最终伤害还会乘当前 Hitbox 的 Damage Weight。")]
+    [SerializeField] float baseDamage = 10f;
+
     [Header("Timeline")]
     [Tooltip("动作帧数据唯一真源：Phase、点事件与其它区间窗口均从此处读取。")]
     [SerializeField] ActionTimeline timeline = new();
@@ -117,6 +121,9 @@ public class ActionDefinition : ScriptableObject
 
     /// <summary>招式打断优先级；高优可经 Entry 硬打断低优（严格大于）。</summary>
     public int InterruptPriority => interruptPriority;
+
+    /// <summary>招式基础伤害；非正值表示该招不造成生命值伤害。</summary>
+    public float BaseDamage => Mathf.Max(0f, baseDamage);
 
     /// <summary>切入招式首段时的默认淡入时长；段可自带 crossFadeDuration 覆盖。</summary>
     public float CrossFadeDuration => crossFadeDuration;
@@ -425,6 +432,7 @@ public class ActionDefinition : ScriptableObject
         timeline.ClampToTotalFrames(totalFrames);
 
         hitStopFrames = Mathf.Max(0, hitStopFrames);
+        baseDamage = Mathf.Max(0f, baseDamage);
     }
 
     /// <summary>旧单字段 animationClip 迁入 animationSegments[0]；之后只认 segments。</summary>

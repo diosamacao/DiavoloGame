@@ -92,6 +92,19 @@ public class MyBehaviour : MonoBehaviour
 - **CancelWindow**：每个 Action 必须且只能有一个 Normal，可选一个 Perfect；两个窗口可重叠，同一 Trigger 始终优先 Perfect；禁止重新引入分割帧、槽 Id 或同类型多窗口
 - 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `CharacterMotor` / State）
 - **玩家装配**：`InputActionAsset` 与 `GameplayIntentProfile` 由 `CharacterConfig` 注入，不在玩家 Prefab 上重复配置
+- **AI 输入**：`AIInputSource` 必须合成与 `GameplayIntentProfile` 对齐的 `PlayerInputFrame`；Brain 禁止直接调用 `ActionExecutor.TryStart/TryInterrupt`
+- **AI 移动**：相机相对 Motor 通过 facing proxy + `Move=(0, magnitude)` 复用，禁止另建敌人移动栈
+
+## 伤害与受击约定
+
+- 最终伤害统一为 `ActionDefinition.BaseDamage × HitboxNotifyState.DamageWeight`
+- 受击反应由“有效命中”驱动，不得依赖最终伤害必须大于 0；扣血与 Hit 状态是两条职责
+- 玩家和敌人都使用 `CharacterHurtboxTarget` 注册到 `TargetSystem`；HitDetector 在几何检测前排除自身、同阵营与死亡目标
+- 自身过滤必须覆盖角色根与全部父子层级，禁止模型子节点上的 Hurtbox 生成自击事件
+- 玩家阵营由 `CharacterConfig.Combat.teamId` 持有；敌人阵营由 `EnemyDefinition.teamId` 独立持有，禁止从可复用身体配置隐式继承
+- 所有角色动作表现配置（含受击、死亡）统一由 `CharacterConfig.Combat` 持有；`EnemyDefinition` 禁止重复声明 Action 引用
+- 受击/死亡统一进入顶层 `CharacterStateType.Hit / Death`；专用 Action 只负责表现，不参与 AI 选招
+- 死亡时先注销 `TargetSystem / CombatActorSystem`，死亡表现完成后再 Despawn
 
 ## 相机约定
 

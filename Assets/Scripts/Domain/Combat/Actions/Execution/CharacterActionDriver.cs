@@ -67,6 +67,14 @@ public sealed class CharacterActionDriver
         _wasInAction = _stateMachine.CurrentStateId == CharacterStateType.Action;
     }
 
+    /// <summary>进入受控或死亡状态时清空动作缓冲与索敌锁定。</summary>
+    public void ClearPendingActions()
+    {
+        ClearAllActionBuffers();
+        targetLock.ClearLock();
+        _wasInAction = false;
+    }
+
     /// <summary>离开 Action 后尝试用缓冲的离散输入从 Locomotion 起手。</summary>
     bool TryStartFromBufferedInputs()
     {

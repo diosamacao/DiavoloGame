@@ -63,6 +63,25 @@ public class CharacterConfig : ScriptableObject
     /// <summary>检查必需配置；失败时输出明确错误，避免运行时热路径反复判空。</summary>
     public bool ValidateForPlayer(UnityEngine.Object context)
     {
+        bool valid = ValidateShared(context);
+        if (inputActions == null)
+        {
+            Debug.LogError("CharacterConfig: InputActions 未配置。", context);
+            valid = false;
+        }
+
+        return valid;
+    }
+
+    /// <summary>检查敌人角色配置；AI 复用语义意图配置，但不要求玩家 InputActionAsset。</summary>
+    public bool ValidateForEnemy(UnityEngine.Object context)
+    {
+        return ValidateShared(context);
+    }
+
+    /// <summary>校验玩家与敌人共用的模型、动画、意图和战斗配置。</summary>
+    bool ValidateShared(UnityEngine.Object context)
+    {
         bool valid = true;
         if (modelPrefab == null)
         {
@@ -77,12 +96,6 @@ public class CharacterConfig : ScriptableObject
         }
         else if (!defaultLocomotionProfile.ValidateClips(context))
         {
-            valid = false;
-        }
-
-        if (inputActions == null)
-        {
-            Debug.LogError("CharacterConfig: InputActions 未配置。", context);
             valid = false;
         }
 
@@ -172,6 +185,11 @@ public struct CharacterCombatConfig
     [SerializeField] int teamId;
     [SerializeField] string attachPointName;
     [SerializeField] string aimOriginName;
+    [SerializeField] HurtboxDefinition hurtbox;
+    [SerializeField] float maxHealth;
+    [SerializeField] float hitStunSeconds;
+    [SerializeField] ActionDefinition hitStunAction;
+    [SerializeField] ActionDefinition deathAction;
 
     /// <summary>默认玩家阵营与空挂点名。</summary>
     public static CharacterCombatConfig Default => new()
@@ -179,6 +197,11 @@ public struct CharacterCombatConfig
         teamId = 0,
         attachPointName = string.Empty,
         aimOriginName = string.Empty,
+        hurtbox = new HurtboxDefinition(),
+        maxHealth = 100f,
+        hitStunSeconds = 0.35f,
+        hitStunAction = null,
+        deathAction = null,
     };
 
     /// <summary>攻击者阵营 id；索敌会排除同阵营目标。</summary>
@@ -189,4 +212,19 @@ public struct CharacterCombatConfig
 
     /// <summary>索敌起点挂点名；为空时使用角色根。</summary>
     public string AimOriginName => aimOriginName;
+
+    /// <summary>角色根节点上的默认受击框；旧配置缺失时使用标准人形 Box。</summary>
+    public HurtboxDefinition Hurtbox => hurtbox ?? new HurtboxDefinition();
+
+    /// <summary>玩家等未被上层 Definition 覆盖时使用的最大生命值。</summary>
+    public float MaxHealth => maxHealth > 0f ? maxHealth : 100f;
+
+    /// <summary>未配置受击 Action 时的默认硬直秒数。</summary>
+    public float HitStunSeconds => hitStunSeconds > 0f ? hitStunSeconds : 0.35f;
+
+    /// <summary>玩家等直接由 CharacterConfig 装配的角色受击表现 Action。</summary>
+    public ActionDefinition HitStunAction => hitStunAction;
+
+    /// <summary>玩家等直接由 CharacterConfig 装配的角色死亡表现 Action。</summary>
+    public ActionDefinition DeathAction => deathAction;
 }

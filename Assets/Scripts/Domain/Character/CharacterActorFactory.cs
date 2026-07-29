@@ -10,6 +10,7 @@ public static class CharacterActorFactory
         GameObject owner,
         Transform root,
         CharacterConfig config,
+        int teamId,
         ICharacterInputSource inputSource,
         Transform cameraTransform,
         Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider,
@@ -71,8 +72,14 @@ public static class CharacterActorFactory
         Transform defaultAttach = ResolveModelPoint(config.Combat.AttachPointName, modelRoot, root);
         Transform aimOrigin = ResolveModelPoint(config.Combat.AimOriginName, modelRoot, root);
         var attachPoints = new CharacterAttachPointResolver(modelRoot, defaultAttach);
-        var targetLock = new CombatTargetLock(root, config.Combat.TeamId, aimOrigin, activeTargetsProvider);
-        var hitboxFrameConsumer = new HitboxFrameConsumer(root, actionExecutor, attachPoints, activeTargetsProvider, hitDetected);
+        var targetLock = new CombatTargetLock(root, teamId, aimOrigin, activeTargetsProvider);
+        var hitboxFrameConsumer = new HitboxFrameConsumer(
+            root,
+            teamId,
+            actionExecutor,
+            attachPoints,
+            activeTargetsProvider,
+            hitDetected);
         var vfxPlayer = new ActionVfxPlayer(root, attachPoints);
         var sfxPlayer = new ActionSfxPlayer(root);
 

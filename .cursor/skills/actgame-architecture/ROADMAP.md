@@ -60,18 +60,18 @@
 
 ### [P1] 战斗闭环
 
-**现状**：Hitbox OBB + 命中反馈（震屏/卡肉）；`OnHitConfirm` Transition 已可配置。
+**现状**：Hitbox OBB + 命中反馈（震屏/卡肉）；`OnHitConfirm` Transition、基础伤害、生命值与通用 Hit/Death 状态已接通。
 
-**待做**：伤害结算、`Hit` 状态、受击 `ActionDefinition` 衔接。
+**待做**：在 Editor 为玩家/敌人配置受击与死亡 Action；后续扩展抗性、护盾与 UI。
 
-**状态**：部分完成
+**状态**：代码闭环完成（2026-07-29），资产待绑
 
 ## 待建设模块
 
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
 | ActionEditorWindow | P1 | ✅ 2026-07-10 基础版已落地；后续增强 FramePlayer / SFX 预览 |
-| Enemy/ + AI | P2 | 复用纯 C# `CharacterActionDriver` + `ActionExecutor` |
+| Enemy/ + AI | P2 | 🟡 2026-07-29 代码已实现；EnemyDefinition、Graph、动画资产待配置 |
 | UI/ | P2 | HUD、血条 |
 | 事件总线 | P2 | 轻量 C# event；定稿前不引入第三方 |
 
@@ -105,6 +105,7 @@
 - [x] 2026-07-19：方向闪避统一为前/后/左前/左后/右前/右后六向解析，移除 Locomotion 起手固定前闪旧路径
 - [x] 2026-07-22：TurnBack 输入接管——锁根 0.08 秒后实时输入控制朝向，烘焙位移随新朝向重定向
 - [x] 2026-07-22：Locomotion 内层纯状态机——`LocomotionStateMachine` + 五相位 State，删除 `LocomotionService`
+- [x] 2026-07-29：敌人系统——共享 CharacterActor、五态 Brain、AI 输入、伤害/Hit/Death、Spawn/Despawn 与阵营过滤
 
 ## 剩余项
 

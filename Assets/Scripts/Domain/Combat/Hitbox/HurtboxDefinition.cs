@@ -5,8 +5,9 @@ using UnityEngine;
 [Serializable]
 public class HurtboxDefinition
 {
-    [SerializeField] Vector3 localOffset = Vector3.zero;
-    [SerializeField] Vector3 localEulerAngles;
+    [Tooltip("相对角色根的受击框中心；默认抬高半个标准人形高度。")]
+    [SerializeField] Vector3 localOffset = new(0f, 0.9f, 0f);
+    [SerializeField] Vector3 localEulerAngles = Vector3.zero;
     [Tooltip("Box 全尺寸（与 Unity BoxCollider.size 一致），非半长。")]
     [SerializeField] Vector3 size = new(0.8f, 1.8f, 0.8f);
 

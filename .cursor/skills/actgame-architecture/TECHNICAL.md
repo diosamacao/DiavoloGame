@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-07-25
+> Last updated: 2026-07-29
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -16,8 +16,8 @@
 | 第三人称相机 | ✅ 已实现 | `CameraManager` | 场景内 CameraManager 对象 |
 | 动作系统（选招 / 播放 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ 已实现 | 纯 C# `ActionResolverService` + `ActionExecutor` + `CombatModeService` | `CombatModeProfile`、`PlayerActionSet`、`ActionGraph`、`ActionDefinition.interruptPriority` |
 | Action Editor（时间轴编辑） | 🟡 骨架/部分 | `ActionEditorWindow` + `ActionTimeline` 手动加轨/窗口 | Menu：`ACT/Action Editor` |
-| 攻击 / 战斗判定 | 🟡 部分实现 | 纯 C# `HitboxFrameConsumer` + `HitDetector` OBB + 命中回流 | 无伤害、Hit 状态 |
-| 敌人 AI | ⬜ 未实现 | — | `Enemy/` 占位 |
+| 攻击 / 战斗判定 | ✅ 已实现 | `HitboxFrameConsumer` + `CombatDamageCalculator` + `CharacterHealth` | Action 基础伤害 × Hitbox 权重；Hit/Death 状态 |
+| 敌人 AI | 🟡 代码已接、资产待绑 | `EnemyController` + `EnemyBrain` + 共享 `CharacterActor` | `EnemyDefinition`、`EnemyBrainProfile`、敌人 CharacterConfig/Graph |
 | UI | ⬜ 未实现 | — | `UI/` 占位 |
 
 状态图例：✅ 可玩可用 · 🟡 有类/占位但未接完 · ⬜ 未开始
@@ -496,15 +496,80 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 
 ---
 
-## 8. 预留 / 未完成功能
+## 8. 敌人 AI、伤害与生成
+
+### 功能说明
+
+敌人复用玩家的 CharacterActor、Locomotion、ActionGraph 与 Hitbox 管线；AI 仅生成输入帧，并通过 Idle / Chase / Attack / Hit / Dead 五态完成追击、攻击、受击和死亡回收。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 配置 | `EnemyDefinition` 只组合 CharacterConfig、BrainProfile、独立 teamId 与 HP；全部 Action 由 CharacterConfig 持有 |
+| AI 输入 | `AIInputSource` 从 GameplayIntentProfile 解析 Always + Pressed → Attack 的物理 id |
+| 追击 | `EnemyBrain` 更新 facing proxy，持续写 `Move=(0, chaseMoveMagnitude)` |
+| 攻击 | Brain 只发一帧 Attack 脉冲；选招仍由 GameplayIntentProducer → CharacterActionDriver → ActionGraph |
+| 伤害与反应 | 扣血为 `ActionDefinition.BaseDamage × HitboxNotifyState.DamageWeight`；非致命命中始终触发 Hit，独立于伤害是否为 0 |
+| 受击目标 | `CharacterHurtboxTarget` 统一玩家/敌人的 Hurtbox、阵营和生命值；自身整棵 Transform 层级均被排除 |
+| 状态 | `CharacterStateMachine` 正式注册 `HitState` / `DeathState` |
+| 生成 | `EnemySpawnController` → `SpawnEnemyCommand` → `EnemyController`；`EnemySpawnSystem` 限制存活数 |
+| 回收 | 死亡立即注销 Target/CombatActor，死亡 Action 完成并等待配置延迟后 Destroy |
+
+### 关键参数
+
+| 参数 | 默认 | 含义 |
+|------|------|------|
+| `ActionDefinition.baseDamage` | 10 | 招式基础伤害 |
+| `CharacterCombatConfig.maxHealth` | 100 | 玩家默认生命值 |
+| `CharacterCombatConfig.hitStunAction / deathAction` | null | 玩家与敌人共用的可选受击、死亡表现 |
+| `HurtboxDefinition.localOffset` | (0, 0.9, 0) | 标准人形受击框中心，角色根位于脚底 |
+| `EnemyDefinition.teamId` | 1 | 敌人阵营；不继承复用 CharacterConfig 的玩家阵营 |
+| `EnemyBrainProfile.aggroRadius / loseAggroRadius` | 10 / 14 | 进战/脱战距离 |
+| `attackRange / stopDistance` | 2 / 1.2 | 攻击与贴身停步距离 |
+| `attackCooldownSeconds` | 1.2 | 成功起手后的攻击冷却 |
+| `hitStunSeconds` | 0.35 | 无受击 Action 时硬直 |
+
+### 运行时流程
+
+```
+EnemyController.Update
+  → EnemyBrain.Tick → AIInputSource
+  → CharacterActor.Tick → Locomotion / Action
+
+ApplyHitCommand
+  → CharacterHurtboxTarget.OnHit
+  → CharacterHealth.ApplyDamage
+      → EnterHit / EnterDeath
+```
+
+玩家镜头震动只响应 `Attacker` 根节点带 `PlayerController` 的命中；敌人命中玩家仍触发受击和攻击者卡肉，但不触发玩家进攻震屏。
+
+### 已知限制
+
+- 代码已编译，仍需在 Unity Editor 人工创建 EnemyDefinition、EnemyBrainProfile、敌人 CharacterConfig 与 ActionGraph 资产。
+- 首版追击是直线趋近，不含 NavMesh、绕障、Strafe 与群体避让。
+- 死亡回收当前使用 Destroy；对象池可在后续替换 DespawnEnemyCommand 内实现。
+
+### 相关文件
+
+- `Assets/Scripts/Domain/Enemy/*`
+- `Assets/Scripts/App/Controllers/Gameplay/Enemy*.cs`
+- `Assets/Scripts/App/Commands/Enemy/*`
+- `Assets/Scripts/App/Systems/Enemy/EnemySpawnSystem.cs`
+- `Assets/Scripts/Domain/Combat/Damage/*`
+
+---
+
+## 9. 预留 / 未完成功能
 
 ### CharacterStateType 预留枚举
 
-- `Hit = 80`、`Death = 100` — 无对应 State 类
+- `Hit = 80`、`Death = 100` — 已有通用 State；玩家受击/死亡动画资产尚未配置
 
 ### 空模块目录
 
-`Enemy/`、`UI/` — 仅 `.gitkeep`；`Combat/Actions/` 动作运行时 + `Combat/Hitbox/` OBB 判定骨架已建
+`UI/` — 仅 `.gitkeep`；Enemy 与 Combat Damage 已实现
 
 ---
 
@@ -545,3 +610,7 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 | 2026-07-25 | Action Editor 手动轨道支持拖拽换序：轨头手柄、插入线、松开写回 `timeline.tracks`，完整支持 Undo |
 | 2026-07-26 | Perfect 独立窗口：CancelWindowType=Normal/Perfect；允许重叠，同一 Trigger 优先 Perfect；删除 perfectFrame 分割路径 |
 | 2026-07-25 | 新增 DodgeAttack 语义：GameplayIntentProfile 通过 IsDodging 条件将闪避 Action 中的 Attack Pressed 映射为闪避攻击 |
+| 2026-07-29 | 敌人系统接入：EnemyDefinition/BrainProfile、五态 AI、AIInputSource、共享 CharacterActor、伤害/Hit/Death 闭环、Spawn/Despawn 与玩家对称 Hurtbox |
+| 2026-07-29 | 敌人联调修正：EnemyDefinition 独立持有 teamId；默认 Hurtbox 中心抬高；CharacterConfig 增加玩家受击/死亡 Action |
+| 2026-07-29 | 动作配置收敛：删除 EnemyDefinition 的 hitStunAction/deathAction；玩家与敌人统一读取 CharacterConfig.Combat |
+| 2026-07-29 | 命中反馈修正：Hit 与实际扣血解耦；自击过滤覆盖完整角色层级；玩家镜头只响应玩家主动命中 |

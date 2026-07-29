@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-07-25
+> Last audited: 2026-07-29
 
 ## 项目概述
 
@@ -14,28 +14,27 @@ Unity ACT（动作）游戏。当前重点：第三人称移动、状态机驱�
 Assets/
 ├── Scripts/
 │   ├── Core/StateMachine/     # 泛型状态机（与角色无关）
-│   ├── Character/
-│   │   ├── Animation/         # 动画播放与 Profile
-│   │   ├── Locomotion/        # 相位 FSM、FootCycle、脚步
-│   │   └── StateMachine/      # 角色状态机基类与共享 State
-│   ├── Player/                # PlayerController（玩家输入源适配）
-│   ├── Enemy/                 # （占位）
-│   ├── Combat/
-│   │   ├── Actions/           # Definitions(数据) / Resolution(选招) / Execution(播放) / Frames(帧契约)（纯 C#）
-│   │   ├── Hitbox/            # OBB 判定
-│   │   ├── VFX/               # 招式 VFX 帧事件
-│   │   ├── Targeting/         # 索敌
-│   │   └── Feedback/          # 命中反馈、卡肉
+│   ├── Domain/
+│   │   ├── Character/
+│   │   │   ├── Animation/     # 动画播放与 Profile
+│   │   │   ├── Locomotion/    # 相位 FSM、FootCycle、脚步
+│   │   │   └── StateMachine/  # 角色状态机基类与共享 State
+│   │   ├── Enemy/             # Definition、AI FSM、生命值、工厂与句柄
+│   │   ├── Combat/
+│   │   │   ├── Actions/       # Definitions / Resolution / Execution / Frames
+│   │   │   ├── Damage/        # 伤害计算与生命值
+│   │   │   ├── Hitbox/        # OBB 判定与角色 Hurtbox
+│   │   │   ├── VFX/           # 招式 VFX 帧事件
+│   │   │   └── Targeting/     # 索敌
+│   │   └── Input/             # 原始帧、意图与输入中枢
 │   ├── App/
 │   │   ├── Architecture/      # QFramework 风格强类型 Architecture / 能力接口 / 基类
-│   │   ├── Controllers/       # Unity 表现入口，继承 AppControllerBase
+│   │   ├── Controllers/       # Player / Enemy / Camera / Combat Unity 入口
 │   │   ├── Systems/           # 注册到 Architecture IOC 的业务系统
 │   │   ├── Commands/          # 跨系统业务行为
 │   │   ├── Queries/           # 无副作用读取请求
 │   │   └── Events/            # IArchitectureEvent 事件
-│   ├── Input/                 # Input System 封装
-│   ├── Camera/                # Cinemachine 第三人称相机
-│   ├── UI/                    # （占位）
+│   ├── Infrastructure/Input/  # Input System 与 AI 输入源适配
 │   └── Editor/Combat/         # ActionDefinition 预览 Editor
 ├── Data/                      # ScriptableObject 配置
 ├── Prefabs/Player/            # 玩家 Prefab
@@ -67,8 +66,8 @@ flowchart TB
     CharSM --> CharAnim
     Combat --> CharAnim
     Camera --> Input
-    Enemy -.-> CharSM
-    Enemy -.-> Combat
+    Enemy --> CharSM
+    Enemy --> Combat
 ```
 
 ## 核心子系统
@@ -173,6 +172,27 @@ InputReader（原始帧）→ InputManager → GameplayIntentProducer（含 Spri
 | 类 | 职责 |
 |----|------|
 | `CameraManager` | Cinemachine 第三人称 |
+
+### 8. 敌人（Enemy）
+
+| 类 | 职责 |
+|----|------|
+| `EnemyDefinition` / `EnemyBrainProfile` | 组合 CharacterConfig、AI 半径/冷却、HP 与敌人阵营；动作配置只在 CharacterConfig |
+| `AIInputSource` | 将 AI 移动与 Attack 脉冲合成为 `PlayerInputFrame`，继续走语义意图管线 |
+| `EnemyBrain` / `EnemyPerception` | Idle / Chase / Attack / Hit / Dead FSM 与只读感知快照 |
+| `EnemyActorFactory` / `EnemyHandle` | 复用 CharacterActorFactory，聚合 Actor、Brain、Health、Hurtbox 生命周期 |
+| `EnemyController` / `EnemySpawnController` | 单敌 Tick 入口与场景刷怪入口 |
+| `EnemySpawnSystem` | 架构级敌人实例注册与同 Definition 存活上限 |
+
+**数据流（敌人）**：
+
+```
+EnemyDefinition → EnemyActorFactory → CharacterActorFactory
+EnemyBrain → AIInputSource → InputManager → GameplayIntentProducer → CharacterActionDriver
+玩家 Hitbox → ApplyHitCommand → CharacterHurtboxTarget → EnemyHealth
+              ├─ 非致命：CharacterActor.EnterHit
+              └─ 致命：CharacterActor.EnterDeath → 注销 Target/CombatActor → Despawn
+```
 
 ## 技术栈
 
