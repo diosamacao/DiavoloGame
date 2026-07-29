@@ -12,7 +12,8 @@ public static class EnemyActorFactory
         EnemyDefinition definition,
         Func<Transform> targetProvider,
         Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider,
-        Action<ActionHitContext, IHurtboxTarget, IActionHitReceiver, Transform> hitDetected)
+        Action<ActionHitContext, IHurtboxTarget, IActionHitReceiver, Transform> hitDetected,
+        CharacterReactionResolver reactionResolver)
     {
         CharacterConfig config = definition.CharacterConfig;
         var input = new AIInputSource(config.GameplayIntentProfile);
@@ -47,6 +48,12 @@ public static class EnemyActorFactory
             () => actor.CurrentState,
             health);
         var brain = new EnemyBrain(definition.BrainProfile, perception, input, facingProxy);
+        var reactionService = new CharacterReactionService(
+            health,
+            actor,
+            reactionResolver,
+            _ => brain.NotifyHit(),
+            (_, _) => brain.NotifyDeath());
         var target = new CharacterHurtboxTarget(
             root,
             root,
@@ -63,6 +70,7 @@ public static class EnemyActorFactory
             brain,
             health,
             target,
-            facingProxy);
+            facingProxy,
+            reactionService);
     }
 }

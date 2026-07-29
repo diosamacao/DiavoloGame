@@ -154,7 +154,7 @@ public sealed class CharacterActionDriver
         return true;
     }
 
-    /// <summary>Locomotion 起手：经 ActionGraph Entry×Trigger 解析后交给 ActionExecutor。</summary>
+    /// <summary>Locomotion 起手：经 ActionGraph Entry×Intent 解析后交给 ActionExecutor。</summary>
     void TryStartFromLocomotion(GameplayIntentType intent)
     {
         _intentBuffer.ClearBuffer(intent);

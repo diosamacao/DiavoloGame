@@ -56,11 +56,13 @@
 - [x] 2026-07-25：Phase 帧数据迁入 ActionTimeline；Action Editor 开放 Phase 轨；Recovery 窗口集成移动取消与 Entry 重开
 - [x] 2026-07-25：Action Editor 手动轨道支持轨头拖拽排序与 Undo
 - [x] 2026-07-25：新增 DodgeAttack 上下文意图——闪避 Action 中 Attack Pressed 映射为闪避攻击
-- [ ] `ActionDefinition` 子 SO 拆分（CombatData / PresentationData，可选）
+- [x] 2026-07-29：`ActionDefinition` 职责收敛——只保留播放内容、Timeline 与 ExecutionPolicy；输入/流程/索敌迁到 Graph，伤害/反馈迁到 HitPayload
+- [x] 2026-07-30：玩家/敌人反应事件统一由 `CharacterReactionService` 桥接；默认硬直时长收敛到 `CharacterReactionSet`
+- [x] 2026-07-30：Graph Editor 支持完整节点内联策略编辑；命中去重收敛为每个 Hitbox 窗口×目标一次；连续受击强制重入 HitState
 
 ### [P1] 战斗闭环
 
-**现状**：Hitbox OBB + 命中反馈（震屏/卡肉）；`OnHitConfirm` Transition、基础伤害、生命值与通用 Hit/Death 状态已接通。
+**现状**：Hitbox OBB + Payload 命中反馈；Graph 节点自动衔接、生命值、Controller 反应解析与通用 Hit/Death 状态已接通。
 
 **待做**：在 Editor 为玩家/敌人配置受击与死亡 Action；后续扩展抗性、护盾与 UI。
 
@@ -106,6 +108,8 @@
 - [x] 2026-07-22：TurnBack 输入接管——锁根 0.08 秒后实时输入控制朝向，烘焙位移随新朝向重定向
 - [x] 2026-07-22：Locomotion 内层纯状态机——`LocomotionStateMachine` + 五相位 State，删除 `LocomotionService`
 - [x] 2026-07-29：敌人系统——共享 CharacterActor、五态 Brain、AI 输入、伤害/Hit/Death、Spawn/Despawn 与阵营过滤
+- [x] 2026-07-29：动作职责重构——GraphNode 成为输入/流程/索敌真源，HitPayload 成为伤害/反馈真源，CharacterReactionResolver 承接受击/死亡选招
+- [x] 2026-07-30：角色反应闭环去重——Resolver 生成完整请求，ReactionService 统一 Health 事件与 Actor 入口，删除 CharacterConfig/EnemyBrainProfile 硬直双真源
 
 ## 剩余项
 

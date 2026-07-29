@@ -12,7 +12,7 @@ public static class HitDetector
         Transform root,
         int attackerTeamId,
         Func<HitboxNotifyState, Transform> resolveAnchor,
-        HashSet<(string HitboxId, int TargetId)> hitPairs,
+        HashSet<(int HitboxIndex, int TargetId)> hitPairs,
         IActionHitReceiver hitReceiver,
         IReadOnlyList<IHurtboxTarget> activeTargets,
         Action<ActionHitContext, IHurtboxTarget, IActionHitReceiver, Transform> hitDetected)
@@ -20,12 +20,16 @@ public static class HitDetector
         if (activeTargets == null || activeTargets.Count == 0 || hitDetected == null)
             return;
 
-        IReadOnlyList<HitboxNotifyState> activeHitboxes = action.GetActiveHitboxesAtFrame(frame);
-        if (activeHitboxes.Count == 0)
+        HitboxNotifyState[] hitboxes = action.HitboxStates;
+        if (hitboxes == null || hitboxes.Length == 0)
             return;
 
-        foreach (HitboxNotifyState hitbox in activeHitboxes)
+        for (int hitboxIndex = 0; hitboxIndex < hitboxes.Length; hitboxIndex++)
         {
+            HitboxNotifyState hitbox = hitboxes[hitboxIndex];
+            if (hitbox == null || !hitbox.IsActiveAtFrame(frame))
+                continue;
+
             Transform anchor = resolveAnchor != null ? resolveAnchor(hitbox) : root;
             HitboxOrientedBox attackBox = HitboxMath.BuildFromHitbox(root, anchor, hitbox);
             foreach (IHurtboxTarget target in activeTargets)
@@ -45,7 +49,8 @@ public static class HitDetector
                     continue;
                 }
 
-                var pair = (hitbox.HitboxId, target.TargetInstanceId);
+                // 数组下标代表时间轴中的 Hitbox 窗口实例；显示 Id 重复也必须各自结算一次。
+                var pair = (hitboxIndex, target.TargetInstanceId);
                 if (hitPairs.Contains(pair))
                     continue;
 

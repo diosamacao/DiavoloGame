@@ -5,7 +5,7 @@ using UnityEngine;
 [Serializable]
 public class CancelWindowNotifyState : ActionNotifyState
 {
-    [Tooltip("Normal 为普通派生；Perfect 与 Normal 重叠且 Trigger 相同时优先。")]
+    [Tooltip("Normal 为普通派生；Perfect 与 Normal 重叠且节点 Intent 相同时优先。")]
     [SerializeField] CancelWindowType windowType = CancelWindowType.Normal;
 
     /// <summary>窗口对应的 Normal 或 Perfect 图路由。</summary>

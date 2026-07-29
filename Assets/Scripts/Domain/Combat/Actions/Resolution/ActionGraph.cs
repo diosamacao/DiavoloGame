@@ -4,7 +4,7 @@ using UnityEngine;
 
 /// <summary>
 /// 连招图资产：节点引用 ActionDefinition，边从 Cancel / PerfectCancel 通道派生到目标节点。
-/// 支持多个 Locomotion 起手入口（按目标招 Trigger 匹配，可同时含攻击/闪避等）。
+/// 节点拥有输入、索敌、起手行为与自动衔接，ActionDefinition 只描述动作播放内容。
 /// </summary>
 [CreateAssetMenu(fileName = "ActionGraph", menuName = "ACT/Combat/Action Graph")]
 public class ActionGraph : ScriptableObject
@@ -49,27 +49,8 @@ public class ActionGraph : ScriptableObject
         return false;
     }
 
-    /// <summary>按 ActionDefinition 引用查找节点（方向闪避变体落点用）。</summary>
-    public bool TryFindNodeByAction(ActionDefinition action, out ActionGraphNode node)
-    {
-        node = null;
-        if (action == null || nodes == null)
-            return false;
-
-        for (int i = 0; i < nodes.Length; i++)
-        {
-            if (nodes[i] != null && nodes[i].Action == action)
-            {
-                node = nodes[i];
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     /// <summary>
-    /// Locomotion 起手：在标记为 Entry 的节点中，按 Action.Trigger 匹配 request；
+    /// Locomotion 起手：在标记为 Entry 的节点中，按节点 Intent 匹配 request；
     /// 若节点配置了 VariantResolver（如 Directional），则解析实际播放变体并保持逻辑节点不变。
     /// </summary>
     public bool TryResolveStart(
@@ -87,8 +68,8 @@ public class ActionGraph : ScriptableObject
             if (node == null || !node.IsEntry || node.Action == null)
                 continue;
 
-            GameplayIntentType trigger = node.Action.Trigger;
-            if (trigger == GameplayIntentType.None || trigger != request.Intent)
+            GameplayIntentType intent = node.Intent;
+            if (intent == GameplayIntentType.None || intent != request.Intent)
                 continue;
 
             return FinalizeNodeResolve(node, in request, in context, out result);
@@ -97,7 +78,7 @@ public class ActionGraph : ScriptableObject
         return false;
     }
 
-    /// <summary>Cancel：按 (CurrentNodeId, CancelWindowType) 出边，目标 Trigger 匹配 request。</summary>
+    /// <summary>Cancel：按当前节点与窗口类型找出边，再按目标节点 Intent 匹配请求。</summary>
     public bool TryResolveCancel(
         in ActionRequest request,
         in ActionResolveContext context,
@@ -116,8 +97,8 @@ public class ActionGraph : ScriptableObject
             if (!TryGetNode(edge.ToNodeId, out ActionGraphNode toNode))
                 continue;
 
-            GameplayIntentType trigger = toNode.Action.Trigger;
-            if (trigger == GameplayIntentType.None || trigger != request.Intent)
+            GameplayIntentType intent = toNode.Intent;
+            if (intent == GameplayIntentType.None || intent != request.Intent)
                 continue;
 
             return FinalizeNodeResolve(toNode, in request, in context, out result);
@@ -127,7 +108,7 @@ public class ActionGraph : ScriptableObject
     }
 
     /// <summary>
-    /// 显式边未命中时按「来源 Trigger（None=任意）+ Cancel 路由 + 输入意图」匹配共享路由。
+    /// 显式边未命中时按「来源 Intent（None=任意）+ Cancel 路由 + 输入意图」匹配共享路由。
     /// 共享路由用于回根、统一反击、统一蓄力入口等横切关系，不替代独特连招拓扑。
     /// </summary>
     bool TryResolveSharedRoute(
@@ -136,18 +117,19 @@ public class ActionGraph : ScriptableObject
         out ActionResolveResult result)
     {
         result = default;
-        if (sharedRoutes == null || context.CurrentAction == null)
+        if (sharedRoutes == null
+            || !TryGetNode(context.CurrentNodeId, out ActionGraphNode currentNode))
             return false;
 
-        GameplayIntentType sourceTrigger = context.CurrentAction.Trigger;
+        GameplayIntentType sourceIntent = currentNode.Intent;
         for (int i = 0; i < sharedRoutes.Length; i++)
         {
             ActionGraphSharedRoute route = sharedRoutes[i];
             if (route == null
                 || route.RouteKind != context.CancelWindowType
                 || route.Intent != request.Intent
-                || (route.SourceTrigger != GameplayIntentType.None
-                    && route.SourceTrigger != sourceTrigger))
+                || (route.SourceIntent != GameplayIntentType.None
+                    && route.SourceIntent != sourceIntent))
             {
                 continue;
             }
@@ -201,23 +183,23 @@ public class ActionGraph : ScriptableObject
             if (!TryGetNode(edge.ToNodeId, out ActionGraphNode toNode))
                 continue;
 
-            GameplayIntentType trigger = toNode.Action.Trigger;
-            if (trigger != GameplayIntentType.None)
-                results.Add(trigger);
+            GameplayIntentType intent = toNode.Intent;
+            if (intent != GameplayIntentType.None)
+                results.Add(intent);
         }
 
         if (!TryGetNode(fromNodeId, out ActionGraphNode fromNode) || sharedRoutes == null)
             return;
 
-        GameplayIntentType sourceTrigger = fromNode.Action.Trigger;
+        GameplayIntentType sourceIntent = fromNode.Intent;
         for (int i = 0; i < sharedRoutes.Length; i++)
         {
             ActionGraphSharedRoute route = sharedRoutes[i];
             if (route == null
                 || route.RouteKind != routeKind
                 || route.Intent == GameplayIntentType.None
-                || (route.SourceTrigger != GameplayIntentType.None
-                    && route.SourceTrigger != sourceTrigger))
+                || (route.SourceIntent != GameplayIntentType.None
+                    && route.SourceIntent != sourceIntent))
             {
                 continue;
             }
@@ -226,8 +208,8 @@ public class ActionGraph : ScriptableObject
         }
     }
 
-    /// <summary>收集图中全部有效 Trigger 意图（去重）。</summary>
-    public void CollectTriggerIntents(HashSet<GameplayIntentType> results)
+    /// <summary>收集图中全部有效节点意图（去重）。</summary>
+    public void CollectIntents(HashSet<GameplayIntentType> results)
     {
         results.Clear();
         if (nodes == null)
@@ -235,11 +217,83 @@ public class ActionGraph : ScriptableObject
 
         for (int i = 0; i < nodes.Length; i++)
         {
-            GameplayIntentType trigger = nodes[i]?.Action != null
-                ? nodes[i].Action.Trigger
+            GameplayIntentType intent = nodes[i]?.Action != null
+                ? nodes[i].Intent
                 : GameplayIntentType.None;
-            if (trigger != GameplayIntentType.None)
-                results.Add(trigger);
+            if (intent != GameplayIntentType.None)
+                results.Add(intent);
+        }
+    }
+
+    /// <summary>按优先级解析当前节点满足条件的自动衔接；目标为空时返回应停止标记。</summary>
+    public bool TryResolveAutomaticTransition(
+        string currentNodeId,
+        ActionDefinition currentAction,
+        float elapsedSeconds,
+        bool hasConfirmedHit,
+        out ActionResolveResult result,
+        out bool shouldStop)
+    {
+        result = default;
+        shouldStop = false;
+        if (currentAction == null || !TryGetNode(currentNodeId, out ActionGraphNode currentNode))
+            return false;
+
+        var transitions = new List<ActionGraphTransition>();
+        foreach (ActionGraphTransition transition in currentNode.AutomaticTransitions)
+        {
+            if (transition != null)
+                transitions.Add(transition);
+        }
+
+        transitions.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+        for (int i = 0; i < transitions.Count; i++)
+        {
+            ActionGraphTransition transition = transitions[i];
+            if (!IsTransitionEligible(
+                    transition,
+                    currentAction,
+                    elapsedSeconds,
+                    hasConfirmedHit))
+            {
+                continue;
+            }
+
+            if (string.IsNullOrEmpty(transition.TargetNodeId))
+            {
+                shouldStop = true;
+                return true;
+            }
+
+            if (!TryGetNode(transition.TargetNodeId, out ActionGraphNode targetNode))
+                continue;
+
+            result = ActionResolveResult.FromGraph(targetNode.Action, this, targetNode.NodeId);
+            return result.IsValid;
+        }
+
+        return false;
+    }
+
+    /// <summary>判断一条图节点自动衔接规则在当前动作时刻是否满足。</summary>
+    static bool IsTransitionEligible(
+        ActionGraphTransition transition,
+        ActionDefinition currentAction,
+        float elapsedSeconds,
+        bool hasConfirmedHit)
+    {
+        switch (transition.Condition)
+        {
+            case ActionTransitionCondition.AnimationEnd:
+                return elapsedSeconds >= currentAction.DurationSeconds;
+            case ActionTransitionCondition.AtFrame:
+                return currentAction.FrameAt(elapsedSeconds) >= transition.StartFrame;
+            case ActionTransitionCondition.OnHitConfirm:
+                return hasConfirmedHit;
+            case ActionTransitionCondition.OnWhiff:
+                return elapsedSeconds >= currentAction.DurationSeconds && !hasConfirmedHit;
+            default:
+                return false;
         }
     }
 
@@ -270,17 +324,31 @@ public class ActionGraph : ScriptableObject
     }
 }
 
-/// <summary>连招图节点：可标记为 Locomotion 起手入口；Trigger 来自 Action。</summary>
+/// <summary>连招图节点：拥有动作选择意图、上下文执行策略与自动衔接拓扑。</summary>
 [Serializable]
 public class ActionGraphNode
 {
-    [SerializeField] string nodeId;
-    [SerializeField] ActionDefinition action;
-    [Tooltip("可作为 Locomotion 起手；同一图可有多个 Entry（Attack / Dodge 等，靠 Trigger 区分）。")]
-    [SerializeField] bool isEntry;
+    [SerializeField] string nodeId = string.Empty;
+    [SerializeField] ActionDefinition action = null;
+    [Tooltip("进入该节点所匹配的设备无关玩法意图。")]
+    [SerializeField] GameplayIntentType intent = GameplayIntentType.None;
+    [Tooltip("可作为 Locomotion 起手；同一图可用不同 Intent 配置多个 Entry。")]
+    [SerializeField] bool isEntry = false;
     [Tooltip("可选：进入本节点前解析实际播放变体（如 Directional 闪避）；变体共用当前逻辑节点和出边。")]
-    [SerializeField] ActionResolver variantResolver;
-    [SerializeField] Vector2 editorPosition;
+    [SerializeField] ActionResolver variantResolver = null;
+    [Tooltip("进入节点时执行的上下文行为；直接播放 ActionDefinition 时不会执行。")]
+    [SerializeField] ActionGraphStartBehaviorType[] startBehaviors =
+        Array.Empty<ActionGraphStartBehaviorType>();
+    [Tooltip("Start Behaviors 包含 SwitchCombatMode 时使用。")]
+    [SerializeField] CombatModeType switchCombatModeTarget = CombatModeType.Default;
+    [SerializeField] CombatModeSwitchPolicy switchCombatModePolicy =
+        CombatModeSwitchPolicy.Immediate;
+    [Tooltip("当前图节点的索敌策略；同一 Action 可在不同节点使用不同策略。")]
+    [SerializeField] TargetLockSettings targetLockSettings = new();
+    [Tooltip("无输入自动衔接规则；流程拓扑只保存在 ActionGraph。")]
+    [SerializeField] ActionGraphTransition[] automaticTransitions =
+        Array.Empty<ActionGraphTransition>();
+    [SerializeField] Vector2 editorPosition = Vector2.zero;
 
     /// <summary>图内唯一节点 id。</summary>
     public string NodeId => nodeId;
@@ -288,37 +356,48 @@ public class ActionGraphNode
     /// <summary>本节点播放的招式。</summary>
     public ActionDefinition Action => action;
 
+    /// <summary>进入节点所匹配的玩法意图。</summary>
+    public GameplayIntentType Intent => intent;
+
     /// <summary>是否可作为 Locomotion 起手入口。</summary>
     public bool IsEntry => isEntry;
 
     /// <summary>进入时可选的变体 Resolver（Directional 等）。</summary>
     public ActionResolver VariantResolver => variantResolver;
 
+    /// <summary>进入节点时执行的上下文行为。</summary>
+    public IReadOnlyList<ActionGraphStartBehaviorType> StartBehaviors =>
+        startBehaviors ?? Array.Empty<ActionGraphStartBehaviorType>();
+
+    /// <summary>节点要求切换到的战斗模式。</summary>
+    public CombatModeType SwitchCombatModeTarget => switchCombatModeTarget;
+
+    /// <summary>节点切换战斗模式的时机策略。</summary>
+    public CombatModeSwitchPolicy SwitchCombatModePolicy => switchCombatModePolicy;
+
+    /// <summary>节点级索敌策略。</summary>
+    public TargetLockSettings TargetLockSettings =>
+        targetLockSettings ?? new TargetLockSettings();
+
+    /// <summary>节点是否启用索敌。</summary>
+    public bool HasTargetLock => targetLockSettings != null && targetLockSettings.Enabled;
+
+    /// <summary>节点的无输入自动衔接规则。</summary>
+    public IReadOnlyList<ActionGraphTransition> AutomaticTransitions =>
+        automaticTransitions ?? Array.Empty<ActionGraphTransition>();
+
     /// <summary>编辑器布局位置。</summary>
     public Vector2 EditorPosition => editorPosition;
 
-    /// <summary>写入编辑器拖拽后的坐标。</summary>
-    public void SetEditorPosition(Vector2 position) => editorPosition = position;
-
-    /// <summary>编辑器创建节点时赋值。</summary>
-    public void SetIdentity(string id, ActionDefinition definition, bool entry = false)
-    {
-        nodeId = id;
-        action = definition;
-        isEntry = entry;
-    }
-
-    /// <summary>编辑器切换 Entry 标记。</summary>
-    public void SetEntry(bool entry) => isEntry = entry;
 }
 
 /// <summary>连招图边：从节点的普通或 Perfect Cancel 通道派生到目标节点。</summary>
 [Serializable]
 public class ActionGraphEdge
 {
-    [SerializeField] string fromNodeId;
-    [SerializeField] CancelWindowType routeKind;
-    [SerializeField] string toNodeId;
+    [SerializeField] string fromNodeId = string.Empty;
+    [SerializeField] CancelWindowType routeKind = CancelWindowType.Normal;
+    [SerializeField] string toNodeId = string.Empty;
 
     /// <summary>边起点节点。</summary>
     public string FromNodeId => fromNodeId;
@@ -329,11 +408,4 @@ public class ActionGraphEdge
     /// <summary>边终点节点。</summary>
     public string ToNodeId => toNodeId;
 
-    /// <summary>编辑器创建边时赋值。</summary>
-    public void Set(string from, CancelWindowType route, string to)
-    {
-        fromNodeId = from;
-        routeKind = route;
-        toNodeId = to;
-    }
 }

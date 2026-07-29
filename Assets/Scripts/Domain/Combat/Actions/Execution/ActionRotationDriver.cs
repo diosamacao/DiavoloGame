@@ -58,9 +58,7 @@ public sealed class ActionRotationDriver
             return false;
 
         float windowSmoothTime = rotationState.ResolveSmoothTime(_moveResolver.DefaultRotationSmoothTime);
-        float lockSmoothTime = action.HasTargetLock
-            ? action.TargetLockSettings.ResolveLockSmoothTime(windowSmoothTime)
-            : windowSmoothTime;
+        float lockSmoothTime = targetLock.ResolveLockSmoothTime(windowSmoothTime);
 
         bool hasLock = targetLock.TryGetLockDirection(out Vector3 lockDir);
         bool hasInput = _input.HasMoveIntent;

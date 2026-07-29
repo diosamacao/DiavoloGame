@@ -122,7 +122,8 @@ EnemyBrainProfile : ScriptableObject
 ├─ attackCooldownSeconds
 ├─ chaseMoveMagnitude       // 写入 Move 的幅度（0~1），影响走/跑
 ├─ stopDistance             // 贴身停步，避免顶模型
-├─ hitStunSeconds           // CharacterConfig 未配置 HitStunAction 时的硬直时长
+├─ CharacterConfig.Combat.Reactions.defaultHitStunSeconds
+│                          // ReactionResolver 未解析到受击动作时的唯一硬直时长
 ├─ repathIntervalSeconds    // 朝向/假相机刷新间隔（可选）
 ├─ faceTargetWhileChase     // 追击时是否持续面向目标
 ```
@@ -211,7 +212,7 @@ PerceptionSnapshot
 ├─ targetPosition / planarDistance / planarDirection
 ├─ selfPosition / selfForward
 ├─ isInAction          // CharacterState == Action 且非受击招
-├─ isInHit             // Hit 态或正在播 CharacterConfig 的 HitStunAction
+├─ isInHit             // CharacterState == Hit
 ├─ isDead
 ├─ canBeInterrupted    // 供受击打断判断（可先粗暴：Attack 态可被 Hit 强制切）
 ```
@@ -247,18 +248,16 @@ PerceptionSnapshot
 #### Hit（受击）
 
 - **立即清空** Move 与攻击缓冲意图，避免硬直中误出招  
-- 两条实现路径（二选一，推荐 A→B）：  
-  - **A. 轻量**：Brain 计时 `hitStunSeconds`，期间强制不驱动追击；可选暂停 Action 或 `force` 切 Locomotion  
-  - **B. 正式**：外层 `CharacterStateType.Hit` + 受击 `ActionDefinition`（Root Motion / 受击动画）；`ApplyHitCommand` 触发 `TryChangeState(Hit)` 或 `ActionExecutor` 播受击招  
+- 当前正式路径：外层 `CharacterStateType.Hit` + 受击 `ActionDefinition`；`CharacterReactionService` 使用注入的 Resolver 按 HitPayload 的 ReactionId 生成请求，再交给 `CharacterActor.EnterHit`。Brain 只通过 Service 的副作用委托接收 Hit 抢占通知，不参与表现选招。
 - 硬直结束且 HP>0 → Chase / Idle  
 - HP≤0 → Dead  
 
-> 现状 ROADMAP：`Hit` 枚举预留、伤害未闭环。敌人 Phase C 应与「战斗闭环」同迭代完成 B 路径；Phase B 可用 A 做手感占位。
+> 当前 Hit / Damage / Reaction 链路均已接通；资产侧仍需配置 CharacterConfig.Combat.Reactions。
 
 #### Dead
 
 - 停 Brain 决策、停输入  
-- 播 `CharacterConfig.Combat.DeathAction` 或直接 Despawn  
+- 由共享 `CharacterReactionService` 解析 Death 规则并播放对应 Action；无匹配则直接完成表现
 - 注销 `TargetSystem` / `CombatActorSystem`  
 - 不可再进 Chase/Attack  
 

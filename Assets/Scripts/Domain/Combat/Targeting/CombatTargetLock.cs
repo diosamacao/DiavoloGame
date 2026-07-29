@@ -11,7 +11,8 @@ public sealed class CombatTargetLock
     readonly Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider;
     ITargetable _lockedTarget;
     TargetLockSettings _activeSettings;
-    ActionDefinition _lockedForAction;
+    ActionGraph _lockedForGraph;
+    string _lockedForNodeId;
 
     /// <summary>当前是否存在通过 Validate 的有效锁定。</summary>
     public bool HasValidLock =>
@@ -46,9 +47,14 @@ public sealed class CombatTargetLock
             return;
         }
 
-        ActionDefinition action = session.CurrentAction;
-        if (_lockedForAction != action)
-            TryAcquireForAction(action);
+        if (!session.TryGetCurrentNode(out ActionGraphNode node))
+        {
+            ClearLock();
+            return;
+        }
+
+        if (_lockedForGraph != session.CurrentGraph || _lockedForNodeId != node.NodeId)
+            TryAcquireForNode(session.CurrentGraph, node);
 
         if (_lockedTarget != null && !IsTargetStillValid(_lockedTarget, _activeSettings))
             ClearLock();
@@ -58,7 +64,8 @@ public sealed class CombatTargetLock
     public void ClearLock()
     {
         _lockedTarget = null;
-        _lockedForAction = null;
+        _lockedForGraph = null;
+        _lockedForNodeId = null;
         _activeSettings = default;
     }
 
@@ -73,16 +80,24 @@ public sealed class CombatTargetLock
         return TargetingResolver.TryGetDirectionToTarget(Origin.position, _lockedTarget, out direction);
     }
 
-    void TryAcquireForAction(ActionDefinition action)
+    /// <summary>按当前节点索敌配置解析锁定转向平滑时间。</summary>
+    public float ResolveLockSmoothTime(float rotationWindowSmoothTime) =>
+        _activeSettings != null
+            ? _activeSettings.ResolveLockSmoothTime(rotationWindowSmoothTime)
+            : rotationWindowSmoothTime;
+
+    /// <summary>进入新图节点时按节点策略重新获取目标。</summary>
+    void TryAcquireForNode(ActionGraph graph, ActionGraphNode node)
     {
-        _lockedForAction = action;
+        _lockedForGraph = graph;
+        _lockedForNodeId = node?.NodeId;
         _lockedTarget = null;
         _activeSettings = default;
 
-        if (action == null || !action.HasTargetLock)
+        if (node == null || !node.HasTargetLock)
             return;
 
-        TargetLockSettings settings = action.TargetLockSettings;
+        TargetLockSettings settings = node.TargetLockSettings;
         _activeSettings = settings;
         _lockedTarget = TargetingResolver.Select(
             activeTargetsProvider?.Invoke(),

@@ -21,10 +21,11 @@ public sealed class HitState : CharacterState
         Context.Animation.SetLocked(true);
         Context.ActionExecutor?.Stop();
 
-        if (request.Action != null)
+        if (request.ResolvedAction != null)
         {
-            _remainingSeconds = 0f;
-            Context.ActionExecutor?.TryStart(request.Action);
+            // 每次命中都会强制重入 Hit；只有动作真正启动后才由播放完成时机接管退出。
+            if (Context.ActionExecutor?.TryStart(request.ResolvedAction) == true)
+                _remainingSeconds = 0f;
         }
     }
 

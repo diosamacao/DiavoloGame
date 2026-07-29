@@ -10,7 +10,6 @@ public sealed class EnemyBrainProfile : ScriptableObject
     [SerializeField] float attackCooldownSeconds = 1.2f;
     [SerializeField, Range(0f, 1f)] float chaseMoveMagnitude = 1f;
     [SerializeField] float stopDistance = 1.2f;
-    [SerializeField] float hitStunSeconds = 0.35f;
     [SerializeField] float repathIntervalSeconds = 0.1f;
     [SerializeField] bool faceTargetWhileChase = true;
     [SerializeField] float failedAttackRetrySeconds = 0.2f;
@@ -28,8 +27,6 @@ public sealed class EnemyBrainProfile : ScriptableObject
     public float ChaseMoveMagnitude => Mathf.Clamp01(chaseMoveMagnitude);
     /// <summary>贴近目标后停止移动的距离。</summary>
     public float StopDistance => Mathf.Max(0f, stopDistance);
-    /// <summary>无受击 Action 时的硬直秒数。</summary>
-    public float HitStunSeconds => Mathf.Max(0f, hitStunSeconds);
     /// <summary>刷新假相机朝向的最小间隔。</summary>
     public float RepathIntervalSeconds => Mathf.Max(0f, repathIntervalSeconds);
     /// <summary>追击时是否刷新面向目标的假相机。</summary>

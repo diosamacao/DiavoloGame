@@ -69,22 +69,22 @@ public sealed class CharacterActor : System.IDisposable
         _motor.SetCameraTransform(cameraTransform);
     }
 
-    /// <summary>中断当前行为并进入受击硬直；可选 Action 只作为表现，不参与选招。</summary>
-    public void EnterHit(float durationSeconds, ActionDefinition hitAction = null)
+    /// <summary>执行上层已解析的受击表现并进入硬直；Actor 不负责选招。</summary>
+    public void EnterHit(float durationSeconds, ActionDefinition resolvedAction = null)
     {
         if (CurrentState == CharacterStateType.Death)
             return;
 
         ClearControlledInput();
-        var request = new CharacterReactionRequest(durationSeconds, hitAction);
+        var request = new CharacterReactionRequest(durationSeconds, resolvedAction);
         _stateMachine.EnterHit(in request);
     }
 
-    /// <summary>中断当前行为并进入不可逆死亡状态。</summary>
-    public void EnterDeath(ActionDefinition deathAction = null)
+    /// <summary>执行上层已解析的死亡表现并进入不可逆死亡状态。</summary>
+    public void EnterDeath(ActionDefinition resolvedAction = null)
     {
         ClearControlledInput();
-        var request = new CharacterReactionRequest(0f, deathAction);
+        var request = new CharacterReactionRequest(0f, resolvedAction);
         _stateMachine.EnterDeath(in request);
     }
 

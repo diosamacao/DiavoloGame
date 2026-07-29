@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-07-29
+> Last audited: 2026-07-30
 
 ## 项目概述
 
@@ -18,6 +18,7 @@ Assets/
 │   │   ├── Character/
 │   │   │   ├── Animation/     # 动画播放与 Profile
 │   │   │   ├── Locomotion/    # 相位 FSM、FootCycle、脚步
+│   │   │   ├── Reactions/     # 受击/死亡请求解析与事件桥接
 │   │   │   └── StateMachine/  # 角色状态机基类与共享 State
 │   │   ├── Enemy/             # Definition、AI FSM、生命值、工厂与句柄
 │   │   ├── Combat/
@@ -116,11 +117,11 @@ InputReader（原始帧）→ InputManager → GameplayIntentProducer（含 Spri
 
 | 类 | 职责 |
 |----|------|
-| `ActionDefinition` | 单招 SO：`GameplayIntentType Trigger`、时间轴、Transition、Phase、反馈默认值 |
+| `ActionDefinition` | 单动作播放内容 SO：动画段、统一时间轴、分类与 `ActionExecutionPolicy`；不参与输入选招、流程、伤害、反馈或索敌 |
 | `ActionTimeline` / `ActionNotify` / `ActionNotifyState` | 动作帧数据唯一真源：点事件（Event / VFX / SFX）与区间窗口（Phase/Hitbox/Hurtbox/Cancel/Movement/Rotation）；Recovery Phase 集成移动取消与 Entry 重开；`tracks[]` 为编辑器手动轨道 |
-| `ActionExecutor` | 纯播放器：播放、Cancel（委托 Graph 选下一招）、Transition、**UpdateFrame Logic Tick**、统一 Timeline 派发、命中回流 |
+| `ActionExecutor` | 纯播放器：播放、Cancel 与自动衔接均委托 Graph、**UpdateFrame Logic Tick**、统一 Timeline 派发、命中回流 |
 | `ActionSession` | 当前招式唯一会话状态：CurrentAction、Elapsed、图游标、命中确认、卡肉暂停 |
-| `ActionGraph` | 双窗口连招图：多 Entry×Trigger、Normal / Perfect CancelWindow 边、图级 SharedRoute；重叠且同 Trigger 时 Perfect 优先 |
+| `ActionGraph` / `ActionGraphNode` | 完整选招与流程真源：节点 Intent、Entry、索敌、起手行为、自动衔接；Normal / Perfect 边与 SharedRoute |
 | `ActionResolverService` | 调当前模式 Graph 的起手/Cancel 解析 |
 | `CharacterActionDriver` | 角色无关：消费语义意图、起手切状态、动作缓冲与移动取消 |
 | `ActionRotationDriver` | `RotationNotifyState` + 索敌转向 |
@@ -130,8 +131,11 @@ InputReader（原始帧）→ InputManager → GameplayIntentProducer（含 Spri
 | `ArchitectureSystemBase` / `AppControllerBase` / `ArchitectureCommandBase` / `ArchitectureQueryBase` | 架构对象基类；通过能力接口限制谁能访问 System、发送 Command、订阅 Event |
 | `CombatActorSystem` / `TargetSystem` / `CombatFeedbackSystem` | 战斗角色注册、目标注册、反馈状态 |
 | `ApplyHitCommand` / `GetActiveTargetsQuery` / `AttackHitEvent` | 命中后的跨系统通信入口与无副作用目标查询 |
-| `HitboxFrameConsumer` / `HitDetector` / `TargetingResolver` | 动作帧命中检测与索敌纯计算入口，不直接访问 Architecture |
-| `PlayerActionSet` | 出招表：绑定一张 `ActionGraph`（节点按语义 Trigger 匹配） |
+| `HitboxFrameConsumer` / `HitDetector` / `TargetingResolver` | 动作帧命中检测与索敌纯计算入口；命中按 Hitbox 窗口下标×目标去重，不直接访问 Architecture |
+| `HitPayload` / `HitFeedbackSettings` | 单个 Hitbox 的伤害、HitReactionId、镜头震动与卡肉载荷 |
+| `CharacterReactionSet` / `CharacterReactionResolver` | 按 HitReactionId 与反应类型生成完整受击/死亡状态请求；默认硬直时长也由规则集持有 |
+| `CharacterReactionService` | 玩家/敌人共用的 Health 事件桥接：执行可选上层副作用，并把解析结果交给 CharacterActor |
+| `PlayerActionSet` | 出招表：绑定一张 `ActionGraph`（节点按语义 Intent 匹配） |
 
 **Logic Tick 原则**：编辑器 Scrub 与 Play Mode 共用 `ActionExecutor.UpdateFrame(frameIndex)`；帧消费者实现 `ICombatFrameConsumer`，点事件/区间事件消费者实现 `IActionNotifyConsumer`。
 
@@ -190,8 +194,10 @@ InputReader（原始帧）→ InputManager → GameplayIntentProducer（含 Spri
 EnemyDefinition → EnemyActorFactory → CharacterActorFactory
 EnemyBrain → AIInputSource → InputManager → GameplayIntentProducer → CharacterActionDriver
 玩家 Hitbox → ApplyHitCommand → CharacterHurtboxTarget → EnemyHealth
-              ├─ 非致命：CharacterActor.EnterHit
-              └─ 致命：CharacterActor.EnterDeath → 注销 Target/CombatActor → Despawn
+              └─ CharacterReactionService → CharacterReactionResolver
+                   ├─ 非致命：EnemyBrain.NotifyHit → CharacterActor.EnterHit
+                   └─ 致命：EnemyBrain.NotifyDeath → CharacterActor.EnterDeath
+                         → 注销 Target/CombatActor → Despawn
 ```
 
 ## 技术栈
@@ -209,6 +215,6 @@ EnemyBrain → AIInputSource → InputManager → GameplayIntentProducer → Cha
 | 新玩家状态 | `CharacterStateType` + 新 State 类 + RegisterStates |
 | 新招式帧事件 | `ActionNotify` / `ActionNotifyState` + `IActionNotifyConsumer` 或专用查询服务 |
 | 编辑器 Scrub | `ActionExecutor.UpdateFrame` |
-| OnHit 收招 | `ActionTransitionCondition.OnHitConfirm` + `IActionHitReceiver` |
+| OnHit 收招 | `ActionGraphNode.AutomaticTransitions(OnHitConfirm)` + `IActionHitReceiver` |
 | 敌人 AI 出招 | `CharacterActionDriver` + AI 输入源替换 `InputManager` |
 | 配置数据 | `Assets/Data/` ScriptableObject |

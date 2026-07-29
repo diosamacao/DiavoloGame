@@ -86,7 +86,6 @@ public sealed class ActionGraphEditorWindow : EditorWindow
         rootVisualElement.Add(toolbar);
 
         _graphView = new ActionGraphView(_graph);
-        _graphView.StretchToParentSize();
         var viewHost = new VisualElement { style = { flexGrow = 1 } };
         viewHost.Add(_graphView);
         rootVisualElement.Add(viewHost);
@@ -113,6 +112,7 @@ sealed class ActionGraphView : GraphView
     readonly Dictionary<string, string> _nodeToGroupId = new();
     bool _isLoading;
 
+    /// <summary>创建可直接编辑节点策略的画布。</summary>
     public ActionGraphView(ActionGraph graph)
     {
         _graph = graph;
@@ -277,8 +277,10 @@ sealed class ActionGraphView : GraphView
         string nodeId = MakeUniqueId(action.name);
         node.FindPropertyRelative("nodeId").stringValue = nodeId;
         node.FindPropertyRelative("action").objectReferenceValue = action;
+        node.FindPropertyRelative("intent").enumValueIndex = (int)GameplayIntentType.None;
         node.FindPropertyRelative("isEntry").boolValue = false;
         node.FindPropertyRelative("variantResolver").objectReferenceValue = null;
+        ResetNodePolicy(node);
         Vector2 childPosition = _groupViews.TryGetValue(groupId, out ActionGraphGroupView groupView)
             ? groupView.GetPosition().position + new Vector2(32f, 32f * groupView.ChildNodeIds.Count)
             : new Vector2(80f, 80f);
@@ -481,9 +483,18 @@ sealed class ActionGraphView : GraphView
             string nodeId = orderedNodeIds[i];
             SerializedProperty node = nodesProp.GetArrayElementAtIndex(i);
             if (_nodeViews.TryGetValue(nodeId, out ActionGraphNodeView view))
+            {
                 WriteNodeView(node, view);
+                if (existingNodes.TryGetValue(nodeId, out NodeSnapshot existing))
+                    WriteNodePolicy(node, existing);
+                else
+                    ResetNodePolicy(node);
+            }
             else if (existingNodes.TryGetValue(nodeId, out NodeSnapshot existing))
+            {
                 WriteExistingNode(node, existing);
+                WriteNodePolicy(node, existing);
+            }
         }
 
         List<ActionGraphGroupView> orderedGroups = _groupViews.Values
@@ -576,6 +587,7 @@ sealed class ActionGraphView : GraphView
     {
         node.FindPropertyRelative("nodeId").stringValue = view.NodeId;
         node.FindPropertyRelative("action").objectReferenceValue = view.Action;
+        node.FindPropertyRelative("intent").enumValueIndex = (int)view.Intent;
         node.FindPropertyRelative("isEntry").boolValue = view.IsEntry;
         node.FindPropertyRelative("variantResolver").objectReferenceValue = view.VariantResolver;
         node.FindPropertyRelative("editorPosition").vector2Value = view.GetPosition().position;
@@ -585,9 +597,65 @@ sealed class ActionGraphView : GraphView
     {
         node.FindPropertyRelative("nodeId").stringValue = existing.NodeId;
         node.FindPropertyRelative("action").objectReferenceValue = existing.Action;
+        node.FindPropertyRelative("intent").enumValueIndex = (int)existing.Intent;
         node.FindPropertyRelative("isEntry").boolValue = existing.IsEntry;
         node.FindPropertyRelative("variantResolver").objectReferenceValue = existing.VariantResolver;
         node.FindPropertyRelative("editorPosition").vector2Value = existing.EditorPosition;
+    }
+
+    /// <summary>恢复 GraphView 不直接编辑的节点策略，避免数组重排导致策略串到其它节点。</summary>
+    static void WriteNodePolicy(SerializedProperty node, NodeSnapshot existing)
+    {
+        SerializedProperty behaviors = node.FindPropertyRelative("startBehaviors");
+        behaviors.arraySize = existing.StartBehaviors.Length;
+        for (int i = 0; i < existing.StartBehaviors.Length; i++)
+            behaviors.GetArrayElementAtIndex(i).enumValueIndex = (int)existing.StartBehaviors[i];
+
+        node.FindPropertyRelative("switchCombatModeTarget").enumValueIndex =
+            (int)existing.SwitchCombatModeTarget;
+        node.FindPropertyRelative("switchCombatModePolicy").enumValueIndex =
+            (int)existing.SwitchCombatModePolicy;
+
+        SerializedProperty targeting = node.FindPropertyRelative("targetLockSettings");
+        targeting.FindPropertyRelative("enabled").boolValue = existing.TargetLockEnabled;
+        targeting.FindPropertyRelative("lockRange").floatValue = existing.TargetLockRange;
+        targeting.FindPropertyRelative("forwardConeAngle").floatValue =
+            existing.TargetForwardConeAngle;
+        targeting.FindPropertyRelative("policy").enumValueIndex =
+            (int)existing.TargetSelectionPolicy;
+        targeting.FindPropertyRelative("lockRotationSmoothTimeOverride").floatValue =
+            existing.TargetLockRotationSmoothTimeOverride;
+
+        SerializedProperty transitions = node.FindPropertyRelative("automaticTransitions");
+        transitions.arraySize = existing.AutomaticTransitions.Length;
+        for (int i = 0; i < existing.AutomaticTransitions.Length; i++)
+        {
+            TransitionSnapshot snapshot = existing.AutomaticTransitions[i];
+            SerializedProperty transition = transitions.GetArrayElementAtIndex(i);
+            transition.FindPropertyRelative("condition").enumValueIndex = (int)snapshot.Condition;
+            transition.FindPropertyRelative("startFrame").intValue = snapshot.StartFrame;
+            transition.FindPropertyRelative("targetNodeId").stringValue = snapshot.TargetNodeId;
+            transition.FindPropertyRelative("priority").intValue = snapshot.Priority;
+        }
+    }
+
+    /// <summary>新建节点清空可能由 SerializedProperty 数组槽继承的旧策略数据。</summary>
+    public static void ResetNodePolicy(SerializedProperty node)
+    {
+        node.FindPropertyRelative("startBehaviors").arraySize = 0;
+        node.FindPropertyRelative("switchCombatModeTarget").enumValueIndex =
+            (int)CombatModeType.Default;
+        node.FindPropertyRelative("switchCombatModePolicy").enumValueIndex =
+            (int)CombatModeSwitchPolicy.Immediate;
+
+        SerializedProperty targeting = node.FindPropertyRelative("targetLockSettings");
+        targeting.FindPropertyRelative("enabled").boolValue = false;
+        targeting.FindPropertyRelative("lockRange").floatValue = 8f;
+        targeting.FindPropertyRelative("forwardConeAngle").floatValue = 120f;
+        targeting.FindPropertyRelative("policy").enumValueIndex =
+            (int)TargetSelectionPolicy.NearestDistance;
+        targeting.FindPropertyRelative("lockRotationSmoothTimeOverride").floatValue = 0f;
+        node.FindPropertyRelative("automaticTransitions").arraySize = 0;
     }
 
     /// <summary>在 SerializedProperty 重排前冻结节点数据，避免原地写入污染后续节点。</summary>
@@ -595,17 +663,59 @@ sealed class ActionGraphView : GraphView
     {
         public readonly string NodeId;
         public readonly ActionDefinition Action;
+        public readonly GameplayIntentType Intent;
         public readonly bool IsEntry;
         public readonly ActionResolver VariantResolver;
         public readonly Vector2 EditorPosition;
+        public readonly ActionGraphStartBehaviorType[] StartBehaviors;
+        public readonly CombatModeType SwitchCombatModeTarget;
+        public readonly CombatModeSwitchPolicy SwitchCombatModePolicy;
+        public readonly bool TargetLockEnabled;
+        public readonly float TargetLockRange;
+        public readonly float TargetForwardConeAngle;
+        public readonly TargetSelectionPolicy TargetSelectionPolicy;
+        public readonly float TargetLockRotationSmoothTimeOverride;
+        public readonly TransitionSnapshot[] AutomaticTransitions;
 
         public NodeSnapshot(ActionGraphNode node)
         {
             NodeId = node.NodeId;
             Action = node.Action;
+            Intent = node.Intent;
             IsEntry = node.IsEntry;
             VariantResolver = node.VariantResolver;
             EditorPosition = node.EditorPosition;
+            StartBehaviors = node.StartBehaviors.ToArray();
+            SwitchCombatModeTarget = node.SwitchCombatModeTarget;
+            SwitchCombatModePolicy = node.SwitchCombatModePolicy;
+            TargetLockSettings targeting = node.TargetLockSettings;
+            TargetLockEnabled = targeting.Enabled;
+            TargetLockRange = targeting.LockRange;
+            TargetForwardConeAngle = targeting.ForwardConeAngle;
+            TargetSelectionPolicy = targeting.Policy;
+            TargetLockRotationSmoothTimeOverride =
+                targeting.LockRotationSmoothTimeOverride;
+            AutomaticTransitions = node.AutomaticTransitions
+                .Where(transition => transition != null)
+                .Select(transition => new TransitionSnapshot(transition))
+                .ToArray();
+        }
+    }
+
+    /// <summary>冻结一条自动衔接规则，供 GraphView 重排节点数组后恢复。</summary>
+    readonly struct TransitionSnapshot
+    {
+        public readonly ActionTransitionCondition Condition;
+        public readonly int StartFrame;
+        public readonly string TargetNodeId;
+        public readonly int Priority;
+
+        public TransitionSnapshot(ActionGraphTransition transition)
+        {
+            Condition = transition.Condition;
+            StartFrame = transition.StartFrame;
+            TargetNodeId = transition.TargetNodeId;
+            Priority = transition.Priority;
         }
     }
 
@@ -649,10 +759,16 @@ sealed class ActionGraphView : GraphView
             _nodeViews[pair.Key] = pair.Value;
     }
 
-    /// <summary>用资产节点数据创建画布节点，并恢复 Entry、Resolver 与布局。</summary>
+    /// <summary>用资产节点数据创建画布节点，并恢复 Intent、Entry、Resolver 与布局。</summary>
     void AddNodeView(ActionGraphNode data)
     {
-        var view = new ActionGraphNodeView(data.NodeId, data.Action, data.IsEntry, data.VariantResolver);
+        var view = new ActionGraphNodeView(
+            data.NodeId,
+            data.Action,
+            data.Intent,
+            data.IsEntry,
+            data.VariantResolver,
+            _graph);
         view.SetPosition(new Rect(data.EditorPosition, new Vector2(220, 140)));
         _nodeViews[data.NodeId] = view;
         AddElement(view);
@@ -677,7 +793,8 @@ sealed class ActionGraphView : GraphView
             children,
             () => Ungroup(data.GroupId),
             (index, delta) => MoveGroupChild(data.GroupId, index, delta),
-            action => AddActionToGroup(data.GroupId, action));
+            action => AddActionToGroup(data.GroupId, action),
+            _graph);
         view.SetPosition(new Rect(data.EditorPosition, new Vector2(300, 190)));
         _groupViews[data.GroupId] = view;
         AddElement(view);
@@ -771,7 +888,13 @@ sealed class ActionGraphView : GraphView
                 continue;
 
             string nodeId = MakeUniqueId(action.name);
-            var view = new ActionGraphNodeView(nodeId, action, entry: false, variantResolver: null);
+            var view = new ActionGraphNodeView(
+                nodeId,
+                action,
+                GameplayIntentType.None,
+                entry: false,
+                variantResolver: null,
+                graph: _graph);
             view.SetPosition(new Rect(local, new Vector2(220, 140)));
             _nodeViews[nodeId] = view;
             AddElement(view);
@@ -831,33 +954,207 @@ sealed class ActionGraphView : GraphView
         return baseId + "_" + i;
     }
 }
-/// <summary>单个 Action 节点视图：Entry、变体 Resolver、输入端口与 Cancel 输出端口。</summary>
+
+/// <summary>嵌入 Graph 节点内部的策略折叠区，直接写入对应 ActionGraphNode。</summary>
+sealed class ActionGraphNodePolicyView : IMGUIContainer
+{
+    readonly ActionGraph _graph;
+    readonly SerializedObject _serializedGraph;
+    readonly string _nodeId;
+    readonly bool _includeBasics;
+    bool _expanded;
+    bool _targetLockExpanded;
+    bool _startBehaviorsExpanded;
+    bool _automaticTransitionsExpanded;
+
+    /// <summary>创建节点内联策略编辑器；顺序组子节点额外显示基础输入字段。</summary>
+    public ActionGraphNodePolicyView(ActionGraph graph, string nodeId, bool includeBasics)
+    {
+        _graph = graph;
+        _serializedGraph = graph != null ? new SerializedObject(graph) : null;
+        _nodeId = nodeId;
+        _includeBasics = includeBasics;
+        style.minWidth = 280;
+        style.marginTop = 3;
+        onGUIHandler = DrawPolicy;
+    }
+
+    /// <summary>绘制并提交当前节点字段；NodeId 用于抵御节点数组重排。</summary>
+    void DrawPolicy()
+    {
+        _expanded = EditorGUILayout.Foldout(
+            _expanded,
+            _includeBasics ? $"{_nodeId} Policy" : "Node Policy",
+            true);
+        if (!_expanded || _serializedGraph == null)
+            return;
+
+        // 复用同一个 SerializedObject，保留 TargetLock/数组等子属性的展开状态。
+        _serializedGraph.Update();
+        SerializedProperty node = FindNode(_serializedGraph, _nodeId);
+        if (node == null)
+        {
+            EditorGUILayout.HelpBox("节点已不存在。", MessageType.Warning);
+            return;
+        }
+
+        EditorGUI.BeginChangeCheck();
+        if (_includeBasics)
+        {
+            EditorGUILayout.PropertyField(
+                node.FindPropertyRelative("intent"),
+                new GUIContent("Input Intent"));
+            EditorGUILayout.PropertyField(
+                node.FindPropertyRelative("isEntry"),
+                new GUIContent("Is Entry"));
+            EditorGUILayout.PropertyField(
+                node.FindPropertyRelative("variantResolver"),
+                new GUIContent("Variant Resolver"));
+        }
+
+        DrawTargetLock(node.FindPropertyRelative("targetLockSettings"));
+        DrawStartBehaviors(node.FindPropertyRelative("startBehaviors"));
+        EditorGUILayout.PropertyField(
+            node.FindPropertyRelative("switchCombatModeTarget"),
+            new GUIContent("Combat Mode Target"));
+        EditorGUILayout.PropertyField(
+            node.FindPropertyRelative("switchCombatModePolicy"),
+            new GUIContent("Combat Mode Policy"));
+        DrawAutomaticTransitions(node.FindPropertyRelative("automaticTransitions"));
+
+        if (EditorGUI.EndChangeCheck())
+        {
+            _serializedGraph.ApplyModifiedProperties();
+            EditorUtility.SetDirty(_graph);
+        }
+    }
+
+    /// <summary>用视图自身保存折叠状态，避免 SerializedProperty 重建导致鼠标移动时收起。</summary>
+    void DrawTargetLock(SerializedProperty targetLock)
+    {
+        _targetLockExpanded = EditorGUILayout.Foldout(
+            _targetLockExpanded,
+            "Target Lock",
+            true);
+        if (!_targetLockExpanded)
+            return;
+
+        EditorGUI.indentLevel++;
+        EditorGUILayout.PropertyField(targetLock.FindPropertyRelative("enabled"));
+        EditorGUILayout.PropertyField(targetLock.FindPropertyRelative("lockRange"));
+        EditorGUILayout.PropertyField(targetLock.FindPropertyRelative("forwardConeAngle"));
+        EditorGUILayout.PropertyField(targetLock.FindPropertyRelative("policy"));
+        EditorGUILayout.PropertyField(
+            targetLock.FindPropertyRelative("lockRotationSmoothTimeOverride"));
+        EditorGUI.indentLevel--;
+    }
+
+    /// <summary>直接绘制起手行为数组，不依赖 SerializedProperty 的临时展开标记。</summary>
+    void DrawStartBehaviors(SerializedProperty behaviors)
+    {
+        _startBehaviorsExpanded = EditorGUILayout.Foldout(
+            _startBehaviorsExpanded,
+            "Start Behaviors",
+            true);
+        if (!_startBehaviorsExpanded)
+            return;
+
+        EditorGUI.indentLevel++;
+        int size = Mathf.Max(0, EditorGUILayout.IntField("Size", behaviors.arraySize));
+        if (size != behaviors.arraySize)
+            behaviors.arraySize = size;
+        for (int i = 0; i < behaviors.arraySize; i++)
+        {
+            EditorGUILayout.PropertyField(
+                behaviors.GetArrayElementAtIndex(i),
+                new GUIContent($"Element {i}"));
+        }
+        EditorGUI.indentLevel--;
+    }
+
+    /// <summary>直接绘制自动衔接数组及每条规则，确保所有层级保持展开。</summary>
+    void DrawAutomaticTransitions(SerializedProperty transitions)
+    {
+        _automaticTransitionsExpanded = EditorGUILayout.Foldout(
+            _automaticTransitionsExpanded,
+            "Automatic Transitions",
+            true);
+        if (!_automaticTransitionsExpanded)
+            return;
+
+        EditorGUI.indentLevel++;
+        int size = Mathf.Max(0, EditorGUILayout.IntField("Size", transitions.arraySize));
+        if (size != transitions.arraySize)
+            transitions.arraySize = size;
+        for (int i = 0; i < transitions.arraySize; i++)
+        {
+            SerializedProperty transition = transitions.GetArrayElementAtIndex(i);
+            using (new EditorGUILayout.VerticalScope("box"))
+            {
+                EditorGUILayout.LabelField($"Transition {i}", EditorStyles.boldLabel);
+                EditorGUILayout.PropertyField(transition.FindPropertyRelative("condition"));
+                EditorGUILayout.PropertyField(transition.FindPropertyRelative("startFrame"));
+                EditorGUILayout.PropertyField(transition.FindPropertyRelative("targetNodeId"));
+                EditorGUILayout.PropertyField(transition.FindPropertyRelative("priority"));
+            }
+        }
+        EditorGUI.indentLevel--;
+    }
+
+    /// <summary>按稳定 NodeId 查找节点，避免数组顺序改变后写入其它节点。</summary>
+    static SerializedProperty FindNode(SerializedObject so, string nodeId)
+    {
+        SerializedProperty nodes = so.FindProperty("nodes");
+        for (int i = 0; i < nodes.arraySize; i++)
+        {
+            SerializedProperty node = nodes.GetArrayElementAtIndex(i);
+            if (node.FindPropertyRelative("nodeId").stringValue == nodeId)
+                return node;
+        }
+
+        return null;
+    }
+}
+
+/// <summary>单个 Action 节点视图：基础字段、策略入口与 Cancel 端口。</summary>
 sealed class ActionGraphNodeView : Node
 {
     readonly Dictionary<CancelWindowType, Port> _cancelPorts = new();
     readonly Dictionary<Port, CancelWindowType> _portToRoute = new();
     readonly UnityEngine.UIElements.Toggle _entryToggle;
+    readonly EnumField _intentField;
     readonly UnityEditor.UIElements.ObjectField _variantResolverField;
 
     public string NodeId { get; }
     public ActionDefinition Action { get; }
+    public GameplayIntentType Intent =>
+        _intentField?.value is GameplayIntentType intent ? intent : GameplayIntentType.None;
     public bool IsEntry => _entryToggle != null && _entryToggle.value;
     public ActionResolver VariantResolver => _variantResolverField?.value as ActionResolver;
     public Port InputPort { get; private set; }
 
-    /// <summary>创建节点视图，并恢复可直接在画布中编辑的 Entry 与 Resolver 配置。</summary>
+    /// <summary>创建节点视图，并恢复可直接在画布中编辑的 Entry、Intent 与 Resolver 配置。</summary>
     public ActionGraphNodeView(
         string nodeId,
         ActionDefinition action,
+        GameplayIntentType intent,
         bool entry = false,
-        ActionResolver variantResolver = null)
+        ActionResolver variantResolver = null,
+        ActionGraph graph = null)
     {
         NodeId = nodeId;
         Action = action;
-        title = action != null ? $"{nodeId}  [{action.Trigger}]" : nodeId;
+        title = action != null ? $"{nodeId}  [{intent}]" : nodeId;
 
         _entryToggle = new UnityEngine.UIElements.Toggle("Entry") { value = entry };
         titleContainer.Add(_entryToggle);
+
+        _intentField = new EnumField("Intent", intent)
+        {
+            tooltip = "进入该节点所匹配的设备无关玩法意图。",
+        };
+        extensionContainer.Add(_intentField);
+        _intentField.RegisterValueChangedCallback(evt => UpdateTitle((GameplayIntentType)evt.newValue));
 
         _variantResolverField = new UnityEditor.UIElements.ObjectField("Variant Resolver")
         {
@@ -867,6 +1164,7 @@ sealed class ActionGraphNodeView : Node
             tooltip = "进入该节点前执行的可选变体解析器，例如六向闪避 DirectionalActionResolver。",
         };
         extensionContainer.Add(_variantResolverField);
+        extensionContainer.Add(new ActionGraphNodePolicyView(graph, NodeId, includeBasics: false));
 
         InputPort = InstantiatePort(Orientation.Horizontal, Direction.Input, Port.Capacity.Multi, typeof(bool));
         InputPort.portName = "In";
@@ -883,6 +1181,12 @@ sealed class ActionGraphNodeView : Node
         expanded = true;
         RefreshExpandedState();
         RefreshPorts();
+    }
+
+    /// <summary>让标题始终反映当前输入语义。</summary>
+    void UpdateTitle(GameplayIntentType intent)
+    {
+        title = Action != null ? $"{NodeId}  [{intent}]" : NodeId;
     }
 
     /// <summary>查询普通或 Perfect Cancel 输出端口。</summary>
@@ -933,7 +1237,8 @@ sealed class ActionGraphGroupView : Node
         List<ActionGraphNode> children,
         System.Action ungroup,
         System.Action<int, int> moveChild,
-        System.Action<ActionDefinition> addAction)
+        System.Action<ActionDefinition> addAction,
+        ActionGraph graph)
     {
         GroupId = groupId;
         DisplayName = string.IsNullOrEmpty(displayName) ? groupId : displayName;
@@ -965,6 +1270,8 @@ sealed class ActionGraphGroupView : Node
             row.Add(new Button(() => moveChild(capturedIndex, -1)) { text = "↑" });
             row.Add(new Button(() => moveChild(capturedIndex, 1)) { text = "↓" });
             extensionContainer.Add(row);
+            extensionContainer.Add(
+                new ActionGraphNodePolicyView(graph, child.NodeId, includeBasics: true));
         }
 
         if (_children.Any(

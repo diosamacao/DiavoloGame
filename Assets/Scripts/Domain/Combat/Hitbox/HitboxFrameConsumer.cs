@@ -12,7 +12,7 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
     readonly Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider;
     readonly Action<ActionHitContext, IHurtboxTarget, IActionHitReceiver, Transform> hitDetected;
 
-    readonly HashSet<(string HitboxId, int TargetId)> _hitPairs = new();
+    readonly HashSet<(int HitboxIndex, int TargetId)> _hitPairs = new();
     ActionDefinition _trackedAction;
 
     /// <summary>默认挂点；为空时使用角色根。</summary>
@@ -44,7 +44,7 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
         ClearHitCacheIfNeeded(action);
     }
 
-    /// <summary>Logic Tick 帧推进：检测当前帧生效的 Hitbox。</summary>
+    /// <summary>Logic Tick 帧推进：每个 Hitbox 窗口对每个目标最多结算一次。</summary>
     public void OnCombatFrameAdvanced(in CombatFrameContext context)
     {
         if (context.Action == null)

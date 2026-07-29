@@ -8,9 +8,10 @@ public sealed class EnemyHandle : System.IDisposable
     readonly EnemyBrain _brain;
     readonly EnemyHealth _health;
     readonly Transform _facingProxy;
+    readonly CharacterReactionService _reactionService;
     float _deathReadyElapsed;
 
-    /// <summary>创建已装配的敌人句柄并绑定生命值事件。</summary>
+    /// <summary>创建已装配的敌人句柄并接管反应服务生命周期。</summary>
     public EnemyHandle(
         EnemyDefinition definition,
         Transform root,
@@ -20,7 +21,8 @@ public sealed class EnemyHandle : System.IDisposable
         EnemyBrain brain,
         EnemyHealth health,
         CharacterHurtboxTarget target,
-        Transform facingProxy)
+        Transform facingProxy,
+        CharacterReactionService reactionService)
     {
         _definition = definition;
         Root = root;
@@ -31,9 +33,7 @@ public sealed class EnemyHandle : System.IDisposable
         _health = health;
         Target = target;
         _facingProxy = facingProxy;
-
-        _health.HitReceived += OnHitReceived;
-        _health.Died += OnDied;
+        _reactionService = reactionService;
     }
 
     /// <summary>敌人根节点。</summary>
@@ -80,29 +80,13 @@ public sealed class EnemyHandle : System.IDisposable
     /// <summary>停止决策、解绑事件并释放角色运行时资源。</summary>
     public void Dispose()
     {
-        _health.HitReceived -= OnHitReceived;
-        _health.Died -= OnDied;
+        _reactionService?.Dispose();
         _brain.Stop();
         _actor.Disable();
         _actor.Dispose();
 
         if (_facingProxy != null)
-            Object.Destroy(_facingProxy.gameObject);
+            UnityEngine.Object.Destroy(_facingProxy.gameObject);
     }
 
-    /// <summary>非致命命中触发 Brain 抢占并进入正式 Character Hit 状态。</summary>
-    void OnHitReceived(ActionHitContext context)
-    {
-        _brain.NotifyHit();
-        _actor.EnterHit(
-            _definition.BrainProfile.HitStunSeconds,
-            _definition.CharacterConfig.Combat.HitStunAction);
-    }
-
-    /// <summary>致命伤害停止 Brain 并进入不可逆 Character Death 状态。</summary>
-    void OnDied(ActionHitContext context, float damage)
-    {
-        _brain.NotifyDeath();
-        _actor.EnterDeath(_definition.CharacterConfig.Combat.DeathAction);
-    }
 }

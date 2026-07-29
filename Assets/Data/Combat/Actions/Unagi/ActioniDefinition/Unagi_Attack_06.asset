@@ -12,8 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
   m_Name: Unagi_Attack_06
   m_EditorClassIdentifier: 
-  animationClip: {fileID: 0}
-  trigger: 1
   animationSegments:
   - clip: {fileID: -5632203348086795652, guid: 029f75ea841018541a3d1428e4d0fc30, type: 3}
     startFrame: 0
@@ -27,7 +25,9 @@ MonoBehaviour:
   totalFrames: 143
   actionType: 0
   crossFadeDuration: 0.1
-  interruptPriority: 0
+  executionPolicy:
+    interruptPriority: 0
+    useRootMotion: 1
   timeline:
     actionEvents: []
     playVfxNotifies:
@@ -55,18 +55,6 @@ MonoBehaviour:
       localScale: {x: 0.2, y: 0.2, z: 0.2}
       parentToAttachPoint: 1
       playbackSpeed: 1
-    - id: VFX_5
-      startFrame: 67
-      endFrame: 67
-      priority: 0
-      trackName: VFX_1
-      prefab: {fileID: 1713045243172065375, guid: fce31de7d7ab4770beb3fe9e5a87a089, type: 3}
-      attachPointId: 
-      localOffset: {x: 0, y: 0, z: 0}
-      localEulerAngles: {x: 0, y: 0, z: 0}
-      localScale: {x: 0.2, y: 0.2, z: 0.2}
-      parentToAttachPoint: 1
-      playbackSpeed: 1
     playSfxStates:
     - id: SFX_1
       startFrame: 0
@@ -82,14 +70,19 @@ MonoBehaviour:
       endFrame: 10
       priority: 0
       trackName: Hitbox_1
-      hitboxId: 
       shape: 0
       attachPointId: 
       localOffset: {x: 0, y: 1, z: 0}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 3, y: 3, z: 3}
-      damageWeight: 0
-      hitReactionId: 
+      payload:
+        baseDamage: 10
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 1
+          hitStopFrames: 3
+          hitStopOncePerAction: 1
     hurtboxStates: []
     cancelWindowStates:
     - id: Attack
@@ -135,21 +128,3 @@ MonoBehaviour:
     - trackName: SFX_1
       kind: 3
       visible: 1
-  transitions: []
-  startBehaviors: 
-  switchCombatModeTarget: 0
-  switchCombatModePolicy: 0
-  cameraShakeProfile: {fileID: 0}
-  disableCameraShakeOnHit: 0
-  useCameraShakeOnHit: 1
-  useHitStopOnHit: 1
-  disableHitStopOnHit: 0
-  hitStopFrames: 3
-  hitStopOncePerAction: 1
-  targetLockSettings:
-    enabled: 1
-    lockRange: 8
-    forwardConeAngle: 120
-    policy: 0
-    lockRotationSmoothTimeOverride: 0
-  useRootMotion: 1

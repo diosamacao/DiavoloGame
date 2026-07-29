@@ -16,7 +16,8 @@ public sealed class DeathState : CharacterState
         Context.Animation.SetLocked(true);
         Context.ActionExecutor?.Stop();
 
-        if (request.Action == null || Context.ActionExecutor?.TryStart(request.Action) != true)
+        if (request.ResolvedAction == null
+            || Context.ActionExecutor?.TryStart(request.ResolvedAction) != true)
             Context.DeathPresentationComplete = true;
     }
 
