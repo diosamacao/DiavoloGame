@@ -33,7 +33,7 @@ public interface IActionExecutor
     /// <summary>绑定 Cancel 窗口消费的离散输入缓冲桥接。</summary>
     void BindInputBuffer(IActionInputBuffer inputBuffer);
 
-    /// <summary>绑定招式开始副作用上下文。</summary>
+    /// <summary>绑定 ActionGraph 节点起手行为使用的上下文。</summary>
     void BindActionStartContext(IActionStartContext startContext);
 
     /// <summary>推进动作播放时间与逻辑帧。</summary>

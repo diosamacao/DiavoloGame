@@ -1,8 +1,7 @@
 using System.Collections.Generic;
 
 /// <summary>
-/// 动作解析服务：当前模式的 ActionGraph 负责起手 / 高优打断（多 Entry × Trigger）与 Cancel 边解析。
-/// 输入身份来自 ActionDefinition.Trigger。
+/// 动作解析服务：当前模式的 ActionGraph 负责多 Entry×Intent 起手、高优打断与 Cancel 解析。
 /// </summary>
 public sealed class ActionResolverService
 {
@@ -56,14 +55,14 @@ public sealed class ActionResolverService
         return graph.TryResolveCancel(in request, in context, out result);
     }
 
-    /// <summary>枚举当前出招图表中的全部 Trigger 意图，供缓冲清理与无槽边时的候选。</summary>
+    /// <summary>枚举当前出招图中的全部节点意图，供缓冲清理与 Cancel 候选收集。</summary>
     public IEnumerable<GameplayIntentType> EnumerateActiveIntents()
     {
         PlayerActionSet actionSet = _combatMode?.ActiveActionSet;
         if (actionSet == null)
             yield break;
 
-        foreach (GameplayIntentType intent in actionSet.EnumerateTriggerIntents())
+        foreach (GameplayIntentType intent in actionSet.EnumerateIntents())
             yield return intent;
     }
 }

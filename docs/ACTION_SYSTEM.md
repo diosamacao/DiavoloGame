@@ -194,16 +194,16 @@ HitDetectionSystem
 
 | 能力 | 状态 | 说明 |
 |------|------|------|
-| `ActionDefinition` SO | ✅ 已实现 | 动画、帧数、CancelWindow、Transition、位移、起手行为 |
+| `ActionDefinition` SO | ✅ 已实现 | 动画段、Timeline、分类与 ExecutionPolicy |
 | `CancelWindow`（Action / Movement） | ✅ 已实现 | 帧窗口 + priority；Action 取消不直接绑目标招 |
 | `ActionResolver` 解析层 | ✅ 已实现 | 出招表 Entry 绑定 Resolver；`Single` / `Combo`（线性连段）/ `Directional`（方向闪避）三类策略 |
 | `ActionResolverService` | ✅ 已实现 | 起手与 Cancel 共用路由；`ActionExecutor` 不再认知出招表结构 |
-| `ActionTransition` | 🟡 部分 | `AnimationEnd`、`AtFrame`；无 OnHit / OnWhiff |
+| Graph 节点自动衔接 | ✅ 已实现 | AnimationEnd、AtFrame、OnHitConfirm、OnWhiff，目标为 Node Id |
 | `PlayerActionSet` + `CombatModeProfile` | ✅ 已实现 | 多战斗模式出招表；模式切换 Locomotion Profile |
 | `CombatModeService` | ✅ 已实现 | Immediate / OnNextLocomotion / StopCurrentAction |
 | `ActionExecutor` | ✅ 已实现 | 播放、取消、Transition、Root Motion / 脚本位移 |
 | `InputManager` + `PlayerInputFrame` | ✅ 已实现 | 帧快照、多 id 缓冲、移动意图 |
-| `ActionStartBehavior` | 🟡 部分 | `FaceBufferedMoveIntent`、`SwitchCombatMode` |
+| Graph 节点起手行为 | ✅ 已实现 | `FaceBufferedMoveIntent`、`SwitchCombatMode` |
 | Root Motion 桥接 | ✅ 已实现 | `CharacterRootMotionDriver` + Receiver |
 | `ActionState` + 动画锁定 | ✅ 已实现 | 薄层状态机 |
 | `HitboxKeyframe` + `HitBoxSystem` | 🟡 部分 | `ActionDefinition` 帧表 + OBB 检测；无 Physics |
@@ -282,13 +282,10 @@ CharacterActor ── InputManager（唯一持有者）
 | 区块 | 字段 | 说明 |
 |------|------|------|
 | 基础 | `animationSegments[]`, `sampleRate`, `totalFrames`, `actionType`, `crossFadeDuration` | 多段动画顺序播放；`totalFrames` 为各段有效帧之和；显示名即资产文件名 |
-| Interrupt | `interruptPriority` | 招式级打断优先级；越大越优先；同级不互硬打断（Cancel 连招不受此限制） |
-| Cancel Windows | Timeline `CancelWindowNotifyState` | 帧区间、`cancelType`、`cancelSlotId`、`priority` |
-| Transitions | `transitions[]` | `condition`, `startFrame`, `targetAction`, `priority` |
-| Start Behaviors | `startBehaviors[]` | 起手副作用 |
-| Combat Mode | `switchCombatModeTarget`, `switchCombatModePolicy` | 配合 `SwitchCombatMode` 行为 |
-| Hitboxes | `hitboxes[]`（`HitboxKeyframe`） | 帧区间内生效的攻击 OBB；由 `HitBoxSystem` 采样 |
-| Movement | `useRootMotion`, `displacementDistance`, 帧窗口 | Root Motion 或脚本位移 |
+| Execution Policy | `interruptPriority`, `useRootMotion` | 动作自身固定的打断优先级与位移执行方式 |
+| Timeline | Phase / Cancel / Hitbox / Hurtbox / Movement / Rotation / VFX / SFX | 与动画帧绑定的动作内容唯一真源 |
+
+`ActionDefinition` 不再保存输入 Intent、Transition、StartBehavior、CombatMode、TargetLock、伤害或命中反馈；这些分别由 `ActionGraphNode` 和 `HitPayload` 持有。
 
 **帧换算：** `frame = FloorToInt(elapsed * sampleRate)`
 
@@ -296,7 +293,8 @@ CharacterActor ── InputManager（唯一持有者）
 
 | 类型 | 字段 | 说明 |
 |------|------|------|
-| `HitboxKeyframe` | `hitboxId`, `startFrame`, `endFrame`, `localOffset`, `localEulerAngles`, `size` | 挂在攻击者 `attachPoint` 的局部 Box；`GetActiveHitboxesAtFrame` 按帧筛选 |
+| `HitboxNotifyState` | `hitboxId`, 帧区间, 形状, `payload` | 挂在攻击者挂点的局部 OBB；Payload 持有伤害、反应 Id、震屏与卡肉 |
+| `HitPayload` | `baseDamage`, `hitReactionId`, `feedback` | 单次命中的结算与反馈唯一真源 |
 | `HurtboxDefinition` | `localOffset`, `localEulerAngles`, `size` | 受击方局部 Box；`HurtboxTarget` Inspector 配置 |
 | `ActionHitContext` | `Action`, `Hitbox`, `Attacker` | 一次命中判定的只读上下文，传给 `IHurtboxTarget.OnHit` |
 
@@ -313,14 +311,11 @@ CharacterActor ── InputManager（唯一持有者）
 
 **与 ACTION_EDITOR 的差异：** 当前 **无 `targetAction` 字段**。Action 取消的下一招由 `ActionExecutor` 消费匹配输入后委托 `ActionResolverService.TryResolveNext` → 对应 `ActionResolver` 解析，而非取消窗直接指向目标 SO。
 
-### 4.3 ActionTransition
+### 4.3 ActionGraphNode 自动衔接
 
-| `condition` | 运行时行为 |
-|-------------|------------|
-| `AnimationEnd` | `elapsed >= DurationSeconds` 时触发 |
-| `AtFrame` | `frame >= startFrame` 时每帧检查（可提前自动衔接） |
+自动衔接保存在 `ActionGraphNode.AutomaticTransitions`，目标使用节点 Id，不再由 ActionDefinition 引用另一个 Action。
 
-按 `priority` 降序；`targetAction == null` 则 `Stop`。
+支持 `AnimationEnd`、`AtFrame`、`OnHitConfirm`、`OnWhiff`；按 `priority` 降序，目标节点 Id 为空表示停止。
 
 ### 4.4 ActionResolver（动作解析策略）
 
@@ -347,7 +342,7 @@ bool TryResolve(in ActionRequest request, in ActionResolveContext context, out A
 CombatModeProfile
   └─ CombatModeEntry[] (mode, actionSet, locomotionProfile)
        └─ PlayerActionSet
-            └─ ActionGraph（Entry×Trigger + 节点 VariantResolver）
+            └─ ActionGraph（Entry×Intent + 节点 VariantResolver / TargetLock / 自动衔接）
 ```
 
 | 组件 | 职责 |
@@ -356,9 +351,10 @@ CombatModeProfile
 | `ActionResolverService.TryResolveStart / TryResolveNext` | 起手 / Cancel 解析（同一路由，差异由 context 表达） |
 | `CombatModeService` | 运行时当前 mode、挂起切换、Locomotion Profile |
 
-### 4.6 输入 id
+### 4.6 输入意图
 
-- 离散输入 id = Input System **Action 名**（`Attack`、`Dodge` 等）。
+- 物理 InputAction 先由 `GameplayIntentProducer` 转为 `GameplayIntentType`。
+- `ActionGraphNode.Intent` 是动作图唯一输入身份；ActionDefinition 不读取输入。
 - 移动取消不走 Cancel 路由，由 `InputManager.HasMoveIntent` + Recovery Phase 的 `allowMovementCancel` 判定。
 - 后摇：Timeline Recovery Phase 可分别开启移动取消与 Graph Entry 重开；无需 Recovery CancelWindow 或回根边。
 
@@ -390,9 +386,9 @@ HitBoxSystem.OnCombatFrameAdvanced（ActionExecutor 同步派发）
 离散输入 → InputManager.NotifyPressed
   → CharacterActionDriver.TryStartFromLocomotion(inputId)
   → ActionResolverService.TryResolveStart(request, context{Origin=LocomotionStart})
-      → ActionGraph Entry×Trigger → 可选 VariantResolver → ActionDefinition
+      → ActionGraph Entry×Intent → 可选 VariantResolver → ActionDefinition
   → ActionExecutor.TryStart(resolvedAction)
-      → ExecuteStartBehaviors → BeginAction(PlayClip)
+      → 执行 GraphNode.StartBehaviors → BeginAction(PlayClip)
   → TryChangeState(Action)
 ```
 
@@ -410,7 +406,7 @@ ActionExecutor.Tick → TryResolveCancelWindows:
   → ClearOtherActionBuffers → TransitionTo(next)
 
 无显式 Combo 命中且当前为 Recovery Phase:
-  → 有效缓冲按 Graph Entry×Trigger 软重开
+  → 有效缓冲按 Graph Entry×Intent 软重开
 ```
 
 Cancel 路径**不做** `interruptPriority` 比较：同级连招在窗内仍可进位。
@@ -422,7 +418,7 @@ Action 态意图
   → CharacterActionDriver.TryPriorityInterrupt(intent)
   → ActionResolverService.TryResolveStart(Origin=PriorityInterrupt)  // Graph Entry
   → ActionExecutor.TryInterrupt(resolveResult)
-      → candidate.InterruptPriority > current.InterruptPriority
+      → candidate.ExecutionPolicy.InterruptPriority > current.ExecutionPolicy.InterruptPriority
       → current.IsInterruptibleAtFrame(CurrentFrame)
           （无 Phase 覆盖 → true；有覆盖则看 Interruptible）
       → ClearOtherActionBuffers → TransitionTo
@@ -439,26 +435,26 @@ Action 态意图
   → ActionState.Exit → Stop()
 ```
 
-### 5.5 收招（Transition / 自然结束）
+### 5.5 收招（Graph 自动衔接 / 自然结束）
 
 ```
-每帧 TryResolveTransitions（AtFrame 可提前触发）
+每帧由当前 GraphNode 解析 AutomaticTransitions（AtFrame 可提前触发）
   → 无匹配且 elapsed >= Duration → Stop
   → ActionState 下一帧回 Locomotion
 ```
 
 ### 5.6 战斗模式切换
 
-- 起手行为 `SwitchCombatMode` 或外部 `CombatModeService.TrySetMode`。
+- Graph 节点起手行为 `SwitchCombatMode` 或外部 `CombatModeService.TrySetMode`。
 - `OnNextLocomotion`：招式中挂起，回 Locomotion 后 `ApplyPendingModeIfReady`。
 - 切换 mode 可换 `PlayerActionSet` 与 `CharacterAnimationProfile`（Locomotion）。
 
 ### 5.7 与碰撞系统（Hitbox）的通信
 
-动作执行器通过 `ICombatFrameConsumer` **同步派发逻辑帧**；`HitBoxSystem` 作为纯 C# 帧消费者读取招式状态与 SO 数据，完成判定后推送给受击方与动作运行时。
+动作执行器通过 `ICombatFrameConsumer` **同步派发逻辑帧**；`HitboxFrameConsumer` 读取动作时间轴并完成判定，`HitPayload` 直接提供伤害、反应语义与反馈。
 
 ```
-ActionExecutor                   HitBoxSystem              受击方
+ActionExecutor                HitboxFrameConsumer          受击方
         │                              │                      │
         │  CombatFrameContext          │                      │
         │ ────────────────────────────►│                      │
@@ -477,19 +473,32 @@ ActionExecutor                   HitBoxSystem              受击方
 | 命中通知 | 碰撞 → 受击方 | `IHurtboxTarget.OnHit(in ActionHitContext)` |
 | 防重复命中 | 碰撞内部 | `(hitboxId, targetInstanceId)` 缓存，换招清空 |
 
-**同招单次命中：** 同一 `ActionDefinition` 播放周期内，每个 `(HitboxId, TargetInstanceId)` 对只触发一次 `OnHit`；`TransitionTo` / `Stop` 换招时 `ClearHitCacheIfNeeded` 清空缓存。
+**Hitbox 单次命中：** 同一 `ActionDefinition` 播放周期内，每个时间轴 Hitbox 窗口按 `(HitboxIndex, TargetInstanceId)` 去重；同一窗口持续多帧只结算一次，不同窗口可分别命中同一目标。`TransitionTo` / `Stop` 换招时清空缓存。
+
+受击方生命值事件统一交给 `CharacterReactionService`。每次有效命中都会强制重入 HitState 并重启受击表现；Resolver 的默认硬直时长也作为受击 Action 启动失败时的回退。死亡状态仍不可被受击覆盖。
 
 ---
 
 ## 6. 使用方式（Editor）
 
+### 6.0 本次职责重构资产迁移
+
+本次直接删除旧序列化路径，不提供兼容层。需要人工完成：
+
+1. 在每个 ActionGraph 节点重填 `Intent`、`Target Lock`、`Start Behaviors`。
+2. 把原 ActionDefinition 的 Transitions 改填到对应节点 `Automatic Transitions`，目标改为 Node Id。
+3. 在每个 Hitbox 的 `Hit Payload` 重填基础伤害、`HitReactionId`、CameraShakeProfile 与 HitStop。
+4. 在 CharacterConfig 的 `Combat.Reactions` 为 Hit / Death 添加默认规则，按需增加精确 ReactionId 规则。
+5. 在 ActionDefinition 的 `Execution Policy` 重填 Interrupt Priority 与 Use Root Motion。
+
 ### 6.1 配置三连招
 
 1. 在 `ActionGraph` 加入 Attack1/2/3 节点，仅 Attack1 标记 Entry。
-2. 每段攻击配置一个 Normal CancelWindow；需要特殊派生时另加一个 Perfect CancelWindow。
-3. 在 Phase 轨添加 Recovery，按需勾选 `Allow Movement Cancel` 与 `Allow Entry Restart`。
-4. 多选线性节点执行 `Merge Sequence`；每行独立 In，普通 Cancel 自动进入下一行。
-5. 从 `PerfectCancelWindow` 连到特殊分支行；移动取消只配置 Recovery Phase。
+2. 为节点填写 `Intent`；输入身份不再配置在 ActionDefinition。
+3. 每段攻击配置一个 Normal CancelWindow；需要特殊派生时另加一个 Perfect CancelWindow。
+4. 在 Phase 轨添加 Recovery，按需勾选 `Allow Movement Cancel` 与 `Allow Entry Restart`。
+5. 多选线性节点执行 `Merge Sequence`；每行独立 In，普通 Cancel 自动进入下一行。
+6. 从 `PerfectCancelWindow` 连到特殊分支行；移动取消只配置 Recovery Phase。
 
 ### 6.1b 配置方向闪避
 
@@ -502,7 +511,7 @@ ActionExecutor                   HitBoxSystem              受击方
 
 1. 创建 `CombatModeProfile`，配置 `Katana` / `Beast` 等 mode 的 `PlayerActionSet` 与 `LocomotionProfile`。
 2. `CombatModeService.profile` 绑定该资产。
-3. 招式需切模式时：`Start Behaviors` 勾选 `SwitchCombatMode` 并填目标 mode / policy。
+3. 节点需切模式时：在 `ActionGraphNode.Start Behaviors` 勾选 `SwitchCombatMode` 并填目标 mode / policy。
 
 ### 6.3 Prefab 检查
 
@@ -545,7 +554,7 @@ ActionExecutor                   HitBoxSystem              受击方
 
 | ACTION_EDITOR 概念 | 当前实现 | 对齐度 | 编辑器适配备注 |
 |--------------------|----------|--------|----------------|
-| `ActionDefinition` | `ActionDefinition.cs` | ✅ | 动画段、Timeline、Transition 与反馈参数已收敛 |
+| `ActionDefinition` | `ActionDefinition.cs` | ✅ | 只含动画段、Timeline、分类与 ExecutionPolicy |
 | `CancelWindow` | `CancelWindow.cs` | 🟡 | 有帧区间/type/priority/inputs；**无 `targetActionId`**，改由 ComboSequence 解析 |
 | `ActionTransition` | `ActionTransition.cs` | 🟡 | 有 `AnimationEnd`；新增 `AtFrame`（编辑器文档未列）；缺 OnHit/OnWhiff/OnBlocked |
 | `ActionGraph` | 稀疏 `ActionGraph` | ✅ | 独特拓扑画边；重复路由进 SharedRoute；Directional 共用逻辑节点 |

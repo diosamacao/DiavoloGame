@@ -30,4 +30,15 @@ public readonly struct ActionResolveResult
 
     /// <summary>是否携带有效图游标（进入/停留在连招图内）。</summary>
     public bool HasGraphCursor => Graph != null && !string.IsNullOrEmpty(NodeId);
+
+    /// <summary>图节点对应的玩法意图；直接播放动作时为 None。</summary>
+    public GameplayIntentType Intent =>
+        TryGetNode(out ActionGraphNode node) ? node.Intent : GameplayIntentType.None;
+
+    /// <summary>解析结果携带图游标时返回对应节点。</summary>
+    public bool TryGetNode(out ActionGraphNode node)
+    {
+        node = null;
+        return HasGraphCursor && Graph.TryGetNode(NodeId, out node);
+    }
 }

@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// 命中卡肉控制器：订阅 AttackHitEvent，冻结攻击者动画 Speed、暂停 ActionExecutor 与关联 VFX 粒子。
-/// 可挂在 Player 或场景 Managers 上；按 ActionDefinition 配置驱动。
+/// 可挂在 Player 或场景 Managers 上；按命中 Hitbox 的反馈载荷驱动。
 /// </summary>
 [DisallowMultipleComponent]
 public class HitStopController : AppControllerBase
@@ -34,14 +34,15 @@ public class HitStopController : AppControllerBase
         ForceEndHitStop();
     }
 
-    /// <summary>命中回调：按 ActionDefinition 配置触发攻击者侧卡肉。</summary>
+    /// <summary>命中回调：按 Hitbox 反馈载荷触发攻击者侧卡肉。</summary>
     void HandleAttackHit(AttackHitEvent hitEvent)
     {
         ActionHitContext context = hitEvent.Context;
-        if (context.Action == null || context.Attacker == null)
+        if (context.Action == null || context.Hitbox == null || context.Attacker == null)
             return;
 
-        if (!context.Action.ShouldHitStopOnHit())
+        HitFeedbackSettings feedback = context.Hitbox.Payload.Feedback;
+        if (!feedback.UseHitStop)
             return;
 
         CombatActorSystem actorSystem = GetSystem<CombatActorSystem>();
@@ -54,10 +55,12 @@ public class HitStopController : AppControllerBase
         ActionExecutor executor = entry.ActionExecutor;
         CharacterAnimationService animation = entry.Animation;
 
-        if (context.Action.HitStopOncePerAction && executor != null && !executor.TryConsumeHitStopTrigger())
+        if (feedback.HitStopOncePerAction
+            && executor != null
+            && !executor.TryConsumeHitStopTrigger())
             return;
 
-        float duration = context.Action.HitStopDurationSeconds;
+        float duration = feedback.ResolveHitStopDuration(context.Action.SampleRate);
         if (duration <= 0f)
             return;
 

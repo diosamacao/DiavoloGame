@@ -111,6 +111,9 @@ public class CharacterConfig : ScriptableObject
             valid = false;
         }
 
+        if (!Combat.Reactions.Validate(context))
+            valid = false;
+
         return valid;
     }
 }
@@ -187,9 +190,8 @@ public struct CharacterCombatConfig
     [SerializeField] string aimOriginName;
     [SerializeField] HurtboxDefinition hurtbox;
     [SerializeField] float maxHealth;
-    [SerializeField] float hitStunSeconds;
-    [SerializeField] ActionDefinition hitStunAction;
-    [SerializeField] ActionDefinition deathAction;
+    [Tooltip("上层控制器用于选择受击与死亡表现动作的规则集。")]
+    [SerializeField] CharacterReactionSet reactions;
 
     /// <summary>默认玩家阵营与空挂点名。</summary>
     public static CharacterCombatConfig Default => new()
@@ -199,9 +201,7 @@ public struct CharacterCombatConfig
         aimOriginName = string.Empty,
         hurtbox = new HurtboxDefinition(),
         maxHealth = 100f,
-        hitStunSeconds = 0.35f,
-        hitStunAction = null,
-        deathAction = null,
+        reactions = new CharacterReactionSet(),
     };
 
     /// <summary>攻击者阵营 id；索敌会排除同阵营目标。</summary>
@@ -219,12 +219,6 @@ public struct CharacterCombatConfig
     /// <summary>玩家等未被上层 Definition 覆盖时使用的最大生命值。</summary>
     public float MaxHealth => maxHealth > 0f ? maxHealth : 100f;
 
-    /// <summary>未配置受击 Action 时的默认硬直秒数。</summary>
-    public float HitStunSeconds => hitStunSeconds > 0f ? hitStunSeconds : 0.35f;
-
-    /// <summary>玩家等直接由 CharacterConfig 装配的角色受击表现 Action。</summary>
-    public ActionDefinition HitStunAction => hitStunAction;
-
-    /// <summary>玩家等直接由 CharacterConfig 装配的角色死亡表现 Action。</summary>
-    public ActionDefinition DeathAction => deathAction;
+    /// <summary>供玩家或敌人上层控制器解析受击、死亡表现的规则集。</summary>
+    public CharacterReactionSet Reactions => reactions ?? new CharacterReactionSet();
 }

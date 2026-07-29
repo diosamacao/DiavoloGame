@@ -14,12 +14,6 @@ public class CameraShakeController : AppControllerBase
     [Header("References")]
     [SerializeField] CameraManager cameraManager;
 
-    [Header("Fallback Shake")]
-    [Tooltip("ActionDefinition 未指定 Profile 且为 Attack 时使用。")]
-    [SerializeField] CameraShakeProfile defaultAttackShake = null;
-    [Tooltip("ActionDefinition 未指定 Profile 时的内联默认值。")]
-    [SerializeField] CameraShakeSettings fallbackAttackSettings = CameraShakeSettings.DefaultLight;
-
     CinemachineImpulseSource _impulseSource;
     CinemachineVirtualCamera _boundVirtualCamera;
 
@@ -27,7 +21,6 @@ public class CameraShakeController : AppControllerBase
     {
         ResolveCameraManager();
         EnsureImpulseSource();
-        EnsureFallbackSettings();
     }
 
     void OnEnable()
@@ -70,19 +63,12 @@ public class CameraShakeController : AppControllerBase
         if (attacker == null || attacker.GetComponent<PlayerController>() == null)
             return;
 
-        PlayFromAction(hitEvent.Context.Action, hitEvent.HitDirection);
-    }
-
-    /// <summary>按招式配置播放命中震动；无 Profile 时回退到默认攻击预设。</summary>
-    public void PlayFromAction(ActionDefinition action, Vector3 worldHitDirection)
-    {
-        if (action == null || !action.ShouldShakeOnHit())
+        HitboxNotifyState hitbox = hitEvent.Context.Hitbox;
+        CameraShakeProfile profile = hitbox?.Payload.Feedback.CameraShakeProfile;
+        if (profile == null)
             return;
 
-        if (!TryResolveShakeSettings(action, out CameraShakeSettings settings))
-            return;
-
-        Play(settings, worldHitDirection);
+        Play(profile, hitEvent.HitDirection);
     }
 
     /// <summary>直接使用 Profile 播放震动。</summary>
@@ -106,30 +92,6 @@ public class CameraShakeController : AppControllerBase
         Vector3 velocity = settings.BuildImpulseVelocity(worldHitDirection);
         Vector3 impulseOrigin = ResolveImpulseOrigin();
         _impulseSource.GenerateImpulseAtPositionWithVelocity(impulseOrigin, velocity);
-    }
-
-    bool TryResolveShakeSettings(ActionDefinition action, out CameraShakeSettings settings)
-    {
-        if (action.CameraShakeProfile != null)
-        {
-            settings = action.CameraShakeProfile.Settings;
-            return true;
-        }
-
-        if (defaultAttackShake != null)
-        {
-            settings = defaultAttackShake.Settings;
-            return true;
-        }
-
-        if (action.ActionType == CombatActionType.Attack)
-        {
-            settings = fallbackAttackSettings;
-            return true;
-        }
-
-        settings = default;
-        return false;
     }
 
     /// <summary>Impulse 原点取 Virtual Camera / Main Camera 位置。</summary>
@@ -215,12 +177,4 @@ public class CameraShakeController : AppControllerBase
         listener.m_ApplyAfter = CinemachineCore.Stage.Noise;
     }
 
-    /// <summary>序列化 struct 未写入时 force 可能为 0，运行时补齐默认值。</summary>
-    void EnsureFallbackSettings()
-    {
-        if (fallbackAttackSettings.Force > 0.001f)
-            return;
-
-        fallbackAttackSettings = CameraShakeSettings.DefaultLight;
-    }
 }

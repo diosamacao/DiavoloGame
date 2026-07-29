@@ -67,7 +67,7 @@ public class MyBehaviour : MonoBehaviour
 - 播放走纯 C# `CharacterAnimationService`；后端为 `IAnimationPlayback`（当前 `PlayableAnimationPlayback`，可换 Animancer）
 - 需要独占时 `SetLocked(true)`；卡肉用 `SetSpeed(0)`，禁止业务直写 `Animator.speed`
 - Locomotion：`applyRootMotion = false`，位移由 `CharacterController` + `CharacterMotor` 负责
-- Action：`ActionDefinition.useRootMotion = true` 时由 `CharacterRootMotionDriver` 在 `OnAnimatorMove` 中把 `deltaPosition` 写入 `CharacterController`；`useRootMotion = false` 时可用 `MovementNotifyState` 脚本位移
+- Action：`ActionDefinition.ExecutionPolicy.UseRootMotion = true` 时由 `CharacterRootMotionDriver` 写入 `CharacterController`；关闭时可用 `MovementNotifyState` 脚本位移
 - 同 key 不重复 Play（门面 `_currentKey` 去重）；无 Animator Controller 业务依赖
 - 角色销毁时 `CharacterActor.Dispose()` 释放 PlayableGraph
 
@@ -79,9 +79,11 @@ public class MyBehaviour : MonoBehaviour
 - **设备映射**：`GameplayIntentProfile` 是 InputActionReference、长按阈值与上下文映射的唯一配置源
 - **语义生产**：`GameplayIntentProducer` 在 `InputManager.IngestFrame` 后输出 `GameplayIntentType`
 - **上下文意图**：SprintAttack / DodgeAttack 由 `GameplayIntentProfile` 条件映射产生；闪避攻击使用 `IsDodging + Attack Pressed`，禁止在 Driver 中按键名特判
-- **选招层**：`ActionResolverService` → 当前模式 `ActionGraph`（多 Entry × Trigger 起手 + Cancel 边）；`DirectionalActionResolver` 可作为节点 `VariantResolver`
-- **Trigger**：`ActionDefinition.Trigger` 只保存 `GameplayIntentType`，禁止重新绑定 InputActionReference
-- **连招图**：一张 `ActionGraph` 可同时含攻击/闪避等多个 Entry；边按 `CancelWindowType.Normal / Perfect` 解析，重复的「同来源 Trigger + 同类型 + 同意图」使用 `ActionGraphSharedRoute`
+- **选招层**：`ActionResolverService` → 当前模式 `ActionGraph`（多 Entry × Intent 起手 + Cancel 边）；`DirectionalActionResolver` 可作为节点 `VariantResolver`
+- **节点 Intent**：`GameplayIntentType` 只保存在 `ActionGraphNode.Intent`；`ActionDefinition` 禁止声明输入或选招字段
+- **连招图**：一张 `ActionGraph` 可同时含攻击/闪避等多个 Entry；边按 `CancelWindowType.Normal / Perfect` 解析，重复的「同来源 Intent + 同类型 + 同意图」使用 `ActionGraphSharedRoute`
+- **流程唯一真源**：自动衔接、索敌和起手副作用都在 `ActionGraphNode`；禁止在 `ActionDefinition` 重新引入 Transition、TargetLock 或 StartBehavior
+- **Graph 策略编辑**：普通节点与顺序组子节点都在 Graph 节点内部展开策略编辑；新增节点必须显式清空数组槽继承的旧策略
 - **顺序组**：组内 Action 按行顺序自动生成 Normal Cancel 链；每行保留独立 In；组级 Normal / Perfect 出口分别展开到配置对应窗口的全部子节点
 - **变体节点**：Directional 等 Resolver 只改变实际播放 Action，不改变逻辑 Graph 节点；同语义六向变体禁止复制节点和出边
 - **线性连招**：`ComboActionResolver` / `ComboLeafPolicy` 已删除；`ActionGraph` 是唯一连招拓扑真源
@@ -89,7 +91,7 @@ public class MyBehaviour : MonoBehaviour
 - **缓冲**：招式中 `Buffer(GameplayIntentType)`；`ActionExecutor` 经 `IActionInputBuffer` 在 `CancelWindow` 内消费
 - **Locomotion 边界**：连续 Move 不枚举化；Action→Locomotion 特殊恢复使用一次性 `LocomotionResumeRequest`
 - **后摇窗口**：Timeline 的 `ActionPhaseNotifyState(Recovery)` 同时配置 `allowMovementCancel` 与 `allowEntryRestart`；禁止创建 Recovery CancelWindow、独立 phases 或回根显式边
-- **CancelWindow**：每个 Action 必须且只能有一个 Normal，可选一个 Perfect；两个窗口可重叠，同一 Trigger 始终优先 Perfect；禁止重新引入分割帧、槽 Id 或同类型多窗口
+- **CancelWindow**：每个 Action 必须且只能有一个 Normal，可选一个 Perfect；两个窗口可重叠，同一 Intent 始终优先 Perfect；禁止重新引入分割帧、槽 Id 或同类型多窗口
 - 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `CharacterMotor` / State）
 - **玩家装配**：`InputActionAsset` 与 `GameplayIntentProfile` 由 `CharacterConfig` 注入，不在玩家 Prefab 上重复配置
 - **AI 输入**：`AIInputSource` 必须合成与 `GameplayIntentProfile` 对齐的 `PlayerInputFrame`；Brain 禁止直接调用 `ActionExecutor.TryStart/TryInterrupt`
@@ -97,13 +99,16 @@ public class MyBehaviour : MonoBehaviour
 
 ## 伤害与受击约定
 
-- 最终伤害统一为 `ActionDefinition.BaseDamage × HitboxNotifyState.DamageWeight`
+- 伤害、`HitReactionId`、镜头震动与卡肉统一由 `HitboxNotifyState.Payload` 持有；反馈系统禁止从 `ActionDefinition` 反查
+- 命中去重身份使用 ActionTimeline 中的 Hitbox 窗口下标；同一窗口对同一目标一次，不以可重复的显示字符串作为运行时键
 - 受击反应由“有效命中”驱动，不得依赖最终伤害必须大于 0；扣血与 Hit 状态是两条职责
 - 玩家和敌人都使用 `CharacterHurtboxTarget` 注册到 `TargetSystem`；HitDetector 在几何检测前排除自身、同阵营与死亡目标
 - 自身过滤必须覆盖角色根与全部父子层级，禁止模型子节点上的 Hurtbox 生成自击事件
 - 玩家阵营由 `CharacterConfig.Combat.teamId` 持有；敌人阵营由 `EnemyDefinition.teamId` 独立持有，禁止从可复用身体配置隐式继承
-- 所有角色动作表现配置（含受击、死亡）统一由 `CharacterConfig.Combat` 持有；`EnemyDefinition` 禁止重复声明 Action 引用
-- 受击/死亡统一进入顶层 `CharacterStateType.Hit / Death`；专用 Action 只负责表现，不参与 AI 选招
+- 受击/死亡映射统一由 `CharacterConfig.Combat.Reactions` 持有；`EnemyDefinition` 禁止重复声明 Action 引用
+- `CharacterReactionService` 是玩家/敌人 Health 事件到 Actor 的唯一桥接；Controller 只负责构造并注入 Resolver，禁止各自重复订阅受击/死亡事件
+- `CharacterReactionResolver` 直接产出 `CharacterReactionRequest`；默认硬直时长只保存在 `CharacterReactionSet`，State、BrainProfile 与 ActionDefinition 禁止重复配置
+- 每次非致命有效命中都可强制重入 HitState；死亡状态是唯一不可被后续受击覆盖的反应终态
 - 死亡时先注销 `TargetSystem / CombatActorSystem`，死亡表现完成后再 Despawn
 
 ## 相机约定

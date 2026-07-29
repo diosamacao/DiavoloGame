@@ -1,8 +1,12 @@
 # ACTGame — 动作编辑器（Action Editor）设计文档
 
 > 本文档描述 ACTGame 长期目标：**用可视化编辑器为角色配置战斗动作**，而非在代码或 Animator 里硬编码每一招。  
-> 最后更新：2026-06-17（动作阶段与取消衔接补充）  
+> 最后更新：2026-07-29（ActionDefinition 职责收敛）
 > **落地实现方案（分阶段、目录、验收）见：** [`ACTION_EDITOR_IMPLEMENTATION.md`](./ACTION_EDITOR_IMPLEMENTATION.md)
+
+> 当前实现边界：`ActionDefinition` 只保存动画、Timeline 与 ExecutionPolicy；输入 Intent、索敌、起手行为和自动衔接在 `ActionGraphNode`；伤害、HitReactionId、镜头与卡肉反馈在 `HitPayload`；受击/死亡 Action 由 `CharacterReactionResolver` 选择并经 `CharacterReactionService` 统一进入 Actor。下文旧版调研示例中的 `damageWeight`、Action 内 Transition/Trigger 仅保留为历史设计背景，不是当前 Schema。
+
+> `ACT/Combat/Action Graph Editor` 的普通节点和顺序组子节点都内嵌 `Node Policy` 折叠区，可直接配置 Input Intent、Entry、Variant Resolver、Target Lock、Start Behaviors、战斗模式切换与 Automatic Transitions，不使用独立侧栏。
 
 ---
 
@@ -336,7 +340,7 @@ Recovery [19───────────────41]
 
 节点 = `ActionDefinition` 引用，边 = 输入 / 条件 / 自动连段。参考 Combo Graph 的输入边可视化。
 
-**受击与收招：** `actionType: Hit` 的招式（轻受击、重受击、浮空、击飞、倒地）与攻击招式共用 `ActionDefinition` 格式，由 `CharacterStateMachine` 的 `Hit` 状态或 `ActionExecutor` 播放。Graph 边 `[Any] --受击--> [Hit_Light]` 指向对应受击资产；受击结束通过 `ActionTransition(AnimationEnd)` 或 Graph 边回到 Locomotion / 战斗待机。
+**受击与收招：** `actionType: Hit` 的表现仍复用 `ActionDefinition` 格式，但由 `CharacterReactionResolver` 选择并经共享 `CharacterReactionService` 播放，不进入主动出招图。HitState 播放结束后回 Locomotion；主动动作的自动收招只配置在 `ActionGraphNode.AutomaticTransitions`。
 
 ### 3.9 ActionAnimationSegment（多动画拼招）
 

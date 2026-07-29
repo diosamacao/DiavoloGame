@@ -31,6 +31,13 @@ public sealed class ActionSession
     /// <summary>是否处于连招图游标中。</summary>
     public bool HasGraphCursor => CurrentGraph != null && !string.IsNullOrEmpty(CurrentNodeId);
 
+    /// <summary>当前图游标对应节点；直接播放动作时返回 false。</summary>
+    public bool TryGetCurrentNode(out ActionGraphNode node)
+    {
+        node = null;
+        return HasGraphCursor && CurrentGraph.TryGetNode(CurrentNodeId, out node);
+    }
+
     bool _hitStopTriggered;
 
     /// <summary>开始一个新招式会话，并清空上一个会话的派生状态（含图游标）。</summary>

@@ -2,14 +2,14 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>单角色动作执行器：只播放已解析好的招式，负责帧推进、Cancel、高优硬打断、Transition 与统一 Timeline 派发。</summary>
+/// <summary>单角色动作执行器：播放已解析动作并推进帧、取消、图衔接与统一时间轴派发。</summary>
 public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 {
     readonly Transform _actorRoot;
     readonly CharacterAnimationService animationController;
     readonly CharacterController _motor;
     readonly CharacterRootMotionDriver _rootMotion;
-    /// <summary>同物体 CombatModeService；仅用于 SwitchCombatMode StartBehavior。</summary>
+    /// <summary>同物体 CombatModeService；仅执行 ActionGraph 节点声明的模式切换。</summary>
     readonly CombatModeService _combatMode;
     /// <summary>Cancel 窗口下一招解析委托；不用于 Locomotion 起手。</summary>
     readonly ActionResolverService _resolverService;
@@ -101,7 +101,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         if (_session.IsActive || !resolveResult.IsValid || animationController == null)
             return false;
 
-        ExecuteStartBehaviors(resolveResult.Action);
+        ExecuteStartBehaviors(in resolveResult);
         BeginAction(in resolveResult);
         return true;
     }
@@ -120,13 +120,14 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         if (current == null || next == null)
             return false;
 
-        if (next.InterruptPriority <= current.InterruptPriority)
+        if (next.ExecutionPolicy.InterruptPriority
+            <= current.ExecutionPolicy.InterruptPriority)
             return false;
 
         if (!current.IsInterruptibleAtFrame(CurrentFrame))
             return false;
 
-        ClearOtherActionBuffers(next.Trigger);
+        ClearOtherActionBuffers(resolveResult.Intent);
         TransitionTo(in resolveResult);
         return true;
     }
@@ -371,49 +372,36 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         }
     }
 
-    /// <summary>按 priority 扫描 Transition，首个满足条件的自动衔接或 Stop。</summary>
+    /// <summary>委托当前 ActionGraph 节点解析无输入自动衔接。</summary>
     bool TryResolveTransitions()
     {
-        ActionDefinition current = _session.CurrentAction;
-        if (current == null)
-            return false;
-
-        foreach (ActionTransition transition in current.GetTransitionsSorted())
+        if (!_session.HasGraphCursor
+            || _session.CurrentAction == null
+            || !_session.CurrentGraph.TryResolveAutomaticTransition(
+                _session.CurrentNodeId,
+                _session.CurrentAction,
+                _session.ElapsedSeconds,
+                _session.HasConfirmedHit,
+                out ActionResolveResult result,
+                out bool shouldStop))
         {
-            if (!current.IsTransitionEligible(
-                    transition,
-                    _session.ElapsedSeconds,
-                    _session.HasConfirmedHit))
-                continue;
+            return false;
+        }
 
-            if (transition.TargetAction != null && transition.TargetAction.HasAnimation)
-            {
-                // 目标若在当前/活动图中有节点，保留图游标（满蓄 AnimationEnd→Branch_03 等）。
-                TransitionTo(ResolveTransitionResult(transition.TargetAction));
-                return true;
-            }
-
+        if (shouldStop)
+        {
             Stop();
             return true;
         }
 
-        return false;
-    }
-
-    /// <summary>自动 Transition 目标：优先落回 ActionGraph 节点，避免后续 Cancel 边失效。</summary>
-    ActionResolveResult ResolveTransitionResult(ActionDefinition targetAction)
-    {
-        ActionGraph graph = _session.CurrentGraph ?? _resolverService?.ActiveGraph;
-        if (graph != null && graph.TryFindNodeByAction(targetAction, out ActionGraphNode node))
-            return ActionResolveResult.FromGraph(targetAction, graph, node.NodeId);
-
-        return ActionResolveResult.FromAction(targetAction);
+        TransitionTo(in result);
+        return true;
     }
 
     void TransitionTo(in ActionResolveResult resolveResult)
     {
         NotifyActionEnded();
-        ExecuteStartBehaviors(resolveResult.Action);
+        ExecuteStartBehaviors(in resolveResult);
         BeginAction(resolveResult);
     }
 
@@ -424,38 +412,34 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         if (resolveResult.HasGraphCursor)
             _session.SetGraphCursor(resolveResult.Graph, resolveResult.NodeId);
 
-        _rootMotion?.SetActive(action.UseRootMotion);
+        _rootMotion?.SetActive(action.ExecutionPolicy.UseRootMotion);
         PlayAnimationSegment(action, 0);
-        Debug.Log($"BeginAction: {action.name} segment0={(action.AnimationClip != null ? action.AnimationClip.name : "null")}");
 
         NotifyActionBegan(action);
         DispatchCombatFrame(0, -1);
         _session.LastProcessedFrame = 0;
     }
 
-    /// <summary>无图游标的起手入口（兼容仅传 ActionDefinition）。</summary>
-    void BeginAction(ActionDefinition action) =>
-        BeginAction(ActionResolveResult.FromAction(action));
-
-    void ExecuteStartBehaviors(ActionDefinition action)
+    /// <summary>执行图节点声明的起手上下文行为；直接播放动作没有此类副作用。</summary>
+    void ExecuteStartBehaviors(in ActionResolveResult resolveResult)
     {
-        if (action == null || _startContext == null)
+        if (_startContext == null || !resolveResult.TryGetNode(out ActionGraphNode node))
             return;
 
-        ActionStartBehaviorType[] behaviors = action.StartBehaviors;
-        foreach (ActionStartBehaviorType behavior in behaviors)
-            ExecuteStartBehavior(action, behavior);
+        foreach (ActionGraphStartBehaviorType behavior in node.StartBehaviors)
+            ExecuteStartBehavior(node, behavior);
     }
 
-    void ExecuteStartBehavior(ActionDefinition action, ActionStartBehaviorType behavior)
+    /// <summary>解释单个节点起手行为，不向 ActionDefinition 反查上下文配置。</summary>
+    void ExecuteStartBehavior(ActionGraphNode node, ActionGraphStartBehaviorType behavior)
     {
         switch (behavior)
         {
-            case ActionStartBehaviorType.FaceBufferedMoveIntent:
+            case ActionGraphStartBehaviorType.FaceBufferedMoveIntent:
                 _startContext.FaceBufferedMoveIntent();
                 break;
-            case ActionStartBehaviorType.SwitchCombatMode:
-                TrySwitchCombatMode(action.SwitchCombatModeTarget, action.SwitchCombatModePolicy);
+            case ActionGraphStartBehaviorType.SwitchCombatMode:
+                TrySwitchCombatMode(node.SwitchCombatModeTarget, node.SwitchCombatModePolicy);
                 break;
         }
     }

@@ -1,8 +1,10 @@
 # ActionGraph 连招图设计方案
 
 > 日期：2026-07-25
-> 状态：**已实现（稀疏多入口 Graph）**；玩法资产需在 Editor 人工迁移
+> 状态：**历史方案，输入归属决策已于 2026-07-29 被替代**。
 > 相关：`docs/ACTION_SYSTEM.md`、`docs/ACTION_SYSTEM_REFACTOR_PLAN.md`、`docs/ACTION_EDITOR.md`
+
+> 当前唯一方案：输入语义在 `ActionGraphNode.Intent`；节点同时持有 TargetLock、StartBehaviors 与 AutomaticTransitions。`ActionDefinition.Trigger` 已删除。本文后续内容保留为旧方案决策背景，不可作为当前 Schema 或资产配置依据。
 
 ---
 

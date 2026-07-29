@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-07-29
+> Last updated: 2026-07-30
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -14,9 +14,9 @@
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionStateMachine` + `LocomotionState` | AnimationProfile + `CharacterLocomotionProfile` |
 | Locomotion 起步/急停/转身 | 🟡 代码已接、资产待绑 | 内层 `LocomotionPhase` 纯状态机 | Start/Stop/Pivot Clip + 落脚标记 |
 | 第三人称相机 | ✅ 已实现 | `CameraManager` | 场景内 CameraManager 对象 |
-| 动作系统（选招 / 播放 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ 已实现 | 纯 C# `ActionResolverService` + `ActionExecutor` + `CombatModeService` | `CombatModeProfile`、`PlayerActionSet`、`ActionGraph`、`ActionDefinition.interruptPriority` |
+| 动作系统（选招 / 播放 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ 已实现 | 纯 C# `ActionResolverService` + `ActionExecutor` + `CombatModeService` | `ActionGraph` 节点策略 + `ActionDefinition.ExecutionPolicy` |
 | Action Editor（时间轴编辑） | 🟡 骨架/部分 | `ActionEditorWindow` + `ActionTimeline` 手动加轨/窗口 | Menu：`ACT/Action Editor` |
-| 攻击 / 战斗判定 | ✅ 已实现 | `HitboxFrameConsumer` + `CombatDamageCalculator` + `CharacterHealth` | Action 基础伤害 × Hitbox 权重；Hit/Death 状态 |
+| 攻击 / 战斗判定 | ✅ 已实现 | `HitboxFrameConsumer` + `CombatDamageCalculator` + `CharacterReactionService` | HitPayload 基础伤害；Hit/Death 状态 |
 | 敌人 AI | 🟡 代码已接、资产待绑 | `EnemyController` + `EnemyBrain` + 共享 `CharacterActor` | `EnemyDefinition`、`EnemyBrainProfile`、敌人 CharacterConfig/Graph |
 | UI | ⬜ 未实现 | — | `UI/` 占位 |
 
@@ -406,30 +406,33 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 
 ### 功能说明
 
-多战斗模式下，玩家通过 `ActionGraph` Entry×Trigger 起手攻击/闪避；起手、连段进位、Dodge 方向分派、招内 Cancel 下一招统一由 `ActionResolverService` 解析，`ActionExecutor` 只负责播放已解析好的招；Action 态下更高 `interruptPriority` 可经 Graph Entry **硬打断**当前招；`ActionTransition` 收招（含 **OnHitConfirm / OnWhiff**）；**Logic Tick 由 `UpdateFrame` 统一驱动** `ActionTimeline`、Hitbox 与 VFX。
+多战斗模式下，玩家通过 `ActionGraph` Entry×Intent 起手攻击/闪避；输入、索敌、起手行为、Cancel 与自动衔接统一由 Graph 节点/边描述，`ActionExecutor` 只播放解析结果。更高 `ActionExecutionPolicy.interruptPriority` 可经 Graph Entry 硬打断；**Logic Tick 由 `UpdateFrame` 统一驱动** `ActionTimeline`、Hitbox 与 VFX。
 
 ### 实现方案
 
 | 项 | 方案 |
 |----|------|
 | 起手 / 缓冲 | `GameplayIntentBuffer` → `CharacterActionDriver` → `ActionResolverService.TryResolveStart` → `ActionExecutor.TryStart` |
-| Trigger | `ActionDefinition.Trigger = GameplayIntentType`；不保存 InputActionReference |
+| 节点 Intent | `ActionGraphNode.Intent = GameplayIntentType`；ActionDefinition 不保存输入语义 |
 | 选招策略 | `ActionGraph` Entry / Normal 与 Perfect CancelWindow 边 / `ActionGraphSharedRoute`；顺序组按类型聚合子节点 |
 | 六向闪避 | `DirectionalActionResolver` 统一解析前、后、左前、左后、右前、右后；前后扇区半角默认 `30°`，纯左/右输入偏向前侧变体 |
-| Cancel 下一招 | 每招一个 Normal、可选一个 Perfect；窗口重叠且同 Trigger 时 Perfect 优先；不同 Trigger 仍按意图优先级竞争 |
+| Cancel 下一招 | 每招一个 Normal、可选一个 Perfect；窗口重叠且同 Intent 时 Perfect 优先 |
+| 自动衔接 | `ActionGraphNode.AutomaticTransitions`，目标为节点 Id，支持 AnimationEnd / AtFrame / OnHitConfirm / OnWhiff |
 | 高优硬打断 | Action 态：`TryResolveStart(PriorityInterrupt)` → `ActionExecutor.TryInterrupt`（候选 `interruptPriority` 严格大于当前，且 `IsInterruptibleAtFrame`） |
 | 时间轴数据 | `ActionDefinition.Timeline`：`ActionNotify` 点事件（Event/VFX/SFX）+ `ActionNotifyState` 区间窗口 |
 | 移动取消 | `CharacterActionDriver` + `CancelWindowNotifyState(Movement)` |
-| 招式旋转 | `ActionRotationDriver` + `RotationNotifyState` + `CombatTargetLock` |
+| 招式旋转 | `ActionRotationDriver` + `RotationNotifyState` + 节点 `TargetLockSettings` |
 | Logic Tick | `ActionExecutor.UpdateFrame` → `ICombatFrameConsumer` + `ActionTimelineRunner` + `IActionNotifyConsumer` |
 | 命中回流 | `HitboxFrameConsumer` → `IActionHitReceiver.NotifyHit` |
+| 命中去重 | 单次动作会话内按 `(HitboxIndex, TargetInstanceId)` 去重；每个时间轴 Hitbox 窗口可分别命中同一目标 |
+| Graph 策略编辑 | Graph Editor 在普通节点和顺序组子节点内嵌策略折叠区，直接编辑 Intent、索敌、起手行为、战斗模式切换与自动衔接 |
 | Motor | `CharacterMotor`（Locomotion 位移）+ `CharacterActor`（重力调度） |
 
 ### 关键参数（打断）
 
 | 参数 | 默认 | 说明 |
 |------|------|------|
-| `ActionDefinition.interruptPriority` | `0` | 越大越优先；同级不互硬打断 |
+| `ActionExecutionPolicy.interruptPriority` | `0` | 越大越优先；同级不互硬打断 |
 | `ActionPhaseNotifyState.interruptible` | `true` | Startup/Active/Recovery 覆盖时参与硬打断；Invincible/SuperArmor 标签不参与 |
 | Recovery `allowMovementCancel` | `true` | 有移动输入时退出 Action 返回 Locomotion |
 | Recovery `allowEntryRestart` | `true` | 有效动作缓冲按当前 Graph Entry 重开 |
@@ -453,7 +456,7 @@ ActionState.Tick
               → PlayVfxNotify 点触发 → ActionVfxPlayer.OnActionNotify（Resolve attachPointId + 显式 playbackSpeed）
               → PlaySfxNotify 点触发 → ActionSfxPlayer.OnActionNotify（pitch = playbackSpeed）
               → 其他 ActionNotifyState Enter/Tick/Exit
-      → CancelWindow / Transition（含 OnHitConfirm）
+      → CancelWindow / Graph 节点自动衔接（含 OnHitConfirm）
           → CancelWindow：汇总当前帧 Normal / Perfect；同一意图先 Perfect 后 Normal，再按显式边 / SharedRoute 解析
           → Recovery Phase：按窗口开关处理移动取消 / Graph Entry 软重开
           → NotifyActionEnded → ActionSfxPlayer.OnActionEnded → 专用 AudioSource.Stop
@@ -506,11 +509,11 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 
 | 项 | 方案 |
 |----|------|
-| 配置 | `EnemyDefinition` 只组合 CharacterConfig、BrainProfile、独立 teamId 与 HP；全部 Action 由 CharacterConfig 持有 |
+| 配置 | `EnemyDefinition` 只组合 CharacterConfig、BrainProfile、独立 teamId 与 HP；受击/死亡映射在 `CharacterConfig.Combat.Reactions` |
 | AI 输入 | `AIInputSource` 从 GameplayIntentProfile 解析 Always + Pressed → Attack 的物理 id |
 | 追击 | `EnemyBrain` 更新 facing proxy，持续写 `Move=(0, chaseMoveMagnitude)` |
 | 攻击 | Brain 只发一帧 Attack 脉冲；选招仍由 GameplayIntentProducer → CharacterActionDriver → ActionGraph |
-| 伤害与反应 | 扣血为 `ActionDefinition.BaseDamage × HitboxNotifyState.DamageWeight`；非致命命中始终触发 Hit，独立于伤害是否为 0 |
+| 伤害与反应 | `HitboxNotifyState.Payload` 持有基础伤害、HitReactionId 与反馈；`CharacterReactionService` 统一玩家/敌人事件桥接，Resolver 产出完整状态请求 |
 | 受击目标 | `CharacterHurtboxTarget` 统一玩家/敌人的 Hurtbox、阵营和生命值；自身整棵 Transform 层级均被排除 |
 | 状态 | `CharacterStateMachine` 正式注册 `HitState` / `DeathState` |
 | 生成 | `EnemySpawnController` → `SpawnEnemyCommand` → `EnemyController`；`EnemySpawnSystem` 限制存活数 |
@@ -520,15 +523,14 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 
 | 参数 | 默认 | 含义 |
 |------|------|------|
-| `ActionDefinition.baseDamage` | 10 | 招式基础伤害 |
+| `HitPayload.baseDamage` | 10 | 单个 Hitbox 的基础伤害 |
 | `CharacterCombatConfig.maxHealth` | 100 | 玩家默认生命值 |
-| `CharacterCombatConfig.hitStunAction / deathAction` | null | 玩家与敌人共用的可选受击、死亡表现 |
+| `CharacterCombatConfig.reactions` | 空规则集，默认硬直 0.35s | Resolver 按反应类型与 HitReactionId 选择表现 Action；无动作时使用规则集硬直时长 |
 | `HurtboxDefinition.localOffset` | (0, 0.9, 0) | 标准人形受击框中心，角色根位于脚底 |
 | `EnemyDefinition.teamId` | 1 | 敌人阵营；不继承复用 CharacterConfig 的玩家阵营 |
 | `EnemyBrainProfile.aggroRadius / loseAggroRadius` | 10 / 14 | 进战/脱战距离 |
 | `attackRange / stopDistance` | 2 / 1.2 | 攻击与贴身停步距离 |
 | `attackCooldownSeconds` | 1.2 | 成功起手后的攻击冷却 |
-| `hitStunSeconds` | 0.35 | 无受击 Action 时硬直 |
 
 ### 运行时流程
 
@@ -540,6 +542,8 @@ EnemyController.Update
 ApplyHitCommand
   → CharacterHurtboxTarget.OnHit
   → CharacterHealth.ApplyDamage
+      → CharacterReactionService
+      → CharacterReactionResolver（生成 CharacterReactionRequest）
       → EnterHit / EnterDeath
 ```
 
@@ -548,6 +552,7 @@ ApplyHitCommand
 ### 已知限制
 
 - 代码已编译，仍需在 Unity Editor 人工创建 EnemyDefinition、EnemyBrainProfile、敌人 CharacterConfig 与 ActionGraph 资产。
+- 本次职责重构不保留旧序列化兼容层：现有 Graph 需重填节点 Intent / 索敌 / 自动衔接，Hitbox 需重填 Payload，CharacterConfig 需重填 Reaction Rules。
 - 首版追击是直线趋近，不含 NavMesh、绕障、Strafe 与群体避让。
 - 死亡回收当前使用 Destroy；对象池可在后续替换 DespawnEnemyCommand 内实现。
 
@@ -614,3 +619,6 @@ ApplyHitCommand
 | 2026-07-29 | 敌人联调修正：EnemyDefinition 独立持有 teamId；默认 Hurtbox 中心抬高；CharacterConfig 增加玩家受击/死亡 Action |
 | 2026-07-29 | 动作配置收敛：删除 EnemyDefinition 的 hitStunAction/deathAction；玩家与敌人统一读取 CharacterConfig.Combat |
 | 2026-07-29 | 命中反馈修正：Hit 与实际扣血解耦；自击过滤覆盖完整角色层级；玩家镜头只响应玩家主动命中 |
+| 2026-07-29 | ActionDefinition 职责重构：输入/索敌/起手/自动衔接迁到 ActionGraphNode；伤害与反馈迁到 HitPayload；Controller 通过 CharacterReactionResolver 选择受击/死亡 Action |
+| 2026-07-30 | 角色反应链路收敛：CharacterReactionService 统一玩家/敌人 Health 事件；Resolver 直接产出状态请求；默认硬直时长归 CharacterReactionSet，删除 CharacterConfig/EnemyBrainProfile 双真源 |
+| 2026-07-30 | Graph Editor 增加节点内联策略编辑；命中去重改为每个 Hitbox 窗口×目标一次；HitState 支持每次有效命中强制重入并保留启动失败硬直回退 |

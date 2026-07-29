@@ -2,17 +2,10 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>招式数据：多段动画、统一时间轴、自动 Transition 与命中反馈默认参数。</summary>
+/// <summary>单个动作的播放内容：动画、统一帧时间轴与纯执行策略。</summary>
 [CreateAssetMenu(fileName = "ActionDefinition", menuName = "ACT/Combat/Action Definition")]
 public class ActionDefinition : ScriptableObject
 {
-    [HideInInspector]
-    [SerializeField] AnimationClip animationClip = null;
-
-    [Header("Trigger")]
-    [Tooltip("进入/派生到本招所需的设备无关玩法意图；Cancel 与动作图边按此枚举匹配。")]
-    [SerializeField] GameplayIntentType trigger = GameplayIntentType.None;
-
     [Header("Animation")]
     [Tooltip("按顺序播放的动画段；totalFrames 由各段有效帧累加。")]
     [SerializeField] ActionAnimationSegment[] animationSegments = Array.Empty<ActionAnimationSegment>();
@@ -22,57 +15,13 @@ public class ActionDefinition : ScriptableObject
     [SerializeField] CombatActionType actionType = CombatActionType.Attack;
     [SerializeField] float crossFadeDuration = 0.1f;
 
-    [Header("Interrupt")]
-    [Tooltip("招式打断优先级；更大则可硬打断更小者。同级不互打断，连招 Cancel 不受此限制。")]
-    [SerializeField] int interruptPriority = 0;
-
-    [Header("Damage")]
-    [Tooltip("招式基础伤害；最终伤害还会乘当前 Hitbox 的 Damage Weight。")]
-    [SerializeField] float baseDamage = 10f;
+    [Header("Execution")]
+    [Tooltip("动作自身固定的执行方式；输入、索敌与流程选择由 ActionGraph 节点负责。")]
+    [SerializeField] ActionExecutionPolicy executionPolicy = new();
 
     [Header("Timeline")]
     [Tooltip("动作帧数据唯一真源：Phase、点事件与其它区间窗口均从此处读取。")]
     [SerializeField] ActionTimeline timeline = new();
-
-    [Header("Transitions")]
-    [SerializeField] ActionTransition[] transitions = Array.Empty<ActionTransition>();
-
-    [Header("Start Behaviors")]
-    [SerializeField] ActionStartBehaviorType[] startBehaviors = Array.Empty<ActionStartBehaviorType>();
-
-    [Header("Combat Mode Switch")]
-    [Tooltip("Start Behaviors 含 SwitchCombatMode 时生效。")]
-    [SerializeField] CombatModeType switchCombatModeTarget = CombatModeType.Default;
-    [SerializeField] CombatModeSwitchPolicy switchCombatModePolicy = CombatModeSwitchPolicy.Immediate;
-
-    [Header("Camera Shake")]
-    [Tooltip("命中时使用的镜头震动预设；为空则按 ActionType 使用 CameraShakeController 默认配置。")]
-    [SerializeField] CameraShakeProfile cameraShakeProfile = null;
-    [Tooltip("勾选后禁止该招式触发镜头震动。")]
-    [SerializeField] bool disableCameraShakeOnHit = false;
-    [Tooltip("开启镜头震动；新资产默认 true。旧资产缺此字段时 Attack 仍默认开启。")]
-    [SerializeField] bool useCameraShakeOnHit = true;
-
-    [Header("Hit Stop")]
-    [Tooltip("命中时触发卡肉（顿帧）；hitStopFrames > 0 时生效。")]
-    [SerializeField] bool useHitStopOnHit = true;
-    [Tooltip("勾选后禁止该招式触发卡肉。")]
-    [SerializeField] bool disableHitStopOnHit = false;
-    [Tooltip("卡肉持续逻辑帧数（与 sampleRate 对齐）。")]
-    [SerializeField] int hitStopFrames = 3;
-    [Tooltip("勾选后每招仅第一次命中触发卡肉。")]
-    [SerializeField] bool hitStopOncePerAction = true;
-
-    [Header("Target Lock")]
-    [Tooltip("攻击旋转窗口内的自动索敌配置。")]
-    [SerializeField] TargetLockSettings targetLockSettings = new();
-
-    [Header("Movement")]
-    [Tooltip("开启时由动画 Root Motion 驱动位移，脚本位移（Displacement Distance）将被忽略。")]
-    [SerializeField] bool useRootMotion = true;
-
-    /// <summary>本招所需的设备无关玩法意图。</summary>
-    public GameplayIntentType Trigger => trigger;
 
     /// <summary>顺序动画段；运行时与编辑器均只认此列表。</summary>
     public ActionAnimationSegment[] AnimationSegments =>
@@ -94,22 +43,6 @@ public class ActionDefinition : ScriptableObject
         }
     }
 
-    /// <summary>首段 AnimationClip；兼容旧调用方的「主 Clip」查询。</summary>
-    public AnimationClip AnimationClip
-    {
-        get
-        {
-            ActionAnimationSegment[] segments = AnimationSegments;
-            for (int i = 0; i < segments.Length; i++)
-            {
-                if (segments[i].clip != null)
-                    return segments[i].clip;
-            }
-
-            return null;
-        }
-    }
-
     /// <summary>逻辑采样率；所有时间轴帧都按此值换算。</summary>
     public float SampleRate => sampleRate > 0f ? sampleRate : 30f;
 
@@ -119,38 +52,18 @@ public class ActionDefinition : ScriptableObject
     /// <summary>动作类型，用于反馈默认值和上层分类。</summary>
     public CombatActionType ActionType => actionType;
 
-    /// <summary>招式打断优先级；高优可经 Entry 硬打断低优（严格大于）。</summary>
-    public int InterruptPriority => interruptPriority;
-
-    /// <summary>招式基础伤害；非正值表示该招不造成生命值伤害。</summary>
-    public float BaseDamage => Mathf.Max(0f, baseDamage);
-
     /// <summary>切入招式首段时的默认淡入时长；段可自带 crossFadeDuration 覆盖。</summary>
     public float CrossFadeDuration => crossFadeDuration;
 
-    /// <summary>是否由动画 RootMotion 驱动位移。</summary>
-    public bool UseRootMotion => useRootMotion;
+    /// <summary>动作自身固定的执行方式。</summary>
+    public ActionExecutionPolicy ExecutionPolicy => executionPolicy ?? new ActionExecutionPolicy();
 
     /// <summary>动作帧数据唯一真源：点事件与区间窗口均从此处读取。</summary>
     public ActionTimeline Timeline => timeline ?? new ActionTimeline();
 
-    /// <summary>动作开始时执行的副作用列表。</summary>
-    public ActionStartBehaviorType[] StartBehaviors => startBehaviors ?? Array.Empty<ActionStartBehaviorType>();
-
-    /// <summary>StartBehavior 含 SwitchCombatMode 时的目标战斗模式。</summary>
-    public CombatModeType SwitchCombatModeTarget => switchCombatModeTarget;
-
-    /// <summary>StartBehavior 含 SwitchCombatMode 时的切换策略。</summary>
-    public CombatModeSwitchPolicy SwitchCombatModePolicy => switchCombatModePolicy;
-
     /// <summary>是否存在非 RootMotion 的脚本位移窗口。</summary>
-    public bool HasScriptedDisplacement => !useRootMotion && Timeline.HasScriptedMovement;
-
-    /// <summary>索敌配置；未配置时返回默认空配置。</summary>
-    public TargetLockSettings TargetLockSettings => targetLockSettings ?? new TargetLockSettings();
-
-    /// <summary>动作是否启用起手索敌。</summary>
-    public bool HasTargetLock => targetLockSettings != null && targetLockSettings.Enabled;
+    public bool HasScriptedDisplacement =>
+        !ExecutionPolicy.UseRootMotion && Timeline.HasScriptedMovement;
 
     /// <summary>攻击判定框区间列表，来自统一 Timeline。</summary>
     public HitboxNotifyState[] HitboxStates => Timeline.HitboxStates;
@@ -166,37 +79,6 @@ public class ActionDefinition : ScriptableObject
 
     /// <summary>通用点事件列表，来自统一 Timeline。</summary>
     public ActionEvent[] ActionEvents => Timeline.ActionEvents;
-
-    /// <summary>命中时镜头震动预设；可为空。</summary>
-    public CameraShakeProfile CameraShakeProfile => cameraShakeProfile;
-
-    /// <summary>该招式命中是否触发镜头震动（兼容旧 ActionDefinition 资产）。</summary>
-    public bool ShouldShakeOnHit()
-    {
-        if (disableCameraShakeOnHit)
-            return false;
-
-        if (useCameraShakeOnHit)
-            return true;
-
-        // 旧资产 YAML 无 useCameraShakeOnHit 时 Unity 反序列化为 false；Attack 仍默认震。
-        return actionType == CombatActionType.Attack;
-    }
-
-    /// <summary>卡肉持续秒数（由 hitStopFrames / sampleRate 换算）。</summary>
-    public float HitStopDurationSeconds => hitStopFrames > 0 ? hitStopFrames / SampleRate : 0f;
-
-    /// <summary>该招式命中是否触发卡肉。</summary>
-    public bool ShouldHitStopOnHit()
-    {
-        if (disableHitStopOnHit || hitStopFrames <= 0)
-            return false;
-
-        return useHitStopOnHit;
-    }
-
-    /// <summary>每招是否仅第一次命中触发卡肉。</summary>
-    public bool HitStopOncePerAction => hitStopOncePerAction;
 
     /// <summary>招式总时长（秒）；优先 totalFrames，否则回退段累加。</summary>
     public float DurationSeconds
@@ -296,42 +178,6 @@ public class ActionDefinition : ScriptableObject
     public CancelWindowNotifyState GetCancelWindow(CancelWindowType windowType) =>
         Timeline.GetCancelWindow(windowType);
 
-    /// <summary>Transition 衔接，按 priority 降序。</summary>
-    public IReadOnlyList<ActionTransition> GetTransitionsSorted()
-    {
-        if (transitions == null || transitions.Length == 0)
-            return Array.Empty<ActionTransition>();
-
-        var list = new List<ActionTransition>(transitions);
-        list.Sort((a, b) => b.Priority.CompareTo(a.Priority));
-        return list;
-    }
-
-    /// <summary>当前时刻是否满足 Transition 触发条件。</summary>
-    /// <param name="hasConfirmedHit">本招是否已命中；OnHitConfirm / OnWhiff 需要。</param>
-    public bool IsTransitionEligible(
-        ActionTransition transition,
-        float elapsedSeconds,
-        bool hasConfirmedHit = false)
-    {
-        if (transition == null || totalFrames <= 0)
-            return false;
-
-        switch (transition.Condition)
-        {
-            case ActionTransitionCondition.AnimationEnd:
-                return elapsedSeconds >= DurationSeconds;
-            case ActionTransitionCondition.AtFrame:
-                return FrameAt(elapsedSeconds) >= transition.StartFrame;
-            case ActionTransitionCondition.OnHitConfirm:
-                return hasConfirmedHit;
-            case ActionTransitionCondition.OnWhiff:
-                return elapsedSeconds >= DurationSeconds && !hasConfirmedHit;
-            default:
-                return false;
-        }
-    }
-
     /// <summary>返回指定帧上全部生效的阶段（按数组顺序）。</summary>
     public IReadOnlyList<ActionPhaseNotifyState> GetActivePhasesAtFrame(int frame) =>
         Timeline.GetActivePhaseStatesAtFrame(frame);
@@ -425,50 +271,11 @@ public class ActionDefinition : ScriptableObject
     void OnValidate()
     {
         sampleRate = Mathf.Max(1f, sampleRate);
-        MigrateLegacyAnimationClipIfNeeded();
         totalFrames = Mathf.Max(1, ComputeTotalFramesFromSegments());
 
         timeline ??= new ActionTimeline();
         timeline.ClampToTotalFrames(totalFrames);
-
-        hitStopFrames = Mathf.Max(0, hitStopFrames);
-        baseDamage = Mathf.Max(0f, baseDamage);
-    }
-
-    /// <summary>旧单字段 animationClip 迁入 animationSegments[0]；之后只认 segments。</summary>
-    void MigrateLegacyAnimationClipIfNeeded()
-    {
-        if (animationClip == null)
-            return;
-
-        bool hasSegmentClip = false;
-        if (animationSegments != null)
-        {
-            for (int i = 0; i < animationSegments.Length; i++)
-            {
-                if (animationSegments[i].clip != null)
-                {
-                    hasSegmentClip = true;
-                    break;
-                }
-            }
-        }
-
-        if (!hasSegmentClip)
-        {
-            animationSegments = new[]
-            {
-                new ActionAnimationSegment
-                {
-                    clip = animationClip,
-                    startFrame = 0,
-                    endFrame = -1,
-                    crossFadeDuration = 0f,
-                },
-            };
-        }
-
-        animationClip = null;
+        executionPolicy ??= new ActionExecutionPolicy();
     }
 
     int ComputeTotalFramesFromSegments()
@@ -510,13 +317,4 @@ public class ActionDefinition : ScriptableObject
 
         return false;
     }
-}
-
-/// <summary>招式开始时由运行时触发的副作用（朝向、切战斗模式等）。</summary>
-public enum ActionStartBehaviorType
-{
-    FaceBufferedMoveIntent = 0,
-
-    /// <summary>切换 CombatModeType，目标与策略见 ActionDefinition 的 switchCombatMode 字段。</summary>
-    SwitchCombatMode = 1,
 }

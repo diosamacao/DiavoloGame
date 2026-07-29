@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-/// <summary>ActionGraph 自定义 Inspector：多 Entry、节点/边、Trigger 预览与校验。</summary>
+/// <summary>ActionGraph 自定义 Inspector：节点意图、执行上下文、流程边与校验。</summary>
 [CustomEditor(typeof(ActionGraph))]
 public class ActionGraphInspector : Editor
 {
@@ -23,8 +23,8 @@ public class ActionGraphInspector : Editor
 
         EditorGUILayout.LabelField("Action Graph", EditorStyles.boldLabel);
         EditorGUILayout.HelpBox(
-            "勾选节点 Is Entry 作为 Locomotion 起手；同一图可有多个 Entry（Attack / Dodge 等靠 Action.Trigger 区分）。\n" +
-            "每招一个 Normal、可选一个 Perfect CancelWindow；同 Trigger 重叠时 Perfect 优先。\n" +
+            "勾选节点 Is Entry 作为 Locomotion 起手；输入 Intent、索敌、起手行为和自动衔接都配置在节点。\n" +
+            "每招一个 Normal、可选一个 Perfect CancelWindow；同 Intent 重叠时 Perfect 优先。\n" +
             "Graph Editor 可将节点合并为顺序组：每行独立 In，普通 Cancel 自动进入下一行。\n" +
             "方向闪避只保留一个 Entry + Directional Resolver，六向变体共用该逻辑节点。",
             MessageType.Info);
@@ -53,7 +53,7 @@ public class ActionGraphInspector : Editor
     {
         EditorGUILayout.LabelField("Shared Routes (Implicit)", EditorStyles.boldLabel);
         EditorGUILayout.HelpBox(
-            "显式边未匹配时才使用。Source=None 表示任意来源；按 Source Trigger + Normal/Perfect + Intent 路由。",
+            "显式边未匹配时才使用。Source=None 表示任意来源；按来源节点 Intent + Normal/Perfect + 请求 Intent 路由。",
             MessageType.None);
 
         if (GUILayout.Button("Add Shared Route"))
@@ -68,7 +68,7 @@ public class ActionGraphInspector : Editor
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     EditorGUILayout.PropertyField(
-                        route.FindPropertyRelative("sourceTrigger"),
+                        route.FindPropertyRelative("sourceIntent"),
                         new GUIContent("Source"),
                         GUILayout.MinWidth(130));
                     EditorGUILayout.PropertyField(
@@ -106,6 +106,7 @@ public class ActionGraphInspector : Editor
             SerializedProperty node = _nodes.GetArrayElementAtIndex(i);
             SerializedProperty nodeId = node.FindPropertyRelative("nodeId");
             SerializedProperty action = node.FindPropertyRelative("action");
+            SerializedProperty intent = node.FindPropertyRelative("intent");
             SerializedProperty isEntry = node.FindPropertyRelative("isEntry");
             SerializedProperty variant = node.FindPropertyRelative("variantResolver");
 
@@ -123,14 +124,28 @@ public class ActionGraphInspector : Editor
                     }
                 }
 
+                EditorGUILayout.PropertyField(intent, new GUIContent("Intent"));
                 EditorGUILayout.PropertyField(variant, new GUIContent("Variant Resolver"));
+                EditorGUILayout.PropertyField(
+                    node.FindPropertyRelative("targetLockSettings"),
+                    new GUIContent("Target Lock"),
+                    includeChildren: true);
+                EditorGUILayout.PropertyField(
+                    node.FindPropertyRelative("startBehaviors"),
+                    new GUIContent("Start Behaviors"),
+                    includeChildren: true);
+                EditorGUILayout.PropertyField(
+                    node.FindPropertyRelative("switchCombatModeTarget"));
+                EditorGUILayout.PropertyField(
+                    node.FindPropertyRelative("switchCombatModePolicy"));
+                EditorGUILayout.PropertyField(
+                    node.FindPropertyRelative("automaticTransitions"),
+                    new GUIContent("Automatic Transitions"),
+                    includeChildren: true);
 
                 ActionDefinition def = action.objectReferenceValue as ActionDefinition;
                 if (def != null)
                 {
-                    EditorGUILayout.LabelField(
-                        $"Trigger: {def.Trigger}",
-                        EditorStyles.miniLabel);
                     DrawCancelSlotsPreview(def);
                 }
             }
@@ -165,9 +180,9 @@ public class ActionGraphInspector : Editor
                     }
                 }
 
-                string triggerLabel = ResolveTargetTriggerLabel(to.stringValue);
-                if (!string.IsNullOrEmpty(triggerLabel))
-                    EditorGUILayout.LabelField($"匹配 Trigger: {triggerLabel}", EditorStyles.miniLabel);
+                string intentLabel = ResolveTargetIntentLabel(to.stringValue);
+                if (!string.IsNullOrEmpty(intentLabel))
+                    EditorGUILayout.LabelField($"匹配 Intent: {intentLabel}", EditorStyles.miniLabel);
             }
         }
     }
@@ -230,7 +245,10 @@ public class ActionGraphInspector : Editor
         string baseId = string.IsNullOrEmpty(action.name) ? "Node" : action.name;
         node.FindPropertyRelative("nodeId").stringValue = MakeUniqueNodeId(baseId);
         node.FindPropertyRelative("action").objectReferenceValue = action;
+        node.FindPropertyRelative("intent").enumValueIndex = (int)GameplayIntentType.None;
         node.FindPropertyRelative("isEntry").boolValue = false;
+        node.FindPropertyRelative("variantResolver").objectReferenceValue = null;
+        ActionGraphView.ResetNodePolicy(node);
         node.FindPropertyRelative("editorPosition").vector2Value = new Vector2(80 + index * 40, 80 + index * 24);
     }
 
@@ -259,23 +277,16 @@ public class ActionGraphInspector : Editor
         return ids;
     }
 
-    ActionDefinition FindNodeAction(string nodeId)
+    string ResolveTargetIntentLabel(string toNodeId)
     {
         for (int i = 0; i < _nodes.arraySize; i++)
         {
             SerializedProperty node = _nodes.GetArrayElementAtIndex(i);
-            if (node.FindPropertyRelative("nodeId").stringValue != nodeId)
-                continue;
-            return node.FindPropertyRelative("action").objectReferenceValue as ActionDefinition;
+            if (node.FindPropertyRelative("nodeId").stringValue == toNodeId)
+                return ((GameplayIntentType)node.FindPropertyRelative("intent").enumValueIndex).ToString();
         }
 
         return null;
-    }
-
-    string ResolveTargetTriggerLabel(string toNodeId)
-    {
-        ActionDefinition action = FindNodeAction(toNodeId);
-        return action != null ? action.Trigger.ToString() : null;
     }
 
     static void DrawCancelSlotsPreview(ActionDefinition action)
@@ -290,7 +301,7 @@ public class ActionGraphInspector : Editor
         }
     }
 
-    /// <summary>校验多 Entry Trigger、双通道边、顺序组与同路由冲突。</summary>
+    /// <summary>校验多 Entry Intent、双通道边、自动衔接、顺序组与路由冲突。</summary>
     public static void ValidateGraph(ActionGraph graph)
     {
         if (graph == null)
@@ -298,7 +309,7 @@ public class ActionGraphInspector : Editor
 
         var errors = new List<string>();
         int entryCount = 0;
-        var entryTriggers = new HashSet<GameplayIntentType>();
+        var entryIntents = new HashSet<GameplayIntentType>();
 
         foreach (ActionGraphNode node in graph.Nodes)
         {
@@ -306,18 +317,18 @@ public class ActionGraphInspector : Editor
                 continue;
 
             entryCount++;
-            GameplayIntentType trigger = node.Action.Trigger;
-            if (trigger == GameplayIntentType.None)
+            GameplayIntentType intent = node.Intent;
+            if (intent == GameplayIntentType.None)
             {
-                errors.Add($"Entry '{node.NodeId}' 的 Action.Trigger 未配置。");
+                errors.Add($"Entry '{node.NodeId}' 的 Intent 未配置。");
                 continue;
             }
 
-            // 每种 Trigger 只允许一个逻辑 Entry；Directional 变体由该 Entry 的 Resolver 折叠。
-            if (!entryTriggers.Add(trigger))
+            // 每种 Intent 只允许一个逻辑 Entry；Directional 变体由该 Entry 的 Resolver 折叠。
+            if (!entryIntents.Add(intent))
             {
                 errors.Add(
-                    $"多个 Entry 使用相同 Trigger {trigger}：'{node.NodeId}'。请折叠为一个逻辑 Entry。");
+                    $"多个 Entry 使用相同 Intent {intent}：'{node.NodeId}'。请折叠为一个逻辑 Entry。");
             }
         }
 
@@ -351,10 +362,13 @@ public class ActionGraphInspector : Editor
         foreach (ActionGraphNode node in graph.Nodes)
         {
             if (node?.Action != null)
+            {
                 ValidateCancelWindows(node.Action, errors);
+                ValidateAutomaticTransitions(graph, node, errors);
+            }
         }
 
-        var triggerKeys = new HashSet<string>();
+        var intentKeys = new HashSet<string>();
         foreach (ActionGraphEdge edge in graph.Edges)
         {
             if (edge == null)
@@ -376,16 +390,16 @@ public class ActionGraphInspector : Editor
             if (window == null)
                 errors.Add($"节点 {edge.FromNodeId} 缺少 {edge.RouteKind} CancelWindow。");
 
-            GameplayIntentType trigger = to.Action.Trigger;
-            if (trigger == GameplayIntentType.None)
+            GameplayIntentType intent = to.Intent;
+            if (intent == GameplayIntentType.None)
             {
-                errors.Add($"目标 {edge.ToNodeId} 的 Action.Trigger 未配置。");
+                errors.Add($"目标 {edge.ToNodeId} 的 Intent 未配置。");
                 continue;
             }
 
-            string edgeKey = $"{edge.FromNodeId}|{edge.RouteKind}|{trigger}";
-            if (!triggerKeys.Add(edgeKey))
-                errors.Add($"同路由 Trigger 冲突: {edge.FromNodeId}/{edge.RouteKind} → {trigger}");
+            string edgeKey = $"{edge.FromNodeId}|{edge.RouteKind}|{intent}";
+            if (!intentKeys.Add(edgeKey))
+                errors.Add($"同路由 Intent 冲突: {edge.FromNodeId}/{edge.RouteKind} → {intent}");
         }
 
         var validatedSharedRoutes = new List<ActionGraphSharedRoute>();
@@ -402,24 +416,24 @@ public class ActionGraphInspector : Editor
                 continue;
             }
 
-            if (target.Action.Trigger != route.Intent)
+            if (target.Intent != route.Intent)
             {
                 errors.Add(
                     $"Shared Route '{route.RouteKind}' Intent={route.Intent} 与目标 " +
-                    $"'{route.ToNodeId}' Trigger={target.Action.Trigger} 不一致。");
+                    $"'{route.ToNodeId}' Intent={target.Intent} 不一致。");
             }
 
             foreach (ActionGraphSharedRoute existing in validatedSharedRoutes)
             {
-                bool sourceOverlaps = existing.SourceTrigger == GameplayIntentType.None
-                    || route.SourceTrigger == GameplayIntentType.None
-                    || existing.SourceTrigger == route.SourceTrigger;
+                bool sourceOverlaps = existing.SourceIntent == GameplayIntentType.None
+                    || route.SourceIntent == GameplayIntentType.None
+                    || existing.SourceIntent == route.SourceIntent;
                 if (sourceOverlaps
                     && existing.RouteKind == route.RouteKind
                     && existing.Intent == route.Intent)
                 {
                     errors.Add(
-                        $"Shared Route 冲突: {route.SourceTrigger}/{route.RouteKind}/{route.Intent}");
+                        $"Shared Route 冲突: {route.SourceIntent}/{route.RouteKind}/{route.Intent}");
                     break;
                 }
             }
@@ -430,8 +444,8 @@ public class ActionGraphInspector : Editor
             foreach (ActionGraphNode node in graph.Nodes)
             {
                 if (node?.Action == null
-                    || (route.SourceTrigger != GameplayIntentType.None
-                        && node.Action.Trigger != route.SourceTrigger))
+                    || (route.SourceIntent != GameplayIntentType.None
+                        && node.Intent != route.SourceIntent))
                 {
                     continue;
                 }
@@ -466,14 +480,14 @@ public class ActionGraphInspector : Editor
             {
                 if (route == null
                     || route.RouteKind != edge.RouteKind
-                    || route.Intent != to.Action.Trigger
+                    || route.Intent != to.Intent
                     || route.ToNodeId != edge.ToNodeId)
                 {
                     continue;
                 }
 
-                if (route.SourceTrigger == GameplayIntentType.None
-                    || route.SourceTrigger == from.Action.Trigger)
+                if (route.SourceIntent == GameplayIntentType.None
+                    || route.SourceIntent == from.Intent)
                 {
                     errors.Add(
                         $"冗余显式边: {edge.FromNodeId}/{edge.RouteKind} → {edge.ToNodeId} " +
@@ -488,6 +502,33 @@ public class ActionGraphInspector : Editor
         {
             foreach (string error in errors)
                 Debug.LogError($"[ActionGraph] {error}", graph);
+        }
+    }
+
+    /// <summary>校验节点自动衔接目标与同优先级规则，防止流程配置悬空或不确定。</summary>
+    static void ValidateAutomaticTransitions(
+        ActionGraph graph,
+        ActionGraphNode node,
+        List<string> errors)
+    {
+        var priorities = new HashSet<int>();
+        foreach (ActionGraphTransition transition in node.AutomaticTransitions)
+        {
+            if (transition == null)
+                continue;
+
+            if (!priorities.Add(transition.Priority))
+            {
+                errors.Add(
+                    $"节点 '{node.NodeId}' 存在重复自动衔接优先级 {transition.Priority}。");
+            }
+
+            if (!string.IsNullOrEmpty(transition.TargetNodeId)
+                && !graph.TryGetNode(transition.TargetNodeId, out _))
+            {
+                errors.Add(
+                    $"节点 '{node.NodeId}' 的自动衔接目标无效: {transition.TargetNodeId}");
+            }
         }
     }
 

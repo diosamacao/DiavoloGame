@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-/// <summary>单招索敌配置：范围、扇形与选择策略。</summary>
+/// <summary>动作图节点的索敌配置：范围、扇形与选择策略。</summary>
 [Serializable]
 public class TargetLockSettings
 {
@@ -17,6 +17,8 @@ public class TargetLockSettings
     public float LockRange => Mathf.Max(0f, lockRange);
     public float ForwardConeAngle => Mathf.Clamp(forwardConeAngle, 0f, 360f);
     public TargetSelectionPolicy Policy => policy;
+    /// <summary>节点索敌转向平滑覆盖；非正值表示使用旋转窗口值。</summary>
+    public float LockRotationSmoothTimeOverride => lockRotationSmoothTimeOverride;
 
     /// <summary>是否启用前方扇形过滤（全向时不过滤）。</summary>
     public bool UsesForwardConeFilter =>

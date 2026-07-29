@@ -117,6 +117,10 @@ public static class ActionNotifySelectionDrawer
             EditorGUILayout.IntField("Total Frames", action.TotalFrames);
         EditorGUILayout.PropertyField(so.FindProperty("actionType"));
         EditorGUILayout.PropertyField(so.FindProperty("crossFadeDuration"));
+        EditorGUILayout.PropertyField(
+            so.FindProperty("executionPolicy"),
+            new GUIContent("Execution Policy"),
+            includeChildren: true);
 
         if (!action.HasAnimation)
             EditorGUILayout.HelpBox("请在 Animation 轨添加并绑定 Clip，否则无法预览 Pose。", MessageType.Warning);
@@ -154,14 +158,15 @@ public static class ActionNotifySelectionDrawer
 
     static void DrawHitbox(SerializedProperty element)
     {
-        EditorGUILayout.PropertyField(element.FindPropertyRelative("hitboxId"));
         EditorGUILayout.PropertyField(element.FindPropertyRelative("shape"));
         EditorGUILayout.PropertyField(element.FindPropertyRelative("attachPointId"));
         EditorGUILayout.PropertyField(element.FindPropertyRelative("localOffset"));
         EditorGUILayout.PropertyField(element.FindPropertyRelative("localEulerAngles"));
         EditorGUILayout.PropertyField(element.FindPropertyRelative("size"));
-        EditorGUILayout.PropertyField(element.FindPropertyRelative("damageWeight"));
-        EditorGUILayout.PropertyField(element.FindPropertyRelative("hitReactionId"));
+        EditorGUILayout.PropertyField(
+            element.FindPropertyRelative("payload"),
+            new GUIContent("Hit Payload"),
+            includeChildren: true);
     }
 
     static void DrawHurtbox(SerializedProperty element)
