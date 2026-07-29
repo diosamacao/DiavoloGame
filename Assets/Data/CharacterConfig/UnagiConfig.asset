@@ -35,3 +35,11 @@ MonoBehaviour:
     teamId: 0
     attachPointName: 
     aimOriginName: 
+    hurtbox:
+      localOffset: {x: 0, y: 0.9, z: 0}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 0.8, y: 1.8, z: 0.8}
+    maxHealth: 100
+    hitStunSeconds: 0.35
+    hitStunAction: {fileID: 11400000, guid: 6a3af5227e89b3f46876462f3c5131d4, type: 2}
+    deathAction: {fileID: 11400000, guid: c958561b56f1ebf4d9d539a7f22cf739, type: 2}

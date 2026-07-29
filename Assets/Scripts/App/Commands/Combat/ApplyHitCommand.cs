@@ -21,10 +21,14 @@ public sealed class ApplyHitCommand : ArchitectureCommandBase
         _targetTransform = targetTransform;
     }
 
-    /// <summary>执行命中结算入口；伤害系统接入后应在此处扩展。</summary>
+    /// <summary>执行命中结算；IHurtboxTarget 负责把上下文换算为自身伤害与受击响应。</summary>
     protected override void OnExecute()
     {
         if (_context.Action == null)
+            return;
+
+        // 即使未来新增非 HitDetector 命中入口，也不能让角色自身层级产生伤害与反馈事件。
+        if (IsSameHierarchy(_context.Attacker, _targetTransform))
             return;
 
         _target?.OnHit(in _context);
@@ -51,5 +55,16 @@ public sealed class ApplyHitCommand : ArchitectureCommandBase
         Vector3 forward = attacker.forward;
         forward.y = 0f;
         return forward.sqrMagnitude > 0.0001f ? forward.normalized : Vector3.forward;
+    }
+
+    /// <summary>判断攻击者与目标是否属于同一角色层级。</summary>
+    static bool IsSameHierarchy(Transform attacker, Transform target)
+    {
+        if (attacker == null || target == null)
+            return false;
+
+        return target == attacker
+            || target.IsChildOf(attacker)
+            || attacker.IsChildOf(target);
     }
 }

@@ -16,7 +16,7 @@ public class CameraShakeController : AppControllerBase
 
     [Header("Fallback Shake")]
     [Tooltip("ActionDefinition 未指定 Profile 且为 Attack 时使用。")]
-    [SerializeField] CameraShakeProfile defaultAttackShake;
+    [SerializeField] CameraShakeProfile defaultAttackShake = null;
     [Tooltip("ActionDefinition 未指定 Profile 时的内联默认值。")]
     [SerializeField] CameraShakeSettings fallbackAttackSettings = CameraShakeSettings.DefaultLight;
 
@@ -65,6 +65,11 @@ public class CameraShakeController : AppControllerBase
     /// <summary>AttackHitEvent 命中回调。</summary>
     void HandleAttackHit(AttackHitEvent hitEvent)
     {
+        // 玩家镜头只响应玩家主动命中；敌人命中玩家仍保留卡肉与受击表现，但不复用进攻震屏。
+        Transform attacker = hitEvent.Context.Attacker;
+        if (attacker == null || attacker.GetComponent<PlayerController>() == null)
+            return;
+
         PlayFromAction(hitEvent.Context.Action, hitEvent.HitDirection);
     }
 

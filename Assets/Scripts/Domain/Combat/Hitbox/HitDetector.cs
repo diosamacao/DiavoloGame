@@ -10,6 +10,7 @@ public static class HitDetector
         ActionDefinition action,
         int frame,
         Transform root,
+        int attackerTeamId,
         Func<HitboxNotifyState, Transform> resolveAnchor,
         HashSet<(string HitboxId, int TargetId)> hitPairs,
         IActionHitReceiver hitReceiver,
@@ -32,6 +33,18 @@ public static class HitDetector
                 if (target == null)
                     continue;
 
+                // 模型子层级可能残留 HurtboxTarget；整棵角色层级都视为自身，禁止生成命中事件。
+                if (IsSameHierarchy(root, target.TargetTransform))
+                {
+                    continue;
+                }
+
+                if (target is ITargetable targetable
+                    && (!targetable.IsAlive || targetable.TeamId == attackerTeamId))
+                {
+                    continue;
+                }
+
                 var pair = (hitbox.HitboxId, target.TargetInstanceId);
                 if (hitPairs.Contains(pair))
                     continue;
@@ -41,9 +54,19 @@ public static class HitDetector
 
                 hitPairs.Add(pair);
                 var context = new ActionHitContext(action, hitbox, root);
-                Transform targetTransform = (target as Component)?.transform;
-                hitDetected.Invoke(context, target, hitReceiver, targetTransform);
+                hitDetected.Invoke(context, target, hitReceiver, target.TargetTransform);
             }
         }
+    }
+
+    /// <summary>判断两个 Transform 是否属于同一角色层级。</summary>
+    static bool IsSameHierarchy(Transform root, Transform target)
+    {
+        if (root == null || target == null)
+            return false;
+
+        return target == root
+            || target.IsChildOf(root)
+            || root.IsChildOf(target);
     }
 }

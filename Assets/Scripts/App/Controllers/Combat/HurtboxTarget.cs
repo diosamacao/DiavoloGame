@@ -14,6 +14,9 @@ public class HurtboxTarget : AppControllerBase, ITargetable
 
     public int TargetInstanceId => gameObject.GetInstanceID();
 
+    /// <summary>静态受击目标根节点。</summary>
+    public Transform TargetTransform => transform;
+
     /// <summary>索敌瞄准点；未绑定时回退到自身 Transform。</summary>
     public Transform AimTransform => aimPoint != null ? aimPoint : transform;
 

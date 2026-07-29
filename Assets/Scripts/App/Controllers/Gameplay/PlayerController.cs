@@ -9,9 +9,14 @@ public class PlayerController : AppControllerBase
     [SerializeField] Transform cameraTransform;
 
     CharacterActor actor;
+    CharacterHealth health;
+    CharacterHurtboxTarget hurtboxTarget;
 
     /// <summary>玩家输入中枢，供 CameraManager 读取视角输入。</summary>
     public InputManager Input => actor?.Input;
+
+    /// <summary>玩家当前生命值；运行时未创建时为 0。</summary>
+    public float CurrentHealth => health != null ? health.CurrentHealth : 0f;
 
     void Awake()
     {
@@ -38,6 +43,7 @@ public class PlayerController : AppControllerBase
             gameObject,
             transform,
             characterConfig,
+            characterConfig.Combat.TeamId,
             inputSource,
             cameraTransform,
             () => SendQuery(new GetActiveTargetsQuery()),
@@ -45,7 +51,18 @@ public class PlayerController : AppControllerBase
             out ActionExecutor actionExecutor,
             out CharacterAnimationService animation);
 
+        health = new CharacterHealth(characterConfig.Combat.MaxHealth);
+        hurtboxTarget = new CharacterHurtboxTarget(
+            transform,
+            transform,
+            characterConfig.Combat.TeamId,
+            characterConfig.Combat.Hurtbox,
+            health);
+        health.HitReceived += OnHitReceived;
+        health.Died += OnDied;
+
         GetSystem<CombatActorSystem>()?.Register(transform, actor, actionExecutor, animation);
+        GetSystem<TargetSystem>()?.Register(hurtboxTarget);
     }
 
     void OnEnable()
@@ -60,9 +77,18 @@ public class PlayerController : AppControllerBase
 
     void OnDestroy()
     {
+        if (health != null)
+        {
+            health.HitReceived -= OnHitReceived;
+            health.Died -= OnDied;
+        }
+
+        GetSystem<TargetSystem>()?.Unregister(hurtboxTarget);
         GetSystem<CombatActorSystem>()?.Unregister(transform);
         actor?.Dispose();
         actor = null;
+        health = null;
+        hurtboxTarget = null;
     }
 
     void Update()
@@ -85,6 +111,20 @@ public class PlayerController : AppControllerBase
         Transform targetTransform)
     {
         SendCommand(new ApplyHitCommand(context, target, hitReceiver, targetTransform));
+    }
+
+    /// <summary>玩家收到非致命命中时进入正式 Hit 状态，反应不依赖实际扣血量。</summary>
+    void OnHitReceived(ActionHitContext context)
+    {
+        actor?.EnterHit(
+            characterConfig.Combat.HitStunSeconds,
+            characterConfig.Combat.HitStunAction);
+    }
+
+    /// <summary>玩家生命值归零时进入 Death 终态。</summary>
+    void OnDied(ActionHitContext context, float damage)
+    {
+        actor?.EnterDeath(characterConfig.Combat.DeathAction);
     }
 
     /// <summary>玩家装配前确保场景存在统一战斗世界入口。</summary>

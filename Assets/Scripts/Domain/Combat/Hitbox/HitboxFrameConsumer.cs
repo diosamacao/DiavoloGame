@@ -6,6 +6,7 @@ using UnityEngine;
 public sealed class HitboxFrameConsumer : ICombatFrameConsumer
 {
     readonly Transform root;
+    readonly int attackerTeamId;
     readonly CharacterAttachPointResolver attachPoints;
     readonly ActionExecutor actionExecutor;
     readonly Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider;
@@ -23,12 +24,14 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
     /// <summary>创建纯 C# Hitbox 帧消费者；按 Hitbox.attachPointId 解析挂点。</summary>
     public HitboxFrameConsumer(
         Transform actorRoot,
+        int teamId,
         ActionExecutor executor,
         CharacterAttachPointResolver attachPointResolver,
         Func<IReadOnlyList<IHurtboxTarget>> targetsProvider,
         Action<ActionHitContext, IHurtboxTarget, IActionHitReceiver, Transform> onHitDetected)
     {
         root = actorRoot;
+        attackerTeamId = teamId;
         actionExecutor = executor;
         attachPoints = attachPointResolver;
         activeTargetsProvider = targetsProvider;
@@ -64,6 +67,7 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
             action,
             frame,
             root,
+            attackerTeamId,
             ResolveHitboxAnchor,
             _hitPairs,
             actionExecutor,

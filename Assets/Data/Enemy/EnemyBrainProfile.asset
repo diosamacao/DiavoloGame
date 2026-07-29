@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 63ab483329ea5d74088ebb2a4dda52a8, type: 3}
+  m_Name: EnemyBrainProfile
+  m_EditorClassIdentifier: 
+  aggroRadius: 10
+  loseAggroRadius: 14
+  attackRange: 2
+  attackCooldownSeconds: 1.2
+  chaseMoveMagnitude: 1
+  stopDistance: 1.2
+  hitStunSeconds: 0.35
+  repathIntervalSeconds: 0.1
+  faceTargetWhileChase: 1
+  failedAttackRetrySeconds: 0.2
+  deathDespawnDelaySeconds: 0.5

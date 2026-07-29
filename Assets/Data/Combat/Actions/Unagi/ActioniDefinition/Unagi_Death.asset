@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
+  m_Name: Unagi_Death
+  m_EditorClassIdentifier: 
+  animationClip: {fileID: 0}
+  trigger: 0
+  animationSegments:
+  - clip: {fileID: 5985913580178590388, guid: c0a7b7914847bb24698561de93b01d56, type: 3}
+    startFrame: 0
+    endFrame: -1
+    crossFadeDuration: 0
+  sampleRate: 30
+  totalFrames: 26
+  actionType: 0
+  crossFadeDuration: 0.1
+  interruptPriority: 0
+  baseDamage: 10
+  timeline:
+    actionEvents: []
+    playVfxNotifies: []
+    playSfxStates: []
+    hitboxStates: []
+    hurtboxStates: []
+    cancelWindowStates: []
+    phaseStates: []
+    movementStates: []
+    rotationStates: []
+    tracks: []
+  transitions: []
+  startBehaviors: 
+  switchCombatModeTarget: 0
+  switchCombatModePolicy: 0
+  cameraShakeProfile: {fileID: 0}
+  disableCameraShakeOnHit: 0
+  useCameraShakeOnHit: 1
+  useHitStopOnHit: 1
+  disableHitStopOnHit: 0
+  hitStopFrames: 3
+  hitStopOncePerAction: 1
+  targetLockSettings:
+    enabled: 0
+    lockRange: 8
+    forwardConeAngle: 120
+    policy: 0
+    lockRotationSmoothTimeOverride: 0
+  useRootMotion: 1

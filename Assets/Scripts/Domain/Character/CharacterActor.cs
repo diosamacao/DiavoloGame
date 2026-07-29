@@ -30,6 +30,12 @@ public sealed class CharacterActor : System.IDisposable
     /// <summary>当前战斗模式服务。</summary>
     public ICombatModeService CombatMode => _combatMode;
 
+    /// <summary>当前顶层角色状态，供 AI 感知与生命周期控制器读取。</summary>
+    public CharacterStateType CurrentState => _stateMachine.CurrentStateId;
+
+    /// <summary>死亡动作是否已播放完成。</summary>
+    public bool DeathPresentationComplete => _stateMachine.DeathPresentationComplete;
+
     /// <summary>创建角色实例；所有依赖由工厂一次性注入。</summary>
     public CharacterActor(
         ICharacterInputSource inputSource,
@@ -63,6 +69,25 @@ public sealed class CharacterActor : System.IDisposable
         _motor.SetCameraTransform(cameraTransform);
     }
 
+    /// <summary>中断当前行为并进入受击硬直；可选 Action 只作为表现，不参与选招。</summary>
+    public void EnterHit(float durationSeconds, ActionDefinition hitAction = null)
+    {
+        if (CurrentState == CharacterStateType.Death)
+            return;
+
+        ClearControlledInput();
+        var request = new CharacterReactionRequest(durationSeconds, hitAction);
+        _stateMachine.EnterHit(in request);
+    }
+
+    /// <summary>中断当前行为并进入不可逆死亡状态。</summary>
+    public void EnterDeath(ActionDefinition deathAction = null)
+    {
+        ClearControlledInput();
+        var request = new CharacterReactionRequest(0f, deathAction);
+        _stateMachine.EnterDeath(in request);
+    }
+
     /// <summary>按固定顺序推进输入、动作路由、重力、状态机与动画淡入。</summary>
     public void Tick(float deltaTime)
     {
@@ -77,4 +102,12 @@ public sealed class CharacterActor : System.IDisposable
 
     /// <summary>释放动画 PlayableGraph 等资源。</summary>
     public void Dispose() => _animation?.Dispose();
+
+    /// <summary>受击与死亡优先级高于输入，必须同步清掉连续量和动作缓冲。</summary>
+    void ClearControlledInput()
+    {
+        _inputManager.IngestFrame(PlayerInputFrame.Empty);
+        _inputManager.ClearBufferedMoveIntent();
+        _actionDriver.ClearPendingActions();
+    }
 }
