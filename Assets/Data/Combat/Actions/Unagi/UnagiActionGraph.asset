@@ -143,7 +143,7 @@ MonoBehaviour:
     editorPosition: {x: 1512, y: -854}
   - nodeId: Unagi_Attack_Branch_02
     action: {fileID: 11400000, guid: 36239327dd50e6945a178edda90d407e, type: 2}
-    intent: 0
+    intent: 6
     isEntry: 1
     variantResolver: {fileID: 0}
     startBehaviors: 
@@ -175,7 +175,7 @@ MonoBehaviour:
     editorPosition: {x: 724.6667, y: 182}
   - nodeId: Unagi_Attack_Branch_03
     action: {fileID: 11400000, guid: 7a7e279f3fea53544be07873000e4b92, type: 2}
-    intent: 0
+    intent: 6
     isEntry: 0
     variantResolver: {fileID: 0}
     startBehaviors: 
@@ -239,7 +239,7 @@ MonoBehaviour:
     editorPosition: {x: -31.333334, y: 36.666664}
   - nodeId: Unagi_Dodge_Forward
     action: {fileID: 11400000, guid: 9b8a4ec0ba7bc3840a101d608c26e9f0, type: 2}
-    intent: 0
+    intent: 4
     isEntry: 1
     variantResolver: {fileID: 11400000, guid: cd749318cea11fe4992142b817d6d890, type: 2}
     startBehaviors: 

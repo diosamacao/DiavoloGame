@@ -12,8 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
   m_Name: Unagi_Dodge_Forward_Right
   m_EditorClassIdentifier: 
-  animationClip: {fileID: 0}
-  trigger: 4
   animationSegments:
   - clip: {fileID: 3016590578434544778, guid: 73f30d999b5b3ca488c80fb91e56ed69, type: 3}
     startFrame: 0
@@ -23,7 +21,9 @@ MonoBehaviour:
   totalFrames: 116
   actionType: 1
   crossFadeDuration: 0.1
-  interruptPriority: 10
+  executionPolicy:
+    interruptPriority: 50
+    useRootMotion: 1
   timeline:
     actionEvents: []
     playVfxNotifies: []
@@ -56,21 +56,3 @@ MonoBehaviour:
     - trackName: Phase_1
       kind: 8
       visible: 1
-  transitions: []
-  startBehaviors: 
-  switchCombatModeTarget: 0
-  switchCombatModePolicy: 0
-  cameraShakeProfile: {fileID: 0}
-  disableCameraShakeOnHit: 0
-  useCameraShakeOnHit: 1
-  useHitStopOnHit: 1
-  disableHitStopOnHit: 0
-  hitStopFrames: 3
-  hitStopOncePerAction: 1
-  targetLockSettings:
-    enabled: 0
-    lockRange: 8
-    forwardConeAngle: 120
-    policy: 0
-    lockRotationSmoothTimeOverride: 0
-  useRootMotion: 1

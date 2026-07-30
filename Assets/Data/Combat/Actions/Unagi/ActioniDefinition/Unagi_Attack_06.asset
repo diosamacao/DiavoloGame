@@ -67,7 +67,79 @@ MonoBehaviour:
     hitboxStates:
     - id: Hitbox_1
       startFrame: 5
+      endFrame: 7
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 0}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 10
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 1
+          hitStopFrames: 3
+          hitStopOncePerAction: 1
+    - id: Hitbox_2
+      startFrame: 8
       endFrame: 10
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 0}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 10
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 1
+          hitStopFrames: 3
+          hitStopOncePerAction: 1
+    - id: Hitbox_3
+      startFrame: 11
+      endFrame: 14
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 0}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 10
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 1
+          hitStopFrames: 3
+          hitStopOncePerAction: 1
+    - id: Hitbox_4
+      startFrame: 15
+      endFrame: 17
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 0}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 10
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 1
+          hitStopFrames: 3
+          hitStopOncePerAction: 1
+    - id: Hitbox_5
+      startFrame: 18
+      endFrame: 20
       priority: 0
       trackName: Hitbox_1
       shape: 0

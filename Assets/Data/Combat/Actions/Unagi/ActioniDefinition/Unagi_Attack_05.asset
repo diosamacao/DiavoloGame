@@ -70,7 +70,6 @@ MonoBehaviour:
       endFrame: 5
       priority: 0
       trackName: Hitbox_1
-      hitboxId: 
       shape: 0
       attachPointId: 
       localOffset: {x: 0, y: 1, z: 0}
@@ -89,7 +88,6 @@ MonoBehaviour:
       endFrame: 8
       priority: 0
       trackName: Hitbox_1
-      hitboxId: 
       shape: 0
       attachPointId: 
       localOffset: {x: 0, y: 1, z: 0}
@@ -108,7 +106,42 @@ MonoBehaviour:
       endFrame: 11
       priority: 0
       trackName: Hitbox_1
-      hitboxId: 
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 0}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 10
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 1
+          hitStopFrames: 3
+          hitStopOncePerAction: 1
+    - id: Hitbox_4
+      startFrame: 13
+      endFrame: 14
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 0}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 10
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 1
+          hitStopFrames: 3
+          hitStopOncePerAction: 1
+    - id: Hitbox_5
+      startFrame: 16
+      endFrame: 17
+      priority: 0
+      trackName: Hitbox_1
       shape: 0
       attachPointId: 
       localOffset: {x: 0, y: 1, z: 0}
