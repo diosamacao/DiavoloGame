@@ -19,7 +19,8 @@ public static class CharacterActorFactory
         out CharacterAnimationService animation)
     {
         CharacterMotorConfig motorConfig = config.Motor;
-        Transform modelRoot = SpawnModelInstance(config, root);
+        Transform presentationRoot = CreatePresentationRoot(root);
+        Transform modelRoot = SpawnModelInstance(config, presentationRoot);
         Animator animator = modelRoot.GetComponentInChildren<Animator>();
         if (animator == null)
             throw new MissingComponentException("CharacterActorFactory: ModelPrefab 中找不到 Animator。");
@@ -108,7 +109,8 @@ public static class CharacterActorFactory
             stateMachine,
             actionDriver,
             combatMode,
-            animation);
+            animation,
+            new CharacterPresentationBridge(root, presentationRoot));
 
         var rotationDriver = new ActionRotationDriver(
             root,
@@ -130,6 +132,15 @@ public static class CharacterActorFactory
         modelTransform.localPosition = config.ModelLocalPosition;
         modelTransform.localRotation = config.ModelLocalRotation;
         return modelTransform;
+    }
+
+    /// <summary>创建与权威根分离的运行时表现锚点，模型只在该锚点下接受渲染插值。</summary>
+    static Transform CreatePresentationRoot(Transform simulationRoot)
+    {
+        var presentationObject = new GameObject("CharacterPresentationRoot");
+        Transform presentationRoot = presentationObject.transform;
+        presentationRoot.SetParent(simulationRoot, false);
+        return presentationRoot;
     }
 
     static CharacterController GetOrAddCharacterController(GameObject owner)

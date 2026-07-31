@@ -25,21 +25,24 @@ public sealed class ActionRotationDriver
         targetLock = lockState;
     }
 
-    /// <summary>Action 状态下推进索敌和旋转窗口。</summary>
-    public void Tick()
+    /// <summary>Action 状态下按固定逻辑步长推进索敌和旋转窗口。</summary>
+    public void Tick(float fixedDeltaSeconds)
     {
         ActionSession session = actionExecutor.Session;
         targetLock.Tick(session);
-        TryApplyActionRotation();
+        TryApplyActionRotation(fixedDeltaSeconds);
     }
 
+    /// <summary>离开 Action 时清空旋转阻尼，避免下一招继承旧角速度。</summary>
+    public void Reset() => _rotationVelocity = 0f;
+
     /// <summary>旋转窗口内解析旋转方向：索敌默认，仅反向输入（Dot&lt;0）才改用输入方向。</summary>
-    void TryApplyActionRotation()
+    void TryApplyActionRotation(float fixedDeltaSeconds)
     {
         if (!TryResolveActionRotationDirection(out Vector3 direction, out float smoothTime))
             return;
 
-        _actorRoot.rotation = GetSmoothedRotation(direction, smoothTime);
+        _actorRoot.rotation = GetSmoothedRotation(direction, smoothTime, fixedDeltaSeconds);
     }
 
     /// <summary>旋转窗口内解析最终转向方向与平滑时间。</summary>
@@ -94,18 +97,26 @@ public sealed class ActionRotationDriver
         return direction.sqrMagnitude > 0.001f;
     }
 
-    /// <summary>按指定平滑时间将朝向转向 direction；smoothTime 极小时瞬时对齐。</summary>
-    Quaternion GetSmoothedRotation(Vector3 direction, float smoothTime)
+    /// <summary>按指定平滑时间和固定步长转向；smoothTime 极小时瞬时对齐。</summary>
+    Quaternion GetSmoothedRotation(
+        Vector3 direction,
+        float smoothTime,
+        float fixedDeltaSeconds)
     {
         if (smoothTime <= 0.001f)
+        {
+            _rotationVelocity = 0f;
             return Quaternion.LookRotation(direction);
+        }
 
         float targetAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
         float angle = Mathf.SmoothDampAngle(
             _actorRoot.eulerAngles.y,
             targetAngle,
             ref _rotationVelocity,
-            smoothTime);
+            smoothTime,
+            Mathf.Infinity,
+            Mathf.Max(0f, fixedDeltaSeconds));
 
         return Quaternion.Euler(0f, angle, 0f);
     }

@@ -1,0 +1,108 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>场景中唯一的 Unity 时间入口，把渲染帧时间转换为固定 60Hz SimulationWorld Step。</summary>
+[DefaultExecutionOrder(-100)]
+[DisallowMultipleComponent]
+public sealed class SimulationHost : AppControllerBase
+{
+    readonly Dictionary<SimActorId, EnemyController> _enemyControllers = new();
+    readonly List<EnemyController> _enemyStepSnapshot = new();
+
+    SimulationConfig _config;
+    FixedStepAccumulator _accumulator;
+    SimulationWorld _world;
+
+    /// <summary>最近完成的逻辑帧；尚未推进时为 -1。</summary>
+    public long CurrentFrame => _world?.CurrentFrame ?? -1;
+
+    /// <summary>当前固定逻辑帧秒数。</summary>
+    public float FixedDeltaSeconds =>
+        _config?.FixedDeltaSeconds ?? 1f / SimulationConfig.DefaultLogicHz;
+
+    /// <summary>当前场景纯 C# 模拟世界；只读暴露给调试和后续网络宿主。</summary>
+    public SimulationWorld World => _world;
+
+    void Awake()
+    {
+        _config = new SimulationConfig();
+        _accumulator = new FixedStepAccumulator(
+            _config.FixedDeltaSeconds,
+            _config.MaxFrameCatchUp);
+        _world = new SimulationWorld(_config);
+    }
+
+    void Update()
+    {
+        _world.SampleRenderFrame();
+        int stepCount = _accumulator.ConsumeSteps(Time.deltaTime);
+        for (int i = 0; i < stepCount; i++)
+        {
+            _world.Step();
+            ProcessEnemyLifecycleAfterStep();
+        }
+    }
+
+    void LateUpdate()
+    {
+        // 模型先完成 Pose 插值，默认顺序的 CameraManager.LateUpdate 再读取同一表现帧。
+        _world.Render(_accumulator.InterpolationAlpha);
+    }
+
+    void OnDestroy()
+    {
+        _enemyStepSnapshot.Clear();
+        _enemyControllers.Clear();
+        _accumulator?.Reset();
+        _world = null;
+    }
+
+    /// <summary>把玩家 Actor 注册到固定帧 World，并返回对称注销句柄。</summary>
+    public SimActorRegistration RegisterPlayer(CharacterActor actor)
+    {
+        if (actor == null)
+            throw new ArgumentNullException(nameof(actor));
+
+        return _world.Register(actor);
+    }
+
+    /// <summary>把敌人句柄注册到固定帧 World，并保留 Controller 处理帧后 App 生命周期。</summary>
+    public SimActorRegistration RegisterEnemy(EnemyHandle handle, EnemyController controller)
+    {
+        if (handle == null)
+            throw new ArgumentNullException(nameof(handle));
+        if (controller == null)
+            throw new ArgumentNullException(nameof(controller));
+
+        SimActorRegistration registration = _world.Register(handle);
+        _enemyControllers.Add(registration.Id, controller);
+        return registration;
+    }
+
+    /// <summary>注销玩家或敌人 Actor；重复注销安全返回 false。</summary>
+    public bool Unregister(SimActorRegistration registration)
+    {
+        if (!registration.IsValid || _world == null)
+            return false;
+
+        _enemyControllers.Remove(registration.Id);
+        return _world.Unregister(registration);
+    }
+
+    /// <summary>在每个逻辑帧结束后集中执行敌人死亡注销与回收 Command。</summary>
+    void ProcessEnemyLifecycleAfterStep()
+    {
+        _enemyStepSnapshot.Clear();
+        foreach (EnemyController controller in _enemyControllers.Values)
+            _enemyStepSnapshot.Add(controller);
+
+        // Unity Destroy 延迟到当前 Update 末尾；快照避免回收回调改变字典枚举。
+        for (int i = 0; i < _enemyStepSnapshot.Count; i++)
+        {
+            EnemyController controller = _enemyStepSnapshot[i];
+            if (controller != null)
+                controller.ProcessPostSimulationStep();
+        }
+    }
+}

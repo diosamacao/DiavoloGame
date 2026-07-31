@@ -8,7 +8,7 @@
 2. **Controller 只做 Scene 入口**：PlayerController 通过 CharacterConfig 创建纯 C# `CharacterActor`；业务不再挂载到 Player 根对象
 3. **Combat 与 Character 解耦**：Hitbox 拉取 `IActionExecutor`；Character State 只 Tick Executor
 4. **QFramework 风格跨系统通信**：跨系统使用 `ACTGameArchitecture`、System、Command、Query、Event；进入 IOC 的对象必须实现对应契约或基类，动作帧内部保留强时序直连
-4. **Logic Tick = 编辑器帧**：`UpdateFrame` 统一 Play Mode 与 ActionEditor Scrub
+4. **单一固定逻辑时钟**：`SimulationHost` 统一驱动 Runtime；ActionEditor 与 Runtime 的纯帧查询在 L1B 收敛
 5. **数据驱动**：数值、动画映射、技能表进 ScriptableObject（Assets/Data/）
 6. **小步可验证**：每步可在 Play Mode 单独验证移动/动画/战斗
 
@@ -68,6 +68,25 @@
 
 **状态**：代码闭环完成（2026-07-29），资产待绑
 
+### [P1] Lockstep 模拟核迁移
+
+**方案**：`docs/ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md`
+
+**已完成：**
+
+- [x] 2026-07-31 L0A：`SimulationHost` + 60Hz accumulator + `SimulationWorld`
+- [x] 2026-07-31 L0A：玩家/敌人删除 Controller 分散 Tick，统一实现 `ISimulationActor.Step`
+- [x] 2026-07-31 L0A：单调 `SimActorId`、稳定 Actor 顺序、OnEnable/OnDisable 对称注册
+- [x] 2026-07-31 L0A：渲染帧输入边沿汇聚，避免高 FPS 无逻辑 Step 时漏输入
+- [x] 2026-07-31 L0A：模型/相机前后 Pose 插值；旋转阻尼改用显式 fixed delta
+- [x] 2026-07-31 L0A：新增无 Unity 引用的 `ACTGame.Simulation` asmdef 与 EditMode 测试
+
+**下一步：**
+
+- [ ] L0B：量化 `InputFrame`、玩家/AI/回放统一输入边界、Intent/Buffer 帧计时
+- [ ] L0C：HitEvent 延迟收集、稳定排序与帧末结算
+- [ ] L1：Action 整数帧权威与逻辑/表现拆分
+
 ## 待建设模块
 
 | 模块 | 优先级 | 说明 |
@@ -86,7 +105,7 @@
 - [x] 2026-06-29：QFramework 风格强类型契约落地（`ArchitectureSystemBase`、`AppControllerBase`、`ArchitectureCommandBase`、`ArchitectureQueryBase`、`IArchitectureEvent`）
 - [x] 2026-06-29：Domain 命中/索敌入口移除直接 `ACTGameArchitecture.Interface` 依赖，改为目标集合注入、`GetActiveTargetsQuery` 与 App 层 Command 编排
 - [x] 2026-06-29：新增 Editor 架构边界校验，检查 `System` / `Controller` / `Event` 契约和 Domain 单例访问
-- [ ] 无 asmdef，全项目单一 Assembly-CSharp
+- [ ] 仅 `Domain/Simulation` 已拆 asmdef；其余业务仍在单一 Assembly-CSharp
 
 ## 已完成
 
@@ -110,6 +129,7 @@
 - [x] 2026-07-29：敌人系统——共享 CharacterActor、五态 Brain、AI 输入、伤害/Hit/Death、Spawn/Despawn 与阵营过滤
 - [x] 2026-07-29：动作职责重构——GraphNode 成为输入/流程/索敌真源，HitPayload 成为伤害/反馈真源，CharacterReactionResolver 承接受击/死亡选招
 - [x] 2026-07-30：角色反应闭环去重——Resolver 生成完整请求，ReactionService 统一 Health 事件与 Actor 入口，删除 CharacterConfig/EnemyBrainProfile 硬直双真源
+- [x] 2026-07-31：Lockstep L0A——场景唯一 60Hz SimulationHost、稳定 SimActorId/World、Controller Tick 单轨切换与纯 C# 测试
 
 ## 剩余项
 

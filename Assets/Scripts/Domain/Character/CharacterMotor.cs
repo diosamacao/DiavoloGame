@@ -62,7 +62,7 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         Vector3 moveDirection = ResolveWorldMoveDirection(moveIntent);
         _moveInputMagnitude = _input.MoveMagnitude;
 
-        ApplyRotation(command, moveDirection);
+        ApplyRotation(command, moveDirection, deltaTime);
 
         if (!command.ApplyHorizontalMove || moveDirection.sqrMagnitude <= 0.001f)
         {
@@ -98,13 +98,21 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     }
 
     /// <summary>按命令选择输入跟随或显式 Pivot 目标，并共用同一套平滑旋转状态。</summary>
-    void ApplyRotation(in LocomotionMotorCommand command, Vector3 moveDirection)
+    void ApplyRotation(
+        in LocomotionMotorCommand command,
+        Vector3 moveDirection,
+        float deltaTime)
     {
         switch (command.RotationMode)
         {
             case LocomotionRotationMode.FollowInput:
                 if (moveDirection.sqrMagnitude > 0.001f)
-                    _root.rotation = GetSmoothedRotation(moveDirection, command.RotationSmoothTimeOverride);
+                {
+                    _root.rotation = GetSmoothedRotation(
+                        moveDirection,
+                        deltaTime,
+                        command.RotationSmoothTimeOverride);
+                }
                 break;
             case LocomotionRotationMode.PivotTarget:
                 if (command.PivotTargetDirection.sqrMagnitude > 0.001f)
@@ -113,6 +121,7 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
                     {
                         _root.rotation = GetSmoothedRotation(
                             command.PivotTargetDirection,
+                            deltaTime,
                             command.RotationSmoothTimeOverride);
                     }
                     else
@@ -209,8 +218,11 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         return (forward * moveIntent.y + right * moveIntent.x).normalized;
     }
 
-    /// <summary>按目标方向 SmoothDamp 转向；可覆盖平滑时间（Pivot 跟 demo ReturnRun 用更长阻尼）。</summary>
-    Quaternion GetSmoothedRotation(Vector3 moveDirection, float? smoothTimeOverride = null)
+    /// <summary>按目标方向和显式固定步长 SmoothDamp 转向；不读取 Unity Time.deltaTime。</summary>
+    Quaternion GetSmoothedRotation(
+        Vector3 moveDirection,
+        float deltaTime,
+        float? smoothTimeOverride = null)
     {
         float smoothTime = smoothTimeOverride ?? _config.RotationSmoothTime;
         if (smoothTime <= 0.001f)
@@ -221,7 +233,9 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
             _root.eulerAngles.y,
             targetAngle,
             ref _rotationVelocity,
-            smoothTime);
+            smoothTime,
+            Mathf.Infinity,
+            Mathf.Max(0f, deltaTime));
 
         return Quaternion.Euler(0f, angle, 0f);
     }
