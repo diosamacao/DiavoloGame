@@ -86,10 +86,13 @@
 - [x] 2026-08-01 L0C：`CombatHitPipeline` Collect→`SimHitKey` 稳定排序→帧末伤害/Reaction/命中确认
 - [x] 2026-08-01 L0C：`ISimulationPostCombatActor` 保持 OnHitConfirm 同帧自动衔接；生命周期在其后 Commit
 - [x] 2026-08-01 L0C：删除 `ApplyHitCommand` 同步权威链、Unity InstanceId 命中身份与 Event→ActionExecutor 回写
+- [x] 2026-08-01 L1A：`ActionSession.CurrentFrame` + `ActionFrameClock` 整数帧权威；窗口、Graph、段与结束判定删除秒制 Runtime 路径
+- [x] 2026-08-01 L1A：`CharacterActor` 每 World 帧唯一 Action Step；Cancel/Recovery/自动衔接延迟到下一 World 帧提交
+- [x] 2026-08-01 L1A：Hit/Death 改用 `DurationFrames` 与稳定动作会话结束标记，不再读取 `IsPlaying`
 
 **下一步：**
 
-- [ ] L1：Action 整数帧权威与逻辑/表现拆分
+- [ ] L1B：提取纯 `ActionSim`、Snapshot 驱动表现，并提供 30→60Hz Action 资产迁移工具
 
 ## 待建设模块
 
@@ -136,6 +139,7 @@
 - [x] 2026-07-31：Lockstep L0A——场景唯一 60Hz SimulationHost、稳定 SimActorId/World、Controller Tick 单轨切换与纯 C# 测试
 - [x] 2026-08-01：Lockstep L0B——InputFrame 量化/历史、玩家与 AI 单轨输入、整数帧 Intent/AI 冷却及回放基础测试
 - [x] 2026-08-01：Lockstep L0C——命中延迟收集与稳定帧末结算、PostCombat 自动衔接、生命周期 Commit 与只读表现事件
+- [x] 2026-08-01：Lockstep L1A——Action 整数帧权威、单次 Step、下一帧切招与 Hit/Death 帧化收尾
 
 ## 剩余项
 

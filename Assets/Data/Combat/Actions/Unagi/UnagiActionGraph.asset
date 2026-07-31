@@ -108,7 +108,7 @@ MonoBehaviour:
       policy: 0
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
-    editorPosition: {x: 972, y: -24}
+    editorPosition: {x: 1003.3333, y: -150}
   - nodeId: Unagi_Attack_Branch_01
     action: {fileID: 11400000, guid: 4756f9d82a242dd40a535249ef2b4771, type: 2}
     intent: 6
@@ -204,7 +204,7 @@ MonoBehaviour:
       policy: 0
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
-    editorPosition: {x: 1415.3334, y: -410}
+    editorPosition: {x: 1691.3334, y: -409.33334}
   - nodeId: Unagi_Attack_Rush
     action: {fileID: 11400000, guid: c18191bb1aeaeab4e8478467868d4e8f, type: 2}
     intent: 7
@@ -335,4 +335,4 @@ MonoBehaviour:
     - Unagi_Attack_03
     - Unagi_Attack_05
     - Unagi_Attack_06
-    editorPosition: {x: 870.6667, y: -410}
+    editorPosition: {x: 878.6667, y: -441.33334}

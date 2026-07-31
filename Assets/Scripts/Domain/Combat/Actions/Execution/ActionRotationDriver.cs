@@ -56,7 +56,8 @@ public sealed class ActionRotationDriver
             return false;
 
         ActionDefinition action = session.CurrentAction;
-        RotationNotifyState rotationState = action.GetActiveRotationState(session.ElapsedSeconds);
+        RotationNotifyState rotationState =
+            action.GetActiveRotationStateAtFrame(session.CurrentFrame);
         if (rotationState == null)
             return false;
 

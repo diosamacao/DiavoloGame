@@ -229,7 +229,7 @@ public class ActionGraph : ScriptableObject
     public bool TryResolveAutomaticTransition(
         string currentNodeId,
         ActionDefinition currentAction,
-        float elapsedSeconds,
+        int currentFrame,
         bool hasConfirmedHit,
         out ActionResolveResult result,
         out bool shouldStop)
@@ -239,59 +239,57 @@ public class ActionGraph : ScriptableObject
         if (currentAction == null || !TryGetNode(currentNodeId, out ActionGraphNode currentNode))
             return false;
 
-        var transitions = new List<ActionGraphTransition>();
+        ActionGraphTransition selected = null;
         foreach (ActionGraphTransition transition in currentNode.AutomaticTransitions)
         {
-            if (transition != null)
-                transitions.Add(transition);
-        }
-
-        transitions.Sort((a, b) => b.Priority.CompareTo(a.Priority));
-        for (int i = 0; i < transitions.Count; i++)
-        {
-            ActionGraphTransition transition = transitions[i];
-            if (!IsTransitionEligible(
+            if (transition == null
+                || !IsTransitionEligible(
                     transition,
                     currentAction,
-                    elapsedSeconds,
+                    currentFrame,
                     hasConfirmedHit))
             {
                 continue;
             }
 
-            if (string.IsNullOrEmpty(transition.TargetNodeId))
-            {
-                shouldStop = true;
-                return true;
-            }
-
-            if (!TryGetNode(transition.TargetNodeId, out ActionGraphNode targetNode))
-                continue;
-
-            result = ActionResolveResult.FromGraph(targetNode.Action, this, targetNode.NodeId);
-            return result.IsValid;
+            // 同优先级保留配置数组中的首条，避免不稳定排序改变流程结果。
+            if (selected == null || transition.Priority > selected.Priority)
+                selected = transition;
         }
 
-        return false;
+        if (selected == null)
+            return false;
+
+        if (string.IsNullOrEmpty(selected.TargetNodeId))
+        {
+            shouldStop = true;
+            return true;
+        }
+
+        if (!TryGetNode(selected.TargetNodeId, out ActionGraphNode targetNode))
+            return false;
+
+        result = ActionResolveResult.FromGraph(targetNode.Action, this, targetNode.NodeId);
+        return result.IsValid;
     }
 
-    /// <summary>判断一条图节点自动衔接规则在当前动作时刻是否满足。</summary>
+    /// <summary>判断一条图节点自动衔接规则在当前整数动作帧是否满足。</summary>
     static bool IsTransitionEligible(
         ActionGraphTransition transition,
         ActionDefinition currentAction,
-        float elapsedSeconds,
+        int currentFrame,
         bool hasConfirmedHit)
     {
         switch (transition.Condition)
         {
             case ActionTransitionCondition.AnimationEnd:
-                return elapsedSeconds >= currentAction.DurationSeconds;
+                return currentFrame >= currentAction.TotalFrames;
             case ActionTransitionCondition.AtFrame:
-                return currentAction.FrameAt(elapsedSeconds) >= transition.StartFrame;
+                return currentFrame >= transition.StartFrame;
             case ActionTransitionCondition.OnHitConfirm:
                 return hasConfirmedHit;
             case ActionTransitionCondition.OnWhiff:
-                return elapsedSeconds >= currentAction.DurationSeconds && !hasConfirmedHit;
+                return currentFrame >= currentAction.TotalFrames && !hasConfirmedHit;
             default:
                 return false;
         }

@@ -6,12 +6,12 @@ using UnityEngine;
 [Serializable]
 public sealed class CharacterReactionSet
 {
-    [Tooltip("未解析到受击动作时使用的默认硬直秒数。")]
-    [SerializeField] float defaultHitStunSeconds = 0.35f;
+    [Tooltip("未解析到受击动作时使用的默认固定逻辑帧数。")]
+    [SerializeField] int defaultHitStunFrames = 21;
     [SerializeField] CharacterReactionRule[] rules = Array.Empty<CharacterReactionRule>();
 
-    /// <summary>无受击动作时由 HitState 使用的默认硬直时长。</summary>
-    public float DefaultHitStunSeconds => Mathf.Max(0f, defaultHitStunSeconds);
+    /// <summary>无受击动作时由 HitState 使用的默认硬直逻辑帧数。</summary>
+    public int DefaultHitStunFrames => Mathf.Max(0, defaultHitStunFrames);
 
     /// <summary>按类型与反应 Id 查找动作；精确规则优先于该类型默认规则。</summary>
     public ActionDefinition Resolve(CharacterReactionType type, string reactionId)

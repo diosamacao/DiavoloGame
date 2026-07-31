@@ -39,7 +39,7 @@ public sealed class CharacterReactionService : IDisposable
     {
         _hitSideEffect?.Invoke(context);
         CharacterReactionRequest request = _resolver.ResolveHit(in context);
-        _actor.EnterHit(request.DurationSeconds, request.ResolvedAction);
+        _actor.EnterHit(in request);
     }
 
     /// <summary>先同步上层死亡状态，再把已解析请求交给 Actor。</summary>
@@ -47,6 +47,6 @@ public sealed class CharacterReactionService : IDisposable
     {
         _deathSideEffect?.Invoke(context, damage);
         CharacterReactionRequest request = _resolver.ResolveDeath(in context);
-        _actor.EnterDeath(request.ResolvedAction);
+        _actor.EnterDeath(in request);
     }
 }

@@ -44,7 +44,7 @@ public static class ActionDefinitionCreateUtility
             element.FindPropertyRelative("endFrame").intValue = -1;
             element.FindPropertyRelative("crossFadeDuration").floatValue = 0f;
 
-            float sampleRate = Mathf.Max(1f, so.FindProperty("sampleRate").floatValue);
+            int sampleRate = Mathf.Max(1, so.FindProperty("sampleRate").intValue);
             so.FindProperty("totalFrames").intValue =
                 Mathf.Max(1, Mathf.RoundToInt(animationClip.length * sampleRate));
         }

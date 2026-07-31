@@ -2,7 +2,7 @@
 
 > 基准：`develop`（ActionGraph / Timeline / CharacterActor / 敌人 AI 初版已落地）  
 > 制定日期：2026-07-30  
-> 最近审计：2026-07-30（已对照当前代码与 `DemoClient` / `DemoServer`）
+> 最近实施：2026-08-01（L0A/L0B/L0C/L1A 代码完成；第 2 节保留重构前基线诊断）
 > 目标：以**帧同步（Lockstep）多人 PVE**为未来方向，重构动作与角色模拟核；保留现有选招/窗口/意图语义  
 > 相关文档：[ENEMY_SYSTEM_INTEGRATION_PLAN.md](./ENEMY_SYSTEM_INTEGRATION_PLAN.md)、[ENEMY_BEHAVIOR_TREE_PLAN.md](./ENEMY_BEHAVIOR_TREE_PLAN.md)
 
@@ -542,15 +542,19 @@ Assets/Scripts/Presentation/
 
 **阶段删除：** 已删除 `HitboxFrameConsumer → ApplyHitCommand → 目标立即 EnterHit` 同步权威链、`GetInstanceID()` 命中去重，以及 `AttackHitEvent → ActionExecutor` 逻辑卡肉回写。
 
-### Phase L1A — Action 整数帧权威
+### Phase L1A — Action 整数帧权威（代码完成，Editor 验收待确认）
 
-- [ ] `ActionSession.CurrentFrame` 为权威；`ElapsedSeconds` 派生  
-- [ ] Cancel/Phase/Hitbox/Recovery 只接受整数帧查询
-- [ ] Graph Transition、Movement、Rotation、Segment、结束判定全部帧化
-- [ ] Hit / Death 状态退出不再读取表现播放会话
-- [ ] Runtime 每逻辑帧只调用一次 `ActionSim.Step()`
+- [x] 2026-08-01：`ActionSession.CurrentFrame` 改为唯一权威；`ElapsedSeconds` 只由帧与整数 `SampleRate` 派生
+- [x] 2026-08-01：Cancel/Phase/Hitbox/Recovery 只接受整数帧查询
+- [x] 2026-08-01：Graph Transition、Movement、Rotation、Segment 与结束判定全部改读整数帧
+- [x] 2026-08-01：Hit / Death 使用 `DurationFrames` 与动作会话结束 Id 收尾，不再读取 `IsPlaying` 或秒倒计时
+- [x] 2026-08-01：`CharacterActor` 成为每 World 帧唯一 `ActionExecutor.Step()` 调用点；State 不再各自推进动作
+- [x] 2026-08-01：Cancel / Recovery / 自动衔接只在判定帧排队，目标动作 frame 0 于下一 World 帧提交
+- [x] 2026-08-01：30Hz 过渡资产通过 `ActionFrameClock` 整数余数保持原时长；采样率限制不高于 60Hz
 
-**验收：** 连招窗口、Perfect、Recovery 重开、自动衔接、Movement 与 Rotation 在录制重放中严格命中相同帧。
+**验收：** `ActionFrameClock` EditMode 测试已覆盖 30→60Hz、非整除余数与 `TotalFrames` 终止哨兵；连招窗口、Perfect、Recovery 重开、自动衔接、Movement 与 Rotation 的完整录制重放仍需 Unity Editor Play Mode 确认。
+
+**阶段删除：** 已删除 `ActionSession.Advance(dt)`、Runtime 秒制窗口/段查询、`ActionDefinition.FrameAt`、`ActionExecutor.UpdateFrame`、各 State 内重复 `ActionExecutor.Tick`，以及 Hit/Death 的秒倒计时与 `IsPlaying` 退出路径。纯 `ActionSim` 提取和 30→60Hz 资产迁移工具仍属于 L1B。
 
 ### Phase L1B — Action 逻辑 / 表现拆分
 
@@ -561,7 +565,7 @@ Assets/Scripts/Presentation/
 
 **验收：** 无 Animator 的纯 C# 测试可完成起手、Cancel、自动衔接、HitConfirm 与结束；Editor 和 Runtime 对任意帧返回相同窗口集合。
 
-**阶段删除：** `ActionExecutor.Tick`、孤立 `UpdateFrame`、Editor 自有窗口/转换算法和旧 `ActionExecutor` 类。
+**阶段删除：** L1A 过渡 `ActionExecutor` 类、Editor 自有窗口/转换算法，以及 Runtime 对 Animation/Transform/CharacterController 的直接依赖。
 
 ### Phase L2 — 位移、命中与 HitStop 脱表现
 

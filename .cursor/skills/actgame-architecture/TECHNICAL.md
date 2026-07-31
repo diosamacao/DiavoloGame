@@ -15,7 +15,7 @@
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionStateMachine` + `LocomotionState` | AnimationProfile + `CharacterLocomotionProfile` |
 | Locomotion 起步/急停/转身 | 🟡 代码已接、资产待绑 | 内层 `LocomotionPhase` 纯状态机 | Start/Stop/Pivot Clip + 落脚标记 |
 | 第三人称相机 | ✅ 已实现 | `CameraManager` | 场景内 CameraManager 对象 |
-| 动作系统（选招 / 播放 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ 已实现 | 纯 C# `ActionResolverService` + `ActionExecutor` + `CombatModeService` | `ActionGraph` 节点策略 + `ActionDefinition.ExecutionPolicy` |
+| 动作系统（整数帧 / 选招 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ L1A 已实现 | `ActionFrameClock` + `ActionSession` + `ActionExecutor` | `ActionGraph` 节点策略 + `ActionDefinition.ExecutionPolicy` |
 | Action Editor（时间轴编辑） | 🟡 骨架/部分 | `ActionEditorWindow` + `ActionTimeline` 手动加轨/窗口 | Menu：`ACT/Action Editor` |
 | 攻击 / 战斗判定 | ✅ L0C 延迟结算已实现 | `CombatHitPipeline` + `CombatDamageCalculator` + `CharacterReactionService` | SimHitKey；HitPayload；Hit/Death 状态 |
 | 敌人 AI | 🟡 代码已接、资产待绑 | `EnemyController` + `EnemyBrain` + 共享 `CharacterActor` | `EnemyDefinition`、`EnemyBrainProfile`、敌人 CharacterConfig/Graph |
@@ -116,8 +116,8 @@ SimulationHost.LateUpdate
 
 - L0B 已切换量化输入与整数帧 Hold/Buffer/AI 冷却；完整脱设备玩法回放仍需 Play Mode 确认。
 - L0C 已删除同步 `ApplyHitCommand` 与 `GetInstanceID()` 去重；真实多命中、互杀及交换注册顺序仍需 Play Mode 验收。
-- Action 仍以 `ElapsedSeconds` 为权威；Animator `OnAnimatorMove` 路径尚未帧化，仅普通 Locomotion 已消除固定帧阶梯抖动。
-- CharacterController 与逻辑 HitStop 仍待 L1/L2；当前 HitStop 只冻结动画/VFX 表现，不再暂停 `ActionExecutor`。
+- L1A 已将 Action 切为整数帧权威；纯 `ActionSim`、Snapshot 驱动动画与 30→60Hz 资产迁移工具仍待 L1B。
+- Animator `OnAnimatorMove`、CharacterController 与逻辑 HitStop 仍待 L2；当前 HitStop 只冻结动画/VFX 表现。
 
 ### 相关文件
 
@@ -260,7 +260,7 @@ StateMachine<TStateId, TContext>
 | State | Id | Enter | Tick | Exit |
 |-------|-----|-------|------|------|
 | `LocomotionState` | 10 | `LocomotionStateMachine.Enter` | `LocomotionStateMachine.Tick` | `LocomotionStateMachine.Exit` |
-| `ActionState` | 60 | `Animation.SetLocked(true)` | `ActionExecutor.Tick` + `ActionRotationDriver.Tick` | Unlock + ResetPlaybackState |
+| `ActionState` | 60 | `Animation.SetLocked(true)` | `ActionRotationDriver.Tick`；不重复推进 Action | Unlock + ResetPlaybackState |
 
 ### 运行时流程（玩家）
 
@@ -271,9 +271,10 @@ SimulationWorld.Step
   → GameplayIntentProducer.Step
   → CharacterActionDriver.ProcessGameplayInput
   → CharacterMotor.TickGravity
+  → ActionExecutor.Step（若会话激活；每 World 帧唯一一次）
   → CharacterStateMachine.Tick
       → LocomotionState.Tick → LocomotionStateMachine（转换→ExecuteFrame）→ Motor + Animation
-      → ActionState.Tick → ActionExecutor.Tick → ActionRotationDriver.Tick
+      → ActionState.Tick → ActionRotationDriver.Tick
 ```
 
 ### 相关文件
@@ -478,7 +479,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 
 ### 功能说明
 
-多战斗模式下，玩家通过 `ActionGraph` Entry×Intent 起手攻击/闪避；输入、索敌、起手行为、Cancel 与自动衔接统一由 Graph 节点/边描述。L0A 后 Runtime 由 `SimulationWorld` 固定 60Hz 间接调用 `ActionExecutor.Tick`；Executor 仍以秒为权威，整数帧 `ActionSim` 尚待 L1。
+多战斗模式下，玩家通过 `ActionGraph` Entry×Intent 起手攻击/闪避；输入、索敌、起手行为、Cancel 与自动衔接统一由 Graph 节点/边描述。L1A 后 `ActionSession.CurrentFrame` 为权威，30Hz 过渡资产由整数余数换帧；纯 `ActionSim` 与表现拆分尚待 L1B。
 
 ### 实现方案
 
@@ -494,10 +495,11 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 | 时间轴数据 | `ActionDefinition.Timeline`：`ActionNotify` 点事件（Event/VFX/SFX）+ `ActionNotifyState` 区间窗口 |
 | 移动取消 | `CharacterActionDriver` + `CancelWindowNotifyState(Movement)` |
 | 招式旋转 | `ActionRotationDriver` + `RotationNotifyState` + 节点 `TargetLockSettings`；SmoothDamp 显式使用固定逻辑步长，离开 Action 清空阻尼速度 |
-| Runtime Logic Tick | `SimulationWorld` → `CharacterActor.Step` → `ActionExecutor.Tick(1/60f)` → 帧派发 |
+| Runtime Logic Tick | `SimulationWorld` → `CharacterActor.Step` → 唯一 `ActionExecutor.Step`；窗口、段、Graph 与结束只读整数帧 |
 | 命中回流 | `HitboxFrameConsumer` Collect → `CombatHitPipeline` 帧末 Resolve → `IActionHitReceiver.NotifyHit` |
 | 命中去重 | 单次动作会话内按 `(HitboxIndex, TargetSimActorId)` 去重；排序键为纯模拟 `SimHitKey` |
 | 自动衔接 | 普通 Tick 不再提前解析无输入 Transition；结算后 PostCombat 保持 OnHitConfirm 同帧生效 |
+| 帧边界切招 | Cancel / Recovery / 自动衔接在判定帧只排队；下一 World 帧提交目标 frame 0 |
 | 卡肉边界 | `AttackHitEvent` 只冻结动画/VFX 表现；删除 Event Handler 暂停 ActionExecutor 的权威回写 |
 | Graph 策略编辑 | Graph Editor 在普通节点和顺序组子节点内嵌策略折叠区，直接编辑 Intent、索敌、起手行为、战斗模式切换与自动衔接 |
 | Motor | `CharacterMotor`（Locomotion 位移）+ `CharacterActor`（重力调度） |
@@ -511,7 +513,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 | Recovery `allowMovementCancel` | `true` | 有移动输入时退出 Action 返回 Locomotion |
 | Recovery `allowEntryRestart` | `true` | 有效动作缓冲按当前 Graph Entry 重开 |
 | 无 Phase 覆盖帧 | — | `IsInterruptibleAtFrame` 返回 `true`（默认可硬打断） |
-| `GameplayIntentProfile.actionBufferDurationSeconds` | `0.15` | Action 内预输入有效期；过期后不再于 Recovery/收招误触发 |
+| `GameplayIntentProfile.actionBufferDurationFrames` | `60` | Action 内预输入有效逻辑帧数；过期后不再于 Recovery/收招误触发 |
 
 ### 运行时流程（高优打断 + Logic Tick）
 
@@ -522,21 +524,21 @@ CharacterActionDriver.ProcessGameplayInput（Action 态）
       → ActionExecutor.TryInterrupt → TransitionTo
   → 失败则 Buffer(intent)  // 留给 CancelWindow
 
-ActionState.Tick
-  → ActionExecutor.Tick(deltaTime)
-      → SyncLogicFrameFromElapsed → DispatchCombatFrame
+CharacterActor.Step
+  → 唯一调用 ActionExecutor.Step(fixedDelta)
+      → ActionFrameClock.Advance → DispatchCombatFrame
           → HitboxFrameConsumer.OnCombatFrameAdvanced（只 Collect）
           → ActionTimelineRunner.Dispatch
               → PlayVfxNotify 点触发 → ActionVfxPlayer.OnActionNotify（Resolve attachPointId + 显式 playbackSpeed）
               → PlaySfxNotify 点触发 → ActionSfxPlayer.OnActionNotify（pitch = playbackSpeed）
               → 其他 ActionNotifyState Enter/Tick/Exit
       → CancelWindow / Recovery Entry
-          → CancelWindow：汇总当前帧 Normal / Perfect；同一意图先 Perfect 后 Normal，再按显式边 / SharedRoute 解析
-          → Recovery Phase：按窗口开关处理移动取消 / Graph Entry 软重开
+          → CancelWindow：同一意图先 Perfect 后 Normal，成功后只排队
+          → Recovery Phase：按窗口开关排队 Graph Entry 软重开
 SimulationHost 帧末
   → CombatHitPipeline 稳定排序并统一伤害/Reaction/ConfirmHit
   → CharacterActor.ResolvePostCombat
-      → Graph 自动衔接（含 OnHitConfirm / OnWhiff）或自然结束
+      → Graph 自动衔接排队；自然结束按 TotalFrames 停止
       → NotifyActionEnded → ActionSfxPlayer.OnActionEnded → 专用 AudioSource.Stop
   → PublishAttackHitCommand → AttackHitEvent（仅表现）
 ```
@@ -545,13 +547,13 @@ VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强
 
 SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSfx` 的 `AudioSource`（与脚步声隔离）；`Stop` / `TransitionTo`（含硬打断与 Cancel 切招）经 `OnActionEnded` 调用 `AudioSource.Stop`，打断未播完的动作音效。
 
-编辑器 Scrub 当前使用独立 `ActionEditorPreviewSession` 做 Pose/VFX 预览；`UpdateFrame(frameIndex)` 尚无生产调用点。L1B 将统一纯帧查询与段映射，避免把当前双轨误记为已完成。
+编辑器 Scrub 当前使用独立 `ActionEditorPreviewSession` 做 Pose/VFX 预览；Runtime `UpdateFrame` 已删除。L1B 将让 Preview 复用纯 `ActionSim` 的只读帧查询与段映射。
 
 ### ActionEditor 对齐状态（2026-07-25）
 
 | 对齐度 | 项 |
 |--------|-----|
-| ✅ | `UpdateFrame` API、`ICombatFrameConsumer`、`ActionTimelineRunner`、`ActionNotify` / `ActionNotifyState` Schema |
+| ✅ | Runtime `UpdateFrame` 已删除；`ICombatFrameConsumer`、`ActionTimelineRunner`、`ActionNotify` / `ActionNotifyState` 保持整数帧 Schema |
 | ✅ | 命中回流、`OnHitConfirm` / `OnWhiff` Transition 条件 |
 | ✅ | `CharacterActionDriver` 角色无关输入路由 |
 | ✅ | Hitbox/VFX/Cancel/Movement/Rotation 已收敛到 `ActionTimeline`，删除旧双轨数组 |
@@ -562,6 +564,7 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 ### 已知限制
 
 - 现有资产需要在 Unity Editor 的 Phase 轨重建原 `phases[]`，并为 Recovery 配置移动取消 / Entry 重开开关；Agent 未直接修改 `.asset`
+- `ActionDefinition.sampleRate` 已改为整数且限制不高于 60；现有资产需在 Editor 确认为 30，L1B 再由工具迁移为 60Hz
 - 硬打断与 Recovery 软重开走 Graph Entry，不要求 Cancel 边；独特连招进位仍依赖 Combo Window + 显式边
 - 旧 `perfectFrame`、Cancel 槽 Id 与同类型多窗口不再受支持；资产需整理为一个 Normal 与可选一个 Perfect
 - Scene 玩家入口已改为 Empty + `PlayerController` + `CharacterConfig`
@@ -711,3 +714,4 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-07-31 | 修复固定帧后攻击转向变慢：ActionRotationDriver 不再隐式读取 Time.deltaTime，并在退出 Action 时清空旧旋转速度 |
 | 2026-08-01 | Lockstep L0B：删除 PlayerInputFrame/ICharacterInputSource/AIInputSource；新增量化 InputFrame、输入历史与 World Input Produce 阶段；Hold/Buffer/AI 冷却改整数帧 |
 | 2026-08-01 | Lockstep L0C：Hitbox 改为 Collect→稳定排序→帧末 Resolve；新增 SimHitKey/PostCombat，删除 ApplyHitCommand、InstanceId 去重与 Event→ActionExecutor 卡肉回写 |
+| 2026-08-01 | Lockstep L1A：ActionSession 整数帧权威、ActionFrameClock 30→60 整数换帧、单次 Action Step、下一 World 帧切招，以及 Hit/Death 整数帧收尾 |

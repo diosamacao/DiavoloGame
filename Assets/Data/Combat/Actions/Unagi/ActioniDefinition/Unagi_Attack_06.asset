@@ -81,7 +81,7 @@ MonoBehaviour:
         feedback:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 1
-          hitStopFrames: 3
+          hitStopFrames: 2
           hitStopOncePerAction: 1
     - id: Hitbox_2
       startFrame: 8

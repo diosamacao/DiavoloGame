@@ -1,13 +1,13 @@
 using UnityEngine;
 
-/// <summary>统一 Notify 运行时上下文；Play Mode 与 ActionEditor Scrub 共用同一帧语义。</summary>
+/// <summary>统一 Notify 运行时上下文；全部时间窗口只读取整数动作帧。</summary>
 public readonly struct ActionNotifyContext
 {
+    /// <summary>创建点事件或区间状态的整数帧通知上下文。</summary>
     public ActionNotifyContext(
         ActionDefinition action,
         int frameIndex,
         int previousFrameIndex,
-        float elapsedSeconds,
         Transform actorRoot,
         Transform attachPoint,
         ActionNotify notify = null,
@@ -17,7 +17,6 @@ public readonly struct ActionNotifyContext
         Action = action;
         FrameIndex = frameIndex;
         PreviousFrameIndex = previousFrameIndex;
-        ElapsedSeconds = elapsedSeconds;
         ActorRoot = actorRoot;
         AttachPoint = attachPoint != null ? attachPoint : actorRoot;
         Notify = notify;
@@ -34,8 +33,9 @@ public readonly struct ActionNotifyContext
     /// <summary>上一逻辑帧；首帧或 Scrub 起点时为 -1。</summary>
     public int PreviousFrameIndex { get; }
 
-    /// <summary>动作已播放秒数。</summary>
-    public float ElapsedSeconds { get; }
+    /// <summary>从整数动作帧派生的表现秒数；不得用于逻辑判断。</summary>
+    public float ElapsedSeconds =>
+        Action != null ? FrameIndex / (float)Action.SampleRate : 0f;
 
     /// <summary>攻击者或动作拥有者根 Transform。</summary>
     public Transform ActorRoot { get; }

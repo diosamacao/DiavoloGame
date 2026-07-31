@@ -7,11 +7,11 @@ public interface IActionExecutor
 
     ActionDefinition CurrentAction { get; }
 
-    /// <summary>当前招式已播放秒数。</summary>
-    float ElapsedSeconds { get; }
-
-    /// <summary>当前招式逻辑帧（与 ActionDefinition.sampleRate 对齐）。</summary>
+    /// <summary>当前权威动作帧；可等于 TotalFrames 表示完整时长结束。</summary>
     int CurrentFrame { get; }
+
+    /// <summary>当前动作会话的稳定编号；无动作时为 0。</summary>
+    int CurrentActionInstanceId { get; }
 
     /// <summary>当前招式是否处于可移动取消的帧窗口内。</summary>
     bool CanCancelByMovement { get; }
@@ -19,7 +19,7 @@ public interface IActionExecutor
     /// <summary>当前招式是否处于输入旋转修正窗口内。</summary>
     bool CanRotateByInput { get; }
 
-    /// <summary>Logic Tick 帧推进事件；编辑器 Scrub 与 Play Mode 共用。</summary>
+    /// <summary>Runtime 整数动作帧推进事件。</summary>
     event Action<CombatFrameContext> FrameAdvanced;
 
     /// <summary>直接播放已解析好的招式（起手 / Cancel / Transition 内部共用）。</summary>
@@ -36,11 +36,11 @@ public interface IActionExecutor
     /// <summary>绑定 ActionGraph 节点起手行为使用的上下文。</summary>
     void BindActionStartContext(IActionStartContext startContext);
 
-    /// <summary>推进动作播放时间与逻辑帧。</summary>
-    void Tick(float deltaTime);
+    /// <summary>每个 SimulationWorld 逻辑帧调用一次，推进整数动作帧与窗口。</summary>
+    void Step(float fixedDeltaSeconds);
 
-    /// <summary>编辑器 Scrub 与 Play Mode 共用的 Logic Tick 入口。</summary>
-    void UpdateFrame(int frameIndex);
+    /// <summary>指定动作会话是否已经结束或切换，用于状态机按逻辑结果收尾。</summary>
+    bool HasEndedActionInstance(int instanceId);
 
     /// <summary>停止当前动作并清理播放状态。</summary>
     void Stop();

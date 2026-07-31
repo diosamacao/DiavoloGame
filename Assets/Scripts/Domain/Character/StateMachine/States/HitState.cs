@@ -1,9 +1,8 @@
-using UnityEngine;
-
-/// <summary>角色受击硬直状态；可播放专用 Action，否则按配置时间锁定移动与出招。</summary>
+/// <summary>角色受击硬直状态；可播放专用 Action，否则按配置整数帧锁定移动与出招。</summary>
 public sealed class HitState : CharacterState
 {
-    float _remainingSeconds;
+    int _remainingFrames;
+    int _reactionActionInstanceId;
 
     /// <summary>受击状态 id。</summary>
     public override CharacterStateType Id => CharacterStateType.Hit;
@@ -16,31 +15,40 @@ public sealed class HitState : CharacterState
     public override void Enter()
     {
         CharacterReactionRequest request = Context.ConsumeReactionRequest();
-        _remainingSeconds = request.DurationSeconds;
+        _remainingFrames = request.DurationFrames;
+        _reactionActionInstanceId = 0;
         Context.Movement.ClearMoveSnapshot();
         Context.Animation.SetLocked(true);
         Context.ActionExecutor?.Stop();
 
         if (request.ResolvedAction != null)
         {
-            // 每次命中都会强制重入 Hit；只有动作真正启动后才由播放完成时机接管退出。
+            // 每次命中都会强制重入 Hit；记录逻辑会话 Id，退出不读取动画播放状态。
             if (Context.ActionExecutor?.TryStart(request.ResolvedAction) == true)
-                _remainingSeconds = 0f;
+                _reactionActionInstanceId = Context.ActionExecutor.CurrentActionInstanceId;
         }
     }
 
-    /// <summary>推进受击表现；Action 播完或计时结束后返回 Locomotion。</summary>
+    /// <summary>无反应 Action 时递减固定硬直帧；动作会话在 PostCombat 收尾。</summary>
     public override void Tick(float deltaTime)
     {
         Context.Movement.ClearMoveSnapshot();
-        if (Context.ActionExecutor?.IsPlaying == true)
-        {
-            Context.ActionExecutor.Tick(deltaTime);
+        if (_reactionActionInstanceId > 0)
             return;
-        }
 
-        _remainingSeconds = Mathf.Max(0f, _remainingSeconds - Mathf.Max(0f, deltaTime));
-        if (_remainingSeconds <= 0f)
+        if (_remainingFrames > 0)
+            _remainingFrames--;
+        if (_remainingFrames <= 0)
+            Context.StateMachine.TryChangeState(CharacterStateType.Locomotion);
+    }
+
+    /// <summary>命中统一结算后，以逻辑动作会话结束标记退出受击状态。</summary>
+    public void ResolvePostCombat()
+    {
+        if (_reactionActionInstanceId <= 0)
+            return;
+
+        if (Context.ActionExecutor?.HasEndedActionInstance(_reactionActionInstanceId) == true)
             Context.StateMachine.TryChangeState(CharacterStateType.Locomotion);
     }
 

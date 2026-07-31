@@ -1,16 +1,26 @@
 /// <summary>单个角色当前招式会话；是 Action 是否激活、当前帧、图游标与命中状态的唯一权威。</summary>
 public sealed class ActionSession
 {
+    ActionFrameClock _frameClock;
+
     /// <summary>当前正在播放的招式；为空表示没有激活招式。</summary>
     public ActionDefinition CurrentAction { get; private set; }
 
     /// <summary>当前招式是否激活。</summary>
     public bool IsActive => CurrentAction != null;
 
-    /// <summary>当前招式已推进秒数。</summary>
-    public float ElapsedSeconds { get; private set; }
+    /// <summary>当前整数动作帧；等于 TotalFrames 时表示动作完整时长已经结束。</summary>
+    public int CurrentFrame => _frameClock.CurrentFrame;
 
-    /// <summary>上一次派发过的逻辑帧，用于避免大 delta 漏帧。</summary>
+    /// <summary>仅供动画与表现读取的派生秒数；不参与逻辑判断。</summary>
+    public float ElapsedSeconds =>
+        CurrentAction != null ? CurrentFrame / (float)CurrentAction.SampleRate : 0f;
+
+    /// <summary>当前会话是否已经推进完全部动作帧。</summary>
+    public bool IsComplete =>
+        CurrentAction != null && CurrentFrame >= CurrentAction.TotalFrames;
+
+    /// <summary>上一次派发过的动作帧，用于稳定补发跨过的采样帧。</summary>
     public int LastProcessedFrame { get; set; } = -1;
 
     /// <summary>当前已切入的动画段索引；用于段边界 PlayClip 去重。</summary>
@@ -44,7 +54,7 @@ public sealed class ActionSession
     public void Begin(ActionDefinition action)
     {
         CurrentAction = action;
-        ElapsedSeconds = 0f;
+        _frameClock.Reset();
         LastProcessedFrame = -1;
         CurrentAnimationSegmentIndex = -1;
         HasConfirmedHit = false;
@@ -71,7 +81,7 @@ public sealed class ActionSession
     public void Stop()
     {
         CurrentAction = null;
-        ElapsedSeconds = 0f;
+        _frameClock.Reset();
         LastProcessedFrame = -1;
         CurrentAnimationSegmentIndex = -1;
         HasConfirmedHit = false;
@@ -79,19 +89,16 @@ public sealed class ActionSession
         ClearGraphCursor();
     }
 
-    /// <summary>推进会话时间；调用方保证会话处于激活状态。</summary>
-    public void Advance(float deltaTime)
-    {
-        ElapsedSeconds += deltaTime;
-    }
-
-    /// <summary>设置编辑器 Scrub 对应的逻辑时间。</summary>
-    public void SetFrame(int frameIndex)
+    /// <summary>推进一个固定模拟帧；返回本次跨过的动作采样帧数。</summary>
+    public int AdvanceFrame(int simulationRate)
     {
         if (CurrentAction == null)
-            return;
+            return 0;
 
-        ElapsedSeconds = frameIndex / CurrentAction.SampleRate;
+        return _frameClock.Advance(
+            CurrentAction.SampleRate,
+            simulationRate,
+            CurrentAction.TotalFrames);
     }
 
     /// <summary>标记本招已经命中，用于 OnHitConfirm / OnWhiff。</summary>

@@ -2,6 +2,9 @@
 public sealed class CharacterStateMachine : ICharacterStateMachine
 {
     readonly StateMachine<CharacterStateType, CharacterContext> _machine = new();
+    readonly ActionState _actionState = new();
+    readonly HitState _hitState = new();
+    readonly DeathState _deathState = new();
 
     CharacterContext Context => _machine.Context;
 
@@ -18,9 +21,9 @@ public sealed class CharacterStateMachine : ICharacterStateMachine
     void RegisterStates()
     {
         RegisterState(new LocomotionState());
-        RegisterState(new ActionState());
-        RegisterState(new HitState());
-        RegisterState(new DeathState());
+        RegisterState(_actionState);
+        RegisterState(_hitState);
+        RegisterState(_deathState);
     }
 
     void RegisterState(CharacterState state) => _machine.RegisterState(state);
@@ -29,6 +32,23 @@ public sealed class CharacterStateMachine : ICharacterStateMachine
     public void Tick(float deltaTime)
     {
         _machine.Tick(deltaTime);
+    }
+
+    /// <summary>在整帧 Combat Resolve 后让当前状态按逻辑动作会话结果完成收尾。</summary>
+    public void ResolvePostCombat()
+    {
+        switch (CurrentStateId)
+        {
+            case CharacterStateType.Action:
+                _actionState.ResolvePostCombat();
+                break;
+            case CharacterStateType.Hit:
+                _hitState.ResolvePostCombat();
+                break;
+            case CharacterStateType.Death:
+                _deathState.ResolvePostCombat();
+                break;
+        }
     }
 
     public bool TryChangeState(CharacterStateType next, bool force = false) =>
