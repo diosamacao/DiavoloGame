@@ -2,6 +2,7 @@
 public class ActionState : CharacterState
 {
     ActionDefinition _lastActiveAction;
+    int _activeActionInstanceId;
 
     public override CharacterStateType Id => CharacterStateType.Action;
 
@@ -17,6 +18,7 @@ public class ActionState : CharacterState
     public override void Enter()
     {
         _lastActiveAction = Context.ActionExecutor?.CurrentAction;
+        _activeActionInstanceId = Context.ActionExecutor?.CurrentActionInstanceId ?? 0;
         Context.Animation.SetLocked(true);
     }
 
@@ -35,22 +37,42 @@ public class ActionState : CharacterState
         _lastActiveAction = null;
     }
 
-    /// <summary>推进动作、记录最后有效招式并执行动作转向。</summary>
+    /// <summary>记录当前整数帧动作并执行动作转向；会话由 CharacterActor 单次推进。</summary>
     public override void Tick(float deltaTime)
     {
         ActionDefinition current = Context.ActionExecutor?.CurrentAction;
         if (current != null)
+        {
             _lastActiveAction = current;
+            _activeActionInstanceId = Context.ActionExecutor.CurrentActionInstanceId;
+        }
 
         Context.Movement.ClearMoveSnapshot();
         SyncMotorSnapshot();
-        if (!AdvanceActionExecutor(deltaTime))
+        Context.ActionRotation?.Tick(deltaTime);
+    }
+
+    /// <summary>自动衔接与自然结束处理后，根据逻辑会话结果退出或接管新动作。</summary>
+    public void ResolvePostCombat()
+    {
+        IActionExecutor executor = Context.ActionExecutor;
+        if (_activeActionInstanceId <= 0 || executor == null)
         {
             Context.StateMachine.TryChangeState(CharacterStateType.Locomotion);
             return;
         }
 
-        Context.ActionRotation?.Tick(deltaTime);
+        if (!executor.HasEndedActionInstance(_activeActionInstanceId))
+            return;
+
+        if (executor.CurrentActionInstanceId > 0)
+        {
+            _activeActionInstanceId = executor.CurrentActionInstanceId;
+            _lastActiveAction = executor.CurrentAction;
+            return;
+        }
+
+        Context.StateMachine.TryChangeState(CharacterStateType.Locomotion);
     }
 
     /// <summary>Action 状态清空 Locomotion 输入快照，避免动作中播放移动动画。</summary>
@@ -61,16 +83,4 @@ public class ActionState : CharacterState
         Context.IsGrounded = Context.Movement.IsGrounded;
     }
 
-    /// <summary>推进单角色动作执行器；动作结束时返回 false 以回到 Locomotion。</summary>
-    bool AdvanceActionExecutor(float deltaTime)
-    {
-        IActionExecutor executor = Context.ActionExecutor;
-        if (executor == null)
-            return false;
-
-        executor.Tick(deltaTime);
-        if (executor.CurrentAction != null)
-            _lastActiveAction = executor.CurrentAction;
-        return executor.IsPlaying;
-    }
 }

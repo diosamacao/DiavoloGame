@@ -30,6 +30,9 @@
 - 跨系统通信使用 `ACTGameArchitecture` 的 Command / Query / Event；动作帧内部可保留 `ActionExecutor` → 帧消费者直连，但 Hitbox 消费者只能 Collect，禁止通过 App Command 同步修改目标
 - 架构事件必须实现 `IArchitectureEvent`；架构查询继承 `ArchitectureQueryBase<TResult>` 或实现 `IArchitectureQuery<TResult>`
 - **固定帧唯一入口**：角色业务只实现 `ISimulationActor.Step`，由 `SimulationHost → SimulationWorld` 以 60Hz 推进；Controller 禁止新增 `Update → Actor.Tick` 旁路
+- **Action 单次推进**：每个 World 帧只允许 `CharacterActor` 调用一次 `ActionExecutor.Step`；Action/Hit/Death State 禁止自行再次推进会话
+- **Action 整数帧权威**：`ActionSession.CurrentFrame` 是唯一时间权威；`ElapsedSeconds` 只能由 `CurrentFrame / SampleRate` 派生，禁止恢复 `Advance(dt)`、`FrameAt(elapsed)` 或秒制窗口重载
+- **帧边界切招**：Cancel、Recovery Entry 与 Graph 自动衔接只在当前帧排队，目标动作 frame 0 必须到下一 World 帧提交；禁止同一步递归推进多招
 - **模拟身份**：World Actor 使用会话内单调 `SimActorId` 排序；禁止用 Unity `GetInstanceID()` 作为模拟顺序、命中身份或未来网络身份
 - **启停生命周期**：Controller 在 `OnEnable` 注册 World、`OnDisable/OnDestroy` 对称注销；禁用 GameObject 不得继续被模拟
 - **渲染输入汇聚**：本地设备 Actor 通过 `IRenderFrameSampler` 缓存渲染帧边沿，逻辑 Step 不直接依赖 Unity 渲染帧是否恰好发生
@@ -123,6 +126,7 @@ public class MyBehaviour : MonoBehaviour
 - `CharacterReactionService` 是玩家/敌人 Health 事件到 Actor 的唯一桥接；Controller 只负责构造并注入 Resolver，禁止各自重复订阅受击/死亡事件
 - `CharacterReactionResolver` 直接产出 `CharacterReactionRequest`；默认硬直时长只保存在 `CharacterReactionSet`，State、BrainProfile 与 ActionDefinition 禁止重复配置
 - 每次非致命有效命中都可强制重入 HitState；死亡状态是唯一不可被后续受击覆盖的反应终态
+- Hit 无反应动作时只使用 `DurationFrames`；Hit/Death 有动作时按稳定 Action Instance 结束标记收尾，禁止读取动画播放状态或秒倒计时
 - 死亡产生于统一 Combat Resolve；PostCombat 后的 Commit 先注销 `TargetSystem / CombatActorSystem`，死亡表现完成后再 Despawn
 - 静态测试木桩若未注册 SimulationWorld，不得进入权威命中；需要可攻击目标时必须提供正式 `SimActorId`
 - 卡肉 Event 仅允许冻结动画/VFX 表现；逻辑冻结必须由后续 Sim `freezeFrames` 实现，禁止表现计时回写动作会话

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>统一时间轴触发器；ActionExecutor 的 Play Mode Tick 与编辑器 Scrub 共用此规则。</summary>
+/// <summary>Runtime 整数帧时间轴触发器；按稳定跨帧规则派发点事件与区间状态。</summary>
 public sealed class ActionTimelineRunner
 {
     /// <summary>按跨帧规则派发点事件与区间窗口事件。</summary>
@@ -35,7 +35,6 @@ public sealed class ActionTimelineRunner
                 frameContext.Action,
                 frameContext.FrameIndex,
                 frameContext.PreviousFrameIndex,
-                frameContext.ElapsedSeconds,
                 frameContext.ActorRoot,
                 attachPoint,
                 notify);
@@ -62,7 +61,6 @@ public sealed class ActionTimelineRunner
                 frameContext.Action,
                 frameContext.FrameIndex,
                 frameContext.PreviousFrameIndex,
-                frameContext.ElapsedSeconds,
                 frameContext.ActorRoot,
                 attachPoint,
                 null,

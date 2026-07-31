@@ -24,6 +24,10 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
     IActionInputBuffer _inputBuffer;
     IActionStartContext _startContext;
     Transform _timelineAttachPoint;
+    int _lastEndedActionInstanceId;
+    ActionResolveResult _pendingTransition;
+    bool _hasPendingTransition;
+    bool _pendingStop;
 
     /// <summary>当前招式会话；外部只读，状态写入集中在本执行器。</summary>
     public ActionSession Session => _session;
@@ -35,20 +39,14 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         _session.IsActive
         && _session.CurrentAction.AllowsRecoveryMovementCancelAtFrame(CurrentFrame);
     public bool CanRotateByInput =>
-        _session.IsActive && _session.CurrentAction.IsInRotationWindow(_session.ElapsedSeconds);
+        _session.IsActive && _session.CurrentAction.IsInRotationWindow(CurrentFrame);
     public ActionDefinition CurrentAction => _session.CurrentAction;
 
-    /// <summary>当前招式已播放秒数。</summary>
-    public float ElapsedSeconds => _session.ElapsedSeconds;
+    /// <summary>当前权威动作帧；可等于 TotalFrames 表示完整时长结束。</summary>
+    public int CurrentFrame => _session.IsActive ? _session.CurrentFrame : 0;
 
-    /// <summary>当前招式逻辑帧（与 ActionDefinition.sampleRate 对齐）。</summary>
-    public int CurrentFrame =>
-        _session.IsActive ? _session.CurrentAction.FrameAt(_session.ElapsedSeconds) : 0;
-
-    float IActionExecutor.ElapsedSeconds => _session.ElapsedSeconds;
-
-    int IActionExecutor.CurrentFrame =>
-        _session.IsActive ? _session.CurrentAction.FrameAt(_session.ElapsedSeconds) : 0;
+    /// <summary>当前动作会话编号；无动作时为 0。</summary>
+    public int CurrentActionInstanceId => _session.InstanceId;
 
     /// <summary>Logic Tick 帧推进；编辑器 Scrub 与 Play Mode 共用。</summary>
     public event Action<CombatFrameContext> FrameAdvanced;
@@ -131,16 +129,23 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         return true;
     }
 
-    /// <summary>推进动作时间、位移与帧事件；自动 Transition 和自然结束延迟到 PostCombat。</summary>
-    public void Tick(float deltaTime)
+    /// <summary>推进一个 SimulationWorld 固定帧；自动 Transition 和自然结束延迟到 PostCombat。</summary>
+    public void Step(float fixedDeltaSeconds)
     {
+        bool committedTransition = CommitPendingTransition();
         if (!_session.IsActive)
             return;
 
-        _session.Advance(deltaTime);
+        // 延迟切招在本 World 帧只执行目标 frame 0，禁止同一步递归推进新动作。
+        if (!committedTransition)
+            _session.AdvanceFrame(SimulationConfig.DefaultLogicHz);
         SyncAnimationSegment();
-        ApplyScriptedDisplacement(deltaTime);
-        SyncLogicFrameFromElapsed();
+        ApplyScriptedDisplacement(fixedDeltaSeconds);
+        AdvanceLogicFramesThrough(CurrentFrame);
+
+        // 终止哨兵帧只负责派发窗口 Exit，不能再接受 Cancel 或 Recovery 重开。
+        if (_session.IsComplete)
+            return;
 
         if (TryResolveCancelWindows())
             return;
@@ -149,26 +154,20 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
             return;
     }
 
-    /// <summary>编辑器 Scrub 与 Play Mode 共用的 Logic Tick 入口；要求招式已在播放中。</summary>
-    public void UpdateFrame(int frameIndex)
-    {
-        if (!_session.IsActive)
-            return;
-
-        frameIndex = Mathf.Clamp(frameIndex, 0, Mathf.Max(0, _session.CurrentAction.TotalFrames - 1));
-        _session.SetFrame(frameIndex);
-        SyncAnimationSegment();
-        AdvanceLogicFramesThrough(frameIndex);
-    }
-
+    /// <summary>停止当前动作并清理逻辑会话与 RootMotion 开关。</summary>
     public void Stop()
     {
+        ClearPendingTransition();
         if (_session.IsActive)
             NotifyActionEnded();
 
         _session.Stop();
         _rootMotion?.SetActive(false);
     }
+
+    /// <summary>查询指定动作会话是否已经停止或切换。</summary>
+    public bool HasEndedActionInstance(int instanceId) =>
+        instanceId > 0 && _lastEndedActionInstanceId == instanceId;
 
     /// <summary>HitboxFrameConsumer 命中回流；支撑 OnHitConfirm Transition。</summary>
     public void NotifyHit(in ActionHitContext context)
@@ -185,11 +184,13 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         if (!_session.IsActive)
             return;
 
-        ActionDefinition current = _session.CurrentAction;
+        if (_hasPendingTransition || _pendingStop)
+            return;
+
         if (TryResolveTransitions())
             return;
 
-        if (_session.IsActive && _session.ElapsedSeconds >= current.DurationSeconds)
+        if (_session.IsActive && _session.IsComplete)
             Stop();
     }
 
@@ -258,7 +259,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         return false;
     }
 
-    /// <summary>解析单个意图在指定窗口类型上的边，并在成功时消费缓冲、切换 Action。</summary>
+    /// <summary>解析单个意图在指定窗口类型上的边，并在成功时消费缓冲、排队下一帧 Action。</summary>
     bool TryResolveCancelIntent(CancelWindowType windowType, GameplayIntentType intent)
     {
         var request = new ActionRequest(intent);
@@ -282,13 +283,13 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 
         _inputBuffer.TryConsumeBuffer(intent);
         ClearOtherActionBuffers(intent);
-        TransitionTo(resolveResult);
+        QueueTransition(in resolveResult);
         return true;
     }
 
     /// <summary>
     /// 开启 Entry Restart 的 Recovery Phase 软重开：无需 CancelWindow 或逐节点回根边，
-    /// 直接用有效缓冲匹配当前 Graph 的 Entry；显式 Combo 窗已在此前优先处理。
+    /// 直接用有效缓冲匹配当前 Graph 的 Entry；成功结果统一排队到下一 World 帧。
     /// </summary>
     bool TryResolveRecoveryEntry()
     {
@@ -325,7 +326,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 
             _inputBuffer.TryConsumeBuffer(intent);
             ClearOtherActionBuffers(intent);
-            TransitionTo(in result);
+            QueueTransition(in result);
             return true;
         }
 
@@ -370,7 +371,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         }
     }
 
-    /// <summary>委托当前 ActionGraph 节点解析无输入自动衔接。</summary>
+    /// <summary>解析无输入自动衔接，并把结果排队到下一 World 帧提交。</summary>
     bool TryResolveTransitions()
     {
         if (!_session.HasGraphCursor
@@ -378,7 +379,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
             || !_session.CurrentGraph.TryResolveAutomaticTransition(
                 _session.CurrentNodeId,
                 _session.CurrentAction,
-                _session.ElapsedSeconds,
+                CurrentFrame,
                 _session.HasConfirmedHit,
                 out ActionResolveResult result,
                 out bool shouldStop))
@@ -388,19 +389,57 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 
         if (shouldStop)
         {
-            Stop();
+            _pendingStop = true;
             return true;
         }
 
-        TransitionTo(in result);
+        QueueTransition(in result);
         return true;
     }
 
     void TransitionTo(in ActionResolveResult resolveResult)
     {
+        ClearPendingTransition();
         NotifyActionEnded();
         ExecuteStartBehaviors(in resolveResult);
         BeginAction(resolveResult);
+    }
+
+    /// <summary>记录当前帧判定出的切招，统一在下一 World 帧开始时提交。</summary>
+    void QueueTransition(in ActionResolveResult resolveResult)
+    {
+        if (_hasPendingTransition || _pendingStop || !resolveResult.IsValid)
+            return;
+
+        _pendingTransition = resolveResult;
+        _hasPendingTransition = true;
+    }
+
+    /// <summary>提交上一 World 帧排队的停止或切招；返回本帧是否刚开始目标 frame 0。</summary>
+    bool CommitPendingTransition()
+    {
+        if (_pendingStop)
+        {
+            ClearPendingTransition();
+            Stop();
+            return false;
+        }
+
+        if (!_hasPendingTransition)
+            return false;
+
+        ActionResolveResult transition = _pendingTransition;
+        ClearPendingTransition();
+        TransitionTo(in transition);
+        return true;
+    }
+
+    /// <summary>清空尚未提交的帧边界切招，供受击、死亡与硬打断覆盖旧决定。</summary>
+    void ClearPendingTransition()
+    {
+        _pendingTransition = default;
+        _hasPendingTransition = false;
+        _pendingStop = false;
     }
 
     void BeginAction(in ActionResolveResult resolveResult)
@@ -456,15 +495,15 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         _combatMode.TrySetMode(mode, policy, false);
     }
 
-    /// <summary>按当前 elapsed 切入对应动画段；同段不重复 Play。</summary>
+    /// <summary>按当前整数动作帧切入对应动画段；同段不重复 Play。</summary>
     void SyncAnimationSegment()
     {
         ActionDefinition action = _session.CurrentAction;
         if (action == null || animationController == null)
             return;
 
-        if (!action.TryGetSegmentAtElapsed(
-                _session.ElapsedSeconds,
+        if (!action.TryGetSegmentAtFrame(
+                CurrentFrame,
                 out int segmentIndex,
                 out ActionAnimationSegment segment,
                 out _))
@@ -499,13 +538,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         _session.CurrentAnimationSegmentIndex = segmentIndex;
     }
 
-    void SyncLogicFrameFromElapsed()
-    {
-        int frame = _session.CurrentAction.FrameAt(_session.ElapsedSeconds);
-        AdvanceLogicFramesThrough(frame);
-    }
-
-    /// <summary>从上一帧推进到 targetFrame，避免单帧大 delta 漏掉中间 Hitbox/VFX。</summary>
+    /// <summary>从上一帧推进到 targetFrame，稳定派发跨过的动作采样帧。</summary>
     void AdvanceLogicFramesThrough(int targetFrame)
     {
         if (targetFrame <= _session.LastProcessedFrame)
@@ -523,7 +556,6 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
             _session.CurrentAction,
             frameIndex,
             previousFrameIndex,
-            _session.ElapsedSeconds,
             _actorRoot);
         FrameAdvanced?.Invoke(context);
 
@@ -541,6 +573,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 
     void NotifyActionEnded()
     {
+        _lastEndedActionInstanceId = _session.InstanceId;
         foreach (ICombatFrameConsumer consumer in _frameConsumers)
             consumer.OnActionEnded();
 
@@ -554,7 +587,7 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         if (_motor == null || current == null || !current.HasScriptedDisplacement)
             return;
 
-        MovementNotifyState movement = current.GetActiveMovementState(_session.ElapsedSeconds);
+        MovementNotifyState movement = current.GetActiveMovementStateAtFrame(CurrentFrame);
         if (movement == null)
             return;
 

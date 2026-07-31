@@ -82,6 +82,7 @@ flowchart TB
 | `SimulationWorld` | 纯 C# Actor 容器：分配单调 `SimActorId`，按 Id 稳定执行 Input/Actor Step 与 PostCombat |
 | `ISimulationActor` | 玩家 `CharacterActor` 与敌人 `EnemyHandle` 的固定帧契约 |
 | `FixedStepAccumulator` | 把可变渲染时间转换为有追帧上限但不丢欠账的固定步数 |
+| `ActionFrameClock` | 用整数余数把 60Hz World 帧换算为动作采样帧；支持 30Hz 过渡资产且无浮点累计 |
 | `IRenderFrameSampler` | 可选渲染帧输入汇聚契约，避免高 FPS 无逻辑 Step 时丢 Pressed/Released |
 | `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
 | `CharacterPresentationBridge` | 保留前后权威 Pose，只移动运行时模型锚点，不回写模拟根 |
@@ -110,7 +111,7 @@ flowchart TB
 | `LocomotionState` | 顶层门面：托管 `LocomotionStateMachine` |
 | `LocomotionStateMachine` | 内层纯状态机（Idle/Start/Gait/PivotTurn/Stop）+ `LocomotionContext` |
 | `LocomotionContext` | 内层共享依赖、跨相位数据与 RootMotion/落脚辅助 |
-| `ActionState` | Tick `IActionExecutor` + `ActionRotationDriver`；Dodge 退出写入 `LocomotionResumeRequest` |
+| `ActionState` | 只执行 Action 旋转与状态快照；动作帧由 CharacterActor 统一 Step，PostCombat 后按会话结果退出 |
 | `CharacterConfig` | 角色装配根配置：模型、输入、动画、LocomotionProfile、移动、战斗 |
 | `CharacterMotor` | 纯 C# 移动执行：`ApplyLocomotion`、重力、移动意图解析 |
 | `CharacterActor` | 单角色纯 C# Actor：输入、Motor、状态机、动作、旋转与非权威表现插值 |
@@ -130,7 +131,7 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
               CharacterStateMachine
                     ├─ LocomotionState → LocomotionStateMachine → 各相位 State → Motor + Animation
                     └─ ActionState.Tick → ActionExecutor + ActionRotationDriver
-                    ↓ ActionExecutor.Tick（当前仍以 fixed dt 推进，L1 待改整数帧权威）
+                    ↓ CharacterActor 唯一调用 ActionExecutor.Step（ActionSession.CurrentFrame 权威）
               HitboxFrameConsumer（只 Collect）/ ActionVfxPlayer + ActionSfxPlayer（IActionNotifyConsumer）
                     ↓（全体 Actor Step 完成）
               CombatHitPipeline.SortAndResolve → CharacterActor.ResolvePostCombat → 帧末 App 表现事件
@@ -142,8 +143,8 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 |----|------|
 | `ActionDefinition` | 单动作播放内容 SO：动画段、统一时间轴、分类与 `ActionExecutionPolicy`；不参与输入选招、流程、伤害、反馈或索敌 |
 | `ActionTimeline` / `ActionNotify` / `ActionNotifyState` | 动作帧数据唯一真源：点事件（Event / VFX / SFX）与区间窗口（Phase/Hitbox/Hurtbox/Cancel/Movement/Rotation）；Recovery Phase 集成移动取消与 Entry 重开；`tracks[]` 为编辑器手动轨道 |
-| `ActionExecutor` | 当前播放器：由固定 60Hz `CharacterActor.Step` 间接 Tick；仍以 ElapsedSeconds 为权威，L1 待提取整数帧 `ActionSim` |
-| `ActionSession` | 当前招式唯一会话状态：CurrentAction、Elapsed、图游标、命中确认、卡肉暂停 |
+| `ActionExecutor` | L1A 过渡执行器：每 World 帧单次 Step；窗口/Graph/Segment/结束均读整数动作帧，切招延迟到下一 World 帧 |
+| `ActionSession` | 当前招式唯一逻辑会话：CurrentAction、CurrentFrame、图游标、命中确认与稳定会话 Id；ElapsedSeconds 仅派生 |
 | `ActionGraph` / `ActionGraphNode` | 完整选招与流程真源：节点 Intent、Entry、索敌、起手行为、自动衔接；Normal / Perfect 边与 SharedRoute |
 | `ActionResolverService` | 调当前模式 Graph 的起手/Cancel 解析 |
 | `CharacterActionDriver` | 角色无关：消费语义意图、起手切状态、动作缓冲与移动取消 |
@@ -160,7 +161,7 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 | `CharacterReactionService` | 玩家/敌人共用的 Health 事件桥接：执行可选上层副作用，并把解析结果交给 CharacterActor |
 | `PlayerActionSet` | 出招表：绑定一张 `ActionGraph`（节点按语义 Intent 匹配） |
 
-**当前 Logic Tick**：Runtime 由 `SimulationWorld` 固定 60Hz 推进 `ActionExecutor.Tick`；Hitbox 仅收集事件，Host 在全 Actor Step 后统一 Resolve，再由 PostCombat 解析自动 Transition/结束。`UpdateFrame` 尚未成为生产入口，统一整数帧 `ActionSim` 见重构方案 L1。
+**当前 Logic Tick**：Runtime 由 `CharacterActor` 在每个 `SimulationWorld` 固定帧唯一调用一次 `ActionExecutor.Step`；30Hz 过渡资产由 `ActionFrameClock` 整数换帧。Hitbox 仅收集事件，Host 在全 Actor Step 后统一 Resolve；PostCombat 排队自动 Transition，目标 frame 0 下一 World 帧提交。纯 `ActionSim` 与表现拆分见 L1B。
 
 ### 5. 玩家（Player）
 
@@ -238,7 +239,7 @@ EnemyBrain → AIInputWriter → InputFrameBuffer → InputManager → GameplayI
 |------|--------------|
 | 新玩家状态 | `CharacterStateType` + 新 State 类 + RegisterStates |
 | 新招式帧事件 | `ActionNotify` / `ActionNotifyState` + `IActionNotifyConsumer` 或专用查询服务 |
-| 编辑器 Scrub | `ActionExecutor.UpdateFrame` |
+| 编辑器 Scrub | `ActionEditorPreviewSession` 只读按帧采样；L1B 将复用纯 `ActionSim` 查询 |
 | OnHit 收招 | `ActionGraphNode.AutomaticTransitions(OnHitConfirm)` + `IActionHitReceiver` |
 | 敌人 AI 出招 | `CharacterActionDriver` + AI 输入源替换 `InputManager` |
 | 配置数据 | `Assets/Data/` ScriptableObject |

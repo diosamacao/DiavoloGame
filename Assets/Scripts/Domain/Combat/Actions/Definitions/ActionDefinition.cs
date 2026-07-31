@@ -10,7 +10,8 @@ public class ActionDefinition : ScriptableObject
     [Tooltip("按顺序播放的动画段；totalFrames 由各段有效帧累加。")]
     [SerializeField] ActionAnimationSegment[] animationSegments = Array.Empty<ActionAnimationSegment>();
 
-    [SerializeField] float sampleRate = 30f;
+    [Tooltip("整数动作采样率；L1 阶段不得高于 SimulationWorld 60Hz。")]
+    [SerializeField] int sampleRate = 30;
     [SerializeField] int totalFrames;
     [SerializeField] CombatActionType actionType = CombatActionType.Attack;
     [SerializeField] float crossFadeDuration = 0.1f;
@@ -43,8 +44,9 @@ public class ActionDefinition : ScriptableObject
         }
     }
 
-    /// <summary>逻辑采样率；所有时间轴帧都按此值换算。</summary>
-    public float SampleRate => sampleRate > 0f ? sampleRate : 30f;
+    /// <summary>整数逻辑采样率；所有时间轴帧都按此值换算。</summary>
+    public int SampleRate =>
+        Mathf.Clamp(sampleRate, 1, SimulationConfig.DefaultLogicHz);
 
     /// <summary>动作总逻辑帧数（各段有效帧之和）。</summary>
     public int TotalFrames => totalFrames;
@@ -80,15 +82,15 @@ public class ActionDefinition : ScriptableObject
     /// <summary>通用点事件列表，来自统一 Timeline。</summary>
     public ActionEvent[] ActionEvents => Timeline.ActionEvents;
 
-    /// <summary>招式总时长（秒）；优先 totalFrames，否则回退段累加。</summary>
+    /// <summary>供动画与编辑器显示的派生总时长；Runtime 结束判定只使用 TotalFrames。</summary>
     public float DurationSeconds
     {
         get
         {
             if (totalFrames > 0)
-                return totalFrames / SampleRate;
+                return totalFrames / (float)SampleRate;
 
-            return ComputeTotalFramesFromSegments() / SampleRate;
+            return ComputeTotalFramesFromSegments() / (float)SampleRate;
         }
     }
 
@@ -127,20 +129,6 @@ public class ActionDefinition : ScriptableObject
 
         // 落在末尾之后时钳到最后有效段末帧，便于 scrub / 结束判定采样。
         return TryGetLastValidSegment(out segmentIndex, out segment, out frameOffsetInSegment);
-    }
-
-    /// <summary>按已播放秒数解析当前动画段。</summary>
-    public bool TryGetSegmentAtElapsed(
-        float elapsedSeconds,
-        out int segmentIndex,
-        out ActionAnimationSegment segment,
-        out int frameOffsetInSegment)
-    {
-        return TryGetSegmentAtFrame(
-            FrameAt(elapsedSeconds),
-            out segmentIndex,
-            out segment,
-            out frameOffsetInSegment);
     }
 
     /// <summary>全局逻辑帧对应的采样 Clip；无则 null。</summary>
@@ -234,33 +222,31 @@ public class ActionDefinition : ScriptableObject
         return window != null && window.IsActiveAtFrame(frame);
     }
 
-    public bool IsInDisplacementWindow(float elapsedSeconds)
+    /// <summary>指定整数动作帧是否落在脚本位移窗口内。</summary>
+    public bool IsInDisplacementWindow(int frame)
     {
         if (!HasScriptedDisplacement || totalFrames <= 0)
             return false;
 
-        return GetActiveMovementState(elapsedSeconds) != null;
+        return GetActiveMovementStateAtFrame(frame) != null;
     }
 
-    /// <summary>当前时刻是否落在输入旋转修正窗口内。</summary>
-    public bool IsInRotationWindow(float elapsedSeconds)
+    /// <summary>指定整数动作帧是否落在输入旋转修正窗口内。</summary>
+    public bool IsInRotationWindow(int frame)
     {
         if (totalFrames <= 0)
             return false;
 
-        return GetActiveRotationState(elapsedSeconds) != null;
+        return GetActiveRotationStateAtFrame(frame) != null;
     }
 
-    /// <summary>返回当前时刻最高优先级脚本位移窗口。</summary>
-    public MovementNotifyState GetActiveMovementState(float elapsedSeconds) =>
-        Timeline.GetActiveMovementStateAtFrame(FrameAt(elapsedSeconds));
+    /// <summary>返回指定整数动作帧最高优先级的脚本位移窗口。</summary>
+    public MovementNotifyState GetActiveMovementStateAtFrame(int frame) =>
+        Timeline.GetActiveMovementStateAtFrame(frame);
 
-    /// <summary>返回当前时刻最高优先级旋转修正窗口。</summary>
-    public RotationNotifyState GetActiveRotationState(float elapsedSeconds) =>
-        Timeline.GetActiveRotationStateAtFrame(FrameAt(elapsedSeconds));
-
-    /// <summary>将 elapsed 秒换算为逻辑帧索引。</summary>
-    public int FrameAt(float elapsedSeconds) => Mathf.FloorToInt(elapsedSeconds * SampleRate);
+    /// <summary>返回指定整数动作帧最高优先级的旋转修正窗口。</summary>
+    public RotationNotifyState GetActiveRotationStateAtFrame(int frame) =>
+        Timeline.GetActiveRotationStateAtFrame(frame);
 
     /// <summary>返回指定帧上全部生效的 Hitbox（按数组顺序）。</summary>
     public IReadOnlyList<HitboxNotifyState> GetActiveHitboxesAtFrame(int frame)
@@ -270,7 +256,7 @@ public class ActionDefinition : ScriptableObject
 
     void OnValidate()
     {
-        sampleRate = Mathf.Max(1f, sampleRate);
+        sampleRate = Mathf.Clamp(sampleRate, 1, SimulationConfig.DefaultLogicHz);
         totalFrames = Mathf.Max(1, ComputeTotalFramesFromSegments());
 
         timeline ??= new ActionTimeline();

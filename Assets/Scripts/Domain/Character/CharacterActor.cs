@@ -97,22 +97,20 @@ public sealed class CharacterActor :
         _motor.SetCameraTransform(cameraTransform);
     }
 
-    /// <summary>执行上层已解析的受击表现并进入硬直；Actor 不负责选招。</summary>
-    public void EnterHit(float durationSeconds, ActionDefinition resolvedAction = null)
+    /// <summary>执行上层已解析的受击请求并进入整数帧硬直；Actor 不负责选招。</summary>
+    public void EnterHit(in CharacterReactionRequest request)
     {
         if (CurrentState == CharacterStateType.Death)
             return;
 
         ClearControlledInput();
-        var request = new CharacterReactionRequest(durationSeconds, resolvedAction);
         _stateMachine.EnterHit(in request);
     }
 
     /// <summary>执行上层已解析的死亡表现并进入不可逆死亡状态。</summary>
-    public void EnterDeath(ActionDefinition resolvedAction = null)
+    public void EnterDeath(in CharacterReactionRequest request)
     {
         ClearControlledInput();
-        var request = new CharacterReactionRequest(0f, resolvedAction);
         _stateMachine.EnterDeath(in request);
     }
 
@@ -147,6 +145,8 @@ public sealed class CharacterActor :
             _intentProducer.Step();
             _actionDriver.ProcessGameplayInput();
             _motor.TickGravity(fixedDeltaSeconds);
+            // Action 时间只在此处单次推进；各角色 State 不再各自 Tick 执行器。
+            _actionExecutor?.Step(fixedDeltaSeconds);
             _stateMachine.Tick(fixedDeltaSeconds);
             // 状态机内可能 Play 新 Clip，同帧末推进 CrossFade 权重。
             _animation.Tick(fixedDeltaSeconds);
@@ -164,6 +164,7 @@ public sealed class CharacterActor :
             throw new InvalidOperationException("CharacterActor PostCombat 必须与最近 Step 属于同一逻辑帧。");
 
         _actionExecutor?.ResolvePostCombat();
+        _stateMachine.ResolvePostCombat();
     }
 
     /// <summary>把前后逻辑 Pose 插值到模型表现锚点，不修改权威角色根。</summary>
