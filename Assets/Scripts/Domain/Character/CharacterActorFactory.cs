@@ -11,7 +11,7 @@ public static class CharacterActorFactory
         Transform root,
         CharacterConfig config,
         int teamId,
-        ICharacterInputSource inputSource,
+        ILocalInputSampler localInput,
         Transform cameraTransform,
         Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider,
         Action<ActionHitContext, IHurtboxTarget, IActionHitReceiver, Transform> hitDetected,
@@ -29,7 +29,7 @@ public static class CharacterActorFactory
         motorConfig.ApplyTo(controller);
 
         var sharedInput = new InputManager();
-        inputSource.ConfigureDiscreteInputs(config.GameplayIntentProfile.CollectInputReferences());
+        localInput?.ConfigureDiscreteInputs(config.GameplayIntentProfile.CollectInputReferences());
         var motor = new CharacterMotor(root, controller, motorConfig, sharedInput, cameraTransform);
         IAnimationPlayback playback = new PlayableAnimationPlayback(animator);
         animation = new CharacterAnimationService(
@@ -61,7 +61,7 @@ public static class CharacterActorFactory
 
         // 缓冲时长由输入 Profile 统一配置，避免工厂与动作执行器各自维护不同窗口。
         var intentBuffer = new GameplayIntentBuffer(
-            config.GameplayIntentProfile.ActionBufferDurationSeconds);
+            config.GameplayIntentProfile.ActionBufferDurationFrames);
         var intentProducer = new GameplayIntentProducer(
             config.GameplayIntentProfile,
             sharedInput,
@@ -102,7 +102,7 @@ public static class CharacterActorFactory
         actionExecutor.BindInputBuffer(intentBuffer);
 
         var actor = new CharacterActor(
-            inputSource,
+            localInput,
             sharedInput,
             intentProducer,
             motor,

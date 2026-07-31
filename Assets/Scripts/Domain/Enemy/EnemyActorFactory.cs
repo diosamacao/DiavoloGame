@@ -16,7 +16,7 @@ public static class EnemyActorFactory
         CharacterReactionResolver reactionResolver)
     {
         CharacterConfig config = definition.CharacterConfig;
-        var input = new AIInputSource(config.GameplayIntentProfile);
+        var input = new AIInputWriter(config.GameplayIntentProfile);
         if (!input.CanPulseAttack)
         {
             Debug.LogWarning(
@@ -34,7 +34,7 @@ public static class EnemyActorFactory
             root,
             config,
             definition.TeamId,
-            input,
+            null,
             facingProxy,
             activeTargetsProvider,
             hitDetected,
@@ -68,6 +68,7 @@ public static class EnemyActorFactory
             actionExecutor,
             animation,
             brain,
+            input,
             health,
             target,
             facingProxy,

@@ -68,6 +68,7 @@ public sealed class SimulationWorldTests
         world.SampleRenderFrame();
 
         Assert.That(actor.SampleCount, Is.EqualTo(1));
+        Assert.That(actor.LastSampleTargetFrame, Is.EqualTo(0));
         Assert.That(world.CurrentFrame, Is.EqualTo(-1));
     }
 
@@ -85,6 +86,21 @@ public sealed class SimulationWorldTests
         Assert.That(world.CurrentFrame, Is.EqualTo(-1));
     }
 
+    /// <summary>输入生产阶段必须先写当前帧，再由 Actor Step 消费同一 InputFrame。</summary>
+    [Test]
+    public void Step_ProducesInputBeforeActorConsumption()
+    {
+        var world = new SimulationWorld(new SimulationConfig());
+        var actor = new RecordingInputActor();
+        SimActorRegistration registration = world.Register(actor);
+
+        world.Step();
+
+        Assert.That(actor.ConsumedFrame.ActorId, Is.EqualTo(registration.Id));
+        Assert.That(actor.ConsumedFrame.Frame, Is.Zero);
+        Assert.That(actor.ConsumedFrame.WasPressed(InputButton.Attack), Is.True);
+    }
+
     /// <summary>测试用 Actor 记录 World 传入的逻辑帧与调用顺序。</summary>
     sealed class RecordingActor : ISimulationActor
     {
@@ -99,7 +115,7 @@ public sealed class SimulationWorldTests
         }
 
         /// <summary>记录当前固定逻辑帧，不执行其他副作用。</summary>
-        public void Step(long frameIndex, float fixedDeltaSeconds)
+        public void Step(long frameIndex, float fixedDeltaSeconds, in InputFrame inputFrame)
         {
             _trace.Add($"{frameIndex}:{_name}");
         }
@@ -117,13 +133,60 @@ public sealed class SimulationWorldTests
         /// <summary>最近收到的渲染插值比例。</summary>
         public float LastRenderAlpha { get; private set; }
 
+        /// <summary>最近一次渲染采样被分配的目标逻辑帧。</summary>
+        public long LastSampleTargetFrame { get; private set; } = -1;
+
         /// <summary>记录一次渲染输入采样。</summary>
-        public void SampleRenderFrame() => SampleCount++;
+        public void SampleRenderFrame(long targetFrame)
+        {
+            SampleCount++;
+            LastSampleTargetFrame = targetFrame;
+        }
 
         /// <summary>记录 World 转发的表现插值比例。</summary>
         public void Render(float interpolationAlpha) => LastRenderAlpha = interpolationAlpha;
 
         /// <summary>本用例不关心逻辑 Step。</summary>
-        public void Step(long frameIndex, float fixedDeltaSeconds) { }
+        public void Step(long frameIndex, float fixedDeltaSeconds, in InputFrame inputFrame) { }
+    }
+
+    /// <summary>测试 World 的输入绑定、生产与消费阶段顺序。</summary>
+    sealed class RecordingInputActor :
+        ISimulationActor,
+        ISimulationInputParticipant,
+        ISimulationInputProducer
+    {
+        SimActorId _actorId;
+        InputFrameBuffer _buffer;
+
+        /// <summary>Actor Step 最近消费的输入。</summary>
+        public InputFrame ConsumedFrame { get; private set; }
+
+        /// <summary>保存 World 分配的身份与输入历史。</summary>
+        public void BindSimulationInput(SimActorId actorId, InputFrameBuffer inputFrames)
+        {
+            _actorId = actorId;
+            _buffer = inputFrames;
+        }
+
+        /// <summary>为当前逻辑帧写入 Attack 按下边沿。</summary>
+        public void ProduceInput(long frameIndex)
+        {
+            var input = new InputFrame(
+                frameIndex,
+                _actorId,
+                0,
+                0,
+                InputButtonMask.Of(InputButton.Attack),
+                InputButtonMask.Of(InputButton.Attack),
+                0ul);
+            _buffer.Set(in input);
+        }
+
+        /// <summary>记录当前逻辑帧实际消费的输入。</summary>
+        public void Step(long frameIndex, float fixedDeltaSeconds, in InputFrame inputFrame)
+        {
+            ConsumedFrame = inputFrame;
+        }
     }
 }

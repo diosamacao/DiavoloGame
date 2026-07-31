@@ -15,8 +15,11 @@ public class PlayerController : AppControllerBase
     SimulationHost simulationHost;
     SimActorRegistration simulationRegistration;
 
-    /// <summary>玩家输入中枢，供 CameraManager 读取视角输入。</summary>
+    /// <summary>玩家量化输入中枢，供调试与玩法查询。</summary>
     public InputManager Input => actor?.Input;
+
+    /// <summary>相机表现使用的本地渲染帧视角输入，不进入锁步输入帧。</summary>
+    public Vector2 LookInput => actor?.LookInput ?? Vector2.zero;
 
     /// <summary>玩家当前生命值；运行时未创建时为 0。</summary>
     public float CurrentHealth => health != null ? health.CurrentHealth : 0f;

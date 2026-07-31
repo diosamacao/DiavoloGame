@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-07-31
+> Last audited: 2026-08-01
 
 ## 项目概述
 
@@ -85,6 +85,8 @@ flowchart TB
 | `IRenderFrameSampler` | 可选渲染帧输入汇聚契约，避免高 FPS 无逻辑 Step 时丢 Pressed/Released |
 | `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
 | `CharacterPresentationBridge` | 保留前后权威 Pose，只移动运行时模型锚点，不回写模拟根 |
+| `InputFrame` / `InputFrameBuffer` | 量化轴、稳定按钮 bitset、Actor/Frame 身份与输入历史；本地追帧只延续 Move/Held |
+| `ISimulationInputProducer` | Actor Step 前统一生成当帧输入；当前由敌人句柄驱动 Brain → AIInputWriter |
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只负责装配和注册，不再实现 Actor `Update` Tick。
 
@@ -119,7 +121,7 @@ CharacterConfig → PlayerController（Empty 根创建玩家输入源）
                     ↓
 CombatWorldController → SimulationHost.Update → SampleRenderFrame + 60Hz SimulationWorld.Step
                     ↓（SimActorId 稳定顺序）
-CharacterActor.Step → InputReader（原始帧）→ InputManager → GameplayIntentProducer / GameplayIntentBuffer
+CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / GameplayIntentBuffer（整数帧）
                     ↓
               CharacterActionDriver（语义意图起手 / 缓冲 / 移动取消）
                     ↓
@@ -181,12 +183,13 @@ CharacterActor.Step → InputReader（原始帧）→ InputManager → GameplayI
 
 | 类 | 职责 |
 |----|------|
-| `InputManager` | 原始帧快照、Pressed/Held/Released 生命周期、移动意图 |
-| `ICharacterInputSource` | 角色输入源抽象：玩家、AI、回放、网络 |
-| `InputReader` | 玩家纯 C# 输入源：绑定 GameInputActions |
-| `GameplayIntentProfile` | 物理 InputAction → 语义意图映射与长按阈值 |
-| `GameplayIntentProducer` | 结合 Sprint 上下文输出 Attack/LongPressedAttack/SprintAttack/Dodge/AttackRelease |
-| `GameplayIntentBuffer` | 当帧语义事件与 Action Cancel 跨帧缓冲 |
+| `InputFrame` | `frame + SimActorId + sbyte move + Pressed/Held/Released bitset + aimYaw` 固定输入格式 |
+| `InputFrameBuffer` | 玩家渲染采样、AI、回放共用历史；精确读取与本地连续状态展开 |
+| `ILocalInputSampler` / `InputReader` | 玩家设备边界：Input System Action 名映射为稳定 InputButton 并量化下一逻辑帧 |
+| `AIInputWriter` | AI 直接构造同格式 InputFrame，不再实现设备 Capture 接口 |
+| `InputManager` | 摄入量化帧并向现有玩法提供移动反解值与按钮生命周期 |
+| `GameplayIntentProfile` | 物理 InputAction → 语义意图映射；Hold/Buffer 阈值为整数逻辑帧 |
+| `GameplayIntentProducer` / `GameplayIntentBuffer` | 输出语义意图并按整数帧维护长按与 Cancel 缓冲 |
 
 ### 8. 相机（Camera）
 
@@ -199,7 +202,7 @@ CharacterActor.Step → InputReader（原始帧）→ InputManager → GameplayI
 | 类 | 职责 |
 |----|------|
 | `EnemyDefinition` / `EnemyBrainProfile` | 组合 CharacterConfig、AI 半径/冷却、HP 与敌人阵营；动作配置只在 CharacterConfig |
-| `AIInputSource` | 将 AI 移动与 Attack 脉冲合成为 `PlayerInputFrame`，继续走语义意图管线 |
+| `AIInputWriter` | 将 AI 移动与 Attack 脉冲量化为当帧 `InputFrame`，继续走统一语义意图管线 |
 | `EnemyBrain` / `EnemyPerception` | Idle / Chase / Attack / Hit / Dead FSM 与只读感知快照 |
 | `EnemyActorFactory` / `EnemyHandle` | 复用 CharacterActorFactory，聚合 Actor、Brain、Health、Hurtbox 生命周期 |
 | `EnemyController` / `EnemySpawnController` | 单敌 Tick 入口与场景刷怪入口 |
@@ -209,7 +212,7 @@ CharacterActor.Step → InputReader（原始帧）→ InputManager → GameplayI
 
 ```
 EnemyDefinition → EnemyActorFactory → CharacterActorFactory
-EnemyBrain → AIInputSource → InputManager → GameplayIntentProducer → CharacterActionDriver
+EnemyBrain → AIInputWriter → InputFrameBuffer → InputManager → GameplayIntentProducer → CharacterActionDriver
 玩家 Hitbox → ApplyHitCommand → CharacterHurtboxTarget → EnemyHealth
               └─ CharacterReactionService → CharacterReactionResolver
                    ├─ 非致命：EnemyBrain.NotifyHit → CharacterActor.EnterHit

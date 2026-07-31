@@ -7,24 +7,39 @@ public static class InputBindingUtils
     public static bool IsValid(InputActionReference reference) =>
         reference != null && reference.action != null;
 
-    public static string GetInputId(InputActionReference reference) =>
-        IsValid(reference) ? reference.action.name : null;
-
-    /// <summary>把物理输入引用转换为有效 Action 名。</summary>
-    public static string[] ResolveInputIds(InputActionReference[] references)
+    /// <summary>在 Unity 设备边界把 Action 名映射为稳定 InputButton bit。</summary>
+    public static bool TryGetButton(InputActionReference reference, out InputButton button)
     {
-        if (references == null || references.Length == 0)
-            return System.Array.Empty<string>();
-
-        var ids = new List<string>(references.Length);
-        foreach (InputActionReference reference in references)
+        if (!IsValid(reference))
         {
-            string id = GetInputId(reference);
-            if (!string.IsNullOrEmpty(id))
-                ids.Add(id);
+            button = default;
+            return false;
         }
 
-        return ids.ToArray();
+        switch (reference.action.name)
+        {
+            case "Attack":
+                button = InputButton.Attack;
+                return true;
+            case "Dodge":
+                button = InputButton.Dodge;
+                return true;
+            case "SwitchMode":
+                button = InputButton.SwitchMode;
+                return true;
+            case "HeavyAttack":
+                button = InputButton.HeavyAttack;
+                return true;
+            case "Evade":
+                button = InputButton.Evade;
+                return true;
+            case "Skill":
+                button = InputButton.Skill;
+                return true;
+            default:
+                button = default;
+                return false;
+        }
     }
 
     /// <summary>按 Action 名去重，收集有效 InputActionReference。</summary>

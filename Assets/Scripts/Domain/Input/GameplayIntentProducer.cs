@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 
 /// <summary>把原始输入生命周期与角色上下文解释为设备无关的动作意图。</summary>
@@ -10,9 +9,9 @@ public sealed class GameplayIntentProducer
     readonly CharacterStateMachine _stateMachine;
     readonly LocomotionStateMachine _locomotion;
     readonly IActionExecutor _actionExecutor;
-    readonly string[] _inputIds;
-    readonly Dictionary<string, float> _heldSeconds = new(StringComparer.Ordinal);
-    readonly HashSet<string> _holdIntentEmitted = new(StringComparer.Ordinal);
+    readonly InputButton[] _buttons;
+    readonly Dictionary<InputButton, int> _heldFrames = new();
+    readonly HashSet<InputButton> _holdIntentEmitted = new();
 
     /// <summary>创建意图生产器；Profile 是物理输入映射的唯一配置源。</summary>
     public GameplayIntentProducer(
@@ -29,57 +28,57 @@ public sealed class GameplayIntentProducer
         _stateMachine = stateMachine;
         _locomotion = locomotion;
         _actionExecutor = actionExecutor;
-        _inputIds = InputBindingUtils.ResolveInputIds(profile?.CollectInputReferences());
+        _buttons = CollectButtons(profile);
     }
 
-    /// <summary>先推进旧缓冲有效期，再推进按住计时并按优先级输出本帧语义意图。</summary>
-    public void Tick(float deltaTime)
+    /// <summary>先推进旧缓冲一帧，再按量化按钮生命周期输出本帧语义意图。</summary>
+    public void Step()
     {
-        _output.Tick(deltaTime);
+        _output.Step();
         _output.BeginFrame();
         if (_profile == null || _input == null)
             return;
 
-        for (int i = 0; i < _inputIds.Length; i++)
-            ProduceForInput(_inputIds[i], deltaTime);
+        for (int i = 0; i < _buttons.Length; i++)
+            ProduceForButton(_buttons[i]);
     }
 
-    /// <summary>单个物理输入在一帧内依次处理按下、长按阈值和松开。</summary>
-    void ProduceForInput(string inputId, float deltaTime)
+    /// <summary>单个稳定按钮在一帧内依次处理按下、长按阈值和松开。</summary>
+    void ProduceForButton(InputButton button)
     {
-        if (_input.WasPressedThisFrame(inputId))
+        if (_input.WasPressedThisFrame(button))
         {
-            _heldSeconds[inputId] = 0f;
-            _holdIntentEmitted.Remove(inputId);
-            TryEmit(inputId, GameplayIntentInputPhase.Pressed, 0f);
+            _heldFrames[button] = 0;
+            _holdIntentEmitted.Remove(button);
+            TryEmit(button, GameplayIntentInputPhase.Pressed, 0);
         }
 
-        if (_input.IsPressed(inputId))
+        if (_input.IsPressed(button))
         {
-            float held = _heldSeconds.TryGetValue(inputId, out float previous)
-                ? previous + Math.Max(0f, deltaTime)
-                : Math.Max(0f, deltaTime);
-            _heldSeconds[inputId] = held;
+            int held = _heldFrames.TryGetValue(button, out int previous)
+                ? previous + 1
+                : 1;
+            _heldFrames[button] = held;
 
-            if (!_holdIntentEmitted.Contains(inputId)
-                && TryEmit(inputId, GameplayIntentInputPhase.HoldReached, held))
+            if (!_holdIntentEmitted.Contains(button)
+                && TryEmit(button, GameplayIntentInputPhase.HoldReached, held))
             {
                 // 同一物理按住周期只产生一个长按语义，避免低优先级规则后续补发。
-                _holdIntentEmitted.Add(inputId);
+                _holdIntentEmitted.Add(button);
             }
         }
 
-        if (_input.WasReleasedThisFrame(inputId))
+        if (_input.WasReleasedThisFrame(button))
         {
-            float held = _heldSeconds.TryGetValue(inputId, out float duration) ? duration : 0f;
-            TryEmit(inputId, GameplayIntentInputPhase.Released, held);
-            _heldSeconds.Remove(inputId);
-            _holdIntentEmitted.Remove(inputId);
+            int held = _heldFrames.TryGetValue(button, out int duration) ? duration : 0;
+            TryEmit(button, GameplayIntentInputPhase.Released, held);
+            _heldFrames.Remove(button);
+            _holdIntentEmitted.Remove(button);
         }
     }
 
     /// <summary>从同一物理事件的匹配规则中选最高优先级并独占输出。</summary>
-    bool TryEmit(string inputId, GameplayIntentInputPhase phase, float heldSeconds)
+    bool TryEmit(InputButton button, GameplayIntentInputPhase phase, int heldFrames)
     {
         GameplayIntentBinding selected = default;
         bool found = false;
@@ -89,7 +88,7 @@ public sealed class GameplayIntentProducer
         {
             GameplayIntentBinding candidate = bindings[i];
             if (!candidate.IsValid
-                || !string.Equals(candidate.InputId, inputId, StringComparison.Ordinal)
+                || candidate.Button != button
                 || candidate.Phase != phase
                 || !MatchesContext(candidate.Condition))
             {
@@ -97,7 +96,7 @@ public sealed class GameplayIntentProducer
             }
 
             if (phase == GameplayIntentInputPhase.HoldReached
-                && heldSeconds < candidate.HoldSeconds)
+                && heldFrames < candidate.HoldFrames)
             {
                 continue;
             }
@@ -144,4 +143,22 @@ public sealed class GameplayIntentProducer
     /// <summary>相同显式优先级下，上下文限定规则优先于 Always 回退。</summary>
     static int ConditionSpecificity(GameplayIntentCondition condition) =>
         condition == GameplayIntentCondition.Always ? 0 : 1;
+
+    /// <summary>按 Profile 首次出现顺序收集稳定按钮，避免每帧扫描重复映射。</summary>
+    static InputButton[] CollectButtons(GameplayIntentProfile profile)
+    {
+        if (profile == null)
+            return System.Array.Empty<InputButton>();
+
+        var result = new List<InputButton>(profile.Bindings.Count);
+        var seen = new HashSet<InputButton>();
+        for (int i = 0; i < profile.Bindings.Count; i++)
+        {
+            GameplayIntentBinding binding = profile.Bindings[i];
+            if (binding.IsValid && seen.Add(binding.Button))
+                result.Add(binding.Button);
+        }
+
+        return result.ToArray();
+    }
 }

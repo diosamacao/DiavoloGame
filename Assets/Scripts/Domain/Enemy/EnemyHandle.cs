@@ -1,14 +1,22 @@
 using UnityEngine;
 
-/// <summary>单敌人纯 C# 生命周期句柄；聚合 Brain、角色 Actor、生命值与受击目标。</summary>
-public sealed class EnemyHandle : System.IDisposable, ISimulationActor, ISimulationRenderable
+/// <summary>单敌人纯 C# 生命周期句柄；在 World 输入阶段先决策，再消费同帧量化输入。</summary>
+public sealed class EnemyHandle :
+    System.IDisposable,
+    ISimulationActor,
+    ISimulationInputParticipant,
+    ISimulationInputProducer,
+    ISimulationRenderable
 {
     readonly EnemyDefinition _definition;
     readonly CharacterActor _actor;
     readonly EnemyBrain _brain;
+    readonly AIInputWriter _input;
     readonly EnemyHealth _health;
     readonly Transform _facingProxy;
     readonly CharacterReactionService _reactionService;
+    InputFrameBuffer _inputFrames;
+    SimActorId _actorId;
     float _deathReadyElapsed;
 
     /// <summary>创建已装配的敌人句柄并接管反应服务生命周期。</summary>
@@ -19,6 +27,7 @@ public sealed class EnemyHandle : System.IDisposable, ISimulationActor, ISimulat
         ActionExecutor actionExecutor,
         CharacterAnimationService animation,
         EnemyBrain brain,
+        AIInputWriter input,
         EnemyHealth health,
         CharacterHurtboxTarget target,
         Transform facingProxy,
@@ -30,6 +39,7 @@ public sealed class EnemyHandle : System.IDisposable, ISimulationActor, ISimulat
         ActionExecutor = actionExecutor;
         Animation = animation;
         _brain = brain;
+        _input = input;
         _health = health;
         Target = target;
         _facingProxy = facingProxy;
@@ -60,19 +70,34 @@ public sealed class EnemyHandle : System.IDisposable, ISimulationActor, ISimulat
         && _actor.DeathPresentationComplete
         && _deathReadyElapsed >= _definition.BrainProfile.DeathDespawnDelaySeconds;
 
-    /// <summary>启用 AI 输入源。</summary>
-    public void Enable() => _actor.Enable();
+    /// <summary>启用 AI 输入帧写入。</summary>
+    public void Enable() => _input.Enable();
 
-    /// <summary>禁用 AI 输入源。</summary>
-    public void Disable() => _actor.Disable();
+    /// <summary>禁用并清空 AI 输入帧写入。</summary>
+    public void Disable() => _input.Disable();
 
-    /// <summary>由 SimulationWorld 按 Brain 决策在前、角色管线在后的固定顺序推进。</summary>
-    public void Step(long frameIndex, float fixedDeltaSeconds)
+    /// <summary>注册时绑定句柄与内部 CharacterActor 到同一稳定输入身份。</summary>
+    public void BindSimulationInput(SimActorId actorId, InputFrameBuffer inputFrames)
+    {
+        _actorId = actorId;
+        _inputFrames = inputFrames ?? throw new System.ArgumentNullException(nameof(inputFrames));
+        _actor.BindSimulationInput(actorId, inputFrames);
+    }
+
+    /// <summary>在所有 Actor Step 前基于上一帧状态决策并写入当前逻辑帧输入。</summary>
+    public void ProduceInput(long frameIndex)
     {
         if (!IsDead)
-            _brain.Tick(fixedDeltaSeconds);
+            _brain.Step();
 
-        _actor.Step(frameIndex, fixedDeltaSeconds);
+        InputFrame input = _input.BuildFrame(frameIndex, _actorId);
+        _inputFrames.Set(in input);
+    }
+
+    /// <summary>消费 World 已准备的同帧输入并推进共享角色管线。</summary>
+    public void Step(long frameIndex, float fixedDeltaSeconds, in InputFrame inputFrame)
+    {
+        _actor.Step(frameIndex, fixedDeltaSeconds, in inputFrame);
         if (IsDead && _actor.DeathPresentationComplete)
             _deathReadyElapsed += Mathf.Max(0f, fixedDeltaSeconds);
     }
@@ -85,7 +110,7 @@ public sealed class EnemyHandle : System.IDisposable, ISimulationActor, ISimulat
     {
         _reactionService?.Dispose();
         _brain.Stop();
-        _actor.Disable();
+        _input.Disable();
         _actor.Dispose();
 
         if (_facingProxy != null)

@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-07-31
+> Last updated: 2026-08-01
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -9,7 +9,7 @@
 |------|------|---------------|----------|
 | 固定帧模拟宿主 | ✅ L0A 已实现 | `SimulationHost`、`SimulationWorld`、`SimActorId` | 60Hz，无资产 |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
-| 输入（原始帧 + 语义意图） | ✅ 已实现 | `InputReader`、`InputManager`、`GameplayIntentProducer` | `GameInputActions.inputactions` + `GameplayIntentProfile` |
+| 输入（量化帧 + 语义意图） | ✅ L0B 代码已实现 | `InputFrameBuffer`、`InputReader`、`AIInputWriter`、`GameplayIntentProducer` | `GameInputActions.inputactions` + `GameplayIntentProfile` |
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
 | 架构通信框架 | ✅ 已实现 | `ACTGameArchitecture`、`ArchitectureSystemBase`、`AppControllerBase`、Command / Query / Event | — |
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionStateMachine` + `LocomotionState` | AnimationProfile + `CharacterLocomotionProfile` |
@@ -81,6 +81,8 @@ AppControllerBase
 | Actor 身份 | World 从 1 单调分配 `SimActorId`，会话内不复用 |
 | Actor 顺序 | `CharacterActor` / `EnemyHandle` 实现 `ISimulationActor`，按注册 Id 升序执行 |
 | 渲染输入 | `IRenderFrameSampler` 每渲染帧汇聚设备边沿；无逻辑 Step 时 Pressed/Released 保留到下一 Step |
+| 输入帧 | `InputFrame` 使用 sbyte Move、稳定按钮 bitset、frame 与 SimActorId；World 持有 `InputFrameBuffer` 历史 |
+| 输入阶段 | 每帧先调用 `ISimulationInputProducer`；AI 基于 Actor Step 前的 N-1 已提交状态写 N 帧输入 |
 | 表现插值 | 模型位于运行时 `CharacterPresentationRoot`；Host LateUpdate 按 accumulator alpha 插值前后逻辑 Pose |
 | 相机跟随 | `CameraManager` 跟随玩家表现锚点，不直接追阶梯式权威 Transform |
 | 生命周期 | Controller 在 OnEnable 注册、OnDisable/OnDestroy 注销；禁用对象不会继续模拟 |
@@ -91,9 +93,12 @@ AppControllerBase
 ```
 SimulationHost.Update
   → SimulationWorld.SampleRenderFrame
+      → InputReader 量化并合并到 CurrentFrame + 1
   → FixedStepAccumulator.ConsumeSteps(Time.deltaTime)
   → 重复 N 次 SimulationWorld.Step
-      → CharacterActor.Step / EnemyHandle.Step（固定 1/60s）
+      → ISimulationInputProducer.ProduceInput（AI）
+      → InputFrameBuffer.ResolveLocal
+      → CharacterActor.Step / EnemyHandle.Step（固定 1/60s + 同帧 InputFrame）
   → 每 Step 后集中处理敌人死亡注销与 Despawn Command
 SimulationHost.LateUpdate
   → SimulationWorld.Render(alpha)
@@ -103,7 +108,7 @@ SimulationHost.LateUpdate
 
 ### 已知限制
 
-- L0A 只切换时钟和 Tick 拓扑；输入仍是 float/string `PlayerInputFrame`，完整量化输入帧属于 L0B。
+- L0B 已切换量化输入与整数帧 Hold/Buffer/AI 冷却；完整脱设备玩法回放仍需 Play Mode 确认。
 - Hitbox 仍在 Actor Step 内同步调用 `ApplyHitCommand`，稳定帧末 Combat 结算属于 L0C。
 - Action 仍以 `ElapsedSeconds` 为权威；Animator `OnAnimatorMove` 路径尚未帧化，仅普通 Locomotion 已消除固定帧阶梯抖动。
 - CharacterController 与 HitStop 仍待 L1/L2；表现插值只修改模型锚点，不参与碰撞、命中或 Hash。
@@ -149,8 +154,9 @@ SimulationHost.LateUpdate
 ### 运行时流程
 
 ```
-Update
-  → InputReader.CaptureFrame
+SimulationWorld.Step
+  → InputFrameBuffer.ResolveLocal
+  → InputManager.IngestFrame
   → GetCameraRelativeMoveDirection
   → 有方向：SmoothDamp 旋转 + Move(水平)
   → ApplyGravity：Move(垂直)
@@ -176,19 +182,21 @@ Update
 
 ### 功能说明
 
-使用 Unity **Input System** 采集原始帧，再由 `GameplayIntentProducer` 将离散输入转换为设备无关意图；ActionGraph 不再依赖 InputAction 名。
+使用 Unity **Input System** 在设备边界采样，立即量化为带逻辑帧与 SimActorId 的 `InputFrame`；玩家、AI、回放共用同一格式，再由 `GameplayIntentProducer` 转换为设备无关意图。
 
 ### 实现方案
 
 | 项 | 方案 |
 |----|------|
 | 资产 | `GameInputActions.inputactions` |
-| 形态 | `InputReader` 为玩家纯 C# 输入源，实现 `ICharacterInputSource` |
-| 绑定 | Move/Look 从 Player Map 读取；离散引用来自 `GameplayIntentProfile` |
+| 形态 | `InputReader` 实现 `ILocalInputSampler`；AI 使用 `AIInputWriter`，不伪装设备 |
+| 绑定 | Move 从 Player Map 读取并量化为 sbyte；Look 只供相机表现；离散 Action 名仅在边界映射为固定 `InputButton` |
 | 生命周期 | OnEnable/OnDisable 启用/禁用整个 Asset |
-| 原始中枢 | `InputManager` 保存 Move/Look 与 Pressed/IsPressed/Released |
-| 语义生产 | `GameplayIntentProducer`：SprintAttack、DodgeAttack 上下文映射，PressedThenLong、Dodge |
-| 语义缓冲 | `GameplayIntentBuffer`：当帧事件 + Action Cancel 跨帧消费 |
+| 输入历史 | `InputFrameBuffer` 按 `(frame, actorId)` 保存；多渲染样本边沿 OR、连续状态取最后值 |
+| 追帧展开 | 缺少下一设备样本时只延续 Move/Held；Pressed/Released 不重复、不从 Held 推导 |
+| 原始中枢 | `InputManager` 摄入量化帧，提供移动反解值与 Pressed/Held/Released bit 查询 |
+| 语义生产 | `GameplayIntentProducer`：SprintAttack、DodgeAttack、PressedThenLong；Hold 按整数帧累计 |
+| 语义缓冲 | `GameplayIntentBuffer`：当帧事件 + 整数帧 TTL 的 Action Cancel 缓冲 |
 | 消费方 | `CharacterActionDriver` 消费动作意图；Locomotion 继续消费连续 Move 快照 |
 
 ### 绑定摘要
@@ -202,11 +210,13 @@ Update
 
 ### 错误处理
 
-未分配 `inputActions` 或 `GameplayIntentProfile` 时 CharacterConfig 校验失败，不创建角色运行时。
+未分配 `inputActions` 或 `GameplayIntentProfile` 时 CharacterConfig 校验失败，不创建角色运行时。L0B 直接删除秒字段：现有 Intent Profile 需在 Editor 将 Unagi 长按设为 18 帧、动作缓冲设为 60 帧；EnemyBrainProfile 建议设为攻击冷却 72、失败重试 12、朝向刷新 6 帧。
 
 ### 相关文件
 
+- `Assets/Scripts/Domain/Simulation/Input/*`
 - `Assets/Scripts/Infrastructure/Input/InputReader.cs`
+- `Assets/Scripts/Infrastructure/Input/AIInputWriter.cs`
 - `Assets/Scripts/Domain/Input/GameplayIntent*.cs`
 - `Assets/Scripts/Input/GameInputActions.inputactions`
 
@@ -566,7 +576,7 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 | 项 | 方案 |
 |----|------|
 | 配置 | `EnemyDefinition` 只组合 CharacterConfig、BrainProfile、独立 teamId 与 HP；受击/死亡映射在 `CharacterConfig.Combat.Reactions` |
-| AI 输入 | `AIInputSource` 从 GameplayIntentProfile 解析 Always + Pressed → Attack 的物理 id |
+| AI 输入 | `AIInputWriter` 直接写固定 Attack bit；World 在 Actor Step 前调用 Brain 生成当前逻辑帧 |
 | 追击 | `EnemyBrain` 更新 facing proxy，持续写 `Move=(0, chaseMoveMagnitude)` |
 | 攻击 | Brain 只发一帧 Attack 脉冲；选招仍由 GameplayIntentProducer → CharacterActionDriver → ActionGraph |
 | 伤害与反应 | `HitboxNotifyState.Payload` 持有基础伤害、HitReactionId 与反馈；`CharacterReactionService` 统一玩家/敌人事件桥接，Resolver 产出完整状态请求 |
@@ -591,9 +601,9 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 ### 运行时流程
 
 ```
-EnemyController.Update
-  → EnemyBrain.Tick → AIInputSource
-  → SimulationWorld → EnemyHandle.Step → CharacterActor.Step → Locomotion / Action
+SimulationWorld.Step
+  → EnemyHandle.ProduceInput → EnemyBrain.Step → AIInputWriter → InputFrameBuffer
+  → EnemyHandle.Step → CharacterActor.Step(InputFrame) → Locomotion / Action
 
 ApplyHitCommand
   → CharacterHurtboxTarget.OnHit
@@ -681,3 +691,4 @@ ApplyHitCommand
 | 2026-07-31 | Lockstep L0A：新增 60Hz SimulationHost/World、稳定 SimActorId 与纯 C# asmdef；玩家/敌人删除分散 Controller Tick，渲染输入边沿先汇聚再由固定帧消费 |
 | 2026-07-31 | 修复 L0A 移动抖动：新增 CharacterPresentationBridge 前后 Pose 插值与表现锚点，相机改跟随插值根；SmoothDampAngle 显式使用固定逻辑步长 |
 | 2026-07-31 | 修复固定帧后攻击转向变慢：ActionRotationDriver 不再隐式读取 Time.deltaTime，并在退出 Action 时清空旧旋转速度 |
+| 2026-08-01 | Lockstep L0B：删除 PlayerInputFrame/ICharacterInputSource/AIInputSource；新增量化 InputFrame、输入历史与 World Input Produce 阶段；Hold/Buffer/AI 冷却改整数帧 |

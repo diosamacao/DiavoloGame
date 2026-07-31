@@ -246,10 +246,10 @@ public class CameraManager : AppControllerBase
 
     void ApplyLookInput()
     {
-        if (!lookEnabled || playerController == null || playerController.Input == null)
+        if (!lookEnabled || playerController == null)
             return;
 
-        Vector2 lookInput = playerController.Input.LookIntent;
+        Vector2 lookInput = playerController.LookInput;
         float verticalInput = invertY ? -lookInput.y : lookInput.y;
 
         yaw += lookInput.x * horizontalSensitivity;

@@ -7,6 +7,7 @@ public sealed class SimulationWorld
     readonly SimulationConfig _config;
     readonly List<ActorEntry> _actors = new();
     readonly Dictionary<ISimulationActor, SimActorId> _idsByActor = new();
+    readonly InputFrameBuffer _inputFrames = new();
     int _nextActorId = 1;
     bool _isStepping;
 
@@ -18,6 +19,9 @@ public sealed class SimulationWorld
 
     /// <summary>固定逻辑帧秒数。</summary>
     public float FixedDeltaSeconds => _config.FixedDeltaSeconds;
+
+    /// <summary>当前会话输入历史；供本地采样、AI、回放与未来权威包写入。</summary>
+    public InputFrameBuffer InputFrames => _inputFrames;
 
     /// <summary>使用不可变配置创建空模拟世界。</summary>
     public SimulationWorld(SimulationConfig config)
@@ -37,6 +41,8 @@ public sealed class SimulationWorld
         var id = new SimActorId(_nextActorId++);
         _actors.Add(new ActorEntry(id, actor));
         _idsByActor.Add(actor, id);
+        if (actor is ISimulationInputParticipant inputParticipant)
+            inputParticipant.BindSimulationInput(id, _inputFrames);
         return new SimActorRegistration(id);
     }
 
@@ -55,6 +61,7 @@ public sealed class SimulationWorld
 
             _actors.RemoveAt(i);
             _idsByActor.Remove(entry.Actor);
+            _inputFrames.RemoveActor(entry.Id);
             return true;
         }
 
@@ -65,10 +72,11 @@ public sealed class SimulationWorld
     public void SampleRenderFrame()
     {
         EnsureNotStepping("采集渲染帧");
+        long targetFrame = CurrentFrame + 1;
         for (int i = 0; i < _actors.Count; i++)
         {
             if (_actors[i].Actor is IRenderFrameSampler sampler)
-                sampler.SampleRenderFrame();
+                sampler.SampleRenderFrame(targetFrame);
         }
     }
 
@@ -93,9 +101,20 @@ public sealed class SimulationWorld
         long frameIndex = CurrentFrame + 1;
         try
         {
+            // 输入生产阶段先完成，保证所有 Actor 的玩法 Step 只读取同一逻辑帧输入。
+            for (int i = 0; i < _actors.Count; i++)
+            {
+                if (_actors[i].Actor is ISimulationInputProducer producer)
+                    producer.ProduceInput(frameIndex);
+            }
+
             // Id 单调分配且列表只追加，因此遍历顺序天然稳定；注销不会重排剩余 Id。
             for (int i = 0; i < _actors.Count; i++)
-                _actors[i].Actor.Step(frameIndex, _config.FixedDeltaSeconds);
+            {
+                ActorEntry entry = _actors[i];
+                InputFrame input = _inputFrames.ResolveLocal(frameIndex, entry.Id);
+                entry.Actor.Step(frameIndex, _config.FixedDeltaSeconds, in input);
+            }
 
             CurrentFrame = frameIndex;
         }
