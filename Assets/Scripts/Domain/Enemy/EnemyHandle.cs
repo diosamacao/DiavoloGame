@@ -6,7 +6,8 @@ public sealed class EnemyHandle :
     ISimulationActor,
     ISimulationInputParticipant,
     ISimulationInputProducer,
-    ISimulationRenderable
+    ISimulationRenderable,
+    ISimulationPostCombatActor
 {
     readonly EnemyDefinition _definition;
     readonly CharacterActor _actor;
@@ -101,6 +102,9 @@ public sealed class EnemyHandle :
         if (IsDead && _actor.DeathPresentationComplete)
             _deathReadyElapsed += Mathf.Max(0f, fixedDeltaSeconds);
     }
+
+    /// <summary>把统一 Combat Resolve 后的动作收尾转发给共享 CharacterActor。</summary>
+    public void ResolvePostCombat(long frameIndex) => _actor.ResolvePostCombat(frameIndex);
 
     /// <summary>把内部角色的前后逻辑 Pose 插值到敌人模型表现锚点。</summary>
     public void Render(float interpolationAlpha) => _actor.Render(interpolationAlpha);

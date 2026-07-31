@@ -16,11 +16,11 @@ public sealed class ActionSession
     /// <summary>当前已切入的动画段索引；用于段边界 PlayClip 去重。</summary>
     public int CurrentAnimationSegmentIndex { get; set; } = -1;
 
-    /// <summary>卡肉期间暂停招式逻辑时间。</summary>
-    public bool IsHitStopPaused { get; private set; }
-
     /// <summary>本招是否已经发生命中确认。</summary>
     public bool HasConfirmedHit { get; private set; }
+
+    /// <summary>当前招式会话编号；同一角色内单调递增，停止时为 0。</summary>
+    public int InstanceId { get; private set; }
 
     /// <summary>当前连招图；不在图内时为 null。</summary>
     public ActionGraph CurrentGraph { get; private set; }
@@ -38,7 +38,7 @@ public sealed class ActionSession
         return HasGraphCursor && CurrentGraph.TryGetNode(CurrentNodeId, out node);
     }
 
-    bool _hitStopTriggered;
+    int _nextInstanceId;
 
     /// <summary>开始一个新招式会话，并清空上一个会话的派生状态（含图游标）。</summary>
     public void Begin(ActionDefinition action)
@@ -47,9 +47,9 @@ public sealed class ActionSession
         ElapsedSeconds = 0f;
         LastProcessedFrame = -1;
         CurrentAnimationSegmentIndex = -1;
-        IsHitStopPaused = false;
         HasConfirmedHit = false;
-        _hitStopTriggered = false;
+        _nextInstanceId = _nextInstanceId == int.MaxValue ? 1 : _nextInstanceId + 1;
+        InstanceId = _nextInstanceId;
         ClearGraphCursor();
     }
 
@@ -74,13 +74,12 @@ public sealed class ActionSession
         ElapsedSeconds = 0f;
         LastProcessedFrame = -1;
         CurrentAnimationSegmentIndex = -1;
-        IsHitStopPaused = false;
         HasConfirmedHit = false;
-        _hitStopTriggered = false;
+        InstanceId = 0;
         ClearGraphCursor();
     }
 
-    /// <summary>推进会话时间；调用方保证会话激活且未暂停。</summary>
+    /// <summary>推进会话时间；调用方保证会话处于激活状态。</summary>
     public void Advance(float deltaTime)
     {
         ElapsedSeconds += deltaTime;
@@ -95,25 +94,10 @@ public sealed class ActionSession
         ElapsedSeconds = frameIndex / CurrentAction.SampleRate;
     }
 
-    /// <summary>设置卡肉暂停状态。</summary>
-    public void SetHitStopPaused(bool paused)
-    {
-        IsHitStopPaused = paused;
-    }
-
     /// <summary>标记本招已经命中，用于 OnHitConfirm / OnWhiff。</summary>
     public void ConfirmHit()
     {
         HasConfirmedHit = true;
     }
 
-    /// <summary>每招仅允许消费一次卡肉触发。</summary>
-    public bool TryConsumeHitStopTrigger()
-    {
-        if (_hitStopTriggered)
-            return false;
-
-        _hitStopTriggered = true;
-        return true;
-    }
 }

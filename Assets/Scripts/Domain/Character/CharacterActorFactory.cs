@@ -5,7 +5,7 @@ using UnityEngine;
 /// <summary>角色实例工厂，负责从 CharacterConfig 和输入源创建纯 C# 服务图。</summary>
 public static class CharacterActorFactory
 {
-    /// <summary>按配置创建角色实例；跨系统注册和命中结算由调用方通过委托接回 App 层。</summary>
+    /// <summary>按配置创建角色实例；Hitbox 仅写共享帧末命中流水线。</summary>
     public static CharacterActor Create(
         GameObject owner,
         Transform root,
@@ -14,10 +14,11 @@ public static class CharacterActorFactory
         ILocalInputSampler localInput,
         Transform cameraTransform,
         Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider,
-        Action<ActionHitContext, IHurtboxTarget, IActionHitReceiver, Transform> hitDetected,
+        CombatHitPipeline combatHitPipeline,
         out ActionExecutor actionExecutor,
         out CharacterAnimationService animation)
     {
+        CharacterActor actor = null;
         CharacterMotorConfig motorConfig = config.Motor;
         Transform presentationRoot = CreatePresentationRoot(root);
         Transform modelRoot = SpawnModelInstance(config, presentationRoot);
@@ -80,7 +81,8 @@ public static class CharacterActorFactory
             actionExecutor,
             attachPoints,
             activeTargetsProvider,
-            hitDetected);
+            () => actor?.SimulationId ?? SimActorId.Invalid,
+            combatHitPipeline);
         var vfxPlayer = new ActionVfxPlayer(root, attachPoints);
         var sfxPlayer = new ActionSfxPlayer(root);
 
@@ -101,13 +103,14 @@ public static class CharacterActorFactory
             motor);
         actionExecutor.BindInputBuffer(intentBuffer);
 
-        var actor = new CharacterActor(
+        actor = new CharacterActor(
             localInput,
             sharedInput,
             intentProducer,
             motor,
             stateMachine,
             actionDriver,
+            actionExecutor,
             combatMode,
             animation,
             new CharacterPresentationBridge(root, presentationRoot));

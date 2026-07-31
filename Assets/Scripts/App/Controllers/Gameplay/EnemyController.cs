@@ -88,13 +88,14 @@ public sealed class EnemyController : AppControllerBase
         }
 
         CombatWorldController combatWorld = EnsureCombatWorldController();
+        _simulationHost = combatWorld.EnsureSimulationHost();
         _handle = EnemyActorFactory.Create(
             gameObject,
             transform,
             enemyDefinition,
             () => target,
             () => SendQuery(new GetActiveTargetsQuery()),
-            ApplyDetectedHit,
+            _simulationHost.CombatHits,
             new CharacterReactionResolver(enemyDefinition.CharacterConfig.Combat.Reactions));
 
         GetSystem<CombatActorSystem>()?.Register(
@@ -105,7 +106,6 @@ public sealed class EnemyController : AppControllerBase
         GetSystem<TargetSystem>()?.Register(_handle.Target);
         GetSystem<EnemySpawnSystem>()?.Register(this);
         _registered = true;
-        _simulationHost = combatWorld.EnsureSimulationHost();
         RegisterSimulationActor();
         _handle.Enable();
         gameObject.name = enemyDefinition.DisplayName;
@@ -144,16 +144,6 @@ public sealed class EnemyController : AppControllerBase
             _simulationHost.Unregister(_simulationRegistration);
 
         _simulationRegistration = SimActorRegistration.Invalid;
-    }
-
-    /// <summary>把纯 Domain 命中检测结果交给统一 ApplyHitCommand。</summary>
-    void ApplyDetectedHit(
-        ActionHitContext context,
-        IHurtboxTarget hitTarget,
-        IActionHitReceiver hitReceiver,
-        Transform targetTransform)
-    {
-        SendCommand(new ApplyHitCommand(context, hitTarget, hitReceiver, targetTransform));
     }
 
     /// <summary>死亡时立即注销战斗与索敌条目，避免回收延迟期间仍被选中。</summary>

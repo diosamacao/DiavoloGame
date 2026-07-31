@@ -12,7 +12,7 @@ public static class EnemyActorFactory
         EnemyDefinition definition,
         Func<Transform> targetProvider,
         Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider,
-        Action<ActionHitContext, IHurtboxTarget, IActionHitReceiver, Transform> hitDetected,
+        CombatHitPipeline combatHitPipeline,
         CharacterReactionResolver reactionResolver)
     {
         CharacterConfig config = definition.CharacterConfig;
@@ -37,7 +37,7 @@ public static class EnemyActorFactory
             null,
             facingProxy,
             activeTargetsProvider,
-            hitDetected,
+            combatHitPipeline,
             out ActionExecutor actionExecutor,
             out CharacterAnimationService animation);
 
@@ -59,7 +59,8 @@ public static class EnemyActorFactory
             root,
             definition.TeamId,
             config.Combat.Hurtbox,
-            health);
+            health,
+            () => actor.SimulationId);
 
         return new EnemyHandle(
             definition,

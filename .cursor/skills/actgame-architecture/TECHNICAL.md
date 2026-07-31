@@ -17,7 +17,7 @@
 | 第三人称相机 | ✅ 已实现 | `CameraManager` | 场景内 CameraManager 对象 |
 | 动作系统（选招 / 播放 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ 已实现 | 纯 C# `ActionResolverService` + `ActionExecutor` + `CombatModeService` | `ActionGraph` 节点策略 + `ActionDefinition.ExecutionPolicy` |
 | Action Editor（时间轴编辑） | 🟡 骨架/部分 | `ActionEditorWindow` + `ActionTimeline` 手动加轨/窗口 | Menu：`ACT/Action Editor` |
-| 攻击 / 战斗判定 | ✅ 已实现 | `HitboxFrameConsumer` + `CombatDamageCalculator` + `CharacterReactionService` | HitPayload 基础伤害；Hit/Death 状态 |
+| 攻击 / 战斗判定 | ✅ L0C 延迟结算已实现 | `CombatHitPipeline` + `CombatDamageCalculator` + `CharacterReactionService` | SimHitKey；HitPayload；Hit/Death 状态 |
 | 敌人 AI | 🟡 代码已接、资产待绑 | `EnemyController` + `EnemyBrain` + 共享 `CharacterActor` | `EnemyDefinition`、`EnemyBrainProfile`、敌人 CharacterConfig/Graph |
 | UI | ⬜ 未实现 | — | `UI/` 占位 |
 
@@ -83,6 +83,9 @@ AppControllerBase
 | 渲染输入 | `IRenderFrameSampler` 每渲染帧汇聚设备边沿；无逻辑 Step 时 Pressed/Released 保留到下一 Step |
 | 输入帧 | `InputFrame` 使用 sbyte Move、稳定按钮 bitset、frame 与 SimActorId；World 持有 `InputFrameBuffer` 历史 |
 | 输入阶段 | 每帧先调用 `ISimulationInputProducer`；AI 基于 Actor Step 前的 N-1 已提交状态写 N 帧输入 |
+| 命中阶段 | 全体 Actor 只 Collect；`CombatHitPipeline` 按 `SimHitKey` 排序后统一 Resolve |
+| PostCombat | `ISimulationPostCombatActor` 在结算后处理 OnHitConfirm/OnWhiff 与自然结束 |
+| Commit | 当前死亡目标注销与敌人 Despawn 固定在 Combat/PostCombat 后执行 |
 | 表现插值 | 模型位于运行时 `CharacterPresentationRoot`；Host LateUpdate 按 accumulator alpha 插值前后逻辑 Pose |
 | 相机跟随 | `CameraManager` 跟随玩家表现锚点，不直接追阶梯式权威 Transform |
 | 生命周期 | Controller 在 OnEnable 注册、OnDisable/OnDestroy 注销；禁用对象不会继续模拟 |
@@ -98,8 +101,11 @@ SimulationHost.Update
   → 重复 N 次 SimulationWorld.Step
       → ISimulationInputProducer.ProduceInput（AI）
       → InputFrameBuffer.ResolveLocal
-      → CharacterActor.Step / EnemyHandle.Step（固定 1/60s + 同帧 InputFrame）
-  → 每 Step 后集中处理敌人死亡注销与 Despawn Command
+      → CharacterActor.Step / EnemyHandle.Step（Control / Motion / Hit Collect）
+  → CombatHitPipeline.ResolveBeforePostCombat（稳定排序、伤害、Reaction、ConfirmHit）
+  → SimulationWorld.ResolvePostCombat（自动 Transition / 动作结束）
+  → CombatHitPipeline.CompleteFrame（Transition frame 0 命中 + 只读 App 结果）
+  → CommitEnemyLifecycle（死亡注销与 Despawn Command）
 SimulationHost.LateUpdate
   → SimulationWorld.Render(alpha)
   → CharacterPresentationBridge 插值模型锚点
@@ -109,9 +115,9 @@ SimulationHost.LateUpdate
 ### 已知限制
 
 - L0B 已切换量化输入与整数帧 Hold/Buffer/AI 冷却；完整脱设备玩法回放仍需 Play Mode 确认。
-- Hitbox 仍在 Actor Step 内同步调用 `ApplyHitCommand`，稳定帧末 Combat 结算属于 L0C。
+- L0C 已删除同步 `ApplyHitCommand` 与 `GetInstanceID()` 去重；真实多命中、互杀及交换注册顺序仍需 Play Mode 验收。
 - Action 仍以 `ElapsedSeconds` 为权威；Animator `OnAnimatorMove` 路径尚未帧化，仅普通 Locomotion 已消除固定帧阶梯抖动。
-- CharacterController 与 HitStop 仍待 L1/L2；表现插值只修改模型锚点，不参与碰撞、命中或 Hash。
+- CharacterController 与逻辑 HitStop 仍待 L1/L2；当前 HitStop 只冻结动画/VFX 表现，不再暂停 `ActionExecutor`。
 
 ### 相关文件
 
@@ -261,8 +267,8 @@ StateMachine<TStateId, TContext>
 ```
 SimulationWorld.Step
   → CharacterActor.Step
-  → 渲染帧缓存 / InputReader.CaptureFrame → InputManager.IngestFrame
-  → GameplayIntentProducer.Tick
+  → InputFrameBuffer.ResolveLocal → InputManager.IngestFrame
+  → GameplayIntentProducer.Step
   → CharacterActionDriver.ProcessGameplayInput
   → CharacterMotor.TickGravity
   → CharacterStateMachine.Tick
@@ -395,7 +401,7 @@ CameraManager (场景对象)
 
 **输入**
 
-- `CameraManager` 引用玩家 `PlayerController`，通过 `PlayerController.Input.LookIntent` 获取视角输入
+- `CameraManager` 引用玩家 `PlayerController`，通过 `PlayerController.LookInput` 获取非权威视角输入
 - Update 累加 yaw/pitch；LateUpdate 平滑同步 Pivot 变换
 
 **初始化**
@@ -489,8 +495,10 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 | 移动取消 | `CharacterActionDriver` + `CancelWindowNotifyState(Movement)` |
 | 招式旋转 | `ActionRotationDriver` + `RotationNotifyState` + 节点 `TargetLockSettings`；SmoothDamp 显式使用固定逻辑步长，离开 Action 清空阻尼速度 |
 | Runtime Logic Tick | `SimulationWorld` → `CharacterActor.Step` → `ActionExecutor.Tick(1/60f)` → 帧派发 |
-| 命中回流 | `HitboxFrameConsumer` → `IActionHitReceiver.NotifyHit` |
-| 命中去重 | 单次动作会话内按 `(HitboxIndex, TargetInstanceId)` 去重；每个时间轴 Hitbox 窗口可分别命中同一目标 |
+| 命中回流 | `HitboxFrameConsumer` Collect → `CombatHitPipeline` 帧末 Resolve → `IActionHitReceiver.NotifyHit` |
+| 命中去重 | 单次动作会话内按 `(HitboxIndex, TargetSimActorId)` 去重；排序键为纯模拟 `SimHitKey` |
+| 自动衔接 | 普通 Tick 不再提前解析无输入 Transition；结算后 PostCombat 保持 OnHitConfirm 同帧生效 |
+| 卡肉边界 | `AttackHitEvent` 只冻结动画/VFX 表现；删除 Event Handler 暂停 ActionExecutor 的权威回写 |
 | Graph 策略编辑 | Graph Editor 在普通节点和顺序组子节点内嵌策略折叠区，直接编辑 Intent、索敌、起手行为、战斗模式切换与自动衔接 |
 | Motor | `CharacterMotor`（Locomotion 位移）+ `CharacterActor`（重力调度） |
 
@@ -517,15 +525,20 @@ CharacterActionDriver.ProcessGameplayInput（Action 态）
 ActionState.Tick
   → ActionExecutor.Tick(deltaTime)
       → SyncLogicFrameFromElapsed → DispatchCombatFrame
-          → HitboxFrameConsumer.OnCombatFrameAdvanced（按 hitbox.attachPointId 解析挂点）
+          → HitboxFrameConsumer.OnCombatFrameAdvanced（只 Collect）
           → ActionTimelineRunner.Dispatch
               → PlayVfxNotify 点触发 → ActionVfxPlayer.OnActionNotify（Resolve attachPointId + 显式 playbackSpeed）
               → PlaySfxNotify 点触发 → ActionSfxPlayer.OnActionNotify（pitch = playbackSpeed）
               → 其他 ActionNotifyState Enter/Tick/Exit
-      → CancelWindow / Graph 节点自动衔接（含 OnHitConfirm）
+      → CancelWindow / Recovery Entry
           → CancelWindow：汇总当前帧 Normal / Perfect；同一意图先 Perfect 后 Normal，再按显式边 / SharedRoute 解析
           → Recovery Phase：按窗口开关处理移动取消 / Graph Entry 软重开
-          → NotifyActionEnded → ActionSfxPlayer.OnActionEnded → 专用 AudioSource.Stop
+SimulationHost 帧末
+  → CombatHitPipeline 稳定排序并统一伤害/Reaction/ConfirmHit
+  → CharacterActor.ResolvePostCombat
+      → Graph 自动衔接（含 OnHitConfirm / OnWhiff）或自然结束
+      → NotifyActionEnded → ActionSfxPlayer.OnActionEnded → 专用 AudioSource.Stop
+  → PublishAttackHitCommand → AttackHitEvent（仅表现）
 ```
 
 VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强制 Despawn；池化实例由 `VfxPooledInstance` 按粒子自然时长（含 `playbackSpeed` / 卡肉冻结）自行回池。无 `VFXManager` 时回退 `Destroy(lifetime)`。
@@ -605,12 +618,16 @@ SimulationWorld.Step
   → EnemyHandle.ProduceInput → EnemyBrain.Step → AIInputWriter → InputFrameBuffer
   → EnemyHandle.Step → CharacterActor.Step(InputFrame) → Locomotion / Action
 
-ApplyHitCommand
+CombatHitPipeline（全体 Actor Step 后）
+  → 按 SimHitKey 稳定排序
   → CharacterHurtboxTarget.OnHit
   → CharacterHealth.ApplyDamage
       → CharacterReactionService
       → CharacterReactionResolver（生成 CharacterReactionRequest）
       → EnterHit / EnterDeath
+  → IActionHitReceiver.NotifyHit
+  → PostCombat 自动衔接
+  → PublishAttackHitCommand → AttackHitEvent
 ```
 
 玩家镜头震动只响应 `Attacker` 根节点带 `PlayerController` 的命中；敌人命中玩家仍触发受击和攻击者卡肉，但不触发玩家进攻震屏。
@@ -621,6 +638,7 @@ ApplyHitCommand
 - 本次职责重构不保留旧序列化兼容层：现有 Graph 需重填节点 Intent / 索敌 / 自动衔接，Hitbox 需重填 Payload，CharacterConfig 需重填 Reaction Rules。
 - 首版追击是直线趋近，不含 NavMesh、绕障、Strafe 与群体避让。
 - 死亡回收当前使用 Destroy；对象池可在后续替换 DespawnEnemyCommand 内实现。
+- `HurtboxTarget` 静态木桩没有 `SimActorId`，L0C 后不进入权威命中；如需可攻击木桩，应实现并注册正式 Simulation Actor。
 
 ### 相关文件
 
@@ -692,3 +710,4 @@ ApplyHitCommand
 | 2026-07-31 | 修复 L0A 移动抖动：新增 CharacterPresentationBridge 前后 Pose 插值与表现锚点，相机改跟随插值根；SmoothDampAngle 显式使用固定逻辑步长 |
 | 2026-07-31 | 修复固定帧后攻击转向变慢：ActionRotationDriver 不再隐式读取 Time.deltaTime，并在退出 Action 时清空旧旋转速度 |
 | 2026-08-01 | Lockstep L0B：删除 PlayerInputFrame/ICharacterInputSource/AIInputSource；新增量化 InputFrame、输入历史与 World Input Produce 阶段；Hold/Buffer/AI 冷却改整数帧 |
+| 2026-08-01 | Lockstep L0C：Hitbox 改为 Collect→稳定排序→帧末 Resolve；新增 SimHitKey/PostCombat，删除 ApplyHitCommand、InstanceId 去重与 Event→ActionExecutor 卡肉回写 |

@@ -10,9 +10,10 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
     readonly CharacterAttachPointResolver attachPoints;
     readonly ActionExecutor actionExecutor;
     readonly Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider;
-    readonly Action<ActionHitContext, IHurtboxTarget, IActionHitReceiver, Transform> hitDetected;
+    readonly Func<SimActorId> attackerIdProvider;
+    readonly CombatHitPipeline hitPipeline;
 
-    readonly HashSet<(int HitboxIndex, int TargetId)> _hitPairs = new();
+    readonly HashSet<(int HitboxIndex, SimActorId TargetId)> _hitPairs = new();
     ActionDefinition _trackedAction;
 
     /// <summary>默认挂点；为空时使用角色根。</summary>
@@ -28,14 +29,16 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
         ActionExecutor executor,
         CharacterAttachPointResolver attachPointResolver,
         Func<IReadOnlyList<IHurtboxTarget>> targetsProvider,
-        Action<ActionHitContext, IHurtboxTarget, IActionHitReceiver, Transform> onHitDetected)
+        Func<SimActorId> resolveAttackerId,
+        CombatHitPipeline combatHitPipeline)
     {
         root = actorRoot;
         attackerTeamId = teamId;
         actionExecutor = executor;
         attachPoints = attachPointResolver;
         activeTargetsProvider = targetsProvider;
-        hitDetected = onHitDetected;
+        attackerIdProvider = resolveAttackerId;
+        hitPipeline = combatHitPipeline;
     }
 
     /// <summary>新招式开始：清空命中缓存。</summary>
@@ -72,7 +75,9 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
             _hitPairs,
             actionExecutor,
             activeTargets,
-            hitDetected);
+            attackerIdProvider?.Invoke() ?? SimActorId.Invalid,
+            actionExecutor.Session.InstanceId,
+            hitPipeline);
     }
 
     /// <summary>按 Hitbox 自身 attachPointId 解析世界挂点。</summary>

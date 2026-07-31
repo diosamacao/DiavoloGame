@@ -79,7 +79,7 @@ flowchart TB
 | 类 | 职责 |
 |----|------|
 | `SimulationHost` | 场景唯一 Unity 时间入口：每渲染帧采样输入，并用 accumulator 驱动 60Hz World |
-| `SimulationWorld` | 纯 C# Actor 容器：分配单调 `SimActorId`，按 Id 稳定顺序逐帧 `Step` |
+| `SimulationWorld` | 纯 C# Actor 容器：分配单调 `SimActorId`，按 Id 稳定执行 Input/Actor Step 与 PostCombat |
 | `ISimulationActor` | 玩家 `CharacterActor` 与敌人 `EnemyHandle` 的固定帧契约 |
 | `FixedStepAccumulator` | 把可变渲染时间转换为有追帧上限但不丢欠账的固定步数 |
 | `IRenderFrameSampler` | 可选渲染帧输入汇聚契约，避免高 FPS 无逻辑 Step 时丢 Pressed/Released |
@@ -87,6 +87,8 @@ flowchart TB
 | `CharacterPresentationBridge` | 保留前后权威 Pose，只移动运行时模型锚点，不回写模拟根 |
 | `InputFrame` / `InputFrameBuffer` | 量化轴、稳定按钮 bitset、Actor/Frame 身份与输入历史；本地追帧只延续 Move/Held |
 | `ISimulationInputProducer` | Actor Step 前统一生成当帧输入；当前由敌人句柄驱动 Brain → AIInputWriter |
+| `ISimulationPostCombatActor` | 整批命中结算后处理 OnHitConfirm/OnWhiff 自动衔接与动作自然结束 |
+| `SimHitKey` / `CombatHitPipeline` | Hitbox 只 Collect；按稳定 Actor/会话/窗口身份排序，帧末统一伤害、Reaction 与命中确认 |
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只负责装配和注册，不再实现 Actor `Update` Tick。
 
@@ -112,7 +114,7 @@ flowchart TB
 | `CharacterConfig` | 角色装配根配置：模型、输入、动画、LocomotionProfile、移动、战斗 |
 | `CharacterMotor` | 纯 C# 移动执行：`ApplyLocomotion`、重力、移动意图解析 |
 | `CharacterActor` | 单角色纯 C# Actor：输入、Motor、状态机、动作、旋转与非权威表现插值 |
-| `CharacterActorFactory` | 通过 `CharacterConfig` + `ICharacterInputSource` 创建角色实例 |
+| `CharacterActorFactory` | 通过 `CharacterConfig` + `ILocalInputSampler` + 共享 `CombatHitPipeline` 创建角色实例 |
 
 **数据流（玩家）**：
 
@@ -129,7 +131,9 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
                     ├─ LocomotionState → LocomotionStateMachine → 各相位 State → Motor + Animation
                     └─ ActionState.Tick → ActionExecutor + ActionRotationDriver
                     ↓ ActionExecutor.Tick（当前仍以 fixed dt 推进，L1 待改整数帧权威）
-              HitboxFrameConsumer（ICombatFrameConsumer）/ ActionVfxPlayer + ActionSfxPlayer（IActionNotifyConsumer）
+              HitboxFrameConsumer（只 Collect）/ ActionVfxPlayer + ActionSfxPlayer（IActionNotifyConsumer）
+                    ↓（全体 Actor Step 完成）
+              CombatHitPipeline.SortAndResolve → CharacterActor.ResolvePostCombat → 帧末 App 表现事件
 ```
 
 ### 4. 动作系统（Combat/Actions）
@@ -149,14 +153,14 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 | `ACTGameArchitecture` | QFramework 风格架构入口：System/Model/Utility 注册、Command 执行、Query 查询、Event 分发 |
 | `ArchitectureSystemBase` / `AppControllerBase` / `ArchitectureCommandBase` / `ArchitectureQueryBase` | 架构对象基类；通过能力接口限制谁能访问 System、发送 Command、订阅 Event |
 | `CombatActorSystem` / `TargetSystem` / `CombatFeedbackSystem` | 战斗角色注册、目标注册、反馈状态 |
-| `ApplyHitCommand` / `GetActiveTargetsQuery` / `AttackHitEvent` | 命中后的跨系统通信入口与无副作用目标查询 |
-| `HitboxFrameConsumer` / `HitDetector` / `TargetingResolver` | 动作帧命中检测与索敌纯计算入口；命中按 Hitbox 窗口下标×目标去重，不直接访问 Architecture |
+| `PublishAttackHitCommand` / `GetActiveTargetsQuery` / `AttackHitEvent` | 已结算命中的只读表现通知入口与无副作用目标查询 |
+| `HitboxFrameConsumer` / `HitDetector` / `CombatHitPipeline` / `TargetingResolver` | 动作帧几何检测只 Collect；命中按 `SimHitKey` 排序后帧末统一结算 |
 | `HitPayload` / `HitFeedbackSettings` | 单个 Hitbox 的伤害、HitReactionId、镜头震动与卡肉载荷 |
 | `CharacterReactionSet` / `CharacterReactionResolver` | 按 HitReactionId 与反应类型生成完整受击/死亡状态请求；默认硬直时长也由规则集持有 |
 | `CharacterReactionService` | 玩家/敌人共用的 Health 事件桥接：执行可选上层副作用，并把解析结果交给 CharacterActor |
 | `PlayerActionSet` | 出招表：绑定一张 `ActionGraph`（节点按语义 Intent 匹配） |
 
-**当前 Logic Tick**：Runtime 由 `SimulationWorld` 固定 60Hz 推进 `ActionExecutor.Tick`；`UpdateFrame` 尚未成为生产入口，Editor Preview 仍独立采样。帧消费者实现 `ICombatFrameConsumer`，点事件/区间事件消费者实现 `IActionNotifyConsumer`；统一整数帧 `ActionSim` 见重构方案 L1。
+**当前 Logic Tick**：Runtime 由 `SimulationWorld` 固定 60Hz 推进 `ActionExecutor.Tick`；Hitbox 仅收集事件，Host 在全 Actor Step 后统一 Resolve，再由 PostCombat 解析自动 Transition/结束。`UpdateFrame` 尚未成为生产入口，统一整数帧 `ActionSim` 见重构方案 L1。
 
 ### 5. 玩家（Player）
 
@@ -213,11 +217,11 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 ```
 EnemyDefinition → EnemyActorFactory → CharacterActorFactory
 EnemyBrain → AIInputWriter → InputFrameBuffer → InputManager → GameplayIntentProducer → CharacterActionDriver
-玩家 Hitbox → ApplyHitCommand → CharacterHurtboxTarget → EnemyHealth
+玩家 Hitbox → CombatHitPipeline.Collect → 稳定排序/Resolve → CharacterHurtboxTarget → EnemyHealth
               └─ CharacterReactionService → CharacterReactionResolver
                    ├─ 非致命：EnemyBrain.NotifyHit → CharacterActor.EnterHit
                    └─ 致命：EnemyBrain.NotifyDeath → CharacterActor.EnterDeath
-                         → 注销 Target/CombatActor → Despawn
+                         → PostCombat 后 Commit 注销 Target/CombatActor → Despawn
 ```
 
 ## 技术栈

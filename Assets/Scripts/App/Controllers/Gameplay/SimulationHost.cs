@@ -13,6 +13,7 @@ public sealed class SimulationHost : AppControllerBase
     SimulationConfig _config;
     FixedStepAccumulator _accumulator;
     SimulationWorld _world;
+    CombatHitPipeline _combatHits;
 
     /// <summary>最近完成的逻辑帧；尚未推进时为 -1。</summary>
     public long CurrentFrame => _world?.CurrentFrame ?? -1;
@@ -24,6 +25,9 @@ public sealed class SimulationHost : AppControllerBase
     /// <summary>当前场景纯 C# 模拟世界；只读暴露给调试和后续网络宿主。</summary>
     public SimulationWorld World => _world;
 
+    /// <summary>当前场景唯一命中收集与帧末结算流水线。</summary>
+    public CombatHitPipeline CombatHits => _combatHits;
+
     void Awake()
     {
         _config = new SimulationConfig();
@@ -31,16 +35,22 @@ public sealed class SimulationHost : AppControllerBase
             _config.FixedDeltaSeconds,
             _config.MaxFrameCatchUp);
         _world = new SimulationWorld(_config);
+        _combatHits = new CombatHitPipeline(PublishResolvedHit);
     }
 
+    /// <summary>按 Input/Actor/Combat/PostCombat/Commit 单轨顺序推进本渲染帧内的全部逻辑步。</summary>
     void Update()
     {
         _world.SampleRenderFrame();
         int stepCount = _accumulator.ConsumeSteps(Time.deltaTime);
         for (int i = 0; i < stepCount; i++)
         {
+            _combatHits.BeginFrame(_world.CurrentFrame + 1);
             _world.Step();
-            ProcessEnemyLifecycleAfterStep();
+            _combatHits.ResolveBeforePostCombat(_world.CurrentFrame);
+            _world.ResolvePostCombat();
+            _combatHits.CompleteFrame(_world.CurrentFrame);
+            CommitEnemyLifecycle();
         }
     }
 
@@ -55,6 +65,7 @@ public sealed class SimulationHost : AppControllerBase
         _enemyStepSnapshot.Clear();
         _enemyControllers.Clear();
         _accumulator?.Reset();
+        _combatHits = null;
         _world = null;
     }
 
@@ -90,8 +101,8 @@ public sealed class SimulationHost : AppControllerBase
         return _world.Unregister(registration);
     }
 
-    /// <summary>在每个逻辑帧结束后集中执行敌人死亡注销与回收 Command。</summary>
-    void ProcessEnemyLifecycleAfterStep()
+    /// <summary>在 Combat 与 PostCombat 完成后集中执行敌人死亡注销与回收 Command。</summary>
+    void CommitEnemyLifecycle()
     {
         _enemyStepSnapshot.Clear();
         foreach (EnemyController controller in _enemyControllers.Values)
@@ -104,5 +115,11 @@ public sealed class SimulationHost : AppControllerBase
             if (controller != null)
                 controller.ProcessPostSimulationStep();
         }
+    }
+
+    /// <summary>把帧末只读命中结果发布给镜头、动画与 VFX 等表现订阅者。</summary>
+    void PublishResolvedHit(ResolvedCombatHit hit)
+    {
+        SendCommand(new PublishAttackHitCommand(hit));
     }
 }

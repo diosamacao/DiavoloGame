@@ -3,8 +3,8 @@ using UnityEngine;
 /// <summary>可被 Hitbox 命中的目标接口。</summary>
 public interface IHurtboxTarget
 {
-    /// <summary>用于同招防重复命中的实例标识。</summary>
-    int TargetInstanceId { get; }
+    /// <summary>用于命中排序与去重的稳定模拟身份；无效目标不进入权威结算。</summary>
+    SimActorId SimulationId { get; }
 
     /// <summary>受击目标根节点，用于排除自身并生成命中方向。</summary>
     Transform TargetTransform { get; }

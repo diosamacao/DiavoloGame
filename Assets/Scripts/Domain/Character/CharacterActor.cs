@@ -7,7 +7,8 @@ public sealed class CharacterActor :
     ISimulationActor,
     ISimulationInputParticipant,
     IRenderFrameSampler,
-    ISimulationRenderable
+    ISimulationRenderable,
+    ISimulationPostCombatActor
 {
     readonly ILocalInputSampler _localInput;
     readonly InputManager _inputManager;
@@ -15,6 +16,7 @@ public sealed class CharacterActor :
     readonly CharacterMotor _motor;
     readonly CharacterStateMachine _stateMachine;
     readonly CharacterActionDriver _actionDriver;
+    readonly ActionExecutor _actionExecutor;
     readonly CombatModeService _combatMode;
     readonly CharacterAnimationService _animation;
     readonly CharacterPresentationBridge _presentation;
@@ -24,6 +26,9 @@ public sealed class CharacterActor :
 
     /// <summary>角色输入中枢，玩法系统只读取量化逻辑帧。</summary>
     public InputManager Input => _inputManager;
+
+    /// <summary>当前 SimulationWorld 分配的稳定身份；注册前为 Invalid。</summary>
+    public SimActorId SimulationId => _actorId;
 
     /// <summary>本地相机使用的渲染帧 Look；AI 与回放 Actor 返回零。</summary>
     public Vector2 LookInput => _localInput?.LookInput ?? Vector2.zero;
@@ -63,6 +68,7 @@ public sealed class CharacterActor :
         CharacterMotor motor,
         CharacterStateMachine stateMachine,
         CharacterActionDriver actionDriver,
+        ActionExecutor actionExecutor,
         CombatModeService combatMode,
         CharacterAnimationService animation,
         CharacterPresentationBridge presentation)
@@ -73,6 +79,7 @@ public sealed class CharacterActor :
         _motor = motor;
         _stateMachine = stateMachine;
         _actionDriver = actionDriver;
+        _actionExecutor = actionExecutor;
         _combatMode = combatMode;
         _animation = animation;
         _presentation = presentation;
@@ -148,6 +155,15 @@ public sealed class CharacterActor :
         {
             _presentation.EndSimulationStep();
         }
+    }
+
+    /// <summary>在整帧命中结算后处理 OnHitConfirm/OnWhiff 等自动衔接与自然结束。</summary>
+    public void ResolvePostCombat(long frameIndex)
+    {
+        if (frameIndex != _currentFrameIndex)
+            throw new InvalidOperationException("CharacterActor PostCombat 必须与最近 Step 属于同一逻辑帧。");
+
+        _actionExecutor?.ResolvePostCombat();
     }
 
     /// <summary>把前后逻辑 Pose 插值到模型表现锚点，不修改权威角色根。</summary>

@@ -27,7 +27,7 @@
 - `Domain` 纯 C# 业务类优先使用 `Service` / `Actor` / `Executor` / `Resolver` / `Detector` / `Consumer`，不得直接访问 `ACTGameArchitecture.Interface`
 - **动作系统目录分层**：`Combat/Actions/` 下按职责分四个子目录——`Definitions/`（动作数据 Schema，含 `Definitions/Timeline/`）、`Resolution/`（输入 → 动作选招）、`Execution/`（播放/帧推进/输入路由/旋转）、`Frames/`（Logic Tick 帧上下文契约）；核心脚本不散落在 `Actions/` 根目录
 - **动作时间轴数据**：帧相关配置以 `ActionDefinition.Timeline` 为唯一真源；点事件用 `ActionNotify`（Event/VFX/SFX），区间窗口用 `ActionNotifyState`（Phase/Hitbox/Hurtbox/Cancel/Movement/Rotation）；禁止在 `ActionDefinition` 重新引入独立 `phases[]` 等双轨帧数据
-- 跨系统通信使用 `ACTGameArchitecture` 的 Command / Query / Event；动作帧内部可保留 `ActionExecutor` → `ICombatFrameConsumer` / `IActionNotifyConsumer` 的强时序直连
+- 跨系统通信使用 `ACTGameArchitecture` 的 Command / Query / Event；动作帧内部可保留 `ActionExecutor` → 帧消费者直连，但 Hitbox 消费者只能 Collect，禁止通过 App Command 同步修改目标
 - 架构事件必须实现 `IArchitectureEvent`；架构查询继承 `ArchitectureQueryBase<TResult>` 或实现 `IArchitectureQuery<TResult>`
 - **固定帧唯一入口**：角色业务只实现 `ISimulationActor.Step`，由 `SimulationHost → SimulationWorld` 以 60Hz 推进；Controller 禁止新增 `Update → Actor.Tick` 旁路
 - **模拟身份**：World Actor 使用会话内单调 `SimActorId` 排序；禁止用 Unity `GetInstanceID()` 作为模拟顺序、命中身份或未来网络身份
@@ -35,6 +35,9 @@
 - **渲染输入汇聚**：本地设备 Actor 通过 `IRenderFrameSampler` 缓存渲染帧边沿，逻辑 Step 不直接依赖 Unity 渲染帧是否恰好发生
 - **量化输入唯一格式**：玩家、AI、回放与未来网络统一使用 `InputFrame`；Move 为 sbyte、按钮为固定 bitset，禁止恢复 float/string `PlayerInputFrame`
 - **输入阶段先于 Actor**：World 每帧先调用 `ISimulationInputProducer`，再按 Id 消费同帧 `InputFrame`；AI 决策不得在自身 CharacterActor.Step 中旁路写输入
+- **命中延迟结算**：Hitbox 几何检测只写共享 `CombatHitPipeline`；全体 Actor Step 完成后按 `SimHitKey` 排序，再统一伤害、Reaction 与命中确认
+- **PostCombat 收尾**：依赖本帧命中结果的 OnHitConfirm/OnWhiff 与动作自然结束只在 `ISimulationPostCombatActor` 执行；不得恢复攻击者 Step 内即时目标回调
+- **App 只读结果**：`PublishAttackHitCommand` / `AttackHitEvent` 只发布整帧已结算结果；Event Handler 禁止暂停 ActionExecutor、修改 HP/状态或生成 Sim 输入
 - **边沿展开**：同一目标帧的多次渲染采样只对 Pressed/Released 做 OR；本地追帧可延续 Move/Held，但禁止从 Held 推导或重复边沿
 - **模拟/表现 Pose 分离**：权威根只在 `SimulationWorld.Step` 改变；模型与相机通过 `CharacterPresentationBridge` 插值，Render 禁止回写碰撞、命中或 Hash 状态
 
@@ -111,6 +114,7 @@ public class MyBehaviour : MonoBehaviour
 
 - 伤害、`HitReactionId`、镜头震动与卡肉统一由 `HitboxNotifyState.Payload` 持有；反馈系统禁止从 `ActionDefinition` 反查
 - 命中去重身份使用 ActionTimeline 中的 Hitbox 窗口下标；同一窗口对同一目标一次，不以可重复的显示字符串作为运行时键
+- 命中目标身份必须是 `SimActorId`；排序使用 `SimHitKey(frame, attackerId, actionInstanceId, hitboxIndex, targetId)`，禁止 `GetInstanceID()` 进入去重、Snapshot 或 Hash
 - 受击反应由“有效命中”驱动，不得依赖最终伤害必须大于 0；扣血与 Hit 状态是两条职责
 - 玩家和敌人都使用 `CharacterHurtboxTarget` 注册到 `TargetSystem`；HitDetector 在几何检测前排除自身、同阵营与死亡目标
 - 自身过滤必须覆盖角色根与全部父子层级，禁止模型子节点上的 Hurtbox 生成自击事件
@@ -119,7 +123,9 @@ public class MyBehaviour : MonoBehaviour
 - `CharacterReactionService` 是玩家/敌人 Health 事件到 Actor 的唯一桥接；Controller 只负责构造并注入 Resolver，禁止各自重复订阅受击/死亡事件
 - `CharacterReactionResolver` 直接产出 `CharacterReactionRequest`；默认硬直时长只保存在 `CharacterReactionSet`，State、BrainProfile 与 ActionDefinition 禁止重复配置
 - 每次非致命有效命中都可强制重入 HitState；死亡状态是唯一不可被后续受击覆盖的反应终态
-- 死亡时先注销 `TargetSystem / CombatActorSystem`，死亡表现完成后再 Despawn
+- 死亡产生于统一 Combat Resolve；PostCombat 后的 Commit 先注销 `TargetSystem / CombatActorSystem`，死亡表现完成后再 Despawn
+- 静态测试木桩若未注册 SimulationWorld，不得进入权威命中；需要可攻击目标时必须提供正式 `SimActorId`
+- 卡肉 Event 仅允许冻结动画/VFX 表现；逻辑冻结必须由后续 Sim `freezeFrames` 实现，禁止表现计时回写动作会话
 
 ## 相机约定
 

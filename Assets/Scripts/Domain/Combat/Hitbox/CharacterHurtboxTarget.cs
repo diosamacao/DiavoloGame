@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 /// <summary>纯 C# 角色受击目标；连接 Hurtbox、阵营与生命值模型。</summary>
@@ -7,6 +8,7 @@ public sealed class CharacterHurtboxTarget : ITargetable
     readonly Transform _aimTransform;
     readonly HurtboxDefinition _hurtbox;
     readonly CharacterHealth _health;
+    readonly Func<SimActorId> _simulationIdProvider;
 
     /// <summary>创建随角色根节点移动的受击目标。</summary>
     public CharacterHurtboxTarget(
@@ -14,17 +16,19 @@ public sealed class CharacterHurtboxTarget : ITargetable
         Transform aimTransform,
         int teamId,
         HurtboxDefinition hurtbox,
-        CharacterHealth health)
+        CharacterHealth health,
+        Func<SimActorId> simulationIdProvider)
     {
         _root = root;
         _aimTransform = aimTransform != null ? aimTransform : root;
         TeamId = teamId;
         _hurtbox = hurtbox ?? new HurtboxDefinition();
         _health = health;
+        _simulationIdProvider = simulationIdProvider;
     }
 
-    /// <summary>角色根实例 id，用于同一招去重。</summary>
-    public int TargetInstanceId => _root != null ? _root.gameObject.GetInstanceID() : 0;
+    /// <summary>角色在 SimulationWorld 内的稳定身份。</summary>
+    public SimActorId SimulationId => _simulationIdProvider?.Invoke() ?? SimActorId.Invalid;
 
     /// <summary>角色受击根节点。</summary>
     public Transform TargetTransform => _root;
