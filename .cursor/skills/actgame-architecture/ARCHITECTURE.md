@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-07-30
+> Last audited: 2026-07-31
 
 ## 项目概述
 
@@ -27,10 +27,11 @@ Assets/
 │   │   │   ├── Hitbox/        # OBB 判定与角色 Hurtbox
 │   │   │   ├── VFX/           # 招式 VFX 帧事件
 │   │   │   └── Targeting/     # 索敌
-│   │   └── Input/             # 原始帧、意图与输入中枢
+│   │   ├── Input/             # 原始帧、意图与输入中枢
+│   │   └── Simulation/        # 纯 C# 固定帧时钟、稳定 Actor Id 与 World
 │   ├── App/
 │   │   ├── Architecture/      # QFramework 风格强类型 Architecture / 能力接口 / 基类
-│   │   ├── Controllers/       # Player / Enemy / Camera / Combat Unity 入口
+│   │   ├── Controllers/       # Player / Enemy / Camera / Combat / SimulationHost Unity 入口
 │   │   ├── Systems/           # 注册到 Architecture IOC 的业务系统
 │   │   ├── Commands/          # 跨系统业务行为
 │   │   ├── Queries/           # 无副作用读取请求
@@ -73,7 +74,21 @@ flowchart TB
 
 ## 核心子系统
 
-### 1. 泛型状态机（Core）
+### 1. 固定帧模拟宿主（Simulation）
+
+| 类 | 职责 |
+|----|------|
+| `SimulationHost` | 场景唯一 Unity 时间入口：每渲染帧采样输入，并用 accumulator 驱动 60Hz World |
+| `SimulationWorld` | 纯 C# Actor 容器：分配单调 `SimActorId`，按 Id 稳定顺序逐帧 `Step` |
+| `ISimulationActor` | 玩家 `CharacterActor` 与敌人 `EnemyHandle` 的固定帧契约 |
+| `FixedStepAccumulator` | 把可变渲染时间转换为有追帧上限但不丢欠账的固定步数 |
+| `IRenderFrameSampler` | 可选渲染帧输入汇聚契约，避免高 FPS 无逻辑 Step 时丢 Pressed/Released |
+| `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
+| `CharacterPresentationBridge` | 保留前后权威 Pose，只移动运行时模型锚点，不回写模拟根 |
+
+`CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只负责装配和注册，不再实现 Actor `Update` Tick。
+
+### 2. 泛型状态机（Core）
 
 | 类 | 职责 |
 |----|------|
@@ -81,7 +96,7 @@ flowchart TB
 | `StateBase<,>` | 状态基类，持有 Context |
 | `StateMachine<TStateId, TContext>` | 注册、Initialize、Tick、TryChangeState |
 
-### 2. 角色状态机（Character）
+### 3. 角色状态机（Character）
 
 | 类 | 职责 |
 |----|------|
@@ -94,7 +109,7 @@ flowchart TB
 | `ActionState` | Tick `IActionExecutor` + `ActionRotationDriver`；Dodge 退出写入 `LocomotionResumeRequest` |
 | `CharacterConfig` | 角色装配根配置：模型、输入、动画、LocomotionProfile、移动、战斗 |
 | `CharacterMotor` | 纯 C# 移动执行：`ApplyLocomotion`、重力、移动意图解析 |
-| `CharacterActor` | 单角色纯 C# Actor：输入、Motor、状态机、动作、旋转 |
+| `CharacterActor` | 单角色纯 C# Actor：输入、Motor、状态机、动作、旋转与非权威表现插值 |
 | `CharacterActorFactory` | 通过 `CharacterConfig` + `ICharacterInputSource` 创建角色实例 |
 
 **数据流（玩家）**：
@@ -102,24 +117,26 @@ flowchart TB
 ```
 CharacterConfig → PlayerController（Empty 根创建玩家输入源）
                     ↓
-InputReader（原始帧）→ InputManager → GameplayIntentProducer（含 Sprint/Dodge 上下文意图）/ GameplayIntentBuffer
+CombatWorldController → SimulationHost.Update → SampleRenderFrame + 60Hz SimulationWorld.Step
+                    ↓（SimActorId 稳定顺序）
+CharacterActor.Step → InputReader（原始帧）→ InputManager → GameplayIntentProducer / GameplayIntentBuffer
                     ↓
               CharacterActionDriver（语义意图起手 / 缓冲 / 移动取消）
                     ↓
               CharacterStateMachine
                     ├─ LocomotionState → LocomotionStateMachine → 各相位 State → Motor + Animation
                     └─ ActionState.Tick → ActionExecutor + ActionRotationDriver
-                    ↓ UpdateFrame（Logic Tick）
+                    ↓ ActionExecutor.Tick（当前仍以 fixed dt 推进，L1 待改整数帧权威）
               HitboxFrameConsumer（ICombatFrameConsumer）/ ActionVfxPlayer + ActionSfxPlayer（IActionNotifyConsumer）
 ```
 
-### 3. 动作系统（Combat/Actions）
+### 4. 动作系统（Combat/Actions）
 
 | 类 | 职责 |
 |----|------|
 | `ActionDefinition` | 单动作播放内容 SO：动画段、统一时间轴、分类与 `ActionExecutionPolicy`；不参与输入选招、流程、伤害、反馈或索敌 |
 | `ActionTimeline` / `ActionNotify` / `ActionNotifyState` | 动作帧数据唯一真源：点事件（Event / VFX / SFX）与区间窗口（Phase/Hitbox/Hurtbox/Cancel/Movement/Rotation）；Recovery Phase 集成移动取消与 Entry 重开；`tracks[]` 为编辑器手动轨道 |
-| `ActionExecutor` | 纯播放器：播放、Cancel 与自动衔接均委托 Graph、**UpdateFrame Logic Tick**、统一 Timeline 派发、命中回流 |
+| `ActionExecutor` | 当前播放器：由固定 60Hz `CharacterActor.Step` 间接 Tick；仍以 ElapsedSeconds 为权威，L1 待提取整数帧 `ActionSim` |
 | `ActionSession` | 当前招式唯一会话状态：CurrentAction、Elapsed、图游标、命中确认、卡肉暂停 |
 | `ActionGraph` / `ActionGraphNode` | 完整选招与流程真源：节点 Intent、Entry、索敌、起手行为、自动衔接；Normal / Perfect 边与 SharedRoute |
 | `ActionResolverService` | 调当前模式 Graph 的起手/Cancel 解析 |
@@ -137,19 +154,19 @@ InputReader（原始帧）→ InputManager → GameplayIntentProducer（含 Spri
 | `CharacterReactionService` | 玩家/敌人共用的 Health 事件桥接：执行可选上层副作用，并把解析结果交给 CharacterActor |
 | `PlayerActionSet` | 出招表：绑定一张 `ActionGraph`（节点按语义 Intent 匹配） |
 
-**Logic Tick 原则**：编辑器 Scrub 与 Play Mode 共用 `ActionExecutor.UpdateFrame(frameIndex)`；帧消费者实现 `ICombatFrameConsumer`，点事件/区间事件消费者实现 `IActionNotifyConsumer`。
+**当前 Logic Tick**：Runtime 由 `SimulationWorld` 固定 60Hz 推进 `ActionExecutor.Tick`；`UpdateFrame` 尚未成为生产入口，Editor Preview 仍独立采样。帧消费者实现 `ICombatFrameConsumer`，点事件/区间事件消费者实现 `IActionNotifyConsumer`；统一整数帧 `ActionSim` 见重构方案 L1。
 
-### 4. 玩家（Player）
+### 5. 玩家（Player）
 
 | 类 | 职责 |
 |----|------|
-| `PlayerController` | Scene Empty 上唯一玩家脚本；创建 `InputReader` 并启停 `CharacterActor` |
-| `CharacterActor` | 输入采集、动作路由、重力、状态机 Tick |
+| `PlayerController` | Scene Empty 上唯一玩家脚本；创建 `InputReader` 并向 SimulationHost 注册/注销 Actor |
+| `CharacterActor` | 实现 `ISimulationActor`；固定帧输入采集、动作路由、重力与状态机 Step |
 | `CharacterMotor` | Locomotion 位移、相机相对方向、起手面向、移动快照 |
 
 **注意**：`PlayerController` 现在是 Scene 空物体上的装配入口；通过 `CharacterConfig` 生成模型与纯 C# runtime。Player 根对象运行时只保留 `PlayerController` + `CharacterController`，不再挂载业务脚本。
 
-### 5. 动画（Character/Animation）
+### 6. 动画（Character/Animation）
 
 | 类 | 职责 |
 |----|------|
@@ -160,7 +177,7 @@ InputReader（原始帧）→ InputManager → GameplayIntentProducer（含 Spri
 | `PlayableAnimationPlayback` | 双槽 CrossFade PlayableGraph 实现 |
 | `CharacterAnimationService` | 调用层门面：Locomotion `Play`、招式 `PlayClip`、`SetSpeed` |
 
-### 6. 输入（Input）
+### 7. 输入（Input）
 
 | 类 | 职责 |
 |----|------|
@@ -171,13 +188,13 @@ InputReader（原始帧）→ InputManager → GameplayIntentProducer（含 Spri
 | `GameplayIntentProducer` | 结合 Sprint 上下文输出 Attack/LongPressedAttack/SprintAttack/Dodge/AttackRelease |
 | `GameplayIntentBuffer` | 当帧语义事件与 Action Cancel 跨帧缓冲 |
 
-### 7. 相机（Camera）
+### 8. 相机（Camera）
 
 | 类 | 职责 |
 |----|------|
 | `CameraManager` | Cinemachine 第三人称 |
 
-### 8. 敌人（Enemy）
+### 9. 敌人（Enemy）
 
 | 类 | 职责 |
 |----|------|

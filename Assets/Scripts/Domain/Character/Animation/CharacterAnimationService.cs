@@ -99,7 +99,7 @@ public sealed class CharacterAnimationService : IDisposable
         return playback.CurrentClip == clip && playback.HasFinished;
     }
 
-    /// <summary>推进后端淡入等每帧逻辑；由 CharacterActor.Tick 调用。</summary>
+    /// <summary>推进后端淡入等每帧逻辑；由 CharacterActor.Step 调用。</summary>
     public void Tick(float deltaTime) => playback?.Tick(deltaTime);
 
     /// <summary>销毁播放后端（PlayableGraph 等）。</summary>

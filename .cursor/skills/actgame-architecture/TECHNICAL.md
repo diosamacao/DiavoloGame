@@ -1,12 +1,13 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-07-30
+> Last updated: 2026-07-31
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
 
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
+| 固定帧模拟宿主 | ✅ L0A 已实现 | `SimulationHost`、`SimulationWorld`、`SimActorId` | 60Hz，无资产 |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（原始帧 + 语义意图） | ✅ 已实现 | `InputReader`、`InputManager`、`GameplayIntentProducer` | `GameInputActions.inputactions` + `GameplayIntentProfile` |
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
@@ -54,13 +55,66 @@ AppControllerBase
 
 ### 已知限制
 
-- 仍处于单一 `Assembly-CSharp`，目录边界由 Editor 校验辅助，尚未通过 asmdef 强制。
+- `Domain/Simulation` 已拆为无 Unity 引用的 `ACTGame.Simulation` asmdef；其余业务仍处于 `Assembly-CSharp`。
 - Model / Utility 容器已具备 API，但当前暂无业务 Model / Utility 注册。
 
 ### 相关文件
 
 - `Assets/Scripts/App/Architecture/*`
 - `Assets/Scripts/Editor/Architecture/ArchitectureBoundaryValidator.cs`
+
+---
+
+## 0.1 固定帧模拟宿主
+
+### 功能说明
+
+玩家与敌人不再由各自 Controller 的 `Update` 分散推进；场景唯一 `SimulationHost` 将渲染帧时间累积为 60Hz 固定逻辑帧，并由 `SimulationWorld` 按稳定 `SimActorId` 顺序 Step。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| Unity 入口 | `CombatWorldController` 自动确保同物体存在一个 `SimulationHost` |
+| 固定频率 | `SimulationConfig.DefaultLogicHz = 60` |
+| 追帧 | `FixedStepAccumulator` 单渲染帧最多 8 Step；超额欠账保留，不丢逻辑时间 |
+| Actor 身份 | World 从 1 单调分配 `SimActorId`，会话内不复用 |
+| Actor 顺序 | `CharacterActor` / `EnemyHandle` 实现 `ISimulationActor`，按注册 Id 升序执行 |
+| 渲染输入 | `IRenderFrameSampler` 每渲染帧汇聚设备边沿；无逻辑 Step 时 Pressed/Released 保留到下一 Step |
+| 表现插值 | 模型位于运行时 `CharacterPresentationRoot`；Host LateUpdate 按 accumulator alpha 插值前后逻辑 Pose |
+| 相机跟随 | `CameraManager` 跟随玩家表现锚点，不直接追阶梯式权威 Transform |
+| 生命周期 | Controller 在 OnEnable 注册、OnDisable/OnDestroy 注销；禁用对象不会继续模拟 |
+| 测试 | `ACTGame.Simulation.EditModeTests` 覆盖 Id、accumulator/alpha、注册/注销、Step 与 Render 转发 |
+
+### 运行时流程
+
+```
+SimulationHost.Update
+  → SimulationWorld.SampleRenderFrame
+  → FixedStepAccumulator.ConsumeSteps(Time.deltaTime)
+  → 重复 N 次 SimulationWorld.Step
+      → CharacterActor.Step / EnemyHandle.Step（固定 1/60s）
+  → 每 Step 后集中处理敌人死亡注销与 Despawn Command
+SimulationHost.LateUpdate
+  → SimulationWorld.Render(alpha)
+  → CharacterPresentationBridge 插值模型锚点
+  → CameraManager.LateUpdate 跟随同一表现帧
+```
+
+### 已知限制
+
+- L0A 只切换时钟和 Tick 拓扑；输入仍是 float/string `PlayerInputFrame`，完整量化输入帧属于 L0B。
+- Hitbox 仍在 Actor Step 内同步调用 `ApplyHitCommand`，稳定帧末 Combat 结算属于 L0C。
+- Action 仍以 `ElapsedSeconds` 为权威；Animator `OnAnimatorMove` 路径尚未帧化，仅普通 Locomotion 已消除固定帧阶梯抖动。
+- CharacterController 与 HitStop 仍待 L1/L2；表现插值只修改模型锚点，不参与碰撞、命中或 Hash。
+
+### 相关文件
+
+- `Assets/Scripts/Domain/Simulation/*`
+- `Assets/Scripts/App/Controllers/Gameplay/SimulationHost.cs`
+- `Assets/Scripts/App/Controllers/Combat/CombatWorldController.cs`
+- `Assets/Scripts/Domain/Character/Presentation/CharacterPresentationBridge.cs`
+- `Assets/Tests/EditMode/Simulation/*`
 
 ---
 
@@ -78,7 +132,7 @@ AppControllerBase
 | 位移执行 | `LocomotionStateMachine` 各相位 → `CharacterMotor.ApplyLocomotion` |
 | 方向计算 | 输入 Vector2 → 相机 forward/right 投影到 XZ 平面 → 归一化方向 |
 | 速度 | `moveInputMagnitude × speed`；幅度 > `runThreshold` 用 `runSpeed`，否则 `walkSpeed` |
-| 旋转 | `SmoothDampAngle` 绕 Y 轴对齐移动方向 |
+| 旋转 | `SmoothDampAngle` 显式传入固定 `1/60s`，绕 Y 轴对齐移动方向 |
 | 重力 | 独立 `velocity.y`；着地时设为 `groundedGravity`，否则累加 `gravity` |
 
 ### 关键参数（Prefab 默认）
@@ -162,7 +216,7 @@ Update
 
 ### 功能说明
 
-状态机驱动角色逻辑；角色侧通过 `CharacterActor` 每帧摄入输入并 Tick 当前 State。
+状态机驱动角色逻辑；角色侧通过 `CharacterActor.Step` 在固定 60Hz 逻辑帧摄入输入并 Tick 当前 State。
 
 ### 实现方案
 
@@ -178,8 +232,8 @@ StateMachine<TStateId, TContext>
 
 **Character 层**
 
-- `CharacterStateMachine`（MonoBehaviour）：Awake 组装 `CharacterContext`，注册 State，初始 `Locomotion`
-- `Update`：`UpdateContext()` → `_machine.Tick`
+- `CharacterStateMachine` 是纯 C# 宿主：构造时组装 `CharacterContext`，注册 State，初始 `Locomotion`
+- 每次 `CharacterActor.Step` 调 `_machine.Tick(1/60f)`
 
 **Player 层**
 
@@ -195,8 +249,9 @@ StateMachine<TStateId, TContext>
 ### 运行时流程（玩家）
 
 ```
-CharacterActor.Tick
-  → InputReader.CaptureFrame / InputManager.IngestFrame
+SimulationWorld.Step
+  → CharacterActor.Step
+  → 渲染帧缓存 / InputReader.CaptureFrame → InputManager.IngestFrame
   → GameplayIntentProducer.Tick
   → CharacterActionDriver.ProcessGameplayInput
   → CharacterMotor.TickGravity
@@ -392,7 +447,8 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 - Player 根只补齐 Unity 必需的 `CharacterController`
 - 构造纯 C# `InputReader`、`CharacterAnimationService`、`CombatModeService`、`ActionResolverService`、`ActionExecutor`、`CharacterActionDriver`、`CharacterStateMachine`
 - 注册纯 C# `HitboxFrameConsumer` 为 Logic Tick 消费者；注册 `ActionVfxPlayer` 为 `IActionNotifyConsumer`
-- `CharacterActor.Tick` 统一输入采集、动作路由、重力和状态机；状态自身调度 Locomotion 移动或 Action 旋转
+- `PlayerController.OnEnable` 向 `SimulationHost` 注册 `CharacterActor`，OnDisable 对称注销
+- `CharacterActor.Step` 统一输入采集、动作路由、重力和状态机；状态自身调度 Locomotion 移动或 Action 旋转
 
 ### Editor 操作
 
@@ -406,7 +462,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 
 ### 功能说明
 
-多战斗模式下，玩家通过 `ActionGraph` Entry×Intent 起手攻击/闪避；输入、索敌、起手行为、Cancel 与自动衔接统一由 Graph 节点/边描述，`ActionExecutor` 只播放解析结果。更高 `ActionExecutionPolicy.interruptPriority` 可经 Graph Entry 硬打断；**Logic Tick 由 `UpdateFrame` 统一驱动** `ActionTimeline`、Hitbox 与 VFX。
+多战斗模式下，玩家通过 `ActionGraph` Entry×Intent 起手攻击/闪避；输入、索敌、起手行为、Cancel 与自动衔接统一由 Graph 节点/边描述。L0A 后 Runtime 由 `SimulationWorld` 固定 60Hz 间接调用 `ActionExecutor.Tick`；Executor 仍以秒为权威，整数帧 `ActionSim` 尚待 L1。
 
 ### 实现方案
 
@@ -421,8 +477,8 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 | 高优硬打断 | Action 态：`TryResolveStart(PriorityInterrupt)` → `ActionExecutor.TryInterrupt`（候选 `interruptPriority` 严格大于当前，且 `IsInterruptibleAtFrame`） |
 | 时间轴数据 | `ActionDefinition.Timeline`：`ActionNotify` 点事件（Event/VFX/SFX）+ `ActionNotifyState` 区间窗口 |
 | 移动取消 | `CharacterActionDriver` + `CancelWindowNotifyState(Movement)` |
-| 招式旋转 | `ActionRotationDriver` + `RotationNotifyState` + 节点 `TargetLockSettings` |
-| Logic Tick | `ActionExecutor.UpdateFrame` → `ICombatFrameConsumer` + `ActionTimelineRunner` + `IActionNotifyConsumer` |
+| 招式旋转 | `ActionRotationDriver` + `RotationNotifyState` + 节点 `TargetLockSettings`；SmoothDamp 显式使用固定逻辑步长，离开 Action 清空阻尼速度 |
+| Runtime Logic Tick | `SimulationWorld` → `CharacterActor.Step` → `ActionExecutor.Tick(1/60f)` → 帧派发 |
 | 命中回流 | `HitboxFrameConsumer` → `IActionHitReceiver.NotifyHit` |
 | 命中去重 | 单次动作会话内按 `(HitboxIndex, TargetInstanceId)` 去重；每个时间轴 Hitbox 窗口可分别命中同一目标 |
 | Graph 策略编辑 | Graph Editor 在普通节点和顺序组子节点内嵌策略折叠区，直接编辑 Intent、索敌、起手行为、战斗模式切换与自动衔接 |
@@ -466,7 +522,7 @@ VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强
 
 SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSfx` 的 `AudioSource`（与脚步声隔离）；`Stop` / `TransitionTo`（含硬打断与 Cancel 切招）经 `OnActionEnded` 调用 `AudioSource.Stop`，打断未播完的动作音效。
 
-编辑器 Scrub：`UpdateFrame(frameIndex)` 与上列帧派发共用路径；`ACT/Action Editor` 窗口用 `ActionEditorPreviewSession` 做 Pose/VFX 预览（触发帧后 `Simulate(t * playbackSpeed)`）。
+编辑器 Scrub 当前使用独立 `ActionEditorPreviewSession` 做 Pose/VFX 预览；`UpdateFrame(frameIndex)` 尚无生产调用点。L1B 将统一纯帧查询与段映射，避免把当前双轨误记为已完成。
 
 ### ActionEditor 对齐状态（2026-07-25）
 
@@ -537,7 +593,7 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 ```
 EnemyController.Update
   → EnemyBrain.Tick → AIInputSource
-  → CharacterActor.Tick → Locomotion / Action
+  → SimulationWorld → EnemyHandle.Step → CharacterActor.Step → Locomotion / Action
 
 ApplyHitCommand
   → CharacterHurtboxTarget.OnHit
@@ -622,3 +678,6 @@ ApplyHitCommand
 | 2026-07-29 | ActionDefinition 职责重构：输入/索敌/起手/自动衔接迁到 ActionGraphNode；伤害与反馈迁到 HitPayload；Controller 通过 CharacterReactionResolver 选择受击/死亡 Action |
 | 2026-07-30 | 角色反应链路收敛：CharacterReactionService 统一玩家/敌人 Health 事件；Resolver 直接产出状态请求；默认硬直时长归 CharacterReactionSet，删除 CharacterConfig/EnemyBrainProfile 双真源 |
 | 2026-07-30 | Graph Editor 增加节点内联策略编辑；命中去重改为每个 Hitbox 窗口×目标一次；HitState 支持每次有效命中强制重入并保留启动失败硬直回退 |
+| 2026-07-31 | Lockstep L0A：新增 60Hz SimulationHost/World、稳定 SimActorId 与纯 C# asmdef；玩家/敌人删除分散 Controller Tick，渲染输入边沿先汇聚再由固定帧消费 |
+| 2026-07-31 | 修复 L0A 移动抖动：新增 CharacterPresentationBridge 前后 Pose 插值与表现锚点，相机改跟随插值根；SmoothDampAngle 显式使用固定逻辑步长 |
+| 2026-07-31 | 修复固定帧后攻击转向变慢：ActionRotationDriver 不再隐式读取 Time.deltaTime，并在退出 Action 时清空旧旋转速度 |

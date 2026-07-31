@@ -29,6 +29,7 @@ public class ActionState : CharacterState
             Context.SetLocomotionResumeRequest(LocomotionResumeRequest.SprintAfterDodge);
 
         Context.ActionExecutor?.Stop();
+        Context.ActionRotation?.Reset();
         Context.Animation.SetLocked(false);
         Context.Animation.ResetPlaybackState();
         _lastActiveAction = null;
@@ -49,7 +50,7 @@ public class ActionState : CharacterState
             return;
         }
 
-        Context.ActionRotation?.Tick();
+        Context.ActionRotation?.Tick(deltaTime);
     }
 
     /// <summary>Action 状态清空 Locomotion 输入快照，避免动作中播放移动动画。</summary>

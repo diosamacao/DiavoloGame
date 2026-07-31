@@ -55,19 +55,21 @@ public class CameraManager : AppControllerBase
         pitch = initialPitch;
         EnsureBrain();
         ResolveFollowTarget();
-        EnsureCameraRoot();
         ResolvePlayerController();
+        ResolvePresentationFollowTarget();
+        EnsureCameraRoot();
         EnsureCameraShakeController();
         EnsureVirtualCamera();
     }
 
     void Start()
     {
+        ResolveFollowTarget();
+        ResolvePlayerController();
+        ResolvePresentationFollowTarget();
         if (cameraRoot == null || virtualCamera == null)
         {
-            ResolveFollowTarget();
             EnsureCameraRoot();
-            ResolvePlayerController();
             EnsureCameraShakeController();
             EnsureVirtualCamera();
         }
@@ -130,7 +132,26 @@ public class CameraManager : AppControllerBase
             return;
 
         if (followTarget != null)
-            playerController = followTarget.GetComponent<PlayerController>();
+            playerController = followTarget.GetComponentInParent<PlayerController>();
+    }
+
+    /// <summary>角色装配完成后把相机锚点切到插值表现根，避免追随阶梯式逻辑 Transform。</summary>
+    void ResolvePresentationFollowTarget()
+    {
+        if (playerController == null)
+            return;
+
+        Transform presentationRoot = playerController.PresentationRoot;
+        if (presentationRoot == null || presentationRoot == followTarget)
+            return;
+
+        followTarget = presentationRoot;
+        if (cameraRoot == null)
+            return;
+
+        cameraRoot.SetParent(followTarget, false);
+        cameraRoot.localPosition = new Vector3(0f, cameraRootHeight, 0f);
+        cameraRoot.localRotation = Quaternion.identity;
     }
 
     void EnsureOrbitPivots()

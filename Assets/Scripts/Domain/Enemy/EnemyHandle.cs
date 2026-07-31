@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>单敌人纯 C# 生命周期句柄；聚合 Brain、角色 Actor、生命值与受击目标。</summary>
-public sealed class EnemyHandle : System.IDisposable
+public sealed class EnemyHandle : System.IDisposable, ISimulationActor, ISimulationRenderable
 {
     readonly EnemyDefinition _definition;
     readonly CharacterActor _actor;
@@ -66,16 +66,19 @@ public sealed class EnemyHandle : System.IDisposable
     /// <summary>禁用 AI 输入源。</summary>
     public void Disable() => _actor.Disable();
 
-    /// <summary>按 Brain 决策在前、角色管线在后的固定顺序推进。</summary>
-    public void Tick(float deltaTime)
+    /// <summary>由 SimulationWorld 按 Brain 决策在前、角色管线在后的固定顺序推进。</summary>
+    public void Step(long frameIndex, float fixedDeltaSeconds)
     {
         if (!IsDead)
-            _brain.Tick(deltaTime);
+            _brain.Tick(fixedDeltaSeconds);
 
-        _actor.Tick(deltaTime);
+        _actor.Step(frameIndex, fixedDeltaSeconds);
         if (IsDead && _actor.DeathPresentationComplete)
-            _deathReadyElapsed += Mathf.Max(0f, deltaTime);
+            _deathReadyElapsed += Mathf.Max(0f, fixedDeltaSeconds);
     }
+
+    /// <summary>把内部角色的前后逻辑 Pose 插值到敌人模型表现锚点。</summary>
+    public void Render(float interpolationAlpha) => _actor.Render(interpolationAlpha);
 
     /// <summary>停止决策、解绑事件并释放角色运行时资源。</summary>
     public void Dispose()

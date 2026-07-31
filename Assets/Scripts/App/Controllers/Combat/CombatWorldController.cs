@@ -7,6 +7,9 @@ public class CombatWorldController : AppControllerBase
     /// <summary>当前场景战斗世界；系统查询只把它作为生命周期锚点，不作为业务单例入口。</summary>
     public static CombatWorldController Current { get; private set; }
 
+    /// <summary>当前战斗世界唯一固定帧宿主。</summary>
+    public SimulationHost SimulationHost { get; private set; }
+
     void Awake()
     {
         if (Current != null && Current != this)
@@ -17,6 +20,7 @@ public class CombatWorldController : AppControllerBase
         }
 
         Current = this;
+        EnsureSimulationHost();
         EnsureFeedbackController();
     }
 
@@ -31,5 +35,16 @@ public class CombatWorldController : AppControllerBase
     {
         if (GetComponent<FeedbackController>() == null)
             gameObject.AddComponent<FeedbackController>();
+    }
+
+    /// <summary>确保固定帧宿主与本战斗世界同生命周期，并返回唯一实例。</summary>
+    public SimulationHost EnsureSimulationHost()
+    {
+        if (SimulationHost == null)
+            SimulationHost = GetComponent<SimulationHost>();
+        if (SimulationHost == null)
+            SimulationHost = gameObject.AddComponent<SimulationHost>();
+
+        return SimulationHost;
     }
 }

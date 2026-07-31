@@ -10,6 +10,8 @@ public sealed class EnemyController : AppControllerBase
     EnemyHandle _handle;
     bool _registered;
     bool _despawnRequested;
+    SimulationHost _simulationHost;
+    SimActorRegistration _simulationRegistration;
 
     /// <summary>当前敌人定义。</summary>
     public EnemyDefinition Definition => enemyDefinition;
@@ -40,35 +42,24 @@ public sealed class EnemyController : AppControllerBase
     void OnEnable()
     {
         _handle?.Enable();
+        RegisterSimulationActor();
     }
 
     void OnDisable()
     {
+        UnregisterSimulationActor();
         _handle?.Disable();
-    }
-
-    void Update()
-    {
-        if (_handle == null)
-            return;
-
-        _handle.Tick(Time.deltaTime);
-        if (_handle.IsDead)
-            UnregisterCombatEntries();
-
-        if (_handle.IsReadyToDespawn && !_despawnRequested)
-        {
-            _despawnRequested = true;
-            SendCommand(new DespawnEnemyCommand(this));
-        }
     }
 
     void OnDestroy()
     {
+        UnregisterSimulationActor();
         UnregisterCombatEntries();
         GetSystem<EnemySpawnSystem>()?.Unregister(this);
         _handle?.Dispose();
         _handle = null;
+        _simulationHost = null;
+        _simulationRegistration = SimActorRegistration.Invalid;
     }
 
     /// <summary>由 DespawnEnemyCommand 调用，统一走 Unity 生命周期完成释放。</summary>
@@ -96,7 +87,7 @@ public sealed class EnemyController : AppControllerBase
             target = player != null ? player.transform : null;
         }
 
-        EnsureCombatWorldController();
+        CombatWorldController combatWorld = EnsureCombatWorldController();
         _handle = EnemyActorFactory.Create(
             gameObject,
             transform,
@@ -114,9 +105,45 @@ public sealed class EnemyController : AppControllerBase
         GetSystem<TargetSystem>()?.Register(_handle.Target);
         GetSystem<EnemySpawnSystem>()?.Register(this);
         _registered = true;
+        _simulationHost = combatWorld.EnsureSimulationHost();
+        RegisterSimulationActor();
         _handle.Enable();
         gameObject.name = enemyDefinition.DisplayName;
         return true;
+    }
+
+    /// <summary>由 SimulationHost 在每个逻辑帧后处理死亡注销与回收副作用。</summary>
+    internal void ProcessPostSimulationStep()
+    {
+        if (_handle == null)
+            return;
+
+        if (_handle.IsDead)
+            UnregisterCombatEntries();
+
+        if (!_handle.IsReadyToDespawn || _despawnRequested)
+            return;
+
+        _despawnRequested = true;
+        SendCommand(new DespawnEnemyCommand(this));
+    }
+
+    /// <summary>启用后把已装配敌人注册到唯一固定帧 World。</summary>
+    void RegisterSimulationActor()
+    {
+        if (_handle == null || _simulationHost == null || _simulationRegistration.IsValid)
+            return;
+
+        _simulationRegistration = _simulationHost.RegisterEnemy(_handle, this);
+    }
+
+    /// <summary>禁用或销毁时从固定帧 World 对称注销，避免停用对象继续推进。</summary>
+    void UnregisterSimulationActor()
+    {
+        if (_simulationHost != null)
+            _simulationHost.Unregister(_simulationRegistration);
+
+        _simulationRegistration = SimActorRegistration.Invalid;
     }
 
     /// <summary>把纯 Domain 命中检测结果交给统一 ApplyHitCommand。</summary>
@@ -140,13 +167,16 @@ public sealed class EnemyController : AppControllerBase
         _registered = false;
     }
 
-    /// <summary>确保敌人独立运行时也存在统一战斗世界锚点。</summary>
-    void EnsureCombatWorldController()
+    /// <summary>确保敌人独立运行时也存在统一战斗世界锚点并返回该入口。</summary>
+    CombatWorldController EnsureCombatWorldController()
     {
-        if (CombatWorldController.Current != null || FindObjectOfType<CombatWorldController>() != null)
-            return;
+        CombatWorldController world = CombatWorldController.Current;
+        if (world == null)
+            world = FindObjectOfType<CombatWorldController>();
+        if (world != null)
+            return world;
 
-        var world = new GameObject("CombatWorldController");
-        world.AddComponent<CombatWorldController>();
+        var worldObject = new GameObject("CombatWorldController");
+        return worldObject.AddComponent<CombatWorldController>();
     }
 }

@@ -12,12 +12,19 @@ public class PlayerController : AppControllerBase
     CharacterHealth health;
     CharacterHurtboxTarget hurtboxTarget;
     CharacterReactionService reactionService;
+    SimulationHost simulationHost;
+    SimActorRegistration simulationRegistration;
 
     /// <summary>玩家输入中枢，供 CameraManager 读取视角输入。</summary>
     public InputManager Input => actor?.Input;
 
     /// <summary>玩家当前生命值；运行时未创建时为 0。</summary>
     public float CurrentHealth => health != null ? health.CurrentHealth : 0f;
+
+    /// <summary>相机应跟随的插值表现锚点；Actor 尚未创建时回退权威根。</summary>
+    public Transform PresentationRoot => actor?.PresentationRoot != null
+        ? actor.PresentationRoot
+        : transform;
 
     void Awake()
     {
@@ -38,7 +45,7 @@ public class PlayerController : AppControllerBase
         }
 
         var inputSource = new InputReader(characterConfig.InputActions);
-        EnsureCombatWorldController();
+        CombatWorldController combatWorld = EnsureCombatWorldController();
 
         actor = CharacterActorFactory.Create(
             gameObject,
@@ -66,20 +73,28 @@ public class PlayerController : AppControllerBase
 
         GetSystem<CombatActorSystem>()?.Register(transform, actor, actionExecutor, animation);
         GetSystem<TargetSystem>()?.Register(hurtboxTarget);
+        simulationHost = combatWorld.EnsureSimulationHost();
     }
 
     void OnEnable()
     {
         actor?.Enable();
+        if (actor != null && simulationHost != null && !simulationRegistration.IsValid)
+            simulationRegistration = simulationHost.RegisterPlayer(actor);
     }
 
     void OnDisable()
     {
+        if (simulationHost != null)
+            simulationHost.Unregister(simulationRegistration);
+        simulationRegistration = SimActorRegistration.Invalid;
         actor?.Disable();
     }
 
     void OnDestroy()
     {
+        if (simulationHost != null)
+            simulationHost.Unregister(simulationRegistration);
         reactionService?.Dispose();
         GetSystem<TargetSystem>()?.Unregister(hurtboxTarget);
         GetSystem<CombatActorSystem>()?.Unregister(transform);
@@ -88,11 +103,8 @@ public class PlayerController : AppControllerBase
         health = null;
         hurtboxTarget = null;
         reactionService = null;
-    }
-
-    void Update()
-    {
-        actor?.Tick(Time.deltaTime);
+        simulationHost = null;
+        simulationRegistration = SimActorRegistration.Invalid;
     }
 
     /// <summary>相机就绪或切换后刷新运行时使用的相机 Transform。</summary>
@@ -112,13 +124,16 @@ public class PlayerController : AppControllerBase
         SendCommand(new ApplyHitCommand(context, target, hitReceiver, targetTransform));
     }
 
-    /// <summary>玩家装配前确保场景存在统一战斗世界入口。</summary>
-    void EnsureCombatWorldController()
+    /// <summary>玩家装配前确保场景存在统一战斗世界入口并返回该入口。</summary>
+    CombatWorldController EnsureCombatWorldController()
     {
-        if (CombatWorldController.Current != null || FindObjectOfType<CombatWorldController>() != null)
-            return;
+        CombatWorldController world = CombatWorldController.Current;
+        if (world == null)
+            world = FindObjectOfType<CombatWorldController>();
+        if (world != null)
+            return world;
 
-        var world = new GameObject("CombatWorldController");
-        world.AddComponent<CombatWorldController>();
+        var worldObject = new GameObject("CombatWorldController");
+        return worldObject.AddComponent<CombatWorldController>();
     }
 }
