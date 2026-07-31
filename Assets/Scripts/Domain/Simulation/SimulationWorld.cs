@@ -10,6 +10,7 @@ public sealed class SimulationWorld
     readonly InputFrameBuffer _inputFrames = new();
     int _nextActorId = 1;
     bool _isStepping;
+    long _lastPostCombatFrame = -1;
 
     /// <summary>最近完成的逻辑帧；尚未 Step 时为 -1。</summary>
     public long CurrentFrame { get; private set; } = -1;
@@ -124,7 +125,23 @@ public sealed class SimulationWorld
         }
     }
 
-    /// <summary>禁止在 Actor Step 中直接改变 World 集合，后续 L0C 将统一改为帧末 Commit。</summary>
+    /// <summary>在统一命中结算后按稳定 Actor Id 执行依赖命中结果的同帧动作收尾。</summary>
+    public void ResolvePostCombat()
+    {
+        EnsureNotStepping("执行 PostCombat");
+        if (CurrentFrame < 0 || _lastPostCombatFrame == CurrentFrame)
+            return;
+
+        for (int i = 0; i < _actors.Count; i++)
+        {
+            if (_actors[i].Actor is ISimulationPostCombatActor postCombatActor)
+                postCombatActor.ResolvePostCombat(CurrentFrame);
+        }
+
+        _lastPostCombatFrame = CurrentFrame;
+    }
+
+    /// <summary>禁止在 Actor Step 中直接改变 World 集合；生命周期统一由帧末 Commit 入口处理。</summary>
     void EnsureNotStepping(string operation)
     {
         if (_isStepping)

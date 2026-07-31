@@ -2,23 +2,30 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>命中检测批处理入口；只接收目标集合与命中回调，不依赖架构层。</summary>
+/// <summary>命中检测批处理入口；几何相交只写入帧末 CombatHitPipeline。</summary>
 public static class HitDetector
 {
-    /// <summary>检测指定招式帧的全部 Hitbox，并把命中结果交给调用方处理。</summary>
+    /// <summary>检测指定招式帧的全部 Hitbox，并把结果收集为稳定身份命中事件。</summary>
     public static void ProcessHitboxesAtFrame(
         ActionDefinition action,
         int frame,
         Transform root,
         int attackerTeamId,
         Func<HitboxNotifyState, Transform> resolveAnchor,
-        HashSet<(int HitboxIndex, int TargetId)> hitPairs,
+        HashSet<(int HitboxIndex, SimActorId TargetId)> hitPairs,
         IActionHitReceiver hitReceiver,
         IReadOnlyList<IHurtboxTarget> activeTargets,
-        Action<ActionHitContext, IHurtboxTarget, IActionHitReceiver, Transform> hitDetected)
+        SimActorId attackerId,
+        int actionInstanceId,
+        CombatHitPipeline hitPipeline)
     {
-        if (activeTargets == null || activeTargets.Count == 0 || hitDetected == null)
+        if (activeTargets == null
+            || activeTargets.Count == 0
+            || !attackerId.IsValid
+            || hitPipeline == null)
+        {
             return;
+        }
 
         HitboxNotifyState[] hitboxes = action.HitboxStates;
         if (hitboxes == null || hitboxes.Length == 0)
@@ -37,6 +44,10 @@ public static class HitDetector
                 if (target == null)
                     continue;
 
+                // 非 SimulationWorld 目标没有跨端稳定身份，不能进入权威命中事件。
+                if (!target.SimulationId.IsValid)
+                    continue;
+
                 // 模型子层级可能残留 HurtboxTarget；整棵角色层级都视为自身，禁止生成命中事件。
                 if (IsSameHierarchy(root, target.TargetTransform))
                 {
@@ -50,7 +61,7 @@ public static class HitDetector
                 }
 
                 // 数组下标代表时间轴中的 Hitbox 窗口实例；显示 Id 重复也必须各自结算一次。
-                var pair = (hitboxIndex, target.TargetInstanceId);
+                var pair = (hitboxIndex, target.SimulationId);
                 if (hitPairs.Contains(pair))
                     continue;
 
@@ -58,8 +69,14 @@ public static class HitDetector
                     continue;
 
                 hitPairs.Add(pair);
-                var context = new ActionHitContext(action, hitbox, root);
-                hitDetected.Invoke(context, target, hitReceiver, target.TargetTransform);
+                var context = new ActionHitContext(action, hitbox, root, actionInstanceId);
+                hitPipeline.Collect(
+                    attackerId,
+                    actionInstanceId,
+                    hitboxIndex,
+                    target,
+                    hitReceiver,
+                    in context);
             }
         }
     }

@@ -12,7 +12,8 @@ public class HurtboxTarget : AppControllerBase, ITargetable
 
     void OnDisable() => GetSystem<TargetSystem>()?.Unregister(this);
 
-    public int TargetInstanceId => gameObject.GetInstanceID();
+    /// <summary>静态木桩未注册 SimulationWorld，因此不会进入锁步权威命中结算。</summary>
+    public SimActorId SimulationId => SimActorId.Invalid;
 
     /// <summary>静态受击目标根节点。</summary>
     public Transform TargetTransform => transform;

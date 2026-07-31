@@ -101,6 +101,28 @@ public sealed class SimulationWorldTests
         Assert.That(actor.ConsumedFrame.WasPressed(InputButton.Attack), Is.True);
     }
 
+    /// <summary>PostCombat 必须在全部 Actor Step 后按稳定 Id 执行，且同帧重复调用不重复收尾。</summary>
+    [Test]
+    public void ResolvePostCombat_RunsAfterAllActorsOnceInIdOrder()
+    {
+        var trace = new List<string>();
+        var world = new SimulationWorld(new SimulationConfig());
+        world.Register(new RecordingPostCombatActor("first", trace));
+        world.Register(new RecordingPostCombatActor("second", trace));
+
+        world.Step();
+        world.ResolvePostCombat();
+        world.ResolvePostCombat();
+
+        Assert.That(trace, Is.EqualTo(new[]
+        {
+            "step:first",
+            "step:second",
+            "post:first",
+            "post:second"
+        }));
+    }
+
     /// <summary>测试用 Actor 记录 World 传入的逻辑帧与调用顺序。</summary>
     sealed class RecordingActor : ISimulationActor
     {
@@ -187,6 +209,32 @@ public sealed class SimulationWorldTests
         public void Step(long frameIndex, float fixedDeltaSeconds, in InputFrame inputFrame)
         {
             ConsumedFrame = inputFrame;
+        }
+    }
+
+    /// <summary>记录玩法 Step 与帧末 PostCombat 调用顺序的测试 Actor。</summary>
+    sealed class RecordingPostCombatActor : ISimulationActor, ISimulationPostCombatActor
+    {
+        readonly string _name;
+        readonly List<string> _trace;
+
+        /// <summary>创建共享轨迹的 PostCombat 测试 Actor。</summary>
+        public RecordingPostCombatActor(string name, List<string> trace)
+        {
+            _name = name;
+            _trace = trace;
+        }
+
+        /// <summary>记录 Actor 玩法阶段。</summary>
+        public void Step(long frameIndex, float fixedDeltaSeconds, in InputFrame inputFrame)
+        {
+            _trace.Add($"step:{_name}");
+        }
+
+        /// <summary>记录统一命中结算后的动作收尾阶段。</summary>
+        public void ResolvePostCombat(long frameIndex)
+        {
+            _trace.Add($"post:{_name}");
         }
     }
 }

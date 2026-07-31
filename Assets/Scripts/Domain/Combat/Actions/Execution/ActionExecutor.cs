@@ -29,7 +29,6 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
     public ActionSession Session => _session;
 
     public bool IsPlaying => _session.IsActive;
-    public bool IsHitStopPaused => _session.IsHitStopPaused;
     public bool HasConfirmedHitThisAction => _session.HasConfirmedHit;
     /// <summary>开启移动取消的 Recovery Phase 允许返回 Locomotion。</summary>
     public bool CanCancelByMovement =>
@@ -132,12 +131,12 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         return true;
     }
 
+    /// <summary>推进动作时间、位移与帧事件；自动 Transition 和自然结束延迟到 PostCombat。</summary>
     public void Tick(float deltaTime)
     {
-        if (!_session.IsActive || _session.IsHitStopPaused)
+        if (!_session.IsActive)
             return;
 
-        ActionDefinition current = _session.CurrentAction;
         _session.Advance(deltaTime);
         SyncAnimationSegment();
         ApplyScriptedDisplacement(deltaTime);
@@ -148,18 +147,12 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
 
         if (TryResolveRecoveryEntry())
             return;
-
-        if (TryResolveTransitions())
-            return;
-
-        if (_session.ElapsedSeconds >= current.DurationSeconds)
-            Stop();
     }
 
     /// <summary>编辑器 Scrub 与 Play Mode 共用的 Logic Tick 入口；要求招式已在播放中。</summary>
     public void UpdateFrame(int frameIndex)
     {
-        if (!_session.IsActive || _session.IsHitStopPaused)
+        if (!_session.IsActive)
             return;
 
         frameIndex = Mathf.Clamp(frameIndex, 0, Mathf.Max(0, _session.CurrentAction.TotalFrames - 1));
@@ -177,15 +170,6 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
         _rootMotion?.SetActive(false);
     }
 
-    /// <summary>卡肉期间暂停招式逻辑时间推进（由 HitStopController 驱动）。</summary>
-    public void SetHitStopPaused(bool paused) => _session.SetHitStopPaused(paused);
-
-    /// <summary>每招仅触发一次卡肉；返回 false 表示本招已触发过。</summary>
-    public bool TryConsumeHitStopTrigger()
-    {
-        return _session.TryConsumeHitStopTrigger();
-    }
-
     /// <summary>HitboxFrameConsumer 命中回流；支撑 OnHitConfirm Transition。</summary>
     public void NotifyHit(in ActionHitContext context)
     {
@@ -193,6 +177,20 @@ public sealed class ActionExecutor : IActionExecutor, IActionHitReceiver
             return;
 
         _session.ConfirmHit();
+    }
+
+    /// <summary>统一命中结算后解析自动衔接与动作结束，保证 OnHitConfirm 仍在命中所属逻辑帧生效。</summary>
+    public void ResolvePostCombat()
+    {
+        if (!_session.IsActive)
+            return;
+
+        ActionDefinition current = _session.CurrentAction;
+        if (TryResolveTransitions())
+            return;
+
+        if (_session.IsActive && _session.ElapsedSeconds >= current.DurationSeconds)
+            Stop();
     }
 
     /// <summary>

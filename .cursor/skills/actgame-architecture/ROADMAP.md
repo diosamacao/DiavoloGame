@@ -83,10 +83,12 @@
 - [x] 2026-08-01 L0B：量化 `InputFrame` + `InputFrameBuffer`；玩家/AI/回放统一帧格式与边沿展开
 - [x] 2026-08-01 L0B：World Input Produce 阶段；删除 AI 设备伪装与 string 输入路径
 - [x] 2026-08-01 L0B：Hold、Action Buffer、AI 攻击/重试/刷新冷却改为整数逻辑帧
+- [x] 2026-08-01 L0C：`CombatHitPipeline` Collect→`SimHitKey` 稳定排序→帧末伤害/Reaction/命中确认
+- [x] 2026-08-01 L0C：`ISimulationPostCombatActor` 保持 OnHitConfirm 同帧自动衔接；生命周期在其后 Commit
+- [x] 2026-08-01 L0C：删除 `ApplyHitCommand` 同步权威链、Unity InstanceId 命中身份与 Event→ActionExecutor 回写
 
 **下一步：**
 
-- [ ] L0C：HitEvent 延迟收集、稳定排序与帧末结算
 - [ ] L1：Action 整数帧权威与逻辑/表现拆分
 
 ## 待建设模块
@@ -133,6 +135,7 @@
 - [x] 2026-07-30：角色反应闭环去重——Resolver 生成完整请求，ReactionService 统一 Health 事件与 Actor 入口，删除 CharacterConfig/EnemyBrainProfile 硬直双真源
 - [x] 2026-07-31：Lockstep L0A——场景唯一 60Hz SimulationHost、稳定 SimActorId/World、Controller Tick 单轨切换与纯 C# 测试
 - [x] 2026-08-01：Lockstep L0B——InputFrame 量化/历史、玩家与 AI 单轨输入、整数帧 Intent/AI 冷却及回放基础测试
+- [x] 2026-08-01：Lockstep L0C——命中延迟收集与稳定帧末结算、PostCombat 自动衔接、生命周期 Commit 与只读表现事件
 
 ## 剩余项
 

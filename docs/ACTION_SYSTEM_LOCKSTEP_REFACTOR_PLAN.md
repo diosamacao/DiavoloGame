@@ -324,14 +324,16 @@ Runtime ActionSim
 
 - 命中去重身份改为 `(actionInstanceId, hitboxIndex, targetSimActorId)`，禁止使用 Unity InstanceId。
 - 同帧互杀、死亡后剩余 HitEvent、重复受击重入必须写成纯规则并进入 Hash。
-- App `ApplyHitCommand` / Event 可作为帧末结果通知，但不得继续作为 Sim 状态变更入口。
+- L0C 已删除 `ApplyHitCommand`；`PublishAttackHitCommand` 只把整批结算后的 `AttackHitEvent` 发布给表现订阅者，不得回写 Sim。
+- L0C 过渡实现使用 `CombatHitPipeline`：Transform OBB 检测仍在 Assembly-CSharp，但排序键已收敛为纯 C# `SimHitKey(frame, attackerId, actionInstanceId, hitboxIndex, targetId)`。
 - 当前 `HurtboxNotifyState` 未进入运行时判定；L2 需明确选择静态 Character Hurtbox 或 Timeline 动态 Hurtbox，不能保留两个权威源。
 
 卡肉：
 
 - **逻辑 HitStop**：优先采用双方 Actor `freezeFrames`；是否冻结受击方由 Payload 明确配置
-- **表现 HitStop**：动画 Speed=0（非权威）  
-- 现有 `hitStopFrames` 直接迁入 Sim 计数，删除秒换算与 `Time.unscaledDeltaTime` 权威路径
+- **表现 HitStop**：动画 Speed=0（非权威）
+- L0C 已删除 `AttackHitEvent → ActionExecutor.SetHitStopPaused` 回写；当前 `Time.unscaledDeltaTime` 仅控制表现冻结时长
+- L2 将 `hitStopFrames` 迁入 Sim 计数，并删除秒换算的逻辑语义
 
 ### 5.6 LocomotionSim
 
@@ -524,19 +526,21 @@ Assets/Scripts/Presentation/
 
 **阶段删除：** 已删除 AI 伪装设备的 `CaptureFrame` 路径、`PlayerInputFrame`、string 离散输入语义、秒制 Hold/Buffer 与 AI 输入冷却。
 
-### Phase L0C — 同帧流水线与延迟结算
+### Phase L0C — 同帧流水线与延迟结算（代码完成，Editor 验收待确认）
 
 **目标：** 消除攻击者 Tick 中同步修改目标状态的顺序依赖。
 
-- [ ] World 明确 Input → Control → Motion → Combat → Commit → Snapshot 顺序
-- [ ] 当前 Hitbox 检测结果先写临时 `HitEventBuffer`，不立即调用目标
-- [ ] HitEvent 按稳定 Id 排序后统一执行伤害/Reaction
-- [ ] Spawn/Despawn 延迟到帧末 Commit
-- [ ] App Command/Event 退出 Sim 状态变更路径，仅接收帧末结果
+- [x] 2026-08-01：Host/World 明确 Input Produce → Actor Control/Motion/Collect → Combat Resolve → PostCombat → Commit 顺序；Snapshot 发布点留待 L3
+- [x] 2026-08-01：Hitbox 检测只写临时 `CombatHitPipeline`，不再立即调用目标
+- [x] 2026-08-01：命中按 `SimHitKey(frame, attackerId, actionInstanceId, hitboxIndex, targetId)` 稳定排序后统一执行伤害/Reaction/命中确认
+- [x] 2026-08-01：当前生产路径的死亡注销与 Despawn 固定在 Combat/PostCombat 后 Commit；Sim 内尚无 Spawn 请求入口
+- [x] 2026-08-01：删除 `ApplyHitCommand`；`PublishAttackHitCommand` / `AttackHitEvent` 只接收整帧已结算结果
+- [x] 2026-08-01：自动 Transition 与自然结束迁到 `ISimulationPostCombatActor`，保持 `OnHitConfirm` 在命中所属逻辑帧生效
+- [x] 2026-08-01：删除 App HitStop 对 `ActionExecutor` 的暂停回写；L2 再引入权威 `freezeFrames`
 
-**验收：** 交换角色注册顺序，同一输入下本帧命中、受击、死亡结果不变。
+**验收：** EditMode 已覆盖 `SimHitKey` 稳定排序/身份与 World PostCombat 顺序；交换真实玩家/敌人注册顺序后的同帧命中、受击、死亡结果，以及多命中/互杀规则仍需 Unity Editor Play Mode 确认。
 
-**阶段删除：** `HitboxFrameConsumer → ApplyHitCommand → 目标立即 EnterHit` 的同步权威链。
+**阶段删除：** 已删除 `HitboxFrameConsumer → ApplyHitCommand → 目标立即 EnterHit` 同步权威链、`GetInstanceID()` 命中去重，以及 `AttackHitEvent → ActionExecutor` 逻辑卡肉回写。
 
 ### Phase L1A — Action 整数帧权威
 

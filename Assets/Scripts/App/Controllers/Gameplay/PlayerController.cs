@@ -49,6 +49,7 @@ public class PlayerController : AppControllerBase
 
         var inputSource = new InputReader(characterConfig.InputActions);
         CombatWorldController combatWorld = EnsureCombatWorldController();
+        simulationHost = combatWorld.EnsureSimulationHost();
 
         actor = CharacterActorFactory.Create(
             gameObject,
@@ -58,7 +59,7 @@ public class PlayerController : AppControllerBase
             inputSource,
             cameraTransform,
             () => SendQuery(new GetActiveTargetsQuery()),
-            ApplyDetectedHit,
+            simulationHost.CombatHits,
             out ActionExecutor actionExecutor,
             out CharacterAnimationService animation);
 
@@ -72,11 +73,11 @@ public class PlayerController : AppControllerBase
             transform,
             characterConfig.Combat.TeamId,
             characterConfig.Combat.Hurtbox,
-            health);
+            health,
+            () => actor?.SimulationId ?? SimActorId.Invalid);
 
         GetSystem<CombatActorSystem>()?.Register(transform, actor, actionExecutor, animation);
         GetSystem<TargetSystem>()?.Register(hurtboxTarget);
-        simulationHost = combatWorld.EnsureSimulationHost();
     }
 
     void OnEnable()
@@ -115,16 +116,6 @@ public class PlayerController : AppControllerBase
     {
         cameraTransform = targetCamera;
         actor?.SetCameraTransform(targetCamera);
-    }
-
-    /// <summary>把纯 Domain 命中检测结果转交给架构 Command 处理跨系统结算。</summary>
-    void ApplyDetectedHit(
-        ActionHitContext context,
-        IHurtboxTarget target,
-        IActionHitReceiver hitReceiver,
-        Transform targetTransform)
-    {
-        SendCommand(new ApplyHitCommand(context, target, hitReceiver, targetTransform));
     }
 
     /// <summary>玩家装配前确保场景存在统一战斗世界入口并返回该入口。</summary>
