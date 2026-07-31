@@ -33,6 +33,9 @@
 - **模拟身份**：World Actor 使用会话内单调 `SimActorId` 排序；禁止用 Unity `GetInstanceID()` 作为模拟顺序、命中身份或未来网络身份
 - **启停生命周期**：Controller 在 `OnEnable` 注册 World、`OnDisable/OnDestroy` 对称注销；禁用 GameObject 不得继续被模拟
 - **渲染输入汇聚**：本地设备 Actor 通过 `IRenderFrameSampler` 缓存渲染帧边沿，逻辑 Step 不直接依赖 Unity 渲染帧是否恰好发生
+- **量化输入唯一格式**：玩家、AI、回放与未来网络统一使用 `InputFrame`；Move 为 sbyte、按钮为固定 bitset，禁止恢复 float/string `PlayerInputFrame`
+- **输入阶段先于 Actor**：World 每帧先调用 `ISimulationInputProducer`，再按 Id 消费同帧 `InputFrame`；AI 决策不得在自身 CharacterActor.Step 中旁路写输入
+- **边沿展开**：同一目标帧的多次渲染采样只对 Pressed/Released 做 OR；本地追帧可延续 Move/Held，但禁止从 Held 推导或重复边沿
 - **模拟/表现 Pose 分离**：权威根只在 `SimulationWorld.Step` 改变；模型与相机通过 `CharacterPresentationBridge` 插值，Render 禁止回写碰撞、命中或 Hash 状态
 
 ## Unity 组件模式
@@ -79,8 +82,9 @@ public class MyBehaviour : MonoBehaviour
 ## 输入约定
 
 - 使用 Input System + `.inputactions` 资产；Action Map 命名 `Player`
-- **采集**：输入源实现 `ICharacterInputSource`，玩家使用纯 C# `InputReader`，敌人可使用 AI 输入源
-- **原始中枢**：`InputManager` 由 `CharacterActor` 持有；保存 Move/Look 与 Pressed/IsPressed/Released，不承担动作缓冲
+- **采集**：玩家设备边界实现 `ILocalInputSampler` 并写下一逻辑帧槽；AI 使用 `AIInputWriter` 在 World Input Produce 阶段直接构造 `InputFrame`
+- **原始中枢**：`InputManager` 由 `CharacterActor` 持有；摄入量化 Move 与 Pressed/Held/Released bitset，不承担动作缓冲
+- **相机 Look**：渲染帧 Look 不进入玩法 InputFrame，由 `PlayerController.LookInput` 直接提供给 CameraManager
 - **设备映射**：`GameplayIntentProfile` 是 InputActionReference、长按阈值与上下文映射的唯一配置源
 - **语义生产**：`GameplayIntentProducer` 在 `InputManager.IngestFrame` 后输出 `GameplayIntentType`
 - **上下文意图**：SprintAttack / DodgeAttack 由 `GameplayIntentProfile` 条件映射产生；闪避攻击使用 `IsDodging + Attack Pressed`，禁止在 Driver 中按键名特判
@@ -99,7 +103,8 @@ public class MyBehaviour : MonoBehaviour
 - **CancelWindow**：每个 Action 必须且只能有一个 Normal，可选一个 Perfect；两个窗口可重叠，同一 Intent 始终优先 Perfect；禁止重新引入分割帧、槽 Id 或同类型多窗口
 - 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `CharacterMotor` / State）
 - **玩家装配**：`InputActionAsset` 与 `GameplayIntentProfile` 由 `CharacterConfig` 注入，不在玩家 Prefab 上重复配置
-- **AI 输入**：`AIInputSource` 必须合成与 `GameplayIntentProfile` 对齐的 `PlayerInputFrame`；Brain 禁止直接调用 `ActionExecutor.TryStart/TryInterrupt`
+- **AI 输入**：`AIInputWriter` 必须写与玩家相同布局的 `InputFrame`；Brain 禁止直接调用 `ActionExecutor.TryStart/TryInterrupt`
+- **输入计时**：Hold、Action Buffer 与 AI 攻击/重试/刷新冷却只使用整数逻辑帧；禁止重新引入秒制输入 TTL
 - **AI 移动**：相机相对 Motor 通过 facing proxy + `Move=(0, magnitude)` 复用，禁止另建敌人移动栈
 
 ## 伤害与受击约定

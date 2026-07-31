@@ -7,12 +7,12 @@ public sealed class EnemyBrainProfile : ScriptableObject
     [SerializeField] float aggroRadius = 10f;
     [SerializeField] float loseAggroRadius = 14f;
     [SerializeField] float attackRange = 2f;
-    [SerializeField] float attackCooldownSeconds = 1.2f;
+    [SerializeField] int attackCooldownFrames = 72;
     [SerializeField, Range(0f, 1f)] float chaseMoveMagnitude = 1f;
     [SerializeField] float stopDistance = 1.2f;
-    [SerializeField] float repathIntervalSeconds = 0.1f;
+    [SerializeField] int repathIntervalFrames = 6;
     [SerializeField] bool faceTargetWhileChase = true;
-    [SerializeField] float failedAttackRetrySeconds = 0.2f;
+    [SerializeField] int failedAttackRetryFrames = 12;
     [SerializeField] float deathDespawnDelaySeconds = 0.5f;
 
     /// <summary>进入仇恨的水平距离。</summary>
@@ -21,18 +21,18 @@ public sealed class EnemyBrainProfile : ScriptableObject
     public float LoseAggroRadius => Mathf.Max(AggroRadius, loseAggroRadius);
     /// <summary>允许请求攻击的水平距离。</summary>
     public float AttackRange => Mathf.Max(0f, attackRange);
-    /// <summary>一次成功攻击结束后的冷却时间。</summary>
-    public float AttackCooldownSeconds => Mathf.Max(0f, attackCooldownSeconds);
+    /// <summary>一次成功攻击结束后的冷却逻辑帧数。</summary>
+    public int AttackCooldownFrames => Mathf.Max(0, attackCooldownFrames);
     /// <summary>追击时写入移动轴的幅度。</summary>
     public float ChaseMoveMagnitude => Mathf.Clamp01(chaseMoveMagnitude);
     /// <summary>贴近目标后停止移动的距离。</summary>
     public float StopDistance => Mathf.Max(0f, stopDistance);
-    /// <summary>刷新假相机朝向的最小间隔。</summary>
-    public float RepathIntervalSeconds => Mathf.Max(0f, repathIntervalSeconds);
+    /// <summary>刷新假相机朝向的最小逻辑帧间隔。</summary>
+    public int RepathIntervalFrames => Mathf.Max(0, repathIntervalFrames);
     /// <summary>追击时是否刷新面向目标的假相机。</summary>
     public bool FaceTargetWhileChase => faceTargetWhileChase;
-    /// <summary>攻击起手失败后的防抖时间。</summary>
-    public float FailedAttackRetrySeconds => Mathf.Max(0.02f, failedAttackRetrySeconds);
+    /// <summary>攻击起手失败后的防抖逻辑帧数。</summary>
+    public int FailedAttackRetryFrames => Mathf.Max(1, failedAttackRetryFrames);
     /// <summary>死亡表现完成后的额外回收等待。</summary>
     public float DeathDespawnDelaySeconds => Mathf.Max(0f, deathDespawnDelaySeconds);
 
@@ -42,5 +42,8 @@ public sealed class EnemyBrainProfile : ScriptableObject
         loseAggroRadius = Mathf.Max(aggroRadius, loseAggroRadius);
         attackRange = Mathf.Max(0f, attackRange);
         stopDistance = Mathf.Clamp(stopDistance, 0f, attackRange);
+        attackCooldownFrames = Mathf.Max(0, attackCooldownFrames);
+        repathIntervalFrames = Mathf.Max(0, repathIntervalFrames);
+        failedAttackRetryFrames = Mathf.Max(1, failedAttackRetryFrames);
     }
 }

@@ -3,7 +3,7 @@
 > 基准：帧同步方案 [ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](./ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)（尤其 Phase L2）  
 > 制定日期：2026-07-31  
 > 目标：逻辑位移与动画播放解耦——**表现播 InPlace Clip，权威位移查烘焙帧表**；不引入泛化 `Animation` 播放器类  
-> 适用仓库：DiavoloGame（`feat_FrameSync` / `develop`）
+> 适用仓库：ACTGame；在锁步重构进入 L2 时作为 RootMotion 改造唯一实施细则
 
 ---
 

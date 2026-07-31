@@ -2,17 +2,13 @@ using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-/// <summary>从 Input System 采集本帧原始输入，供 InputManager 摄入。</summary>
-public sealed class InputReader : ICharacterInputSource
+/// <summary>从 Input System 采集设备状态，并在边界处量化为 InputFrame。</summary>
+public sealed class InputReader : ILocalInputSampler
 {
     InputActionAsset inputActions = null!;
     InputAction moveAction = null!;
     InputAction lookAction = null!;
-    InputActionReference[] _discreteInputs = Array.Empty<InputActionReference>();
-
-    readonly System.Collections.Generic.List<string> _pressedScratch = new(4);
-    readonly System.Collections.Generic.List<string> _heldScratch = new(4);
-    readonly System.Collections.Generic.List<string> _releasedScratch = new(4);
+    InputActionReference[] _discreteInputs = System.Array.Empty<InputActionReference>();
 
     public Vector2 MoveInput => moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
     public Vector2 LookInput => lookAction != null ? lookAction.ReadValue<Vector2>() : Vector2.zero;
@@ -30,33 +26,37 @@ public sealed class InputReader : ICharacterInputSource
         _discreteInputs = references ?? Array.Empty<InputActionReference>();
     }
 
-    /// <summary>采集连续轴与离散输入的 Pressed/IsPressed/Released 生命周期。</summary>
-    public PlayerInputFrame CaptureFrame()
+    /// <summary>采集连续轴与离散生命周期，并直接写成固定 bit 与量化轴。</summary>
+    public InputFrame Sample(long targetFrame, SimActorId actorId)
     {
-        _pressedScratch.Clear();
-        _heldScratch.Clear();
-        _releasedScratch.Clear();
+        ulong pressed = 0ul;
+        ulong held = 0ul;
+        ulong released = 0ul;
 
         foreach (InputActionReference reference in _discreteInputs)
         {
-            if (!InputBindingUtils.IsValid(reference))
+            if (!InputBindingUtils.TryGetButton(reference, out InputButton button))
                 continue;
 
             InputAction action = reference.action;
+            ulong mask = InputButtonMask.Of(button);
             if (action.WasPressedThisFrame())
-                _pressedScratch.Add(action.name);
+                pressed |= mask;
             if (action.IsPressed())
-                _heldScratch.Add(action.name);
+                held |= mask;
             if (action.WasReleasedThisFrame())
-                _releasedScratch.Add(action.name);
+                released |= mask;
         }
 
-        return new PlayerInputFrame(
-            MoveInput,
-            LookInput,
-            _pressedScratch.ToArray(),
-            _heldScratch.ToArray(),
-            _releasedScratch.ToArray());
+        Vector2 move = MoveInput;
+        return new InputFrame(
+            targetFrame,
+            actorId,
+            InputQuantizer.QuantizeAxis(move.x),
+            InputQuantizer.QuantizeAxis(move.y),
+            pressed,
+            held,
+            released);
     }
 
     /// <summary>启用输入资产；由 PlayerController.OnEnable 调用。</summary>

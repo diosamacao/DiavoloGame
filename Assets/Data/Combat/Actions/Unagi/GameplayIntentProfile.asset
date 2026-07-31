@@ -17,42 +17,42 @@ MonoBehaviour:
     phase: 0
     intent: 1
     condition: 0
-    holdSeconds: 0
+    holdFrames: 0
     priority: 0
   - input: {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     phase: 0
     intent: 3
     condition: 1
-    holdSeconds: 0
+    holdFrames: 0
     priority: 0
   - input: {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     phase: 1
     intent: 2
     condition: 0
-    holdSeconds: 0.3
+    holdFrames: 21
     priority: 0
   - input: {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     phase: 0
     intent: 4
     condition: 0
-    holdSeconds: 0
+    holdFrames: 0
     priority: 0
   - input: {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     phase: 2
     intent: 5
     condition: 0
-    holdSeconds: 0
+    holdFrames: 0
     priority: 0
   - input: {fileID: -9065361695633202568, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     phase: 0
     intent: 6
     condition: 0
-    holdSeconds: 0
+    holdFrames: 0
     priority: 0
   - input: {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
     phase: 0
     intent: 7
     condition: 2
-    holdSeconds: 0
+    holdFrames: 0
     priority: 0
-  actionBufferDurationSeconds: 1
+  actionBufferDurationFrames: 9

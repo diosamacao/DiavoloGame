@@ -41,7 +41,7 @@ MonoBehaviour:
       size: {x: 0.8, y: 1.8, z: 0.8}
     maxHealth: 10000000
     reactions:
-      defaultHitStunSeconds: 0.35
+      defaultHitStunSeconds: 0.05
       rules:
       - reactionType: 0
         reactionId: 

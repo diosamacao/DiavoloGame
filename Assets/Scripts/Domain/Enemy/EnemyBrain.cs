@@ -5,11 +5,11 @@ public sealed class EnemyBrain
 {
     readonly EnemyBrainProfile _profile;
     readonly EnemyPerception _perception;
-    readonly AIInputSource _input;
+    readonly AIInputWriter _input;
     readonly Transform _facingProxy;
 
-    float _attackCooldownRemaining;
-    float _repathRemaining;
+    int _attackCooldownFramesRemaining;
+    int _repathFramesRemaining;
     bool _attackStarted;
     bool _running = true;
 
@@ -17,7 +17,7 @@ public sealed class EnemyBrain
     public EnemyBrain(
         EnemyBrainProfile profile,
         EnemyPerception perception,
-        AIInputSource input,
+        AIInputWriter input,
         Transform facingProxy)
     {
         _profile = profile;
@@ -33,15 +33,14 @@ public sealed class EnemyBrain
     /// <summary>当前 Brain 是否仍参与决策。</summary>
     public bool IsRunning => _running;
 
-    /// <summary>推进感知、状态转换和输入输出。</summary>
-    public void Tick(float deltaTime)
+    /// <summary>基于上一帧已提交状态推进一次 AI 决策并准备当前帧输入。</summary>
+    public void Step()
     {
         if (!_running || _profile == null || _perception == null)
             return;
 
-        float safeDelta = Mathf.Max(0f, deltaTime);
-        _attackCooldownRemaining = Mathf.Max(0f, _attackCooldownRemaining - safeDelta);
-        _repathRemaining = Mathf.Max(0f, _repathRemaining - safeDelta);
+        _attackCooldownFramesRemaining = Mathf.Max(0, _attackCooldownFramesRemaining - 1);
+        _repathFramesRemaining = Mathf.Max(0, _repathFramesRemaining - 1);
 
         EnemyPerceptionSnapshot snapshot = _perception.Capture();
         if (snapshot.IsDead)
@@ -117,7 +116,7 @@ public sealed class EnemyBrain
         _input.SetMove(shouldStop ? Vector2.zero : Vector2.up * _profile.ChaseMoveMagnitude);
 
         if (snapshot.PlanarDistance > _profile.AttackRange
-            || _attackCooldownRemaining > 0f
+            || _attackCooldownFramesRemaining > 0
             || snapshot.CharacterState != CharacterStateType.Locomotion)
         {
             return;
@@ -131,7 +130,7 @@ public sealed class EnemyBrain
         }
         else
         {
-            _attackCooldownRemaining = _profile.FailedAttackRetrySeconds;
+            _attackCooldownFramesRemaining = _profile.FailedAttackRetryFrames;
         }
     }
 
@@ -144,14 +143,14 @@ public sealed class EnemyBrain
             if (!_attackStarted)
             {
                 _attackStarted = true;
-                _attackCooldownRemaining = _profile.AttackCooldownSeconds;
+                _attackCooldownFramesRemaining = _profile.AttackCooldownFrames;
             }
 
             return;
         }
 
         if (!_attackStarted)
-            _attackCooldownRemaining = _profile.FailedAttackRetrySeconds;
+            _attackCooldownFramesRemaining = _profile.FailedAttackRetryFrames;
 
         State = HasAggro(in snapshot) ? EnemyBrainState.Chase : EnemyBrainState.Idle;
     }
@@ -171,14 +170,14 @@ public sealed class EnemyBrain
     {
         if (!_profile.FaceTargetWhileChase
             || _facingProxy == null
-            || _repathRemaining > 0f
+            || _repathFramesRemaining > 0
             || snapshot.PlanarDirection.sqrMagnitude <= 0.0001f)
         {
             return;
         }
 
         _facingProxy.rotation = Quaternion.LookRotation(snapshot.PlanarDirection, Vector3.up);
-        _repathRemaining = _profile.RepathIntervalSeconds;
+        _repathFramesRemaining = _profile.RepathIntervalFrames;
     }
 
     /// <summary>目标仍在脱战半径内即保持仇恨。</summary>

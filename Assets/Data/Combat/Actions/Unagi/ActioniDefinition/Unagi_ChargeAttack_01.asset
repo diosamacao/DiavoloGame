@@ -12,8 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
   m_Name: Unagi_ChargeAttack_01
   m_EditorClassIdentifier: 
-  animationClip: {fileID: 0}
-  trigger: 5
   animationSegments:
   - clip: {fileID: -7817839092079532409, guid: cb1132508fe980f48adf70fde16f5311, type: 3}
     startFrame: 0
@@ -27,8 +25,9 @@ MonoBehaviour:
   totalFrames: 109
   actionType: 0
   crossFadeDuration: 0.1
-  interruptPriority: 0
-  phases: []
+  executionPolicy:
+    interruptPriority: 0
+    useRootMotion: 1
   timeline:
     actionEvents: []
     playVfxNotifies: []
@@ -38,40 +37,26 @@ MonoBehaviour:
     cancelWindowStates:
     - id: Cancel_1
       startFrame: 23
-      endFrame: 108
+      endFrame: 29
       priority: 0
       trackName: Cancel_1
-      cancelType: 1
-    - id: Cancel_2
-      startFrame: 22
+      windowType: 0
+    phaseStates:
+    - id: Phase_1
+      startFrame: 31
       endFrame: 108
       priority: 0
-      trackName: Cancel_3
-      cancelType: 0
+      trackName: Phase_1
+      kind: 2
+      interruptible: 1
+      allowMovementCancel: 1
+      allowEntryRestart: 1
     movementStates: []
     rotationStates: []
     tracks:
     - trackName: Cancel_1
       kind: 4
       visible: 1
-    - trackName: Cancel_3
-      kind: 4
+    - trackName: Phase_1
+      kind: 8
       visible: 1
-  transitions: []
-  startBehaviors: 
-  switchCombatModeTarget: 0
-  switchCombatModePolicy: 0
-  cameraShakeProfile: {fileID: 0}
-  disableCameraShakeOnHit: 0
-  useCameraShakeOnHit: 1
-  useHitStopOnHit: 1
-  disableHitStopOnHit: 0
-  hitStopFrames: 3
-  hitStopOncePerAction: 1
-  targetLockSettings:
-    enabled: 0
-    lockRange: 8
-    forwardConeAngle: 120
-    policy: 0
-    lockRotationSmoothTimeOverride: 0
-  useRootMotion: 1

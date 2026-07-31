@@ -188,6 +188,8 @@ InputFrameBuffer
 └─ KeepHistory(snapshotFrame..currentFrame) // 追帧、重连与回放
 ```
 
+L0B 当前代码落地为 `InputFrameBuffer.Set / MergeLocalSample / ResolveLocal`：本地缺采样追帧时只延续上一帧 Move/Held，Pressed/Released 永不推导或重复。`SetAuthoritative` 与 `FramePacket` 的权威覆盖语义留到 L5 接入 Room 时补齐，避免单机阶段提前建立伪网络双轨。
+
 采集：
 
 - 玩家：`InputReader` 在渲染帧采样 → **量化**写入「下一逻辑帧」槽  
@@ -260,6 +262,10 @@ Step():
 
 **目标：** 逻辑位移不读 Animator。
 
+具体数据结构、反手工工作流、InPlace 生成与批烘验收以
+[INPLACE_ROOTMOTION_MOTION_TABLE_PLAN.md](./INPLACE_ROOTMOTION_MOTION_TABLE_PLAN.md)
+为唯一实施细则。本节只保留锁步侧边界。
+
 流水线：
 
 ```text
@@ -267,7 +273,8 @@ Editor 烘焙（复用现有 LocomotionRootMotionBaker 思路）
   AnimationClip / 招式段
   → 以 60Hz 采样每逻辑帧 Δxz / Δyaw（角色本地坐标）
   → 量化为 scaled-int
-  → ActionMotionTable / LocomotionMotionTable 资产
+  → 默认内嵌回写 ActionDefinition / CharacterLocomotionProfile 的 scaled-int 运动表
+  → 自动生成并挂回 InPlace Presentation Clip
 
 Runtime ActionSim
   → 查表取 Δ
@@ -280,6 +287,8 @@ Runtime ActionSim
 - 表现仍播原 Clip  
 - 逻辑只信表  
 - 校验工具：Editor 对比「表位移 vs 原 RM」误差报告  
+
+人侧仍只维护源 Clip/段与 Timeline；MotionTable 与 InPlace 引用必须由 `Bake All / Bake Dirty / Bake Selected` 自动写回，禁止把「逐 Clip 烘焙后逐 Action 手拖表」作为主流程。
 
 现有 Locomotion 烘焙轨仍由 `Animation.NormalizedTime` 浮点采样；L2 必须改为 `locomotionFrame` 整数索引，不能只复用现状运行时。
 
@@ -500,19 +509,20 @@ Assets/Scripts/Presentation/
 
 **阶段删除：** Controller 分散 Tick 路径、Actor 读取 `Time.deltaTime` 的入口。
 
-### Phase L0B — 输入帧边界
+### Phase L0B — 输入帧边界（代码完成，Editor 验收待确认）
 
 **目标：** 玩家、AI、回放未来共用同一量化输入格式。
 
-- [ ] 将 `PlayerInputFrame` 原位迁为 `InputFrame(frame, actorId, axes, bitset, yaw)`
-- [ ] `InputReader` 只采集设备并写下一逻辑帧槽
-- [ ] `EnemyBrain` 在 World 内读 N-1 Snapshot、写 N 帧 `InputFrame`
-- [ ] `GameplayIntentProducer` / Buffer 改为帧计时
-- [ ] 定义 Pressed/Held/Released 在渲染帧跨多个逻辑帧时的展开规则
+- [x] 2026-08-01：删除 `PlayerInputFrame`，统一为 `InputFrame(frame, actorId, sbyte axes, button bitset, yaw)`
+- [x] 2026-08-01：`InputReader` 仅在设备边界量化，并把多次渲染采样合并到下一逻辑帧槽
+- [x] 2026-08-01：World 增加 Input Produce 阶段；`EnemyBrain` 在 Actor Step 前读 N-1 已提交状态并写 N 帧 `InputFrame`
+- [x] 2026-08-01：`GameplayIntentProducer`、`GameplayIntentBuffer` 与 AI 攻击/重试/重定向冷却改为整数帧
+- [x] 2026-08-01：确定展开规则——Move/Held 可在本地追帧延续，Pressed/Released 仅原始帧携带且不推导
+- [x] 2026-08-01：删除 `ICharacterInputSource` / `AIInputSource.CaptureFrame` 设备伪装链，AI 改为 `AIInputWriter`
 
-**验收：** 录制的 InputFrame 序列可脱离设备完整重放起手、长按、闪避攻击与移动。
+**验收：** EditMode 已覆盖量化、bitset、多渲染采样边沿合并、追帧连续状态展开、输入历史回放与 World 先产后消顺序；脱离设备完整重放起手、长按、闪避攻击与移动仍需 Unity Editor Play Mode 确认。
 
-**阶段删除：** AI 伪装设备的 `CaptureFrame` 路径、float/string 输入帧语义、秒制 Hold/Buffer。
+**阶段删除：** 已删除 AI 伪装设备的 `CaptureFrame` 路径、`PlayerInputFrame`、string 离散输入语义、秒制 Hold/Buffer 与 AI 输入冷却。
 
 ### Phase L0C — 同帧流水线与延迟结算
 
