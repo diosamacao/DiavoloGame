@@ -598,7 +598,7 @@ public sealed class ActionTimelineView
         if (clip == null)
             return 0;
 
-        float rate = sampleRate > 0f ? sampleRate : 30f;
+        float rate = sampleRate > 0f ? sampleRate : ActionSim.LogicHz;
         int clipLastFrame = Mathf.Max(0, Mathf.RoundToInt(clip.length * rate) - 1);
         int start = Mathf.Clamp(element.FindPropertyRelative("startFrame").intValue, 0, clipLastFrame);
         int endField = element.FindPropertyRelative("endFrame").intValue;

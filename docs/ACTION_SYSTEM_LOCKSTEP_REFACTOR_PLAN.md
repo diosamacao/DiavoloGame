@@ -557,15 +557,16 @@ Assets/Scripts/Presentation/
 
 **阶段删除：** 已删除 Runtime 秒制窗口/段查询、`ActionDefinition.FrameAt`、各 State 内重复动作推进，以及 Hit/Death 的秒倒计时与 `IsPlaying` 退出路径；L1B 进一步删除整个过渡执行器。
 
-### Phase L1B — Action 逻辑 / 表现拆分（代码完成，资产迁移与 Editor 验收待确认）
+### Phase L1B — Action 逻辑 / 表现拆分（代码与资产 Hz 完成，Play Mode 验收待确认）
 
 - [x] 2026-08-01：在 `ACTGame.Simulation` 提取无 Unity 依赖的 `ActionSim`、Snapshot、事件与内容/图/解析契约
 - [x] 2026-08-01：`CharacterActionPresentationBridge` 只读 Sim 事件与 Snapshot，按整数帧播放/Seek Clip，并承接 L2 前暂留的 RootMotion、脚本位移与 Transform Hitbox 边界
 - [x] 2026-08-01：新增无副作用 `ActionFrameQuery`；Runtime 动画段与两个 Action Editor 预览入口复用相同段/窗口/点事件规则
 - [x] 2026-08-01：Runtime 只接受 60Hz Action；新增 `ACT/Tools/Migrate Action Assets 30Hz to 60Hz`，按闭区间/点事件规则迁移动画段、Timeline、HitStop 与 Graph AtFrame
-- [ ] 在 Unity Editor 人工运行迁移工具，将现有 47 个 30Hz Action 资产迁为 60Hz，并完成 Play Mode 回归
+- [x] 2026-08-02：仓库内全部 `ActionDefinition`（40）已为 `sampleRate=60`，无 `sampleRate=30` 残留；Migrate 为幂等空跑。新增 `ACT/Tools/Validate Action 60Hz Readiness`；Editor/VFX 估时 fallback 统一为 `ActionSim.LogicHz`
+- [ ] Play Mode 回归：连招 / Perfect / Recovery / Hitbox / VFX·SFX / 位移；Unity Test Runner 跑 `ActionSim*` EditMode
 
-**验收：** 纯 `ActionSimTests` 已覆盖起手、Cancel 延迟提交、HitConfirm 自动衔接、自然结束与高优打断，项目编译通过；Unity Test Runner、迁移后 Editor/Runtime 任意帧窗口一致性与 Play Mode 仍待人工确认。
+**验收：** 纯 `ActionSimTests` 已覆盖起手、Cancel 延迟提交、HitConfirm 自动衔接、自然结束与高优打断；资产侧 Hz 迁移已完成。Unity Test Runner 与 Play Mode 手感/窗口一致性仍待人工确认。Player 侧若干 Action 仍为无动画占位（`IsSimulationReady=false`），不影响 Unagi 主路径，属内容补齐而非 L1B 架构缺口。
 
 **阶段删除：** 已删除 `ActionExecutor`、`ActionSession`、`IActionExecutor`、`IActionHitReceiver`、`ActionFrameClock`、30Hz Runtime fallback，以及 Editor 的独立动画段/Hitbox 活跃查询。`ActionSim` 已无 Animation/Transform/CharacterController 依赖；L2 将删除表现桥内暂留的 RootMotion、脚本位移与 Transform Hitbox 权威路径。
 

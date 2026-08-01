@@ -16,7 +16,8 @@ public readonly struct ActionEditorPreviewContext
         PreviewCharacter = previewCharacter;
         AttachPoint = attachPoint;
         PreviewFrame = previewFrame;
-        SampleRate = action != null ? action.SampleRate : 30f;
+        // 无 Action 时仍按全局逻辑 Hz，避免误用旧 30Hz 估时
+        SampleRate = action != null ? action.SampleRate : ActionSim.LogicHz;
         PreviewTimeSeconds = SampleRate > 0f ? previewFrame / SampleRate : 0f;
     }
 

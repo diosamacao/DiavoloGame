@@ -92,10 +92,11 @@
 - [x] 2026-08-01 L1B：提取无 Unity 依赖 `ActionSim` 与 Snapshot/Event 边界，删除 ActionExecutor/Session 和 30Hz Runtime fallback
 - [x] 2026-08-01 L1B：`CharacterActionPresentationBridge` 按整数帧 Seek，Runtime/Editor 共用 `ActionFrameQuery`
 - [x] 2026-08-01 L1B：提供 Action 30→60Hz Editor 迁移工具；代码只接受 60Hz
+- [x] 2026-08-02 L1B：全部 ActionDefinition 已为 60Hz；Validate Readiness 菜单；清除 Editor 30Hz fallback
 
 **下一步：**
 
-- [ ] 在 Unity Editor 执行 L1B 迁移工具并回归全部 Action 资产
+- [ ] L1B Play Mode 回归（连招 / Perfect / Recovery / Hitbox / VFX·SFX / 位移）+ Test Runner `ActionSim*`
 - [ ] L2：按 `docs/INPLACE_ROOTMOTION_MOTION_TABLE_PLAN.md` 将 RootMotion、脚本位移与 Transform Hitbox 迁出表现层
 
 ## 待建设模块
@@ -145,6 +146,7 @@
 - [x] 2026-08-01：Lockstep L0C——命中延迟收集与稳定帧末结算、PostCombat 自动衔接、生命周期 Commit 与只读表现事件
 - [x] 2026-08-01：Lockstep L1A——Action 整数帧权威、单次 Step、下一帧切招与 Hit/Death 帧化收尾
 - [x] 2026-08-01：Lockstep L1B 代码——纯 ActionSim、Snapshot/Event 表现边界、共享帧查询与 60Hz 迁移工具
+- [x] 2026-08-02：Lockstep L1B 资产 Hz——全部 ActionDefinition 已 60Hz；Validate Readiness；清除 Editor 30Hz fallback
 
 ## 剩余项
 
