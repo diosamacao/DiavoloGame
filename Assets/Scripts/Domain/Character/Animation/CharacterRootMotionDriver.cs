@@ -68,6 +68,7 @@ sealed class CharacterRootMotionReceiver : MonoBehaviour
             ResetLocalPose();
     }
 
+    /// <summary>承接 Playable Manual Evaluate 产生的 delta；切段 Seek 期间由表现桥临时关闭本组件。</summary>
     void OnAnimatorMove()
     {
         if (!_active || _motor == null || _animator == null)

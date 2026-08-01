@@ -155,7 +155,7 @@ public sealed class CharacterActor :
             _actionPresentation?.ApplyStep(fixedDeltaSeconds);
             _motor.TickGravity(fixedDeltaSeconds);
             _stateMachine.Tick(fixedDeltaSeconds);
-            // 状态机内可能 Play 新 Clip，同帧末推进 CrossFade 权重。
+            // Manual Playable：同帧末推进时间与 CrossFade；招式 Native RootMotion 的 delta 在此 Evaluate 产生。
             _animation.Tick(fixedDeltaSeconds);
         }
         finally

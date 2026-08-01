@@ -183,25 +183,33 @@ public sealed class CharacterActionPresentationBridge
         _timelineRunner.Dispatch(in context, _defaultAttachPoint, _notifyConsumers);
     }
 
-    /// <summary>按快照整数帧选择动画段，并每步 Seek 到精确段内时间。</summary>
+    /// <summary>仅在动作/段切换时 Play+Seek；同段内由 Animation.Tick 固定步长推进，以保留原生 RootMotion 增量。</summary>
     void SyncAnimation(ActionDefinition action, int frame)
     {
         ActionFrameQueryResult query = ActionFrameQuery.Query(action, frame);
         if (_animation == null || !query.HasAnimationSegment)
-        {
             return;
-        }
 
         int segmentIndex = query.SegmentIndex;
+        if (_animationAction == action && _animationSegmentIndex == segmentIndex)
+            return;
+
         ActionAnimationSegment segment = query.Segment;
-        if (_animationAction != action || _animationSegmentIndex != segmentIndex)
+        bool restoreRootMotion = false;
+        if (_rootMotion != null && action.ExecutionPolicy.UseRootMotion)
         {
-            _animation.PlayClip(segment.clip, action.ResolveSegmentCrossFade(segmentIndex));
-            _animationAction = action;
-            _animationSegmentIndex = segmentIndex;
+            // Seek/Evaluate(0) 的姿态跳变不能写进 CharacterController。
+            _rootMotion.SetActive(false);
+            restoreRootMotion = true;
         }
 
+        _animation.PlayClip(segment.clip, action.ResolveSegmentCrossFade(segmentIndex));
         _animation.SeekClip(query.SegmentLocalTime);
+        _animationAction = action;
+        _animationSegmentIndex = segmentIndex;
+
+        if (restoreRootMotion)
+            _rootMotion.SetActive(true);
     }
 
     /// <summary>临时通过 CharacterController 执行脚本位移；L2 将删除该表现侧位移路径。</summary>

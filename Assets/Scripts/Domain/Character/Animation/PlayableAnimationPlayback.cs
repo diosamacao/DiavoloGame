@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.Animations;
 using UnityEngine.Playables;
 
-/// <summary>基于 PlayableGraph 的双槽 CrossFade 播放后端；Animator 仅作输出目标，不依赖 Controller。</summary>
+/// <summary>基于 PlayableGraph 的双槽 CrossFade 播放后端；Manual 时间由 Simulation Tick 推进，保证 RootMotion delta 与逻辑步对齐。</summary>
 public sealed class PlayableAnimationPlayback : IAnimationPlayback
 {
     const int InputCount = 2;
@@ -32,7 +32,8 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
         _animator.runtimeAnimatorController = null;
 
         _graph = PlayableGraph.Create($"{animator.name}_CharacterAnimation");
-        _graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
+        // Manual：禁止 GameTime 与逻辑步双轨推进，否则逐帧 Seek 会污染 Animator.deltaPosition。
+        _graph.SetTimeUpdateMode(DirectorUpdateMode.Manual);
         _mixer = AnimationMixerPlayable.Create(_graph, InputCount);
         AnimationPlayableOutput output = AnimationPlayableOutput.Create(_graph, "Animation", _animator);
         output.SetSourcePlayable(_mixer);
@@ -109,7 +110,7 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
         _fading = true;
     }
 
-    /// <summary>将当前主 Clip 跳到指定时间；同时清淡入以免权重卡在过渡中。</summary>
+    /// <summary>将当前主 Clip 跳到指定时间并立即采样姿态；保留 CrossFade，不推进时间以免产生虚假 RootMotion。</summary>
     public void Seek(float timeSeconds)
     {
         if (!IsValid || !_currentPlayable.IsValid())
@@ -119,29 +120,35 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
         if (_currentClip != null)
             clamped = Mathf.Min((float)clamped, _currentClip.length);
 
+        // Unity AnimationClipPlayable 偶发需连续 SetTime 两次才生效。
         _currentPlayable.SetTime(clamped);
         _currentPlayable.SetTime(clamped);
-        SetWeights(0f, 1f);
-        DestroySlot(PreviousSlot, ref _previousPlayable);
-        _fading = false;
+        // Evaluate(0) 只应用姿态；调用方若开启 RootMotion，应在 Seek 期间临时关闭以免跳变位移。
+        _graph.Evaluate(0f);
     }
 
-    /// <summary>按 Speed 推进 CrossFade 权重；Speed=0 时淡入与骨骼一并冻结。</summary>
+    /// <summary>推进 CrossFade 权重，并以固定步长 Evaluate Graph（唯一时间推进入口）。</summary>
     public void Tick(float deltaTime)
     {
-        if (!IsValid || !_fading)
+        if (!IsValid)
             return;
 
-        _fadeElapsed += Mathf.Max(0f, deltaTime) * _speed;
-        float t = _fadeDuration <= 0f ? 1f : Mathf.Clamp01(_fadeElapsed / _fadeDuration);
-        SetWeights(1f - t, t);
+        float dt = Mathf.Max(0f, deltaTime);
+        if (_fading)
+        {
+            _fadeElapsed += dt * _speed;
+            float t = _fadeDuration <= 0f ? 1f : Mathf.Clamp01(_fadeElapsed / _fadeDuration);
+            SetWeights(1f - t, t);
 
-        if (t < 1f)
-            return;
+            if (t >= 1f)
+            {
+                SetWeights(0f, 1f);
+                DestroySlot(PreviousSlot, ref _previousPlayable);
+                _fading = false;
+            }
+        }
 
-        SetWeights(0f, 1f);
-        DestroySlot(PreviousSlot, ref _previousPlayable);
-        _fading = false;
+        _graph.Evaluate(dt);
     }
 
     public void Dispose()
