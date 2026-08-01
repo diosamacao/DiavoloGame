@@ -49,7 +49,7 @@ public static class ActionVfxPlayback
     /// <summary>将自然时长换算为逻辑帧数（至少 1 帧）；编辑器估测显示用。</summary>
     public static int DurationSecondsToFrameCount(float durationSeconds, float sampleRate)
     {
-        float rate = sampleRate > 0f ? sampleRate : 30f;
+        float rate = sampleRate > 0f ? sampleRate : ActionSim.LogicHz;
         return Mathf.Max(1, Mathf.RoundToInt(Mathf.Max(0f, durationSeconds) * rate));
     }
 }

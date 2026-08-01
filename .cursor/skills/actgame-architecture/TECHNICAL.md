@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-01
+> Last updated: 2026-08-02
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -15,7 +15,7 @@
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionStateMachine` + `LocomotionState` | AnimationProfile + `CharacterLocomotionProfile` |
 | Locomotion 起步/急停/转身 | 🟡 代码已接、资产待绑 | 内层 `LocomotionPhase` 纯状态机 | Start/Stop/Pivot Clip + 落脚标记 |
 | 第三人称相机 | ✅ 已实现 | `CameraManager` | 场景内 CameraManager 对象 |
-| 动作系统（整数帧 / 选招 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ L1B 代码已实现 | `ActionSim` + `CharacterActionPresentationBridge` + `ActionFrameQuery` | 60Hz Action + `ActionGraph` |
+| 动作系统（整数帧 / 选招 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ L1B 已实现（Play Mode 待回归） | `ActionSim` + `CharacterActionPresentationBridge` + `ActionFrameQuery` | 60Hz Action + `ActionGraph` |
 | Action Editor（时间轴编辑） | 🟡 骨架/部分 | `ActionEditorWindow` + `ActionTimeline` 手动加轨/窗口 | Menu：`ACT/Action Editor` |
 | 攻击 / 战斗判定 | ✅ L0C 延迟结算已实现 | `CombatHitPipeline` + `CombatDamageCalculator` + `CharacterReactionService` | SimHitKey；HitPayload；Hit/Death 状态 |
 | 敌人 AI | 🟡 代码已接、资产待绑 | `EnemyController` + `EnemyBrain` + 共享 `CharacterActor` | `EnemyDefinition`、`EnemyBrainProfile`、敌人 CharacterConfig/Graph |
@@ -116,7 +116,7 @@ SimulationHost.LateUpdate
 
 - L0B 已切换量化输入与整数帧 Hold/Buffer/AI 冷却；完整脱设备玩法回放仍需 Play Mode 确认。
 - L0C 已删除同步 `ApplyHitCommand` 与 `GetInstanceID()` 去重；真实多命中、互杀及交换注册顺序仍需 Play Mode 验收。
-- L1B 已将动作权威迁入纯 `ActionSim`，并提供 Snapshot 驱动动画与 30→60Hz Editor 工具；现有 Action 资产仍需人工执行迁移。
+- L1B：动作权威在纯 `ActionSim`；全部 ActionDefinition 已为 60Hz。剩余为 Play Mode / Test Runner 人工验收；Player 占位 Action 无动画段时 `IsSimulationReady=false`。
 - Animator `OnAnimatorMove`、CharacterController 与逻辑 HitStop 仍待 L2；当前 HitStop 只冻结动画/VFX 表现。
 
 ### 相关文件
@@ -566,7 +566,7 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 ### 已知限制
 
 - 现有资产需要在 Unity Editor 的 Phase 轨重建原 `phases[]`，并为 Recovery 配置移动取消 / Entry 重开开关；Agent 未直接修改 `.asset`
-- Runtime 只接受 `ActionDefinition.sampleRate=60`；现有 30Hz 资产必须在 Editor 执行 `ACT/Tools/Migrate Action Assets 30Hz to 60Hz`
+- Runtime 只接受 `ActionDefinition.sampleRate=60`；可用 `ACT/Tools/Validate Action 60Hz Readiness` 复核。仓库内已无 30Hz Action；Migrate 菜单保留作幂等兜底
 - 硬打断与 Recovery 软重开走 Graph Entry，不要求 Cancel 边；独特连招进位仍依赖 Combo Window + 显式边
 - 旧 `perfectFrame`、Cancel 槽 Id 与同类型多窗口不再受支持；资产需整理为一个 Normal 与可选一个 Perfect
 - Scene 玩家入口已改为 Empty + `PlayerController` + `CharacterConfig`
@@ -718,3 +718,4 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-01 | Lockstep L0C：Hitbox 改为 Collect→稳定排序→帧末 Resolve；新增 SimHitKey/PostCombat，删除 ApplyHitCommand、InstanceId 去重与 Event→ActionExecutor 卡肉回写 |
 | 2026-08-01 | Lockstep L1A：ActionSession 整数帧权威、ActionFrameClock 30→60 整数换帧、单次 Action Step、下一 World 帧切招，以及 Hit/Death 整数帧收尾 |
 | 2026-08-01 | Lockstep L1B：纯 `ActionSim` + Snapshot/Event 表现边界、共享 `ActionFrameQuery`、60Hz 迁移工具；删除 ActionExecutor/Session 与 30Hz Runtime 路径 |
+| 2026-08-02 | L1B 收口：确认全部 ActionDefinition 为 60Hz；新增 Validate Readiness；Editor/VFX 默认采样率改为 `ActionSim.LogicHz` |

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-/// <summary>由用户在 Unity Editor 中显式执行的 ActionDefinition 30Hz→60Hz 批量迁移工具。</summary>
+/// <summary>ActionDefinition 30Hz→60Hz 迁移与 60Hz 就绪校验（Editor 显式执行）。</summary>
 public static class ActionDefinition60HzMigrator
 {
     static readonly string[] PointArrays =
@@ -23,6 +23,68 @@ public static class ActionDefinition60HzMigrator
         "rotationStates",
     };
 
+    /// <summary>扫描项目内全部 ActionDefinition，报告 60Hz / 可模拟就绪状态（不改资产）。</summary>
+    [MenuItem("ACT/Tools/Validate Action 60Hz Readiness")]
+    public static void ValidateReadiness()
+    {
+        string[] guids = AssetDatabase.FindAssets("t:ActionDefinition");
+        Array.Sort(guids, StringComparer.Ordinal);
+
+        int total = 0;
+        int ready = 0;
+        int rate60 = 0;
+        int pending30 = 0;
+        var blockers = new List<string>(8);
+
+        for (int i = 0; i < guids.Length; i++)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+            ActionDefinition action = AssetDatabase.LoadAssetAtPath<ActionDefinition>(path);
+            if (action == null)
+                continue;
+
+            total++;
+            if (action.SampleRate == ActionSim.LogicHz)
+                rate60++;
+            if (ActionHzMigrationRules.ShouldMigrate(action.SampleRate))
+                pending30++;
+
+            if (action.IsSimulationReady)
+            {
+                ready++;
+                continue;
+            }
+
+            if (blockers.Count < 12)
+            {
+                string reason = DescribeNotReady(action);
+                blockers.Add($"{path} — {reason}");
+            }
+        }
+
+        string summary =
+            $"ActionDefinition 总数={total}\n"
+            + $"sampleRate={ActionSim.LogicHz}：{rate60}\n"
+            + $"仍为 30Hz（可迁移）：{pending30}\n"
+            + $"IsSimulationReady：{ready}\n"
+            + $"未就绪：{total - ready}";
+
+        if (blockers.Count > 0)
+        {
+            summary += "\n\n未就绪示例：\n- " + string.Join("\n- ", blockers);
+            if (total - ready > blockers.Count)
+                summary += $"\n… 另有 {total - ready - blockers.Count} 项未列出";
+        }
+
+        if (pending30 == 0 && rate60 == total)
+            summary += "\n\n30→60Hz 迁移：无需再跑 Migrate（无 sampleRate=30）。";
+        else if (pending30 > 0)
+            summary += "\n\n请执行 ACT/Tools/Migrate Action Assets 30Hz to 60Hz。";
+
+        Debug.Log("Action 60Hz Readiness\n" + summary);
+        EditorUtility.DisplayDialog("Action 60Hz Readiness", summary, "OK");
+    }
+
     /// <summary>扫描全部 30Hz Action，确认后迁移动作帧与对应 Graph AtFrame 条件。</summary>
     [MenuItem("ACT/Tools/Migrate Action Assets 30Hz to 60Hz")]
     public static void MigrateAll()
@@ -32,7 +94,8 @@ public static class ActionDefinition60HzMigrator
         {
             EditorUtility.DisplayDialog(
                 "Action 60Hz Migration",
-                "未发现 sampleRate=30 的 ActionDefinition；没有执行任何修改。",
+                "未发现 sampleRate=30 的 ActionDefinition；没有执行任何修改。\n"
+                    + "可用 ACT/Tools/Validate Action 60Hz Readiness 查看就绪报告。",
                 "OK");
             return;
         }
@@ -67,6 +130,22 @@ public static class ActionDefinition60HzMigrator
         Debug.Log(
             $"Action 60Hz Migration 完成：ActionDefinition={actions.Count}, ActionGraph={graphCount}。"
             + " 请立即运行 ActionSim EditMode 测试并在 Play Mode 回归连招、Hitbox、VFX/SFX 与位移。");
+    }
+
+    /// <summary>用简短中文说明为何尚不能进权威模拟。</summary>
+    static string DescribeNotReady(ActionDefinition action)
+    {
+        if (action == null)
+            return "空引用";
+        if (ActionHzMigrationRules.ShouldMigrate(action.SampleRate))
+            return "sampleRate=30，需迁移";
+        if (action.SampleRate != ActionSim.LogicHz)
+            return $"sampleRate={action.SampleRate}，期望 {ActionSim.LogicHz}";
+        if (!action.HasAnimation)
+            return "无动画段";
+        if (action.TotalFrames <= 0)
+            return "totalFrames<=0";
+        return "IsSimulationReady=false";
     }
 
     /// <summary>按稳定资产路径收集尚未迁移的 30Hz 动作。</summary>
