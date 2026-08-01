@@ -25,7 +25,7 @@ public sealed class EnemyHandle :
         EnemyDefinition definition,
         Transform root,
         CharacterActor actor,
-        ActionExecutor actionExecutor,
+        ActionSim actionSim,
         CharacterAnimationService animation,
         EnemyBrain brain,
         AIInputWriter input,
@@ -37,7 +37,7 @@ public sealed class EnemyHandle :
         _definition = definition;
         Root = root;
         _actor = actor;
-        ActionExecutor = actionExecutor;
+        ActionSim = actionSim;
         Animation = animation;
         _brain = brain;
         _input = input;
@@ -51,8 +51,8 @@ public sealed class EnemyHandle :
     public Transform Root { get; }
     /// <summary>用于 CombatActorSystem 注册的共享角色实例。</summary>
     public CharacterActor Actor => _actor;
-    /// <summary>用于架构注册的动作执行器。</summary>
-    public ActionExecutor ActionExecutor { get; }
+    /// <summary>敌人共享角色的纯动作模拟核。</summary>
+    public ActionSim ActionSim { get; }
     /// <summary>用于架构注册与卡肉的动画门面。</summary>
     public CharacterAnimationService Animation { get; }
     /// <summary>可命中、可索敌目标。</summary>

@@ -6,7 +6,7 @@ public sealed class ActionRotationDriver
     readonly Transform _actorRoot;
     readonly InputManager _input;
     readonly IMoveIntentResolver _moveResolver;
-    readonly ActionExecutor actionExecutor;
+    readonly ActionSim _actionSim;
     readonly CombatTargetLock targetLock;
     float _rotationVelocity;
 
@@ -15,21 +15,21 @@ public sealed class ActionRotationDriver
         Transform actorRoot,
         InputManager inputManager,
         IMoveIntentResolver moveResolver,
-        ActionExecutor executor,
+        ActionSim actionSim,
         CombatTargetLock lockState)
     {
         _actorRoot = actorRoot;
         _input = inputManager;
         _moveResolver = moveResolver;
-        actionExecutor = executor;
+        _actionSim = actionSim;
         targetLock = lockState;
     }
 
     /// <summary>Action 状态下按固定逻辑步长推进索敌和旋转窗口。</summary>
     public void Tick(float fixedDeltaSeconds)
     {
-        ActionSession session = actionExecutor.Session;
-        targetLock.Tick(session);
+        ActionSimSnapshot snapshot = _actionSim.Snapshot;
+        targetLock.Tick(in snapshot);
         TryApplyActionRotation(fixedDeltaSeconds);
     }
 
@@ -51,13 +51,15 @@ public sealed class ActionRotationDriver
         direction = Vector3.zero;
         smoothTime = _moveResolver.DefaultRotationSmoothTime;
 
-        ActionSession session = actionExecutor.Session;
-        if (!session.IsActive || !actionExecutor.CanRotateByInput)
+        ActionSimSnapshot snapshot = _actionSim.Snapshot;
+        ActionDefinition action = snapshot.Content as ActionDefinition;
+        if (!snapshot.IsActive
+            || action == null
+            || !action.IsInRotationWindow(snapshot.CurrentFrame))
             return false;
 
-        ActionDefinition action = session.CurrentAction;
         RotationNotifyState rotationState =
-            action.GetActiveRotationStateAtFrame(session.CurrentFrame);
+            action.GetActiveRotationStateAtFrame(snapshot.CurrentFrame);
         if (rotationState == null)
             return false;
 

@@ -1,0 +1,439 @@
+using System;
+using System.Collections.Generic;
+
+/// <summary>以整数逻辑帧执行起手、取消、命中衔接与自然结束的纯 C# 动作模拟核。</summary>
+public sealed class ActionSim : IActionSimHitReceiver
+{
+    /// <summary>ActionSim 唯一接受的权威动作采样率。</summary>
+    public const int LogicHz = 60;
+
+    readonly IActionSimResolver _resolver;
+    readonly IActionInputBuffer _inputBuffer;
+    readonly HashSet<GameplayIntentType> _candidateIntents = new HashSet<GameplayIntentType>();
+    readonly HashSet<GameplayIntentType> _routeCandidateIntents = new HashSet<GameplayIntentType>();
+    readonly List<GameplayIntentType> _bufferedIntents = new List<GameplayIntentType>(8);
+    readonly List<ActionSimEvent> _events = new List<ActionSimEvent>(16);
+
+    IActionSimContent _content;
+    IActionSimGraph _graph;
+    string _nodeId;
+    int _currentFrame;
+    int _instanceId;
+    int _nextInstanceId;
+    int _lastEndedInstanceId;
+    bool _hasConfirmedHit;
+    ActionSimResolveResult _pendingTransition;
+    bool _hasPendingTransition;
+    bool _pendingStop;
+
+    /// <summary>创建动作模拟核；Resolver 与输入缓冲可为空以运行无输入直接动作。</summary>
+    public ActionSim(IActionSimResolver resolver = null, IActionInputBuffer inputBuffer = null)
+    {
+        _resolver = resolver;
+        _inputBuffer = inputBuffer;
+    }
+
+    /// <summary>当前权威动作帧；无活动动作时返回 0。</summary>
+    public int CurrentFrame => IsActive ? _currentFrame : 0;
+
+    /// <summary>当前动作实例的单调稳定 Id；无活动动作时返回 0。</summary>
+    public int InstanceId => _instanceId;
+
+    /// <summary>当前是否持有活动动作。</summary>
+    public bool IsActive => _content != null;
+
+    /// <summary>当前动作是否已到达 TotalFrames 终止哨兵。</summary>
+    public bool IsComplete => IsActive && _currentFrame >= _content.TotalFrames;
+
+    /// <summary>当前动作实例是否已确认至少一次命中。</summary>
+    public bool HasConfirmedHit => _hasConfirmedHit;
+
+    /// <summary>返回指定动作实例是否已结束或被另一实例替换。</summary>
+    public bool HasEndedActionInstance(int instanceId) =>
+        instanceId > 0 && _lastEndedInstanceId == instanceId;
+
+    /// <summary>当前 Recovery 帧是否允许移动取消。</summary>
+    public bool CanCancelByMovement =>
+        IsActive
+        && !IsComplete
+        && _content.AllowsMovementCancelAtFrame(_currentFrame);
+
+    /// <summary>获取当前状态的只读值快照。</summary>
+    public ActionSimSnapshot Snapshot =>
+        new ActionSimSnapshot(
+            _content,
+            _graph,
+            _nodeId,
+            CurrentFrame,
+            InstanceId,
+            _hasConfirmedHit,
+            IsActive);
+
+    /// <summary>仅在当前无动作且内容已迁移为 60Hz 模拟数据时立即从 frame 0 起手。</summary>
+    public bool TryStart(in ActionSimResolveResult result)
+    {
+        if (IsActive || !CanBegin(result))
+            return false;
+
+        Begin(in result);
+        return true;
+    }
+
+    /// <summary>推进一个 World 帧；先提交上帧决定，再按每步一帧推进并解析取消或 Recovery。</summary>
+    public void Step()
+    {
+        bool committedTransition = CommitPendingDecision();
+        if (!IsActive)
+            return;
+
+        // 刚提交的目标动作已在本 World 帧派发 frame 0，不得再次推进到 frame 1。
+        if (!committedTransition)
+        {
+            int previousFrame = _currentFrame;
+            _currentFrame = Math.Min(_currentFrame + 1, _content.TotalFrames);
+            DispatchCrossedFrame(previousFrame, _currentFrame);
+        }
+
+        // TotalFrames 是纯退出哨兵；本帧禁止再消费 Cancel 或 Recovery 输入。
+        if (IsComplete)
+            return;
+
+        if (TryQueueCancel())
+            return;
+
+        TryQueueRecoveryStart();
+    }
+
+    /// <summary>战斗统一结算后解析 OnHit/OnWhiff 自动衔接，并排队自然停止。</summary>
+    public void ResolvePostCombat()
+    {
+        if (!IsActive || _hasPendingTransition || _pendingStop)
+            return;
+
+        if (_graph != null
+            && !string.IsNullOrEmpty(_nodeId)
+            && _graph.TryResolveAutomaticTransition(
+                _nodeId,
+                _content,
+                _currentFrame,
+                _hasConfirmedHit,
+                out ActionSimResolveResult result,
+                out bool shouldStop))
+        {
+            if (shouldStop)
+                _pendingStop = true;
+            else
+                QueueTransition(in result);
+            return;
+        }
+
+        if (IsComplete)
+            Stop();
+    }
+
+    /// <summary>当前帧可中断且候选优先级严格更高时，立即硬切并覆盖待提交决定。</summary>
+    public bool TryInterrupt(in ActionSimResolveResult result)
+    {
+        if (!IsActive
+            || !CanBegin(result)
+            || result.Content.InterruptPriority <= _content.InterruptPriority
+            || !_content.IsInterruptibleAtFrame(_currentFrame))
+        {
+            return false;
+        }
+
+        ClearOtherActionBuffers(result.Intent);
+        ClearPendingDecision();
+        EndCurrent();
+        Begin(in result);
+        return true;
+    }
+
+    /// <summary>仅接受与当前动作实例 Id 完全匹配的命中确认。</summary>
+    public bool ConfirmHit(int actionInstanceId)
+    {
+        if (!IsActive || actionInstanceId <= 0 || actionInstanceId != _instanceId)
+            return false;
+
+        if (!_hasConfirmedHit)
+        {
+            _hasConfirmedHit = true;
+            _events.Add(new ActionSimEvent(
+                ActionSimEventType.HitConfirmed,
+                _content,
+                _graph,
+                _nodeId,
+                _currentFrame,
+                _currentFrame,
+                _instanceId));
+        }
+
+        return true;
+    }
+
+    /// <summary>立即停止当前动作并清除尚未提交的停止或切招决定。</summary>
+    public void Stop()
+    {
+        ClearPendingDecision();
+        EndCurrent();
+    }
+
+    /// <summary>按产生顺序复制并清空全部待消费动作事件。</summary>
+    public int DrainEvents(List<ActionSimEvent> destination)
+    {
+        if (destination == null)
+            throw new ArgumentNullException(nameof(destination));
+
+        int count = _events.Count;
+        destination.AddRange(_events);
+        _events.Clear();
+        return count;
+    }
+
+    /// <summary>验证解析内容已迁移完成、帧范围有效且采样率严格为 60Hz。</summary>
+    static bool CanBegin(in ActionSimResolveResult result) =>
+        result.IsValid
+        && result.Content.IsSimulationReady
+        && result.Content.SampleRate == LogicHz
+        && result.Content.TotalFrames > 0;
+
+    /// <summary>建立新的稳定动作实例，并立即派发 Started 与 frame 0 内容事件。</summary>
+    void Begin(in ActionSimResolveResult result)
+    {
+        _content = result.Content;
+        _graph = result.HasGraphCursor ? result.Graph : null;
+        _nodeId = result.HasGraphCursor ? result.NodeId : null;
+        _currentFrame = 0;
+        _instanceId = checked(++_nextInstanceId);
+        _hasConfirmedHit = false;
+
+        _events.Add(new ActionSimEvent(
+            ActionSimEventType.Started,
+            _content,
+            _graph,
+            _nodeId,
+            0,
+            -1,
+            _instanceId));
+        _events.Add(new ActionSimEvent(
+            ActionSimEventType.FrameAdvanced,
+            _content,
+            _graph,
+            _nodeId,
+            0,
+            -1,
+            _instanceId));
+    }
+
+    /// <summary>结束当前实例并保留单调 Id 计数器供后续动作使用。</summary>
+    void EndCurrent()
+    {
+        if (!IsActive)
+            return;
+
+        _events.Add(new ActionSimEvent(
+            ActionSimEventType.Stopped,
+            _content,
+            _graph,
+            _nodeId,
+            _currentFrame,
+            _currentFrame,
+            _instanceId));
+        _lastEndedInstanceId = _instanceId;
+        _content = null;
+        _graph = null;
+        _nodeId = null;
+        _currentFrame = 0;
+        _instanceId = 0;
+        _hasConfirmedHit = false;
+    }
+
+    /// <summary>派发跨过的全部帧；终止哨兵也交给外层时间轴生成区间 Exit。</summary>
+    void DispatchCrossedFrame(int previousFrame, int targetFrame)
+    {
+        for (int frame = previousFrame + 1; frame <= targetFrame; frame++)
+        {
+            _events.Add(new ActionSimEvent(
+                ActionSimEventType.FrameAdvanced,
+                _content,
+                _graph,
+                _nodeId,
+                frame,
+                frame - 1,
+                _instanceId));
+        }
+    }
+
+    /// <summary>按窗口和输入优先级解析取消，成功时只排队到下一 World 帧。</summary>
+    bool TryQueueCancel()
+    {
+        if (_resolver == null || _inputBuffer == null)
+            return false;
+
+        bool perfectActive =
+            _content.IsCancelWindowActiveAtFrame(CancelWindowType.Perfect, _currentFrame);
+        bool normalActive =
+            _content.IsCancelWindowActiveAtFrame(CancelWindowType.Normal, _currentFrame);
+        if (!perfectActive && !normalActive)
+            return false;
+
+        _candidateIntents.Clear();
+        if (_graph != null && !string.IsNullOrEmpty(_nodeId))
+        {
+            if (perfectActive)
+                CollectRouteCandidates(CancelWindowType.Perfect);
+            if (normalActive)
+                CollectRouteCandidates(CancelWindowType.Normal);
+        }
+        else
+        {
+            foreach (GameplayIntentType intent in _resolver.EnumerateActiveIntents())
+                _candidateIntents.Add(intent);
+        }
+
+        CollectBufferedIntentsSorted();
+        for (int i = 0; i < _bufferedIntents.Count; i++)
+        {
+            GameplayIntentType intent = _bufferedIntents[i];
+            if (perfectActive && TryQueueCancelIntent(intent, CancelWindowType.Perfect))
+                return true;
+            if (normalActive && TryQueueCancelIntent(intent, CancelWindowType.Normal))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>把指定图路由候选合并到当前帧候选集合。</summary>
+    void CollectRouteCandidates(CancelWindowType windowType)
+    {
+        _routeCandidateIntents.Clear();
+        _graph.CollectCancelCandidateIntents(_nodeId, windowType, _routeCandidateIntents);
+        _candidateIntents.UnionWith(_routeCandidateIntents);
+    }
+
+    /// <summary>解析并消费单个取消意图；切招结果延迟提交。</summary>
+    bool TryQueueCancelIntent(GameplayIntentType intent, CancelWindowType windowType)
+    {
+        ActionSimSnapshot snapshot = Snapshot;
+        if (!_resolver.TryResolveNext(intent, windowType, in snapshot, out ActionSimResolveResult result)
+            || !CanBegin(result))
+        {
+            return false;
+        }
+
+        _inputBuffer.TryConsumeBuffer(intent);
+        ClearOtherActionBuffers(intent);
+        QueueTransition(in result);
+        return true;
+    }
+
+    /// <summary>在 Recovery 允许重开时按缓冲优先级解析图入口，并延迟提交。</summary>
+    bool TryQueueRecoveryStart()
+    {
+        if (_resolver == null
+            || _inputBuffer == null
+            || !_content.AllowsRecoveryEntryRestartAtFrame(_currentFrame))
+        {
+            return false;
+        }
+
+        _candidateIntents.Clear();
+        foreach (GameplayIntentType intent in _resolver.EnumerateActiveIntents())
+            _candidateIntents.Add(intent);
+
+        CollectBufferedIntentsSorted();
+        for (int i = 0; i < _bufferedIntents.Count; i++)
+        {
+            GameplayIntentType intent = _bufferedIntents[i];
+            ActionSimSnapshot snapshot = Snapshot;
+            if (!_resolver.TryResolveRecoveryStart(
+                    intent,
+                    in snapshot,
+                    out ActionSimResolveResult result)
+                || !CanBegin(result))
+            {
+                continue;
+            }
+
+            _inputBuffer.TryConsumeBuffer(intent);
+            ClearOtherActionBuffers(intent);
+            QueueTransition(in result);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>筛出实际已缓冲意图，并按取消优先级和枚举值确定性排序。</summary>
+    void CollectBufferedIntentsSorted()
+    {
+        _bufferedIntents.Clear();
+        foreach (GameplayIntentType intent in _candidateIntents)
+        {
+            if (_inputBuffer.HasBuffer(intent))
+                _bufferedIntents.Add(intent);
+        }
+
+        _bufferedIntents.Sort(CompareCancelIntentPriority);
+    }
+
+    /// <summary>高取消优先级排前；同级按枚举值稳定排序。</summary>
+    static int CompareCancelIntentPriority(GameplayIntentType left, GameplayIntentType right)
+    {
+        int priorityOrder = GameplayIntentCancelPriority.Get(right)
+            .CompareTo(GameplayIntentCancelPriority.Get(left));
+        return priorityOrder != 0 ? priorityOrder : left.CompareTo(right);
+    }
+
+    /// <summary>清除除策略明确保留项之外的其它动作意图缓冲。</summary>
+    void ClearOtherActionBuffers(GameplayIntentType consumedIntent)
+    {
+        if (_resolver == null || _inputBuffer == null)
+            return;
+
+        foreach (GameplayIntentType intent in _resolver.EnumerateActiveIntents())
+        {
+            if (!GameplayIntentCancelPriority.ShouldRetainAfterConsume(consumedIntent, intent))
+                _inputBuffer.TryConsumeBuffer(intent);
+        }
+    }
+
+    /// <summary>记录本帧解析出的切招，供下一 World 帧开始时提交。</summary>
+    void QueueTransition(in ActionSimResolveResult result)
+    {
+        if (_hasPendingTransition || _pendingStop || !CanBegin(result))
+            return;
+
+        _pendingTransition = result;
+        _hasPendingTransition = true;
+    }
+
+    /// <summary>提交上一 World 帧的停止或切招；返回是否刚提交了目标 frame 0。</summary>
+    bool CommitPendingDecision()
+    {
+        if (_pendingStop)
+        {
+            ClearPendingDecision();
+            EndCurrent();
+            return false;
+        }
+
+        if (!_hasPendingTransition)
+            return false;
+
+        ActionSimResolveResult transition = _pendingTransition;
+        ClearPendingDecision();
+        EndCurrent();
+        Begin(in transition);
+        return true;
+    }
+
+    /// <summary>清空尚未提交的帧边界决定，供停止或硬打断覆盖。</summary>
+    void ClearPendingDecision()
+    {
+        _pendingTransition = default(ActionSimResolveResult);
+        _hasPendingTransition = false;
+        _pendingStop = false;
+    }
+}

@@ -292,6 +292,7 @@ public class ActionDefinitionHitboxEditor : Editor
     /// <summary>绘制全部 Hitbox 线框：按各自 attachPointId 解析挂点。</summary>
     void DrawAllHitboxPreviews(ActionDefinition action, Transform root)
     {
+        ActionFrameQueryResult frameQuery = ActionFrameQuery.Query(action, _previewFrame);
         HitboxNotifyState[] hitboxes = action.HitboxStates;
         for (int i = 0; i < hitboxes.Length; i++)
         {
@@ -300,7 +301,7 @@ public class ActionDefinitionHitboxEditor : Editor
                 continue;
 
             Transform anchor = ActionEditorPreviewAttachPoint.Resolve(root, hitbox.AttachPointId);
-            bool isActive = hitbox.IsActiveAtFrame(_previewFrame);
+            bool isActive = frameQuery.IsStateActive(hitbox);
             bool isSelected = i == _selectedHitboxIndex;
             Color color = isSelected
                 ? new Color(1f, 0.85f, 0.1f, 1f)

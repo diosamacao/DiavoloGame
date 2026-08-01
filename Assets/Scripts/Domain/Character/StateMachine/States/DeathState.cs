@@ -17,7 +17,7 @@ public sealed class DeathState : CharacterState
         _deathActionInstanceId = 0;
         Context.Movement.ClearMoveSnapshot();
         Context.Animation.SetLocked(true);
-        Context.ActionExecutor?.Stop();
+        Context.ActionSim?.Stop();
 
         if (request.ResolvedAction == null)
         {
@@ -25,8 +25,10 @@ public sealed class DeathState : CharacterState
             return;
         }
 
-        if (Context.ActionExecutor?.TryStart(request.ResolvedAction) == true)
-            _deathActionInstanceId = Context.ActionExecutor.CurrentActionInstanceId;
+        ActionSimResolveResult result =
+            ActionSimResolveResult.FromContent(request.ResolvedAction);
+        if (Context.ActionSim != null && Context.ActionSim.TryStart(in result))
+            _deathActionInstanceId = Context.ActionSim.InstanceId;
         else
             Context.DeathPresentationComplete = true;
     }
@@ -41,7 +43,7 @@ public sealed class DeathState : CharacterState
     public void ResolvePostCombat()
     {
         if (_deathActionInstanceId > 0
-            && Context.ActionExecutor?.HasEndedActionInstance(_deathActionInstanceId) == true)
+            && Context.ActionSim?.HasEndedActionInstance(_deathActionInstanceId) == true)
         {
             Context.DeathPresentationComplete = true;
         }

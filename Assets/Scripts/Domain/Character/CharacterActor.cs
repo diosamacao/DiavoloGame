@@ -16,7 +16,8 @@ public sealed class CharacterActor :
     readonly CharacterMotor _motor;
     readonly CharacterStateMachine _stateMachine;
     readonly CharacterActionDriver _actionDriver;
-    readonly ActionExecutor _actionExecutor;
+    readonly ActionSim _actionSim;
+    readonly CharacterActionPresentationBridge _actionPresentation;
     readonly CombatModeService _combatMode;
     readonly CharacterAnimationService _animation;
     readonly CharacterPresentationBridge _presentation;
@@ -35,6 +36,9 @@ public sealed class CharacterActor :
 
     /// <summary>动画门面；供注册系统与卡肉使用。</summary>
     public CharacterAnimationService Animation => _animation;
+
+    /// <summary>当前角色的纯动作模拟核。</summary>
+    public ActionSim ActionSim => _actionSim;
 
     /// <summary>供相机与表现系统跟随的插值锚点。</summary>
     public Transform PresentationRoot => _presentation.PresentationRoot;
@@ -68,7 +72,8 @@ public sealed class CharacterActor :
         CharacterMotor motor,
         CharacterStateMachine stateMachine,
         CharacterActionDriver actionDriver,
-        ActionExecutor actionExecutor,
+        ActionSim actionSim,
+        CharacterActionPresentationBridge actionPresentation,
         CombatModeService combatMode,
         CharacterAnimationService animation,
         CharacterPresentationBridge presentation)
@@ -79,7 +84,8 @@ public sealed class CharacterActor :
         _motor = motor;
         _stateMachine = stateMachine;
         _actionDriver = actionDriver;
-        _actionExecutor = actionExecutor;
+        _actionSim = actionSim;
+        _actionPresentation = actionPresentation;
         _combatMode = combatMode;
         _animation = animation;
         _presentation = presentation;
@@ -144,9 +150,10 @@ public sealed class CharacterActor :
             _inputManager.IngestFrame(inputFrame);
             _intentProducer.Step();
             _actionDriver.ProcessGameplayInput();
+            // ActionSim 是唯一动作推进路径；表现桥只消费本步产生的只读事件。
+            _actionSim?.Step();
+            _actionPresentation?.ApplyStep(fixedDeltaSeconds);
             _motor.TickGravity(fixedDeltaSeconds);
-            // Action 时间只在此处单次推进；各角色 State 不再各自 Tick 执行器。
-            _actionExecutor?.Step(fixedDeltaSeconds);
             _stateMachine.Tick(fixedDeltaSeconds);
             // 状态机内可能 Play 新 Clip，同帧末推进 CrossFade 权重。
             _animation.Tick(fixedDeltaSeconds);
@@ -163,8 +170,9 @@ public sealed class CharacterActor :
         if (frameIndex != _currentFrameIndex)
             throw new InvalidOperationException("CharacterActor PostCombat 必须与最近 Step 属于同一逻辑帧。");
 
-        _actionExecutor?.ResolvePostCombat();
+        _actionSim?.ResolvePostCombat();
         _stateMachine.ResolvePostCombat();
+        _actionPresentation?.ApplyPostCombat();
     }
 
     /// <summary>把前后逻辑 Pose 插值到模型表现锚点，不修改权威角色根。</summary>

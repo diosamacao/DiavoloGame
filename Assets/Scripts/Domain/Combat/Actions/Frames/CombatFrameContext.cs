@@ -8,12 +8,14 @@ public readonly struct CombatFrameContext
         ActionDefinition action,
         int frameIndex,
         int previousFrameIndex,
-        Transform actorRoot)
+        Transform actorRoot,
+        int actionInstanceId)
     {
         Action = action;
         FrameIndex = frameIndex;
         PreviousFrameIndex = previousFrameIndex;
         ActorRoot = actorRoot;
+        ActionInstanceId = actionInstanceId;
     }
 
     /// <summary>当前招式 SO。</summary>
@@ -31,4 +33,7 @@ public readonly struct CombatFrameContext
 
     /// <summary>攻击者根 Transform。</summary>
     public Transform ActorRoot { get; }
+
+    /// <summary>产生当前帧的稳定动作实例 Id。</summary>
+    public int ActionInstanceId { get; }
 }

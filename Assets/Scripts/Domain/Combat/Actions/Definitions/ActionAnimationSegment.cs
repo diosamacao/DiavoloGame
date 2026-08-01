@@ -25,7 +25,7 @@ public struct ActionAnimationSegment
         if (clip == null)
             return false;
 
-        float rate = sampleRate > 0f ? sampleRate : 30f;
+        float rate = sampleRate > 0f ? sampleRate : ActionSim.LogicHz;
         int clipLastFrame = Mathf.Max(0, Mathf.RoundToInt(clip.length * rate) - 1);
         startInclusive = Mathf.Clamp(startFrame, 0, clipLastFrame);
         endInclusive = endFrame < 0 ? clipLastFrame : Mathf.Clamp(endFrame, startInclusive, clipLastFrame);
@@ -44,7 +44,7 @@ public struct ActionAnimationSegment
     /// <summary>本段贡献的秒数。</summary>
     public float GetDurationSeconds(float sampleRate)
     {
-        float rate = sampleRate > 0f ? sampleRate : 30f;
+        float rate = sampleRate > 0f ? sampleRate : ActionSim.LogicHz;
         return GetFrameCount(sampleRate) / rate;
     }
 
@@ -54,7 +54,7 @@ public struct ActionAnimationSegment
         if (!TryGetFrameRange(sampleRate, out int startInclusive, out _))
             return 0f;
 
-        float rate = sampleRate > 0f ? sampleRate : 30f;
+        float rate = sampleRate > 0f ? sampleRate : ActionSim.LogicHz;
         int localFrame = startInclusive + Mathf.Max(0, frameOffsetInSegment);
         return localFrame / rate;
     }

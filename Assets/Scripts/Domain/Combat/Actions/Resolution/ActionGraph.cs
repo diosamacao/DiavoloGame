@@ -7,7 +7,7 @@ using UnityEngine;
 /// 节点拥有输入、索敌、起手行为与自动衔接，ActionDefinition 只描述动作播放内容。
 /// </summary>
 [CreateAssetMenu(fileName = "ActionGraph", menuName = "ACT/Combat/Action Graph")]
-public class ActionGraph : ScriptableObject
+public class ActionGraph : ScriptableObject, IActionSimGraph
 {
     [SerializeField] ActionGraphNode[] nodes = Array.Empty<ActionGraphNode>();
     [SerializeField] ActionGraphEdge[] edges = Array.Empty<ActionGraphEdge>();
@@ -168,7 +168,7 @@ public class ActionGraph : ScriptableObject
     public void CollectCancelCandidateIntents(
         string fromNodeId,
         CancelWindowType routeKind,
-        HashSet<GameplayIntentType> results)
+        ISet<GameplayIntentType> results)
     {
         results.Clear();
         if (edges == null)
@@ -228,15 +228,16 @@ public class ActionGraph : ScriptableObject
     /// <summary>按优先级解析当前节点满足条件的自动衔接；目标为空时返回应停止标记。</summary>
     public bool TryResolveAutomaticTransition(
         string currentNodeId,
-        ActionDefinition currentAction,
+        IActionSimContent currentContent,
         int currentFrame,
         bool hasConfirmedHit,
-        out ActionResolveResult result,
+        out ActionSimResolveResult result,
         out bool shouldStop)
     {
         result = default;
         shouldStop = false;
-        if (currentAction == null || !TryGetNode(currentNodeId, out ActionGraphNode currentNode))
+        if (currentContent is not ActionDefinition currentAction
+            || !TryGetNode(currentNodeId, out ActionGraphNode currentNode))
             return false;
 
         ActionGraphTransition selected = null;
@@ -269,7 +270,11 @@ public class ActionGraph : ScriptableObject
         if (!TryGetNode(selected.TargetNodeId, out ActionGraphNode targetNode))
             return false;
 
-        result = ActionResolveResult.FromGraph(targetNode.Action, this, targetNode.NodeId);
+        result = ActionSimResolveResult.FromGraph(
+            targetNode.Action,
+            this,
+            targetNode.NodeId,
+            targetNode.Intent);
         return result.IsValid;
     }
 

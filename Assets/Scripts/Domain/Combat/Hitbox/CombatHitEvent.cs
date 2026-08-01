@@ -8,7 +8,7 @@ public readonly struct CombatHitEvent
         SimHitKey key,
         ActionHitContext context,
         IHurtboxTarget target,
-        IActionHitReceiver hitReceiver,
+        IActionSimHitReceiver hitReceiver,
         Transform targetTransform)
     {
         Key = key;
@@ -28,7 +28,7 @@ public readonly struct CombatHitEvent
     public IHurtboxTarget Target { get; }
 
     /// <summary>帧末接收命中确认的攻击者。</summary>
-    public IActionHitReceiver HitReceiver { get; }
+    public IActionSimHitReceiver HitReceiver { get; }
 
     /// <summary>表现层生成命中方向所需的目标根。</summary>
     public Transform TargetTransform { get; }

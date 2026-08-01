@@ -7,14 +7,14 @@ public sealed class CharacterActionDriver
     readonly InputManager _input;
     readonly GameplayIntentBuffer _intentBuffer;
     readonly CharacterStateMachine _stateMachine;
-    readonly ActionExecutor _actionExecutor;
+    readonly ActionSim _actionSim;
     /// <summary>同物体 CombatModeService；用具体类型访问 Profile / TrySetMode 三参 overload。</summary>
     readonly CombatModeService _combatMode;
     /// <summary>Locomotion 起手 / Cancel 解析（委托 ActionGraph）。</summary>
     readonly ActionResolverService _resolverService;
     /// <summary>角色根节点；方向 Resolver 读取朝向用。</summary>
     readonly Transform _actorRoot;
-    /// <summary>招式起手副作用上下文（闪避意图、朝向修正）；与 ActionExecutor 共用同一实例。</summary>
+    /// <summary>招式解析上下文（闪避意图、朝向修正）。</summary>
     readonly IActionStartContext _startContext;
     bool _wasInAction;
 
@@ -23,7 +23,7 @@ public sealed class CharacterActionDriver
         InputManager input,
         GameplayIntentBuffer intentBuffer,
         CharacterStateMachine stateMachine,
-        ActionExecutor actionExecutor,
+        ActionSim actionSim,
         CombatModeService combatMode,
         CombatTargetLock lockState,
         ActionResolverService resolverService,
@@ -33,7 +33,7 @@ public sealed class CharacterActionDriver
         _input = input;
         _intentBuffer = intentBuffer;
         _stateMachine = stateMachine;
-        _actionExecutor = actionExecutor;
+        _actionSim = actionSim;
         _combatMode = combatMode;
         targetLock = lockState;
         _resolverService = resolverService;
@@ -104,7 +104,7 @@ public sealed class CharacterActionDriver
         if (!_input.HasMoveIntent)
             return;
 
-        if (!_actionExecutor.CanCancelByMovement)
+        if (_actionSim == null || !_actionSim.CanCancelByMovement)
             return;
 
         _stateMachine.TryChangeState(CharacterStateType.Locomotion);
@@ -130,10 +130,10 @@ public sealed class CharacterActionDriver
     /// </summary>
     bool TryPriorityInterrupt(GameplayIntentType intent)
     {
-        if (_resolverService == null || _actionExecutor == null)
+        if (_resolverService == null || _actionSim == null)
             return false;
 
-        ActionDefinition current = _actionExecutor.CurrentAction;
+        ActionDefinition current = _actionSim.Snapshot.Content as ActionDefinition;
         if (current == null)
             return false;
 
@@ -147,14 +147,15 @@ public sealed class CharacterActionDriver
         if (!_resolverService.TryResolveStart(in request, in context, out ActionResolveResult resolveResult))
             return false;
 
-        if (!_actionExecutor.TryInterrupt(in resolveResult))
+        ActionSimResolveResult simResult = resolveResult.ToSimResult();
+        if (!_actionSim.TryInterrupt(in simResult))
             return false;
 
         _intentBuffer?.ClearBuffer(intent);
         return true;
     }
 
-    /// <summary>Locomotion 起手：经 ActionGraph Entry×Intent 解析后交给 ActionExecutor。</summary>
+    /// <summary>Locomotion 起手：经 ActionGraph Entry×Intent 解析后交给 ActionSim。</summary>
     void TryStartFromLocomotion(GameplayIntentType intent)
     {
         _intentBuffer.ClearBuffer(intent);
@@ -169,7 +170,8 @@ public sealed class CharacterActionDriver
         if (!_resolverService.TryResolveStart(in request, in context, out ActionResolveResult resolveResult))
             return;
 
-        if (!_actionExecutor.TryStart(in resolveResult))
+        ActionSimResolveResult simResult = resolveResult.ToSimResult();
+        if (!_actionSim.TryStart(in simResult))
             return;
 
         // 清掉残留意图（尤其 AttackRelease），避免进蓄力首帧 Cancel 窗立刻秒放 1 档。
