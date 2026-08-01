@@ -147,14 +147,16 @@ ActionBakedMotion（Serializable，非独立播放器类）
 
 | 情况 | 表内容 |
 |------|--------|
-| 有位移招式 | Δ 来自配对 RM Clip 差分 |
+| 有位移招式 | 水平 Δ 来自配对 RM Clip 差分；**偏航不进表** |
 | 纯站桩 / 无 RM 配对且策略允许零表 | Δ 全 0（须显式策略或报告，避免静默丢位移） |
+
+**朝向定案：** 运行时旋转只由 `ActionRotationDriver`（Rotation 窗 + 索敌 / 玩家输入）控制；烘焙与查表均不施加 RootMotion yaw（避免 Humanoid RootQ 假偏航）。
 
 查表 API：
 
 ```text
 bool TryGetDelta(int frame, out SimVec2 deltaMm, out int yawMilliDeg)
-// 越界钳制到 last（Editor 可告警）
+// yawMilliDeg 恒为 0；越界钳制到 last
 ```
 
 ### 4.3 段与整招表
@@ -209,12 +211,12 @@ SimClipBakePair（Editor）
   RootMotion 文件夹（DefaultAsset / 路径）
   可选：过滤子集（Selected Clips / 引用到的 ActionDefinition）
   logicHz = 60
-  planarMode、是否导出 yaw
+  planarMode（不含 exportYaw）
 
 输出：
   1) 匹配报告（成功对 / 未匹配 InPlace / 未匹配 RM / 歧义）
-  2) 每对成功：从 RM 采样的 MotionTable → 写回引用该 InPlace 的 Action/Profile
-  3) 校验报告（相对 RM 源的累计/单帧误差）
+  2) 每对成功：从 RM 采样的水平 MotionTable（yaw=0）→ 写回引用该 InPlace 的 Action/Profile
+  3) 校验报告（相对 RM 源的累计/单帧水平误差）
   —— 不输出、不覆盖任何 InPlace Clip 资产 ——
 ```
 
@@ -261,10 +263,10 @@ pair = Match(inplaceClip, rootMotionClip)
 for frame in 0 .. totalFrames-1:
   t0 = frame / logicHz
   t1 = (frame+1) / logicHz
-  sample root transform of rootMotionClip at t0, t1
-  deltaLocal = Inverse(rootYaw0) * (pos1 - pos0)
+  sample root position of rootMotionClip at t0, t1
+  deltaLocal = (pos1 - pos0).xz   // Clip 起点局部水平；不用 RootQ yaw 投影
   quantize to mm
-  yawDelta = wrap(yaw1 - yaw0) → milli-deg
+  yawDelta = 0                   // 朝向不烘焙
 ```
 
 注意：
@@ -292,7 +294,7 @@ for frame in 0 .. totalFrames-1:
 窗口字段：
   InPlace Folder     // 例 Assets/Art/Arts/Unagi/Inplace
   RootMotion Folder  // 例 Assets/Art/Arts/Unagi/RootMotion
-  planarMode / exportYaw / logicHz
+  planarMode / logicHz
   [Preview Matches]  // 只列出配对与歧义，不写资产
   [Bake Matched]     // 烘焙并写回引用这些 InPlace 的 Action/Profile
   [Bake Dirty Only]
@@ -454,19 +456,21 @@ Assets/Art/Arts/<Character>/RootMotion/
 
 ### Phase M0 — 匹配 + 烘焙原型（可与 L0/L1 并行）
 
-- [ ] `MotionClipPairMatcher`：双文件夹扫描 + stem 规则 + Preview Matches  
-- [ ] `ActionBakedMotion` 内嵌字段  
-- [ ] `BakeFromFolders`：对匹配成功的对从 RM 采样写表（先写测试 Action 或报告）  
-- [ ] **不实现**任何 InPlace 生成  
-- [ ] 校验报告；一条测试攻击招跑通  
+- [x] 2026-08-02：`MotionClipNameRules` + `MotionClipPairMatcher`：双文件夹扫描 + stem 规则 + Preview Matches  
+- [x] 2026-08-02：`ActionBakedMotion` 内嵌 `ActionDefinition.bakedMotion`；量化/查表 API 在 `ACTGame.Simulation`  
+- [x] 2026-08-02：`FolderMotionBakeWindow` / `ActionMotionBakeService.BakeFromFolders`：从 RM 采样写回引用方 Action  
+- [x] 2026-08-02：**不实现**任何 InPlace 生成  
+- [x] 2026-08-02：EditMode 测试（NameRules / Quantization / TryGetDelta）；校验报告在 Bake 日志中  
 
-**验收：** 选择 Unagi 的 Inplace + RootMotion 两文件夹，能 Preview 出 `Attack_01_Inplace` ↔ `Unagi|Attack_01`；Bake 后测试招位移来自 RM 表，表现 Clip 仍是原 InPlace 资产。
+**验收（Editor 人工）：** 菜单 `ACTGame/Motion/Bake From Folders...` 选择 Unagi Inplace + RootMotion，Preview 应含 `Attack_01_Inplace` ↔ `Unagi|Attack_01`（或同 stem）；Bake 写回引用该 InPlace 的 Action。运行时查表驱动位移属 M1。
 
 ### Phase M1 — 单招切逻辑查表
 
-- [ ] 测试招：按 `currentFrame` 查表驱动 Motor  
-- [ ] 该招禁用逻辑 `OnAnimatorMove`  
-- [ ] 表现确认播的是既有 InPlace  
+- [x] 2026-08-02：`CharacterActionPresentationBridge` 按 `currentFrame` 查 `bakedMotion` 驱动 CC 位移/偏航（MotorSim 仍待后续）  
+- [x] 2026-08-02：`ActionMotionRuntimePolicy` — 表就绪时禁用 Animator `OnAnimatorMove`  
+- [x] 2026-08-02：表现仍播 Action 段上配置的 Clip（应为已有 InPlace）；未改生成路径  
+
+**验收（Editor）：** 对测试招 Bake 后 `bakeStatus=Ok`，Play Mode 关闭 Animator RM 仍有位移；未烘焙招式保持旧 Animator RM。
 
 ### Phase M2 — Action 批量迁移
 
@@ -548,6 +552,7 @@ L5  联网              ← 位移确定性后才能锁步
 | **2026-08-01** | **Δ 只从 RootMotion Clip 烘焙** | InPlace 无可用根位移；位移手感以 RM 为准 |
 | **2026-08-01** | **双文件夹选择 + 命名部分匹配自动配对** | `Attack_01_Inplace` ↔ `Unagi\|Attack_01`；降低手配成本 |
 | **2026-08-01** | **Bake 主入口改为 Folder 窗口** | 在指定 InPlace/RM 目录内扫描匹配；Action Bake 复用同一匹配器 |
+| **2026-08-02** | **运动表不含偏航；朝向只认代码规则** | RootQ→euler.y 不可靠；旋转由 ActionRotation/索敌/输入独占 |
 
 ---
 

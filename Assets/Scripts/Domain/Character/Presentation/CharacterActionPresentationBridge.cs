@@ -88,7 +88,9 @@ public sealed class CharacterActionPresentationBridge
             && snapshot.Content is ActionDefinition current)
         {
             SyncAnimation(current, snapshot.CurrentFrame);
-            ApplyScriptedDisplacement(current, snapshot.CurrentFrame, stepDelta);
+            // 有就绪运动表则只信表；否则脚本位移 /（未烘焙时）Animator RM
+            if (!ApplyBakedMotionDisplacement(current, snapshot.CurrentFrame))
+                ApplyScriptedDisplacement(current, snapshot.CurrentFrame, stepDelta);
         }
 
         for (int i = 0; i < _events.Count; i++)
@@ -131,7 +133,8 @@ public sealed class CharacterActionPresentationBridge
             return;
 
         ExecuteStartBehaviors(actionEvent.Graph as ActionGraph, actionEvent.NodeId);
-        _rootMotion?.SetActive(action.ExecutionPolicy.UseRootMotion);
+        // 烘焙表就绪后禁止 OnAnimatorMove，避免与查表位移双加
+        _rootMotion?.SetActive(ShouldUseAnimatorRootMotion(action));
         for (int i = 0; i < _frameConsumers.Count; i++)
             _frameConsumers[i].OnActionBegan(action);
     }
@@ -183,7 +186,7 @@ public sealed class CharacterActionPresentationBridge
         _timelineRunner.Dispatch(in context, _defaultAttachPoint, _notifyConsumers);
     }
 
-    /// <summary>仅在动作/段切换时 Play+Seek；同段内由 Animation.Tick 固定步长推进，以保留原生 RootMotion 增量。</summary>
+    /// <summary>仅在动作/段切换时 Play+Seek；同段内由 Animation.Tick 固定步长推进。</summary>
     void SyncAnimation(ActionDefinition action, int frame)
     {
         ActionFrameQueryResult query = ActionFrameQuery.Query(action, frame);
@@ -195,12 +198,12 @@ public sealed class CharacterActionPresentationBridge
             return;
 
         ActionAnimationSegment segment = query.Segment;
-        bool restoreRootMotion = false;
-        if (_rootMotion != null && action.ExecutionPolicy.UseRootMotion)
+        bool restoreAnimatorRm = false;
+        if (_rootMotion != null && ShouldUseAnimatorRootMotion(action))
         {
             // Seek/Evaluate(0) 的姿态跳变不能写进 CharacterController。
             _rootMotion.SetActive(false);
-            restoreRootMotion = true;
+            restoreAnimatorRm = true;
         }
 
         _animation.PlayClip(segment.clip, action.ResolveSegmentCrossFade(segmentIndex));
@@ -208,11 +211,35 @@ public sealed class CharacterActionPresentationBridge
         _animationAction = action;
         _animationSegmentIndex = segmentIndex;
 
-        if (restoreRootMotion)
+        if (restoreAnimatorRm)
             _rootMotion.SetActive(true);
     }
 
-    /// <summary>临时通过 CharacterController 执行脚本位移；L2 将删除该表现侧位移路径。</summary>
+    /// <summary>按 currentFrame 查烘焙表施加水平位移；朝向只由 ActionRotation/索敌/输入控制，不读表 yaw。</summary>
+    bool ApplyBakedMotionDisplacement(ActionDefinition action, int frame)
+    {
+        if (_controller == null || action == null)
+            return false;
+
+        ActionBakedMotion motion = action.BakedMotion;
+        if (!motion.IsReady || !motion.TryGetDelta(frame, out SimVec2 deltaMm, out _))
+            return false;
+
+        Vector3 localDelta = new(
+            MotionQuantization.MmToMeters(deltaMm.X),
+            0f,
+            MotionQuantization.MmToMeters(deltaMm.Z));
+
+        Transform root = _actorRoot != null ? _actorRoot : _controller.transform;
+        Vector3 worldDelta = root.rotation * localDelta;
+        worldDelta.y = 0f;
+        if (worldDelta.sqrMagnitude > 0.0000001f)
+            _controller.Move(worldDelta);
+
+        return true;
+    }
+
+    /// <summary>临时通过 CharacterController 执行脚本位移；有烘焙表时不会走到这里。</summary>
     void ApplyScriptedDisplacement(ActionDefinition action, int frame, float fixedDeltaSeconds)
     {
         if (_controller == null || !action.HasScriptedDisplacement)
@@ -231,6 +258,13 @@ public sealed class CharacterActionPresentationBridge
         float signedSpeed = movement.ResolveSpeed(action.SampleRate);
         _controller.Move(forward * (signedSpeed * fixedDeltaSeconds));
     }
+
+    /// <summary>仅未烘焙且策略要求时启用 Animator Root Motion。</summary>
+    static bool ShouldUseAnimatorRootMotion(ActionDefinition action) =>
+        action != null
+        && ActionMotionRuntimePolicy.ShouldUseAnimatorRootMotion(
+            action.ExecutionPolicy.UseRootMotion,
+            action.BakedMotion.IsReady);
 
     /// <summary>读取图节点并按配置顺序执行当前实例的起手行为。</summary>
     void ExecuteStartBehaviors(ActionGraph graph, string nodeId)

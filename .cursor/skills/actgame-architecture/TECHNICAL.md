@@ -117,7 +117,8 @@ SimulationHost.LateUpdate
 - L0B 已切换量化输入与整数帧 Hold/Buffer/AI 冷却；完整脱设备玩法回放仍需 Play Mode 确认。
 - L0C 已删除同步 `ApplyHitCommand` 与 `GetInstanceID()` 去重；真实多命中、互杀及交换注册顺序仍需 Play Mode 验收。
 - L1B：动作权威在纯 `ActionSim`；全部 ActionDefinition 已为 60Hz。剩余为 Play Mode / Test Runner 人工验收；Player 占位 Action 无动画段时 `IsSimulationReady=false`。
-- Animator `OnAnimatorMove`、CharacterController 与逻辑 HitStop 仍待 L2；当前 HitStop 只冻结动画/VFX 表现。
+- L2/M0–M1：运动表烘焙 + 运行时查表。`bakeStatus=Ok` 时表现桥按帧取 Δ 经 CC 移动并关闭 Animator RM；未烘焙招式仍可走 Animator RM。MotorSim / 逻辑 Hitbox / `freezeFrames` 待后续。
+- 当前 HitStop 只冻结动画/VFX 表现，权威卡肉帧计数待 L2 后续。
 
 ### 相关文件
 
@@ -719,3 +720,6 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-01 | Lockstep L1A：ActionSession 整数帧权威、ActionFrameClock 30→60 整数换帧、单次 Action Step、下一 World 帧切招，以及 Hit/Death 整数帧收尾 |
 | 2026-08-01 | Lockstep L1B：纯 `ActionSim` + Snapshot/Event 表现边界、共享 `ActionFrameQuery`、60Hz 迁移工具；删除 ActionExecutor/Session 与 30Hz Runtime 路径 |
 | 2026-08-02 | L1B 收口：确认全部 ActionDefinition 为 60Hz；新增 Validate Readiness；Editor/VFX 默认采样率改为 `ActionSim.LogicHz` |
+| 2026-08-02 | L2/M0：`ActionBakedMotion` + 双文件夹命名匹配烘焙（`ACTGame/Motion/Bake From Folders...`）；不生成 InPlace |
+| 2026-08-02 | L2/M1：表现桥查表位移；表就绪禁用 OnAnimatorMove；`ActionMotionRuntimePolicy` |
+| 2026-08-02 | 运动表取消烘焙/施加 yaw；朝向仅 ActionRotation（索敌/输入）；位移烘焙不再用 RootQ 投影 |
