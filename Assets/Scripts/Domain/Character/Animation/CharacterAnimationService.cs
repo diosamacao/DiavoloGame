@@ -88,7 +88,7 @@ public sealed class CharacterAnimationService : IDisposable
         _currentKey = null;
     }
 
-    /// <summary>将当前招式 Clip 跳到指定时间（秒）。</summary>
+    /// <summary>将当前招式 Clip 跳到指定时间（秒）；仅切段对时使用，勿每逻辑帧调用。</summary>
     public void SeekClip(float timeSeconds) => playback?.Seek(timeSeconds);
 
     public bool HasFinishedClip(AnimationClip clip)
@@ -99,7 +99,7 @@ public sealed class CharacterAnimationService : IDisposable
         return playback.CurrentClip == clip && playback.HasFinished;
     }
 
-    /// <summary>推进后端淡入等每帧逻辑；由 CharacterActor.Step 调用。</summary>
+    /// <summary>按逻辑步推进 Playable 时间与淡入；Native RootMotion 的 delta 由此 Evaluate 产生。</summary>
     public void Tick(float deltaTime) => playback?.Tick(deltaTime);
 
     /// <summary>销毁播放后端（PlayableGraph 等）。</summary>
