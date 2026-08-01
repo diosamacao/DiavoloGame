@@ -262,7 +262,7 @@ Step():
 
 **目标：** 逻辑位移不读 Animator。
 
-具体数据结构、反手工工作流、InPlace 生成与批烘验收以
+具体数据结构、双文件夹命名匹配、批烘验收以
 [INPLACE_ROOTMOTION_MOTION_TABLE_PLAN.md](./INPLACE_ROOTMOTION_MOTION_TABLE_PLAN.md)
 为唯一实施细则。本节只保留锁步侧边界。
 
@@ -270,11 +270,12 @@ Step():
 
 ```text
 Editor 烘焙（复用现有 LocomotionRootMotionBaker 思路）
-  AnimationClip / 招式段
-  → 以 60Hz 采样每逻辑帧 Δxz / Δyaw（角色本地坐标）
+  选择 InPlace 文件夹 + RootMotion 文件夹
+  → 按命名匹配（Attack_01_Inplace ↔ Unagi|Attack_01）
+  → 从 RM Clip 以 60Hz 采样每逻辑帧 Δxz / Δyaw（角色本地坐标）
   → 量化为 scaled-int
-  → 默认内嵌回写 ActionDefinition / CharacterLocomotionProfile 的 scaled-int 运动表
-  → 自动生成并挂回 InPlace Presentation Clip
+  → 默认内嵌回写 ActionDefinition / CharacterLocomotionProfile 的运动表
+  → 表现 Clip 使用已有 InPlace（不生成、不改写）
 
 Runtime ActionSim
   → 查表取 Δ
@@ -284,11 +285,11 @@ Runtime ActionSim
 
 过渡期允许：
 
-- 表现仍播原 Clip  
+- 表现播已有 InPlace  
 - 逻辑只信表  
-- 校验工具：Editor 对比「表位移 vs 原 RM」误差报告  
+- 校验工具：Editor 对比「表位移 vs RM 源」误差报告  
 
-人侧仍只维护源 Clip/段与 Timeline；MotionTable 与 InPlace 引用必须由 `Bake All / Bake Dirty / Bake Selected` 自动写回，禁止把「逐 Clip 烘焙后逐 Action 手拖表」作为主流程。
+人侧维护 InPlace Clip/段与 Timeline；Baker 在选定文件夹内自动配对 RM 并写回 MotionTable，禁止「逐 Clip 手烘再逐 Action 拖表」，也禁止从 RM 生成 InPlace。
 
 现有 Locomotion 烘焙轨仍由 `Animation.NormalizedTime` 浮点采样；L2 必须改为 `locomotionFrame` 整数索引，不能只复用现状运行时。
 

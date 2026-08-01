@@ -1,8 +1,8 @@
 # InPlace Clip + RootMotion 位移表改造方案
 
 > 基准：帧同步方案 [ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](./ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)（尤其 Phase L2）  
-> 制定日期：2026-07-31  
-> 目标：逻辑位移与动画播放解耦——**表现播 InPlace Clip，权威位移查烘焙帧表**；不引入泛化 `Animation` 播放器类  
+> 制定日期：2026-07-31 · **修订：2026-08-01**  
+> 目标：逻辑位移与动画播放解耦——**表现播已有 InPlace Clip，权威位移查从 RootMotion Clip 烘焙的帧表**；不引入泛化 `Animation` 播放器类  
 > 适用仓库：ACTGame；在锁步重构进入 L2 时作为 RootMotion 改造唯一实施细则
 
 ---
@@ -11,12 +11,12 @@
 
 1. **锁步不能把运行时 Animator Root Motion 当权威**；可用动画里的运动**数据**（烘焙），不能用播放时采样的 `deltaPosition`。
 2. 每个可驱动位移的动作在运行时仍是一对数据：
-   - **Presentation Clip**：InPlace  
-   - **MotionTable**：60Hz 逐帧 Δ（scaled-int）  
-   但这对数据**不是策划手配出来的**，而是工具从现有源 Clip **批量生成并自动回写**。
-3. **工作流定案（反手工）：以 `ActionDefinition` 为唯一入口**——人只维护现在就会配的「源动画 / 段」；一键或脏标记批烘后，表与 InPlace 引用自动写入，禁止「逐 Clip 烘完再逐个 Action 拖引用」成为主流程。
-4. **不要**新建名为 `Animation` 的运行时大类；表数据优先**内嵌在 ActionDefinition**（或按约定路径旁路生成并自动挂上），避免多一份要手配的 SO。
-5. 落地挂在帧同步 **L2**；烘焙工具可与 L0/L1 并行；运行时查表以 `ActionSim.currentFrame` 为准。
+   - **Presentation Clip**：项目中**已有**的 InPlace 动画（美术交付，工具不生成）
+   - **MotionTable**：60Hz 逐帧 Δ（scaled-int），从**配对的 RootMotion Clip**采样烘焙
+3. **配对规则**：按文件/Clip 命名部分匹配。例：InPlace `Attack_01_Inplace` ↔ RootMotion `Unagi|Attack_01`（或同 stem 的 `Attack_01`）。
+4. **烘焙主入口**：Editor 窗口选择 **InPlace 文件夹** + **RootMotion 文件夹**，在两目录内自动扫描、匹配、烘焙；不从 RM 反向生成 InPlace。
+5. **不要**新建名为 `Animation` 的运行时大类；表数据优先**内嵌在 ActionDefinition / Profile** 并自动写回，避免多一份手配 SO。
+6. 落地挂在帧同步 **L2**；烘焙工具可与 L0/L1 并行；运行时查表以 `ActionSim.currentFrame` 为准。
 
 ---
 
@@ -38,16 +38,34 @@ Action / Locomotion
 | 跨端不可复现 | 同输入无法保证同位置 |
 | 与固定逻辑帧冲突 | RM 跟播放会话时间，不是稳定 `frameIndex` |
 
-### 2.2 目标形态
+### 2.2 资产现状（本修订的前提）
+
+项目已分目录交付两套动画（以 Unagi 为例）：
+
+```text
+Assets/Art/Arts/Unagi/Inplace/     // 表现用，无根位移（或根位移已剥离）
+Assets/Art/Arts/Unagi/RootMotion/  // 含根位移，仅作烘焙源，不进运行时权威
+```
+
+命名惯例：
+
+| 侧 | 示例 |
+|----|------|
+| InPlace 文件 / Clip | `Attack_01_Inplace.fbx` → Clip `Attack_01_Inplace` |
+| RootMotion 文件 / Clip | `Attack_01.fbx` → Clip 常为 `Unagi\|Attack_01` 或 `Attack_01` |
+
+旧方案「从 RM Clip **生成** InPlace」作废：美术已提供 InPlace，Baker **只读引用、不写出新 Clip**。
+
+### 2.3 目标形态
 
 ```text
 【权威 Simulation】
   actionFrame / locomotionFrame (int)
-  → MotionTable[frame] → Δxz / Δyaw (scaled-int)
+  → MotionTable[frame] → Δxz / Δyaw (scaled-int)   // 来自 RootMotion 烘焙
   → 按 facing 转到世界 → MotorSim.TryMove
 
 【表现 Presentation】
-  同一 frame → 选 InPlace Clip + 局部时间
+  同一 frame → 选已有 InPlace Clip + 局部时间
   → CharacterAnimationService.PlayClip / Seek
   → 模型跟 Snapshot 插值（已有 CharacterPresentationBridge）
 ```
@@ -59,76 +77,78 @@ Action / Locomotion
 | 原则 | 说明 |
 |------|------|
 | 单一逻辑频率 | 表采样率 = `SimulationConfig.LogicHz`（60）；与 Timeline 迁移后一致 |
-| 数据配对，职责分离 | Clip 只服务表现；Table 只服务逻辑；禁止运行时互相推导权威 |
-| **配置零增量** | 策划/程序日常不增加「配 MotionTable」步骤；只配源 Clip（现状），其余机器生成 |
-| **Action 入口批烘** | Baker 读 `ActionDefinition`（段、时长、Timeline 帧数），写回同资产；不以「单 Clip 窗口」为主入口 |
-| 不新建 Animation 播放器 | 播放仍走 `CharacterAnimationService`；新增的是**资产与查表 API** |
-| 源 Clip 可保留 RM | 美术继续按 RM 制作；工具从源 Clip 生成 InPlace + 表 |
+| 数据配对，职责分离 | InPlace 只服务表现；Table 只服务逻辑；禁止运行时互相推导权威 |
+| **InPlace 现成、不生成** | Baker 绝不 `CreateAsset` / bakeIntoPose 产出新 InPlace；缺 InPlace 则报失败 |
+| **位移只信 RootMotion** | Δ 只从配对到的 RM Clip 采样；InPlace 上若有根曲线也忽略 |
+| **双文件夹匹配** | 烘焙时显式指定 InPlace 根目录与 RootMotion 根目录，只在二者范围内找配对 |
+| **命名自动映射** | 人无需手拖「InPlace ↔ RM」对；匹配失败进报告 |
+| 表自动写回 | Bake 成功后写回 Definition / Profile；禁止「烘完再逐 Action 手拖 Table」成主流程 |
+| 不新建 Animation 播放器 | 播放仍走 `CharacterAnimationService`；新增的是资产与查表 API |
 | 无双轨长期并存 | 某招式接入表后，删除该路径上的逻辑 `OnAnimatorMove` |
-| Agent 不直接改 `.asset` | 批量烘焙由 Editor 菜单执行；人只点「Bake」或处理校验失败列表 |
+| Agent 不直接改 `.asset` | 批量烘焙由 Editor 菜单/窗口执行；人只点 Bake 或处理失败列表 |
 
 ---
 
 ## 4. 数据模型
 
-### 4.0 人配什么 vs 机器写什么（先读）
+### 4.0 人配什么 vs 机器写什么
 
 | 角色 | 做什么 |
 |------|--------|
-| 人（现状几乎不变） | 在 `ActionDefinition` 上指定**源** Clip / 段 / Timeline（和现在做招一样） |
-| 机器（Baker） | 读源 Clip → 生成/覆盖 InPlace Clip 与逐帧 Δ → **自动写回** Definition |
-| 人（例外） | 只处理「校验失败」列表：某招误差超标时打开报告修源动画或调阈值 |
+| 美术 | 交付成对目录：InPlace + RootMotion，命名遵守 stem 约定 |
+| 人（策划/程序） | 在 `ActionDefinition` / Locomotion Profile 上指定**InPlace** Clip（表现源）；Timeline / 段帧区间照旧 |
+| 人（烘焙） | 打开 Bake 窗口，选 InPlace 文件夹 + RootMotion 文件夹，点 Bake |
+| 机器（Baker） | 按命名匹配 → 从 RM 采样 Δ → 写回 `bakedMotion`；**不生成** InPlace |
+| 人（例外） | 只处理匹配失败 / 校验失败列表 |
 
-**禁止成为主流程：** 单独打开 Baker → 选一个 Clip → 生成 SO → 再回到 ActionDefinition 拖进字段。
+**禁止成为主流程：**
 
-### 4.1 运动表数据：优先内嵌，避免第二份手配资产
+- 从 RM 生成 InPlace 再挂回  
+- 单独烘一个 Table SO 再手拖进 Action  
+- 手填「RM Clip 引用」字段作为日常操作（调试预览除外）
+
+### 4.1 运动表数据：优先内嵌
 
 **定案 A（推荐）：表数据嵌在 `ActionDefinition` 内**
 
 ```text
 ActionDefinition
-├─ animationSegments[]          // 人配：sourceClip（可含 RM）+ 帧区间
-├─ bakedMotion                  // 机器写：整招一张表（可序列化 class，不必独立 SO）
+├─ animationSegments[]          // 人配：InPlace clip + 帧区间（表现源）
+├─ bakedMotion                  // 机器写：整招一张表
 │   ├─ logicHz / frameCount
 │   ├─ positionDeltaMm[]
 │   ├─ yawDeltaMilliDeg[]
-│   ├─ sourceContentHash        // 源 Clip+时长指纹，用于脏检测
+│   ├─ inplaceContentHash       // InPlace Clip 指纹
+│   ├─ rootMotionContentHash    // 配对 RM Clip 指纹
+│   ├─ matchedRootMotionName    // 调试：实际匹配到的 RM Clip 名
 │   └─ bakeStatus (None/Ok/Failed)
-├─ （Editor）presentationClips[] // 机器写：各段 InPlace 引用；或覆盖 segment.clip
 └─ timeline / graph（既有）
 ```
 
-运行时只读 `bakedMotion`；Inspector 上 `bakedMotion` **只读展示**（帧数、累计位移、上次烘焙时间），不提供「拖另一个 Table」作为主操作。
+运行时只读 `bakedMotion`；Inspector 上只读展示（帧数、累计位移、匹配到的 RM 名、上次烘焙时间）。
 
-**定案 B（备选）：旁路自动资产**
+**定案 B（备选）：旁路自动资产** — 表很大时用约定路径旁路 SO，仍禁止手拖。默认 **定案 A**。
 
-若表很大、想单独 diff：
-
-```text
-Assets/.../Unagi_Attack_01.asset
-Assets/.../Unagi_Attack_01.Motion.asset   // 约定路径，Baker 创建/覆盖
-```
-
-Baker 写完后 `definition.motionTable = 该资产`，**仍禁止手拖**。缺文件或指纹不一致 → 标红「需 Bake」。
-
-本方案默认 **定案 A**；仅在表体积或版本控制有压力时用 B。
-
-### 4.2 核心结构：`ActionBakedMotion`（可内嵌）
+### 4.2 核心结构：`ActionBakedMotion`
 
 ```text
 ActionBakedMotion（Serializable，非独立播放器类）
 ├─ logicHz = 60
-├─ frameCount                 // 与权威动作帧数对齐
+├─ frameCount
 ├─ space = LocalCharacter
 ├─ planarMode
 ├─ positionDeltaMm[]
 ├─ yawDeltaMilliDeg[]
-├─ sourceContentHash
+├─ inplaceContentHash
+├─ rootMotionContentHash
+├─ matchedRootMotionName
 └─ bakeStatus
 ```
 
-**InPlace 招式**：Δ 全 0。  
-**有位移招式**：Δ 来自源 RM 差分。
+| 情况 | 表内容 |
+|------|--------|
+| 有位移招式 | Δ 来自配对 RM Clip 差分 |
+| 纯站桩 / 无 RM 配对且策略允许零表 | Δ 全 0（须显式策略或报告，避免静默丢位移） |
 
 查表 API：
 
@@ -141,44 +161,41 @@ bool TryGetDelta(int frame, out SimVec2 deltaMm, out int yawMilliDeg)
 
 ```text
 ActionDefinition
-├─ animationSegments[]     // 人：源 Clip；Bake 后可把播放引用切到 InPlace
-└─ bakedMotion             // 机器：整招一张表（主路径）
+├─ animationSegments[]     // 人：InPlace Clip
+└─ bakedMotion             // 机器：整招一张表（各段按权威时间轴拼接对应 RM 的 Δ）
 ```
 
-多段：Baker 按权威时间轴**拼接**各段源 RM 差分进同一张 `bakedMotion`，Cancel 只认一个 `currentFrame`。  
-不要求「一段一表、一段一手配」。
+多段：每段用该段 InPlace 的 stem 去 RootMotion 文件夹找配对，再拼接进同一张 `bakedMotion`。
 
-### 4.3 Locomotion：同样「Profile 入口 + 自动回写」
+### 4.4 Locomotion：同样「Profile + 自动回写」
 
-人只维护 `CharacterLocomotionProfile` / `AnimationKey → 源 Clip`（现状）。  
-`Bake Locomotion Profile` 把各 Key 的 Δ 与 InPlace **写回 Profile 内嵌字段**，不另手配 Table 库。
+人维护 `AnimationKey → InPlace Clip`。  
+`Bake Locomotion Profile`：用同一套命名匹配在指定 RootMotion 文件夹取 Δ，写回 Profile 内嵌字段。
 
 ```text
 CharacterLocomotionProfile
-├─ key → sourceClip（人配）
-└─ bakedEntries[]（机器写：Δ 数组 + InPlace 引用 + hash）
+├─ key → inplaceClip（人配）
+└─ bakedEntries[]（机器写：Δ 数组 + matched RM 名 + hash）
 ```
 
-废弃运行时 `NormalizedTime` 浮点采样作为权威。
-
-### 4.4 明确不引入的类型
+### 4.5 明确不引入的类型 / 流程
 
 | 不采用 | 原因 |
 |--------|------|
-| `class Animation` 同时持 Clip + 表 + Play | 与 `CharacterAnimationService` 重叠，易把逻辑又绑回播放 |
-| 长期平行 `SimAnimation` vs 旧 Clip 双字段无删除期限 | 违反 no-legacy |
-| 运行时从 InPlace Clip 反推位移 | InPlace 无根位移，推不出来 |
+| 从 RM **生成** InPlace Clip | 美术已交付；生成会造成双份表现源 |
+| `class Animation` 同时持 Clip + 表 + Play | 与 AnimationService 重叠 |
+| 运行时从 InPlace 反推位移 | InPlace 无可用根位移 |
+| 人手拖 RM 引用作为主配置 | 命名匹配已覆盖；手拖仅调试 |
 
-若需命名「绑定」调试结构，可用 Editor-only：
+调试结构（Editor-only）：
 
 ```text
-SimClipBakeResult（Editor）
+SimClipBakePair（Editor）
 ├─ inplaceClip
+├─ rootMotionClip      // 匹配结果
 ├─ motionTable
 └─ errorReport
 ```
-
-不进入 Runtime Domain 播放路径。
 
 ---
 
@@ -188,116 +205,159 @@ SimClipBakeResult（Editor）
 
 ```text
 输入：
-  源 AnimationClip（允许含 Root Motion）
+  InPlace 文件夹（DefaultAsset / 路径）
+  RootMotion 文件夹（DefaultAsset / 路径）
+  可选：过滤子集（Selected Clips / 引用到的 ActionDefinition）
   logicHz = 60
-  planarMode、是否导出 yaw、是否生成 InPlace Clip
+  planarMode、是否导出 yaw
 
 输出：
-  1) Presentation Clip（InPlace，自动生成并挂回）
-  2) `ActionDefinition.bakedMotion`（或旁路自动资产）
-  3) 校验报告（累计位移误差、最大单帧误差）
+  1) 匹配报告（成功对 / 未匹配 InPlace / 未匹配 RM / 歧义）
+  2) 每对成功：从 RM 采样的 MotionTable → 写回引用该 InPlace 的 Action/Profile
+  3) 校验报告（相对 RM 源的累计/单帧误差）
+  —— 不输出、不覆盖任何 InPlace Clip 资产 ——
 ```
 
-### 5.2 算法要点（逻辑表）
+### 5.2 命名匹配规则（定案）
+
+**目标示例**
+
+| InPlace | 规范化 stem | RootMotion 候选（命中其一即可） |
+|---------|-------------|-------------------------------|
+| `Attack_01_Inplace` | `Attack_01` | `Attack_01`、`Unagi\|Attack_01` |
+| `Attack_01_End_Inplace` | `Attack_01_End` | `Attack_01_End`、`Unagi\|Attack_01_End` |
+
+**步骤**
 
 ```text
+1) 收集 InPlace 文件夹（含子目录）内全部 AnimationClip
+2) 收集 RootMotion 文件夹（含子目录）内全部 AnimationClip
+3) 对每个 InPlace Clip：
+   a. 取 clip.name（或资产主名），去掉末尾后缀（大小写不敏感）：
+        "_Inplace" | "_InPlace" | "_inplace"
+      → stem
+      若无上述后缀 → 记入「命名不合规」，跳过自动匹配
+   b. 在 RootMotion 集合中按优先级找唯一最佳匹配：
+        P0  clip.name == stem
+        P1  clip.name 以 "|" + stem 结尾（如 Unagi|Attack_01）
+        P2  所属 FBX/文件名（无扩展名）== stem
+        P3  部分匹配兜底：clip.name 包含 stem，且去掉角色前缀后相等
+            （用于 Unagi|Attack_01 等；禁止 stem 过短导致误伤，见下）
+   c. 同一优先级多个命中 → 歧义失败，不自动挑选
+   d. 零命中 → 未匹配，列入报告
+4) 反向：RootMotion 有、InPlace 无 → 报告「孤儿 RM」（可选警告，不阻断整批）
+```
+
+**部分匹配约束（防误匹配）**
+
+- stem 长度建议 ≥ 3；更短必须 P0/P1/P2 精确命中  
+- P3 仅当「去掉 `|` 前前缀后的 token」== stem，不得用随意 substring（避免 `Attack_01` 误配 `Attack_01_End`）  
+- `Attack_01` 与 `Attack_01_End` 是不同 stem，必须各自配对
+
+### 5.3 算法要点（逻辑表，源 = RootMotion Clip）
+
+```text
+pair = Match(inplaceClip, rootMotionClip)
 for frame in 0 .. totalFrames-1:
   t0 = frame / logicHz
   t1 = (frame+1) / logicHz
-  sample root transform at t0, t1（或曲线差分）
-  deltaLocal = Inverse(rootYaw0) * (pos1 - pos0)   // 水平
+  sample root transform of rootMotionClip at t0, t1
+  deltaLocal = Inverse(rootYaw0) * (pos1 - pos0)
   quantize to mm
   yawDelta = wrap(yaw1 - yaw0) → milli-deg
 ```
 
 注意：
 
-- 与 Timeline `TotalFrames` / 段边界一致；Action 30Hz 资产须先按锁步方案迁到 60Hz 再烘焙，或烘焙工具内按迁移规则倍帧。
-- 循环 Locomotion：最后一帧到第一帧的衔接误差写入报告，必要时手动修末帧。
-- ForwardOnly：烘焙后或查表时把 Δ 投影到本地 +Z（与现有 `RootMotionPlanarMode` 语义对齐，选一处做，避免双投影）。
+- 权威帧数优先对齐 **Action Timeline / 段帧区间**；若仅文件夹批烘尚无 Action，则按 RM Clip 时长 × logicHz 生成临时表，待 Action Bake 时按段重切/重采样。  
+- InPlace 与 RM **时长不一致**：以 Action 权威帧数为准重采样 RM；差值超阈值记入报告。  
+- 循环 Locomotion：末帧→首帧衔接误差写入报告。  
+- ForwardOnly：与现有 `RootMotionPlanarMode` 语义对齐，只在烘焙或查表一处投影。
 
-### 5.3 InPlace Clip 生成策略
+### 5.4 ~~InPlace Clip 生成策略~~（已废弃）
 
-任选其一（项目定一，工具写死）：
+| 旧策略 | 状态 |
+|--------|------|
+| A. bakeIntoPose + 清 root 曲线 | **废弃** — 不生成 InPlace |
+| B. 复制 Clip 后删 RootT/RootQ | **废弃** |
+| C. 暂用源 RM 仅表现 | **废弃** — 表现固定用已有 InPlace |
 
-| 策略 | 说明 |
-|------|------|
-| **A. bakeIntoPose + 清 root 曲线** | 根位移进骨骼，根曲线置 0（常见） |
-| **B. 复制 Clip 后删除 RootT/RootQ** | 脚下可能滑动，需美术验收 |
-| **C. 暂用源 Clip 仅表现，逻辑已信表** | 过渡期允许；可能「滑步」视觉，L2 验收前应切到 A/B |
+美术侧若需新招：同时导出 InPlace 与 RootMotion 到对应文件夹，命名遵守 `_Inplace` / stem 规则。
 
-**推荐默认 A**，与「表现 InPlace + 逻辑表位移」最干净。
-
-### 5.4 Editor 工具入口（低摩擦主路径）
+### 5.5 Editor 工具入口
 
 ```text
-【主入口 — 用这个】
+【主入口 — 文件夹批烘】
+菜单：ACTGame / Motion / Bake From Folders…
+窗口字段：
+  InPlace Folder     // 例 Assets/Art/Arts/Unagi/Inplace
+  RootMotion Folder  // 例 Assets/Art/Arts/Unagi/RootMotion
+  planarMode / exportYaw / logicHz
+  [Preview Matches]  // 只列出配对与歧义，不写资产
+  [Bake Matched]     // 烘焙并写回引用这些 InPlace 的 Action/Profile
+  [Bake Dirty Only]
+
+【副入口 — Action / Profile】
 ActionDefinition Inspector
-  [Bake Motion]              // 烘当前招，写回自身
-  [Bake Motion + InPlace]
+  [Bake Motion]      // 用窗口记住的两文件夹（或 Inspector 上同款 Folder 字段）做匹配后写回本招
+CharacterLocomotionProfile
+  [Bake Locomotion Motion]
 
-菜单
-  ACTGame / Motion / Bake All Actions In Project
-  ACTGame / Motion / Bake Dirty Actions Only
-  ACTGame / Motion / Bake Selected Actions
-
-【副入口 — 调试用】
-  单 Clip 预览烘焙（不写 Action，仅看曲线/误差）
+【调试】
+  单对 Clip 预览（指定 InPlace + 可选手动 RM 覆盖，仅预览误差）
 ```
 
 批处理伪代码：
 
 ```text
-BakeAction(def):
-  sources = def.animationSegments 的 sourceClip + 帧区间
-  table = SampleAndQuantize(sources, logicHz=60)
-  report = CompareToSourceRootMotion(sources, table)
-  if report.ok:
-      def.bakedMotion = table
-      for each segment:
-          def.segments[i].playClip = EnsureInPlaceClip(segment.sourceClip)
-      def.bakedMotion.bakeStatus = Ok
-      SetDirty(def); Save
-  else:
-      def.bakedMotion.bakeStatus = Failed
-      记入失败列表（不打断整批，最后弹窗汇总）
+BakeFromFolders(inplaceDir, rmDir):
+  pairs, failures = BuildPairs(inplaceDir, rmDir)
+  show Preview / Report
+  for each pair in pairs:
+      consumers = FindActionsOrProfilesReferencing(pair.inplaceClip)
+      table = SampleAndQuantize(pair.rootMotionClip, logicHz=60)
+      report = CompareToSourceRootMotion(pair.rootMotionClip, table)
+      if report.ok and consumers.Any:
+          for def in consumers:
+              WriteBakedMotion(def, table, pair)
+      elif report.ok and !consumers.Any:
+          记入「已烘焙但无引用方」（可选：写旁路预览资产，默认只报告）
+      else:
+          bakeStatus = Failed，记入失败列表
 
-BakeDirty:
-  for def in all ActionDefinitions:
-      if Hash(sources) != def.bakedMotion.sourceContentHash:
-          BakeAction(def)
+BakeAction(def):
+  for segment in def.animationSegments:
+      pair = MatchInFolders(segment.inplaceClip, rememberedFolders)
+      if !pair.ok: fail segment
+  table = ConcatSample(pairs, def.timeline)
+  write back def.bakedMotion
 ```
 
-脏检测：源 Clip 导入/修改、段帧区间变更、logicHz 变更 → `sourceContentHash` 不匹配 → Inspector 黄条「Motion dirty — Bake」或进 `Bake Dirty` 队列。
+脏检测：InPlace hash、配对 RM hash、段帧区间、logicHz 任一变更 → dirty 黄条 / 进 `Bake Dirty`。
 
-可选增强（后期）：
+复用现有 `LocomotionRootMotionBaker` 曲线采样，抽出 `RootMotionBakeUtility`；**删除/不实现**任何 `EnsureInPlaceClip` / 生成路径。
 
-- `OnPostprocessAllAssets`：Clip 变更时自动把引用到的 Action 标 dirty（不立刻全量烘，避免导入卡顿）  
-- CI：`bakeStatus != Ok` 或 dirty 则构建失败  
-
-复用 / 扩展现有 `LocomotionRootMotionBaker`，抽出 `RootMotionBakeUtility`（Editor）。
-
-### 5.5 校验门槛（建议）
+### 5.6 校验门槛（建议）
 
 | 指标 | 建议阈值（可调） |
 |------|------------------|
-| 水平累计误差 | &lt; 2cm / 招（或相对位移 &lt; 1%） |
+| 水平累计误差（相对 RM 源） | &lt; 2cm / 招（或相对位移 &lt; 1%） |
 | 单帧最大误差 | &lt; 5mm |
 | yaw 累计 | &lt; 1°（若启用 yaw 表） |
+| InPlace vs RM 时长差 | &lt; 1 逻辑帧（或相对 &lt; 2%），否则警告 |
 
-超阈值：该招 `bakeStatus = Failed`，**整批其它招继续**；结束弹出失败列表。不要求人先手建 Table。
+超阈值：该对 `Failed`，整批其它对继续；结束弹失败/未匹配列表。
 
 ---
 
-## 5.6 目标体验（对照「太麻烦」）
+## 5.7 目标体验（对照）
 
-| 麻烦做法（不要） | 本方案做法 |
-|------------------|------------|
-| 每个动画单独开窗口烘焙 | `Bake All` / `Bake Dirty` 扫全部 ActionDefinition |
-| 烘完再去 Action 上拖 Table | **自动写回** `bakedMotion` / 旁路资产引用 |
-| 每段再配一张表 | 整招一张表，段只提供源 Clip |
-| 换 Clip 后忘记更新表 | 指纹 dirty + 黄条 / CI 拦截 |
-| 为锁步多学一套配置语言 | 人侧配置面 ≈ 现在（源 Clip + Timeline） |
+| 不要 | 本方案 |
+|------|--------|
+| 从 RM 生成 InPlace | 使用 `Inplace/` 已有资源 |
+| 每个动画手拖 RM 引用 | 双文件夹 + 命名自动匹配 |
+| 烘完再去 Action 拖 Table | 自动写回 `bakedMotion` |
+| 为锁步多学一套配置 | 人侧：配 InPlace + 点文件夹 Bake |
 
 ---
 
@@ -312,25 +372,22 @@ SimulationWorld.Step(frame)
        if bakedMotion.bakeStatus == Ok:
            d = bakedMotion.Get(currentFrame)
            worldDelta = Rotate(facing, d)
-           MotorSim.TryMove(worldDelta)      // L2：确定性；过渡可 IMotorSim→CC
+           MotorSim.TryMove(worldDelta)
        else:
            assert / Editor 拦截：未 Bake 成功禁止进包
   → PresentationBridge
-       按 Snapshot.actionId/frame 播 InPlace Clip
+       按 Snapshot.actionId/frame 播 InPlace Clip（已有资产）
 ```
 
 ### 6.2 Action 路径
 
 | 旧 | 新 |
 |----|----|
-| `CharacterRootMotionDriver` 在逻辑路径读 Animator | 删除逻辑路径；Driver 可删或仅 Editor 预览 |
-| `ActionExecutor` 间接依赖 RM | `ActionSim` 查 `bakedMotion` |
-| Movement NotifyState 的 `speed * dt` | 改为帧表或「附加帧位移」配置（整数），禁止裸 float dt 权威 |
+| `CharacterRootMotionDriver` 在逻辑路径读 Animator | 删除逻辑路径 |
+| 表现播 RM Clip | 表现播人配的 InPlace Clip |
+| 逻辑位移跟 Animator | `ActionSim` 查 `bakedMotion`（RM 烘焙结果） |
 
-Cancel / 换招：
-
-- 旧招结束在帧 N，新招从下一 World 帧 frame 0（与锁步方案帧边界一致）。
-- 查新表 index 0，不混用旧表残余。
+Cancel / 换招：旧招结束在帧 N，新招下一 World 帧从 frame 0 查新表。
 
 ### 6.3 Locomotion 路径
 
@@ -342,123 +399,115 @@ Presentation
   → Play(AnimationKey) 对应 InPlace Clip
 ```
 
-逻辑 wish 速度与表位移关系定案：
-
-- **表驱动步态**（Run/Walk 循环）：水平位移以表为准，输入只影响朝向/相位切换。  
-- 或 **输入速度 + 零表**（纯程序移动）：仅 InPlace 动画。  
-- 同一 Key 不得「表 + 程序速度」双加，避免双倍移动。
+同一 Key 不得「表 + 程序速度」双加。
 
 ### 6.4 HitStop / 暂停
 
-- 逻辑 `freezeFrames > 0`：不推进 `currentFrame`，**不取下一帧 Δ**（本帧位移 0）。  
-- 表现：动画 Speed=0，与现方案一致。
+- 逻辑 `freezeFrames > 0`：不推进 `currentFrame`，不取下一帧 Δ。  
+- 表现：动画 Speed=0。
 
 ### 6.5 表现桥
 
-- 已有 `CharacterPresentationBridge` 负责 Pose 插值；本方案不改其职责。  
-- 动画 Seek 按 `actionFrame / logicHz` 换算本地时间；Clip 必须是 InPlace，避免视觉根与逻辑根双重位移。
+- `CharacterPresentationBridge` 职责不变。  
+- Seek 按 `actionFrame / logicHz`；Clip **必须**是 InPlace，避免视觉根与逻辑根双重位移。
 
 ---
 
 ## 7. 目录与代码落点
 
 ```text
-Assets/Scripts/Domain/Combat/Actions/Definitions/   // 或 Simulation/Action/
-  ActionBakedMotion.cs          // 可序列化表数据 + TryGetDelta
-  （嵌在 ActionDefinition 字段 bakedMotion）
+Assets/Scripts/Domain/Combat/Actions/Definitions/
+  ActionBakedMotion.cs
 
 Assets/Scripts/Domain/Simulation/Locomotion/
-  LocomotionBakedMotion.cs      // Profile 内嵌或旁路，同样自动回写
+  LocomotionBakedMotion.cs
 
 Assets/Scripts/Editor/Combat/Motion/
-  RootMotionBakeUtility.cs
-  ActionMotionBakeService.cs    // BakeAction / BakeAll / BakeDirty
-  ActionDefinitionMotionInspector.cs  // Bake 按钮 + dirty 黄条
+  RootMotionBakeUtility.cs          // 从 RM Clip 采样（复用 LocomotionRootMotionBaker）
+  MotionClipPairMatcher.cs          // 双文件夹扫描 + 命名匹配
+  FolderMotionBakeWindow.cs         // InPlace/RM 文件夹选择 + Preview/Bake
+  ActionMotionBakeService.cs
+  ActionDefinitionMotionInspector.cs
   LocomotionMotionBakeService.cs
 ```
 
-InPlace Clip 约定输出目录（机器生成，可进版本库）：
+资产目录（人维护，非 Generated）：
 
 ```text
-Assets/Art/.../Generated/InPlace/   // 或与源 Clip 同目录 *.InPlace.anim
+Assets/Art/Arts/<Character>/Inplace/
+Assets/Art/Arts/<Character>/RootMotion/
 ```
 
-修改点（概念清单）：
+**删除旧方案中的约定：** `Assets/Art/.../Generated/InPlace/` 作为机器生成输出目录——不再作为主路径；若仓库中已有 Generated 残留，实施阶段清理引用后删除（不保留兼容生成逻辑）。
 
 | 模块 | 改动 |
 |------|------|
-| `ActionDefinition` / Segment | 增加 `bakedMotion`（机器字段）；源 Clip 仍人配；Bake 后播放指向 InPlace |
-| `ActionExecutor` → `ActionSim` | 逻辑位移改查 `bakedMotion` |
+| `ActionDefinition` / Segment | 人配 InPlace；增加机器字段 `bakedMotion` |
+| `ActionSim` | 逻辑位移查 `bakedMotion` |
 | `CharacterRootMotionDriver` | 移出逻辑权威；阶段末删除 |
-| `CharacterMotor` / `MotorSim` | 接收 actionDelta 来自表 |
-| `CharacterAnimationService` | 只播 InPlace；不读 RM 写 Motor |
-| `Locomotion*` | 相位帧索引 + 自动烘焙表 |
+| `CharacterAnimationService` | 只播 InPlace |
+| `Locomotion*` | 相位帧索引 + 文件夹匹配烘焙表 |
 
 ---
 
 ## 8. 分阶段实施
 
-### Phase M0 — 烘焙原型（可与 L0/L1 并行）
+### Phase M0 — 匹配 + 烘焙原型（可与 L0/L1 并行）
 
-- [ ] `ActionBakedMotion` 内嵌字段 + EditMode 序列化测试  
-- [ ] `BakeAction(def)`：读段源 Clip → 写回 `bakedMotion` + 生成 InPlace  
-- [ ] Action Inspector 上 **一个 Bake 按钮**（不是先配 Table）  
+- [ ] `MotionClipPairMatcher`：双文件夹扫描 + stem 规则 + Preview Matches  
+- [ ] `ActionBakedMotion` 内嵌字段  
+- [ ] `BakeFromFolders`：对匹配成功的对从 RM 采样写表（先写测试 Action 或报告）  
+- [ ] **不实现**任何 InPlace 生成  
 - [ ] 校验报告；一条测试攻击招跑通  
 
-**验收：** 测试招上只点 Bake，无需手建/手拖任何 MotionTable 资产；误差在门槛内。
+**验收：** 选择 Unagi 的 Inplace + RootMotion 两文件夹，能 Preview 出 `Attack_01_Inplace` ↔ `Unagi|Attack_01`；Bake 后测试招位移来自 RM 表，表现 Clip 仍是原 InPlace 资产。
 
-### Phase M1 — 单招切逻辑查表（依赖 L1 整数帧或固定 60Hz Step）
+### Phase M1 — 单招切逻辑查表
 
-- [ ] 测试招：按 `currentFrame` 查 `bakedMotion` 驱动 Motor  
+- [ ] 测试招：按 `currentFrame` 查表驱动 Motor  
 - [ ] 该招禁用逻辑 `OnAnimatorMove`  
-- [ ] 表现改播 Bake 生成的 InPlace  
+- [ ] 表现确认播的是既有 InPlace  
 
-**验收：** 关闭 Animator 写入位移后，逻辑位置仍按表前进。
+### Phase M2 — Action 批量迁移
 
-### Phase M2 — Action 批量迁移（主效率阶段）
-
-- [ ] `Bake All` / `Bake Dirty`  
-- [ ] 源变更指纹 dirty + Inspector 黄条  
-- [ ] CI：dirty 或 `bakeStatus != Ok` 失败  
+- [ ] `Bake All` / `Bake Dirty`（基于文件夹记忆路径或全局约定）  
+- [ ] 指纹 dirty + Inspector 黄条  
+- [ ] CI：dirty / Failed / 未匹配  
 - [ ] 删除 Action 逻辑 RM 路径  
-
-**验收：** 全项目战斗招一键 Bake Dirty 可完成；**无**「逐条手配 Table」步骤；回放轨迹稳定。
 
 ### Phase M3 — Locomotion 表化
 
-- [ ] 扩展 Locomotion Baker → `LocomotionMotionTable`  
-- [ ] 相位用整数帧索引  
+- [ ] 同一匹配器服务 Locomotion Profile  
+- [ ] 相位整数帧索引  
 - [ ] 删除 Locomotion 逻辑 RM / NormalizedTime 权威采样  
-
-**验收：** Walk/Run 循环无漂移踩步；与锁步 L2 验收合并。
 
 ### Phase M4 — 收口
 
 - [ ] 删除 `CharacterRootMotionDriver` 逻辑用法  
-- [ ] `UseRootMotion` 策略迁为「是否使用运动表 / planarMode」  
-- [ ] 内容 Hash 纳入 `bakedMotion`  
+- [ ] `UseRootMotion` 迁为「是否使用运动表 / planarMode」  
+- [ ] 清理 Generated/InPlace 残留与旧生成 API（若有）  
 
 ---
 
 ## 9. 与帧同步各 Phase 的依赖
 
 ```text
-L0A 固定时钟          ← 已具备（feat_FrameSync）
+L0A 固定时钟          ← 已具备
 L0B 输入量化          ← 不阻塞烘焙
-L1  Action 整数帧     ← 查表索引依赖（强烈建议 M1 前完成）
+L1  Action 整数帧     ← 查表索引依赖
 L2  脱表现位移/命中   ← 本方案主体（M1–M3）
-L3  Hash / 定点收紧   ← 表已是 scaled-int，利于 Hash
+L3  Hash / 定点收紧   ← 表已是 scaled-int
 L4  表现完全跟随      ← InPlace Seek 按 frame
-L5  联网              ← 位移已确定性后才能锁步
+L5  联网              ← 位移确定性后才能锁步
 ```
 
 ```text
 建议顺序：
-  M0 烘焙原型（现在可做）
+  M0 文件夹匹配 + 从 RM 烘表（现在可做）
   → L1 整数帧
   → M1 单招切表
   → M2/M3 批量
-  → L2 其余（Hitbox 逻辑坐标、MotorSim）
+  → L2 其余
 ```
 
 ---
@@ -467,21 +516,22 @@ L5  联网              ← 位移已确定性后才能锁步
 
 | 风险 | 对策 |
 |------|------|
-| InPlace 后脚滑 | 优先 bakeIntoPose；美术抽查；表与 Clip 同源同帧率 |
-| 30Hz Timeline 与 60Hz 表不一致 | 先迁 60Hz 再烘焙；禁止两套帧率解释 |
-| Cancel 后位移突变 | 遵守「新招下一 World 帧从 frame 0」；不做同帧多表混合 |
-| 表与旧 RM 手感差 | 校验报告 + 关键招人工修帧；允许少量帧手工调 Δ |
-| 双倍移动（表+程序速度） | 代码审查：同一控制权只走一条水平位移源 |
-| 资产膨胀 | 表用 short/int 紧凑数组；Locomotion 循环轨共享 |
+| 命名不一致导致未匹配 | Preview Matches 先行；失败列表；禁止模糊 substring 误配 `Attack_01`/`Attack_01_End` |
+| FBX 内 Clip 名为 `角色\|动作` | P1 规则专门覆盖 |
+| InPlace 与 RM 时长不一致 | 重采样 + 时长差阈值警告 |
+| 表与旧 RM 手感差 | 校验报告；关键招修源 RM 或少量调 Δ |
+| 双倍移动（表+程序速度 / 表+Animator RM） | 接入表后禁用逻辑 RM；代码审查单源位移 |
+| 误用 InPlace 曲线当位移源 | API 只接受匹配到的 RM Clip 采样 |
 
 ---
 
 ## 11. 明确非目标
 
 - 不实现完整运行时「从任意 Clip 动态提取 RM」作为权威  
+- **不**从 RootMotion 生成或改写 InPlace 资产  
 - 不引入 Action 内层动画状态机  
-- 不在本方案内完成 MotorSim 碰撞网格（见锁步 L2，可并行）  
-- 不要求一阶段全招完美；先一条测试招打通管线  
+- 不在本方案内完成 MotorSim 碰撞网格  
+- 不要求一阶段全招完美；先一条测试招 + 文件夹 Preview 打通  
 
 ---
 
@@ -490,15 +540,17 @@ L5  联网              ← 位移已确定性后才能锁步
 | 日期 | 决策 | 理由 |
 |------|------|------|
 | 2026-07-31 | 表现 InPlace + 逻辑 MotionTable 配对 | 锁步确定性与手感来源分离 |
-| 2026-07-31 | 不新建泛化 Animation 运行时类 | 避免与 AnimationService 重叠；扩展既有 Definition/Segment |
-| 2026-07-31 | Action 整招一张 motionTable 为主 | 与 `currentFrame` 权威对齐，简化 Cancel |
-| 2026-07-31 | 位移单位 scaled-int 毫米 | 与锁步 L2/L3 一致，便于 Hash |
-| 2026-07-31 | 烘焙源可为含 RM 的原 Clip | 降低美术管线冲击 |
-| 2026-07-31 | 表内嵌 ActionDefinition + Bake 自动回写 | 避免逐动画手烘、逐 Action 手配 Table |
-| 2026-07-31 | 主入口为 Bake All / Dirty，单 Clip 仅调试 | 配置零增量，人侧仍只维护源 Clip |
+| 2026-07-31 | 不新建泛化 Animation 运行时类 | 避免与 AnimationService 重叠 |
+| 2026-07-31 | Action 整招一张 motionTable 为主 | 与 `currentFrame` 对齐，简化 Cancel |
+| 2026-07-31 | 位移单位 scaled-int 毫米 | 与锁步 L2/L3 一致 |
+| 2026-07-31 | 表内嵌 ActionDefinition + Bake 自动写回 | 避免逐 Action 手配 Table |
+| **2026-08-01** | **使用已有 InPlace，禁止 Baker 生成 InPlace** | 美术已交付 `Inplace/`；避免双份表现源与生成漂移 |
+| **2026-08-01** | **Δ 只从 RootMotion Clip 烘焙** | InPlace 无可用根位移；位移手感以 RM 为准 |
+| **2026-08-01** | **双文件夹选择 + 命名部分匹配自动配对** | `Attack_01_Inplace` ↔ `Unagi\|Attack_01`；降低手配成本 |
+| **2026-08-01** | **Bake 主入口改为 Folder 窗口** | 在指定 InPlace/RM 目录内扫描匹配；Action Bake 复用同一匹配器 |
 
 ---
 
 ## 13. 一句话
 
-把 Root Motion 从「**播放时采出来的位移**」改成「**制作时烤进表的逐帧 Δ**」；对人只保留「配源动画 + 点 Bake/Bake Dirty」，**禁止**逐 Clip 手烘再逐 Action 拖配置——InPlace 与表都是机器写回 `ActionDefinition` 的产物。
+把 Root Motion 从「**播放时采出来的位移**」改成「**制作时从 RM Clip 烤进表的逐帧 Δ**」；表现始终播**已有** InPlace，Baker 只负责在选定的 InPlace / RootMotion 两文件夹里按命名自动配对并写回运动表——**不生成 InPlace，不手配 Table**。
