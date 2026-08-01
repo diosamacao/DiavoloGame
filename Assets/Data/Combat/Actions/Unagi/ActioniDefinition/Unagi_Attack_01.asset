@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: Unagi_Attack_01
   m_EditorClassIdentifier: 
   animationSegments:
-  - clip: {fileID: 9078503576314905219, guid: 676c7257979aecd428915744e9857607, type: 3}
+  - clip: {fileID: 2754811189149721877, guid: 6b84a4fde20facb4781831a8174d37bd, type: 3}
     startFrame: 0
     endFrame: -1
     crossFadeDuration: 0
-  - clip: {fileID: 6016426741628670671, guid: 57b463e10781ea8489d83c57ee6b629e, type: 3}
+  - clip: {fileID: -7596049190413007820, guid: 18bc4e1c163b1ee46b9fa99e2c7ff8c6, type: 3}
     startFrame: 0
     endFrame: -1
     crossFadeDuration: 0
