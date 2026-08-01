@@ -97,7 +97,9 @@
 **下一步：**
 
 - [ ] L1B Play Mode 回归（连招 / Perfect / Recovery / Hitbox / VFX·SFX / 位移）+ Test Runner `ActionSim*`
-- [ ] L2：按 `docs/INPLACE_ROOTMOTION_MOTION_TABLE_PLAN.md` 将 RootMotion、脚本位移与 Transform Hitbox 迁出表现层
+- [x] 2026-08-02 L2/M0：双文件夹 InPlace↔RM 匹配 + `ActionBakedMotion` 烘焙写回
+- [x] 2026-08-02 L2/M1：表就绪时查表位移并禁用 Animator RM（仍经 CharacterController）
+- [ ] L2/M2+：批量 dirty/Bake、MotorSim、逻辑 Hitbox、`freezeFrames`（见 `docs/INPLACE_ROOTMOTION_MOTION_TABLE_PLAN.md`）
 
 ## 待建设模块
 

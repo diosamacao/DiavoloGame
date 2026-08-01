@@ -155,7 +155,8 @@ public sealed class CharacterActor :
             _actionPresentation?.ApplyStep(fixedDeltaSeconds);
             _motor.TickGravity(fixedDeltaSeconds);
             _stateMachine.Tick(fixedDeltaSeconds);
-            // Manual Playable：同帧末推进时间与 CrossFade；招式 Native RootMotion 的 delta 在此 Evaluate 产生。
+            // Manual Playable：同帧末推进时间与 CrossFade。
+            // 未烘焙招式仍可能由此 Evaluate 产生 Native RM delta；已烘焙招式 RM 在 ApplyStep 已关闭。
             _animation.Tick(fixedDeltaSeconds);
         }
         finally

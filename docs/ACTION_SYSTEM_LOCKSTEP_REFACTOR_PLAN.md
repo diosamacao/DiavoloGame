@@ -572,7 +572,8 @@ Assets/Scripts/Presentation/
 
 ### Phase L2 — 位移、命中与 HitStop 脱表现
 
-- [ ] 招式运动表烘焙工具 + 运行时查表  
+- [x] 2026-08-02：招式运动表烘焙工具（M0：文件夹匹配 + 写回 `ActionDefinition.bakedMotion`）
+- [x] 2026-08-02：运行时查表位移（M1：表就绪禁用 OnAnimatorMove，按 `currentFrame` 取表经 CC；MotorSim 待后续）
 - [ ] Locomotion 运动轨改整数帧索引
 - [ ] `CharacterMotorSim` + 静态碰撞烘焙；逻辑不再 `OnAnimatorMove` / CC / Physics
 - [ ] Hitbox/Hurtbox 逻辑坐标与确定性相交

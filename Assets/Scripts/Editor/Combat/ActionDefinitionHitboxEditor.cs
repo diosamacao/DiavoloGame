@@ -2,8 +2,7 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// ActionDefinition 战斗预览编辑器：动画 Pose 帧 Scrub + Hitbox / VFX Scene Handles。
-/// 预览管线由 ActionEditorPreviewSession 驱动，扩展点见 IActionEditorPreviewExtension。
+/// ActionDefinition Inspector：战斗预览（Pose Scrub / Hitbox / VFX）与 Baked Motion 烘焙入口。
 /// </summary>
 [CustomEditor(typeof(ActionDefinition))]
 public class ActionDefinitionHitboxEditor : Editor
@@ -12,6 +11,7 @@ public class ActionDefinitionHitboxEditor : Editor
     const string PreviewFramePrefKeyPrefix = "ACTGame.ActionEditorPreview.Frame.";
     const string PreviewHitboxEnabledPrefKey = "ACTGame.ActionEditorPreview.ShowHitbox";
     const string PreviewVfxEnabledPrefKey = "ACTGame.ActionEditorPreview.ShowVfx";
+    const string RootMotionFolderPrefKey = "ACTGame.MotionBake.RootMotionFolder";
 
     SerializedProperty _hitboxStatesProp;
     SerializedProperty _playVfxNotifiesProp;
@@ -25,6 +25,8 @@ public class ActionDefinitionHitboxEditor : Editor
     int _selectedVfxIndex;
     bool _previewHitboxEnabled;
     bool _previewVfxEnabled;
+    DefaultAsset _rootMotionFolder;
+    ActionMotionPlanarMode _motionPlanarMode = ActionMotionPlanarMode.FullPlanar;
 
     void OnEnable()
     {
@@ -45,6 +47,9 @@ public class ActionDefinitionHitboxEditor : Editor
         RestorePreviewCharacter();
         RestorePreviewFrame();
         RestorePreviewToggles();
+
+        string rmPath = EditorPrefs.GetString(RootMotionFolderPrefKey, "Assets/Art/Arts/Unagi/RootMotion");
+        _rootMotionFolder = AssetDatabase.LoadAssetAtPath<DefaultAsset>(rmPath);
     }
 
     void OnDisable()
@@ -110,6 +115,7 @@ public class ActionDefinitionHitboxEditor : Editor
         DrawAnimationPreviewHints(action);
         DrawHitboxPreviewSection(maxFrame);
         DrawVfxPreviewSection(maxFrame);
+        DrawBakedMotionSection(action);
 
         if (_previewCharacter == null)
         {
@@ -119,6 +125,64 @@ public class ActionDefinitionHitboxEditor : Editor
         }
 
         serializedObject.ApplyModifiedProperties();
+    }
+
+    /// <summary>只读展示运动表，并提供按 RootMotion 文件夹烘焙当前招。</summary>
+    void DrawBakedMotionSection(ActionDefinition action)
+    {
+        EditorGUILayout.Space(8f);
+        EditorGUILayout.LabelField("Baked Motion", EditorStyles.boldLabel);
+
+        ActionBakedMotion motion = action.BakedMotion;
+        using (new EditorGUI.DisabledScope(true))
+        {
+            EditorGUILayout.EnumPopup("Status", motion.bakeStatus);
+            EditorGUILayout.IntField("Frame Count", motion.frameCount);
+            EditorGUILayout.TextField("Matched RM", motion.matchedRootMotionName ?? string.Empty);
+        }
+
+        _rootMotionFolder = (DefaultAsset)EditorGUILayout.ObjectField(
+            "RootMotion Folder",
+            _rootMotionFolder,
+            typeof(DefaultAsset),
+            false);
+        _motionPlanarMode = (ActionMotionPlanarMode)EditorGUILayout.EnumPopup(
+            "Planar Mode",
+            _motionPlanarMode);
+        EditorGUILayout.HelpBox(
+            "只烘焙水平位移；朝向由 Rotation 窗 + 索敌/输入控制，不读运动表 yaw。",
+            MessageType.None);
+
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            if (GUILayout.Button("Bake Motion"))
+            {
+                string rm = _rootMotionFolder != null
+                    ? AssetDatabase.GetAssetPath(_rootMotionFolder)
+                    : string.Empty;
+                if (!AssetDatabase.IsValidFolder(rm))
+                {
+                    EditorUtility.DisplayDialog("Bake Motion", "请指定有效 RootMotion 文件夹。", "OK");
+                }
+                else
+                {
+                    EditorPrefs.SetString(RootMotionFolderPrefKey, rm);
+                    bool ok = ActionMotionBakeService.BakeAction(
+                        action,
+                        rm,
+                        _motionPlanarMode,
+                        ActionSim.LogicHz,
+                        out string message);
+                    EditorUtility.DisplayDialog(
+                        ok ? "Bake Motion OK" : "Bake Motion Failed",
+                        message,
+                        "OK");
+                }
+            }
+
+            if (GUILayout.Button("Open Folder Bake Window"))
+                FolderMotionBakeWindow.Open();
+        }
     }
 
     void DrawAnimationPreviewHints(ActionDefinition action)

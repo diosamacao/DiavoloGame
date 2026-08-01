@@ -39,3 +39,14 @@ MonoBehaviour:
     movementStates: []
     rotationStates: []
     tracks: []
+  bakedMotion:
+    logicHz: 60
+    frameCount: 0
+    planarMode: 0
+    positionDeltaMmX: 
+    positionDeltaMmZ: 
+    yawDeltaMilliDeg: 
+    inplaceContentHash: 
+    rootMotionContentHash: 
+    matchedRootMotionName: 
+    bakeStatus: 0

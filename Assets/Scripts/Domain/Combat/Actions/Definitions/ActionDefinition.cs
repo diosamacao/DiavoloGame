@@ -24,6 +24,10 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
     [Tooltip("动作帧数据唯一真源：Phase、点事件与其它区间窗口均从此处读取。")]
     [SerializeField] ActionTimeline timeline = new();
 
+    [HideInInspector]
+    [Tooltip("由 Editor 从配对 RootMotion Clip 烘焙的权威位移表；勿手改。")]
+    [SerializeField] ActionBakedMotion bakedMotion = new();
+
     /// <summary>顺序动画段；运行时与编辑器均只认此列表。</summary>
     public ActionAnimationSegment[] AnimationSegments =>
         animationSegments ?? Array.Empty<ActionAnimationSegment>();
@@ -69,6 +73,16 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
 
     /// <summary>动作帧数据唯一真源：点事件与区间窗口均从此处读取。</summary>
     public ActionTimeline Timeline => timeline ?? new ActionTimeline();
+
+    /// <summary>烘焙运动表（只读）；未烘焙或失败时 IsReady=false。</summary>
+    public ActionBakedMotion BakedMotion => bakedMotion ?? ActionBakedMotion.CreateEmpty();
+
+    /// <summary>Editor 烘焙写回运动表；运行时不得调用。</summary>
+    public void EditorSetBakedMotion(ActionBakedMotion source)
+    {
+        bakedMotion ??= new ActionBakedMotion();
+        bakedMotion.CopyFrom(source);
+    }
 
     /// <summary>是否存在非 RootMotion 的脚本位移窗口。</summary>
     public bool HasScriptedDisplacement =>
@@ -273,6 +287,7 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
         timeline ??= new ActionTimeline();
         timeline.ClampToTotalFrames(totalFrames);
         executionPolicy ??= new ActionExecutionPolicy();
+        bakedMotion ??= new ActionBakedMotion();
     }
 
     int ComputeTotalFramesFromSegments()
