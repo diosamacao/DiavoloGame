@@ -544,28 +544,29 @@ Assets/Scripts/Presentation/
 
 ### Phase L1A — Action 整数帧权威（代码完成，Editor 验收待确认）
 
-- [x] 2026-08-01：`ActionSession.CurrentFrame` 改为唯一权威；`ElapsedSeconds` 只由帧与整数 `SampleRate` 派生
+- [x] 2026-08-01：过渡 `ActionSession.CurrentFrame` 建立整数帧权威；该过渡类型已在 L1B 删除并由 `ActionSim.CurrentFrame` 接管
 - [x] 2026-08-01：Cancel/Phase/Hitbox/Recovery 只接受整数帧查询
 - [x] 2026-08-01：Graph Transition、Movement、Rotation、Segment 与结束判定全部改读整数帧
 - [x] 2026-08-01：Hit / Death 使用 `DurationFrames` 与动作会话结束 Id 收尾，不再读取 `IsPlaying` 或秒倒计时
-- [x] 2026-08-01：`CharacterActor` 成为每 World 帧唯一 `ActionExecutor.Step()` 调用点；State 不再各自推进动作
+- [x] 2026-08-01：`CharacterActor` 成为每 World 帧唯一动作推进点；State 不再各自推进动作
 - [x] 2026-08-01：Cancel / Recovery / 自动衔接只在判定帧排队，目标动作 frame 0 于下一 World 帧提交
-- [x] 2026-08-01：30Hz 过渡资产通过 `ActionFrameClock` 整数余数保持原时长；采样率限制不高于 60Hz
+- [x] 2026-08-01：L1A 曾用整数余数承接 30Hz 过渡资产；L1B 已删除该运行时解释并强制 60Hz
 
-**验收：** `ActionFrameClock` EditMode 测试已覆盖 30→60Hz、非整除余数与 `TotalFrames` 终止哨兵；连招窗口、Perfect、Recovery 重开、自动衔接、Movement 与 Rotation 的完整录制重放仍需 Unity Editor Play Mode 确认。
+**验收：** L1A 的整数帧边界已由后续 `ActionSimTests` 继续覆盖；连招窗口、Perfect、Recovery 重开、自动衔接、Movement 与 Rotation 的完整录制重放仍需 Unity Editor Play Mode 确认。
 
-**阶段删除：** 已删除 `ActionSession.Advance(dt)`、Runtime 秒制窗口/段查询、`ActionDefinition.FrameAt`、`ActionExecutor.UpdateFrame`、各 State 内重复 `ActionExecutor.Tick`，以及 Hit/Death 的秒倒计时与 `IsPlaying` 退出路径。纯 `ActionSim` 提取和 30→60Hz 资产迁移工具仍属于 L1B。
+**阶段删除：** 已删除 Runtime 秒制窗口/段查询、`ActionDefinition.FrameAt`、各 State 内重复动作推进，以及 Hit/Death 的秒倒计时与 `IsPlaying` 退出路径；L1B 进一步删除整个过渡执行器。
 
-### Phase L1B — Action 逻辑 / 表现拆分
+### Phase L1B — Action 逻辑 / 表现拆分（代码完成，资产迁移与 Editor 验收待确认）
 
-- [ ] 从 `ActionExecutor` 提取无 Unity 依赖的 `ActionSim`
-- [ ] `CharacterPresentationBridge` 根据 Snapshot 播放/Seek Clip
-- [ ] Editor Preview 复用相同帧查询与段映射，不执行 Runtime 副作用
-- [ ] 统一 60Hz 并提供 30Hz Action 资产迁移工具
+- [x] 2026-08-01：在 `ACTGame.Simulation` 提取无 Unity 依赖的 `ActionSim`、Snapshot、事件与内容/图/解析契约
+- [x] 2026-08-01：`CharacterActionPresentationBridge` 只读 Sim 事件与 Snapshot，按整数帧播放/Seek Clip，并承接 L2 前暂留的 RootMotion、脚本位移与 Transform Hitbox 边界
+- [x] 2026-08-01：新增无副作用 `ActionFrameQuery`；Runtime 动画段与两个 Action Editor 预览入口复用相同段/窗口/点事件规则
+- [x] 2026-08-01：Runtime 只接受 60Hz Action；新增 `ACT/Tools/Migrate Action Assets 30Hz to 60Hz`，按闭区间/点事件规则迁移动画段、Timeline、HitStop 与 Graph AtFrame
+- [ ] 在 Unity Editor 人工运行迁移工具，将现有 47 个 30Hz Action 资产迁为 60Hz，并完成 Play Mode 回归
 
-**验收：** 无 Animator 的纯 C# 测试可完成起手、Cancel、自动衔接、HitConfirm 与结束；Editor 和 Runtime 对任意帧返回相同窗口集合。
+**验收：** 纯 `ActionSimTests` 已覆盖起手、Cancel 延迟提交、HitConfirm 自动衔接、自然结束与高优打断，项目编译通过；Unity Test Runner、迁移后 Editor/Runtime 任意帧窗口一致性与 Play Mode 仍待人工确认。
 
-**阶段删除：** L1A 过渡 `ActionExecutor` 类、Editor 自有窗口/转换算法，以及 Runtime 对 Animation/Transform/CharacterController 的直接依赖。
+**阶段删除：** 已删除 `ActionExecutor`、`ActionSession`、`IActionExecutor`、`IActionHitReceiver`、`ActionFrameClock`、30Hz Runtime fallback，以及 Editor 的独立动画段/Hitbox 活跃查询。`ActionSim` 已无 Animation/Transform/CharacterController 依赖；L2 将删除表现桥内暂留的 RootMotion、脚本位移与 Transform Hitbox 权威路径。
 
 ### Phase L2 — 位移、命中与 HitStop 脱表现
 

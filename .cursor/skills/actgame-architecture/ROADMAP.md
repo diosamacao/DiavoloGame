@@ -89,10 +89,14 @@
 - [x] 2026-08-01 L1A：`ActionSession.CurrentFrame` + `ActionFrameClock` 整数帧权威；窗口、Graph、段与结束判定删除秒制 Runtime 路径
 - [x] 2026-08-01 L1A：`CharacterActor` 每 World 帧唯一 Action Step；Cancel/Recovery/自动衔接延迟到下一 World 帧提交
 - [x] 2026-08-01 L1A：Hit/Death 改用 `DurationFrames` 与稳定动作会话结束标记，不再读取 `IsPlaying`
+- [x] 2026-08-01 L1B：提取无 Unity 依赖 `ActionSim` 与 Snapshot/Event 边界，删除 ActionExecutor/Session 和 30Hz Runtime fallback
+- [x] 2026-08-01 L1B：`CharacterActionPresentationBridge` 按整数帧 Seek，Runtime/Editor 共用 `ActionFrameQuery`
+- [x] 2026-08-01 L1B：提供 Action 30→60Hz Editor 迁移工具；代码只接受 60Hz
 
 **下一步：**
 
-- [ ] L1B：提取纯 `ActionSim`、Snapshot 驱动表现，并提供 30→60Hz Action 资产迁移工具
+- [ ] 在 Unity Editor 执行 L1B 迁移工具并回归全部 Action 资产
+- [ ] L2：按 `docs/INPLACE_ROOTMOTION_MOTION_TABLE_PLAN.md` 将 RootMotion、脚本位移与 Transform Hitbox 迁出表现层
 
 ## 待建设模块
 
@@ -140,6 +144,7 @@
 - [x] 2026-08-01：Lockstep L0B——InputFrame 量化/历史、玩家与 AI 单轨输入、整数帧 Intent/AI 冷却及回放基础测试
 - [x] 2026-08-01：Lockstep L0C——命中延迟收集与稳定帧末结算、PostCombat 自动衔接、生命周期 Commit 与只读表现事件
 - [x] 2026-08-01：Lockstep L1A——Action 整数帧权威、单次 Step、下一帧切招与 Hit/Death 帧化收尾
+- [x] 2026-08-01：Lockstep L1B 代码——纯 ActionSim、Snapshot/Event 表现边界、共享帧查询与 60Hz 迁移工具
 
 ## 剩余项
 

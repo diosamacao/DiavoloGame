@@ -15,7 +15,7 @@ public static class CharacterActorFactory
         Transform cameraTransform,
         Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider,
         CombatHitPipeline combatHitPipeline,
-        out ActionExecutor actionExecutor,
+        out ActionSim actionSim,
         out CharacterAnimationService animation)
     {
         CharacterActor actor = null;
@@ -56,20 +56,21 @@ public static class CharacterActorFactory
         context.LocomotionStateMachine = locomotionStateMachine;
 
         var stateMachine = new CharacterStateMachine(context);
-        var resolverService = new ActionResolverService(combatMode);
-        actionExecutor = new ActionExecutor(root, controller, animation, rootMotion, combatMode, resolverService);
-        context.ActionExecutor = actionExecutor;
-
         // 缓冲时长由输入 Profile 统一配置，避免工厂与动作执行器各自维护不同窗口。
         var intentBuffer = new GameplayIntentBuffer(
             config.GameplayIntentProfile.ActionBufferDurationFrames);
+        var resolverService = new ActionResolverService(combatMode);
+        var resolverBridge = new ActionSimResolverBridge(resolverService, root, motor);
+        actionSim = new ActionSim(resolverBridge, intentBuffer);
+        context.ActionSim = actionSim;
+
         var intentProducer = new GameplayIntentProducer(
             config.GameplayIntentProfile,
             sharedInput,
             intentBuffer,
             stateMachine,
             locomotionStateMachine,
-            actionExecutor);
+            actionSim);
 
         Transform defaultAttach = ResolveModelPoint(config.Combat.AttachPointName, modelRoot, root);
         Transform aimOrigin = ResolveModelPoint(config.Combat.AimOriginName, modelRoot, root);
@@ -78,30 +79,37 @@ public static class CharacterActorFactory
         var hitboxFrameConsumer = new HitboxFrameConsumer(
             root,
             teamId,
-            actionExecutor,
+            actionSim,
             attachPoints,
             activeTargetsProvider,
             () => actor?.SimulationId ?? SimActorId.Invalid,
             combatHitPipeline);
         var vfxPlayer = new ActionVfxPlayer(root, attachPoints);
         var sfxPlayer = new ActionSfxPlayer(root);
-
-        actionExecutor.RegisterFrameConsumer(hitboxFrameConsumer);
-        actionExecutor.RegisterNotifyConsumer(vfxPlayer);
-        actionExecutor.RegisterNotifyConsumer(sfxPlayer);
-        actionExecutor.BindTimelineAttachPoint(defaultAttach);
+        var actionPresentation = new CharacterActionPresentationBridge(
+            actionSim,
+            root,
+            controller,
+            animation,
+            rootMotion,
+            combatMode,
+            motor,
+            new ActionTimelineRunner(),
+            defaultAttach);
+        actionPresentation.RegisterFrameConsumer(hitboxFrameConsumer);
+        actionPresentation.RegisterNotifyConsumer(vfxPlayer);
+        actionPresentation.RegisterNotifyConsumer(sfxPlayer);
 
         var actionDriver = new CharacterActionDriver(
             sharedInput,
             intentBuffer,
             stateMachine,
-            actionExecutor,
+            actionSim,
             combatMode,
             targetLock,
             resolverService,
             root,
             motor);
-        actionExecutor.BindInputBuffer(intentBuffer);
 
         actor = new CharacterActor(
             localInput,
@@ -110,7 +118,8 @@ public static class CharacterActorFactory
             motor,
             stateMachine,
             actionDriver,
-            actionExecutor,
+            actionSim,
+            actionPresentation,
             combatMode,
             animation,
             new CharacterPresentationBridge(root, presentationRoot));
@@ -119,11 +128,10 @@ public static class CharacterActorFactory
             root,
             sharedInput,
             motor,
-            actionExecutor,
+            actionSim,
             targetLock);
 
         context.ActionRotation = rotationDriver;
-        actionExecutor.BindActionStartContext(motor);
         return actor;
     }
 

@@ -21,8 +21,8 @@ MonoBehaviour:
     startFrame: 0
     endFrame: -1
     crossFadeDuration: 0
-  sampleRate: 30
-  totalFrames: 123
+  sampleRate: 60
+  totalFrames: 244
   actionType: 0
   crossFadeDuration: 0.1
   executionPolicy:
@@ -32,8 +32,8 @@ MonoBehaviour:
     actionEvents: []
     playVfxNotifies:
     - id: VFX_1
-      startFrame: 4
-      endFrame: 4
+      startFrame: 8
+      endFrame: 8
       priority: 0
       trackName: VFX_1
       prefab: {fileID: 7611201976539897820, guid: b8d5608cf850428083ba2d62a1a0b31a, type: 3}
@@ -44,8 +44,8 @@ MonoBehaviour:
       parentToAttachPoint: 0
       playbackSpeed: 1
     - id: VFX_2
-      startFrame: 82
-      endFrame: 82
+      startFrame: 164
+      endFrame: 164
       priority: 0
       trackName: VFX_1
       prefab: {fileID: 2336738607144242677, guid: ccddab8d96f24c4e91399ea71a2353e4, type: 3}
@@ -66,8 +66,8 @@ MonoBehaviour:
       playbackSpeed: 1
     hitboxStates:
     - id: Hitbox_1
-      startFrame: 5
-      endFrame: 8
+      startFrame: 10
+      endFrame: 17
       priority: 0
       trackName: Hitbox_1
       shape: 0
@@ -81,20 +81,20 @@ MonoBehaviour:
         feedback:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 1
-          hitStopFrames: 2
+          hitStopFrames: 4
           hitStopOncePerAction: 1
     hurtboxStates: []
     cancelWindowStates:
     - id: Attack
-      startFrame: 9
-      endFrame: 17
+      startFrame: 18
+      endFrame: 35
       priority: 0
       trackName: Cancel_3
       windowType: 0
     phaseStates:
     - id: Phase_1
-      startFrame: 18
-      endFrame: 122
+      startFrame: 36
+      endFrame: 243
       priority: 0
       trackName: Phase_1
       kind: 2
@@ -105,7 +105,7 @@ MonoBehaviour:
     rotationStates:
     - id: Rotation_1
       startFrame: 0
-      endFrame: 3
+      endFrame: 7
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0.05

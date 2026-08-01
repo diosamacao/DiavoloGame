@@ -101,7 +101,6 @@ public sealed class EnemyController : AppControllerBase
         GetSystem<CombatActorSystem>()?.Register(
             transform,
             _handle.Actor,
-            _handle.ActionExecutor,
             _handle.Animation);
         GetSystem<TargetSystem>()?.Register(_handle.Target);
         GetSystem<EnemySpawnSystem>()?.Register(this);

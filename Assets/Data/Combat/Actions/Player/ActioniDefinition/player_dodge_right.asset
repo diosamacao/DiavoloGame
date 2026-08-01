@@ -12,53 +12,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
   m_Name: player_dodge_right
   m_EditorClassIdentifier: 
-  id: player_dodge_right
-  displayName: Dodge_Backward
-  animationClip: {fileID: 5148013183046091580, guid: 58f84d3adbac9f24cb22276dfe745cf1, type: 3}
-  sampleRate: 30
-  totalFrames: 30
+  animationSegments: []
+  sampleRate: 60
+  totalFrames: 1
   actionType: 1
   crossFadeDuration: 0
-  phases: []
-  actionEvents: []
-  cancelWindows:
-  - startFrame: 10
-    endFrame: 80
-    cancelType: 0
-    allowedInputs:
-    - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    - {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    - {fileID: 6632924207495724444, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    priority: 0
-  - startFrame: 10
-    endFrame: 80
-    cancelType: 1
-    allowedInputs: []
-    priority: 0
-  transitions: []
-  startBehaviors: 
-  switchCombatModeTarget: 0
-  switchCombatModePolicy: 0
-  hitboxes: []
-  vfxEvents: []
-  cameraShakeProfile: {fileID: 0}
-  disableCameraShakeOnHit: 0
-  useCameraShakeOnHit: 1
-  useHitStopOnHit: 1
-  disableHitStopOnHit: 0
-  hitStopFrames: 3
-  hitStopOncePerAction: 1
-  rotationWindow:
-    startFrame: 0
-    endFrame: -1
-    smoothTimeOverride: 0
-  targetLockSettings:
-    enabled: 0
-    lockRange: 8
-    forwardConeAngle: 120
-    policy: 0
-    lockRotationSmoothTimeOverride: 0
-  useRootMotion: 1
-  displacementDistance: 0
-  displacementStartFrame: 0
-  displacementEndFrame: 0
+  executionPolicy:
+    interruptPriority: 0
+    useRootMotion: 1
+  timeline:
+    actionEvents: []
+    playVfxNotifies: []
+    playSfxStates: []
+    hitboxStates: []
+    hurtboxStates: []
+    cancelWindowStates: []
+    phaseStates: []
+    movementStates: []
+    rotationStates: []
+    tracks: []

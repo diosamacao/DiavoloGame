@@ -25,8 +25,8 @@ public readonly struct ActionResolveResult
     /// <summary>图内节点 id；无图游标时为 null。</summary>
     public string NodeId { get; }
 
-    /// <summary>招式有效且可播放。</summary>
-    public bool IsValid => Action != null && Action.HasAnimation;
+    /// <summary>招式有效且已迁移为运行时要求的 60Hz 模拟内容。</summary>
+    public bool IsValid => Action != null && Action.IsSimulationReady;
 
     /// <summary>是否携带有效图游标（进入/停留在连招图内）。</summary>
     public bool HasGraphCursor => Graph != null && !string.IsNullOrEmpty(NodeId);
@@ -41,4 +41,10 @@ public readonly struct ActionResolveResult
         node = null;
         return HasGraphCursor && Graph.TryGetNode(NodeId, out node);
     }
+
+    /// <summary>转换为纯模拟结果，并保留图游标与目标节点意图。</summary>
+    public ActionSimResolveResult ToSimResult() =>
+        HasGraphCursor
+            ? ActionSimResolveResult.FromGraph(Action, Graph, NodeId, Intent)
+            : ActionSimResolveResult.FromContent(Action);
 }

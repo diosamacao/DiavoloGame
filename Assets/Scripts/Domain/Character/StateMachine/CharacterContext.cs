@@ -31,8 +31,8 @@ public class CharacterContext
     public bool IsGrounded { get; set; }
     public ICharacterStateMachine StateMachine { get; set; }
 
-    /// <summary>单角色动作执行器，由 ActionState 推进。</summary>
-    public IActionExecutor ActionExecutor { get; set; }
+    /// <summary>单角色纯动作模拟核；推进由 CharacterActor 统一负责。</summary>
+    public ActionSim ActionSim { get; set; }
 
     /// <summary>动作状态下的转向服务。</summary>
     public ActionRotationDriver ActionRotation { get; set; }

@@ -19,13 +19,15 @@ public sealed class HitState : CharacterState
         _reactionActionInstanceId = 0;
         Context.Movement.ClearMoveSnapshot();
         Context.Animation.SetLocked(true);
-        Context.ActionExecutor?.Stop();
+        Context.ActionSim?.Stop();
 
         if (request.ResolvedAction != null)
         {
             // 每次命中都会强制重入 Hit；记录逻辑会话 Id，退出不读取动画播放状态。
-            if (Context.ActionExecutor?.TryStart(request.ResolvedAction) == true)
-                _reactionActionInstanceId = Context.ActionExecutor.CurrentActionInstanceId;
+            ActionSimResolveResult result =
+                ActionSimResolveResult.FromContent(request.ResolvedAction);
+            if (Context.ActionSim != null && Context.ActionSim.TryStart(in result))
+                _reactionActionInstanceId = Context.ActionSim.InstanceId;
         }
     }
 
@@ -48,14 +50,14 @@ public sealed class HitState : CharacterState
         if (_reactionActionInstanceId <= 0)
             return;
 
-        if (Context.ActionExecutor?.HasEndedActionInstance(_reactionActionInstanceId) == true)
+        if (Context.ActionSim?.HasEndedActionInstance(_reactionActionInstanceId) == true)
             Context.StateMachine.TryChangeState(CharacterStateType.Locomotion);
     }
 
     /// <summary>结束受击表现并恢复 Locomotion 动画写入。</summary>
     public override void Exit()
     {
-        Context.ActionExecutor?.Stop();
+        Context.ActionSim?.Stop();
         Context.Animation.SetLocked(false);
         Context.Animation.ResetPlaybackState();
     }

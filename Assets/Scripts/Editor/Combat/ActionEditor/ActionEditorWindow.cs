@@ -358,6 +358,8 @@ public sealed class ActionEditorWindow : EditorWindow
         if (_selectedAction == null || _previewCharacter == null)
             return;
 
+        ActionFrameQueryResult frameQuery =
+            ActionFrameQuery.Query(_selectedAction, _previewFrame);
         HitboxNotifyState[] hitboxes = _selectedAction.HitboxStates;
         for (int i = 0; i < hitboxes.Length; i++)
         {
@@ -366,7 +368,7 @@ public sealed class ActionEditorWindow : EditorWindow
                 continue;
 
             Transform hitboxAnchor = ActionEditorPreviewAttachPoint.Resolve(_previewCharacter, hitbox.AttachPointId);
-            bool active = hitbox.IsActiveAtFrame(_previewFrame);
+            bool active = frameQuery.IsStateActive(hitbox);
             Color color = active
                 ? new Color(1f, 0.35f, 0.15f, 0.95f)
                 : new Color(0.6f, 0.6f, 0.6f, 0.35f);
@@ -383,7 +385,7 @@ public sealed class ActionEditorWindow : EditorWindow
 
             Transform vfxAnchor = ActionEditorPreviewAttachPoint.Resolve(_previewCharacter, vfx.AttachPointId);
             // 触发后仍高亮，便于 scrub 对照挂点姿态。
-            bool active = _previewFrame >= vfx.TriggerFrame;
+            bool active = ActionFrameQuery.HasPointEventOccurred(vfx, _previewFrame);
             Color color = active
                 ? new Color(0.35f, 0.75f, 1f, 0.95f)
                 : new Color(0.5f, 0.5f, 0.55f, 0.4f);

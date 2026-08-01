@@ -13,16 +13,16 @@ MonoBehaviour:
   m_Name: Unagi_Attack_01
   m_EditorClassIdentifier: 
   animationSegments:
-  - clip: {fileID: 2754811189149721877, guid: 6b84a4fde20facb4781831a8174d37bd, type: 3}
+  - clip: {fileID: 9078503576314905219, guid: 676c7257979aecd428915744e9857607, type: 3}
     startFrame: 0
     endFrame: -1
     crossFadeDuration: 0
-  - clip: {fileID: -7596049190413007820, guid: 18bc4e1c163b1ee46b9fa99e2c7ff8c6, type: 3}
+  - clip: {fileID: 6016426741628670671, guid: 57b463e10781ea8489d83c57ee6b629e, type: 3}
     startFrame: 0
     endFrame: -1
     crossFadeDuration: 0
-  sampleRate: 30
-  totalFrames: 121
+  sampleRate: 60
+  totalFrames: 240
   actionType: 0
   crossFadeDuration: 0.1
   executionPolicy:
@@ -32,8 +32,8 @@ MonoBehaviour:
     actionEvents: []
     playVfxNotifies:
     - id: VFX_1
-      startFrame: 4
-      endFrame: 4
+      startFrame: 8
+      endFrame: 8
       priority: 0
       trackName: VFX_1
       prefab: {fileID: 7611201976539897820, guid: b8d5608cf850428083ba2d62a1a0b31a, type: 3}
@@ -44,8 +44,8 @@ MonoBehaviour:
       parentToAttachPoint: 0
       playbackSpeed: 1
     - id: VFX_2
-      startFrame: 74
-      endFrame: 74
+      startFrame: 148
+      endFrame: 148
       priority: 0
       trackName: VFX_1
       prefab: {fileID: 2336738607144242677, guid: ccddab8d96f24c4e91399ea71a2353e4, type: 3}
@@ -66,8 +66,8 @@ MonoBehaviour:
       playbackSpeed: 1
     hitboxStates:
     - id: Hitbox_1
-      startFrame: 3
-      endFrame: 9
+      startFrame: 6
+      endFrame: 19
       priority: 0
       trackName: Hitbox_1
       shape: 0
@@ -81,20 +81,20 @@ MonoBehaviour:
         feedback:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 1
-          hitStopFrames: 2
+          hitStopFrames: 4
           hitStopOncePerAction: 1
     hurtboxStates: []
     cancelWindowStates:
     - id: Attack
-      startFrame: 9
-      endFrame: 19
+      startFrame: 18
+      endFrame: 39
       priority: 0
       trackName: Cancel_3
       windowType: 0
     phaseStates:
     - id: Phase_1
-      startFrame: 20
-      endFrame: 120
+      startFrame: 40
+      endFrame: 239
       priority: 0
       trackName: Phase_1
       kind: 2
@@ -105,7 +105,7 @@ MonoBehaviour:
     rotationStates:
     - id: Rotation_1
       startFrame: 0
-      endFrame: 3
+      endFrame: 7
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0.05

@@ -3,7 +3,7 @@
 > 本文档保留动作系统早期实现与 Editor 对齐背景；L0–L1A 后的**当前 Runtime 真源**见 [TECHNICAL.md](../.cursor/skills/actgame-architecture/TECHNICAL.md) §7 与 [ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](./ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)。
 > Last updated: 2026-08-01（标记旧调用链；当前已切为 Action 整数帧权威）
 >
-> ⚠️ 下方 `PlayerController.Update`、`PlayerInputFrame`、`ActionExecutor.Tick/UpdateFrame`、同步 `ApplyHitCommand` 与逻辑 HitStop 链均为历史记录，已分别在 L0A/L0B/L0C/L1A 删除，不得作为新代码实现依据。
+> ⚠️ 下方 `PlayerController.Update`、`PlayerInputFrame`、整个 `ActionExecutor` / `ActionSession`、同步 `ApplyHitCommand` 与逻辑 HitStop 链均为历史记录，已在 L0A–L1B 删除。当前真源是纯 `ActionSim` + `CharacterActionPresentationBridge` + `ActionFrameQuery`，不得按下文旧类实现新代码。
 
 ---
 

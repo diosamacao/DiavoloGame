@@ -18,6 +18,38 @@ public sealed class ActionTimelineRunner
         DispatchStates(timeline, in frameContext, attachPoint, consumers);
     }
 
+    /// <summary>终止哨兵帧只派发区间 Exit，不触发点事件、Enter 或 Tick。</summary>
+    public void DispatchTerminalExits(
+        in CombatFrameContext frameContext,
+        Transform attachPoint,
+        IReadOnlyList<IActionNotifyConsumer> consumers)
+    {
+        ActionTimeline timeline = frameContext.Action != null ? frameContext.Action.Timeline : null;
+        if (timeline == null)
+            return;
+
+        IReadOnlyList<ActionNotifyStateFrameEvent> stateEvents = timeline.GetStateFrameEvents(
+            frameContext.PreviousFrameIndex,
+            frameContext.FrameIndex);
+        foreach (ActionNotifyStateFrameEvent stateEvent in stateEvents)
+        {
+            if (stateEvent.Phase != ActionNotifyStatePhase.Exit)
+                continue;
+
+            var context = new ActionNotifyContext(
+                frameContext.Action,
+                frameContext.FrameIndex,
+                frameContext.PreviousFrameIndex,
+                frameContext.ActorRoot,
+                attachPoint,
+                null,
+                stateEvent.State,
+                stateEvent.Phase);
+            InvokeStateHook(in context);
+            NotifyConsumers(in context, consumers, isState: true);
+        }
+    }
+
     /// <summary>派发 previousFrame &lt; triggerFrame &lt;= currentFrame 的点事件。</summary>
     void DispatchNotifies(
         ActionTimeline timeline,

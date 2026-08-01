@@ -33,7 +33,7 @@ public sealed class CombatHitPipeline
         int actionInstanceId,
         int hitboxIndex,
         IHurtboxTarget target,
-        IActionHitReceiver hitReceiver,
+        IActionSimHitReceiver hitReceiver,
         in ActionHitContext context)
     {
         if (_collectingFrame < 0
@@ -95,7 +95,7 @@ public sealed class CombatHitPipeline
             // 全部检测已结束后才按稳定键写入权威状态，Actor 注册顺序不再改变检测阶段的目标状态。
             ActionHitContext context = hit.Context;
             hit.Target.OnHit(in context);
-            hit.HitReceiver?.NotifyHit(in context);
+            hit.HitReceiver?.ConfirmHit(hit.Key.ActionInstanceId);
             _resolved.Add(new ResolvedCombatHit(
                 context,
                 hit.TargetTransform,

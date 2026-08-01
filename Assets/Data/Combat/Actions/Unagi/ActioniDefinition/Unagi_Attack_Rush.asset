@@ -12,8 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
   m_Name: Unagi_Attack_Rush
   m_EditorClassIdentifier: 
-  animationClip: {fileID: 0}
-  trigger: 3
   animationSegments:
   - clip: {fileID: 6955578239024431997, guid: 1e39c51f511f51c4b9209e036daaccbd, type: 3}
     startFrame: 0
@@ -23,17 +21,19 @@ MonoBehaviour:
     startFrame: 0
     endFrame: -1
     crossFadeDuration: 0
-  sampleRate: 30
-  totalFrames: 131
+  sampleRate: 60
+  totalFrames: 262
   actionType: 0
   crossFadeDuration: 0.1
-  interruptPriority: 0
+  executionPolicy:
+    interruptPriority: 0
+    useRootMotion: 1
   timeline:
     actionEvents: []
     playVfxNotifies:
     - id: VFX_1
-      startFrame: 5
-      endFrame: 5
+      startFrame: 10
+      endFrame: 10
       priority: 0
       trackName: VFX_1
       prefab: {fileID: 7611201976539897820, guid: b8d5608cf850428083ba2d62a1a0b31a, type: 3}
@@ -44,8 +44,8 @@ MonoBehaviour:
       parentToAttachPoint: 0
       playbackSpeed: 1
     - id: VFX_2
-      startFrame: 80
-      endFrame: 80
+      startFrame: 160
+      endFrame: 160
       priority: 0
       trackName: VFX_1
       prefab: {fileID: 2336738607144242677, guid: ccddab8d96f24c4e91399ea71a2353e4, type: 3}
@@ -58,30 +58,35 @@ MonoBehaviour:
     playSfxStates: []
     hitboxStates:
     - id: Hitbox_1
-      startFrame: 6
-      endFrame: 9
+      startFrame: 12
+      endFrame: 19
       priority: 0
       trackName: Hitbox_1
-      hitboxId: 
       shape: 0
       attachPointId: 
       localOffset: {x: 0, y: 1, z: 0}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 2, y: 2, z: 3}
-      damageWeight: 0
-      hitReactionId: 
+      payload:
+        baseDamage: 10
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 0
+          hitStopFrames: 0
+          hitStopOncePerAction: 1
     hurtboxStates: []
     cancelWindowStates:
     - id: Attack
-      startFrame: 10
-      endFrame: 17
+      startFrame: 20
+      endFrame: 35
       priority: 0
       trackName: Cancel_3
-      cancelType: 0
+      windowType: 0
     phaseStates:
     - id: Phase_1
-      startFrame: 18
-      endFrame: 130
+      startFrame: 36
+      endFrame: 261
       priority: 0
       trackName: Phase_1
       kind: 0
@@ -92,7 +97,7 @@ MonoBehaviour:
     rotationStates:
     - id: Rotation_1
       startFrame: 0
-      endFrame: 5
+      endFrame: 11
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0.05
@@ -112,21 +117,3 @@ MonoBehaviour:
     - trackName: Hitbox_1
       kind: 0
       visible: 1
-  transitions: []
-  startBehaviors: 
-  switchCombatModeTarget: 0
-  switchCombatModePolicy: 0
-  cameraShakeProfile: {fileID: 0}
-  disableCameraShakeOnHit: 0
-  useCameraShakeOnHit: 1
-  useHitStopOnHit: 1
-  disableHitStopOnHit: 0
-  hitStopFrames: 3
-  hitStopOncePerAction: 1
-  targetLockSettings:
-    enabled: 1
-    lockRange: 8
-    forwardConeAngle: 120
-    policy: 0
-    lockRotationSmoothTimeOverride: 0
-  useRootMotion: 1

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>命中检测批处理入口；几何相交只写入帧末 CombatHitPipeline。</summary>
+/// <summary>Transform 命中检测临时入口；只写帧末流水线，L2 将删除该非纯模拟几何路径。</summary>
 public static class HitDetector
 {
     /// <summary>检测指定招式帧的全部 Hitbox，并把结果收集为稳定身份命中事件。</summary>
@@ -13,7 +13,7 @@ public static class HitDetector
         int attackerTeamId,
         Func<HitboxNotifyState, Transform> resolveAnchor,
         HashSet<(int HitboxIndex, SimActorId TargetId)> hitPairs,
-        IActionHitReceiver hitReceiver,
+        IActionSimHitReceiver hitReceiver,
         IReadOnlyList<IHurtboxTarget> activeTargets,
         SimActorId attackerId,
         int actionInstanceId,

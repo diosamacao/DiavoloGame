@@ -238,8 +238,10 @@ public sealed class ActionEditorPreviewSession : IDisposable
 
         if (NeedsResample())
         {
-            AnimationClip clip = context.Action.GetClipAtFrame(context.PreviewFrame);
-            float localTime = context.Action.GetLocalTimeInSegment(context.PreviewFrame);
+            ActionFrameQueryResult query =
+                ActionFrameQuery.Query(context.Action, context.PreviewFrame);
+            AnimationClip clip = query.HasAnimationSegment ? query.Segment.clip : null;
+            float localTime = query.SegmentLocalTime;
             ActionEditorAnimationSampler.Sample(clip, localTime, context.SampleRate);
 
             _lastSampledFrame = _previewFrame;
@@ -288,7 +290,8 @@ public sealed class ActionEditorPreviewSession : IDisposable
 
     bool NeedsResample()
     {
-        AnimationClip clipAtFrame = _action != null ? _action.GetClipAtFrame(_previewFrame) : null;
+        ActionFrameQueryResult query = ActionFrameQuery.Query(_action, _previewFrame);
+        AnimationClip clipAtFrame = query.HasAnimationSegment ? query.Segment.clip : null;
         return _previewFrame != _lastSampledFrame
             || clipAtFrame != _lastSampledClip
             || _previewCharacter != _lastSampledCharacter;
@@ -398,8 +401,9 @@ public sealed class ActionEditorVfxPreviewExtension : IActionEditorPreviewExtens
             return;
         }
 
-        float sampleRate = context.SampleRate > 0f ? context.SampleRate : 30f;
-        float localTime = (context.PreviewFrame - trigger) / sampleRate;
+        int sampleRate = Mathf.Max(1, Mathf.RoundToInt(context.SampleRate));
+        float localTime =
+            ActionFrameQuery.GetElapsedSecondsSincePoint(trigger, context.PreviewFrame, sampleRate);
         float speed = speedProp != null ? Mathf.Max(0.0001f, speedProp.floatValue) : 1f;
         ActionVfxEditorPreview.SimulateAt(_previewInstance, localTime * speed);
     }

@@ -12,14 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
   m_Name: player_attack_1
   m_EditorClassIdentifier: 
-  id: player_attack_1
-  displayName: Attack 1
-  animationClip: {fileID: -441296982555202684, guid: 8880d032184913f449ee115b00dacfd3, type: 3}
-  sampleRate: 30
-  totalFrames: 61
+  animationSegments: []
+  sampleRate: 60
+  totalFrames: 1
   actionType: 0
   crossFadeDuration: 0.1
-  phases: []
+  executionPolicy:
+    interruptPriority: 0
+    useRootMotion: 1
   timeline:
     actionEvents: []
     playVfxNotifies: []
@@ -28,33 +28,15 @@ MonoBehaviour:
     hurtboxStates: []
     cancelWindowStates:
     - id: Cancel_1
-      startFrame: 9
-      endFrame: 20
+      startFrame: 0
+      endFrame: 0
       priority: 0
       trackName: Cancel_1
-      cancelType: 0
-      allowedInputs: []
+      windowType: 0
+    phaseStates: []
     movementStates: []
     rotationStates: []
     tracks:
     - trackName: Cancel_1
       kind: 4
       visible: 1
-  transitions: []
-  startBehaviors: 
-  switchCombatModeTarget: 0
-  switchCombatModePolicy: 0
-  cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
-  disableCameraShakeOnHit: 0
-  useCameraShakeOnHit: 1
-  useHitStopOnHit: 1
-  disableHitStopOnHit: 0
-  hitStopFrames: 3
-  hitStopOncePerAction: 1
-  targetLockSettings:
-    enabled: 1
-    lockRange: 8
-    forwardConeAngle: 120
-    policy: 0
-    lockRotationSmoothTimeOverride: 0.05
-  useRootMotion: 1

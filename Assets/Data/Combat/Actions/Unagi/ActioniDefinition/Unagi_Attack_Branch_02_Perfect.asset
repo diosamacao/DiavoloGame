@@ -12,8 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
   m_Name: Unagi_Attack_Branch_02_Perfect
   m_EditorClassIdentifier: 
-  animationClip: {fileID: 0}
-  trigger: 6
   animationSegments:
   - clip: {fileID: -2852162484749314428, guid: ff69f3b0311b8bb4a93d5e4f5b954478, type: 3}
     startFrame: 0
@@ -23,17 +21,19 @@ MonoBehaviour:
     startFrame: 0
     endFrame: -1
     crossFadeDuration: 0
-  sampleRate: 30
-  totalFrames: 100
+  sampleRate: 60
+  totalFrames: 198
   actionType: 0
   crossFadeDuration: 0.1
-  interruptPriority: 0
+  executionPolicy:
+    interruptPriority: 0
+    useRootMotion: 1
   timeline:
     actionEvents: []
     playVfxNotifies:
     - id: VFX_1
-      startFrame: 6
-      endFrame: 6
+      startFrame: 12
+      endFrame: 12
       priority: 0
       trackName: VFX_1
       prefab: {fileID: 6855955652325114174, guid: e6ab044536df47e0ade30b4e41e559f4, type: 3}
@@ -44,8 +44,8 @@ MonoBehaviour:
       parentToAttachPoint: 0
       playbackSpeed: 1
     - id: VFX_2
-      startFrame: 59
-      endFrame: 59
+      startFrame: 118
+      endFrame: 118
       priority: 0
       trackName: VFX_1
       prefab: {fileID: 2336738607144242677, guid: ccddab8d96f24c4e91399ea71a2353e4, type: 3}
@@ -60,15 +60,15 @@ MonoBehaviour:
     hurtboxStates: []
     cancelWindowStates:
     - id: Cancel_2
-      startFrame: 16
-      endFrame: 25
+      startFrame: 32
+      endFrame: 51
       priority: 0
       trackName: Cancel_3
       windowType: 0
     phaseStates:
     - id: Phase_1
-      startFrame: 26
-      endFrame: 99
+      startFrame: 52
+      endFrame: 197
       priority: 0
       trackName: Phase_1
       kind: 2
@@ -87,21 +87,3 @@ MonoBehaviour:
     - trackName: VFX_1
       kind: 2
       visible: 1
-  transitions: []
-  startBehaviors: 
-  switchCombatModeTarget: 0
-  switchCombatModePolicy: 0
-  cameraShakeProfile: {fileID: 0}
-  disableCameraShakeOnHit: 0
-  useCameraShakeOnHit: 1
-  useHitStopOnHit: 1
-  disableHitStopOnHit: 0
-  hitStopFrames: 3
-  hitStopOncePerAction: 1
-  targetLockSettings:
-    enabled: 0
-    lockRange: 8
-    forwardConeAngle: 120
-    policy: 0
-    lockRotationSmoothTimeOverride: 0
-  useRootMotion: 1

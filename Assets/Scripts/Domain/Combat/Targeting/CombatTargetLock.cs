@@ -38,23 +38,24 @@ public sealed class CombatTargetLock
         activeTargetsProvider = targetsProvider;
     }
 
-    /// <summary>每帧由 ActionRotationDriver 在 Action 状态下调用，按 ActionSession 处理 Acquire / Validate。</summary>
-    public void Tick(ActionSession session)
+    /// <summary>每帧由 ActionRotationDriver 按纯模拟快照处理 Acquire / Validate。</summary>
+    public void Tick(in ActionSimSnapshot snapshot)
     {
-        if (session == null || !session.IsActive)
+        if (!snapshot.IsActive)
         {
             ClearLock();
             return;
         }
 
-        if (!session.TryGetCurrentNode(out ActionGraphNode node))
+        ActionGraph graph = snapshot.Graph as ActionGraph;
+        if (graph == null || !graph.TryGetNode(snapshot.NodeId, out ActionGraphNode node))
         {
             ClearLock();
             return;
         }
 
-        if (_lockedForGraph != session.CurrentGraph || _lockedForNodeId != node.NodeId)
-            TryAcquireForNode(session.CurrentGraph, node);
+        if (_lockedForGraph != graph || _lockedForNodeId != node.NodeId)
+            TryAcquireForNode(graph, node);
 
         if (_lockedTarget != null && !IsTargetStillValid(_lockedTarget, _activeSettings))
             ClearLock();

@@ -12,50 +12,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
   m_Name: player_switch_to_Katana
   m_EditorClassIdentifier: 
-  id: player_switch_1
-  displayName: switch1
-  animationClip: {fileID: -2019408629470369199, guid: 234c6583359144642922689cdcc39bb6, type: 3}
-  sampleRate: 30
-  totalFrames: 52
+  animationSegments: []
+  sampleRate: 60
+  totalFrames: 1
   actionType: 1
   crossFadeDuration: 0.1
-  phases: []
-  actionEvents: []
-  cancelWindows:
-  - startFrame: 15
-    endFrame: 43
-    cancelType: 1
-    allowedInputs:
-    - {fileID: 6936757010596083576, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    priority: 0
-  transitions:
-  - condition: 1
-    startFrame: 15
-    targetAction: {fileID: 0}
-    priority: 0
-  startBehaviors: 01000000
-  switchCombatModeTarget: 1
-  switchCombatModePolicy: 0
-  hitboxes: []
-  vfxEvents: []
-  cameraShakeProfile: {fileID: 0}
-  disableCameraShakeOnHit: 0
-  useCameraShakeOnHit: 1
-  useHitStopOnHit: 1
-  disableHitStopOnHit: 0
-  hitStopFrames: 3
-  hitStopOncePerAction: 1
-  rotationWindow:
-    startFrame: 0
-    endFrame: -1
-    smoothTimeOverride: 0
-  targetLockSettings:
-    enabled: 0
-    lockRange: 8
-    forwardConeAngle: 120
-    policy: 0
-    lockRotationSmoothTimeOverride: 0
-  useRootMotion: 1
-  displacementDistance: -3
-  displacementStartFrame: 0
-  displacementEndFrame: 4
+  executionPolicy:
+    interruptPriority: 0
+    useRootMotion: 1
+  timeline:
+    actionEvents: []
+    playVfxNotifies: []
+    playSfxStates: []
+    hitboxStates: []
+    hurtboxStates: []
+    cancelWindowStates: []
+    phaseStates: []
+    movementStates: []
+    rotationStates: []
+    tracks: []

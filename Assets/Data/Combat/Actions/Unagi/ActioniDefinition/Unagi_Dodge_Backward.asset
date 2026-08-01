@@ -17,8 +17,8 @@ MonoBehaviour:
     startFrame: 0
     endFrame: -1
     crossFadeDuration: 0
-  sampleRate: 30
-  totalFrames: 116
+  sampleRate: 60
+  totalFrames: 231
   actionType: 1
   crossFadeDuration: 0.1
   executionPolicy:
@@ -33,8 +33,8 @@ MonoBehaviour:
     cancelWindowStates: []
     phaseStates:
     - id: Phase_1
-      startFrame: 11
-      endFrame: 115
+      startFrame: 22
+      endFrame: 230
       priority: 0
       trackName: Phase_1
       kind: 2

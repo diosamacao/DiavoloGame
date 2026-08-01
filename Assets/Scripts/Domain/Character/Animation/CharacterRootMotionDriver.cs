@@ -1,6 +1,6 @@
 using UnityEngine;
 
-/// <summary>Root Motion 桥接器；把模型 Animator 的 deltaPosition 写回角色 CharacterController。</summary>
+/// <summary>Root Motion 临时桥；把 Animator delta 写回 CharacterController，L2 将删除该非纯模拟路径。</summary>
 public sealed class CharacterRootMotionDriver
 {
     readonly CharacterController _motor;

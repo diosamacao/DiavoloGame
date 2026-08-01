@@ -12,73 +12,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
   m_Name: player_attack_3
   m_EditorClassIdentifier: 
-  id: player_attack_3
-  displayName: Attack 3
-  animationClip: {fileID: -2809026575308471513, guid: f82fc59659869144db8488a519cd43f8, type: 3}
-  sampleRate: 30
-  totalFrames: 68
+  animationSegments: []
+  sampleRate: 60
+  totalFrames: 1
   actionType: 0
   crossFadeDuration: 0.1
-  phases: []
-  actionEvents:
-  - eventId: 
-    kind: 0
-    triggerFrame: 0
-    endFrame: 0
-    payloadId: 
-  cancelWindows:
-  - startFrame: 34
-    endFrame: 80
-    cancelType: 0
-    allowedInputs:
-    - {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    - {fileID: 5101105075050001029, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    - {fileID: -130322003382893763, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    - {fileID: 6632924207495724444, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    priority: 0
-  - startFrame: 40
-    endFrame: 80
-    cancelType: 1
-    allowedInputs:
-    - {fileID: 6936757010596083576, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-    priority: 1
-  transitions: []
-  startBehaviors: 
-  switchCombatModeTarget: 0
-  switchCombatModePolicy: 0
-  hitboxes:
-  - hitboxId: 0
-    startFrame: 7
-    endFrame: 9
-    localOffset: {x: 0, y: 0.6672542, z: 1.5483992}
-    localEulerAngles: {x: 0, y: 0, z: 0}
-    size: {x: 3, y: 2, z: 4.1090093}
-  vfxEvents:
-  - eventId: 
-    triggerFrame: 7
-    prefab: {fileID: 5484218944294176571, guid: 063091fcdabad66489d9c94721816c86, type: 3}
-    localOffset: {x: 0.1, y: 0.86132073, z: 1.1}
-    localEulerAngles: {x: 348.7671, y: 159.97012, z: 344.83203}
-    localScale: {x: 1.5, y: 1.5, z: 1.5}
-    parentToAttachPoint: 0
-  cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
-  disableCameraShakeOnHit: 0
-  useCameraShakeOnHit: 1
-  useHitStopOnHit: 1
-  disableHitStopOnHit: 0
-  hitStopFrames: 3
-  hitStopOncePerAction: 1
-  rotationWindow:
-    startFrame: 0
-    endFrame: 6
-    smoothTimeOverride: 0.05
-  targetLockSettings:
-    enabled: 1
-    lockRange: 8
-    forwardConeAngle: 120
-    policy: 0
-    lockRotationSmoothTimeOverride: 0.05
-  useRootMotion: 1
-  displacementDistance: 0
-  displacementStartFrame: 0
-  displacementEndFrame: 0
+  executionPolicy:
+    interruptPriority: 0
+    useRootMotion: 1
+  timeline:
+    actionEvents: []
+    playVfxNotifies: []
+    playSfxStates: []
+    hitboxStates: []
+    hurtboxStates: []
+    cancelWindowStates: []
+    phaseStates: []
+    movementStates: []
+    rotationStates: []
+    tracks: []

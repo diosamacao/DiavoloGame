@@ -38,7 +38,7 @@ public static class EnemyActorFactory
             facingProxy,
             activeTargetsProvider,
             combatHitPipeline,
-            out ActionExecutor actionExecutor,
+            out ActionSim actionSim,
             out CharacterAnimationService animation);
 
         var health = new EnemyHealth(definition.MaxHp);
@@ -66,7 +66,7 @@ public static class EnemyActorFactory
             definition,
             root,
             actor,
-            actionExecutor,
+            actionSim,
             animation,
             brain,
             input,

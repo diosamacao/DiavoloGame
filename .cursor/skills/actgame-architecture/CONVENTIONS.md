@@ -27,11 +27,13 @@
 - `Domain` 纯 C# 业务类优先使用 `Service` / `Actor` / `Executor` / `Resolver` / `Detector` / `Consumer`，不得直接访问 `ACTGameArchitecture.Interface`
 - **动作系统目录分层**：`Combat/Actions/` 下按职责分四个子目录——`Definitions/`（动作数据 Schema，含 `Definitions/Timeline/`）、`Resolution/`（输入 → 动作选招）、`Execution/`（播放/帧推进/输入路由/旋转）、`Frames/`（Logic Tick 帧上下文契约）；核心脚本不散落在 `Actions/` 根目录
 - **动作时间轴数据**：帧相关配置以 `ActionDefinition.Timeline` 为唯一真源；点事件用 `ActionNotify`（Event/VFX/SFX），区间窗口用 `ActionNotifyState`（Phase/Hitbox/Hurtbox/Cancel/Movement/Rotation）；禁止在 `ActionDefinition` 重新引入独立 `phases[]` 等双轨帧数据
-- 跨系统通信使用 `ACTGameArchitecture` 的 Command / Query / Event；动作帧内部可保留 `ActionExecutor` → 帧消费者直连，但 Hitbox 消费者只能 Collect，禁止通过 App Command 同步修改目标
+- 跨系统通信使用 `ACTGameArchitecture` 的 Command / Query / Event；动作帧由 `ActionSimEvent` 经角色表现桥派发，但 Hitbox 消费者只能 Collect，禁止通过 App Command 同步修改目标
 - 架构事件必须实现 `IArchitectureEvent`；架构查询继承 `ArchitectureQueryBase<TResult>` 或实现 `IArchitectureQuery<TResult>`
 - **固定帧唯一入口**：角色业务只实现 `ISimulationActor.Step`，由 `SimulationHost → SimulationWorld` 以 60Hz 推进；Controller 禁止新增 `Update → Actor.Tick` 旁路
-- **Action 单次推进**：每个 World 帧只允许 `CharacterActor` 调用一次 `ActionExecutor.Step`；Action/Hit/Death State 禁止自行再次推进会话
-- **Action 整数帧权威**：`ActionSession.CurrentFrame` 是唯一时间权威；`ElapsedSeconds` 只能由 `CurrentFrame / SampleRate` 派生，禁止恢复 `Advance(dt)`、`FrameAt(elapsed)` 或秒制窗口重载
+- **Action 单次推进**：每个 World 帧只允许 `CharacterActor` 调用一次 `ActionSim.Step`；Action/Hit/Death State 禁止自行再次推进会话
+- **Action 整数帧权威**：`ActionSim.CurrentFrame` 是唯一时间权威；Action 内容固定 60Hz，禁止恢复 `Advance(dt)`、`FrameAt(elapsed)` 或 30Hz Runtime fallback
+- **Action 逻辑/表现边界**：Sim 只输出 `ActionSimSnapshot` / `ActionSimEvent`；动画、Timeline 与 L2 前暂留位移只读消费，禁止回写帧、Graph 或命中确认
+- **Action 帧查询**：Runtime 表现和 Editor Scrub 共用 `ActionFrameQuery`；Editor 禁止执行 Runtime Step 或维护第二套窗口/段算法
 - **帧边界切招**：Cancel、Recovery Entry 与 Graph 自动衔接只在当前帧排队，目标动作 frame 0 必须到下一 World 帧提交；禁止同一步递归推进多招
 - **模拟身份**：World Actor 使用会话内单调 `SimActorId` 排序；禁止用 Unity `GetInstanceID()` 作为模拟顺序、命中身份或未来网络身份
 - **启停生命周期**：Controller 在 `OnEnable` 注册 World、`OnDisable/OnDestroy` 对称注销；禁用 GameObject 不得继续被模拟
@@ -40,7 +42,7 @@
 - **输入阶段先于 Actor**：World 每帧先调用 `ISimulationInputProducer`，再按 Id 消费同帧 `InputFrame`；AI 决策不得在自身 CharacterActor.Step 中旁路写输入
 - **命中延迟结算**：Hitbox 几何检测只写共享 `CombatHitPipeline`；全体 Actor Step 完成后按 `SimHitKey` 排序，再统一伤害、Reaction 与命中确认
 - **PostCombat 收尾**：依赖本帧命中结果的 OnHitConfirm/OnWhiff 与动作自然结束只在 `ISimulationPostCombatActor` 执行；不得恢复攻击者 Step 内即时目标回调
-- **App 只读结果**：`PublishAttackHitCommand` / `AttackHitEvent` 只发布整帧已结算结果；Event Handler 禁止暂停 ActionExecutor、修改 HP/状态或生成 Sim 输入
+- **App 只读结果**：`PublishAttackHitCommand` / `AttackHitEvent` 只发布整帧已结算结果；Event Handler 禁止暂停 `ActionSim`、修改 HP/状态或生成 Sim 输入
 - **边沿展开**：同一目标帧的多次渲染采样只对 Pressed/Released 做 OR；本地追帧可延续 Move/Held，但禁止从 Held 推导或重复边沿
 - **模拟/表现 Pose 分离**：权威根只在 `SimulationWorld.Step` 改变；模型与相机通过 `CharacterPresentationBridge` 插值，Render 禁止回写碰撞、命中或 Hash 状态
 
@@ -103,13 +105,13 @@ public class MyBehaviour : MonoBehaviour
 - **变体节点**：Directional 等 Resolver 只改变实际播放 Action，不改变逻辑 Graph 节点；同语义六向变体禁止复制节点和出边
 - **线性连招**：`ComboActionResolver` / `ComboLeafPolicy` 已删除；`ActionGraph` 是唯一连招拓扑真源
 - **战斗模式**：`CombatModeProfile` + `CombatModeService`；`PlayerActionSet` 绑定一张 Graph
-- **缓冲**：招式中 `Buffer(GameplayIntentType)`；`ActionExecutor` 经 `IActionInputBuffer` 在 `CancelWindow` 内消费
+- **缓冲**：招式中 `Buffer(GameplayIntentType)`；`ActionSim` 经 `IActionInputBuffer` 在 `CancelWindow` 内消费
 - **Locomotion 边界**：连续 Move 不枚举化；Action→Locomotion 特殊恢复使用一次性 `LocomotionResumeRequest`
 - **后摇窗口**：Timeline 的 `ActionPhaseNotifyState(Recovery)` 同时配置 `allowMovementCancel` 与 `allowEntryRestart`；禁止创建 Recovery CancelWindow、独立 phases 或回根显式边
 - **CancelWindow**：每个 Action 必须且只能有一个 Normal，可选一个 Perfect；两个窗口可重叠，同一 Intent 始终优先 Perfect；禁止重新引入分割帧、槽 Id 或同类型多窗口
 - 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `CharacterMotor` / State）
 - **玩家装配**：`InputActionAsset` 与 `GameplayIntentProfile` 由 `CharacterConfig` 注入，不在玩家 Prefab 上重复配置
-- **AI 输入**：`AIInputWriter` 必须写与玩家相同布局的 `InputFrame`；Brain 禁止直接调用 `ActionExecutor.TryStart/TryInterrupt`
+- **AI 输入**：`AIInputWriter` 必须写与玩家相同布局的 `InputFrame`；Brain 禁止直接调用 `ActionSim.TryStart/TryInterrupt`
 - **输入计时**：Hold、Action Buffer 与 AI 攻击/重试/刷新冷却只使用整数逻辑帧；禁止重新引入秒制输入 TTL
 - **AI 移动**：相机相对 Motor 通过 facing proxy + `Move=(0, magnitude)` 复用，禁止另建敌人移动栈
 

@@ -12,8 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
   m_Name: Unagi_Attack_Branch_03
   m_EditorClassIdentifier: 
-  animationClip: {fileID: 0}
-  trigger: 6
   animationSegments:
   - clip: {fileID: -3857812397617067658, guid: 29906f74c814e9a4e876a87836590bc1, type: 3}
     startFrame: 0
@@ -23,17 +21,19 @@ MonoBehaviour:
     startFrame: 0
     endFrame: -1
     crossFadeDuration: 0
-  sampleRate: 30
-  totalFrames: 136
+  sampleRate: 60
+  totalFrames: 272
   actionType: 0
   crossFadeDuration: 0.1
-  interruptPriority: 0
+  executionPolicy:
+    interruptPriority: 0
+    useRootMotion: 1
   timeline:
     actionEvents: []
     playVfxNotifies:
     - id: VFX_1
-      startFrame: 43
-      endFrame: 43
+      startFrame: 86
+      endFrame: 86
       priority: 0
       trackName: VFX_1
       prefab: {fileID: 2336738607144242677, guid: ccddab8d96f24c4e91399ea71a2353e4, type: 3}
@@ -44,8 +44,8 @@ MonoBehaviour:
       parentToAttachPoint: 1
       playbackSpeed: 1
     - id: VFX_2
-      startFrame: 2
-      endFrame: 2
+      startFrame: 4
+      endFrame: 4
       priority: 0
       trackName: VFX_1
       prefab: {fileID: 2336738607144242677, guid: ccddab8d96f24c4e91399ea71a2353e4, type: 3}
@@ -56,8 +56,8 @@ MonoBehaviour:
       parentToAttachPoint: 1
       playbackSpeed: 1
     - id: VFX_3
-      startFrame: 4
-      endFrame: 4
+      startFrame: 8
+      endFrame: 8
       priority: 0
       trackName: VFX_1
       prefab: {fileID: 6855955652325114174, guid: 9b46a484efe4de54da682f6bbfc2ece2, type: 3}
@@ -68,8 +68,8 @@ MonoBehaviour:
       parentToAttachPoint: 0
       playbackSpeed: 1
     - id: VFX_4
-      startFrame: 11
-      endFrame: 11
+      startFrame: 22
+      endFrame: 22
       priority: 0
       trackName: VFX_1
       prefab: {fileID: 6855955652325114174, guid: 9b46a484efe4de54da682f6bbfc2ece2, type: 3}
@@ -80,8 +80,8 @@ MonoBehaviour:
       parentToAttachPoint: 0
       playbackSpeed: 1
     - id: VFX_5
-      startFrame: 19
-      endFrame: 19
+      startFrame: 38
+      endFrame: 38
       priority: 0
       trackName: VFX_1
       prefab: {fileID: 6855955652325114174, guid: c02543e57b00460393df4a8216a35d90, type: 3}
@@ -92,8 +92,8 @@ MonoBehaviour:
       parentToAttachPoint: 0
       playbackSpeed: 1
     - id: VFX_6
-      startFrame: 21
-      endFrame: 21
+      startFrame: 42
+      endFrame: 42
       priority: 0
       trackName: VFX_1
       prefab: {fileID: 6855955652325114174, guid: c02543e57b00460393df4a8216a35d90, type: 3}
@@ -108,15 +108,15 @@ MonoBehaviour:
     hurtboxStates: []
     cancelWindowStates:
     - id: Cancel_1
-      startFrame: 33
-      endFrame: 49
+      startFrame: 66
+      endFrame: 99
       priority: 0
       trackName: Cancel_1
       windowType: 0
     phaseStates:
     - id: Phase_1
-      startFrame: 50
-      endFrame: 135
+      startFrame: 100
+      endFrame: 271
       priority: 0
       trackName: Phase_1
       kind: 2
@@ -135,21 +135,3 @@ MonoBehaviour:
     - trackName: VFX_1
       kind: 2
       visible: 1
-  transitions: []
-  startBehaviors: 
-  switchCombatModeTarget: 0
-  switchCombatModePolicy: 0
-  cameraShakeProfile: {fileID: 0}
-  disableCameraShakeOnHit: 0
-  useCameraShakeOnHit: 1
-  useHitStopOnHit: 1
-  disableHitStopOnHit: 0
-  hitStopFrames: 3
-  hitStopOncePerAction: 1
-  targetLockSettings:
-    enabled: 0
-    lockRange: 8
-    forwardConeAngle: 120
-    policy: 0
-    lockRotationSmoothTimeOverride: 0
-  useRootMotion: 1

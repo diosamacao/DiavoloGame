@@ -21,8 +21,8 @@ MonoBehaviour:
     startFrame: 0
     endFrame: -1
     crossFadeDuration: 0
-  sampleRate: 30
-  totalFrames: 109
+  sampleRate: 60
+  totalFrames: 216
   actionType: 0
   crossFadeDuration: 0.1
   executionPolicy:
@@ -36,15 +36,15 @@ MonoBehaviour:
     hurtboxStates: []
     cancelWindowStates:
     - id: Cancel_1
-      startFrame: 23
-      endFrame: 29
+      startFrame: 46
+      endFrame: 59
       priority: 0
       trackName: Cancel_1
       windowType: 0
     phaseStates:
     - id: Phase_1
-      startFrame: 31
-      endFrame: 108
+      startFrame: 62
+      endFrame: 215
       priority: 0
       trackName: Phase_1
       kind: 2

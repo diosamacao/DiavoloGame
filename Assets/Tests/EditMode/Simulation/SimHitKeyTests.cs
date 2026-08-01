@@ -28,7 +28,7 @@ public sealed class SimHitKeyTests
 
     /// <summary>相同会话、Hitbox 与目标生成相等键，不需要 Unity InstanceId。</summary>
     [Test]
-    public void Equality_UsesActionSessionAndSimActorIds()
+    public void Equality_UsesActionInstanceAndSimActorIds()
     {
         SimHitKey first = Key(7, 3, 11, 2, 9);
         SimHitKey same = Key(7, 3, 11, 2, 9);

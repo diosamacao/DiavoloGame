@@ -1,4 +1,4 @@
-/// <summary>角色动作状态：锁定 Locomotion 动画，推进 ActionExecutor 并在动作结束后回到移动状态。</summary>
+/// <summary>角色动作状态：锁定 Locomotion 动画，并按 ActionSim 实例结果返回移动状态。</summary>
 public class ActionState : CharacterState
 {
     ActionDefinition _lastActiveAction;
@@ -17,8 +17,11 @@ public class ActionState : CharacterState
     /// <summary>进入 Action，缓存当前招式并锁定 Locomotion 动画写入。</summary>
     public override void Enter()
     {
-        _lastActiveAction = Context.ActionExecutor?.CurrentAction;
-        _activeActionInstanceId = Context.ActionExecutor?.CurrentActionInstanceId ?? 0;
+        ActionSimSnapshot snapshot = Context.ActionSim != null
+            ? Context.ActionSim.Snapshot
+            : default;
+        _lastActiveAction = snapshot.Content as ActionDefinition;
+        _activeActionInstanceId = snapshot.InstanceId;
         Context.Animation.SetLocked(true);
     }
 
@@ -26,11 +29,14 @@ public class ActionState : CharacterState
     public override void Exit()
     {
         // 三种退出路径都汇聚于此；记录最后有效招式，避免自然收招后 Session 已清空。
-        ActionDefinition exitAction = Context.ActionExecutor?.CurrentAction ?? _lastActiveAction;
+        ActionDefinition exitAction = Context.ActionSim != null
+            ? Context.ActionSim.Snapshot.Content as ActionDefinition
+            : null;
+        exitAction ??= _lastActiveAction;
         if (exitAction != null && exitAction.ActionType == CombatActionType.Dodge)
             Context.SetLocomotionResumeRequest(LocomotionResumeRequest.SprintAfterDodge);
 
-        Context.ActionExecutor?.Stop();
+        Context.ActionSim?.Stop();
         Context.ActionRotation?.Reset();
         Context.Animation.SetLocked(false);
         Context.Animation.ResetPlaybackState();
@@ -40,11 +46,14 @@ public class ActionState : CharacterState
     /// <summary>记录当前整数帧动作并执行动作转向；会话由 CharacterActor 单次推进。</summary>
     public override void Tick(float deltaTime)
     {
-        ActionDefinition current = Context.ActionExecutor?.CurrentAction;
+        ActionSimSnapshot snapshot = Context.ActionSim != null
+            ? Context.ActionSim.Snapshot
+            : default;
+        ActionDefinition current = snapshot.Content as ActionDefinition;
         if (current != null)
         {
             _lastActiveAction = current;
-            _activeActionInstanceId = Context.ActionExecutor.CurrentActionInstanceId;
+            _activeActionInstanceId = snapshot.InstanceId;
         }
 
         Context.Movement.ClearMoveSnapshot();
@@ -55,20 +64,21 @@ public class ActionState : CharacterState
     /// <summary>自动衔接与自然结束处理后，根据逻辑会话结果退出或接管新动作。</summary>
     public void ResolvePostCombat()
     {
-        IActionExecutor executor = Context.ActionExecutor;
-        if (_activeActionInstanceId <= 0 || executor == null)
+        ActionSim actionSim = Context.ActionSim;
+        if (_activeActionInstanceId <= 0 || actionSim == null)
         {
             Context.StateMachine.TryChangeState(CharacterStateType.Locomotion);
             return;
         }
 
-        if (!executor.HasEndedActionInstance(_activeActionInstanceId))
+        if (!actionSim.HasEndedActionInstance(_activeActionInstanceId))
             return;
 
-        if (executor.CurrentActionInstanceId > 0)
+        ActionSimSnapshot snapshot = actionSim.Snapshot;
+        if (snapshot.InstanceId > 0)
         {
-            _activeActionInstanceId = executor.CurrentActionInstanceId;
-            _lastActiveAction = executor.CurrentAction;
+            _activeActionInstanceId = snapshot.InstanceId;
+            _lastActiveAction = snapshot.Content as ActionDefinition;
             return;
         }
 

@@ -4,14 +4,14 @@ using UnityEngine;
 
 /// <summary>单个动作的播放内容：动画、统一帧时间轴与纯执行策略。</summary>
 [CreateAssetMenu(fileName = "ActionDefinition", menuName = "ACT/Combat/Action Definition")]
-public class ActionDefinition : ScriptableObject
+public class ActionDefinition : ScriptableObject, IActionSimContent
 {
     [Header("Animation")]
     [Tooltip("按顺序播放的动画段；totalFrames 由各段有效帧累加。")]
     [SerializeField] ActionAnimationSegment[] animationSegments = Array.Empty<ActionAnimationSegment>();
 
-    [Tooltip("整数动作采样率；L1 阶段不得高于 SimulationWorld 60Hz。")]
-    [SerializeField] int sampleRate = 30;
+    [Tooltip("权威动作采样率固定为 60Hz；旧 30Hz 资产必须先运行迁移工具。")]
+    [SerializeField] int sampleRate = ActionSim.LogicHz;
     [SerializeField] int totalFrames;
     [SerializeField] CombatActionType actionType = CombatActionType.Attack;
     [SerializeField] float crossFadeDuration = 0.1f;
@@ -59,6 +59,13 @@ public class ActionDefinition : ScriptableObject
 
     /// <summary>动作自身固定的执行方式。</summary>
     public ActionExecutionPolicy ExecutionPolicy => executionPolicy ?? new ActionExecutionPolicy();
+
+    /// <summary>仅完整迁移到 60Hz 且具有有效动画帧时可进入权威模拟。</summary>
+    public bool IsSimulationReady =>
+        HasAnimation && sampleRate == ActionSim.LogicHz && totalFrames > 0;
+
+    /// <summary>动作硬打断优先级，直接转发只读执行策略。</summary>
+    public int InterruptPriority => ExecutionPolicy.InterruptPriority;
 
     /// <summary>动作帧数据唯一真源：点事件与区间窗口均从此处读取。</summary>
     public ActionTimeline Timeline => timeline ?? new ActionTimeline();
@@ -202,6 +209,10 @@ public class ActionDefinition : ScriptableObject
 
         return false;
     }
+
+    /// <summary>向纯模拟契约转发现有整数帧 Recovery 移动取消查询。</summary>
+    public bool AllowsMovementCancelAtFrame(int frame) =>
+        AllowsRecoveryMovementCancelAtFrame(frame);
 
     /// <summary>指定帧的 Recovery 窗口是否允许有效动作输入按 Graph Entry 重开。</summary>
     public bool AllowsRecoveryEntryRestartAtFrame(int frame)

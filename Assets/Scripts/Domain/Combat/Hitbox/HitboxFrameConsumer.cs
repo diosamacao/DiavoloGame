@@ -2,31 +2,28 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>攻击侧 Hitbox 帧消费者：订阅 ActionExecutor Logic Tick 并检测当前帧命中。</summary>
+/// <summary>攻击侧 Hitbox 帧消费者：订阅表现桥帧派发并向共享流水线收集命中。</summary>
 public sealed class HitboxFrameConsumer : ICombatFrameConsumer
 {
     readonly Transform root;
     readonly int attackerTeamId;
     readonly CharacterAttachPointResolver attachPoints;
-    readonly ActionExecutor actionExecutor;
+    readonly ActionSim _actionSim;
     readonly Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider;
     readonly Func<SimActorId> attackerIdProvider;
     readonly CombatHitPipeline hitPipeline;
 
     readonly HashSet<(int HitboxIndex, SimActorId TargetId)> _hitPairs = new();
-    ActionDefinition _trackedAction;
+    int _trackedActionInstanceId;
 
     /// <summary>默认挂点；为空时使用角色根。</summary>
     public Transform AttachPoint => attachPoints != null ? attachPoints.DefaultAttach : root;
-
-    /// <summary>招式运行时只读访问，供帧采样与 Hitbox 检测。</summary>
-    IActionExecutor Runtime => actionExecutor;
 
     /// <summary>创建纯 C# Hitbox 帧消费者；按 Hitbox.attachPointId 解析挂点。</summary>
     public HitboxFrameConsumer(
         Transform actorRoot,
         int teamId,
-        ActionExecutor executor,
+        ActionSim actionSim,
         CharacterAttachPointResolver attachPointResolver,
         Func<IReadOnlyList<IHurtboxTarget>> targetsProvider,
         Func<SimActorId> resolveAttackerId,
@@ -34,7 +31,7 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
     {
         root = actorRoot;
         attackerTeamId = teamId;
-        actionExecutor = executor;
+        _actionSim = actionSim;
         attachPoints = attachPointResolver;
         activeTargetsProvider = targetsProvider;
         attackerIdProvider = resolveAttackerId;
@@ -44,7 +41,8 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
     /// <summary>新招式开始：清空命中缓存。</summary>
     public void OnActionBegan(ActionDefinition action)
     {
-        ClearHitCacheIfNeeded(action);
+        _trackedActionInstanceId = 0;
+        _hitPairs.Clear();
     }
 
     /// <summary>Logic Tick 帧推进：每个 Hitbox 窗口对每个目标最多结算一次。</summary>
@@ -53,17 +51,18 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
         if (context.Action == null)
             return;
 
-        ClearHitCacheIfNeeded(context.Action);
-        ProcessHitboxesAtFrame(context.Action, context.FrameIndex);
+        ClearHitCacheIfNeeded(context.ActionInstanceId);
+        ProcessHitboxesAtFrame(context.Action, context.FrameIndex, context.ActionInstanceId);
     }
 
     /// <summary>招式结束：清空追踪状态。</summary>
     public void OnActionEnded()
     {
-        ClearHitCacheIfNeeded(null);
+        _trackedActionInstanceId = 0;
+        _hitPairs.Clear();
     }
 
-    void ProcessHitboxesAtFrame(ActionDefinition action, int frame)
+    void ProcessHitboxesAtFrame(ActionDefinition action, int frame, int actionInstanceId)
     {
         IReadOnlyList<IHurtboxTarget> activeTargets = activeTargetsProvider?.Invoke();
         HitDetector.ProcessHitboxesAtFrame(
@@ -73,10 +72,10 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
             attackerTeamId,
             ResolveHitboxAnchor,
             _hitPairs,
-            actionExecutor,
+            _actionSim,
             activeTargets,
             attackerIdProvider?.Invoke() ?? SimActorId.Invalid,
-            actionExecutor.Session.InstanceId,
+            actionInstanceId,
             hitPipeline);
     }
 
@@ -89,13 +88,13 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
         return attachPoints.Resolve(hitbox != null ? hitbox.AttachPointId : null);
     }
 
-    /// <summary>切换招式时清空命中缓存，避免跨招误判。</summary>
-    void ClearHitCacheIfNeeded(ActionDefinition action)
+    /// <summary>切换稳定动作实例时清空命中缓存，允许同一内容连续播放。</summary>
+    void ClearHitCacheIfNeeded(int actionInstanceId)
     {
-        if (_trackedAction == action)
+        if (_trackedActionInstanceId == actionInstanceId)
             return;
 
-        _trackedAction = action;
+        _trackedActionInstanceId = actionInstanceId;
         _hitPairs.Clear();
     }
 

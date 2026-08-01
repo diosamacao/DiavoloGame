@@ -60,7 +60,7 @@ public class PlayerController : AppControllerBase
             cameraTransform,
             () => SendQuery(new GetActiveTargetsQuery()),
             simulationHost.CombatHits,
-            out ActionExecutor actionExecutor,
+            out ActionSim actionSim,
             out CharacterAnimationService animation);
 
         health = new CharacterHealth(characterConfig.Combat.MaxHealth);
@@ -76,7 +76,7 @@ public class PlayerController : AppControllerBase
             health,
             () => actor?.SimulationId ?? SimActorId.Invalid);
 
-        GetSystem<CombatActorSystem>()?.Register(transform, actor, actionExecutor, animation);
+        GetSystem<CombatActorSystem>()?.Register(transform, actor, animation);
         GetSystem<TargetSystem>()?.Register(hurtboxTarget);
     }
 
