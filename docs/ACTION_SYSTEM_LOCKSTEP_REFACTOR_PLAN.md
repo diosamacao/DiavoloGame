@@ -4,6 +4,8 @@
 > 制定日期：2026-07-30  
 > 最近实施：2026-08-01（L0A/L0B/L0C/L1A 代码完成；第 2 节保留重构前基线诊断）
 > 目标：以**帧同步（Lockstep）多人 PVE**为未来方向，重构动作与角色模拟核；保留现有选招/窗口/意图语义  
+> **网络定案（2026-08-02）**：权威仍为输入 `FramePacket` + 同构 Sim；客户端做**完整预测与回滚**；角色互撞为逻辑圆盘**软弹开**（非 Unity 物理、非硬分离）  
+
 > 相关文档：[ENEMY_SYSTEM_INTEGRATION_PLAN.md](./ENEMY_SYSTEM_INTEGRATION_PLAN.md)、[ENEMY_BEHAVIOR_TREE_PLAN.md](./ENEMY_BEHAVIOR_TREE_PLAN.md)
 
 ---
@@ -14,8 +16,10 @@
 2. **可保留**：`GameplayIntent`、ActionGraph、Cancel/Phase 窗口语义、外层控制权（Locomotion/Action/Hit/Death）、AI 只产意图。
 3. **必须重构**：`Tick(deltaTime)` → **固定逻辑帧**；Root Motion / `CharacterController` 退出逻辑权威；Hitbox 与位移改为**整数帧 + 确定性几何**。
 4. **目标架构**：`Simulation`（确定性）与 `Presentation`（可抖）分离；网络层最后接，先让单机跑在同一套逻辑核上。
-5. **迁移策略**：分阶段按职责直接切换，每阶段可玩验收；同一职责一旦接入新核，立即删除旧入口、旧字段与旧调用链。
-6. **参考边界**：`DemoClient` / `DemoServer` 是「客户端权威玩家 + 服务端权威怪物 + 状态广播」的混合同步，**不是 Lockstep**；只借鉴 Room、远端 View 代理与运动烘焙，不复制其 Transform/伤害上报链。
+5. **联网形态**：服务器广播权威输入帧；客户端对本地玩家**预测推进**，权威包到达后若与预测分歧则**回滚到确认帧并重演**；远端角色以权威/已确认输入驱动，表现插值跟随。
+6. **角色互撞**：逻辑圆盘**软弹开**（按重叠量比例推开，允许短暂微重叠）；静态障碍仍为烘焙硬阻挡。禁止 Unity Physics/CC 作互撞权威。
+7. **迁移策略**：分阶段按职责直接切换，每阶段可玩验收；同一职责一旦接入新核，立即删除旧入口、旧字段与旧调用链。
+8. **参考边界**：`DemoClient` / `DemoServer` 是「客户端权威玩家 + 服务端权威怪物 + 状态广播」的混合同步，**不是 Lockstep**；只借鉴 Room、远端 View 代理与运动烘焙，不复制其 Transform/伤害上报链。
 
 ---
 
@@ -203,10 +207,11 @@ L0B 当前代码落地为 `InputFrameBuffer.Set / MergeLocalSample / ResolveLoca
 - `GameplayIntentProfile` 继续作为输入语义唯一配置源，阈值由秒迁为帧；不新增平行 `SimInputProfile`。
 - `logicHz` 与 Action Timeline 统一为 **60Hz**。现有 30Hz Action 资产由 Editor 迁移：闭区间 `[start,end]` → `[2×start, 2×end+1]`，点事件与 AtFrame → `2×frame`；Locomotion 现有 60Hz 烘焙轨改为整数帧直接索引。
 
-**联网缺帧策略（L5）：**
+**联网缺帧与预测（L5）：**
 
-- 客户端只能推进到最新完整权威 `FramePacket`；等待超过预算时停 Sim，不伪造 Pressed。
-- Held 可由服务器按上一帧状态展开，但展开结果必须进入权威 FramePacket，所有端消费完全相同的数据。
+- 服务器对逻辑帧 N：在 `InputWaitBudget` 内收齐输入；超时对缺席玩家写入权威填充（Hold：延续 Move/Held，**不伪造 Pressed**；连续缺席则 AI 接管或踢出）。填充结果进入 `AuthoritativeFramePacket`，全端一致。
+- 客户端**不等待**最慢玩家才动本地角色：本地输入立即写入预测环并推进预测 Sim；权威包到达后与预测比对，分歧则回滚重演（见 5.11 / 5.12）。
+- Held 可由服务器按上一帧状态展开，但展开结果必须进入权威 FramePacket。
 - 发包频率允许低于 60Hz（批量携带多帧输入），但 Simulation 仍逐帧 Step。
 
 ### 5.2 ActionSim（从 ActionExecutor 提取纯逻辑核）
@@ -297,7 +302,9 @@ Runtime ActionSim
 
 ```text
 职责：
-  水平速度/位移积分、重力（确定性）、简单地面、与静态碰撞
+  水平速度/位移积分、重力（确定性）、简单地面
+  静态障碍 ResolveMove
+  角色圆盘软弹开（Actor 间）
 输入：
   wishDir（量化）、actionDelta、knockbackDelta
 输出：
@@ -306,11 +313,31 @@ Runtime ActionSim
 
 实现选项（按成本）：
 
-1. **2D 圆盘 + 网格/凸包障碍**（PVE 场地够用，优先）  
-2. 定点数 3D 胶囊（成本高）  
-3. L0–L1 过渡：仍调 Unity CC **仅用于保持单机可玩**；L2 结束必须删除该权威路径
+1. **2D 圆盘 + 网格/凸包静态障碍 + 角色软弹开**（定案，优先）  
+2. 定点数 3D 胶囊（成本高，非目标）  
+3. L0–L2 过渡：重力/着地暂仍经 Unity CC；**水平互撞与静态阻挡不得依赖 CC**；L2 结束删除 CC 水平权威
 
-场景静态碰撞数据需由 Editor 烘焙为确定性网格/凸包；运行时 Simulation 禁止查询 `Physics`。`CharacterController` 只跟随 Snapshot 做表现代理，不参与 Sim 位置裁决。
+**静态障碍（硬阻挡）：**
+
+- Editor 烘焙确定性 2D 网格/凸包；`ISimCollisionWorld.ResolveMove` 返回允许终点（可滑墙）。
+- 运行时 Simulation 禁止查询 `Physics`。`CharacterController` 只跟随 Snapshot 做表现代理。
+
+**角色互撞（软弹开，定案）：**
+
+```text
+每逻辑帧，全部 Actor 完成 wish 位移与静态 Resolve 后：
+  按 SimActorId 升序两两检测水平圆盘
+  overlap = (rA + rB) - dist
+  if overlap > 0:
+    沿中心连线各推开 softSeparationFactor * overlap / 2
+    （或按质量比分配；因子与上限毫米数为配置常量）
+  固定迭代次数（如 2～3），结果量化回毫米
+```
+
+- **软**：单帧不强制推到零重叠，允许短暂微重叠，手感更顺，利于高速相撞。
+- **禁止**硬分离作为默认（硬分离 = 单帧强制相切）；若未来改硬，须另开决策记录并改测试。
+- 软弹开必须纯函数于「本帧位置 + 半径 + 配置」，以便预测回滚重演结果一致。
+- 同阵营 / 敌对是否互撞、动作中是否关闭弹开，由配置位控制，规则进入 Hash。
 
 ### 5.5 CombatSim（命中）
 
@@ -397,7 +424,8 @@ pendingSpawnDespawn
 
 - Snapshot 序列化字段顺序必须固定；禁止直接 Hash Dictionary、Unity Object、浮点 Transform 或引用地址。
 - 每帧可计算轻量本地 Hash，每 N 帧上报服务器校验；出现差异时记录最近 InputFrame、SimEvent 与首个不同字段。
-- Snapshot 同时服务于测试、回放、断线恢复和晚加入，不能为网络另造第二套状态模型。
+- Snapshot 同时服务于测试、回放、断线恢复、晚加入与**客户端回滚基线**，不能为网络另造第二套状态模型。
+- 软弹开无额外持久状态时可不入库；若引入冷却/忽略互撞计时器，必须进入 Snapshot。
 
 ### 5.11 Net / Room 职责
 
@@ -406,7 +434,7 @@ pendingSpawnDespawn
 ```text
 Client InputFrame batch
   → Room 校验 actorId / frame 范围 / bitset 合法性
-  → 收齐或执行服务器缺帧策略
+  → 收齐或执行服务器缺帧策略（预算等待 → Hold → AI/踢出）
   → 生成 AuthoritativeFramePacket
   → 广播给所有客户端
   → 服务器影子 SimulationWorld 同步 Step + Hash
@@ -414,8 +442,38 @@ Client InputFrame batch
 
 - 客户端不上传 Transform、ActionName、伤害结果或 Hitbox 结果。
 - 网络层不直接写 Sim；只把权威 FramePacket 放入 `InputFrameBuffer`。
-- Snapshot 只用于加入、恢复与差异诊断，不作为正常每帧状态广播。
-- 房间保存有限长度的权威 InputFrame 环形历史与周期 Snapshot；保留长度由最大重连窗口决定。
+- Snapshot 用于加入、恢复、差异诊断，以及客户端**回滚基线**；不作为正常每帧状态广播主路径。
+- 房间保存有限长度的权威 InputFrame 环形历史与周期 Snapshot；保留长度由最大重连窗口与最大回滚窗口共同决定。
+
+### 5.12 客户端预测与回滚（定案）
+
+目标：本地操作即时响应，同时最终状态与权威输入锁步一致。
+
+```text
+ConfirmedFrame = 已收到完整权威包并已和解的最新帧
+PredictFrame   = 本地预测推进到的帧（可 > ConfirmedFrame）
+
+本地每逻辑步：
+  1) 采集本地 InputFrame → 写入预测输入环（带 frame / seq）
+  2) 若有新权威 FramePacket：
+       若包内容与预测环中该帧输入一致且中间无分歧 → 推进 ConfirmedFrame
+       否则：
+         恢复 SimulationSnapshot @ ConfirmedFrame（或包内附带的校验快照）
+         从 ConfirmedFrame+1 起用权威输入重演至包帧
+         再以本地未确认输入重演预测至 PredictFrame
+  3) 无新权威包时：用本地输入继续预测 Step（远端玩家用上一权威输入的 Hold 规则，规则与服务器缺帧填充一致且只用于预测侧；和解时以权威包为准覆盖）
+  4) Presentation 读预测 Snapshot 插值；回滚时允许表现软校正，禁止把表现 Pose 写回 Sim
+```
+
+硬性要求：
+
+- **完整**：预测覆盖位移、Action、命中收集/结算、软弹开、HitStop 等全部 Sim 副作用；禁止「只预测位移、战斗等权威」。
+- Sim 必须可从 Snapshot **无损恢复**（L3 序列化是回滚前置条件）。
+- 回滚窗口有上限（如 8～16 逻辑帧）；超出则硬对齐权威 Snapshot 并清空预测环，记诊断事件。
+- 服务器影子 Sim **只跑权威输入**，不跑客户端预测分支；Hash 只比对权威轨迹。
+- 禁止用 Unity Physics 结果参与预测或回滚后的权威重演。
+
+与「齐帧停等」的关系：房间仍生成完整权威帧，但**客户端预测路径不因等待他人而冻结本地控制**；全场卡顿仅可能出现在权威流长时间中断且预测窗口耗尽时。
 
 ---
 
@@ -428,7 +486,8 @@ Client InputFrame batch
 | `GameplayIntentProfile` | 原位增加量化与帧阈值配置；禁止平行 `SimInputProfile` |
 | Locomotion Profile | 相位阈值改 frames；RM 轨改为 60Hz 整数帧索引 |
 | Enemy BT/Brain | 步进改逻辑帧；数值改 frames |
-| 静态碰撞 | Editor 烘焙确定性 2D 网格/凸包数据 |
+| 静态碰撞 | Editor 烘焙确定性 2D 网格/凸包数据（硬挡） |
+| 角色互撞 | 无资产依赖；运行时圆盘半径 + 软弹开系数（配置进 Profile/SimConfig） |
 
 编辑器：
 
@@ -468,6 +527,9 @@ Assets/Scripts/Domain/Simulation/
     CharacterSim.cs
     CharacterMotorSim.cs
     CharacterControlState.cs
+  Collision/
+    ISimCollisionWorld.cs
+    SoftBodySeparation.cs     // 角色圆盘软弹开（待建）
   Action/
     ActionSim.cs            // 取代逻辑侧 ActionExecutor
     ActionMotionTable.cs
@@ -479,9 +541,12 @@ Assets/Scripts/Domain/Simulation/
   Replay/
     SimulationStateSerializer.cs
     SimulationHasher.cs
+  Prediction/                 // L3 雏形 / L5 完整
+    PredictionInputRing.cs
+    RollbackReconciler.cs
 
 Assets/Scripts/App/Controllers/Gameplay/
-  SimulationHost.cs         // Unity accumulator 与 World 生命周期入口
+  SimulationHost.cs         // Unity accumulator 与 World 生命周期入口；L5 接入和解
 
 Assets/Scripts/Presentation/
   CharacterPresentationBridge.cs
@@ -578,43 +643,45 @@ Assets/Scripts/Presentation/
 - [x] 2026-08-02：Locomotion Stop/Pivot 烘焙位移改整数逻辑帧索引（删除 `NormalizedTime` 权威采样）
 - [x] 2026-08-02：`CharacterMotorSim` 水平权威（毫米坐标 + 空场地碰撞）；Locomotion/动作表/未烘焙 RM 均经 Motor 写 Sim，Transform/CC 跟随 XZ
 - [ ] 静态碰撞烘焙（网格/凸包）替换 `OpenFieldSimCollisionWorld`；重力/着地迁出 CC
+- [ ] 角色圆盘软弹开（`softSeparationFactor` + 固定迭代 + SimActorId 序）；删除任何 CC/Physics 互撞权威
 - [ ] Hitbox/Hurtbox 逻辑坐标与确定性相交
 - [ ] 命中身份改为 Sim Id，不再用 `GetInstanceID()`（L0C 已有 `SimHitKey`；复查残留）
 
-**验收：** 关闭 Animator 仍能完成「位移 + 出伤 + 受击状态」的逻辑回放（无皮测试）。
+**验收：** 关闭 Animator 仍能完成「位移 + 出伤 + 受击状态」的逻辑回放（无皮测试）；两角色对顶可软挤开且同输入双 World 位置 Hash 一致。
 
 **阶段删除：** Action/Locomotion 逻辑 Root Motion、Movement `speed * dt`、Transform 挂点权威、Unity Physics/CC 权威、秒制 HitStop。
 
-### Phase L3 — 确定性数学与校验
+### Phase L3 — 确定性数学、Snapshot 与回滚前置
 
 - [ ] 位置/角度/速度/运动表统一 scaled-int 或定点数
 - [ ] `DeterministicRandom`  
-- [ ] 状态序列化与 Hash（SimActorId、position、facing、control、action、frame、hp、rng）
-- [ ] 单机「双端影子模拟」：同输入两份 World，Hash 必同  
+- [ ] 状态序列化与 Hash（SimActorId、position、facing、control、action、frame、hp、rng、软弹开相关瞬时量若有）
+- [ ] Snapshot **无损恢复** API（回滚必需）；单机「双端影子模拟」同输入 Hash 必同  
 - [ ] 内容版本 Hash：Graph、Timeline、运动表、碰撞烘焙数据
+- [ ] 单机预测环雏形：本地超前 Step + 人为注入「伪权威分歧」验证回滚重演
 
-**验收：** 固定操作脚本回放 N 次 Hash 一致；两份 World 从初始状态或中途 Snapshot 恢复后逐帧 Hash 一致。
+**验收：** 固定操作脚本回放 N 次 Hash 一致；Snapshot 恢复后逐帧 Hash 一致；注入分歧后回滚重演与权威轨迹对齐。
 
 ### Phase L4 — 表现完全跟随
 
-- [ ] PresentationBridge 只读 Snapshot  
+- [ ] PresentationBridge 只读（预测或已确认）Snapshot  
 - [ ] 动画 Seek/Play 按逻辑帧  
 - [ ] 相机/震屏/VFX 事件队列  
-- [ ] 追帧时合并/丢弃纯表现事件，不影响逻辑事件
+- [ ] 追帧/回滚时合并/丢弃纯表现事件，不影响逻辑事件；回滚时表现软校正
 
-**验收：** 逻辑加速（追帧）时玩法正确，仅表现可能快进。
+**验收：** 逻辑加速或回滚重演时玩法正确，仅表现可能快进或短时校正。
 
-### Phase L5 — 帧同步网络（未来）
+### Phase L5 — 帧同步网络 + 预测回滚（未来）
 
-- [ ] 输入收集与齐帧  
-- [ ] 服务器生成权威 `FramePacket`，客户端只消费完整帧
-- [ ] 锁步推进、批量输入发包与追帧预算
-- [ ] 服务器同构影子 Sim + 定期 Hash 校验
+- [ ] 输入收集；服务器预算齐帧 + 缺帧 Hold/AI/踢出  
+- [ ] 服务器生成权威 `FramePacket`；客户端预测推进 + 权威和解回滚
+- [ ] 批量输入发包、预测窗口与回滚窗口预算
+- [ ] 服务器同构影子 Sim（仅权威轨迹）+ 定期 Hash 校验
 - [ ] 断线重连：权威 Snapshot + Input 环形历史 + 内容版本校验
 - [ ] 晚加入策略：默认仅房间准备阶段允许；战中加入需完整 Snapshot 恢复
-- [ ] 超时策略：等待、踢出或 AI 接管必须由服务器在指定帧发布命令
+- [ ] 超时策略：等待预算、踢出或 AI 接管必须由服务器在指定帧发布命令
 
-**验收：** 2 人 + 若干 AI PVE 副本；延迟/抖动/短断线后逐帧 Hash 一致；客户端伪造 Transform 或伤害包无协议入口。
+**验收：** 2 人 + 若干 AI PVE 副本；人工制造 80～150ms 延迟与短暂丢包时本地手感可操作；权威 Hash 一致；客户端伪造 Transform 或伤害包无协议入口；一人长时间掉线不拖死其余玩家预测（权威侧按缺帧策略推进）。
 
 ---
 
@@ -648,17 +715,22 @@ AI 所有权定案：L0–L4 单机与双 World 测试中，各 World 独立运�
 | 误把状态同步 Demo 当 Lockstep | L5 协议门禁：禁止 Transform/ActionName/伤害结果作为常规上行消息 |
 | Hash 只能发现不能恢复 | L3 同时建设确定性 Snapshot 序列化与字段级差异报告 |
 | 断线恢复状态过大 | 周期 Snapshot + 有界 Input 环形历史，战中晚加入默认关闭 |
+| 预测回滚窗口过大卡顿 | 限制最大回滚帧；超窗硬对齐权威 Snapshot |
+| 软弹开手感软/穿透 | 调 `softSeparationFactor` 与迭代次数；静态障碍仍硬挡 |
+| 预测与权威长期分歧 | Hash 报警 + 强制对齐；检查缺帧 Hold 与软弹开是否非确定 |
 
 ---
 
 ## 11. 明确非目标
 
 - 本方案不实现具体网络库选型定案（Photon/自研/NGF 等放 L5 评估）  
-- 不引入完整 UE 式 Prediction+Rollback（格斗向）；PVE 锁步以齐帧为主  
+- ~~不引入完整 Prediction+Rollback~~ → **已撤销（2026-08-02）**；完整预测回滚为 L5 目标，见 5.12  
+- 不采用「只齐帧停等、客户端无预测」作为最终体验模型（缺帧策略仍要，但是否冻结本地预测由 5.12 约束）  
+- 不采用角色互撞**硬分离**或 Unity Physics/CC 互撞权威（软弹开为定案）  
 - 不采用 Demo 式客户端权威 Transform、客户端 Physics 命中或客户端伤害上报
-- 不把每帧状态快照广播作为正常同步主路径
+- 不把每帧完整世界状态广播作为正常同步主路径（回滚用 Snapshot 是局部恢复，不是状态同步主通道）
 - 不为帧同步再给 Action 加内层动画 SM  
-- 不要求一阶段定点数完美，但要求接口与权威归属先正确  
+- 不要求一阶段定点数完美，但要求接口与权威归属先正确；回滚前置要求 Snapshot 可无损恢复  
 
 ---
 
@@ -676,6 +748,8 @@ AI 所有权定案：L0–L4 单机与双 World 测试中，各 World 独立运�
 | 2026-07-30 | AI 读取 N-1 Snapshot、写 N 帧输入 | 消除 Actor 更新顺序对同帧决策的影响 |
 | 2026-07-30 | 服务端生成权威 FramePacket 并运行影子 Sim | 同时满足齐帧、Hash 校验与 PVE 房间管理 |
 | 2026-07-30 | DemoClient / DemoServer 仅作局部工程参考 | 其核心是混合状态同步，不是 Lockstep |
+| 2026-08-02 | 角色互撞定为逻辑圆盘**软弹开** | 用户确认；避免硬顶死与 PhysX 非确定性 |
+| 2026-08-02 | 联网定案为**完整预测 + 回滚**（撤销「仅齐帧」非目标） | 用户确认；消除停等最慢玩家对本地手感的伤害，同时保持输入权威锁步 |
 
 ---
 
@@ -686,15 +760,15 @@ AI 所有权定案：L0–L4 单机与双 World 测试中，各 World 独立运�
 3. **L0C**：建立延迟 HitEvent 与稳定帧末结算，消除 Actor 顺序依赖。
 4. **L1A–L1B**：Action 全链路整数帧化，再拆 ActionSim / Presentation；同时提供 30→60Hz 迁移工具。
 5. **L2**：一条测试招先验证运动表，再统一迁移 Action/Locomotion/Hitbox/Motor/HitStop。
-6. **L3**：定点/量化、Snapshot、Hash、双 World 与中途恢复测试。
+6. **L3**：定点/量化、Snapshot 无损恢复、Hash、双 World，以及单机预测/回滚雏形。
 7. **BT/寻路**：只接入已存在的逻辑帧与确定性网格，不再接 Unity NavMesh 权威路径。
-8. **L4–L5**：表现完全跟随后再接正式网络；禁止先做 Demo 式 Transform 同步“临时上线”。
+8. **L4–L5**：表现跟随 → 正式网络（权威 FramePacket + 客户端完整预测回滚）；禁止先做 Demo 式 Transform 同步“临时上线”。
 
 ---
 
 ## 14. 一句话
 
-把现在的动作系统从「**以动画播放会话为中心的单机执行器**」升级为「**以固定逻辑帧与输入帧为中心的确定性模拟核 + 表现桥**」；Graph/取消/意图保留为内容语言，Executor/RM/CC 让出权威，才能走向帧同步 PVE。
+把现在的动作系统从「**以动画播放会话为中心的单机执行器**」升级为「**以固定逻辑帧与输入帧为中心的确定性模拟核 + 表现桥**」；联网侧以权威输入锁步为准，客户端完整预测回滚，角色互撞软弹开；Graph/取消/意图保留为内容语言，Executor/RM/CC/PhysX 让出权威。
 
 ---
 

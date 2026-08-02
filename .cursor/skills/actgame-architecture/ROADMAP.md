@@ -102,7 +102,9 @@
 - [x] 2026-08-02 L2：`ActionSim.freezeFrames` 逻辑 HitStop（Pipeline 写入；表现跟帧）
 - [x] 2026-08-02 L2：Locomotion Stop/Pivot 烘焙位移整数帧索引
 - [x] 2026-08-02 L2：`CharacterMotorSim` 水平权威（空场地碰撞）；CC 仅临时重力/跟随
-- [ ] L2 后续：静态碰撞烘焙、逻辑 Hitbox、M2 批量 Dirty/Bake
+- [ ] L2 后续：静态碰撞烘焙、角色圆盘**软弹开**、逻辑 Hitbox、M2 批量 Dirty/Bake
+- [ ] L3：Snapshot 无损恢复 + 单机预测/回滚雏形（为 L5 完整预测回滚铺路）
+- [ ] L5：权威 FramePacket + 客户端完整预测回滚（已撤销「仅齐帧停等」定案，见锁步方案 5.12）
 
 ## 待建设模块
 

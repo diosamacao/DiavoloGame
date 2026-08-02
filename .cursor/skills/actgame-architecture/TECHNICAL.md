@@ -120,7 +120,8 @@ SimulationHost.LateUpdate
 - L2/M0–M1：运动表烘焙 + 运行时查表。`bakeStatus=Ok` 时表现桥按帧取本地 Δ 经 MotorSim 移动并关闭 Animator RM；未烘焙招式仍可走 Animator RM→Motor。
 - L2 HitStop：`hitStopFrames` 经 Pipeline 写入 `ActionSim.freezeFrames`；冻结期间不推进动作帧/位移；骨骼由表现桥读 Snapshot，VFX 由 `SimulationLogicStepEvent` 递减。
 - L2 Locomotion：Stop/Pivot 根位移按 `ActionSim.LogicHz` 整数帧取轨，不再用 `NormalizedTime`。
-- L2 MotorSim：水平毫米权威 + 空场地碰撞；重力/着地与静态障碍仍待迁出 CC。逻辑 Hitbox / 批量 Dirty Bake 待后续。
+- L2 MotorSim：水平毫米权威 + 空场地碰撞；重力/着地与静态障碍仍待迁出 CC。角色互撞定案为软弹开（未实现）。逻辑 Hitbox / 批量 Dirty Bake 待后续。
+- 联网定案（方案层）：完整客户端预测 + 回滚；权威仍为 FramePacket（见 `docs/ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md` §5.12）。
 
 ### 相关文件
 
@@ -728,3 +729,4 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-02 | L2 HitStop：`ActionSim.freezeFrames` + Pipeline `RequestHitStop`；删除 HitStop 秒制倒计时 |
 | 2026-08-02 | L2 Locomotion：`LocomotionRootMotionTrack.TryGetFrameDelta` + Player 整数帧；删除 NormalizedTime 位移权威 |
 | 2026-08-02 | L2 MotorSim：`CharacterMotorSim` 水平权威；Locomotion/动作表/RM 经 Motor；CC 仅临时重力与 XZ 跟随 |
+| 2026-08-02 | 锁步方案定案：角色互撞软弹开；联网完整预测回滚（撤销「仅齐帧」非目标） |

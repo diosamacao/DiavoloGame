@@ -83,6 +83,8 @@ public class MyBehaviour : MonoBehaviour
 - 播放走纯 C# `CharacterAnimationService`；后端为 `IAnimationPlayback`（当前 `PlayableAnimationPlayback`，可换 Animancer）
 - 需要独占时 `SetLocked(true)`；卡肉用 `SetSpeed(0)`，禁止业务直写 `Animator.speed`
 - Locomotion：`applyRootMotion = false`，水平位移经 `CharacterMotor` → `CharacterMotorSim`；Transform/CC 跟随 XZ
+- 角色互撞（定案）：逻辑圆盘软弹开，禁止 Unity Physics/CC 互撞权威；静态障碍烘焙硬挡
+- 联网（定案）：权威输入 FramePacket + 客户端完整预测回滚；禁止以齐帧停等作为最终本地手感模型
 - Action：烘焙表就绪时查表写 MotorSim；未烘焙且 `UseRootMotion` 时由 `CharacterRootMotionDriver` 经 Motor 写入；否则可用 `MovementNotifyState` 脚本位移
 - 同 key 不重复 Play（门面 `_currentKey` 去重）；无 Animator Controller 业务依赖
 - 角色销毁时 `CharacterActor.Dispose()` 释放 PlayableGraph
