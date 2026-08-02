@@ -7,7 +7,8 @@ public sealed class EnemyHandle :
     ISimulationInputParticipant,
     ISimulationInputProducer,
     ISimulationRenderable,
-    ISimulationPostCombatActor
+    ISimulationPostCombatActor,
+    ISimSoftBodyParticipant
 {
     readonly EnemyDefinition _definition;
     readonly CharacterActor _actor;
@@ -105,6 +106,16 @@ public sealed class EnemyHandle :
 
     /// <summary>把统一 Combat Resolve 后的动作收尾转发给共享 CharacterActor。</summary>
     public void ResolvePostCombat(long frameIndex) => _actor.ResolvePostCombat(frameIndex);
+
+    /// <summary>敌人句柄是 World 注册体，软弹开转发内部角色电机。</summary>
+    public CharacterMotorSim MotorSim => _actor.MotorSim;
+
+    /// <summary>死亡敌人不参与互撞。</summary>
+    public bool ParticipatesInSoftBodySeparation =>
+        !IsDead && _actor.ParticipatesInSoftBodySeparation;
+
+    /// <summary>软弹开后同步内部角色 Transform / 表现 Pose。</summary>
+    public void OnSoftBodySeparationApplied() => _actor.OnSoftBodySeparationApplied();
 
     /// <summary>把内部角色的前后逻辑 Pose 插值到敌人模型表现锚点。</summary>
     public void Render(float interpolationAlpha) => _actor.Render(interpolationAlpha);

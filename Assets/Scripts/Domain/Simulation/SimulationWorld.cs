@@ -8,6 +8,10 @@ public sealed class SimulationWorld
     readonly List<ActorEntry> _actors = new();
     readonly Dictionary<ISimulationActor, SimActorId> _idsByActor = new();
     readonly InputFrameBuffer _inputFrames = new();
+    readonly List<ISimSoftBodyParticipant> _softBodyParticipants = new();
+    SimVec2[] _softBodyPositions = Array.Empty<SimVec2>();
+    int[] _softBodyRadiiMm = Array.Empty<int>();
+    int[] _softBodyMasses = Array.Empty<int>();
     int _nextActorId = 1;
     bool _isStepping;
     long _lastPostCombatFrame = -1;
@@ -117,12 +121,71 @@ public sealed class SimulationWorld
                 entry.Actor.Step(frameIndex, _config.FixedDeltaSeconds, in input);
             }
 
+            // 全体 wish/静态位移完成后做角色软弹开，保证互撞不依赖 Actor Step 顺序。
+            ResolveSoftBodySeparation();
+
             CurrentFrame = frameIndex;
         }
         finally
         {
             _isStepping = false;
         }
+    }
+
+    /// <summary>按 SimActorId 序收集圆盘，软弹开后写回并同步表现。</summary>
+    void ResolveSoftBodySeparation()
+    {
+        if (!_config.SoftBodySeparationEnabled
+            || _config.SoftSeparationIterations <= 0
+            || _config.SoftSeparationFactorMilli <= 0)
+            return;
+
+        _softBodyParticipants.Clear();
+        for (int i = 0; i < _actors.Count; i++)
+        {
+            if (_actors[i].Actor is ISimSoftBodyParticipant soft
+                && soft.ParticipatesInSoftBodySeparation
+                && soft.MotorSim != null)
+                _softBodyParticipants.Add(soft);
+        }
+
+        int count = _softBodyParticipants.Count;
+        if (count < 2)
+            return;
+
+        EnsureSoftBodyBuffers(count);
+        for (int i = 0; i < count; i++)
+        {
+            CharacterMotorSim motor = _softBodyParticipants[i].MotorSim;
+            _softBodyPositions[i] = motor.PositionMm;
+            _softBodyRadiiMm[i] = motor.RadiusMm;
+            _softBodyMasses[i] = motor.SoftBodyMass;
+        }
+
+        SoftBodySeparation.Resolve(
+            _softBodyPositions,
+            _softBodyRadiiMm,
+            _softBodyMasses,
+            count,
+            _config.SoftSeparationFactorMilli,
+            _config.SoftSeparationIterations);
+
+        for (int i = 0; i < count; i++)
+        {
+            SimVec2 pos = _softBodyPositions[i];
+            _softBodyParticipants[i].MotorSim.CommitSoftSeparatedPosition(pos.X, pos.Z);
+            _softBodyParticipants[i].OnSoftBodySeparationApplied();
+        }
+    }
+
+    void EnsureSoftBodyBuffers(int count)
+    {
+        if (_softBodyPositions.Length < count)
+            _softBodyPositions = new SimVec2[count];
+        if (_softBodyRadiiMm.Length < count)
+            _softBodyRadiiMm = new int[count];
+        if (_softBodyMasses.Length < count)
+            _softBodyMasses = new int[count];
     }
 
     /// <summary>在统一命中结算后按稳定 Actor Id 执行依赖命中结果的同帧动作收尾。</summary>

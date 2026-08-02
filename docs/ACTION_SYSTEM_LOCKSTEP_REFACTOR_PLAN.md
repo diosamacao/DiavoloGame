@@ -329,14 +329,16 @@ Runtime ActionSim
   按 SimActorId 升序两两检测水平圆盘
   overlap = (rA + rB) - dist
   if overlap > 0:
-    沿中心连线各推开 softSeparationFactor * overlap / 2
-    （或按质量比分配；因子与上限毫米数为配置常量）
+    totalPush = softSeparationFactor * overlap
+    若一方 softBodyImmovable：推力全给对方（大体型怪像墙）
+    否则按质量比：pushA ∝ massB，pushB ∝ massA
   固定迭代次数（如 2～3），结果量化回毫米
 ```
 
 - **软**：单帧不强制推到零重叠，允许短暂微重叠，手感更顺，利于高速相撞。
 - **禁止**硬分离作为默认（硬分离 = 单帧强制相切）；若未来改硬，须另开决策记录并改测试。
-- 软弹开必须纯函数于「本帧位置 + 半径 + 配置」，以便预测回滚重演结果一致。
+- 软弹开必须纯函数于「本帧位置 + 半径 + 质量/不可推动 + 配置」，以便预测回滚重演结果一致。
+- 配置：`CharacterMotorConfig.softBodyMass` / `softBodyImmovable`（大体型 Boss 勾 Immovable）。
 - 同阵营 / 敌对是否互撞、动作中是否关闭弹开，由配置位控制，规则进入 Hash。
 
 ### 5.5 CombatSim（命中）
@@ -487,7 +489,7 @@ PredictFrame   = 本地预测推进到的帧（可 > ConfirmedFrame）
 | Locomotion Profile | 相位阈值改 frames；RM 轨改为 60Hz 整数帧索引 |
 | Enemy BT/Brain | 步进改逻辑帧；数值改 frames |
 | 静态碰撞 | Editor 烘焙确定性 2D 网格/凸包数据（硬挡） |
-| 角色互撞 | 无资产依赖；运行时圆盘半径 + 软弹开系数（配置进 Profile/SimConfig） |
+| 角色互撞 | `CharacterMotorConfig.softBodyMass` / `softBodyImmovable` + SimConfig 软弹开系数 |
 
 编辑器：
 
@@ -643,7 +645,7 @@ Assets/Scripts/Presentation/
 - [x] 2026-08-02：Locomotion Stop/Pivot 烘焙位移改整数逻辑帧索引（删除 `NormalizedTime` 权威采样）
 - [x] 2026-08-02：`CharacterMotorSim` 水平权威（毫米坐标 + 空场地碰撞）；Locomotion/动作表/未烘焙 RM 均经 Motor 写 Sim，Transform/CC 跟随 XZ
 - [ ] 静态碰撞烘焙（网格/凸包）替换 `OpenFieldSimCollisionWorld`；重力/着地迁出 CC
-- [ ] 角色圆盘软弹开（`softSeparationFactor` + 固定迭代 + SimActorId 序）；删除任何 CC/Physics 互撞权威
+- [x] 2026-08-02：角色圆盘软弹开（`SoftBodySeparation` + World 帧末 + `ISimSoftBodyParticipant`）；删除 CC/Physics 互撞权威路径
 - [ ] Hitbox/Hurtbox 逻辑坐标与确定性相交
 - [ ] 命中身份改为 Sim Id，不再用 `GetInstanceID()`（L0C 已有 `SimHitKey`；复查残留）
 

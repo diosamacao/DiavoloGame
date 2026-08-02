@@ -34,7 +34,9 @@ public static class CharacterActorFactory
         // 水平位移权威在 MotorSim；CC 仅跟随后写与临时重力
         var motorSim = new CharacterMotorSim(
             OpenFieldSimCollisionWorld.Instance,
-            MotionQuantization.MetersToMm(motorConfig.ControllerRadius));
+            MotionQuantization.MetersToMm(motorConfig.ControllerRadius),
+            motorConfig.SoftBodyMass,
+            motorConfig.SoftBodyImmovable);
         var motor = new CharacterMotor(
             root,
             controller,

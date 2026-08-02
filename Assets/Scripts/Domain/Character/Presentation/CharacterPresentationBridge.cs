@@ -48,6 +48,18 @@ public sealed class CharacterPresentationBridge
         _currentRotation = _simulationRoot.rotation;
     }
 
+    /// <summary>
+    /// World 帧末软弹开等校正后刷新本帧终点 Pose，不推进 previous（避免插值把校正当成传送）。
+    /// </summary>
+    public void RefreshCurrentPoseFromSimulationRoot()
+    {
+        if (_simulationRoot == null)
+            return;
+
+        _currentPosition = _simulationRoot.position;
+        _currentRotation = _simulationRoot.rotation;
+    }
+
     /// <summary>按 accumulator 比例更新模型锚点；传送时直接吸附以避免跨场景扫过。</summary>
     public void Render(float interpolationAlpha)
     {

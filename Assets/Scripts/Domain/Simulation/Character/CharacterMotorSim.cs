@@ -5,17 +5,30 @@ using System;
 /// </summary>
 public sealed class CharacterMotorSim
 {
+    public const int DefaultSoftBodyMass = 100;
+
     readonly ISimCollisionWorld _collision;
     readonly int _radiusMm;
+    readonly int _softBodyMass;
+    readonly bool _softBodyImmovable;
     int _xMm;
     int _zMm;
     int _facingMilliDeg;
 
-    /// <summary>使用碰撞世界与水平半径创建电机。</summary>
-    public CharacterMotorSim(ISimCollisionWorld collision, int radiusMm)
+    /// <summary>使用碰撞世界、水平半径与软弹开质量创建电机。</summary>
+    public CharacterMotorSim(
+        ISimCollisionWorld collision,
+        int radiusMm,
+        int softBodyMass = DefaultSoftBodyMass,
+        bool softBodyImmovable = false)
     {
         _collision = collision ?? throw new ArgumentNullException(nameof(collision));
         _radiusMm = Math.Max(0, radiusMm);
+        _softBodyImmovable = softBodyImmovable;
+        // 可推动体质量至少为 1，避免除零；不可推动时 Resolve 读 ImmovableMass
+        _softBodyMass = softBodyImmovable
+            ? SoftBodySeparation.ImmovableMass
+            : Math.Max(1, softBodyMass);
     }
 
     /// <summary>世界水平位置（毫米）。</summary>
@@ -27,11 +40,29 @@ public sealed class CharacterMotorSim
     /// <summary>水平碰撞半径（毫米）。</summary>
     public int RadiusMm => _radiusMm;
 
+    /// <summary>软弹开质量；不可推动时为 <see cref="SoftBodySeparation.ImmovableMass"/>。</summary>
+    public int SoftBodyMass => _softBodyMass;
+
+    /// <summary>为 true 时软弹开推力全给对方，自身像墙。</summary>
+    public bool SoftBodyImmovable => _softBodyImmovable;
+
     /// <summary>瞬移到世界水平毫米坐标；不经碰撞。</summary>
     public void TeleportMm(int xMm, int zMm)
     {
         _xMm = xMm;
         _zMm = zMm;
+    }
+
+    /// <summary>
+    /// 写入软弹开后的目标点，再经静态碰撞世界从旧点解析，避免软推穿墙。
+    /// </summary>
+    public void CommitSoftSeparatedPosition(int xMm, int zMm)
+    {
+        var from = new SimVec2(_xMm, _zMm);
+        var desired = new SimVec2(xMm, zMm);
+        SimVec2 resolved = _collision.ResolveMove(from, desired, _radiusMm);
+        _xMm = resolved.X;
+        _zMm = resolved.Z;
     }
 
     /// <summary>从米坐标瞬移；用于出生点与 Unity 根对齐。</summary>

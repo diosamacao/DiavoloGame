@@ -33,7 +33,9 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         _cameraTransform = cameraTransform;
         _sim = motorSim ?? new CharacterMotorSim(
             OpenFieldSimCollisionWorld.Instance,
-            MotionQuantization.MetersToMm(config.ControllerRadius));
+            MotionQuantization.MetersToMm(config.ControllerRadius),
+            config.SoftBodyMass,
+            config.SoftBodyImmovable);
         CapturePoseFromRoot();
     }
 
@@ -255,8 +257,8 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         return (forward * moveIntent.y + right * moveIntent.x).normalized;
     }
 
-    /// <summary>把 MotorSim 水平坐标写回角色根；暂时禁用 CC 以免内部缓存偏移。</summary>
-    void SyncRootPlanarFromSim()
+    /// <summary>把 MotorSim 水平坐标写回角色根；软弹开后与位移路径共用。</summary>
+    public void SyncRootPlanarFromSim()
     {
         Vector3 p = _root.position;
         p.x = MotionQuantization.MmToMeters(_sim.PositionMm.X);
