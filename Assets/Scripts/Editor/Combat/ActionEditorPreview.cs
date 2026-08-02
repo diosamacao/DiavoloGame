@@ -334,26 +334,34 @@ public sealed class ActionEditorPreviewSession : IDisposable
     }
 }
 
-/// <summary>VFX 帧事件 Scene 预览扩展：实例化 Prefab 并驱动 Edit Mode 粒子模拟。</summary>
+/// <summary>
+/// VFX 帧事件 Scene 预览扩展：按预览帧驱动全部已触发条目的 Prefab/粒子，无需时间轴选中。
+/// </summary>
 public sealed class ActionEditorVfxPreviewExtension : IActionEditorPreviewExtension
 {
-    Func<SerializedProperty> _getSelectedVfxProp;
+    /// <summary>单条 VFX 预览槽：缓存实例与源 Prefab，避免每帧重建。</summary>
+    sealed class PreviewSlot
+    {
+        public GameObject Instance;
+        public GameObject SourcePrefab;
+    }
 
-    GameObject _previewInstance;
-    GameObject _previewSourcePrefab;
+    Func<SerializedProperty> _getVfxArrayProp;
+    readonly Dictionary<int, PreviewSlot> _slots = new();
+    readonly List<int> _staleSlotKeys = new();
 
     /// <summary>关闭时不实例化 Prefab、不驱动粒子模拟。</summary>
     public bool IsEnabled { get; set; } = true;
 
-    /// <summary>由 Editor 注入当前选中 VFX 的 SerializedProperty 读取器。</summary>
-    public void Bind(Func<SerializedProperty> getSelectedVfxProp) => _getSelectedVfxProp = getSelectedVfxProp;
+    /// <summary>由 Editor 注入 timeline.playVfxNotifies 数组属性读取器。</summary>
+    public void Bind(Func<SerializedProperty> getVfxArrayProp) => _getVfxArrayProp = getVfxArrayProp;
 
-    /// <summary>关闭预览并立即销毁 Scene 中的临时实例。</summary>
+    /// <summary>关闭预览并立即销毁 Scene 中的全部临时实例。</summary>
     public void SetEnabled(bool enabled)
     {
         IsEnabled = enabled;
         if (!enabled)
-            DestroyPreviewInstance();
+            DestroyAllPreviewInstances();
     }
 
     public void OnPreviewBegin(in ActionEditorPreviewContext context) { }
@@ -362,86 +370,89 @@ public sealed class ActionEditorVfxPreviewExtension : IActionEditorPreviewExtens
     {
         if (!IsEnabled)
         {
-            DestroyPreviewInstance();
+            DestroyAllPreviewInstances();
             return;
         }
 
-        SerializedProperty vfxProp = _getSelectedVfxProp?.Invoke();
-        if (vfxProp == null || context.PreviewCharacter == null)
+        SerializedProperty arrayProp = _getVfxArrayProp?.Invoke();
+        if (arrayProp == null || !arrayProp.isArray || context.PreviewCharacter == null)
         {
-            DestroyPreviewInstance();
-            return;
-        }
-
-        SerializedProperty attachIdProp = vfxProp.FindPropertyRelative("attachPointId");
-        string attachId = attachIdProp != null ? attachIdProp.stringValue : null;
-        Transform anchor = ActionEditorPreviewAttachPoint.Resolve(context.PreviewCharacter, attachId);
-        if (anchor == null)
-        {
-            DestroyPreviewInstance();
-            return;
-        }
-
-        UpdatePreviewInstance(vfxProp, anchor);
-        if (_previewInstance == null)
-            return;
-
-        // 触发帧前停在 0；触发后按显式 playbackSpeed 采样粒子进度。
-        SerializedProperty startProp = vfxProp.FindPropertyRelative("startFrame");
-        SerializedProperty speedProp = vfxProp.FindPropertyRelative("playbackSpeed");
-        if (startProp == null)
-        {
-            ActionVfxEditorPreview.Simulate(_previewInstance);
-            return;
-        }
-
-        int trigger = startProp.intValue;
-        if (context.PreviewFrame < trigger)
-        {
-            ActionVfxEditorPreview.SimulateAt(_previewInstance, 0f);
+            DestroyAllPreviewInstances();
             return;
         }
 
         int sampleRate = Mathf.Max(1, Mathf.RoundToInt(context.SampleRate));
-        float localTime =
-            ActionFrameQuery.GetElapsedSecondsSincePoint(trigger, context.PreviewFrame, sampleRate);
-        float speed = speedProp != null ? Mathf.Max(0.0001f, speedProp.floatValue) : 1f;
-        ActionVfxEditorPreview.SimulateAt(_previewInstance, localTime * speed);
+        var alive = new HashSet<int>();
+
+        for (int i = 0; i < arrayProp.arraySize; i++)
+        {
+            SerializedProperty vfxProp = arrayProp.GetArrayElementAtIndex(i);
+            SerializedProperty startProp = vfxProp.FindPropertyRelative("startFrame");
+            SerializedProperty prefabProp = vfxProp.FindPropertyRelative("prefab");
+            if (startProp == null || prefabProp == null)
+                continue;
+
+            // 触发帧之前不生成实例；Scrub 到对应位置后才显示。
+            int trigger = startProp.intValue;
+            if (context.PreviewFrame < trigger)
+                continue;
+
+            GameObject prefab = prefabProp.objectReferenceValue as GameObject;
+            if (prefab == null)
+                continue;
+
+            SerializedProperty attachIdProp = vfxProp.FindPropertyRelative("attachPointId");
+            string attachId = attachIdProp != null ? attachIdProp.stringValue : null;
+            Transform anchor = ActionEditorPreviewAttachPoint.Resolve(context.PreviewCharacter, attachId);
+            if (anchor == null)
+                continue;
+
+            PreviewSlot slot = EnsureSlot(i, prefab, anchor);
+            if (slot?.Instance == null)
+                continue;
+
+            alive.Add(i);
+            ApplyPreviewTransform(slot.Instance, vfxProp, anchor);
+
+            SerializedProperty speedProp = vfxProp.FindPropertyRelative("playbackSpeed");
+            float localTime =
+                ActionFrameQuery.GetElapsedSecondsSincePoint(trigger, context.PreviewFrame, sampleRate);
+            float speed = speedProp != null ? Mathf.Max(0.0001f, speedProp.floatValue) : 1f;
+            ActionVfxEditorPreview.SimulateAt(slot.Instance, localTime * speed);
+        }
+
+        DestroySlotsNotIn(alive);
     }
 
-    public void OnPreviewEnd(in ActionEditorPreviewContext context) => DestroyPreviewInstance();
+    public void OnPreviewEnd(in ActionEditorPreviewContext context) => DestroyAllPreviewInstances();
 
-    void UpdatePreviewInstance(SerializedProperty vfxProp, Transform anchor)
+    PreviewSlot EnsureSlot(int index, GameObject prefab, Transform anchor)
     {
-        SerializedProperty prefabProp = vfxProp.FindPropertyRelative("prefab");
-        GameObject prefab = prefabProp != null ? prefabProp.objectReferenceValue as GameObject : null;
+        if (_slots.TryGetValue(index, out PreviewSlot slot)
+            && slot.Instance != null
+            && slot.SourcePrefab == prefab)
+            return slot;
 
-        if (prefab == null)
+        DestroySlot(index);
+
+        var instance = PrefabUtility.InstantiatePrefab(prefab, anchor) as GameObject;
+        if (instance == null)
+            return null;
+
+        instance.hideFlags = HideFlags.HideInHierarchy | HideFlags.DontSaveInEditor;
+        instance.name = $"[VFX Preview {index}] {prefab.name}";
+        ActionVfxEditorPreview.RestartParticleSystems(instance);
+
+        slot = new PreviewSlot
         {
-            DestroyPreviewInstance();
-            return;
-        }
-
-        if (_previewInstance == null || _previewSourcePrefab != prefab)
-        {
-            DestroyPreviewInstance();
-            _previewSourcePrefab = prefab;
-            _previewInstance = PrefabUtility.InstantiatePrefab(prefab, anchor) as GameObject;
-            if (_previewInstance != null)
-            {
-                _previewInstance.hideFlags = HideFlags.HideInHierarchy | HideFlags.DontSaveInEditor;
-                _previewInstance.name = $"[VFX Preview] {prefab.name}";
-                ActionVfxEditorPreview.RestartParticleSystems(_previewInstance);
-            }
-        }
-
-        if (_previewInstance == null)
-            return;
-
-        ApplyPreviewTransform(vfxProp, anchor);
+            Instance = instance,
+            SourcePrefab = prefab,
+        };
+        _slots[index] = slot;
+        return slot;
     }
 
-    void ApplyPreviewTransform(SerializedProperty vfxProp, Transform anchor)
+    static void ApplyPreviewTransform(GameObject instance, SerializedProperty vfxProp, Transform anchor)
     {
         SerializedProperty offsetProp = vfxProp.FindPropertyRelative("localOffset");
         SerializedProperty eulerProp = vfxProp.FindPropertyRelative("localEulerAngles");
@@ -456,37 +467,69 @@ public sealed class ActionEditorVfxPreviewExtension : IActionEditorPreviewExtens
 
         if (parentToAttach)
         {
-            _previewInstance.transform.SetParent(anchor, false);
-            _previewInstance.transform.localPosition = offsetProp.vector3Value;
-            _previewInstance.transform.localRotation = Quaternion.Euler(eulerProp.vector3Value);
-            _previewInstance.transform.localScale = safeScale;
+            instance.transform.SetParent(anchor, false);
+            instance.transform.localPosition = offsetProp.vector3Value;
+            instance.transform.localRotation = Quaternion.Euler(eulerProp.vector3Value);
+            instance.transform.localScale = safeScale;
             return;
         }
 
-        _previewInstance.transform.SetParent(null, true);
-        _previewInstance.transform.position = anchor.TransformPoint(offsetProp.vector3Value);
-        _previewInstance.transform.rotation = anchor.rotation * Quaternion.Euler(eulerProp.vector3Value);
-        _previewInstance.transform.localScale = safeScale;
+        instance.transform.SetParent(null, true);
+        instance.transform.position = anchor.TransformPoint(offsetProp.vector3Value);
+        instance.transform.rotation = anchor.rotation * Quaternion.Euler(eulerProp.vector3Value);
+        instance.transform.localScale = safeScale;
     }
 
-    void DestroyPreviewInstance()
+    void DestroySlotsNotIn(HashSet<int> alive)
     {
-        if (_previewInstance != null)
+        _staleSlotKeys.Clear();
+        foreach (KeyValuePair<int, PreviewSlot> pair in _slots)
         {
-            UnityEngine.Object.DestroyImmediate(_previewInstance);
-            _previewInstance = null;
+            if (!alive.Contains(pair.Key))
+                _staleSlotKeys.Add(pair.Key);
         }
 
-        _previewSourcePrefab = null;
+        for (int i = 0; i < _staleSlotKeys.Count; i++)
+            DestroySlot(_staleSlotKeys[i]);
+    }
+
+    void DestroySlot(int index)
+    {
+        if (!_slots.TryGetValue(index, out PreviewSlot slot))
+            return;
+
+        if (slot.Instance != null)
+            UnityEngine.Object.DestroyImmediate(slot.Instance);
+
+        _slots.Remove(index);
+    }
+
+    void DestroyAllPreviewInstances()
+    {
+        _staleSlotKeys.Clear();
+        foreach (KeyValuePair<int, PreviewSlot> pair in _slots)
+            _staleSlotKeys.Add(pair.Key);
+
+        for (int i = 0; i < _staleSlotKeys.Count; i++)
+            DestroySlot(_staleSlotKeys[i]);
+
         ActionVfxEditorPreview.ResetTiming();
     }
 
-    /// <summary>手动重播当前 VFX 预览粒子。</summary>
+    /// <summary>手动重播当前仍可见的全部 VFX 预览粒子。</summary>
     public void Replay()
     {
-        if (_previewInstance != null)
-            ActionVfxEditorPreview.RestartParticleSystems(_previewInstance);
-        else
+        bool any = false;
+        foreach (KeyValuePair<int, PreviewSlot> pair in _slots)
+        {
+            if (pair.Value.Instance == null)
+                continue;
+
+            ActionVfxEditorPreview.RestartParticleSystems(pair.Value.Instance);
+            any = true;
+        }
+
+        if (!any)
             SceneView.RepaintAll();
     }
 }

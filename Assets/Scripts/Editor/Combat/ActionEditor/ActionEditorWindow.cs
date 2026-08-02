@@ -51,7 +51,7 @@ public sealed class ActionEditorWindow : EditorWindow
         _rightWidth = EditorPrefs.GetFloat(RightWidthPrefKey, ActionEditorStyles.DefaultRightWidth);
 
         _vfxPreviewExtension = new ActionEditorVfxPreviewExtension();
-        _vfxPreviewExtension.Bind(GetSelectedVfxProperty);
+        _vfxPreviewExtension.Bind(GetVfxArrayProperty);
         _previewSession = new ActionEditorPreviewSession(this);
         _previewSession.RegisterExtension(_vfxPreviewExtension);
 
@@ -393,13 +393,9 @@ public sealed class ActionEditorWindow : EditorWindow
         }
     }
 
-    SerializedProperty GetSelectedVfxProperty()
-    {
-        if (_selection.Kind != ActionTimelineTrackKind.Vfx || !_selection.IsValid)
-            return null;
-
-        return _selection.ElementProperty;
-    }
+    /// <summary>提供全部 VFX 点事件数组，供预览扩展按 Scrub 帧驱动（无需时间轴选中）。</summary>
+    SerializedProperty GetVfxArrayProperty() =>
+        _serializedObject?.FindProperty("timeline.playVfxNotifies");
 
     void RestorePreviewCharacter()
     {

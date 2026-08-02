@@ -120,7 +120,7 @@
 
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
-| ActionEditorWindow | P1 | ✅ 2026-07-10 基础版已落地；后续增强 FramePlayer / SFX 预览 |
+| ActionEditorWindow | P1 | ✅ 基础版 + 2026-08-02 点事件菱形 / Zoom / Scrub 帧 Scene 预览；后续增强 SFX 预览 |
 | Enemy/ + AI | P2 | 🟡 2026-07-29 代码已实现；EnemyDefinition、Graph、动画资产待配置 |
 | UI/ | P2 | HUD、血条 |
 | 事件总线 | P2 | 轻量 C# event；定稿前不引入第三方 |

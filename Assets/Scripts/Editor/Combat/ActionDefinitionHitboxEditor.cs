@@ -35,7 +35,7 @@ public class ActionDefinitionHitboxEditor : Editor
         _playVfxNotifiesProp = timelineProp?.FindPropertyRelative("playVfxNotifies");
 
         _vfxPreviewExtension = new ActionEditorVfxPreviewExtension();
-        _vfxPreviewExtension.Bind(GetSelectedVfxProperty);
+        _vfxPreviewExtension.Bind(GetVfxArrayProperty);
 
         _previewSession = new ActionEditorPreviewSession(this);
         _previewSession.RegisterExtension(_vfxPreviewExtension);
@@ -218,8 +218,11 @@ public class ActionDefinitionHitboxEditor : Editor
         int hitboxCount = _hitboxStatesProp != null ? _hitboxStatesProp.arraySize : 0;
         if (hitboxCount > 0)
         {
+            EditorGUILayout.HelpBox(
+                "Hitbox 线框按 Preview Frame 高亮当前激活窗口；Selected 仅用于 Scene Handles 编辑。",
+                MessageType.None);
             _selectedHitboxIndex = EditorGUILayout.IntSlider(
-                "Selected Hitbox",
+                "Selected Hitbox (Handles)",
                 Mathf.Clamp(_selectedHitboxIndex, 0, hitboxCount - 1),
                 0,
                 hitboxCount - 1);
@@ -245,8 +248,12 @@ public class ActionDefinitionHitboxEditor : Editor
         if (vfxCount > 0)
         {
             EditorGUI.BeginChangeCheck();
+            EditorGUILayout.HelpBox(
+                "Scene Prefab/粒子按 Preview Frame 自动显示全部已触发 VFX，无需选中条目；下方 Selected 仅用于 Handles 编辑。",
+                MessageType.None);
+
             _selectedVfxIndex = EditorGUILayout.IntSlider(
-                "Selected VFX",
+                "Selected VFX (Handles)",
                 Mathf.Clamp(_selectedVfxIndex, 0, vfxCount - 1),
                 0,
                 vfxCount - 1);
@@ -290,12 +297,12 @@ public class ActionDefinitionHitboxEditor : Editor
 
             if (prefab == null)
             {
-                EditorGUILayout.HelpBox("为选中的 VFX 指定 Prefab 后可在 Scene 中预览刀光位置。", MessageType.Info);
+                EditorGUILayout.HelpBox("为选中的 VFX 指定 Prefab 后可用 Handles 调整挂点偏移。", MessageType.Info);
             }
             else if (ActionVfxEditorPreview.HasParticleSystems(prefab))
             {
                 EditorGUILayout.HelpBox(
-                    "该 Prefab 含 ParticleSystem：Scene 视图需开启 Effects（Gizmo 菜单），拖动时间轴可按 Playback Speed 逐帧预览。",
+                    "含 ParticleSystem：Scene 需开启 Effects；拖动 Preview Frame 到触发帧及之后即可预览。",
                     MessageType.Info);
 
                 if (GUILayout.Button("Replay VFX Preview"))
@@ -344,14 +351,8 @@ public class ActionDefinitionHitboxEditor : Editor
         }
     }
 
-    SerializedProperty GetSelectedVfxProperty()
-    {
-        if (_playVfxNotifiesProp == null || _playVfxNotifiesProp.arraySize == 0)
-            return null;
-
-        int vfxIndex = Mathf.Clamp(_selectedVfxIndex, 0, _playVfxNotifiesProp.arraySize - 1);
-        return _playVfxNotifiesProp.GetArrayElementAtIndex(vfxIndex);
-    }
+    /// <summary>提供全部 VFX 数组，供预览扩展按 Preview Frame 驱动（无需选中条目）。</summary>
+    SerializedProperty GetVfxArrayProperty() => _playVfxNotifiesProp;
 
     /// <summary>绘制全部 Hitbox 线框：按各自 attachPointId 解析挂点。</summary>
     void DrawAllHitboxPreviews(ActionDefinition action, Transform root)
