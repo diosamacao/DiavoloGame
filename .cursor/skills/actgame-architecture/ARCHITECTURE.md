@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-02
+> Last audited: 2026-08-02（锁步定案：软弹开 + 预测回滚）
 
 ## 项目概述
 
@@ -90,7 +90,8 @@ flowchart TB
 | `ISimulationInputProducer` | Actor Step 前统一生成当帧输入；当前由敌人句柄驱动 Brain → AIInputWriter |
 | `ISimulationPostCombatActor` | 整批命中结算后处理 OnHitConfirm/OnWhiff 自动衔接与动作自然结束 |
 | `SimHitKey` / `CombatHitPipeline` | Hitbox 只 Collect；按稳定 Actor/会话/窗口身份排序，帧末统一伤害、Reaction 与命中确认 |
-| `CharacterMotorSim` / `ISimCollisionWorld` | 水平毫米位姿权威；首版 `OpenFieldSimCollisionWorld`，静态碰撞烘焙后替换 |
+| `CharacterMotorSim` / `ISimCollisionWorld` | 水平毫米位姿权威；静态障碍烘焙硬挡；角色互撞逻辑圆盘软弹开（待建） |
+| 预测 / 回滚（规划） | 权威输入锁步 + 客户端完整预测；分歧时 Snapshot 恢复并重演（见锁步方案 5.12） |
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只负责装配和注册，不再实现 Actor `Update` Tick。
 
