@@ -104,6 +104,35 @@ public sealed class ActionSimTests
         Assert.That(sim.IsActive, Is.False);
     }
 
+    /// <summary>HitStop 写入 freezeFrames 后，后续 Step 消耗冻结且不推进动作帧。</summary>
+    [Test]
+    public void RequestHitStop_FreezesActionFrameAdvancement()
+    {
+        var content = new FakeContent(totalFrames: 8);
+        var sim = new ActionSim();
+
+        Assert.That(sim.TryStart(ActionSimResolveResult.FromContent(content)), Is.True);
+        sim.Step();
+        Assert.That(sim.CurrentFrame, Is.EqualTo(1));
+
+        Assert.That(sim.RequestHitStop(sim.InstanceId, frames: 3, oncePerAction: true), Is.True);
+        Assert.That(sim.FreezeFrames, Is.EqualTo(3));
+        Assert.That(
+            sim.RequestHitStop(sim.InstanceId, frames: 2, oncePerAction: true),
+            Is.False);
+
+        sim.Step();
+        Assert.That(sim.CurrentFrame, Is.EqualTo(1));
+        Assert.That(sim.FreezeFrames, Is.EqualTo(2));
+        sim.Step();
+        sim.Step();
+        Assert.That(sim.FreezeFrames, Is.Zero);
+        Assert.That(sim.CurrentFrame, Is.EqualTo(1));
+
+        sim.Step();
+        Assert.That(sim.CurrentFrame, Is.EqualTo(2));
+    }
+
     /// <summary>硬打断仅接受严格更高优先级，并在当前帧立即建立新动作实例。</summary>
     [Test]
     public void TryInterrupt_RequiresStrictlyHigherPriorityAndInterruptsImmediately()

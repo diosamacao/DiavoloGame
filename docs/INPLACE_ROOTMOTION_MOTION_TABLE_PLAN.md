@@ -481,9 +481,9 @@ Assets/Art/Arts/<Character>/RootMotion/
 
 ### Phase M3 — Locomotion 表化
 
-- [ ] 同一匹配器服务 Locomotion Profile  
-- [ ] 相位整数帧索引  
-- [ ] 删除 Locomotion 逻辑 RM / NormalizedTime 权威采样  
+- [ ] 同一匹配器服务 Locomotion Profile（文件夹批烘写回）  
+- [x] 2026-08-02：Stop/Pivot `LocomotionRootMotionPlayer` 改整数逻辑帧索引（`TryGetFrameDelta`）  
+- [x] 2026-08-02：删除 Locomotion 根位移对 `Animation.NormalizedTime` 的权威依赖（FootCycle 标记仍可读表现时间）  
 
 ### Phase M4 — 收口
 

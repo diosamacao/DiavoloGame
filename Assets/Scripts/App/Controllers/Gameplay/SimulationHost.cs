@@ -51,6 +51,8 @@ public sealed class SimulationHost : AppControllerBase
             _world.ResolvePostCombat();
             _combatHits.CompleteFrame(_world.CurrentFrame);
             CommitEnemyLifecycle();
+            // 表现层按逻辑帧递减 VFX HitStop 等，禁止用 unscaled 秒倒计时
+            GetArchitecture().SendEvent(SimulationLogicStepEvent.Instance);
         }
     }
 

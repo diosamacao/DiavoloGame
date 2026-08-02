@@ -169,6 +169,10 @@ public struct CharacterMotorConfig
     /// <summary>着地时保持贴地的纵向速度。</summary>
     public float GroundedGravity => groundedGravity;
 
+    /// <summary>水平碰撞半径（米）；同步给 CharacterController 与 MotorSim。</summary>
+    public float ControllerRadius =>
+        controllerRadius > 0f ? controllerRadius : Default.controllerRadius;
+
     /// <summary>把配置应用到 CharacterController；只在初始化阶段调用。</summary>
     public void ApplyTo(CharacterController controller)
     {

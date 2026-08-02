@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-01
+> Last audited: 2026-08-02
 
 ## 项目概述
 
@@ -28,7 +28,7 @@ Assets/
 │   │   │   ├── VFX/           # 招式 VFX 帧事件
 │   │   │   └── Targeting/     # 索敌
 │   │   ├── Input/             # 原始帧、意图与输入中枢
-│   │   └── Simulation/        # 纯 C# 固定帧时钟、稳定 Actor Id 与 World
+│   │   └── Simulation/        # 纯 C# 固定帧、ActionSim、MotorSim、输入与命中键
 │   ├── App/
 │   │   ├── Architecture/      # QFramework 风格强类型 Architecture / 能力接口 / 基类
 │   │   ├── Controllers/       # Player / Enemy / Camera / Combat / SimulationHost Unity 入口
@@ -90,6 +90,7 @@ flowchart TB
 | `ISimulationInputProducer` | Actor Step 前统一生成当帧输入；当前由敌人句柄驱动 Brain → AIInputWriter |
 | `ISimulationPostCombatActor` | 整批命中结算后处理 OnHitConfirm/OnWhiff 自动衔接与动作自然结束 |
 | `SimHitKey` / `CombatHitPipeline` | Hitbox 只 Collect；按稳定 Actor/会话/窗口身份排序，帧末统一伤害、Reaction 与命中确认 |
+| `CharacterMotorSim` / `ISimCollisionWorld` | 水平毫米位姿权威；首版 `OpenFieldSimCollisionWorld`，静态碰撞烘焙后替换 |
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只负责装配和注册，不再实现 Actor `Update` Tick。
 
@@ -113,7 +114,7 @@ flowchart TB
 | `LocomotionContext` | 内层共享依赖、跨相位数据与 RootMotion/落脚辅助 |
 | `ActionState` | 只执行 Action 旋转与状态快照；动作帧由 CharacterActor 统一 Step，PostCombat 后按会话结果退出 |
 | `CharacterConfig` | 角色装配根配置：模型、输入、动画、LocomotionProfile、移动、战斗 |
-| `CharacterMotor` | 纯 C# 移动执行：`ApplyLocomotion`、重力、移动意图解析 |
+| `CharacterMotor` | 移动执行：水平写 `CharacterMotorSim` 并同步 Transform；重力暂仍经 CC |
 | `CharacterActor` | 单角色纯 C# Actor：输入、Motor、状态机、动作、旋转与非权威表现插值 |
 | `CharacterActorFactory` | 通过 `CharacterConfig` + `ILocalInputSampler` + 共享 `CombatHitPipeline` 创建角色实例 |
 

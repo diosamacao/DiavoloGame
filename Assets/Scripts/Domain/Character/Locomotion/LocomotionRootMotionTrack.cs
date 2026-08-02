@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-/// <summary>从 AnimationClip 烘焙的根位移/朝向采样轨（方案 B）；运行时按时间差取局部 delta。</summary>
+/// <summary>从 AnimationClip 烘焙的根位移/朝向采样轨；运行时按逻辑帧索引取 Δ。</summary>
 [Serializable]
 public struct LocomotionRootMotionTrack
 {
@@ -40,7 +40,40 @@ public struct LocomotionRootMotionTrack
         };
     }
 
-    /// <summary>在 [timePrev, timeNext] 上取局部位移与偏航增量（秒）。</summary>
+    /// <summary>按 logicHz 计算轨覆盖的逻辑帧数（至少 1）。</summary>
+    public int GetFrameCount(int logicHz)
+    {
+        if (!IsValid)
+            return 0;
+
+        int hz = Mathf.Max(1, logicHz);
+        return Mathf.Max(1, Mathf.CeilToInt(duration * hz));
+    }
+
+    /// <summary>取第 frame 逻辑帧的局部位移/偏航；越界钳到最后一帧。</summary>
+    public bool TryGetFrameDelta(
+        int frame,
+        int logicHz,
+        out Vector3 localPositionDelta,
+        out float localYawDelta)
+    {
+        localPositionDelta = Vector3.zero;
+        localYawDelta = 0f;
+        if (!IsValid)
+            return false;
+
+        int hz = Mathf.Max(1, logicHz);
+        int frameCount = GetFrameCount(hz);
+        int index = frame < 0 ? 0 : frame;
+        if (index >= frameCount)
+            index = frameCount - 1;
+
+        float t0 = index / (float)hz;
+        float t1 = (index + 1) / (float)hz;
+        return TryGetDelta(t0, t1, out localPositionDelta, out localYawDelta);
+    }
+
+    /// <summary>在 [timePrev, timeNext] 上取局部位移与偏航增量（秒）；供烘焙校验与帧换算。</summary>
     public bool TryGetDelta(float timePrev, float timeNext, out Vector3 localPositionDelta, out float localYawDelta)
     {
         localPositionDelta = Vector3.zero;

@@ -22,6 +22,8 @@ public sealed class ActionSim : IActionSimHitReceiver
     int _nextInstanceId;
     int _lastEndedInstanceId;
     bool _hasConfirmedHit;
+    int _freezeFrames;
+    bool _hitStopAppliedForInstance;
     ActionSimResolveResult _pendingTransition;
     bool _hasPendingTransition;
     bool _pendingStop;
@@ -48,6 +50,12 @@ public sealed class ActionSim : IActionSimHitReceiver
     /// <summary>当前动作实例是否已确认至少一次命中。</summary>
     public bool HasConfirmedHit => _hasConfirmedHit;
 
+    /// <summary>剩余逻辑卡肉帧；大于 0 时本 Step 不推进动作帧。</summary>
+    public int FreezeFrames => _freezeFrames > 0 ? _freezeFrames : 0;
+
+    /// <summary>是否处于逻辑卡肉。</summary>
+    public bool IsFrozen => FreezeFrames > 0;
+
     /// <summary>返回指定动作实例是否已结束或被另一实例替换。</summary>
     public bool HasEndedActionInstance(int instanceId) =>
         instanceId > 0 && _lastEndedInstanceId == instanceId;
@@ -56,6 +64,7 @@ public sealed class ActionSim : IActionSimHitReceiver
     public bool CanCancelByMovement =>
         IsActive
         && !IsComplete
+        && !IsFrozen
         && _content.AllowsMovementCancelAtFrame(_currentFrame);
 
     /// <summary>获取当前状态的只读值快照。</summary>
@@ -67,7 +76,8 @@ public sealed class ActionSim : IActionSimHitReceiver
             CurrentFrame,
             InstanceId,
             _hasConfirmedHit,
-            IsActive);
+            IsActive,
+            FreezeFrames);
 
     /// <summary>仅在当前无动作且内容已迁移为 60Hz 模拟数据时立即从 frame 0 起手。</summary>
     public bool TryStart(in ActionSimResolveResult result)
@@ -82,6 +92,13 @@ public sealed class ActionSim : IActionSimHitReceiver
     /// <summary>推进一个 World 帧；先提交上帧决定，再按每步一帧推进并解析取消或 Recovery。</summary>
     public void Step()
     {
+        // 卡肉优先：冻结期间不提交切招、不推进动作帧、不解析 Cancel。
+        if (_freezeFrames > 0)
+        {
+            _freezeFrames--;
+            return;
+        }
+
         bool committedTransition = CommitPendingDecision();
         if (!IsActive)
             return;
@@ -110,6 +127,7 @@ public sealed class ActionSim : IActionSimHitReceiver
         if (!IsActive || _hasPendingTransition || _pendingStop)
             return;
 
+        // 卡肉期间仍可排队 OnHit/OnWhiff；自然结束推迟到解冻后。
         if (_graph != null
             && !string.IsNullOrEmpty(_nodeId)
             && _graph.TryResolveAutomaticTransition(
@@ -126,6 +144,9 @@ public sealed class ActionSim : IActionSimHitReceiver
                 QueueTransition(in result);
             return;
         }
+
+        if (IsFrozen)
+            return;
 
         if (IsComplete)
             Stop();
@@ -171,6 +192,21 @@ public sealed class ActionSim : IActionSimHitReceiver
         return true;
     }
 
+    /// <summary>帧末结算写入逻辑卡肉；同实例可延长剩余帧，oncePerAction 时拒绝第二次。</summary>
+    public bool RequestHitStop(int actionInstanceId, int frames, bool oncePerAction)
+    {
+        if (!IsActive || actionInstanceId <= 0 || actionInstanceId != _instanceId || frames <= 0)
+            return false;
+
+        if (oncePerAction && _hitStopAppliedForInstance)
+            return false;
+
+        _freezeFrames = Math.Max(_freezeFrames, frames);
+        if (oncePerAction)
+            _hitStopAppliedForInstance = true;
+        return true;
+    }
+
     /// <summary>立即停止当前动作并清除尚未提交的停止或切招决定。</summary>
     public void Stop()
     {
@@ -206,6 +242,8 @@ public sealed class ActionSim : IActionSimHitReceiver
         _currentFrame = 0;
         _instanceId = checked(++_nextInstanceId);
         _hasConfirmedHit = false;
+        _freezeFrames = 0;
+        _hitStopAppliedForInstance = false;
 
         _events.Add(new ActionSimEvent(
             ActionSimEventType.Started,
@@ -246,6 +284,8 @@ public sealed class ActionSim : IActionSimHitReceiver
         _currentFrame = 0;
         _instanceId = 0;
         _hasConfirmedHit = false;
+        _freezeFrames = 0;
+        _hitStopAppliedForInstance = false;
     }
 
     /// <summary>派发跨过的全部帧；终止哨兵也交给外层时间轴生成区间 Exit。</summary>

@@ -574,11 +574,12 @@ Assets/Scripts/Presentation/
 
 - [x] 2026-08-02：招式运动表烘焙工具（M0：文件夹匹配 + 写回 `ActionDefinition.bakedMotion`）
 - [x] 2026-08-02：运行时查表位移（M1：表就绪禁用 OnAnimatorMove，按 `currentFrame` 取表经 CC；MotorSim 待后续）
-- [ ] Locomotion 运动轨改整数帧索引
-- [ ] `CharacterMotorSim` + 静态碰撞烘焙；逻辑不再 `OnAnimatorMove` / CC / Physics
+- [x] 2026-08-02：HitStop → `ActionSim.freezeFrames`；Pipeline 帧末 `RequestHitStop`；表现骨骼/VFX 跟逻辑帧（删除 unscaled 秒倒计时）
+- [x] 2026-08-02：Locomotion Stop/Pivot 烘焙位移改整数逻辑帧索引（删除 `NormalizedTime` 权威采样）
+- [x] 2026-08-02：`CharacterMotorSim` 水平权威（毫米坐标 + 空场地碰撞）；Locomotion/动作表/未烘焙 RM 均经 Motor 写 Sim，Transform/CC 跟随 XZ
+- [ ] 静态碰撞烘焙（网格/凸包）替换 `OpenFieldSimCollisionWorld`；重力/着地迁出 CC
 - [ ] Hitbox/Hurtbox 逻辑坐标与确定性相交
-- [ ] HitStop 直接使用逻辑帧计数
-- [ ] 命中身份改为 Sim Id，不再用 `GetInstanceID()`
+- [ ] 命中身份改为 Sim Id，不再用 `GetInstanceID()`（L0C 已有 `SimHitKey`；复查残留）
 
 **验收：** 关闭 Animator 仍能完成「位移 + 出伤 + 受击状态」的逻辑回放（无皮测试）。
 

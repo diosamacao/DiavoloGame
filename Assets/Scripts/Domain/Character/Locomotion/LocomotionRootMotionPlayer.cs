@@ -1,6 +1,6 @@
 using UnityEngine;
 
-/// <summary>按烘焙轨 + 播放归一化时间推进 Stop/Pivot 的脚本根位移（方案 B）。</summary>
+/// <summary>按烘焙轨 + 整数逻辑帧推进 Stop/Pivot 根位移；不读动画 NormalizedTime。</summary>
 public sealed class LocomotionRootMotionPlayer
 {
     readonly CharacterLocomotionProfile _profile;
@@ -8,7 +8,7 @@ public sealed class LocomotionRootMotionPlayer
     LocomotionRootMotionTrack _track;
     AnimationKey _key;
     bool _active;
-    float _lastTime = -1f;
+    int _frame;
     Quaternion _basisRotation = Quaternion.identity;
 
     public LocomotionRootMotionPlayer(CharacterLocomotionProfile profile)
@@ -18,13 +18,16 @@ public sealed class LocomotionRootMotionPlayer
 
     public bool IsActive => _active && _track.IsValid;
 
+    /// <summary>当前会话已消费的逻辑帧索引（下一帧将读取的表下标）。</summary>
+    public int CurrentFrame => _frame;
+
     /// <summary>开始一段根位移会话；basis 为进入相位时的角色朝向（用于局部→世界）。</summary>
     public void Begin(AnimationKey key, Quaternion basisRotation)
     {
         _key = key;
         _track = _profile != null ? _profile.GetRootMotionTrack(key) : LocomotionRootMotionTrack.Empty;
         _active = _track.IsValid && _profile != null && _profile.IsRootMotionEnabled(key);
-        _lastTime = -1f;
+        _frame = 0;
         _basisRotation = basisRotation;
         Vector3 forward = _basisRotation * Vector3.forward;
         forward.y = 0f;
@@ -36,16 +39,15 @@ public sealed class LocomotionRootMotionPlayer
     public void End()
     {
         _active = false;
-        _lastTime = -1f;
+        _frame = 0;
         _track = LocomotionRootMotionTrack.Empty;
     }
 
     /// <summary>
-    /// 按当前归一化时间消费位移；首帧只对齐采样点不位移。
+    /// 消费当前逻辑帧位移并推进帧索引。
     /// applyYaw 为 false 时忽略烘焙偏航（转身 Clip 已含骨骼转向时使用）。
     /// </summary>
     public bool TryConsume(
-        float normalizedTime,
         bool applyYaw,
         out Vector3 worldDelta,
         out float yawDeltaDegrees)
@@ -55,20 +57,20 @@ public sealed class LocomotionRootMotionPlayer
         if (!IsActive)
             return false;
 
-        float t = Mathf.Clamp01(normalizedTime) * _track.Duration;
-        if (_lastTime < 0f)
+        int frameCount = _track.GetFrameCount(ActionSim.LogicHz);
+        if (_frame >= frameCount)
+            return false;
+
+        if (!_track.TryGetFrameDelta(
+                _frame,
+                ActionSim.LogicHz,
+                out Vector3 localDelta,
+                out float yawDelta))
         {
-            _lastTime = t;
             return false;
         }
 
-        if (!_track.TryGetDelta(_lastTime, t, out Vector3 localDelta, out float yawDelta))
-        {
-            _lastTime = t;
-            return false;
-        }
-
-        _lastTime = t;
+        _frame++;
         float scale = _profile != null ? _profile.RootMotionPositionScale : 1f;
         localDelta.y = 0f;
         worldDelta = _basisRotation * localDelta * scale;
