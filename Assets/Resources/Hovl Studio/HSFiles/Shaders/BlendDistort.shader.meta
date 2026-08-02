@@ -4,6 +4,14 @@ ShaderImporter:
   externalObjects: {}
   defaultTextures: []
   nonModifiableTextures: []
+  preprocessorOverride: 0
   userData: 
   assetBundleName: 
   assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 173450
+  packageName: Sword slashes PRO
+  packageVersion: 2.3.3
+  assetPath: Assets/Hovl Studio/HSFiles/Shaders/BlendDistort.shader
+  uploadId: 719260
