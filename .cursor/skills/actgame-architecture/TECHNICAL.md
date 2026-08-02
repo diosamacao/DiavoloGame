@@ -557,7 +557,13 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 
 编辑器 Scrub 使用 `ActionEditorPreviewSession` 做 Pose/VFX 预览，并与 Runtime 共用无副作用 `ActionFrameQuery` 的段映射、窗口与点事件规则；不执行 `ActionSim.Step`。
 
-### ActionEditor 对齐状态（2026-07-25）
+**编辑器交互（2026-08-02）**：
+
+- VFX/SFX/Event 点事件在时间轴上绘制为**菱形**（热区按轨高，不随 1 帧条宽缩小）
+- Timeline 顶栏 **Zoom**（1×–16×）+ Ctrl/Cmd+滚轮；放大后横向滚动以精确拖帧
+- Scene Hitbox 线框与 VFX Prefab/粒子按 **Preview Frame** 驱动：拖到对应帧即可预览，无需选中时间轴窗口；选中仅用于 Handles 编辑
+
+### ActionEditor 对齐状态（2026-08-02）
 
 | 对齐度 | 项 |
 |--------|-----|
@@ -565,7 +571,8 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 | ✅ | 命中回流、`OnHitConfirm` / `OnWhiff` Transition 条件 |
 | ✅ | `CharacterActionDriver` 角色无关输入路由 |
 | ✅ | Hitbox/VFX/Cancel/Movement/Rotation 已收敛到 `ActionTimeline`，删除旧双轨数组 |
-| ✅ | `ActionEditorWindow`：手动加轨、轨头纵向拖拽排序、窗口拖拽；VFX/SFX 为单帧点事件，Phase 为区间窗口 |
+| ✅ | `ActionEditorWindow`：手动加轨、轨头纵向拖拽排序、窗口拖拽；VFX/SFX 为单帧点事件菱形，Phase 为区间窗口；时间轴缩放 |
+| ✅ | Scene 预览按 Scrub 帧显示全部激活 Hitbox / 已触发 VFX（`ActionEditorVfxPreviewExtension` 多实例） |
 | ✅ | `ActionSfxPlayer` 运行时点触发；招式结束/打断时 `Stop`；`CharacterAttachPointResolver` 供 VFX/Hitbox 共用 |
 | ⬜ | 伤害结算、Hit 状态、GM 热重载 |
 
@@ -735,3 +742,4 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-02 | L2 软弹开落地：`SoftBodySeparation` + World 帧末；CharacterActor/EnemyHandle 参与 |
 | 2026-08-02 | 软弹开质量比 + `softBodyImmovable`（大体型怪像墙） |
 | 2026-08-02 | L2 逻辑 Hitbox：`SimCombatPose` + MotorSim 根；删除 Transform 世界盒权威与层级自伤判断 |
+| 2026-08-02 | Action Editor UX：点事件菱形、时间轴 Zoom（含 Ctrl+滚轮）、VFX Scene 预览按 Scrub 帧多实例驱动（无需选中窗口） |

@@ -39,6 +39,18 @@ public static class ActionEditorStyles
     /// <summary>窗口条块描边宽度（像素）。</summary>
     public const float WindowBorderWidth = 1.25f;
 
+    /// <summary>点事件菱形相对轨高的尺寸倍率；保证缩放下仍可点选拖拽。</summary>
+    public const float PointEventDiamondSizeFactor = 0.85f;
+
+    /// <summary>点事件菱形最小边长（像素）。</summary>
+    public const float PointEventDiamondMinSize = 14f;
+
+    /// <summary>时间轴缩放下限（1 = 铺满可视宽度）。</summary>
+    public const float TimelineZoomMin = 1f;
+
+    /// <summary>时间轴缩放上限，便于精确拖帧。</summary>
+    public const float TimelineZoomMax = 16f;
+
     /// <summary>绘制圆角填充 + 描边的窗口条块，便于相邻窗口区分。</summary>
     public static void DrawRoundedWindowClip(Rect rect, Color fill, bool selected)
     {
@@ -84,6 +96,46 @@ public static class ActionEditorStyles
             fill,
             Vector4.zero,
             innerRadii);
+    }
+
+    /// <summary>
+    /// 按轨高计算点事件菱形外接矩形；以触发帧中心为锚点，不受 1 帧条宽限制。
+    /// </summary>
+    public static Rect GetPointEventDiamondRect(Rect laneRect, int startFrame, float pixelsPerFrame)
+    {
+        float size = Mathf.Max(PointEventDiamondMinSize, laneRect.height * PointEventDiamondSizeFactor);
+        float centerX = laneRect.x + (startFrame + 0.5f) * pixelsPerFrame;
+        float centerY = laneRect.y + laneRect.height * 0.5f;
+        return new Rect(centerX - size * 0.5f, centerY - size * 0.5f, size, size);
+    }
+
+    /// <summary>绘制单帧点事件菱形（VFX/SFX/Event），便于点击与拖拽触发帧。</summary>
+    public static void DrawPointEventDiamond(Rect bounds, Color fill, bool selected)
+    {
+        if (bounds.width < 1f || bounds.height < 1f)
+            return;
+
+        Vector3 c = new(bounds.center.x, bounds.center.y, 0f);
+        float hx = bounds.width * 0.5f;
+        float hy = bounds.height * 0.5f;
+        Vector3[] verts =
+        {
+            new(c.x, c.y - hy, 0f),
+            new(c.x + hx, c.y, 0f),
+            new(c.x, c.y + hy, 0f),
+            new(c.x - hx, c.y, 0f),
+        };
+
+        Color border = selected
+            ? new Color(1f, 1f, 1f, 0.95f)
+            : new Color(0f, 0f, 0f, 0.65f);
+
+        Handles.BeginGUI();
+        Handles.color = fill;
+        Handles.DrawAAConvexPolygon(verts);
+        Handles.color = border;
+        Handles.DrawAAPolyLine(2.25f, verts[0], verts[1], verts[2], verts[3], verts[0]);
+        Handles.EndGUI();
     }
 
     /// <summary>绘制面板底色与顶栏标题。</summary>

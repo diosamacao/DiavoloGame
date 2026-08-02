@@ -53,7 +53,7 @@
 | Inspector 预览 | `ActionDefinitionHitboxEditor` | 帧滑条 + Hitbox/VFX Scene Handles |
 | 预览会话 | `ActionEditorPreviewSession` | `AnimationMode` 采样 + `IActionEditorPreviewExtension` |
 | 动画采样 | `ActionEditorAnimationSampler` | `AnimationMode.SampleAnimationClip`（比裸 `SampleAnimation` 更安全） |
-| VFX 预览 | `ActionEditorVfxPreviewExtension` | Prefab 实例 + `ParticleSystem.Simulate`（当前为**选中常驻**，非按帧触发） |
+| VFX 预览 | `ActionEditorVfxPreviewExtension` | 按 Scrub 帧驱动**全部已触发**条目的 Prefab + `ParticleSystem.Simulate`（无需时间轴选中） |
 
 ### 2.2 缺口
 

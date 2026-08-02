@@ -38,8 +38,10 @@ public sealed class ActionTimelineView
     Vector2 _trackReorderMouseDownPos;
     bool _trackReorderActivated;
     int _trackReorderTargetIndex = -1;
-    /// <summary>每帧像素宽；每帧按中栏可用宽度 / totalFrames 自动计算，铺满时间轴。</summary>
+    /// <summary>每帧像素宽；由可视宽度铺满值 × 缩放倍率得到。</summary>
     float _pixelsPerFrame = 8f;
+    /// <summary>时间轴水平缩放：1 = 铺满可视区，&gt;1 可横向滚动以精确拖帧。</summary>
+    float _zoom = ActionEditorStyles.TimelineZoomMin;
     bool _pendingRepaint;
 
     ActionEditorSelection _pendingSelection;
@@ -97,11 +99,17 @@ public sealed class ActionTimelineView
             + visibleLaneCount * (ActionEditorStyles.TrackHeight + 2f)
             + 80f;
 
-        // 顶栏：帧数 + Add Track（动画段在默认 Animation 轨上展示）。
+        // 顶栏：帧数 + Zoom + Add Track（动画段在默认 Animation 轨上展示）。
         const float topBarHeight = 22f;
         const float addTrackWidth = 90f;
+        const float zoomLabelWidth = 40f;
+        const float zoomSliderWidth = 110f;
+        const float zoomValueWidth = 36f;
         Rect topBarRect = new(rect.x, rect.y, rect.width, topBarHeight);
         Rect addTrackRect = new(topBarRect.xMax - addTrackWidth - 4f, topBarRect.y + 1f, addTrackWidth, 20f);
+        Rect zoomValueRect = new(addTrackRect.x - zoomValueWidth - 4f, topBarRect.y + 1f, zoomValueWidth, 20f);
+        Rect zoomSliderRect = new(zoomValueRect.x - zoomSliderWidth - 4f, topBarRect.y + 2f, zoomSliderWidth, 18f);
+        Rect zoomLabelRect = new(zoomSliderRect.x - zoomLabelWidth - 2f, topBarRect.y + 1f, zoomLabelWidth, 20f);
 
         int totalFrames = Mathf.Max(1, so.FindProperty("totalFrames")?.intValue ?? action.TotalFrames);
         GUI.Label(
@@ -109,23 +117,41 @@ public sealed class ActionTimelineView
             $"{totalFrames} frames",
             EditorStyles.miniLabel);
 
+        GUI.Label(zoomLabelRect, new GUIContent("Zoom", "Ctrl/Cmd + 滚轮亦可缩放"), EditorStyles.miniLabel);
+        EditorGUI.BeginChangeCheck();
+        _zoom = GUI.HorizontalSlider(
+            zoomSliderRect,
+            _zoom,
+            ActionEditorStyles.TimelineZoomMin,
+            ActionEditorStyles.TimelineZoomMax);
+        if (EditorGUI.EndChangeCheck())
+            _pendingRepaint = true;
+        GUI.Label(zoomValueRect, $"{_zoom:0.0}x", EditorStyles.miniLabel);
+
         if (GUI.Button(addTrackRect, "Add Track"))
             onAddTrack?.Invoke();
 
         Rect bodyRect = new(rect.x, rect.y + topBarHeight + 2f, rect.width, rect.height - topBarHeight - 2f);
+        HandleTimelineZoomScroll(bodyRect, totalFrames, previewFrame);
 
-        const float verticalScrollBarWidth = 14f;
+        const float scrollBarSize = 14f;
         bool needsVerticalScroll = contentHeight > bodyRect.height;
-        float usableWidth = Mathf.Max(1f, bodyRect.width - (needsVerticalScroll ? verticalScrollBarWidth : 0f));
-        float contentWidth = usableWidth;
-        float laneWidth = Mathf.Max(1f, usableWidth - ActionEditorStyles.TrackHeaderWidth);
-        _pixelsPerFrame = laneWidth / totalFrames;
+        float usableWidth = Mathf.Max(1f, bodyRect.width - (needsVerticalScroll ? scrollBarSize : 0f));
+        float fitLaneWidth = Mathf.Max(1f, usableWidth - ActionEditorStyles.TrackHeaderWidth);
+        float fitPixelsPerFrame = fitLaneWidth / totalFrames;
+        _pixelsPerFrame = fitPixelsPerFrame * Mathf.Max(ActionEditorStyles.TimelineZoomMin, _zoom);
+        float contentLaneWidth = totalFrames * _pixelsPerFrame;
+        float contentWidth = ActionEditorStyles.TrackHeaderWidth + contentLaneWidth;
+        bool needsHorizontalScroll = contentWidth > usableWidth + 0.5f;
+        // 横向滚动条占高时重新评估纵向是否溢出，避免铺满缩放时误留空白条。
+        float usableHeight = Mathf.Max(1f, bodyRect.height - (needsHorizontalScroll ? scrollBarSize : 0f));
+        needsVerticalScroll = contentHeight > usableHeight;
 
         _scroll = GUI.BeginScrollView(
             bodyRect,
             _scroll,
             new Rect(0f, 0f, contentWidth, contentHeight),
-            false,
+            needsHorizontalScroll,
             needsVerticalScroll);
 
         EditorGUI.DrawRect(
@@ -136,7 +162,7 @@ public sealed class ActionTimelineView
             "Tracks",
             EditorStyles.miniLabel);
 
-        Rect rulerRect = new(ActionEditorStyles.TrackHeaderWidth, 0f, laneWidth, ActionEditorStyles.RulerHeight);
+        Rect rulerRect = new(ActionEditorStyles.TrackHeaderWidth, 0f, contentLaneWidth, ActionEditorStyles.RulerHeight);
         DrawRuler(rulerRect, totalFrames);
         HandleRulerInput(rulerRect, totalFrames, ref previewFrame, ref changed);
 
@@ -148,7 +174,7 @@ public sealed class ActionTimelineView
         y += ActionEditorStyles.TrackHeight + 2f;
 
         if (trackCount == 0)
-            DrawEmptyTracksHint(new Rect(ActionEditorStyles.TrackHeaderWidth + 8f, y, Mathf.Max(200f, laneWidth - 16f), 72f));
+            DrawEmptyTracksHint(new Rect(ActionEditorStyles.TrackHeaderWidth + 8f, y, Mathf.Max(200f, contentLaneWidth - 16f), 72f));
 
         _drawnTrackIndices.Clear();
         _drawnTrackRects.Clear();
@@ -819,7 +845,7 @@ public sealed class ActionTimelineView
         menu.ShowAsContext();
     }
 
-    /// <summary>绘制窗口条块；仅在 MouseDown 时开始拖拽，实际改帧在 ProcessActiveWindowDrag。</summary>
+    /// <summary>绘制窗口条块或点事件菱形；仅在 MouseDown 时开始拖拽，实际改帧在 ProcessActiveWindowDrag。</summary>
     void DrawWindow(
         Rect laneRect,
         SerializedProperty element,
@@ -836,42 +862,48 @@ public sealed class ActionTimelineView
 
         int start = startProp.intValue;
         int end = endProp.intValue;
-        float x = laneRect.x + start * _pixelsPerFrame;
-        float width = Mathf.Max(_pixelsPerFrame, (end - start + 1) * _pixelsPerFrame);
-        Rect clipRect = new(x, laneRect.y + 3f, width, laneRect.height - 6f);
-
+        bool pointEvent = ActionEditorStyles.IsPointEventTrack(itemSelection.Kind);
         bool selected = selection.Equals(itemSelection);
         Color color = selected
             ? ActionEditorStyles.ColorForSelectedTrack(itemSelection.Kind)
             : ActionEditorStyles.ColorForTrack(itemSelection.Kind);
 
-        ActionEditorStyles.DrawRoundedWindowClip(clipRect, color, selected);
-        // 用 Label 仅作绘制，不参与控件焦点，避免抢走拖拽事件。
-        string clipLabel = idProp != null ? idProp.stringValue : itemSelection.Kind.ToString();
-        if (itemSelection.Kind == ActionTimelineTrackKind.Cancel)
+        // 点事件用菱形热区，避免 1 帧宽条难以点选；区间窗仍用圆角条块。
+        Rect hitRect;
+        if (pointEvent)
         {
-            SerializedProperty typeProp = element.FindPropertyRelative("windowType");
-            if (typeProp != null)
-                clipLabel = $"{typeProp.enumDisplayNames[typeProp.enumValueIndex]} · {clipLabel}";
+            hitRect = ActionEditorStyles.GetPointEventDiamondRect(laneRect, start, _pixelsPerFrame);
+            ActionEditorStyles.DrawPointEventDiamond(hitRect, color, selected);
+            EditorGUIUtility.AddCursorRect(hitRect, MouseCursor.MoveArrow);
         }
-
-        GUI.Label(clipRect, clipLabel, EditorStyles.miniLabel);
-
-        bool pointEvent = ActionEditorStyles.IsPointEventTrack(itemSelection.Kind);
-        float edge = Mathf.Min(ActionEditorStyles.EdgeHandleWidth, width * 0.35f);
-        Rect leftHandle = new(clipRect.x, clipRect.y, edge, clipRect.height);
-        Rect rightHandle = new(clipRect.xMax - edge, clipRect.y, edge, clipRect.height);
-
-        if (!pointEvent)
+        else
         {
+            float x = laneRect.x + start * _pixelsPerFrame;
+            float width = Mathf.Max(_pixelsPerFrame, (end - start + 1) * _pixelsPerFrame);
+            hitRect = new Rect(x, laneRect.y + 3f, width, laneRect.height - 6f);
+            ActionEditorStyles.DrawRoundedWindowClip(hitRect, color, selected);
+
+            // 用 Label 仅作绘制，不参与控件焦点，避免抢走拖拽事件。
+            string clipLabel = idProp != null ? idProp.stringValue : itemSelection.Kind.ToString();
+            if (itemSelection.Kind == ActionTimelineTrackKind.Cancel)
+            {
+                SerializedProperty typeProp = element.FindPropertyRelative("windowType");
+                if (typeProp != null)
+                    clipLabel = $"{typeProp.enumDisplayNames[typeProp.enumValueIndex]} · {clipLabel}";
+            }
+
+            GUI.Label(hitRect, clipLabel, EditorStyles.miniLabel);
+
+            float edge = Mathf.Min(ActionEditorStyles.EdgeHandleWidth, hitRect.width * 0.35f);
+            Rect leftHandle = new(hitRect.x, hitRect.y, edge, hitRect.height);
+            Rect rightHandle = new(hitRect.xMax - edge, hitRect.y, edge, hitRect.height);
             EditorGUIUtility.AddCursorRect(leftHandle, MouseCursor.ResizeHorizontal);
             EditorGUIUtility.AddCursorRect(rightHandle, MouseCursor.ResizeHorizontal);
+            EditorGUIUtility.AddCursorRect(hitRect, MouseCursor.MoveArrow);
         }
 
-        EditorGUIUtility.AddCursorRect(clipRect, MouseCursor.MoveArrow);
-
         Event evt = Event.current;
-        if (evt.type != EventType.MouseDown || evt.button != 0 || !clipRect.Contains(evt.mousePosition))
+        if (evt.type != EventType.MouseDown || evt.button != 0 || !hitRect.Contains(evt.mousePosition))
             return;
 
         // 已有其它拖拽（含 Scrub）时不抢占。
@@ -887,15 +919,54 @@ public sealed class ActionTimelineView
         _dragControlId = GUIUtility.GetControlID(FocusType.Passive);
         GUIUtility.hotControl = _dragControlId;
 
-        // 点事件只允许平移触发帧，禁止拉边改时长。
-        if (!pointEvent && leftHandle.Contains(evt.mousePosition))
-            _dragMode = DragMode.ResizeStart;
-        else if (!pointEvent && rightHandle.Contains(evt.mousePosition))
-            _dragMode = DragMode.ResizeEnd;
+        // 点事件只允许平移触发帧；区间窗可命中左右边柄改时长。
+        if (!pointEvent)
+        {
+            float edge = Mathf.Min(ActionEditorStyles.EdgeHandleWidth, hitRect.width * 0.35f);
+            Rect leftHandle = new(hitRect.x, hitRect.y, edge, hitRect.height);
+            Rect rightHandle = new(hitRect.xMax - edge, hitRect.y, edge, hitRect.height);
+            if (leftHandle.Contains(evt.mousePosition))
+                _dragMode = DragMode.ResizeStart;
+            else if (rightHandle.Contains(evt.mousePosition))
+                _dragMode = DragMode.ResizeEnd;
+            else
+                _dragMode = DragMode.Move;
+        }
         else
             _dragMode = DragMode.Move;
 
         changed = true;
+        evt.Use();
+    }
+
+    /// <summary>Ctrl/Cmd + 滚轮缩放时间轴；以预览帧为锚，尽量保持 playhead 可见。</summary>
+    void HandleTimelineZoomScroll(Rect bodyRect, int totalFrames, int previewFrame)
+    {
+        Event evt = Event.current;
+        if (evt.type != EventType.ScrollWheel || !bodyRect.Contains(evt.mousePosition))
+            return;
+
+        bool zoomModifier = evt.control || evt.command;
+        if (!zoomModifier)
+            return;
+
+        float oldZoom = _zoom;
+        float factor = evt.delta.y > 0f ? 0.9f : 1.1f;
+        _zoom = Mathf.Clamp(
+            _zoom * factor,
+            ActionEditorStyles.TimelineZoomMin,
+            ActionEditorStyles.TimelineZoomMax);
+
+        if (!Mathf.Approximately(oldZoom, _zoom))
+        {
+            // 缩放后把预览帧大致保持在视口中部附近。
+            float fitLaneWidth = Mathf.Max(1f, bodyRect.width - ActionEditorStyles.TrackHeaderWidth);
+            float newPpf = (fitLaneWidth / Mathf.Max(1, totalFrames)) * _zoom;
+            float playheadX = previewFrame * newPpf;
+            _scroll.x = Mathf.Max(0f, playheadX - fitLaneWidth * 0.5f);
+            _pendingRepaint = true;
+        }
+
         evt.Use();
     }
 

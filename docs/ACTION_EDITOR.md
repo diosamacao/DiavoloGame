@@ -1,7 +1,7 @@
 # ACTGame — 动作编辑器（Action Editor）设计文档
 
 > 本文档描述 ACTGame 长期目标：**用可视化编辑器为角色配置战斗动作**，而非在代码或 Animator 里硬编码每一招。  
-> 最后更新：2026-07-29（ActionDefinition 职责收敛）
+> 最后更新：2026-08-02（点事件菱形 / 时间轴 Zoom / Scrub 帧 Scene 预览）
 > **落地实现方案（分阶段、目录、验收）见：** [`ACTION_EDITOR_IMPLEMENTATION.md`](./ACTION_EDITOR_IMPLEMENTATION.md)
 
 > 当前实现边界：`ActionDefinition` 只保存动画、Timeline 与 ExecutionPolicy；输入 Intent、索敌、起手行为和自动衔接在 `ActionGraphNode`；伤害、HitReactionId、镜头与卡肉反馈在 `HitPayload`；受击/死亡 Action 由 `CharacterReactionResolver` 选择并经 `CharacterReactionService` 统一进入 Actor。下文旧版调研示例中的 `damageWeight`、Action 内 Transition/Trigger 仅保留为历史设计背景，不是当前 Schema。
