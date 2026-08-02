@@ -74,7 +74,8 @@ public class PlayerController : AppControllerBase
             characterConfig.Combat.TeamId,
             characterConfig.Combat.Hurtbox,
             health,
-            () => actor?.SimulationId ?? SimActorId.Invalid);
+            () => actor?.SimulationId ?? SimActorId.Invalid,
+            actor.MotorSim);
 
         GetSystem<CombatActorSystem>()?.Register(transform, actor, animation);
         GetSystem<TargetSystem>()?.Register(hurtboxTarget);

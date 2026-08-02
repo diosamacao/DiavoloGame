@@ -9,8 +9,8 @@ public interface IHurtboxTarget
     /// <summary>受击目标根节点，用于排除自身并生成命中方向。</summary>
     Transform TargetTransform { get; }
 
-    /// <summary>当前帧的世界空间受击 OBB。</summary>
-    HitboxOrientedBox GetWorldHurtbox();
+    /// <summary>逻辑坐标受击 OBB（MotorSim 根位姿）；运行时命中权威入口。</summary>
+    HitboxOrientedBox GetLogicalHurtbox();
 
     /// <summary>被命中时回调。</summary>
     void OnHit(in ActionHitContext context);

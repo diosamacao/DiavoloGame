@@ -32,7 +32,8 @@
 - **固定帧唯一入口**：角色业务只实现 `ISimulationActor.Step`，由 `SimulationHost → SimulationWorld` 以 60Hz 推进；Controller 禁止新增 `Update → Actor.Tick` 旁路
 - **Action 单次推进**：每个 World 帧只允许 `CharacterActor` 调用一次 `ActionSim.Step`；Action/Hit/Death State 禁止自行再次推进会话
 - **Action 整数帧权威**：`ActionSim.CurrentFrame` 是唯一时间权威；Action 内容固定 60Hz，禁止恢复 `Advance(dt)`、`FrameAt(elapsed)` 或 30Hz Runtime fallback
-- **Action 逻辑/表现边界**：Sim 只输出 `ActionSimSnapshot` / `ActionSimEvent`；动画、Timeline 与 L2 前暂留位移只读消费，禁止回写帧、Graph 或命中确认
+- **Action 逻辑/表现边界**：Sim 只输出 `ActionSimSnapshot` / `ActionSimEvent`；动画、Timeline 与位移只读消费，禁止回写帧、Graph 或命中确认
+- **命中几何**：运行时 OBB 由 `SimCombatPose`（MotorSim）构建；挂点 Transform 只提供相对根局部；去重/自身排除用 `SimActorId`，禁止 `GetInstanceID`
 - **Action 帧查询**：Runtime 表现和 Editor Scrub 共用 `ActionFrameQuery`；Editor 禁止执行 Runtime Step 或维护第二套窗口/段算法
 - **帧边界切招**：Cancel、Recovery Entry 与 Graph 自动衔接只在当前帧排队，目标动作 frame 0 必须到下一 World 帧提交；禁止同一步递归推进多招
 - **模拟身份**：World Actor 使用会话内单调 `SimActorId` 排序；禁止用 Unity `GetInstanceID()` 作为模拟顺序、命中身份或未来网络身份

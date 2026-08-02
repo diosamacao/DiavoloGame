@@ -60,7 +60,8 @@ public static class EnemyActorFactory
             definition.TeamId,
             config.Combat.Hurtbox,
             health,
-            () => actor.SimulationId);
+            () => actor.SimulationId,
+            actor.MotorSim);
 
         return new EnemyHandle(
             definition,
