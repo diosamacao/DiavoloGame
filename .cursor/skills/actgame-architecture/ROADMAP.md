@@ -68,6 +68,14 @@
 
 **状态**：代码闭环完成（2026-07-29），资产待绑
 
+### [P1] 战斗资源（EX / 喧响 / 闪避）+ Debug HUD
+
+**方案**：`docs/COMBAT_RESOURCE_SYSTEM_PLAN.md`
+
+**方向**：逻辑帧 `CharacterResourceSim` + `IActionResourceGate`；命中回填；OnGUI 左上角调试面板（缓冲意图、锁定敌人、EX 等）。分阶段 R0（可观测）→ R1（能量）→ R2（闪避）→ R3（喧响）。
+
+**状态**：方案待实施（2026-08-02）
+
 ### [P1] Lockstep 模拟核迁移
 
 **方案**：`docs/ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md`
