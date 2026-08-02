@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 
 /// <summary>验证 InPlace stem 剥离与 RootMotion 匹配优先级。</summary>
 public sealed class MotionClipNameRulesTests
