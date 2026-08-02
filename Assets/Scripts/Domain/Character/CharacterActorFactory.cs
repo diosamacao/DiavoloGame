@@ -31,13 +31,23 @@ public static class CharacterActorFactory
 
         var sharedInput = new InputManager();
         localInput?.ConfigureDiscreteInputs(config.GameplayIntentProfile.CollectInputReferences());
-        var motor = new CharacterMotor(root, controller, motorConfig, sharedInput, cameraTransform);
+        // 水平位移权威在 MotorSim；CC 仅跟随后写与临时重力
+        var motorSim = new CharacterMotorSim(
+            OpenFieldSimCollisionWorld.Instance,
+            MotionQuantization.MetersToMm(motorConfig.ControllerRadius));
+        var motor = new CharacterMotor(
+            root,
+            controller,
+            motorConfig,
+            sharedInput,
+            cameraTransform,
+            motorSim);
         IAnimationPlayback playback = new PlayableAnimationPlayback(animator);
         animation = new CharacterAnimationService(
             playback,
             animator,
             config.DefaultLocomotionProfile);
-        var rootMotion = new CharacterRootMotionDriver(controller, animator);
+        var rootMotion = new CharacterRootMotionDriver(motor, animator);
         var combatMode = new CombatModeService(config.CombatProfile, animation);
 
         var context = new CharacterContext(root, animation, controller, motor);
@@ -89,7 +99,7 @@ public static class CharacterActorFactory
         var actionPresentation = new CharacterActionPresentationBridge(
             actionSim,
             root,
-            controller,
+            motor,
             animation,
             rootMotion,
             combatMode,

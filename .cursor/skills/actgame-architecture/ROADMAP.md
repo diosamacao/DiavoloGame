@@ -99,7 +99,10 @@
 - [ ] L1B Play Mode 回归（连招 / Perfect / Recovery / Hitbox / VFX·SFX / 位移）+ Test Runner `ActionSim*`
 - [x] 2026-08-02 L2/M0：双文件夹 InPlace↔RM 匹配 + `ActionBakedMotion` 烘焙写回
 - [x] 2026-08-02 L2/M1：表就绪时查表位移并禁用 Animator RM（仍经 CharacterController）
-- [ ] L2/M2+：批量 dirty/Bake、MotorSim、逻辑 Hitbox、`freezeFrames`（见 `docs/INPLACE_ROOTMOTION_MOTION_TABLE_PLAN.md`）
+- [x] 2026-08-02 L2：`ActionSim.freezeFrames` 逻辑 HitStop（Pipeline 写入；表现跟帧）
+- [x] 2026-08-02 L2：Locomotion Stop/Pivot 烘焙位移整数帧索引
+- [x] 2026-08-02 L2：`CharacterMotorSim` 水平权威（空场地碰撞）；CC 仅临时重力/跟随
+- [ ] L2 后续：静态碰撞烘焙、逻辑 Hitbox、M2 批量 Dirty/Bake
 
 ## 待建设模块
 

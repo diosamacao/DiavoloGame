@@ -9,7 +9,8 @@ public readonly struct ActionSimSnapshot
         int currentFrame,
         int instanceId,
         bool hasConfirmedHit,
-        bool isActive)
+        bool isActive,
+        int freezeFrames)
     {
         Content = content;
         Graph = graph;
@@ -18,6 +19,7 @@ public readonly struct ActionSimSnapshot
         InstanceId = instanceId;
         HasConfirmedHit = hasConfirmedHit;
         IsActive = isActive;
+        FreezeFrames = freezeFrames > 0 ? freezeFrames : 0;
     }
 
     /// <summary>当前动作内容；无活动动作时为空。</summary>
@@ -40,6 +42,12 @@ public readonly struct ActionSimSnapshot
 
     /// <summary>当前动作是否仍由模拟核持有。</summary>
     public bool IsActive { get; }
+
+    /// <summary>剩余逻辑卡肉帧；大于 0 时不推进动作帧、不取运动表 Δ。</summary>
+    public int FreezeFrames { get; }
+
+    /// <summary>是否处于逻辑卡肉。</summary>
+    public bool IsFrozen => FreezeFrames > 0;
 
     /// <summary>当前动作是否已到达 TotalFrames 终止哨兵。</summary>
     public bool IsComplete =>

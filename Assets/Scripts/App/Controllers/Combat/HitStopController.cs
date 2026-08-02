@@ -2,41 +2,32 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 命中卡肉表现控制器：订阅帧末 AttackHitEvent，只冻结动画与关联 VFX 粒子。
-/// 可挂在 Player 或场景 Managers 上；按命中 Hitbox 的反馈载荷驱动。
+/// 命中卡肉表现：订阅帧末 AttackHitEvent 冻结关联 VFX；时长与 ActionSim.freezeFrames 对齐，
+/// 由 SimulationLogicStepEvent 逐逻辑帧递减，不再使用 unscaledDeltaTime。
+/// 攻击者骨骼冻结由 CharacterActionPresentationBridge 读 Snapshot.FreezeFrames 驱动。
 /// </summary>
 [DisallowMultipleComponent]
 public class HitStopController : AppControllerBase
 {
     Transform _activeAttacker;
-    CharacterAnimationService _activeAnimation;
     readonly Dictionary<Transform, int> _lastTriggeredActionInstance = new();
-    float _normalAnimationSpeed = 1f;
-    float _remainingSeconds;
-
-    void Update()
-    {
-        if (_remainingSeconds <= 0f)
-            return;
-
-        _remainingSeconds -= Time.unscaledDeltaTime;
-        if (_remainingSeconds <= 0f)
-            EndHitStop();
-    }
+    int _remainingFrames;
 
     void OnEnable()
     {
         RegisterEvent<AttackHitEvent>(HandleAttackHit);
+        RegisterEvent<SimulationLogicStepEvent>(HandleLogicStep);
     }
 
     void OnDisable()
     {
         UnregisterEvent<AttackHitEvent>(HandleAttackHit);
+        UnregisterEvent<SimulationLogicStepEvent>(HandleLogicStep);
         ForceEndHitStop();
         _lastTriggeredActionInstance.Clear();
     }
 
-    /// <summary>命中回调：按 Hitbox 反馈载荷触发攻击者侧卡肉。</summary>
+    /// <summary>命中回调：开启攻击者侧 VFX 卡肉窗口（逻辑帧数）。</summary>
     void HandleAttackHit(AttackHitEvent hitEvent)
     {
         ActionHitContext context = hitEvent.Context;
@@ -47,17 +38,7 @@ public class HitStopController : AppControllerBase
         if (!feedback.UseHitStop)
             return;
 
-        CombatActorSystem actorSystem = GetSystem<CombatActorSystem>();
-        if (actorSystem == null)
-            return;
-
-        if (!actorSystem.TryGet(context.Attacker, out CombatActorEntry entry))
-            return;
-
-        CharacterAnimationService animation = entry.Animation;
-
-        if (feedback.HitStopOncePerAction
-            && context.ActionInstanceId > 0)
+        if (feedback.HitStopOncePerAction && context.ActionInstanceId > 0)
         {
             if (_lastTriggeredActionInstance.TryGetValue(
                     context.Attacker,
@@ -70,55 +51,49 @@ public class HitStopController : AppControllerBase
             _lastTriggeredActionInstance[context.Attacker] = context.ActionInstanceId;
         }
 
-        float duration = feedback.ResolveHitStopDuration(context.Action.SampleRate);
-        if (duration <= 0f)
+        int frames = feedback.HitStopFrames;
+        if (frames <= 0)
             return;
 
-        ApplyHitStop(context.Attacker, animation, duration);
+        BeginOrExtend(context.Attacker, frames);
     }
 
-    /// <summary>对攻击者施加卡肉；若已在卡肉中则延长剩余时间。</summary>
-    void ApplyHitStop(
-        Transform attacker,
-        CharacterAnimationService animation,
-        float durationSeconds)
+    /// <summary>每个权威逻辑帧递减剩余卡肉；到 0 时结束 VFX 冻结。</summary>
+    void HandleLogicStep(SimulationLogicStepEvent _)
     {
-        if (animation == null)
+        if (_remainingFrames <= 0)
             return;
 
-        bool sameAttacker = _activeAttacker == attacker && _remainingSeconds > 0f;
-        if (!sameAttacker)
+        _remainingFrames--;
+        if (_remainingFrames <= 0)
+            EndHitStop();
+    }
+
+    void BeginOrExtend(Transform attacker, int frames)
+    {
+        bool alreadyActive = _remainingFrames > 0 && _activeAttacker == attacker;
+        if (!alreadyActive)
         {
             ForceEndHitStop();
             _activeAttacker = attacker;
-            _activeAnimation = animation;
-            _normalAnimationSpeed = animation.Speed > 0f ? animation.Speed : 1f;
-
-            animation.SetSpeed(0f);
             GetSystem<CombatFeedbackSystem>()?.BeginHitStop(attacker);
         }
 
-        _remainingSeconds = Mathf.Max(_remainingSeconds, durationSeconds);
+        _remainingFrames = Mathf.Max(_remainingFrames, frames);
     }
 
     void EndHitStop()
     {
-        _remainingSeconds = 0f;
-
-        if (_activeAnimation != null)
-            _activeAnimation.SetSpeed(_normalAnimationSpeed);
-
+        _remainingFrames = 0;
         _activeAttacker = null;
-        _activeAnimation = null;
         GetSystem<CombatFeedbackSystem>()?.EndHitStop();
     }
 
     void ForceEndHitStop()
     {
-        if (_remainingSeconds <= 0f && _activeAttacker == null)
+        if (_remainingFrames <= 0 && _activeAttacker == null)
             return;
 
-        _remainingSeconds = 0f;
         EndHitStop();
     }
 }

@@ -117,8 +117,10 @@ SimulationHost.LateUpdate
 - L0B 已切换量化输入与整数帧 Hold/Buffer/AI 冷却；完整脱设备玩法回放仍需 Play Mode 确认。
 - L0C 已删除同步 `ApplyHitCommand` 与 `GetInstanceID()` 去重；真实多命中、互杀及交换注册顺序仍需 Play Mode 验收。
 - L1B：动作权威在纯 `ActionSim`；全部 ActionDefinition 已为 60Hz。剩余为 Play Mode / Test Runner 人工验收；Player 占位 Action 无动画段时 `IsSimulationReady=false`。
-- L2/M0–M1：运动表烘焙 + 运行时查表。`bakeStatus=Ok` 时表现桥按帧取 Δ 经 CC 移动并关闭 Animator RM；未烘焙招式仍可走 Animator RM。MotorSim / 逻辑 Hitbox / `freezeFrames` 待后续。
-- 当前 HitStop 只冻结动画/VFX 表现，权威卡肉帧计数待 L2 后续。
+- L2/M0–M1：运动表烘焙 + 运行时查表。`bakeStatus=Ok` 时表现桥按帧取本地 Δ 经 MotorSim 移动并关闭 Animator RM；未烘焙招式仍可走 Animator RM→Motor。
+- L2 HitStop：`hitStopFrames` 经 Pipeline 写入 `ActionSim.freezeFrames`；冻结期间不推进动作帧/位移；骨骼由表现桥读 Snapshot，VFX 由 `SimulationLogicStepEvent` 递减。
+- L2 Locomotion：Stop/Pivot 根位移按 `ActionSim.LogicHz` 整数帧取轨，不再用 `NormalizedTime`。
+- L2 MotorSim：水平毫米权威 + 空场地碰撞；重力/着地与静态障碍仍待迁出 CC。逻辑 Hitbox / 批量 Dirty Bake 待后续。
 
 ### 相关文件
 
@@ -723,3 +725,6 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-02 | L2/M0：`ActionBakedMotion` + 双文件夹命名匹配烘焙（`ACTGame/Motion/Bake From Folders...`）；不生成 InPlace |
 | 2026-08-02 | L2/M1：表现桥查表位移；表就绪禁用 OnAnimatorMove；`ActionMotionRuntimePolicy` |
 | 2026-08-02 | 运动表取消烘焙/施加 yaw；朝向仅 ActionRotation（索敌/输入）；位移烘焙不再用 RootQ 投影 |
+| 2026-08-02 | L2 HitStop：`ActionSim.freezeFrames` + Pipeline `RequestHitStop`；删除 HitStop 秒制倒计时 |
+| 2026-08-02 | L2 Locomotion：`LocomotionRootMotionTrack.TryGetFrameDelta` + Player 整数帧；删除 NormalizedTime 位移权威 |
+| 2026-08-02 | L2 MotorSim：`CharacterMotorSim` 水平权威；Locomotion/动作表/RM 经 Motor；CC 仅临时重力与 XZ 跟随 |

@@ -82,8 +82,8 @@ public class MyBehaviour : MonoBehaviour
 - 逻辑层使用 `AnimationKey`，Profile 映射到 `AnimationClip`（不映射 Animator 状态名）
 - 播放走纯 C# `CharacterAnimationService`；后端为 `IAnimationPlayback`（当前 `PlayableAnimationPlayback`，可换 Animancer）
 - 需要独占时 `SetLocked(true)`；卡肉用 `SetSpeed(0)`，禁止业务直写 `Animator.speed`
-- Locomotion：`applyRootMotion = false`，位移由 `CharacterController` + `CharacterMotor` 负责
-- Action：`ActionDefinition.ExecutionPolicy.UseRootMotion = true` 时由 `CharacterRootMotionDriver` 写入 `CharacterController`；关闭时可用 `MovementNotifyState` 脚本位移
+- Locomotion：`applyRootMotion = false`，水平位移经 `CharacterMotor` → `CharacterMotorSim`；Transform/CC 跟随 XZ
+- Action：烘焙表就绪时查表写 MotorSim；未烘焙且 `UseRootMotion` 时由 `CharacterRootMotionDriver` 经 Motor 写入；否则可用 `MovementNotifyState` 脚本位移
 - 同 key 不重复 Play（门面 `_currentKey` 去重）；无 Animator Controller 业务依赖
 - 角色销毁时 `CharacterActor.Dispose()` 释放 PlayableGraph
 

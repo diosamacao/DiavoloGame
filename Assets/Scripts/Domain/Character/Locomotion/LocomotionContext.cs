@@ -297,8 +297,8 @@ public sealed class LocomotionContext
         else if (phase == LocomotionPhase.Stop)
             Motor.FaceWorldDirection(StopEnterFacing);
 
+        // 位移权威为逻辑帧索引，禁止再读 Animation.NormalizedTime
         if (!RootMotionPlayer.TryConsume(
-                Animation.NormalizedTime,
                 applyYaw,
                 out Vector3 worldDelta,
                 out float yawDelta))

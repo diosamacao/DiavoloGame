@@ -96,6 +96,18 @@ public sealed class CombatHitPipeline
             ActionHitContext context = hit.Context;
             hit.Target.OnHit(in context);
             hit.HitReceiver?.ConfirmHit(hit.Key.ActionInstanceId);
+
+            HitFeedbackSettings feedback = context.Hitbox != null
+                ? context.Hitbox.Payload.Feedback
+                : null;
+            if (feedback != null && feedback.UseHitStop && hit.HitReceiver != null)
+            {
+                hit.HitReceiver.RequestHitStop(
+                    hit.Key.ActionInstanceId,
+                    feedback.HitStopFrames,
+                    feedback.HitStopOncePerAction);
+            }
+
             _resolved.Add(new ResolvedCombatHit(
                 context,
                 hit.TargetTransform,

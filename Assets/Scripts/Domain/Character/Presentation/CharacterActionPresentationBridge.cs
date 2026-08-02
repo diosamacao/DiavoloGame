@@ -7,7 +7,7 @@ public sealed class CharacterActionPresentationBridge
 {
     readonly ActionSim _actionSim;
     readonly Transform _actorRoot;
-    readonly CharacterController _controller;
+    readonly CharacterMotor _motor;
     readonly CharacterAnimationService _animation;
     readonly CharacterRootMotionDriver _rootMotion;
     readonly CombatModeService _combatMode;
@@ -19,12 +19,14 @@ public sealed class CharacterActionPresentationBridge
     Transform _defaultAttachPoint;
     ActionDefinition _animationAction;
     int _animationSegmentIndex = -1;
+    bool _hitStopPresentationActive;
+    float _normalAnimationSpeed = 1f;
 
     /// <summary>创建表现桥；所有 Unity 依赖只在该桥中消费纯模拟事件。</summary>
     public CharacterActionPresentationBridge(
         ActionSim actionSim,
         Transform actorRoot,
-        CharacterController controller,
+        CharacterMotor motor,
         CharacterAnimationService animation,
         CharacterRootMotionDriver rootMotion,
         CombatModeService combatMode,
@@ -34,7 +36,7 @@ public sealed class CharacterActionPresentationBridge
     {
         _actionSim = actionSim ?? throw new ArgumentNullException(nameof(actionSim));
         _actorRoot = actorRoot;
-        _controller = controller;
+        _motor = motor ?? throw new ArgumentNullException(nameof(motor));
         _animation = animation;
         _rootMotion = rootMotion;
         _combatMode = combatMode;
@@ -83,8 +85,12 @@ public sealed class CharacterActionPresentationBridge
         }
 
         ActionSimSnapshot snapshot = _actionSim.Snapshot;
+        // 骨骼冻结跟随 ActionSim.freezeFrames；VFX 卡肉由 HitStopController 按逻辑帧递减
+        SyncHitStopPresentation(snapshot.IsFrozen);
+
         if (snapshot.IsActive
             && !snapshot.IsComplete
+            && !snapshot.IsFrozen
             && snapshot.Content is ActionDefinition current)
         {
             SyncAnimation(current, snapshot.CurrentFrame);
@@ -106,6 +112,9 @@ public sealed class CharacterActionPresentationBridge
     /// <summary>在战斗结算与状态收尾后消费同帧新增的停止或反应动作事件。</summary>
     public void ApplyPostCombat()
     {
+        // 命中结算可能刚写入 freezeFrames，同帧立即冻结骨骼
+        SyncHitStopPresentation(_actionSim.Snapshot.IsFrozen);
+
         _events.Clear();
         _actionSim.DrainEvents(_events);
         for (int i = 0; i < _events.Count; i++)
@@ -150,6 +159,7 @@ public sealed class CharacterActionPresentationBridge
         _rootMotion?.SetActive(false);
         _animationAction = null;
         _animationSegmentIndex = -1;
+        SyncHitStopPresentation(frozen: false);
     }
 
     /// <summary>按整数帧派发判定与时间轴；终止哨兵只产生区间 Exit。</summary>
@@ -215,34 +225,48 @@ public sealed class CharacterActionPresentationBridge
             _rootMotion.SetActive(true);
     }
 
-    /// <summary>按 currentFrame 查烘焙表施加水平位移；朝向只由 ActionRotation/索敌/输入控制，不读表 yaw。</summary>
+    /// <summary>按 Snapshot.FreezeFrames 启停攻击者动画 Speed=0。</summary>
+    void SyncHitStopPresentation(bool frozen)
+    {
+        if (_animation == null)
+            return;
+
+        if (frozen)
+        {
+            if (_hitStopPresentationActive)
+                return;
+
+            _normalAnimationSpeed = _animation.Speed > 0f ? _animation.Speed : 1f;
+            _animation.SetSpeed(0f);
+            _hitStopPresentationActive = true;
+            return;
+        }
+
+        if (!_hitStopPresentationActive)
+            return;
+
+        _animation.SetSpeed(_normalAnimationSpeed);
+        _hitStopPresentationActive = false;
+    }
+
+    /// <summary>按 currentFrame 查烘焙表施加水平位移；权威经 MotorSim，不读表 yaw。</summary>
     bool ApplyBakedMotionDisplacement(ActionDefinition action, int frame)
     {
-        if (_controller == null || action == null)
+        if (action == null)
             return false;
 
         ActionBakedMotion motion = action.BakedMotion;
         if (!motion.IsReady || !motion.TryGetDelta(frame, out SimVec2 deltaMm, out _))
             return false;
 
-        Vector3 localDelta = new(
-            MotionQuantization.MmToMeters(deltaMm.X),
-            0f,
-            MotionQuantization.MmToMeters(deltaMm.Z));
-
-        Transform root = _actorRoot != null ? _actorRoot : _controller.transform;
-        Vector3 worldDelta = root.rotation * localDelta;
-        worldDelta.y = 0f;
-        if (worldDelta.sqrMagnitude > 0.0000001f)
-            _controller.Move(worldDelta);
-
+        _motor.MoveLocalMm(deltaMm);
         return true;
     }
 
-    /// <summary>临时通过 CharacterController 执行脚本位移；有烘焙表时不会走到这里。</summary>
+    /// <summary>脚本位移窗口：世界前向速度经 MotorSim；有烘焙表时不会走到这里。</summary>
     void ApplyScriptedDisplacement(ActionDefinition action, int frame, float fixedDeltaSeconds)
     {
-        if (_controller == null || !action.HasScriptedDisplacement)
+        if (!action.HasScriptedDisplacement)
             return;
 
         MovementNotifyState movement = action.GetActiveMovementStateAtFrame(frame);
@@ -256,7 +280,7 @@ public sealed class CharacterActionPresentationBridge
 
         forward.Normalize();
         float signedSpeed = movement.ResolveSpeed(action.SampleRate);
-        _controller.Move(forward * (signedSpeed * fixedDeltaSeconds));
+        _motor.MovePlanar(forward * (signedSpeed * fixedDeltaSeconds), fixedDeltaSeconds);
     }
 
     /// <summary>仅未烘焙且策略要求时启用 Animator Root Motion。</summary>

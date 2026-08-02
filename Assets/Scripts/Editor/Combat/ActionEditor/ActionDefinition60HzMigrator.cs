@@ -247,7 +247,7 @@ public static class ActionDefinition60HzMigrator
         }
     }
 
-    /// <summary>HitStop 仍按 Action SampleRate 换算秒数，因此帧数必须同步翻倍。</summary>
+    /// <summary>HitStop 为逻辑帧数，30→60 时帧数同步翻倍以保持墙钟时长。</summary>
     static void MigrateHitStopFrames(SerializedProperty hitboxes)
     {
         if (hitboxes == null || !hitboxes.isArray)
