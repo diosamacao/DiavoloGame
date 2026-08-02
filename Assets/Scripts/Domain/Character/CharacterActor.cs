@@ -8,7 +8,8 @@ public sealed class CharacterActor :
     ISimulationInputParticipant,
     IRenderFrameSampler,
     ISimulationRenderable,
-    ISimulationPostCombatActor
+    ISimulationPostCombatActor,
+    ISimSoftBodyParticipant
 {
     readonly ILocalInputSampler _localInput;
     readonly InputManager _inputManager;
@@ -39,6 +40,13 @@ public sealed class CharacterActor :
 
     /// <summary>当前角色的纯动作模拟核。</summary>
     public ActionSim ActionSim => _actionSim;
+
+    /// <summary>水平逻辑电机；供 World 软弹开读写。</summary>
+    public CharacterMotorSim MotorSim => _motor.Sim;
+
+    /// <summary>死亡时不参与互撞软弹开。</summary>
+    public bool ParticipatesInSoftBodySeparation =>
+        CurrentState != CharacterStateType.Death;
 
     /// <summary>供相机与表现系统跟随的插值锚点。</summary>
     public Transform PresentationRoot => _presentation.PresentationRoot;
@@ -174,6 +182,13 @@ public sealed class CharacterActor :
         _actionSim?.ResolvePostCombat();
         _stateMachine.ResolvePostCombat();
         _actionPresentation?.ApplyPostCombat();
+    }
+
+    /// <summary>软弹开提交后同步 Transform，并刷新本帧表现终点 Pose。</summary>
+    public void OnSoftBodySeparationApplied()
+    {
+        _motor.SyncRootPlanarFromSim();
+        _presentation.RefreshCurrentPoseFromSimulationRoot();
     }
 
     /// <summary>把前后逻辑 Pose 插值到模型表现锚点，不修改权威角色根。</summary>
