@@ -8,7 +8,7 @@ ModelImporter:
     2100000: No Name
     2300000: //RootNode
     3300000: //RootNode
-    4300000: "\u0421ylindrical\u0421one2"
+    4300000: "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
   externalObjects: {}
   materials:
     importMaterials: 0
@@ -90,3 +90,10 @@ ModelImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 173450
+  packageName: Sword slashes PRO
+  packageVersion: 2.3.3
+  assetPath: Assets/Hovl Studio/HSFiles/Models/CylindricalCone2.fbx
+  uploadId: 719260
