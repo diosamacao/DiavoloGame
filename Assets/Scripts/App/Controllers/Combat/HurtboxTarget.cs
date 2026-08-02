@@ -33,8 +33,10 @@ public class HurtboxTarget : AppControllerBase, ITargetable
     /// <summary>Inspector 绑定的受击框数据。</summary>
     public HurtboxDefinition Hurtbox => hurtbox;
 
-    /// <summary>返回当前世界空间受击 OBB。</summary>
-    public HitboxOrientedBox GetWorldHurtbox() =>
+    /// <summary>
+    /// 静态木桩无 MotorSim：用 Transform 根构图；SimulationId 无效故不进权威命中。
+    /// </summary>
+    public HitboxOrientedBox GetLogicalHurtbox() =>
         HitboxMath.BuildFromHurtbox(transform, hurtbox);
 
     /// <summary>命中回调；现阶段仅打印测试信息。</summary>
@@ -51,6 +53,6 @@ public class HurtboxTarget : AppControllerBase, ITargetable
     /// <summary>绘制受击框线框，供组件 Gizmo 与编辑器复用。</summary>
     public void DrawHurtboxGizmo(Color color)
     {
-        HitboxGizmoDrawing.DrawWireOrientedBox(GetWorldHurtbox(), color);
+        HitboxGizmoDrawing.DrawWireOrientedBox(GetLogicalHurtbox(), color);
     }
 }

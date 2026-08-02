@@ -355,8 +355,8 @@ Runtime ActionSim
 - 命中去重身份改为 `(actionInstanceId, hitboxIndex, targetSimActorId)`，禁止使用 Unity InstanceId。
 - 同帧互杀、死亡后剩余 HitEvent、重复受击重入必须写成纯规则并进入 Hash。
 - L0C 已删除 `ApplyHitCommand`；`PublishAttackHitCommand` 只把整批结算后的 `AttackHitEvent` 发布给表现订阅者，不得回写 Sim。
-- L0C 过渡实现使用 `CombatHitPipeline`：Transform OBB 检测仍在 Assembly-CSharp，但排序键已收敛为纯 C# `SimHitKey(frame, attackerId, actionInstanceId, hitboxIndex, targetId)`。
-- 当前 `HurtboxNotifyState` 未进入运行时判定；L2 需明确选择静态 Character Hurtbox 或 Timeline 动态 Hurtbox，不能保留两个权威源。
+- 命中几何（L2）：`SimCombatPose`（MotorSim XZ/朝向）构建 OBB；挂点 Transform 只提供相对角色根的局部 TRS；排序键为 `SimHitKey`。
+- 当前运行时常驻 `HurtboxDefinition`；`HurtboxNotifyState` 仍未进判定。Timeline 动态 Hurtbox 若启用必须替换常驻源，不能双权威。
 
 卡肉：
 
@@ -646,8 +646,8 @@ Assets/Scripts/Presentation/
 - [x] 2026-08-02：`CharacterMotorSim` 水平权威（毫米坐标 + 空场地碰撞）；Locomotion/动作表/未烘焙 RM 均经 Motor 写 Sim，Transform/CC 跟随 XZ
 - [ ] 静态碰撞烘焙（网格/凸包）替换 `OpenFieldSimCollisionWorld`；重力/着地迁出 CC
 - [x] 2026-08-02：角色圆盘软弹开（`SoftBodySeparation` + World 帧末 + `ISimSoftBodyParticipant`）；删除 CC/Physics 互撞权威路径
-- [ ] Hitbox/Hurtbox 逻辑坐标与确定性相交
-- [ ] 命中身份改为 Sim Id，不再用 `GetInstanceID()`（L0C 已有 `SimHitKey`；复查残留）
+- [x] 2026-08-02：Hitbox/Hurtbox 逻辑坐标——`SimCombatPose`+MotorSim 根；挂点仅相对根局部；相交仍用 OBB SAT
+- [x] 2026-08-02：命中身份复查——运行时去重/自身排除仅用 `SimActorId`；`GetInstanceID` 仅剩 VFX 池等非命中路径
 
 **验收：** 关闭 Animator 仍能完成「位移 + 出伤 + 受击状态」的逻辑回放（无皮测试）；两角色对顶可软挤开且同输入双 World 位置 Hash 一致。
 

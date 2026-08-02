@@ -90,6 +90,7 @@ public static class CharacterActorFactory
         var targetLock = new CombatTargetLock(root, teamId, aimOrigin, activeTargetsProvider);
         var hitboxFrameConsumer = new HitboxFrameConsumer(
             root,
+            motorSim,
             teamId,
             actionSim,
             attachPoints,

@@ -2,10 +2,11 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>攻击侧 Hitbox 帧消费者：订阅表现桥帧派发并向共享流水线收集命中。</summary>
+/// <summary>攻击侧 Hitbox 帧消费者：按 MotorSim 逻辑根收集命中。</summary>
 public sealed class HitboxFrameConsumer : ICombatFrameConsumer
 {
     readonly Transform root;
+    readonly CharacterMotorSim _motorSim;
     readonly int attackerTeamId;
     readonly CharacterAttachPointResolver attachPoints;
     readonly ActionSim _actionSim;
@@ -19,9 +20,10 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
     /// <summary>默认挂点；为空时使用角色根。</summary>
     public Transform AttachPoint => attachPoints != null ? attachPoints.DefaultAttach : root;
 
-    /// <summary>创建纯 C# Hitbox 帧消费者；按 Hitbox.attachPointId 解析挂点。</summary>
+    /// <summary>创建 Hitbox 帧消费者；水平根权威来自 MotorSim。</summary>
     public HitboxFrameConsumer(
         Transform actorRoot,
+        CharacterMotorSim motorSim,
         int teamId,
         ActionSim actionSim,
         CharacterAttachPointResolver attachPointResolver,
@@ -30,6 +32,7 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
         CombatHitPipeline combatHitPipeline)
     {
         root = actorRoot;
+        _motorSim = motorSim ?? throw new ArgumentNullException(nameof(motorSim));
         attackerTeamId = teamId;
         _actionSim = actionSim;
         attachPoints = attachPointResolver;
@@ -65,21 +68,46 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
     void ProcessHitboxesAtFrame(ActionDefinition action, int frame, int actionInstanceId)
     {
         IReadOnlyList<IHurtboxTarget> activeTargets = activeTargetsProvider?.Invoke();
+        float heightY = root != null ? root.position.y : 0f;
+        SimCombatPose attackerPose = SimCombatPose.FromMotor(_motorSim, heightY);
+
         HitDetector.ProcessHitboxesAtFrame(
             action,
             frame,
-            root,
+            attackerPose,
             attackerTeamId,
-            ResolveHitboxAnchor,
+            ResolveAttachLocalPosition,
+            ResolveAttachLocalRotation,
             _hitPairs,
             _actionSim,
             activeTargets,
             attackerIdProvider?.Invoke() ?? SimActorId.Invalid,
             actionInstanceId,
-            hitPipeline);
+            hitPipeline,
+            root);
     }
 
-    /// <summary>按 Hitbox 自身 attachPointId 解析世界挂点。</summary>
+    /// <summary>挂点相对角色根的局部位置；供逻辑根合成世界盒。</summary>
+    Vector3 ResolveAttachLocalPosition(HitboxNotifyState hitbox)
+    {
+        Transform anchor = ResolveHitboxAnchor(hitbox);
+        if (root == null || anchor == null || anchor == root)
+            return Vector3.zero;
+
+        return root.InverseTransformPoint(anchor.position);
+    }
+
+    /// <summary>挂点相对角色根的局部旋转。</summary>
+    Quaternion ResolveAttachLocalRotation(HitboxNotifyState hitbox)
+    {
+        Transform anchor = ResolveHitboxAnchor(hitbox);
+        if (root == null || anchor == null || anchor == root)
+            return Quaternion.identity;
+
+        return Quaternion.Inverse(root.rotation) * anchor.rotation;
+    }
+
+    /// <summary>按 Hitbox 自身 attachPointId 解析模型挂点（仅取相对根局部）。</summary>
     Transform ResolveHitboxAnchor(HitboxNotifyState hitbox)
     {
         if (attachPoints == null)
@@ -105,6 +133,8 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
             return;
 
         HitboxNotifyState[] allHitboxes = action.HitboxStates;
+        float heightY = root != null ? root.position.y : 0f;
+        SimCombatPose pose = SimCombatPose.FromMotor(_motorSim, heightY);
 
         for (int i = 0; i < allHitboxes.Length; i++)
         {
@@ -123,8 +153,11 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
             if (!editorPreview && !isActive)
                 continue;
 
-            Transform anchor = ResolveHitboxAnchor(hitbox);
-            HitboxOrientedBox box = HitboxMath.BuildFromHitbox(root, anchor, hitbox);
+            HitboxOrientedBox box = HitboxMath.BuildFromHitboxLogical(
+                in pose,
+                ResolveAttachLocalPosition(hitbox),
+                ResolveAttachLocalRotation(hitbox),
+                hitbox);
             HitboxGizmoDrawing.DrawWireOrientedBox(box, color);
         }
     }

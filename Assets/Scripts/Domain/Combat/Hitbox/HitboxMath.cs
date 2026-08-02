@@ -26,36 +26,70 @@ public readonly struct HitboxOrientedBox
     }
 }
 
-/// <summary>Hitbox / Hurtbox 世界空间变换与 OBB 相交检测（不依赖 Physics）。</summary>
+/// <summary>Hitbox / Hurtbox 逻辑坐标 OBB 构建与相交（不依赖 Physics）。</summary>
 public static class HitboxMath
 {
     const float AxisEpsilon = 1e-6f;
 
-    /// <summary>由攻击者挂点与 HitboxNotifyState 构建世界 OBB。</summary>
-    public static HitboxOrientedBox BuildFromHitbox(Transform root, Transform attachPoint, HitboxNotifyState hitbox)
+    /// <summary>
+    /// 逻辑根位姿 + 相对角色根的挂点局部 TRS + Hitbox 局部位姿 → 世界 OBB。
+    /// 运行时权威入口；水平根来自 MotorSim。
+    /// </summary>
+    public static HitboxOrientedBox BuildFromHitboxLogical(
+        in SimCombatPose rootPose,
+        Vector3 attachLocalPosition,
+        Quaternion attachLocalRotation,
+        HitboxNotifyState hitbox)
     {
-        Transform anchor = attachPoint != null ? attachPoint : root;
-        if (anchor == null || hitbox == null)
+        if (hitbox == null)
             return default;
 
-        Quaternion localRotation = Quaternion.Euler(hitbox.LocalEulerAngles);
-        Vector3 center = anchor.TransformPoint(hitbox.LocalOffset);
-        Quaternion rotation = anchor.rotation * localRotation;
+        Quaternion hitLocalRot = Quaternion.Euler(hitbox.LocalEulerAngles);
+        Vector3 centerLocal = attachLocalPosition + attachLocalRotation * hitbox.LocalOffset;
+        Quaternion rotLocal = attachLocalRotation * hitLocalRot;
+        Vector3 center = rootPose.TransformPoint(centerLocal);
+        Quaternion rotation = rootPose.TransformRotation(rotLocal);
         Vector3 halfExtents = Vector3.Max(hitbox.Size * 0.5f, Vector3.one * 0.01f);
         return new HitboxOrientedBox(center, halfExtents, rotation);
     }
 
-    /// <summary>由目标挂点与 HurtboxDefinition 构建世界 OBB。</summary>
+    /// <summary>逻辑根位姿 + HurtboxDefinition（相对角色根）→ 世界 OBB。</summary>
+    public static HitboxOrientedBox BuildFromHurtboxLogical(
+        in SimCombatPose rootPose,
+        HurtboxDefinition hurtbox)
+    {
+        if (hurtbox == null)
+            return default;
+
+        Quaternion localRotation = Quaternion.Euler(hurtbox.LocalEulerAngles);
+        Vector3 center = rootPose.TransformPoint(hurtbox.LocalOffset);
+        Quaternion rotation = rootPose.TransformRotation(localRotation);
+        Vector3 halfExtents = Vector3.Max(hurtbox.Size * 0.5f, Vector3.one * 0.01f);
+        return new HitboxOrientedBox(center, halfExtents, rotation);
+    }
+
+    /// <summary>Editor / Gizmo：由 Transform 挂点构建（非运行时权威）。</summary>
+    public static HitboxOrientedBox BuildFromHitbox(Transform root, Transform attachPoint, HitboxNotifyState hitbox)
+    {
+        Transform anchor = attachPoint != null ? attachPoint : root;
+        if (anchor == null || hitbox == null || root == null)
+            return default;
+
+        // 转为相对角色根的局部，再按根 Transform 构图，与逻辑路径公式一致
+        Vector3 attachLocalPos = root.InverseTransformPoint(anchor.position);
+        Quaternion attachLocalRot = Quaternion.Inverse(root.rotation) * anchor.rotation;
+        var pose = new SimCombatPose(root.position, root.eulerAngles.y);
+        return BuildFromHitboxLogical(in pose, attachLocalPos, attachLocalRot, hitbox);
+    }
+
+    /// <summary>Editor / Gizmo：由 Transform 根构建 Hurtbox。</summary>
     public static HitboxOrientedBox BuildFromHurtbox(Transform root, HurtboxDefinition hurtbox)
     {
         if (root == null || hurtbox == null)
             return default;
 
-        Quaternion localRotation = Quaternion.Euler(hurtbox.LocalEulerAngles);
-        Vector3 center = root.TransformPoint(hurtbox.LocalOffset);
-        Quaternion rotation = root.rotation * localRotation;
-        Vector3 halfExtents = Vector3.Max(hurtbox.Size * 0.5f, Vector3.one * 0.01f);
-        return new HitboxOrientedBox(center, halfExtents, rotation);
+        var pose = new SimCombatPose(root.position, root.eulerAngles.y);
+        return BuildFromHurtboxLogical(in pose, hurtbox);
     }
 
     /// <summary>两 OBB 是否相交（分离轴定理）。</summary>

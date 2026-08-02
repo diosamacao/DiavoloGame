@@ -103,7 +103,8 @@
 - [x] 2026-08-02 L2：Locomotion Stop/Pivot 烘焙位移整数帧索引
 - [x] 2026-08-02 L2：`CharacterMotorSim` 水平权威（空场地碰撞）；CC 仅临时重力/跟随
 - [x] 2026-08-02 L2：角色圆盘软弹开（World 帧末 `SoftBodySeparation`）
-- [ ] L2 后续：静态碰撞烘焙、逻辑 Hitbox、M2 批量 Dirty/Bake
+- [x] 2026-08-02 L2：Hitbox/Hurtbox 逻辑坐标（MotorSim 根 + 相对根挂点局部）
+- [ ] L2 后续：静态碰撞烘焙、重力迁出 CC、M2 批量 Dirty/Bake
 - [ ] L3：Snapshot 无损恢复 + 单机预测/回滚雏形（为 L5 完整预测回滚铺路）
 - [ ] L5：权威 FramePacket + 客户端完整预测回滚（已撤销「仅齐帧停等」定案，见锁步方案 5.12）
 
