@@ -1,7 +1,7 @@
-﻿using UnityEditor;
+using UnityEditor;
 using UnityEngine;
 
-/// <summary>选择 InPlace / RootMotion 文件夹并 Preview / Bake 运动表。</summary>
+/// <summary>选择 InPlace / RootMotion 文件夹并 Preview / Bake / Bake Dirty 运动表。</summary>
 public sealed class FolderMotionBakeWindow : EditorWindow
 {
     const string PrefInplace = "ACTGame.MotionBake.InplaceFolder";
@@ -21,6 +21,19 @@ public sealed class FolderMotionBakeWindow : EditorWindow
         var window = GetWindow<FolderMotionBakeWindow>("Motion Bake");
         window.minSize = new Vector2(480f, 360f);
         window.Show();
+    }
+
+    /// <summary>菜单：校验工程内 Action 运动表是否 Dirty/Failed。</summary>
+    [MenuItem("ACTGame/Motion/Validate Motion Dirty")]
+    public static void ValidateMotionDirtyMenu()
+    {
+        string rm = EditorPrefs.GetString(PrefRootMotion, "Assets/Art/Arts/Unagi/RootMotion");
+        string report = ActionMotionDirtyUtility.ValidateProject(rm, ActionSim.LogicHz);
+        Debug.Log(report);
+        EditorUtility.DisplayDialog(
+            "Validate Motion Dirty",
+            report.Length > 1500 ? report.Substring(0, 1500) + "…" : report,
+            "OK");
     }
 
     void OnEnable()
@@ -58,9 +71,14 @@ public sealed class FolderMotionBakeWindow : EditorWindow
         {
             if (GUILayout.Button("Preview Matches", GUILayout.Height(28f)))
                 RunPreview();
-            if (GUILayout.Button("Bake Matched", GUILayout.Height(28f)))
-                RunBake();
+            if (GUILayout.Button("Bake All", GUILayout.Height(28f)))
+                RunBake(dirtyOnly: false);
+            if (GUILayout.Button("Bake Dirty Only", GUILayout.Height(28f)))
+                RunBake(dirtyOnly: true);
         }
+
+        if (GUILayout.Button("Validate Dirty (Project)"))
+            RunValidate();
 
         EditorGUILayout.Space();
         _scroll = EditorGUILayout.BeginScrollView(_scroll);
@@ -78,15 +96,19 @@ public sealed class FolderMotionBakeWindow : EditorWindow
         Debug.Log("Motion Bake Preview\n" + _log);
     }
 
-    void RunBake()
+    void RunBake(bool dirtyOnly)
     {
         if (!TryGetFolderPaths(out string inplace, out string rm))
             return;
 
         PersistFolders(inplace, rm);
+        string title = dirtyOnly ? "Bake Dirty Motion" : "Bake All Motion";
+        string body = dirtyOnly
+            ? "仅重烘指纹过期或未就绪的 ActionDefinition。"
+            : "将把匹配成功的运动表写回引用对应 InPlace 的 ActionDefinition。";
         bool confirmed = EditorUtility.DisplayDialog(
-            "Bake Motion From Folders",
-            "将把匹配成功的运动表写回引用对应 InPlace 的 ActionDefinition。\n不修改任何 InPlace/RM 动画资产。",
+            title,
+            body + "\n不修改任何 InPlace/RM 动画资产。",
             "Bake",
             "Cancel");
         if (!confirmed)
@@ -96,10 +118,21 @@ public sealed class FolderMotionBakeWindow : EditorWindow
             inplace,
             rm,
             _planarMode,
-            Mathf.Max(1, _logicHz));
+            Mathf.Max(1, _logicHz),
+            dirtyOnly);
         _log = report.ToString();
         Debug.Log("Motion Bake\n" + _log);
-        EditorUtility.DisplayDialog("Bake Motion", _log.Length > 1500 ? _log.Substring(0, 1500) + "…" : _log, "OK");
+        EditorUtility.DisplayDialog(title, _log.Length > 1500 ? _log.Substring(0, 1500) + "…" : _log, "OK");
+    }
+
+    void RunValidate()
+    {
+        if (!TryGetFolderPaths(out string inplace, out string rm))
+            return;
+
+        PersistFolders(inplace, rm);
+        _log = ActionMotionDirtyUtility.ValidateProject(rm, Mathf.Max(1, _logicHz));
+        Debug.Log(_log);
     }
 
     bool TryGetFolderPaths(out string inplace, out string rm)

@@ -14,6 +14,7 @@ public sealed class SimulationHost : AppControllerBase
     FixedStepAccumulator _accumulator;
     SimulationWorld _world;
     CombatHitPipeline _combatHits;
+    ISimCollisionWorld _collisionWorld = OpenFieldSimCollisionWorld.Instance;
 
     /// <summary>最近完成的逻辑帧；尚未推进时为 -1。</summary>
     public long CurrentFrame => _world?.CurrentFrame ?? -1;
@@ -28,6 +29,9 @@ public sealed class SimulationHost : AppControllerBase
     /// <summary>当前场景唯一命中收集与帧末结算流水线。</summary>
     public CombatHitPipeline CombatHits => _combatHits;
 
+    /// <summary>场景共享静态碰撞世界；角色 MotorSim 必须使用同一实例。</summary>
+    public ISimCollisionWorld CollisionWorld => _collisionWorld;
+
     void Awake()
     {
         _config = new SimulationConfig();
@@ -36,6 +40,23 @@ public sealed class SimulationHost : AppControllerBase
             _config.MaxFrameCatchUp);
         _world = new SimulationWorld(_config);
         _combatHits = new CombatHitPipeline(PublishResolvedHit);
+    }
+
+    /// <summary>
+    /// 在注册任何 Actor 之前设置静态碰撞世界；null 回退空场地。
+    /// 已有 Actor 后调用会打警告且不替换（避免半场混用两套障碍）。
+    /// </summary>
+    public void SetCollisionWorld(ISimCollisionWorld collisionWorld)
+    {
+        if (_world != null && _world.ActorCount > 0)
+        {
+            Debug.LogWarning(
+                "SimulationHost: 已有注册 Actor，忽略 SetCollisionWorld。请在角色创建前绑定烘焙资产。",
+                this);
+            return;
+        }
+
+        _collisionWorld = collisionWorld ?? OpenFieldSimCollisionWorld.Instance;
     }
 
     /// <summary>按 Input/Actor/Combat/PostCombat/Commit 单轨顺序推进本渲染帧内的全部逻辑步。</summary>

@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// 角色移动服务：水平权威在 CharacterMotorSim；Transform/CC 只跟随并承担临时纵向重力。
+/// 角色移动服务：水平与竖直权威均在 CharacterMotorSim；Transform/CC 只跟随表现，不再 Move。
 /// </summary>
 public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
 {
@@ -12,7 +12,6 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     readonly CharacterMotorSim _sim;
 
     Transform _cameraTransform;
-    Vector3 _velocity;
     float _rotationVelocity;
     float _moveInputMagnitude;
     float _planarSpeedEstimate;
@@ -35,11 +34,14 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
             OpenFieldSimCollisionWorld.Instance,
             MotionQuantization.MetersToMm(config.ControllerRadius),
             config.SoftBodyMass,
-            config.SoftBodyImmovable);
+            config.SoftBodyImmovable,
+            SimulationConfig.DefaultLogicHz,
+            MotionQuantization.MetersToMm(config.Gravity),
+            MotionQuantization.MetersToMm(config.GroundedGravity));
         CapturePoseFromRoot();
     }
 
-    /// <summary>逻辑水平电机；位移权威源。</summary>
+    /// <summary>逻辑电机；位移与着地权威源。</summary>
     public CharacterMotorSim Sim => _sim;
 
     /// <summary>当前移动输入幅度。</summary>
@@ -54,8 +56,8 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     /// <summary>冲刺速度配置。</summary>
     public float SprintSpeed => _config.SprintSpeed;
 
-    /// <summary>当前是否着地（临时仍读 CC；静态碰撞烘焙后迁 MotorSim）。</summary>
-    public bool IsGrounded => _controller.isGrounded;
+    /// <summary>当前是否着地（MotorSim 权威）。</summary>
+    public bool IsGrounded => _sim.IsGrounded;
 
     /// <summary>上一帧水平位移估算速度（m/s）。</summary>
     public float PlanarSpeedEstimate => _planarSpeedEstimate;
@@ -72,7 +74,7 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     public void CapturePoseFromRoot()
     {
         Vector3 p = _root.position;
-        _sim.TeleportMeters(p.x, p.z);
+        _sim.TeleportMeters(p.x, p.y, p.z);
         _sim.SetFacingDegrees(_root.eulerAngles.y);
     }
 
@@ -159,16 +161,12 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         }
     }
 
-    /// <summary>每帧应用重力；Y 仍经 CC，结束后强制写回 Sim 的 XZ 权威。</summary>
+    /// <summary>每逻辑帧推进 MotorSim 重力/着地，并把完整 XYZ 写回根；不再调用 CC.Move。</summary>
     public void TickGravity(float deltaTime)
     {
-        if (_controller.isGrounded && _velocity.y < 0f)
-            _velocity.y = _config.GroundedGravity;
-
-        _velocity.y += _config.Gravity * deltaTime;
-        _controller.Move(_velocity * deltaTime);
-        // CC 可能在斜坡上带动水平滑动；水平以 MotorSim 为准
-        SyncRootPlanarFromSim();
+        _ = deltaTime;
+        _sim.TickVertical();
+        SyncRootFromSim();
     }
 
     /// <summary>按当前或缓冲移动输入朝向；无有效输入时保持原朝向。</summary>
@@ -213,7 +211,7 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
             return;
 
         if (_sim.TryMoveWorldMeters(worldDelta.x, worldDelta.z))
-            SyncRootPlanarFromSim();
+            SyncRootFromSim();
 
         if (deltaTime > 0.0001f)
             _planarSpeedEstimate = worldDelta.magnitude / deltaTime;
@@ -225,7 +223,7 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         // 本地→世界依赖 Sim 朝向；先与 Transform 对齐，避免表现旋转未回写
         SyncFacingFromRoot();
         if (_sim.TryMoveLocalMm(localDeltaMm.X, localDeltaMm.Z))
-            SyncRootPlanarFromSim();
+            SyncRootFromSim();
     }
 
     /// <summary>绕 Y 叠加偏航（烘焙根旋转）。</summary>
@@ -258,16 +256,23 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     }
 
     /// <summary>把 MotorSim 水平坐标写回角色根；软弹开后与位移路径共用。</summary>
-    public void SyncRootPlanarFromSim()
+    public void SyncRootPlanarFromSim() => SyncRootFromSim();
+
+    /// <summary>
+    /// 把 MotorSim 完整 XYZ 写回角色根。
+    /// CC 必须保持禁用：重新 enable 时 PhysX 会把胶囊从地面挤出（约 center.y），表现层会采到悬空假高度。
+    /// </summary>
+    public void SyncRootFromSim()
     {
         Vector3 p = _root.position;
         p.x = MotionQuantization.MmToMeters(_sim.PositionMm.X);
+        p.y = MotionQuantization.MmToMeters(_sim.YMm);
         p.z = MotionQuantization.MmToMeters(_sim.PositionMm.Z);
 
-        bool wasEnabled = _controller.enabled;
-        _controller.enabled = false;
+        // 逻辑位移/重力已不走 CC.Move；禁用后直接写 Transform，避免 enable 挤出地面
+        if (_controller != null && _controller.enabled)
+            _controller.enabled = false;
         _root.position = p;
-        _controller.enabled = wasEnabled;
     }
 
     /// <summary>把 Transform 偏航同步进 MotorSim，供本地表位移旋转。</summary>

@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-02（锁步定案：软弹开 + 预测回滚）
+> Last audited: 2026-08-04（L2：静态碰撞 AABB + MotorSim 重力）
 
 ## 项目概述
 
@@ -91,7 +91,8 @@ flowchart TB
 | `ISimulationPostCombatActor` | 整批命中结算后处理 OnHitConfirm/OnWhiff 自动衔接与动作自然结束 |
 | `SimHitKey` / `CombatHitPipeline` | Hitbox 只 Collect；按稳定 Actor/会话/窗口身份排序，帧末统一伤害、Reaction 与命中确认 |
 | `SimCombatPose` / `HitboxMath` | 命中 OBB 由 MotorSim 逻辑根构建；挂点仅相对根局部 |
-| `CharacterMotorSim` / `ISimCollisionWorld` | 水平毫米位姿权威；静态障碍烘焙硬挡（待建） |
+| `CharacterMotorSim` / `ISimCollisionWorld` | 水平+竖直毫米权威；静态 AABB 硬挡或空场地；重力/着地在 Sim |
+| `StaticCollisionBake` / `SimStaticCollisionWorld` | Editor 烘焙场景 Collider→XZ AABB；Host 共享给全体 Actor |
 | `SoftBodySeparation` / `ISimSoftBodyParticipant` | World 帧末角色圆盘软弹开；死亡不参与 |
 | 预测 / 回滚（规划） | 权威输入锁步 + 客户端完整预测；分歧时 Snapshot 恢复并重演（见锁步方案 5.12） |
 
@@ -117,7 +118,7 @@ flowchart TB
 | `LocomotionContext` | 内层共享依赖、跨相位数据与 RootMotion/落脚辅助 |
 | `ActionState` | 只执行 Action 旋转与状态快照；动作帧由 CharacterActor 统一 Step，PostCombat 后按会话结果退出 |
 | `CharacterConfig` | 角色装配根配置：模型、输入、动画、LocomotionProfile、移动、战斗 |
-| `CharacterMotor` | 移动执行：水平写 `CharacterMotorSim` 并同步 Transform；重力暂仍经 CC |
+| `CharacterMotor` | 移动执行：水平/竖直写 `CharacterMotorSim` 并同步 Transform；CC 仅表现代理不 Move |
 | `CharacterActor` | 单角色纯 C# Actor：输入、Motor、状态机、动作、旋转与非权威表现插值 |
 | `CharacterActorFactory` | 通过 `CharacterConfig` + `ILocalInputSampler` + 共享 `CombatHitPipeline` 创建角色实例 |
 

@@ -61,7 +61,8 @@ public class PlayerController : AppControllerBase
             () => SendQuery(new GetActiveTargetsQuery()),
             simulationHost.CombatHits,
             out ActionSim actionSim,
-            out CharacterAnimationService animation);
+            out CharacterAnimationService animation,
+            simulationHost.CollisionWorld);
 
         health = new CharacterHealth(characterConfig.Combat.MaxHealth);
         reactionService = new CharacterReactionService(

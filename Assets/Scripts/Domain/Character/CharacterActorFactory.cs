@@ -16,7 +16,8 @@ public static class CharacterActorFactory
         Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider,
         CombatHitPipeline combatHitPipeline,
         out ActionSim actionSim,
-        out CharacterAnimationService animation)
+        out CharacterAnimationService animation,
+        ISimCollisionWorld collisionWorld = null)
     {
         CharacterActor actor = null;
         CharacterMotorConfig motorConfig = config.Motor;
@@ -28,15 +29,20 @@ public static class CharacterActorFactory
 
         CharacterController controller = GetOrAddCharacterController(owner);
         motorConfig.ApplyTo(controller);
+        // CC 仅保留半径/高度配置；保持禁用，避免 Sync 时 enable 被地面挤出造成悬空
+        controller.enabled = false;
 
         var sharedInput = new InputManager();
         localInput?.ConfigureDiscreteInputs(config.GameplayIntentProfile.CollectInputReferences());
-        // 水平位移权威在 MotorSim；CC 仅跟随后写与临时重力
+        ISimCollisionWorld world = collisionWorld ?? OpenFieldSimCollisionWorld.Instance;
         var motorSim = new CharacterMotorSim(
-            OpenFieldSimCollisionWorld.Instance,
+            world,
             MotionQuantization.MetersToMm(motorConfig.ControllerRadius),
             motorConfig.SoftBodyMass,
-            motorConfig.SoftBodyImmovable);
+            motorConfig.SoftBodyImmovable,
+            SimulationConfig.DefaultLogicHz,
+            MotionQuantization.MetersToMm(motorConfig.Gravity),
+            MotionQuantization.MetersToMm(motorConfig.GroundedGravity));
         var motor = new CharacterMotor(
             root,
             controller,

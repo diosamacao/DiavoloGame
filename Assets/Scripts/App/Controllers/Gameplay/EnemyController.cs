@@ -96,7 +96,8 @@ public sealed class EnemyController : AppControllerBase
             () => target,
             () => SendQuery(new GetActiveTargetsQuery()),
             _simulationHost.CombatHits,
-            new CharacterReactionResolver(enemyDefinition.CharacterConfig.Combat.Reactions));
+            new CharacterReactionResolver(enemyDefinition.CharacterConfig.Combat.Reactions),
+            _simulationHost.CollisionWorld);
 
         GetSystem<CombatActorSystem>()?.Register(
             transform,

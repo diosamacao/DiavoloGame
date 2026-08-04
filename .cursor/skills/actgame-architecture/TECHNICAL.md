@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-02
+> Last updated: 2026-08-04
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -120,9 +120,11 @@ SimulationHost.LateUpdate
 - L2/M0–M1：运动表烘焙 + 运行时查表。`bakeStatus=Ok` 时表现桥按帧取本地 Δ 经 MotorSim 移动并关闭 Animator RM；未烘焙招式仍可走 Animator RM→Motor。
 - L2 HitStop：`hitStopFrames` 经 Pipeline 写入 `ActionSim.freezeFrames`；冻结期间不推进动作帧/位移；骨骼由表现桥读 Snapshot，VFX 由 `SimulationLogicStepEvent` 递减。
 - L2 Locomotion：Stop/Pivot 根位移按 `ActionSim.LogicHz` 整数帧取轨，不再用 `NormalizedTime`。
-- L2 MotorSim：水平毫米权威 + 空场地碰撞；重力/着地与静态障碍仍待迁出 CC。
+- L2 MotorSim：水平+竖直毫米权威；`TickVertical` 整数重力/着地；逻辑路径不再 `CharacterController.Move`；CC 保持禁用（禁止 Sync 后 re-enable，否则 PhysX 挤出地面呈悬空）。
+- L2 静态碰撞：`StaticCollisionBake`（菜单 `ACTGame/Collision/Bake Static From Scene...`）→ `SimStaticCollisionWorld` AABB 滑墙；`CombatWorldController` 绑定资产，未绑定则 `OpenField`。地面薄板/名含 Floor·Ground·Terrain 只写 GroundY，不进水平硬挡；墙体才投影 AABB。Mesh 墙仍用包围盒（保守）；无斜坡。
+- L2/M2：`Bake All` / `Bake Dirty Only` + Inspector Dirty 黄条 + `ACTGame/Motion/Validate Motion Dirty`。
 - L2 软弹开：`SimulationWorld` 帧末按 Id 序对 `ISimSoftBodyParticipant` 执行 `SoftBodySeparation`（默认 factor=500‰、迭代 3）；按 `softBodyMass` 分配推力，`softBodyImmovable` 像墙；死亡不参与。
-- L2 命中：`SimCombatPose` 从 MotorSim 取水平根；Hitbox 挂点只提供相对根局部 TRS；Hurtbox 用 `GetLogicalHurtbox`；自身排除用 `SimActorId`。静态烘焙 / 重力迁出 CC / Dirty Bake 待后续。
+- L2 命中：`SimCombatPose` 从 MotorSim 取水平根；Hitbox 挂点只提供相对根局部 TRS；Hurtbox 用 `GetLogicalHurtbox`；自身排除用 `SimActorId`。
 - 联网定案（方案层）：完整客户端预测 + 回滚；权威仍为 FramePacket（见 `docs/ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md` §5.12）。
 
 ### 相关文件
@@ -150,7 +152,7 @@ SimulationHost.LateUpdate
 | 方向计算 | 输入 Vector2 → 相机 forward/right 投影到 XZ 平面 → 归一化方向 |
 | 速度 | `moveInputMagnitude × speed`；幅度 > `runThreshold` 用 `runSpeed`，否则 `walkSpeed` |
 | 旋转 | `SmoothDampAngle` 显式传入固定 `1/60s`，绕 Y 轴对齐移动方向 |
-| 重力 | 独立 `velocity.y`；着地时设为 `groundedGravity`，否则累加 `gravity` |
+| 重力 | `CharacterMotorSim.TickVertical`（mm/s² ÷ logicHz）；着地钳 `GroundYMm` |
 
 ### 关键参数（Prefab 默认）
 
@@ -557,11 +559,13 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 
 编辑器 Scrub 使用 `ActionEditorPreviewSession` 做 Pose/VFX 预览，并与 Runtime 共用无副作用 `ActionFrameQuery` 的段映射、窗口与点事件规则；不执行 `ActionSim.Step`。
 
-**编辑器交互（2026-08-02）**：
+**编辑器交互（2026-08-04）**：
 
 - VFX/SFX/Event 点事件在时间轴上绘制为**菱形**（热区按轨高，不随 1 帧条宽缩小）
 - Timeline 顶栏 **Zoom**（1×–16×）+ Ctrl/Cmd+滚轮；放大后横向滚动以精确拖帧
+- Scrub / 播放 / 工具栏改帧时，playhead 超出 Zoom 可视区会**自动平移**时间轴视图
 - Scene Hitbox 线框与 VFX Prefab/粒子按 **Preview Frame** 驱动：拖到对应帧即可预览，无需选中时间轴窗口；选中仅用于 Handles 编辑
+- Create：选角色文件夹（如 Unagi），自动保存到其子目录 `ActionDefinition`（无则创建；已有旧名 `ActioniDefinition` 则复用）；默认名可改；左侧列表按文件夹分组
 
 ### ActionEditor 对齐状态（2026-08-02）
 
@@ -743,3 +747,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-02 | 软弹开质量比 + `softBodyImmovable`（大体型怪像墙） |
 | 2026-08-02 | L2 逻辑 Hitbox：`SimCombatPose` + MotorSim 根；删除 Transform 世界盒权威与层级自伤判断 |
 | 2026-08-02 | Action Editor UX：点事件菱形、时间轴 Zoom（含 Ctrl+滚轮）、VFX Scene 预览按 Scrub 帧多实例驱动（无需选中窗口） |
+| 2026-08-04 | Action Editor UX：playhead 自动跟视口、Create 选文件夹+默认命名、左侧列表按文件夹分组 |
+| 2026-08-04 | L2 静态碰撞：`SimStaticCollisionWorld` + `StaticCollisionBake` Editor 烘焙；Host 共享 CollisionWorld |
+| 2026-08-04 | L2 重力迁出 CC：`CharacterMotorSim` 竖直权威；`CharacterMotor` 只 Sync 根位姿 |
+| 2026-08-04 | L2/M2：Bake Dirty Only、Dirty 指纹黄条、Validate Motion Dirty 菜单 |

@@ -474,10 +474,10 @@ Assets/Art/Arts/<Character>/RootMotion/
 
 ### Phase M2 — Action 批量迁移
 
-- [ ] `Bake All` / `Bake Dirty`（基于文件夹记忆路径或全局约定）  
-- [ ] 指纹 dirty + Inspector 黄条  
-- [ ] CI：dirty / Failed / 未匹配  
-- [ ] 删除 Action 逻辑 RM 路径  
+- [x] 2026-08-04：`Bake All` / `Bake Dirty Only`（文件夹记忆路径）+ `Validate Motion Dirty` 菜单  
+- [x] 2026-08-04：指纹 dirty（InPlace/RM hash、logicHz、段帧窗口）+ Action Inspector 黄条  
+- [x] 2026-08-04：Editor 校验入口（菜单/窗口）；正式 CI 管线仍可选接入  
+- [ ] 删除 Action 逻辑 RM 路径（未烘焙招式仍可走 Animator RM；属 M4 收口）  
 
 ### Phase M3 — Locomotion 表化
 

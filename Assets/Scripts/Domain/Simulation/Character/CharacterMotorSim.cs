@@ -1,26 +1,37 @@
 using System;
 
 /// <summary>
-/// 角色水平位姿的逻辑权威：毫米坐标 + 毫度朝向；位移经碰撞世界解析，不读 Transform/CC。
+/// 角色位姿逻辑权威：水平毫米 + 竖直毫米 + 毫度朝向；位移经碰撞世界解析，不读 Transform/CC。
 /// </summary>
 public sealed class CharacterMotorSim
 {
     public const int DefaultSoftBodyMass = 100;
+    public const int DefaultGravityMmPerSec2 = -20000;
+    public const int DefaultGroundedGravityMmPerSec2 = -2000;
 
     readonly ISimCollisionWorld _collision;
     readonly int _radiusMm;
     readonly int _softBodyMass;
     readonly bool _softBodyImmovable;
+    readonly int _logicHz;
+    readonly int _gravityMmPerSec2;
+    readonly int _groundedGravityMmPerSec2;
     int _xMm;
+    int _yMm;
     int _zMm;
     int _facingMilliDeg;
+    int _verticalVelocityMmPerSec;
+    bool _isGrounded;
 
-    /// <summary>使用碰撞世界、水平半径与软弹开质量创建电机。</summary>
+    /// <summary>使用碰撞世界、水平半径、软弹开与竖直参数创建电机。</summary>
     public CharacterMotorSim(
         ISimCollisionWorld collision,
         int radiusMm,
         int softBodyMass = DefaultSoftBodyMass,
-        bool softBodyImmovable = false)
+        bool softBodyImmovable = false,
+        int logicHz = SimulationConfig.DefaultLogicHz,
+        int gravityMmPerSec2 = DefaultGravityMmPerSec2,
+        int groundedGravityMmPerSec2 = DefaultGroundedGravityMmPerSec2)
     {
         _collision = collision ?? throw new ArgumentNullException(nameof(collision));
         _radiusMm = Math.Max(0, radiusMm);
@@ -29,10 +40,19 @@ public sealed class CharacterMotorSim
         _softBodyMass = softBodyImmovable
             ? SoftBodySeparation.ImmovableMass
             : Math.Max(1, softBodyMass);
+        _logicHz = logicHz > 0 ? logicHz : SimulationConfig.DefaultLogicHz;
+        _gravityMmPerSec2 = gravityMmPerSec2;
+        _groundedGravityMmPerSec2 = groundedGravityMmPerSec2;
+        _yMm = _collision.GroundYMm;
+        _isGrounded = true;
+        _verticalVelocityMmPerSec = _groundedGravityMmPerSec2;
     }
 
     /// <summary>世界水平位置（毫米）。</summary>
     public SimVec2 PositionMm => new(_xMm, _zMm);
+
+    /// <summary>世界竖直位置（毫米）。</summary>
+    public int YMm => _yMm;
 
     /// <summary>绕 Y 朝向（毫度）。</summary>
     public int FacingMilliDeg => _facingMilliDeg;
@@ -46,11 +66,26 @@ public sealed class CharacterMotorSim
     /// <summary>为 true 时软弹开推力全给对方，自身像墙。</summary>
     public bool SoftBodyImmovable => _softBodyImmovable;
 
-    /// <summary>瞬移到世界水平毫米坐标；不经碰撞。</summary>
+    /// <summary>逻辑着地：竖直位置贴地且未向上跃起。</summary>
+    public bool IsGrounded => _isGrounded;
+
+    /// <summary>竖直速度（毫米/秒）；调试与测试用。</summary>
+    public int VerticalVelocityMmPerSec => _verticalVelocityMmPerSec;
+
+    /// <summary>瞬移到世界水平毫米坐标；不经碰撞；Y 不变。</summary>
     public void TeleportMm(int xMm, int zMm)
     {
         _xMm = xMm;
         _zMm = zMm;
+    }
+
+    /// <summary>瞬移到世界毫米坐标（含 Y）；不经碰撞。</summary>
+    public void TeleportMm(int xMm, int yMm, int zMm)
+    {
+        _xMm = xMm;
+        _yMm = yMm;
+        _zMm = zMm;
+        RefreshGroundedFromHeight();
     }
 
     /// <summary>
@@ -65,9 +100,16 @@ public sealed class CharacterMotorSim
         _zMm = resolved.Z;
     }
 
-    /// <summary>从米坐标瞬移；用于出生点与 Unity 根对齐。</summary>
+    /// <summary>从米坐标瞬移水平位置；用于出生点与 Unity 根对齐。</summary>
     public void TeleportMeters(float xMeters, float zMeters) =>
         TeleportMm(MotionQuantization.MetersToMm(xMeters), MotionQuantization.MetersToMm(zMeters));
+
+    /// <summary>从米坐标瞬移含 Y；对齐 Unity 根完整位姿。</summary>
+    public void TeleportMeters(float xMeters, float yMeters, float zMeters) =>
+        TeleportMm(
+            MotionQuantization.MetersToMm(xMeters),
+            MotionQuantization.MetersToMm(yMeters),
+            MotionQuantization.MetersToMm(zMeters));
 
     /// <summary>设置朝向毫度（不归一化到 ±180，调用方可先 Wrap）。</summary>
     public void SetFacingMilliDeg(int facingMilliDeg) => _facingMilliDeg = facingMilliDeg;
@@ -75,6 +117,32 @@ public sealed class CharacterMotorSim
     /// <summary>从度设置朝向。</summary>
     public void SetFacingDegrees(float yawDegrees) =>
         SetFacingMilliDeg(MotionQuantization.DegreesToMilliDeg(yawDegrees));
+
+    /// <summary>
+    /// 固定逻辑帧推进竖直速度与高度；着地时钳到 GroundYMm。
+    /// 使用整数 / logicHz，避免 float dt 进入权威路径。
+    /// </summary>
+    public void TickVertical()
+    {
+        if (_isGrounded && _verticalVelocityMmPerSec < 0)
+            _verticalVelocityMmPerSec = _groundedGravityMmPerSec2;
+
+        _verticalVelocityMmPerSec += _gravityMmPerSec2 / _logicHz;
+        _yMm += _verticalVelocityMmPerSec / _logicHz;
+
+        int groundY = _collision.GroundYMm;
+        if (_yMm <= groundY)
+        {
+            _yMm = groundY;
+            _isGrounded = true;
+            if (_verticalVelocityMmPerSec < 0)
+                _verticalVelocityMmPerSec = _groundedGravityMmPerSec2;
+        }
+        else
+        {
+            _isGrounded = false;
+        }
+    }
 
     /// <summary>施加世界平面毫米位移；经碰撞解析后写回位置。</summary>
     public bool TryMoveWorldMm(int dxMm, int dzMm)
@@ -124,5 +192,21 @@ public sealed class CharacterMotorSim
         // right=(cos,0,-sin), forward=(sin,0,cos)
         worldXMm = (int)Math.Round(localXMm * cos + localZMm * sin, MidpointRounding.AwayFromZero);
         worldZMm = (int)Math.Round(-localXMm * sin + localZMm * cos, MidpointRounding.AwayFromZero);
+    }
+
+    void RefreshGroundedFromHeight()
+    {
+        int groundY = _collision.GroundYMm;
+        if (_yMm <= groundY)
+        {
+            _yMm = groundY;
+            _isGrounded = true;
+            if (_verticalVelocityMmPerSec < 0)
+                _verticalVelocityMmPerSec = _groundedGravityMmPerSec2;
+        }
+        else
+        {
+            _isGrounded = false;
+        }
     }
 }
