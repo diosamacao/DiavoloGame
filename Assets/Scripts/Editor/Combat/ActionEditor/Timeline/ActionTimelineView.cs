@@ -42,6 +42,10 @@ public sealed class ActionTimelineView
     float _pixelsPerFrame = 8f;
     /// <summary>时间轴水平缩放：1 = 铺满可视区，&gt;1 可横向滚动以精确拖帧。</summary>
     float _zoom = ActionEditorStyles.TimelineZoomMin;
+    /// <summary>当前可视区轨道宽度（不含轨头），供 playhead 自动跟随时使用。</summary>
+    float _viewportLaneWidth = 1f;
+    /// <summary>轨道内容总宽（帧区），与横向滚动范围对应。</summary>
+    float _contentLaneWidth = 1f;
     bool _pendingRepaint;
 
     ActionEditorSelection _pendingSelection;
@@ -146,6 +150,11 @@ public sealed class ActionTimelineView
         // 横向滚动条占高时重新评估纵向是否溢出，避免铺满缩放时误留空白条。
         float usableHeight = Mathf.Max(1f, bodyRect.height - (needsHorizontalScroll ? scrollBarSize : 0f));
         needsVerticalScroll = contentHeight > usableHeight;
+
+        _viewportLaneWidth = fitLaneWidth;
+        _contentLaneWidth = contentLaneWidth;
+        // Scrub / 播放 / 工具栏改帧后，playhead 超出 Zoom 可视区时自动平移视图。
+        EnsurePlayheadVisible(previewFrame);
 
         _scroll = GUI.BeginScrollView(
             bodyRect,
@@ -1111,13 +1120,18 @@ public sealed class ActionTimelineView
             _dragControlId = GUIUtility.GetControlID(FocusType.Passive);
             GUIUtility.hotControl = _dragControlId;
             previewFrame = FrameAtX(evt.mousePosition.x, totalFrames);
+            EnsurePlayheadVisible(previewFrame);
             changed = true;
             evt.Use();
         }
         else if (_dragMode == DragMode.Scrub && evt.type == EventType.MouseDrag)
         {
+            // 贴边拖拽时先滚屏再取帧，才能 Scrub 到当前视口之外的帧。
+            AutoScrollWhileScrubbing(evt.mousePosition.x);
             previewFrame = FrameAtX(evt.mousePosition.x, totalFrames);
+            EnsurePlayheadVisible(previewFrame);
             changed = true;
+            _pendingRepaint = true;
             evt.Use();
         }
         else if (_dragMode == DragMode.Scrub && evt.type is EventType.MouseUp or EventType.Ignore)
@@ -1129,6 +1143,46 @@ public sealed class ActionTimelineView
             _dragControlId = -1;
             evt.Use();
         }
+    }
+
+    /// <summary>当 playhead 落在 Zoom 可视区外时，平移横向滚动使其回到视野内。</summary>
+    void EnsurePlayheadVisible(int previewFrame)
+    {
+        if (_contentLaneWidth <= _viewportLaneWidth + 0.5f)
+        {
+            _scroll.x = 0f;
+            return;
+        }
+
+        float playheadX = previewFrame * _pixelsPerFrame;
+        float maxScroll = Mathf.Max(0f, _contentLaneWidth - _viewportLaneWidth);
+        float pad = Mathf.Min(32f, _viewportLaneWidth * 0.12f);
+        float viewMin = _scroll.x;
+        float viewMax = _scroll.x + _viewportLaneWidth;
+
+        if (playheadX < viewMin + pad)
+            _scroll.x = Mathf.Clamp(playheadX - pad, 0f, maxScroll);
+        else if (playheadX > viewMax - pad)
+            _scroll.x = Mathf.Clamp(playheadX - _viewportLaneWidth + pad, 0f, maxScroll);
+    }
+
+    /// <summary>标尺 Scrub 时鼠标靠近视口左右边缘则继续滚屏，避免被 Zoom 裁切卡住。</summary>
+    void AutoScrollWhileScrubbing(float mouseContentX)
+    {
+        if (_contentLaneWidth <= _viewportLaneWidth + 0.5f)
+            return;
+
+        float laneMouseX = mouseContentX - ActionEditorStyles.TrackHeaderWidth;
+        float viewMin = _scroll.x;
+        float viewMax = _scroll.x + _viewportLaneWidth;
+        float edge = Mathf.Min(40f, _viewportLaneWidth * 0.2f);
+        float maxScroll = Mathf.Max(0f, _contentLaneWidth - _viewportLaneWidth);
+        float step = Mathf.Max(_pixelsPerFrame, 8f);
+
+        if (laneMouseX <= viewMin + edge)
+            _scroll.x = Mathf.Max(0f, _scroll.x - step);
+        else if (laneMouseX >= viewMax - edge)
+            _scroll.x = Mathf.Min(maxScroll, _scroll.x + step);
     }
 
     /// <summary>

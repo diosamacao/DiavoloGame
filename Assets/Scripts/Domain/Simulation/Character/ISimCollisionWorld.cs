@@ -1,6 +1,9 @@
 /// <summary>逻辑层静态碰撞查询；禁止访问 Unity Physics。</summary>
 public interface ISimCollisionWorld
 {
+    /// <summary>简单地面高度（毫米）；L2 为恒定平面，供 MotorSim 着地。</summary>
+    int GroundYMm { get; }
+
     /// <summary>
     /// 将半径为 radiusMm 的水平圆盘从 from 移向 to，返回允许到达的终点（可滑墙）。
     /// </summary>

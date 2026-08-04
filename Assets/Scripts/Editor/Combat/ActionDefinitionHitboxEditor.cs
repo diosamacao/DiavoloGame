@@ -134,11 +134,24 @@ public class ActionDefinitionHitboxEditor : Editor
         EditorGUILayout.LabelField("Baked Motion", EditorStyles.boldLabel);
 
         ActionBakedMotion motion = action.BakedMotion;
+        string rmPathForDirty = _rootMotionFolder != null
+            ? AssetDatabase.GetAssetPath(_rootMotionFolder)
+            : EditorPrefs.GetString(RootMotionFolderPrefKey, string.Empty);
+        bool dirty = AssetDatabase.IsValidFolder(rmPathForDirty)
+            && ActionMotionDirtyUtility.IsDirty(action, rmPathForDirty, ActionSim.LogicHz);
+        if (dirty)
+        {
+            EditorGUILayout.HelpBox(
+                "运动表 Dirty：InPlace/RM hash、logicHz 或段帧窗口与烘焙结果不一致。请 Bake Motion 或文件夹 Bake Dirty。",
+                MessageType.Warning);
+        }
+
         using (new EditorGUI.DisabledScope(true))
         {
             EditorGUILayout.EnumPopup("Status", motion.bakeStatus);
             EditorGUILayout.IntField("Frame Count", motion.frameCount);
             EditorGUILayout.TextField("Matched RM", motion.matchedRootMotionName ?? string.Empty);
+            EditorGUILayout.Toggle("Dirty", dirty);
         }
 
         _rootMotionFolder = (DefaultAsset)EditorGUILayout.ObjectField(

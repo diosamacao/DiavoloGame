@@ -55,18 +55,6 @@ MonoBehaviour:
       localScale: {x: 0.2, y: 0.2, z: 0.2}
       parentToAttachPoint: 1
       playbackSpeed: 1
-    - id: VFX_3
-      startFrame: 8
-      endFrame: 8
-      priority: 0
-      trackName: VFX_1
-      prefab: {fileID: 2336738607144242677, guid: ccddab8d96f24c4e91399ea71a2353e4, type: 3}
-      attachPointId: Bn_katana_burst
-      localOffset: {x: 0, y: 0, z: 0}
-      localEulerAngles: {x: 0, y: 0, z: 0}
-      localScale: {x: 0.2, y: 0.2, z: 0.2}
-      parentToAttachPoint: 1
-      playbackSpeed: 1
     playSfxStates:
     - id: SFX_1
       startFrame: 0

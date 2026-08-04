@@ -644,7 +644,8 @@ Assets/Scripts/Presentation/
 - [x] 2026-08-02：HitStop → `ActionSim.freezeFrames`；Pipeline 帧末 `RequestHitStop`；表现骨骼/VFX 跟逻辑帧（删除 unscaled 秒倒计时）
 - [x] 2026-08-02：Locomotion Stop/Pivot 烘焙位移改整数逻辑帧索引（删除 `NormalizedTime` 权威采样）
 - [x] 2026-08-02：`CharacterMotorSim` 水平权威（毫米坐标 + 空场地碰撞）；Locomotion/动作表/未烘焙 RM 均经 Motor 写 Sim，Transform/CC 跟随 XZ
-- [ ] 静态碰撞烘焙（网格/凸包）替换 `OpenFieldSimCollisionWorld`；重力/着地迁出 CC
+- [x] 2026-08-04：静态碰撞烘焙（XZ AABB）+ `SimStaticCollisionWorld`；未绑资产时仍可用 `OpenFieldSimCollisionWorld`
+- [x] 2026-08-04：重力/着地迁入 `CharacterMotorSim.TickVertical`；删除逻辑路径 `CharacterController.Move`
 - [x] 2026-08-02：角色圆盘软弹开（`SoftBodySeparation` + World 帧末 + `ISimSoftBodyParticipant`）；删除 CC/Physics 互撞权威路径
 - [x] 2026-08-02：Hitbox/Hurtbox 逻辑坐标——`SimCombatPose`+MotorSim 根；挂点仅相对根局部；相交仍用 OBB SAT
 - [x] 2026-08-02：命中身份复查——运行时去重/自身排除仅用 `SimActorId`；`GetInstanceID` 仅剩 VFX 池等非命中路径

@@ -61,7 +61,8 @@ public static class ActionMotionBakeService
         string inplaceFolder,
         string rootMotionFolder,
         ActionMotionPlanarMode planarMode,
-        int logicHz)
+        int logicHz,
+        bool dirtyOnly = false)
     {
         var report = new BakeReport();
         var pairs = new List<MotionClipBakePair>(64);
@@ -73,10 +74,53 @@ public static class ActionMotionBakeService
             report.Lines.Add($"MATCH: {issues[i].InplaceName}: {issues[i].Reason}");
 
         Dictionary<AnimationClip, List<ActionDefinition>> consumers = BuildInplaceConsumers();
+        int skippedClean = 0;
 
         for (int i = 0; i < pairs.Count; i++)
         {
             MotionClipBakePair pair = pairs[i];
+            if (!consumers.TryGetValue(pair.InplaceClip, out List<ActionDefinition> actions)
+                || actions == null
+                || actions.Count == 0)
+            {
+                // Dirty-only 时无引用方直接跳过，避免无意义采样
+                if (dirtyOnly)
+                {
+                    skippedClean++;
+                    continue;
+                }
+
+                ActionBakedMotion previewTable = RootMotionBakeUtility.BakeClip(
+                    pair.RootMotionClip,
+                    logicHz,
+                    planarMode,
+                    pair.RootMotionClip.name,
+                    RootMotionBakeUtility.ComputeClipContentHash(pair.InplaceClip),
+                    RootMotionBakeUtility.ComputeClipContentHash(pair.RootMotionClip));
+                if (!previewTable.IsReady)
+                {
+                    report.FailedPairs++;
+                    report.Lines.Add($"FAIL bake: {pair.InplaceClip.name} ← {pair.RootMotionClip.name}");
+                    continue;
+                }
+
+                bool previewOk = RootMotionBakeUtility.ValidateAgainstTrack(
+                    pair.RootMotionClip,
+                    previewTable,
+                    MaxAccumulatedErrorMeters,
+                    MaxSingleFrameErrorMeters,
+                    out string previewValidate);
+                report.PairsWithoutConsumer++;
+                report.Lines.Add(
+                    previewOk
+                        ? $"OK no-consumer: {pair.InplaceClip.name} ↔ {pair.RootMotionClip.name} ({previewValidate})"
+                        : $"FAIL validate(no-consumer): {pair.InplaceClip.name} — {previewValidate}");
+                if (!previewOk)
+                    report.FailedPairs++;
+                continue;
+            }
+
+            // 先校验配对 RM 可烘且误差可接受，再按 Action 段规则写回（与 BakeAction/Dirty 指纹一致）
             ActionBakedMotion table = RootMotionBakeUtility.BakeClip(
                 pair.RootMotionClip,
                 logicHz,
@@ -100,31 +144,41 @@ public static class ActionMotionBakeService
                 out string validateReport);
             if (!ok)
             {
-                table.bakeStatus = ActionBakedMotionStatus.Failed;
                 report.FailedPairs++;
                 report.Lines.Add($"FAIL validate: {pair.InplaceClip.name} — {validateReport}");
                 continue;
             }
 
-            if (!consumers.TryGetValue(pair.InplaceClip, out List<ActionDefinition> actions)
-                || actions == null
-                || actions.Count == 0)
-            {
-                report.PairsWithoutConsumer++;
-                report.Lines.Add(
-                    $"OK no-consumer: {pair.InplaceClip.name} ↔ {pair.RootMotionClip.name} ({validateReport})");
-                continue;
-            }
-
+            int updated = 0;
             for (int a = 0; a < actions.Count; a++)
             {
-                WriteBakedMotion(actions[a], table);
+                ActionDefinition action = actions[a];
+                if (dirtyOnly && !ActionMotionDirtyUtility.IsDirty(action, rootMotionFolder, logicHz))
+                    continue;
+
+                if (!BakeAction(action, rootMotionFolder, planarMode, logicHz, out string bakeMessage))
+                {
+                    report.FailedPairs++;
+                    report.Lines.Add($"FAIL action: {action.name} — {bakeMessage}");
+                    continue;
+                }
+
+                updated++;
                 report.ActionsUpdated++;
             }
 
+            if (updated == 0 && dirtyOnly)
+            {
+                skippedClean++;
+                continue;
+            }
+
             report.Lines.Add(
-                $"OK: {pair.InplaceClip.name} ↔ {pair.RootMotionClip.name} → {actions.Count} Action(s); {validateReport}");
+                $"OK: {pair.InplaceClip.name} ↔ {pair.RootMotionClip.name} → updated {updated}/{actions.Count}; {validateReport}");
         }
+
+        if (dirtyOnly)
+            report.Lines.Insert(0, $"Dirty-only: skippedCleanPairs≈{skippedClean}");
 
         AssetDatabase.SaveAssets();
         return report;

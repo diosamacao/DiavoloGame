@@ -13,7 +13,8 @@ public static class EnemyActorFactory
         Func<Transform> targetProvider,
         Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider,
         CombatHitPipeline combatHitPipeline,
-        CharacterReactionResolver reactionResolver)
+        CharacterReactionResolver reactionResolver,
+        ISimCollisionWorld collisionWorld = null)
     {
         CharacterConfig config = definition.CharacterConfig;
         var input = new AIInputWriter(config.GameplayIntentProfile);
@@ -39,7 +40,8 @@ public static class EnemyActorFactory
             activeTargetsProvider,
             combatHitPipeline,
             out ActionSim actionSim,
-            out CharacterAnimationService animation);
+            out CharacterAnimationService animation,
+            collisionWorld);
 
         var health = new EnemyHealth(definition.MaxHp);
         var perception = new EnemyPerception(

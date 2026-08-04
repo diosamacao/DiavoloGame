@@ -169,10 +169,10 @@ public struct CharacterMotorConfig
     /// <summary>移动转向平滑时间。</summary>
     public float RotationSmoothTime => rotationSmoothTime;
 
-    /// <summary>空中重力加速度。</summary>
+    /// <summary>空中重力加速度（m/s²）；量化进 MotorSim，不再经 CC.Move。</summary>
     public float Gravity => gravity;
 
-    /// <summary>着地时保持贴地的纵向速度。</summary>
+    /// <summary>着地时保持贴地的纵向速度（m/s）；量化进 MotorSim。</summary>
     public float GroundedGravity => groundedGravity;
 
     /// <summary>水平碰撞半径（米）；同步给 CharacterController 与 MotorSim。</summary>

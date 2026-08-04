@@ -112,7 +112,10 @@
 - [x] 2026-08-02 L2：`CharacterMotorSim` 水平权威（空场地碰撞）；CC 仅临时重力/跟随
 - [x] 2026-08-02 L2：角色圆盘软弹开（World 帧末 `SoftBodySeparation`）
 - [x] 2026-08-02 L2：Hitbox/Hurtbox 逻辑坐标（MotorSim 根 + 相对根挂点局部）
-- [ ] L2 后续：静态碰撞烘焙、重力迁出 CC、M2 批量 Dirty/Bake
+- [x] 2026-08-04 L2：静态碰撞 AABB 烘焙（`StaticCollisionBake` + `SimStaticCollisionWorld`）；空场地回退保留
+- [x] 2026-08-04 L2：重力/着地迁入 `CharacterMotorSim`；逻辑路径删除 `CharacterController.Move`
+- [x] 2026-08-04 L2/M2：`Bake All` / `Bake Dirty Only` + Dirty 指纹黄条 + Validate 菜单
+- [ ] L2 收口：斜坡/网格精确碰撞（当前 AABB 保守）；未烘焙招式 Animator RM 删于 M4
 - [ ] L3：Snapshot 无损恢复 + 单机预测/回滚雏形（为 L5 完整预测回滚铺路）
 - [ ] L5：权威 FramePacket + 客户端完整预测回滚（已撤销「仅齐帧停等」定案，见锁步方案 5.12）
 
@@ -120,7 +123,7 @@
 
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
-| ActionEditorWindow | P1 | ✅ 基础版 + 2026-08-02 点事件菱形 / Zoom / Scrub 帧 Scene 预览；后续增强 SFX 预览 |
+| ActionEditorWindow | P1 | ✅ 基础版 + 菱形/Zoom/Scrub 预览 + 2026-08-04 playhead 跟视口、Create 选文件夹、左侧文件夹分组；后续增强 SFX 预览 |
 | Enemy/ + AI | P2 | 🟡 2026-07-29 代码已实现；EnemyDefinition、Graph、动画资产待配置 |
 | UI/ | P2 | HUD、血条 |
 | 事件总线 | P2 | 轻量 C# event；定稿前不引入第三方 |
@@ -164,6 +167,7 @@
 - [x] 2026-08-01：Lockstep L1A——Action 整数帧权威、单次 Step、下一帧切招与 Hit/Death 帧化收尾
 - [x] 2026-08-01：Lockstep L1B 代码——纯 ActionSim、Snapshot/Event 表现边界、共享帧查询与 60Hz 迁移工具
 - [x] 2026-08-02：Lockstep L1B 资产 Hz——全部 ActionDefinition 已 60Hz；Validate Readiness；清除 Editor 30Hz fallback
+- [x] 2026-08-04：L2 静态碰撞 AABB 烘焙 + MotorSim 重力/着地；M2 Bake Dirty / Validate
 
 ## 剩余项
 
