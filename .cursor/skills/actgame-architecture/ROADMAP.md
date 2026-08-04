@@ -68,13 +68,14 @@
 
 **状态**：代码闭环完成（2026-07-29），资产待绑
 
-### [P1] 战斗资源（EX / 喧响 / 闪避）+ Debug HUD
+### [P1] 战斗数值（属性 / 伤害 / EX·喧响·闪避 / Debug HUD）
 
-**方案**：`docs/COMBAT_RESOURCE_SYSTEM_PLAN.md`
+**方案**：`docs/COMBAT_NUMERICS_PLAN.md`  
+（归档：`COMBAT_ATTRIBUTES_DAMAGE_PLAN.md`、`COMBAT_RESOURCE_SYSTEM_PLAN.md`）
 
-**方向**：逻辑帧 `CharacterResourceSim` + `IActionResourceGate`；命中回填；OnGUI 左上角调试面板（缓冲意图、锁定敌人、EX 等）。分阶段 R0（可观测）→ R1（能量）→ R2（闪避）→ R3（喧响）。
+**方向**：以 `CombatHitPipeline` 为唯一结算口；在现有 `CharacterHealth` + `HitPayload` 上演进 AttributeSheet（按需）、`CharacterResourceSim` + Gate、OnGUI Debug Snapshot。阶段 N0（HUD）→ N1（能量）→ N2（攻防公式按需）→ N3/N4（闪避/喧响）。
 
-**状态**：方案待实施（2026-08-02）
+**状态**：合并方案待实施（2026-08-04）
 
 ### [P1] Lockstep 模拟核迁移
 
