@@ -28,6 +28,14 @@ MonoBehaviour:
   executionPolicy:
     interruptPriority: 0
     useRootMotion: 1
+  resourceSpec:
+    EnergyCost: 0
+    EnergyGrantOnHit: 0
+    DecibelGrantOnHit: 0
+    ConsumeDodgeCharge: 0
+    ClearsDecibelOnStart: 0
+    RequiresDecibelFull: 0
+    ResourceTag: 0
   timeline:
     actionEvents: []
     playVfxNotifies:
@@ -38,10 +46,10 @@ MonoBehaviour:
       trackName: VFX_1
       prefab: {fileID: 7611201976539897820, guid: b8d5608cf850428083ba2d62a1a0b31a, type: 3}
       attachPointId: 
-      localOffset: {x: -0.46, y: 0.2, z: 2}
+      localOffset: {x: -0.46, y: 0.2, z: 0}
       localEulerAngles: {x: 116.75, y: 85, z: 8.4}
       localScale: {x: 1.5, y: 1.5, z: 1.6}
-      parentToAttachPoint: 0
+      parentToAttachPoint: 1
       playbackSpeed: 1
     - id: VFX_2
       startFrame: 160
