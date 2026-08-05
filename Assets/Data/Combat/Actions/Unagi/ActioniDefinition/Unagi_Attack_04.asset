@@ -44,13 +44,13 @@ MonoBehaviour:
       endFrame: 10
       priority: 0
       trackName: VFX_1
-      prefab: {fileID: 7611201976539897820, guid: b8d5608cf850428083ba2d62a1a0b31a, type: 3}
+      prefab: {fileID: 1130446560849736, guid: c4d564b5d4682ad46b8621f0fa6f40d9, type: 3}
       attachPointId: 
-      localOffset: {x: -0.46, y: 0.2, z: 0}
-      localEulerAngles: {x: 116.75, y: 85, z: 8.4}
-      localScale: {x: 1.5, y: 1.5, z: 1.6}
+      localOffset: {x: -0.46, y: 0.7, z: 0.08}
+      localEulerAngles: {x: 320.91, y: -78.06, z: 135.3}
+      localScale: {x: 0.8, y: 0.8, z: 0.8}
       parentToAttachPoint: 1
-      playbackSpeed: 1
+      playbackSpeed: 1.2
     - id: VFX_2
       startFrame: 160
       endFrame: 160

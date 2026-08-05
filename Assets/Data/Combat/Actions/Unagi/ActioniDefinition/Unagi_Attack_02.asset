@@ -46,7 +46,7 @@ MonoBehaviour:
       trackName: VFX_1
       prefab: {fileID: 1645009922904612, guid: 5e3170c6ef0f014409bd7423e3bb805a, type: 3}
       attachPointId: 
-      localOffset: {x: -0.3, y: 0.73, z: 0}
+      localOffset: {x: -0.2, y: 0.73, z: 0}
       localEulerAngles: {x: -9.36, y: -96, z: 0}
       localScale: {x: 0.7, y: 0.7, z: 0.7}
       parentToAttachPoint: 0
