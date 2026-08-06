@@ -47,7 +47,7 @@ public sealed class CombatDebugHudController : AppControllerBase
         _sb.Clear();
         AppendSnapshot(_sb, in _cached);
         const float width = 420f;
-        float height = Mathf.Min(340f, Screen.height * 0.45f);
+        float height = Mathf.Min(360f, Screen.height * 0.48f);
         GUI.Box(new Rect(8f, 8f, width, height), GUIContent.none, _boxStyle);
         GUI.Label(new Rect(16f, 16f, width - 16f, height - 16f), _sb.ToString(), _labelStyle);
     }
@@ -65,6 +65,16 @@ public sealed class CombatDebugHudController : AppControllerBase
         sb.Append(" | Freeze: ").Append(s.FreezeFrames).AppendLine();
         sb.Append("HP: ").Append(s.CurrentHp.ToString("0.#")).Append('/')
             .Append(s.MaxHp.ToString("0.#")).AppendLine();
+        sb.Append("EX: ").Append(s.EnergyPoints).Append('/').Append(s.MaxEnergy)
+            .Append("  (+regen ").Append(s.EnergyRegenMilliPerFrame).Append("m/f)")
+            .Append("   Decibel: ").Append(s.Decibel).Append('/').Append(s.MaxDecibel)
+            .AppendLine();
+        sb.Append("Next Special: ").Append(s.NextSpecialForm).AppendLine();
+        sb.Append("Dodge: ").Append(s.DodgeCharges).Append('/').Append(s.MaxDodgeCharges)
+            .Append("  (recharge ").Append(s.DodgeRechargeFramesLeft).Append("f)")
+            .AppendLine();
+        sb.Append("InCombat: ").Append(s.InCombat ? "YES" : "NO")
+            .Append(" (hold ").Append(s.InCombatHoldFrames).Append("f)").AppendLine();
         sb.Append("FrameIntents:");
         if (s.FrameIntents.Length == 0)
             sb.Append(" (none)");

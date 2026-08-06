@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>单角色运行实例，集中持有输入、移动、状态、动作和战斗服务。</summary>
@@ -23,6 +24,7 @@ public sealed class CharacterActor :
     readonly CharacterAnimationService _animation;
     readonly CharacterPresentationBridge _presentation;
     readonly CharacterVisualMotionBridge _visualMotion;
+    readonly CharacterResourceSim _resources;
     readonly GameplayIntentBuffer _intentBuffer;
     readonly CombatTargetLock _targetLock;
     readonly Transform _simulationRoot;
@@ -92,6 +94,9 @@ public sealed class CharacterActor :
     /// <summary>索敌锁定状态（只读观测 / Debug HUD）。</summary>
     public CombatTargetLock TargetLock => _targetLock;
 
+    /// <summary>玩法资源权威（Energy/Decibel/Dodge）。</summary>
+    public CharacterResourceSim Resources => _resources;
+
     /// <summary>创建角色实例；所有依赖由工厂一次性注入。</summary>
     public CharacterActor(
         ILocalInputSampler localInput,
@@ -106,6 +111,7 @@ public sealed class CharacterActor :
         CharacterAnimationService animation,
         CharacterPresentationBridge presentation,
         CharacterVisualMotionBridge visualMotion,
+        CharacterResourceSim resources,
         GameplayIntentBuffer intentBuffer,
         CombatTargetLock targetLock,
         Transform simulationRoot)
@@ -122,6 +128,7 @@ public sealed class CharacterActor :
         _animation = animation;
         _presentation = presentation;
         _visualMotion = visualMotion;
+        _resources = resources;
         _intentBuffer = intentBuffer;
         _targetLock = targetLock;
         _simulationRoot = simulationRoot;
@@ -174,6 +181,7 @@ public sealed class CharacterActor :
         }
 
         CharacterMotorSim motor = _motor.Sim;
+        CharacterResourceSim res = _resources;
         return new CharacterDebugSnapshot(
             CurrentState,
             snap.IsActive,
@@ -183,6 +191,17 @@ public sealed class CharacterActor :
             snap.FreezeFrames,
             _health != null ? _health.CurrentHealth : 0f,
             _health != null ? _health.MaxHealth : 0f,
+            res != null ? res.EnergyPoints : 0,
+            res != null ? res.MaxEnergy : 0,
+            res != null ? res.EnergyRegenMilliPerFrame : 0,
+            res != null ? res.Decibel : 0,
+            res != null ? res.MaxDecibel : 0,
+            res != null ? res.DodgeCharges : 0,
+            res != null ? res.MaxDodgeCharges : 0,
+            res != null ? res.DodgeRechargeFramesLeft : 0,
+            res != null && res.IsInCombat,
+            res != null ? res.InCombatHoldFrames : 0,
+            ResolveNextSpecialFormLabel(),
             hasLock,
             lockName,
             lockDist,
@@ -195,6 +214,35 @@ public sealed class CharacterActor :
             _actionLateralPeakMm,
             frameIntents,
             buffers);
+    }
+
+    /// <summary>HUD：根据当前能量预判 Special 同键下一发是 EX 还是普通。</summary>
+    string ResolveNextSpecialFormLabel()
+    {
+        ActionGraph graph = _combatMode?.ActiveActionSet?.ActionGraph;
+        if (graph == null || _actionSim == null)
+            return "-";
+
+        var entries = new List<ActionDefinition>(4);
+        IReadOnlyList<ActionGraphNode> nodes = graph.Nodes;
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            ActionGraphNode node = nodes[i];
+            if (node == null || !node.IsEntry || node.Action == null)
+                continue;
+            if (node.Intent != GameplayIntentType.Special)
+                continue;
+            entries.Add(node.Action);
+        }
+
+        if (entries.Count == 0)
+            return "-";
+
+        bool isEx = ActionEnergyFormSelector.WouldSelectExSpecial(
+            entries.Count,
+            i => entries[i].ResourceSpec?.ResourceTag ?? ActionResourceTag.None,
+            i => _actionSim.CanAffordContent(entries[i]));
+        return isEx ? "EX" : "Special";
     }
 
     /// <summary>启用本地设备采样；AI Actor 无设备源时为空操作。</summary>
@@ -276,6 +324,19 @@ public sealed class CharacterActor :
             // 未烘焙招式仍可能由此 Evaluate 产生 Native RM delta；已烘焙招式 RM 在 ApplyStep 已关闭。
             _animation.Tick(fixedDeltaSeconds);
             UpdateActionLateralPeakSample();
+
+            // 卡肉期间暂停被动回能/闪避充能；动作或受击态刷新接战门闩
+            if (_actionSim != null && !_actionSim.IsFrozen)
+            {
+                if (_actionSim.IsActive
+                    || CurrentState == CharacterStateType.Hit
+                    || CurrentState == CharacterStateType.Action)
+                {
+                    _resources?.NotifyInCombat();
+                }
+
+                _resources?.Step();
+            }
         }
         finally
         {

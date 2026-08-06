@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 /// <summary>动作解析上下文：描述"世界/状态侧"信息，Resolver 据此选择最终动作（含图游标字段）。</summary>
@@ -11,7 +12,8 @@ public readonly struct ActionResolveContext
         IActionStartContext startContext,
         CancelWindowType cancelWindowType = CancelWindowType.Normal,
         string currentNodeId = null,
-        bool hasCancelRoute = false)
+        bool hasCancelRoute = false,
+        Func<IActionSimContent, bool> canAfford = null)
     {
         Origin = origin;
         CurrentAction = currentAction;
@@ -20,6 +22,7 @@ public readonly struct ActionResolveContext
         CancelWindowType = cancelWindowType;
         CurrentNodeId = currentNodeId;
         HasCancelRoute = hasCancelRoute;
+        CanAfford = canAfford;
     }
 
     /// <summary>解析来源（Locomotion 起手、显式 Cancel、Recovery 软重开或高优打断）。</summary>
@@ -42,6 +45,13 @@ public readonly struct ActionResolveContext
 
     /// <summary>是否携带有效 Cancel 路由；仅 CancelWindow 来源为 true。</summary>
     public bool HasCancelRoute { get; }
+
+    /// <summary>资源预检（不扣费）；null 视为全部可负担，仅影响同键 EX 选形。</summary>
+    public Func<IActionSimContent, bool> CanAfford { get; }
+
+    /// <summary>对指定内容做费用预检；无委托时返回 true。</summary>
+    public bool Allows(IActionSimContent content) =>
+        CanAfford == null || content == null || CanAfford(content);
 }
 
 /// <summary>动作解析来源：区分起手、显式 Cancel、Recovery Entry 与高优硬打断。</summary>

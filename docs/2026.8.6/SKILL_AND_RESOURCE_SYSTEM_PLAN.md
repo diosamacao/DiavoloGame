@@ -372,12 +372,12 @@ EX/Ult 默认 `grantsEnergyOnHit=false`。
 
 ## 14. 成功标准
 
-- [ ] 玩家必须消耗资源才能放强化技 / 大招（Gate 生效）  
-- [ ] 同键 Special/EX 行为符合绝区零心智模型  
-- [ ] 命中回能/喧响仅在 Pipeline ConfirmHit  
-- [ ] 闪避有限 + 可完美反击  
-- [ ] 技能差异主要靠 Action 资产与 Tag，而非角色硬编码  
-- [ ] Debug HUD 可观测全部资源与当前路由结果  
+- [x] 玩家必须消耗资源才能放强化技 / 大招（Gate 生效；资产填 cost 后验收）  
+- [x] 同键 Special/EX 行为符合绝区零心智模型（代码选形就绪；Graph 双 Entry 人工）  
+- [x] 命中回能/喧响仅在 Pipeline ConfirmHit  
+- [ ] 闪避有限 + 可完美反击（次数就绪；完美窗/反击待 3.4）  
+- [x] 技能差异主要靠 Action 资产与 Tag，而非角色硬编码  
+- [x] Debug HUD 可观测全部资源与当前路由结果（Next Special）  
 
 ---
 

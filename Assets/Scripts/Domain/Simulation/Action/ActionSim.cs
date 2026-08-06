@@ -9,6 +9,7 @@ public sealed class ActionSim : IActionSimHitReceiver
 
     readonly IActionSimResolver _resolver;
     readonly IActionInputBuffer _inputBuffer;
+    readonly IActionResourceGate _resourceGate;
     readonly HashSet<GameplayIntentType> _candidateIntents = new HashSet<GameplayIntentType>();
     readonly HashSet<GameplayIntentType> _routeCandidateIntents = new HashSet<GameplayIntentType>();
     readonly List<GameplayIntentType> _bufferedIntents = new List<GameplayIntentType>(8);
@@ -28,11 +29,15 @@ public sealed class ActionSim : IActionSimHitReceiver
     bool _hasPendingTransition;
     bool _pendingStop;
 
-    /// <summary>创建动作模拟核；Resolver 与输入缓冲可为空以运行无输入直接动作。</summary>
-    public ActionSim(IActionSimResolver resolver = null, IActionInputBuffer inputBuffer = null)
+    /// <summary>创建动作模拟核；Resolver / 输入缓冲 / 资源 Gate 可为空。</summary>
+    public ActionSim(
+        IActionSimResolver resolver = null,
+        IActionInputBuffer inputBuffer = null,
+        IActionResourceGate resourceGate = null)
     {
         _resolver = resolver;
         _inputBuffer = inputBuffer;
+        _resourceGate = resourceGate;
     }
 
     /// <summary>当前权威动作帧；无活动动作时返回 0。</summary>
@@ -82,12 +87,15 @@ public sealed class ActionSim : IActionSimHitReceiver
     /// <summary>仅在当前无动作且内容已迁移为 60Hz 模拟数据时立即从 frame 0 起手。</summary>
     public bool TryStart(in ActionSimResolveResult result)
     {
-        if (IsActive || !CanBegin(result))
+        if (IsActive || !CanBegin(result) || !CanAfford(result.Content))
             return false;
 
         Begin(in result);
         return true;
     }
+
+    /// <summary>供 Graph 同键选招与 Driver 预判；只读不扣费。</summary>
+    public bool CanAffordContent(IActionSimContent content) => CanAfford(content);
 
     /// <summary>推进一个 World 帧；先提交上帧决定，再按每步一帧推进并解析取消或 Recovery。</summary>
     public void Step()
@@ -157,6 +165,7 @@ public sealed class ActionSim : IActionSimHitReceiver
     {
         if (!IsActive
             || !CanBegin(result)
+            || !CanAfford(result.Content)
             || result.Content.InterruptPriority <= _content.InterruptPriority
             || !_content.IsInterruptibleAtFrame(_currentFrame))
         {
@@ -233,7 +242,11 @@ public sealed class ActionSim : IActionSimHitReceiver
         && result.Content.SampleRate == LogicHz
         && result.Content.TotalFrames > 0;
 
-    /// <summary>建立新的稳定动作实例，并立即派发 Started 与 frame 0 内容事件。</summary>
+    /// <summary>资源 Gate 鉴权；无 Gate 时视为可负担。</summary>
+    bool CanAfford(IActionSimContent content) =>
+        _resourceGate == null || content == null || _resourceGate.CanAfford(content);
+
+    /// <summary>建立新的稳定动作实例，扣费一次，并立即派发 Started 与 frame 0 内容事件。</summary>
     void Begin(in ActionSimResolveResult result)
     {
         _content = result.Content;
@@ -244,6 +257,9 @@ public sealed class ActionSim : IActionSimHitReceiver
         _hasConfirmedHit = false;
         _freezeFrames = 0;
         _hitStopAppliedForInstance = false;
+
+        // 价签扣费与 Begin 同事务：仅成功起手路径调用一次
+        _resourceGate?.CommitCost(_content);
 
         _events.Add(new ActionSimEvent(
             ActionSimEventType.Started,
@@ -352,12 +368,13 @@ public sealed class ActionSim : IActionSimHitReceiver
         _candidateIntents.UnionWith(_routeCandidateIntents);
     }
 
-    /// <summary>解析并消费单个取消意图；切招结果延迟提交。</summary>
+    /// <summary>解析并消费单个取消意图；切招结果延迟提交。不够费时不消费缓冲。</summary>
     bool TryQueueCancelIntent(GameplayIntentType intent, CancelWindowType windowType)
     {
         ActionSimSnapshot snapshot = Snapshot;
         if (!_resolver.TryResolveNext(intent, windowType, in snapshot, out ActionSimResolveResult result)
-            || !CanBegin(result))
+            || !CanBegin(result)
+            || !CanAfford(result.Content))
         {
             return false;
         }
@@ -391,7 +408,8 @@ public sealed class ActionSim : IActionSimHitReceiver
                     intent,
                     in snapshot,
                     out ActionSimResolveResult result)
-                || !CanBegin(result))
+                || !CanBegin(result)
+                || !CanAfford(result.Content))
             {
                 continue;
             }
@@ -442,7 +460,7 @@ public sealed class ActionSim : IActionSimHitReceiver
     /// <summary>记录本帧解析出的切招，供下一 World 帧开始时提交。</summary>
     void QueueTransition(in ActionSimResolveResult result)
     {
-        if (_hasPendingTransition || _pendingStop || !CanBegin(result))
+        if (_hasPendingTransition || _pendingStop || !CanBegin(result) || !CanAfford(result.Content))
             return;
 
         _pendingTransition = result;
@@ -464,6 +482,10 @@ public sealed class ActionSim : IActionSimHitReceiver
 
         ActionSimResolveResult transition = _pendingTransition;
         ClearPendingDecision();
+        // 二次 CanAfford：Cancel 排队后费用可能已变；不够则丢弃切招，缓冲由上层保留策略处理
+        if (!CanAfford(transition.Content))
+            return false;
+
         EndCurrent();
         Begin(in transition);
         return true;

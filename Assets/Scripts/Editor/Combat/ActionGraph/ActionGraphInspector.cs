@@ -324,8 +324,8 @@ public class ActionGraphInspector : Editor
                 continue;
             }
 
-            // 每种 Intent 只允许一个逻辑 Entry；Directional 变体由该 Entry 的 Resolver 折叠。
-            if (!entryIntents.Add(intent))
+            // Special 允许双 Entry（普通/EX 同键能量分支）；其它 Intent 仍只允许一个逻辑 Entry。
+            if (!entryIntents.Add(intent) && intent != GameplayIntentType.Special)
             {
                 errors.Add(
                     $"多个 Entry 使用相同 Intent {intent}：'{node.NodeId}'。请折叠为一个逻辑 Entry。");

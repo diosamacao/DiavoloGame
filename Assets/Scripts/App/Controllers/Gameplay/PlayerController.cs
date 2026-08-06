@@ -90,7 +90,10 @@ public class PlayerController : AppControllerBase
     {
         actor?.Enable();
         if (actor != null && simulationHost != null && !simulationRegistration.IsValid)
+        {
             simulationRegistration = simulationHost.RegisterPlayer(actor);
+            simulationHost.RegisterResources(actor.SimulationId, actor.Resources);
+        }
     }
 
     void OnDisable()

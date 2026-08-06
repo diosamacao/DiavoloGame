@@ -80,8 +80,11 @@ public static class CharacterActorFactory
         var intentBuffer = new GameplayIntentBuffer(
             config.GameplayIntentProfile.ActionBufferDurationFrames);
         var resolverService = new ActionResolverService(combatMode);
-        var resolverBridge = new ActionSimResolverBridge(resolverService, root, motor);
-        actionSim = new ActionSim(resolverBridge, intentBuffer);
+        var resourceSim = new CharacterResourceSim(config.Resources);
+        var resourceGate = new ActionResourceGate(resourceSim);
+        // Bridge 需 Gate 做同键 EX 选形；ActionSim 再用同一 Gate 扣费
+        var resolverBridge = new ActionSimResolverBridge(resolverService, root, motor, resourceGate);
+        actionSim = new ActionSim(resolverBridge, intentBuffer, resourceGate);
         context.ActionSim = actionSim;
 
         var intentProducer = new GameplayIntentProducer(
@@ -147,6 +150,7 @@ public static class CharacterActorFactory
             animation,
             new CharacterPresentationBridge(root, presentationRoot),
             visualMotion,
+            resourceSim,
             intentBuffer,
             targetLock,
             root);

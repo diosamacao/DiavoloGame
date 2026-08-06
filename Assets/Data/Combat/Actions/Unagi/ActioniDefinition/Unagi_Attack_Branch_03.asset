@@ -16,10 +16,12 @@ MonoBehaviour:
   - clip: {fileID: 3806095601073218737, guid: 08ffb44cdfd050947ae6e1ddc8b06a15, type: 3}
     startFrame: 0
     endFrame: -1
+    hasCrossFadeOverride: 0
     crossFadeDuration: 0
   - clip: {fileID: -6237353192748467896, guid: 9a1eb1563936d914b84253dbe612cd25, type: 3}
     startFrame: 0
     endFrame: -1
+    hasCrossFadeOverride: 0
     crossFadeDuration: 0
   sampleRate: 60
   totalFrames: 272
@@ -28,6 +30,15 @@ MonoBehaviour:
   executionPolicy:
     interruptPriority: 0
     useRootMotion: 1
+    baseMotionMode: 0
+  resourceSpec:
+    resourceTag: 4
+    energyCost: 1
+    energyGrantOnHit: 0
+    decibelGrantOnHit: 0
+    consumeDodgeCharge: 0
+    requiresDecibelFull: 0
+    clearsDecibelOnStart: 0
   timeline:
     actionEvents: []
     playVfxNotifies:

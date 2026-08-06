@@ -19,9 +19,14 @@ public enum GameplayIntentType
     /// <summary>攻击键松开；蓄力释放等招式的 Trigger。</summary>
     AttackRelease = 5,
 
-    /// <summary>技能招式 Trigger。</summary>
-    Skill = 6,
+    /// <summary>
+    /// 特殊技同键意图（原 Skill=6）；Producer 不区分 EX，由 Graph+Gate 按能量分支。
+    /// </summary>
+    Special = 6,
 
     /// <summary>闪避 Action 播放期间按下攻击。</summary>
     DodgeAttack = 7,
+
+    /// <summary>终结技意图；需喧响满档（RequiresDecibelFull）。</summary>
+    Ultimate = 8,
 }

@@ -124,7 +124,7 @@ MonoBehaviour:
       policy: 0
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
-    editorPosition: {x: 1533.3334, y: -662.6667}
+    editorPosition: {x: 1512, y: -670.6667}
   - nodeId: Unagi_Attack_Branch_01_Perfect
     action: {fileID: 11400000, guid: 3e79dc3aaf3a97a40b921d55dab6542a, type: 2}
     intent: 6
@@ -140,7 +140,7 @@ MonoBehaviour:
       policy: 0
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
-    editorPosition: {x: 1512, y: -854}
+    editorPosition: {x: 878.6667, y: -1420.6666}
   - nodeId: Unagi_Attack_Branch_02
     action: {fileID: 11400000, guid: 36239327dd50e6945a178edda90d407e, type: 2}
     intent: 6
@@ -252,7 +252,7 @@ MonoBehaviour:
       policy: 0
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
-    editorPosition: {x: 520, y: -1012}
+    editorPosition: {x: 320, y: -1088}
   edges:
   - fromNodeId: Unagi_Attack_02
     routeKind: 0
@@ -324,6 +324,15 @@ MonoBehaviour:
     routeKind: 0
     toNodeId: Unagi_Attack_Branch_Start
   - fromNodeId: Unagi_ChargeAttack_01
+    routeKind: 0
+    toNodeId: Unagi_Attack_03
+  - fromNodeId: Unagi_Attack_03
+    routeKind: 1
+    toNodeId: Unagi_Attack_Branch_01_Perfect
+  - fromNodeId: Unagi_Attack_05
+    routeKind: 1
+    toNodeId: Unagi_Attack_Branch_01_Perfect
+  - fromNodeId: Unagi_Attack_Branch_01_Perfect
     routeKind: 0
     toNodeId: Unagi_Attack_03
   sharedRoutes: []

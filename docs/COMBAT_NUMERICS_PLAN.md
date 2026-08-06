@@ -69,9 +69,9 @@ SimulationWorld.Step
 | `CombatDamageCalculator` | ✅ 扁平 `BaseDamage` |
 | `HitPayload` | ✅ damage / reactionId / feedback |
 | `AttributeSheet` / ATK·DEF 公式 | ⬜ 未做 |
-| `CharacterResourceSim` / Gate | ⬜ 未做 |
-| Debug HUD / `CharacterDebugSnapshot` | ⬜ 未做 |
-| IntentBuffer / TargetLock 对外暴露 | ⬜ 工厂局部，HUD 读不到 |
+| `CharacterResourceSim` / Gate | ✅ Wave 3 代码已接；资产填表中 |
+| Debug HUD / `CharacterDebugSnapshot` | ✅ N0 + 资源行 + Next Special |
+| IntentBuffer / TargetLock 对外暴露 | ✅ |
 
 ---
 
@@ -253,12 +253,13 @@ Motor: (...) SoftBody: mass=100 immovable=false
 
 ### Phase N1 — Energy + Gate + 命中回能
 
-- [ ] `CharacterResourceSim` / Config / `ActionResourceSpec`  
-- [ ] Gate → Driver + ActionSim  
-- [ ] Pipeline GrantOnHit；接战被动回能  
-- [ ] HUD 显示 EX  
+- [x] `CharacterResourceSim` / Config / `ActionResourceSpec`  
+- [x] Gate → Driver + ActionSim  
+- [x] Pipeline GrantOnHit；接战被动回能  
+- [x] HUD 显示 EX  
 
-**验收：** `energyCost` 不够不起手；普攻命中回能；HUD 同步。
+**验收：** `energyCost` 不够不起手；普攻命中回能；HUD 同步。  
+**状态（2026-08-06）：** 代码已落地；正式招费用需 Editor 填表。
 
 ### Phase N2 — 属性公式增强（按需，可与 N1 并行后置）
 
@@ -270,19 +271,22 @@ Motor: (...) SoftBody: mass=100 immovable=false
 
 ### Phase N3 — 闪避充能
 
-- [ ] DodgeCharges + recharge；Dodge Action 消耗  
-- [ ] HUD 次数与充能帧  
+- [x] DodgeCharges + recharge；`consumeDodgeCharge` Gate  
+- [x] HUD 次数与充能帧  
+- [ ] 完美闪避窗 + DodgeCounter（Wave 3.4）
 
 ### Phase N4 — 喧响
 
-- [ ] Decibel 累加 / 满值门槛 / 大招清空  
-- [ ] HUD 喧响  
+- [x] Decibel 累加 / 满值门槛 / 大招清空（Sim + Spec）  
+- [x] HUD 喧响  
+- [ ] Graph `Ultimate` Entry + 资产绑定（人工）
 
 ### Phase N5 — 同键双形态（**必做**，2026-08-06 升格）
 
 > 与 `docs/2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md` / `MASTER_IMPLEMENTATION_PLAN` Wave 3 对齐；不再标为可选。
 
-- [ ] Special 意图能量分支；HUD 标注下一发 EX/普通  
+- [x] Special 意图能量分支（`ActionEnergyFormSelector`）；HUD 标注下一发 EX/普通  
+- [ ] 正式 Graph 双 Entry + EX 费用表（Editor 人工）
 
 ---
 
