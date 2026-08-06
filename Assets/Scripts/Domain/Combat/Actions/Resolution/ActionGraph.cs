@@ -51,7 +51,7 @@ public class ActionGraph : ScriptableObject, IActionSimGraph
 
     /// <summary>
     /// Locomotion 起手：在标记为 Entry 的节点中，按节点 Intent 匹配 request；
-    /// 若节点配置了 VariantResolver（如 Directional），则解析实际播放变体并保持逻辑节点不变。
+    /// Special 同意图多 Entry 时按能量选 EX/普通；VariantResolver 只改播放变体。
     /// </summary>
     public bool TryResolveStart(
         in ActionRequest request,
@@ -62,6 +62,7 @@ public class ActionGraph : ScriptableObject, IActionSimGraph
         if (nodes == null || !request.IsValid)
             return false;
 
+        var candidates = new List<ActionGraphNode>(4);
         for (int i = 0; i < nodes.Length; i++)
         {
             ActionGraphNode node = nodes[i];
@@ -72,10 +73,10 @@ public class ActionGraph : ScriptableObject, IActionSimGraph
             if (intent == GameplayIntentType.None || intent != request.Intent)
                 continue;
 
-            return FinalizeNodeResolve(node, in request, in context, out result);
+            candidates.Add(node);
         }
 
-        return false;
+        return TryFinalizeFromCandidates(candidates, in request, in context, out result);
     }
 
     /// <summary>Cancel：按当前节点与窗口类型找出边，再按目标节点 Intent 匹配请求。</summary>
@@ -91,6 +92,7 @@ public class ActionGraph : ScriptableObject, IActionSimGraph
         var edgeBuffer = new List<ActionGraphEdge>(8);
         CollectEdges(context.CurrentNodeId, context.CancelWindowType, edgeBuffer);
 
+        var candidates = new List<ActionGraphNode>(4);
         for (int i = 0; i < edgeBuffer.Count; i++)
         {
             ActionGraphEdge edge = edgeBuffer[i];
@@ -101,8 +103,11 @@ public class ActionGraph : ScriptableObject, IActionSimGraph
             if (intent == GameplayIntentType.None || intent != request.Intent)
                 continue;
 
-            return FinalizeNodeResolve(toNode, in request, in context, out result);
+            candidates.Add(toNode);
         }
+
+        if (TryFinalizeFromCandidates(candidates, in request, in context, out result))
+            return true;
 
         return TryResolveSharedRoute(in request, in context, out result);
     }
@@ -122,6 +127,7 @@ public class ActionGraph : ScriptableObject, IActionSimGraph
             return false;
 
         GameplayIntentType sourceIntent = currentNode.Intent;
+        var candidates = new List<ActionGraphNode>(4);
         for (int i = 0; i < sharedRoutes.Length; i++)
         {
             ActionGraphSharedRoute route = sharedRoutes[i];
@@ -137,10 +143,39 @@ public class ActionGraph : ScriptableObject, IActionSimGraph
             if (!TryGetNode(route.ToNodeId, out ActionGraphNode toNode))
                 continue;
 
-            return FinalizeNodeResolve(toNode, in request, in context, out result);
+            candidates.Add(toNode);
         }
 
-        return false;
+        return TryFinalizeFromCandidates(candidates, in request, in context, out result);
+    }
+
+    /// <summary>
+    /// 单候选走原 Finalize；Special 多候选按 <see cref="ActionEnergyFormSelector"/> 选 EX/普通。
+    /// </summary>
+    bool TryFinalizeFromCandidates(
+        List<ActionGraphNode> candidates,
+        in ActionRequest request,
+        in ActionResolveContext context,
+        out ActionResolveResult result)
+    {
+        result = default;
+        if (candidates == null || candidates.Count == 0)
+            return false;
+
+        if (candidates.Count == 1 || request.Intent != GameplayIntentType.Special)
+            return FinalizeNodeResolve(candidates[0], in request, in context, out result);
+
+        // in 参数不能进 lambda：先取出 CanAfford 委托
+        Func<IActionSimContent, bool> canAfford = context.CanAfford;
+        bool found = ActionEnergyFormSelector.TryFindIndex(
+            candidates.Count,
+            i => candidates[i].Action.ResourceSpec?.ResourceTag ?? ActionResourceTag.None,
+            i => canAfford == null || canAfford(candidates[i].Action),
+            out int index);
+        if (!found || index < 0 || index >= candidates.Count)
+            return false;
+
+        return FinalizeNodeResolve(candidates[index], in request, in context, out result);
     }
 
     /// <summary>枚举从指定节点、指定 Cancel 路由出发的边。</summary>

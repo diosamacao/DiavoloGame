@@ -192,7 +192,7 @@ Wave 5  大招演出 + 可选失衡；命中盒烘焙后置
 - [x] 2.3 CameraRoot 仍挂 Presentation（与 Visual 并列）；不跟模型残差
 - [ ] 2.4 正式招全烘焙 / 关 Animator RM（需内容迁移，未在本提交强删）
 - [ ] 2.5 删除 `useRootMotion` / ForwardOnly 运行时（保留至全库迁完）
-- [ ] 2.6 CrossFade 显式 Override
+- [x] 2.6 CrossFade 显式 Override（`hasCrossFadeOverride` / `crossFadeDuration`）
 
 **Attack5 验收：** Planar=`ForwardSigned` 重烘焙 → Motor/`ActionLateralPeakMm`≈0，模型在 VisualMotionRoot 上仍左右摆。
 
@@ -216,6 +216,17 @@ Wave 5  大招演出 + 可选失衡；命中盒烘焙后置
 | 3.4 | DodgeCharges + 完美闪避窗口（敌方 Timeline）+ DodgeCounter | N3/S3 | 耗次数；窗内闪→攻出反击 |
 | 3.5 | Decibel + Ult 清条 | N4/S4 | 满档可放；放后不能连放 |
 | 3.6 | `freezeFrames>0` 时暂停被动回能与闪避充能 | Skill 定案 | 卡肉期资源不偷跑 |
+
+#### Wave 3 落地状态（2026-08-06）
+
+- [x] 3.1 `CharacterResourceSim` + Config + Gate；EditMode：`CharacterResourceSimTests` / `ActionSimResourceGateTests`
+- [x] 3.2 `ActionDefinition.resourceSpec`；费用字段只认 Spec
+- [x] 3.3 `GameplayIntentType.Special`（原 Skill=6）+ `Ultimate`；`ActionEnergyFormSelector` 同键 EX；HUD `Next Special`
+- [ ] 3.4 完美闪避窗 + DodgeCounter 路由（DodgeCharges/Consume 已就绪）
+- [x] 3.5 Sim 侧 Decibel 门槛/清条就绪；需 Graph Entry=`Ultimate` + 资产填 Spec（人工）
+- [x] 3.6 卡肉期间跳过 `ResourceSim.Step`
+
+**Editor 人工（不改 `.asset` by Agent）：** CharacterConfig.Resources；招式 `energyCost`/`energyGrantOnHit`/`resourceTag`；Graph 双 Entry（Special+ExSpecial）；Profile 绑定 Special/Ultimate。
 
 **`ActionResourceSpec` 首版字段（与 NUMERICS 对齐，禁止加肥）：**
 

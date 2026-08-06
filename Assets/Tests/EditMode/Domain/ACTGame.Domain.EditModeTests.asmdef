@@ -1,0 +1,22 @@
+{
+    "name": "ACTGame.Domain.EditModeTests",
+    "rootNamespace": "",
+    "references": [
+        "ACTGame.Simulation",
+        "ACTGame.Combat.Resources"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

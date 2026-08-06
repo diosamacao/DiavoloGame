@@ -20,6 +20,10 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
     [Tooltip("动作自身固定的执行方式；输入、索敌与流程选择由 ActionGraph 节点负责。")]
     [SerializeField] ActionExecutionPolicy executionPolicy = new();
 
+    [Header("Resource")]
+    [Tooltip("技能资源价签；Gate/Pipeline 只认此嵌套结构。")]
+    [SerializeField] ActionResourceSpec resourceSpec = new();
+
     [Header("Timeline")]
     [Tooltip("动作帧数据唯一真源：Phase、点事件与其它区间窗口均从此处读取。")]
     [SerializeField] ActionTimeline timeline = new();
@@ -63,6 +67,9 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
 
     /// <summary>动作自身固定的执行方式。</summary>
     public ActionExecutionPolicy ExecutionPolicy => executionPolicy ?? new ActionExecutionPolicy();
+
+    /// <summary>资源价签（能量/喧响/闪避等）；空则无消耗。</summary>
+    public ActionResourceSpec ResourceSpec => resourceSpec ?? ActionResourceSpec.Empty;
 
     /// <summary>仅完整迁移到 60Hz 且具有有效动画帧时可进入权威模拟。</summary>
     public bool IsSimulationReady =>
@@ -169,18 +176,30 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
         return segment.GetLocalTimeSeconds(offset, SampleRate);
     }
 
-    /// <summary>解析切入指定段应使用的淡入时长；首段可回退到招式默认 CrossFade。</summary>
+    /// <summary>
+    /// 解析切入指定段淡入时长。
+    /// 显式 Override：用段值（0=硬切）；未 Override：用招式默认。
+    /// Legacy：首段未 Override 且 ≤0 仍回退默认（迁移完成前兼容）。
+    /// </summary>
     public float ResolveSegmentCrossFade(int segmentIndex)
     {
         ActionAnimationSegment[] segments = AnimationSegments;
         if (segmentIndex < 0 || segmentIndex >= segments.Length)
             return crossFadeDuration;
 
-        float segmentFade = segments[segmentIndex].crossFadeDuration;
-        if (segmentIndex == 0 && segmentFade <= 0f)
+        ActionAnimationSegment segment = segments[segmentIndex];
+        if (segment.hasCrossFadeOverride)
+            return Mathf.Max(0f, segment.crossFadeDuration);
+
+        // Legacy：旧资产首段用 0 表示「跟默认」而非硬切
+        if (segmentIndex == 0 && segment.crossFadeDuration <= 0f)
             return crossFadeDuration;
 
-        return Mathf.Max(0f, segmentFade);
+        // 未 Override 的非首段：仍认段上数值，避免静默丢掉已配淡入
+        if (segment.crossFadeDuration > 0f)
+            return segment.crossFadeDuration;
+
+        return crossFadeDuration;
     }
 
     /// <summary>返回指定类型的唯一 CancelWindow；缺失或重复配置时返回 null。</summary>

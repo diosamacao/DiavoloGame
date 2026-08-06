@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-04（L2：静态碰撞 AABB + MotorSim 重力）
+> Last audited: 2026-08-06（Wave 3：ResourceSim / 同键 EX）
 
 ## 项目概述
 
@@ -168,6 +168,8 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 | `CharacterReactionSet` / `CharacterReactionResolver` | 按 HitReactionId 与反应类型生成完整受击/死亡状态请求；默认硬直时长也由规则集持有 |
 | `CharacterReactionService` | 玩家/敌人共用的 Health 事件桥接：执行可选上层副作用，并把解析结果交给 CharacterActor |
 | `PlayerActionSet` | 出招表：绑定一张 `ActionGraph`（节点按语义 Intent 匹配） |
+| `CharacterResourceSim` / `ActionResourceGate` / `ActionResourceSpec` | 玩法资源权威与起手扣费；价签挂 ActionDefinition；ConfirmHit 经 Pipeline 回填 |
+| `ActionEnergyFormSelector` | Special 同键：可负担则 ExSpecial，否则普通 Special |
 
 **当前 Logic Tick**：Runtime 由 `CharacterActor` 在每个 `SimulationWorld` 固定帧唯一调用一次 `ActionSim.Step`；Action 内容严格为 60Hz。表现桥只读事件与 Snapshot；Hitbox 仅收集事件，Host 在全 Actor Step 后统一 Resolve；PostCombat 排队自动 Transition，目标 frame 0 下一 World 帧提交。
 

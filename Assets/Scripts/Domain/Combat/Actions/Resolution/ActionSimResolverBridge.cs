@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -7,23 +8,28 @@ public sealed class ActionSimResolverBridge : IActionSimResolver
     readonly ActionResolverService _resolverService;
     readonly Transform _actorRoot;
     readonly IActionStartContext _startContext;
+    readonly Func<IActionSimContent, bool> _canAfford;
 
     /// <summary>创建单角色解析桥；桥只转换请求和结果，不持有动作状态。</summary>
     public ActionSimResolverBridge(
         ActionResolverService resolverService,
         Transform actorRoot,
-        IActionStartContext startContext)
+        IActionStartContext startContext,
+        IActionResourceGate resourceGate = null)
     {
         _resolverService = resolverService;
         _actorRoot = actorRoot;
         _startContext = startContext;
+        _canAfford = resourceGate != null
+            ? content => resourceGate.CanAfford(content)
+            : null;
     }
 
     /// <summary>枚举当前战斗模式出招图可消费的全部意图。</summary>
     public IEnumerable<GameplayIntentType> EnumerateActiveIntents() =>
         _resolverService != null
             ? _resolverService.EnumerateActiveIntents()
-            : System.Array.Empty<GameplayIntentType>();
+            : Array.Empty<GameplayIntentType>();
 
     /// <summary>把纯快照转换为 Cancel 解析上下文并返回纯结果。</summary>
     public bool TryResolveNext(
@@ -44,7 +50,8 @@ public sealed class ActionSimResolverBridge : IActionSimResolver
             _startContext,
             windowType,
             snapshot.NodeId,
-            hasCancelRoute: true);
+            hasCancelRoute: true,
+            canAfford: _canAfford);
         if (!_resolverService.TryResolveNext(in request, in context, out ActionResolveResult resolved)
             || !resolved.IsValid)
         {
@@ -71,7 +78,8 @@ public sealed class ActionSimResolverBridge : IActionSimResolver
             currentAction,
             _actorRoot,
             _startContext,
-            currentNodeId: snapshot.NodeId);
+            currentNodeId: snapshot.NodeId,
+            canAfford: _canAfford);
         if (!_resolverService.TryResolveStart(in request, in context, out ActionResolveResult resolved)
             || !resolved.IsValid)
         {

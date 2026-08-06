@@ -13,6 +13,17 @@ public readonly struct CharacterDebugSnapshot
         int freezeFrames,
         float currentHp,
         float maxHp,
+        int energyPoints,
+        int maxEnergy,
+        int energyRegenMilliPerFrame,
+        int decibel,
+        int maxDecibel,
+        int dodgeCharges,
+        int maxDodgeCharges,
+        int dodgeRechargeFramesLeft,
+        bool inCombat,
+        int inCombatHoldFrames,
+        string nextSpecialForm,
         bool hasLock,
         string lockTargetName,
         float lockDistanceMeters,
@@ -34,6 +45,17 @@ public readonly struct CharacterDebugSnapshot
         FreezeFrames = freezeFrames;
         CurrentHp = currentHp;
         MaxHp = maxHp;
+        EnergyPoints = energyPoints;
+        MaxEnergy = maxEnergy;
+        EnergyRegenMilliPerFrame = energyRegenMilliPerFrame;
+        Decibel = decibel;
+        MaxDecibel = maxDecibel;
+        DodgeCharges = dodgeCharges;
+        MaxDodgeCharges = maxDodgeCharges;
+        DodgeRechargeFramesLeft = dodgeRechargeFramesLeft;
+        InCombat = inCombat;
+        InCombatHoldFrames = inCombatHoldFrames;
+        NextSpecialForm = nextSpecialForm ?? "-";
         HasLock = hasLock;
         LockTargetName = lockTargetName ?? string.Empty;
         LockDistanceMeters = lockDistanceMeters;
@@ -56,6 +78,18 @@ public readonly struct CharacterDebugSnapshot
     public int FreezeFrames { get; }
     public float CurrentHp { get; }
     public float MaxHp { get; }
+    public int EnergyPoints { get; }
+    public int MaxEnergy { get; }
+    public int EnergyRegenMilliPerFrame { get; }
+    public int Decibel { get; }
+    public int MaxDecibel { get; }
+    public int DodgeCharges { get; }
+    public int MaxDodgeCharges { get; }
+    public int DodgeRechargeFramesLeft { get; }
+    public bool InCombat { get; }
+    public int InCombatHoldFrames { get; }
+    /// <summary>下一发 Special 同键形态：EX / Special / -。</summary>
+    public string NextSpecialForm { get; }
     public bool HasLock { get; }
     public string LockTargetName { get; }
     public float LockDistanceMeters { get; }
@@ -65,10 +99,7 @@ public readonly struct CharacterDebugSnapshot
     public int MotorFacingMilliDeg { get; }
     public int SoftBodyMass { get; }
     public bool SoftBodyImmovable { get; }
-
-    /// <summary>当前招式会话内 Motor 局部横向位移峰峰值（毫米，绝对值最大）。</summary>
     public int ActionLateralPeakMm { get; }
-
     public GameplayIntentType[] FrameIntents { get; }
     public BufferedIntentDebug[] Buffers { get; }
 }

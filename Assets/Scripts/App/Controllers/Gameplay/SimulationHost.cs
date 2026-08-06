@@ -8,6 +8,7 @@ using UnityEngine;
 public sealed class SimulationHost : AppControllerBase
 {
     readonly Dictionary<SimActorId, EnemyController> _enemyControllers = new();
+    readonly Dictionary<SimActorId, CharacterResourceSim> _resourcesByActor = new();
     readonly List<EnemyController> _enemyStepSnapshot = new();
 
     SimulationConfig _config;
@@ -40,6 +41,29 @@ public sealed class SimulationHost : AppControllerBase
             _config.MaxFrameCatchUp);
         _world = new SimulationWorld(_config);
         _combatHits = new CombatHitPipeline(PublishResolvedHit);
+        _combatHits.BindResourceLookup(LookupResources);
+    }
+
+    /// <summary>注册 Actor 资源表，供命中 GrantOnHit。</summary>
+    public void RegisterResources(SimActorId actorId, CharacterResourceSim resources)
+    {
+        if (!actorId.IsValid || resources == null)
+            return;
+        _resourcesByActor[actorId] = resources;
+    }
+
+    /// <summary>注销 Actor 资源表。</summary>
+    public void UnregisterResources(SimActorId actorId)
+    {
+        if (actorId.IsValid)
+            _resourcesByActor.Remove(actorId);
+    }
+
+    CharacterResourceSim LookupResources(SimActorId actorId)
+    {
+        if (!actorId.IsValid)
+            return null;
+        return _resourcesByActor.TryGetValue(actorId, out CharacterResourceSim sim) ? sim : null;
     }
 
     /// <summary>
@@ -121,6 +145,7 @@ public sealed class SimulationHost : AppControllerBase
             return false;
 
         _enemyControllers.Remove(registration.Id);
+        UnregisterResources(registration.Id);
         return _world.Unregister(registration);
     }
 

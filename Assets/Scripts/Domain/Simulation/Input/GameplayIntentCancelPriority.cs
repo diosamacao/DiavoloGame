@@ -8,10 +8,14 @@ public static class GameplayIntentCancelPriority
         {
             case GameplayIntentType.Dodge:
                 return 100;
+            case GameplayIntentType.Ultimate:
+                return 95;
             case GameplayIntentType.DodgeAttack:
                 return 90;
             case GameplayIntentType.AttackRelease:
                 return 80;
+            case GameplayIntentType.Special:
+                return 70;
             case GameplayIntentType.LongPressedAttack:
                 return 50;
             case GameplayIntentType.SprintAttack:

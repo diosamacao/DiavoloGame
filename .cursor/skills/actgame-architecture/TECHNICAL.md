@@ -11,6 +11,7 @@
 | Wave0 动作审计 / 锚点可视化 / Debug HUD | ✅ 已实现 | `ActionDefinitionAuditUtility`、`CharacterAnchorGizmoDrawer`、`CombatDebugHudController` | 菜单 `ACTGame/Action/Validate Motion Sources`；场景挂 HUD |
 | Wave1 位移止血 / BaseMotionMode / 相机滤左右 | ✅ 已实现 | `ForwardSigned`、`ActionBaseMotionMode`、`CameraManager.lateralFollowFactor` | Attack 需以 ForwardSigned 重烘焙；菜单 Migrate Base Motion Mode |
 | Wave2 视觉残差 / VisualMotionRoot | ✅ 核心已实现 | `CharacterVisualMotionBridge`、`TryGetVisualResidualMm` | ForwardSigned：Motor 无横摆，模型在 VisualRoot 摆；2.4/2.5 删 RM 待迁完 |
+| Wave3 玩法资源 / 同键 EX | 🟡 代码已接、资产待绑 | `CharacterResourceSim`、`ActionResourceGate`、`ActionEnergyFormSelector` | Spec 填表；Graph 双 Entry Special/ExSpecial；Profile→Special/Ultimate |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B 代码已实现 | `InputFrameBuffer`、`InputReader`、`AIInputWriter`、`GameplayIntentProducer` | `GameInputActions.inputactions` + `GameplayIntentProfile` |
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
@@ -757,6 +758,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-06 | Wave 0：`ActionMotionSourceClassifier` 全库审计；烘焙轨迹 Scene 预览；Motor/相机锚点 Gizmo；`CombatDebugHudController` + `CharacterDebugSnapshot`（N0） |
 | 2026-08-06 | Wave 1：`ForwardSigned`；`ActionBaseMotionMode`+迁移；相机 `lateralFollowFactor`；Motor 读 Orbit `PlanarForward` |
 | 2026-08-06 | Wave 2 核心：`CharacterVisualMotionRoot` + 残差派生；Gameplay→Motor，Residual→模型；未删 RM 回退 |
+| 2026-08-06 | Wave 3：`CharacterResourceSim`/Gate/Spec；Pipeline GrantOnHit；`Special`/`Ultimate` Intent；同键 EX 选形；HUD Next Special；卡肉跳过资源 Step |
 
 ---
 
@@ -786,8 +788,7 @@ LateUpdate：HUD 采样 Snapshot → OnGUI 绘制
 ### 已知限制
 
 - 0.4 基准招样例需人工填写 `docs/2026.8.6/WAVE0_BASELINE_NOTES.md`
-- 尚未删除 Animator RM 回退（Wave 2）
-- 资源条（EX/喧响）仍未实现（Wave 3 / N1+）
+- 尚未删除 Animator RM 回退（Wave 2.4/2.5）
 
 ### 相关文件
 
@@ -795,3 +796,44 @@ LateUpdate：HUD 采样 Snapshot → OnGUI 绘制
 - `Assets/Scripts/Editor/Combat/Motion/ActionDefinitionAuditUtility.cs`
 - `Assets/Scripts/App/Controllers/Debug/CombatDebugHudController.cs`
 - `docs/2026.8.6/MASTER_IMPLEMENTATION_PLAN.md`
+
+---
+
+## Wave 3 — 技能资源循环
+
+### 功能说明
+
+绝区零式单角色资源：Energy / Decibel / DodgeCharges；起手 Gate 扣费；ConfirmHit 回填；Special 同键按能量选 EX。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 资源权威 | `CharacterResourceSim` + `CharacterResourceConfig`（嵌 CharacterConfig） |
+| 价签 | `ActionDefinition.ResourceSpec`（`ActionResourceSpec`） |
+| 扣费 | `ActionResourceGate` → `ActionSim.Begin` / 二次 `CommitPendingDecision` |
+| 回能 | `CombatHitPipeline` ConfirmHit → `GrantOnHit` |
+| 同键 EX | `GameplayIntentType.Special` + `ActionEnergyFormSelector`；Graph 多 Entry |
+| 观测 | HUD：EX/Decibel/Dodge + `Next Special` |
+
+### 运行时流程
+
+```
+Intent Special → Graph 收集 Entry → EnergyFormSelector(Ex if CanAfford else Special)
+  → ActionSim.TryStart → Gate.CommitCost
+ConfirmHit → GrantOnHit（挥空不回）
+Actor.Step：非卡肉时 ResourceSim.Step（接战回能 / 闪避充能）
+```
+
+### 已知限制
+
+- 3.4 完美闪避窗 + DodgeCounter 未做
+- 正式招费用 / Graph 双 Entry / Ultimate 绑定需 Editor 人工
+- 未删 Wave 2 RM 回退
+
+### 相关文件
+
+- `Assets/Scripts/Domain/Combat/Resources/*`
+- `Assets/Scripts/Domain/Combat/Actions/Resolution/ActionGraph.cs`
+- `Assets/Tests/EditMode/Domain/*Resource*` / `ActionEnergyFormSelectionTests.cs`
+- `docs/2026.8.6/MASTER_IMPLEMENTATION_PLAN.md` Wave 3

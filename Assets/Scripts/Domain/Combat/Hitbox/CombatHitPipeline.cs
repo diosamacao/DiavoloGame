@@ -8,6 +8,7 @@ public sealed class CombatHitPipeline
     readonly List<CombatHitEvent> _pending = new();
     readonly List<ResolvedCombatHit> _resolved = new();
     readonly Action<ResolvedCombatHit> _publishResolvedHit;
+    Func<SimActorId, CharacterResourceSim> _resourceLookup;
     long _collectingFrame = -1;
 
     /// <summary>创建帧末命中流水线；发布回调只能消费只读表现结果。</summary>
@@ -15,6 +16,10 @@ public sealed class CombatHitPipeline
     {
         _publishResolvedHit = publishResolvedHit;
     }
+
+    /// <summary>绑定攻击者资源查找，供 ConfirmHit 后 GrantOnHit。</summary>
+    public void BindResourceLookup(Func<SimActorId, CharacterResourceSim> lookup) =>
+        _resourceLookup = lookup;
 
     /// <summary>开始收集下一逻辑帧；遗留事件会被清除，避免异常帧污染后续结算。</summary>
     public void BeginFrame(long frame)
@@ -96,6 +101,12 @@ public sealed class CombatHitPipeline
             ActionHitContext context = hit.Context;
             hit.Target.OnHit(in context);
             hit.HitReceiver?.ConfirmHit(hit.Key.ActionInstanceId);
+
+            // 有效几何命中确认后回填资源；Collect 阶段禁止副作用
+            CharacterResourceSim attackerResources = _resourceLookup?.Invoke(hit.Key.AttackerId);
+            attackerResources?.GrantOnHit(context.Action != null
+                ? context.Action.ResourceSpec
+                : ActionResourceSpec.Empty);
 
             HitFeedbackSettings feedback = context.Hitbox != null
                 ? context.Hitbox.Payload.Feedback

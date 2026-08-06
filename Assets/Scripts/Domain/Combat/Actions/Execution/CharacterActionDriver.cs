@@ -49,9 +49,8 @@ public sealed class CharacterActionDriver
         {
             targetLock.ClearLock();
             _combatMode.ApplyPendingModeIfReady();
-
-            if (!TryStartFromBufferedInputs())
-                ClearAllActionBuffers();
+            // 费用不足时保留缓冲至自然过期，禁止离开 Action 时一刀清空
+            TryStartFromBufferedInputs();
         }
 
         if (inAction)
@@ -142,7 +141,8 @@ public sealed class CharacterActionDriver
             ActionResolveOrigin.PriorityInterrupt,
             current,
             _actorRoot,
-            _startContext);
+            _startContext,
+            canAfford: content => _actionSim.CanAffordContent(content));
 
         if (!_resolverService.TryResolveStart(in request, in context, out ActionResolveResult resolveResult))
             return false;
@@ -158,22 +158,26 @@ public sealed class CharacterActionDriver
     /// <summary>Locomotion 起手：经 ActionGraph Entry×Intent 解析后交给 ActionSim。</summary>
     void TryStartFromLocomotion(GameplayIntentType intent)
     {
-        _intentBuffer.ClearBuffer(intent);
-
         var request = new ActionRequest(intent);
         var context = new ActionResolveContext(
             ActionResolveOrigin.LocomotionStart,
             null,
             _actorRoot,
-            _startContext);
+            _startContext,
+            canAfford: content => _actionSim.CanAffordContent(content));
 
         if (!_resolverService.TryResolveStart(in request, in context, out ActionResolveResult resolveResult))
             return;
 
         ActionSimResolveResult simResult = resolveResult.ToSimResult();
+        // 费用不足时 TryStart 失败：写入/保留缓冲，便于攒够能量后仍能放出
         if (!_actionSim.TryStart(in simResult))
+        {
+            _intentBuffer?.Buffer(intent);
             return;
+        }
 
+        _intentBuffer.ClearBuffer(intent);
         // 清掉残留意图（尤其 AttackRelease），避免进蓄力首帧 Cancel 窗立刻秒放 1 档。
         ClearOtherBufferedIntents(intent);
         _stateMachine.TryChangeState(CharacterStateType.Action);

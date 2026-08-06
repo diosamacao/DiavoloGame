@@ -30,6 +30,10 @@ public class CharacterConfig : ScriptableObject
     [SerializeField] CombatModeProfile combatProfile = null;
     [SerializeField] CharacterCombatConfig combat = CharacterCombatConfig.Default;
 
+    [Header("Resources")]
+    [Tooltip("Energy / Decibel / Dodge；嵌本配置，禁止另开 Profile 双轨。")]
+    [SerializeField] CharacterResourceConfig resources = null;
+
     /// <summary>角色模型 Prefab；运行时会实例化为 PlayerController 子物体。</summary>
     public GameObject ModelPrefab => modelPrefab;
 
@@ -59,6 +63,9 @@ public class CharacterConfig : ScriptableObject
 
     /// <summary>战斗运行时装配参数。</summary>
     public CharacterCombatConfig Combat => combat;
+
+    /// <summary>玩法资源上限与回复；未序列化时用默认骨架值。</summary>
+    public CharacterResourceConfig Resources => resources ?? CharacterResourceConfig.Default;
 
     /// <summary>检查必需配置；失败时输出明确错误，避免运行时热路径反复判空。</summary>
     public bool ValidateForPlayer(UnityEngine.Object context)
