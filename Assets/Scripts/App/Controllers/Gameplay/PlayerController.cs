@@ -15,6 +15,9 @@ public class PlayerController : AppControllerBase
     SimulationHost simulationHost;
     SimActorRegistration simulationRegistration;
 
+    /// <summary>运行时角色 Actor；供 Debug HUD / Scene Gizmo 只读访问。</summary>
+    public CharacterActor Actor => actor;
+
     /// <summary>玩家量化输入中枢，供调试与玩法查询。</summary>
     public InputManager Input => actor?.Input;
 
@@ -65,6 +68,7 @@ public class PlayerController : AppControllerBase
             simulationHost.CollisionWorld);
 
         health = new CharacterHealth(characterConfig.Combat.MaxHealth);
+        actor.AttachHealth(health);
         reactionService = new CharacterReactionService(
             health,
             actor,
@@ -118,6 +122,12 @@ public class PlayerController : AppControllerBase
     {
         cameraTransform = targetCamera;
         actor?.SetCameraTransform(targetCamera);
+    }
+
+    /// <summary>由 CameraManager 每帧写入 Orbit 水平基，避免挤墙扭曲走位。</summary>
+    public void SetCameraPlanarBasis(Vector3 planarForward, Vector3 planarRight)
+    {
+        actor?.SetCameraPlanarBasis(planarForward, planarRight);
     }
 
     /// <summary>玩家装配前确保场景存在统一战斗世界入口并返回该入口。</summary>

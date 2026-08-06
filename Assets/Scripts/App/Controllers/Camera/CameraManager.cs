@@ -35,6 +35,11 @@ public class CameraManager : AppControllerBase
     [Tooltip("Orbit 锚点追 CameraRoot 的 SmoothDamp 时间；越大越稳，攻击多段位移越不易抖。")]
     [SerializeField] float followSmoothTime = 0.1f;
 
+    [Header("Wave1 Lateral Follow")]
+    [Tooltip("吸收 CameraRoot 相对 Follow 状态的左右分量；0=忽略左右（Wave1 止血），1=完整跟随。")]
+    [Range(0f, 1f)]
+    [SerializeField] float lateralFollowFactor = 0.1f;
+
     CinemachineVirtualCamera virtualCamera;
     Transform cameraRoot;
     Transform orbitPivot;
@@ -44,8 +49,37 @@ public class CameraManager : AppControllerBase
     bool lookEnabled = true;
     Vector3 orbitFollowVelocity;
     bool orbitPositionInitialized;
+    Vector3 followAnchorPosition;
 
     public Transform FollowTarget => cameraRoot != null ? cameraRoot : followTarget;
+
+    /// <summary>挂在 Presentation 下的胸口高度锚点；供 Gizmo / Rig 调试。</summary>
+    public Transform CameraRootTransform => cameraRoot;
+
+    /// <summary>水平 Orbit 枢轴；供 Gizmo 调试。</summary>
+    public Transform OrbitPivotTransform => orbitPivot;
+
+    /// <summary>Orbit Yaw 投影的水平前向；供 Motor 相机相对移动（不含挤墙偏转）。</summary>
+    public Vector3 PlanarForward
+    {
+        get
+        {
+            Vector3 forward = Quaternion.Euler(0f, yaw, 0f) * Vector3.forward;
+            forward.y = 0f;
+            return forward.sqrMagnitude > 0.0001f ? forward.normalized : Vector3.forward;
+        }
+    }
+
+    /// <summary>Orbit Yaw 投影的水平右向。</summary>
+    public Vector3 PlanarRight
+    {
+        get
+        {
+            Vector3 right = Quaternion.Euler(0f, yaw, 0f) * Vector3.right;
+            right.y = 0f;
+            return right.sqrMagnitude > 0.0001f ? right.normalized : Vector3.right;
+        }
+    }
 
     /// <summary>运行时创建或绑定的第三人称 Virtual Camera。</summary>
     public CinemachineVirtualCamera VirtualCamera => virtualCamera;
@@ -86,6 +120,15 @@ public class CameraManager : AppControllerBase
     void LateUpdate()
     {
         SyncOrbitPivots();
+        PushPlanarBasisToPlayer();
+    }
+
+    /// <summary>每帧把 Orbit 水平基交给玩家 Motor。</summary>
+    void PushPlanarBasisToPlayer()
+    {
+        if (playerController == null)
+            ResolvePlayerController();
+        playerController?.SetCameraPlanarBasis(PlanarForward, PlanarRight);
     }
 
     void EnsureBrain()
@@ -257,33 +300,66 @@ public class CameraManager : AppControllerBase
         pitch = Mathf.Clamp(pitch, bottomClamp, topClamp);
     }
 
-    /// <summary>用 SmoothDamp 追 CameraRoot，削弱攻击多段位移带来的镜头顿挫。</summary>
+    /// <summary>
+    /// FollowAnchor：按角色水平朝向吸收前后/竖直，左右按 lateralFollowFactor 比例吸收，再 SmoothDamp。
+    /// Wave 1 临时止血；Wave 2 轨迹拆分后降为构图缓冲。
+    /// </summary>
     void SyncOrbitPivots()
     {
         if (orbitPivot == null || pitchPivot == null || cameraRoot == null)
             return;
 
-        Vector3 targetPosition = cameraRoot.position;
+        Vector3 source = cameraRoot.position;
         if (!orbitPositionInitialized ||
-            followSmoothTime <= 0f ||
-            (orbitPivot.position - targetPosition).sqrMagnitude > SnapDistance * SnapDistance)
+            (followAnchorPosition - source).sqrMagnitude > SnapDistance * SnapDistance)
         {
-            orbitPivot.position = targetPosition;
+            followAnchorPosition = source;
+            orbitPivot.position = source;
             orbitFollowVelocity = Vector3.zero;
             orbitPositionInitialized = true;
         }
         else
         {
-            orbitPivot.position = Vector3.SmoothDamp(
-                orbitPivot.position,
-                targetPosition,
-                ref orbitFollowVelocity,
-                followSmoothTime);
+            Vector3 forward = ResolveFollowForwardAxis();
+            Vector3 delta = source - followAnchorPosition;
+            Vector3 forwardPart = Vector3.Dot(delta, forward) * forward;
+            Vector3 verticalPart = new Vector3(0f, delta.y, 0f);
+            Vector3 lateralPart = delta - forwardPart - verticalPart;
+            float lateralFactor = Mathf.Clamp01(lateralFollowFactor);
+            Vector3 absorbed = forwardPart + verticalPart + lateralPart * lateralFactor;
+            Vector3 desired = followAnchorPosition + absorbed;
+
+            if (followSmoothTime <= 0f)
+            {
+                followAnchorPosition = desired;
+                orbitFollowVelocity = Vector3.zero;
+            }
+            else
+            {
+                followAnchorPosition = Vector3.SmoothDamp(
+                    followAnchorPosition,
+                    desired,
+                    ref orbitFollowVelocity,
+                    followSmoothTime);
+            }
+
+            orbitPivot.position = followAnchorPosition;
         }
 
         orbitPivot.rotation = Quaternion.Euler(0f, yaw, 0f);
         pitchPivot.localPosition = Vector3.zero;
         pitchPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+    }
+
+    /// <summary>滤左右用角色表现朝向，不用镜头 forward。</summary>
+    Vector3 ResolveFollowForwardAxis()
+    {
+        Transform basis = followTarget != null ? followTarget : cameraRoot;
+        Vector3 forward = basis.forward;
+        forward.y = 0f;
+        if (forward.sqrMagnitude < 0.0001f)
+            return PlanarForward;
+        return forward.normalized;
     }
 
     /// <summary>立刻吸附到 CameraRoot（传送、切场景等场景用）。</summary>
@@ -292,7 +368,8 @@ public class CameraManager : AppControllerBase
         if (orbitPivot == null || cameraRoot == null)
             return;
 
-        orbitPivot.position = cameraRoot.position;
+        followAnchorPosition = cameraRoot.position;
+        orbitPivot.position = followAnchorPosition;
         orbitFollowVelocity = Vector3.zero;
         orbitPositionInitialized = true;
     }

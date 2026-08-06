@@ -27,6 +27,7 @@ public static class ActionVfxEditorPreview
 
     /// <summary>
     /// 按绝对本地时间采样粒子；scaledTime = localTime * playbackSpeed，用于窗口倍率预览。
+    /// 不在此处 RepaintAll：由调用方在预览帧变化时统一请求 Scene 刷新，避免 Editor update 死循环。
     /// </summary>
     public static void SimulateAt(GameObject instance, float scaledTimeSeconds)
     {
@@ -42,8 +43,6 @@ public static class ActionVfxEditorPreview
             // withChildren=true, restart=true：每次 Scrub 从 0 推到目标时间，保证帧一致。
             ps.Simulate(time, true, true, true);
         }
-
-        SceneView.RepaintAll();
     }
 
     /// <summary>每帧推进粒子模拟；非循环特效结束后自动重播以便持续预览。</summary>
@@ -74,9 +73,6 @@ public static class ActionVfxEditorPreview
         // 刀光类 Prefab 多为非循环粒子；播完后自动重播，避免 Scene 中只剩空轴。
         if (anyParticle && !anyAlive)
             RestartParticleSystems(instance);
-
-        if (anyParticle)
-            SceneView.RepaintAll();
     }
 
     /// <summary>切换预览实例时重置模拟时间基准。</summary>

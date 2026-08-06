@@ -2,10 +2,13 @@
 
 > 状态：**方案待实施（合并版）**  
 > 创建：2026-08-04  
+> 修订：2026-08-06 — N5 同键 EX 升格必做；排期对齐 `docs/2026.8.6/MASTER_IMPLEMENTATION_PLAN` Wave 3  
 > 合并自：  
 > - [COMBAT_ATTRIBUTES_DAMAGE_PLAN.md](./COMBAT_ATTRIBUTES_DAMAGE_PLAN.md)（归档）  
 > - [COMBAT_RESOURCE_SYSTEM_PLAN.md](./COMBAT_RESOURCE_SYSTEM_PLAN.md)（归档）  
-> 关联锁步：[ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](./ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)
+> 关联锁步：[ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](./ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)  
+> 技能槽语义：[2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md](./2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md)  
+> **跨系统排期：** [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md)
 
 ---
 
@@ -241,11 +244,12 @@ Motor: (...) SoftBody: mass=100 immovable=false
 
 ### Phase N0 — 调试可观测（无新资源逻辑）
 
-- [ ] Buffer 调试枚举；Actor 暴露 IntentBuffer / TargetLock / Health  
-- [ ] `CharacterDebugSnapshot` + `CombatDebugHudController`  
-- [ ] 面板显示：State、Action 帧、HP、FrameIntents、Buffers、Lock、Motor  
+- [x] Buffer 调试枚举；Actor 暴露 IntentBuffer / TargetLock / Health  
+- [x] `CharacterDebugSnapshot` + `CombatDebugHudController`  
+- [x] 面板显示：State、Action 帧、HP、FrameIntents、Buffers、Lock、Motor  
 
-**验收：** Play Mode 攻击可见缓冲/锁定/掉血数字变化。
+**验收：** Play Mode 攻击可见缓冲/锁定/掉血数字变化。  
+**Editor：** 在场景中挂 `CombatDebugHudController` 并指定 Player；F3 开关。
 
 ### Phase N1 — Energy + Gate + 命中回能
 
@@ -274,7 +278,9 @@ Motor: (...) SoftBody: mass=100 immovable=false
 - [ ] Decibel 累加 / 满值门槛 / 大招清空  
 - [ ] HUD 喧响  
 
-### Phase N5 — 同键双形态（可选）
+### Phase N5 — 同键双形态（**必做**，2026-08-06 升格）
+
+> 与 `docs/2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md` / `MASTER_IMPLEMENTATION_PLAN` Wave 3 对齐；不再标为可选。
 
 - [ ] Special 意图能量分支；HUD 标注下一发 EX/普通  
 

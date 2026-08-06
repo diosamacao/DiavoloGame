@@ -22,9 +22,23 @@ public sealed class CharacterActor :
     readonly CombatModeService _combatMode;
     readonly CharacterAnimationService _animation;
     readonly CharacterPresentationBridge _presentation;
+    readonly CharacterVisualMotionBridge _visualMotion;
+    readonly GameplayIntentBuffer _intentBuffer;
+    readonly CombatTargetLock _targetLock;
+    readonly Transform _simulationRoot;
+    CharacterHealth _health;
     InputFrameBuffer _inputFrames;
     SimActorId _actorId;
     long _currentFrameIndex = -1;
+    bool _wasActionActive;
+    int _actionLateralPeakMm;
+    int _prevMotorXMm;
+    int _prevMotorZMm;
+    bool _hasPrevMotorSample;
+
+    static readonly GameplayIntentType[] EmptyIntents = Array.Empty<GameplayIntentType>();
+    static readonly BufferedIntentDebug[] EmptyBuffers = Array.Empty<BufferedIntentDebug>();
+    readonly BufferedIntentDebug[] _bufferDebugScratch = new BufferedIntentDebug[8];
 
     /// <summary>角色输入中枢，玩法系统只读取量化逻辑帧。</summary>
     public InputManager Input => _inputManager;
@@ -72,6 +86,12 @@ public sealed class CharacterActor :
     /// <summary>死亡动作是否已播放完成。</summary>
     public bool DeathPresentationComplete => _stateMachine.DeathPresentationComplete;
 
+    /// <summary>玩法意图缓冲（只读观测 / Debug HUD）。</summary>
+    public GameplayIntentBuffer IntentBuffer => _intentBuffer;
+
+    /// <summary>索敌锁定状态（只读观测 / Debug HUD）。</summary>
+    public CombatTargetLock TargetLock => _targetLock;
+
     /// <summary>创建角色实例；所有依赖由工厂一次性注入。</summary>
     public CharacterActor(
         ILocalInputSampler localInput,
@@ -84,7 +104,11 @@ public sealed class CharacterActor :
         CharacterActionPresentationBridge actionPresentation,
         CombatModeService combatMode,
         CharacterAnimationService animation,
-        CharacterPresentationBridge presentation)
+        CharacterPresentationBridge presentation,
+        CharacterVisualMotionBridge visualMotion,
+        GameplayIntentBuffer intentBuffer,
+        CombatTargetLock targetLock,
+        Transform simulationRoot)
     {
         _localInput = localInput;
         _inputManager = inputManager;
@@ -97,6 +121,80 @@ public sealed class CharacterActor :
         _combatMode = combatMode;
         _animation = animation;
         _presentation = presentation;
+        _visualMotion = visualMotion;
+        _intentBuffer = intentBuffer;
+        _targetLock = targetLock;
+        _simulationRoot = simulationRoot;
+    }
+
+    /// <summary>绑定生命值供 Debug HUD；不改变伤害权威路径。</summary>
+    public void AttachHealth(CharacterHealth health) => _health = health;
+
+    /// <summary>组装只读调试快照；供 CombatDebugHudController LateUpdate 采样。</summary>
+    public CharacterDebugSnapshot BuildDebugSnapshot()
+    {
+        ActionSimSnapshot snap = _actionSim != null ? _actionSim.Snapshot : default;
+        string actionName = string.Empty;
+        int totalFrames = 0;
+        if (snap.IsActive && snap.Content != null)
+        {
+            totalFrames = snap.Content.TotalFrames;
+            if (snap.Content is UnityEngine.Object unityContent)
+                actionName = unityContent.name;
+        }
+
+        GameplayIntentType[] frameIntents = EmptyIntents;
+        if (_intentBuffer != null && _intentBuffer.FrameIntents.Count > 0)
+        {
+            frameIntents = new GameplayIntentType[_intentBuffer.FrameIntents.Count];
+            for (int i = 0; i < frameIntents.Length; i++)
+                frameIntents[i] = _intentBuffer.FrameIntents[i];
+        }
+
+        BufferedIntentDebug[] buffers = EmptyBuffers;
+        if (_intentBuffer != null)
+        {
+            int count = _intentBuffer.CopyBufferedForDebug(_bufferDebugScratch);
+            if (count > 0)
+            {
+                buffers = new BufferedIntentDebug[count];
+                Array.Copy(_bufferDebugScratch, buffers, count);
+            }
+        }
+
+        bool hasLock = _targetLock != null && _targetLock.HasValidLock;
+        string lockName = string.Empty;
+        float lockDist = 0f;
+        if (hasLock && _targetLock.LockedTarget?.AimTransform != null && _simulationRoot != null)
+        {
+            lockName = _targetLock.LockedTarget.AimTransform.name;
+            Vector3 delta = _targetLock.LockedTarget.AimTransform.position - _simulationRoot.position;
+            delta.y = 0f;
+            lockDist = delta.magnitude;
+        }
+
+        CharacterMotorSim motor = _motor.Sim;
+        return new CharacterDebugSnapshot(
+            CurrentState,
+            snap.IsActive,
+            actionName,
+            snap.CurrentFrame,
+            totalFrames,
+            snap.FreezeFrames,
+            _health != null ? _health.CurrentHealth : 0f,
+            _health != null ? _health.MaxHealth : 0f,
+            hasLock,
+            lockName,
+            lockDist,
+            motor.PositionMm.X,
+            motor.PositionMm.Z,
+            motor.YMm,
+            motor.FacingMilliDeg,
+            motor.SoftBodyMass,
+            motor.SoftBodyImmovable,
+            _actionLateralPeakMm,
+            frameIntents,
+            buffers);
     }
 
     /// <summary>启用本地设备采样；AI Actor 无设备源时为空操作。</summary>
@@ -105,10 +203,16 @@ public sealed class CharacterActor :
     /// <summary>禁用本地设备采样；AI Actor 无设备源时为空操作。</summary>
     public void Disable() => _localInput?.Disable();
 
-    /// <summary>更新相机 Transform，用于相机相对移动。</summary>
+    /// <summary>更新相机 Transform，用于相机相对移动（无 Orbit 基时的回退）。</summary>
     public void SetCameraTransform(Transform cameraTransform)
     {
         _motor.SetCameraTransform(cameraTransform);
+    }
+
+    /// <summary>写入相机水平前向/右向（Orbit Yaw），供移动相对镜头。</summary>
+    public void SetCameraPlanarBasis(Vector3 planarForward, Vector3 planarRight)
+    {
+        _motor.SetCameraPlanarBasis(planarForward, planarRight);
     }
 
     /// <summary>执行上层已解析的受击请求并进入整数帧硬直；Actor 不负责选招。</summary>
@@ -118,6 +222,8 @@ public sealed class CharacterActor :
             return;
 
         ClearControlledInput();
+        // 受击打断时模型短时回锚（若动作 Stop 事件未到也兜底）
+        _visualMotion?.EndAction(VisualResidualExitPolicy.BlendToZero);
         _stateMachine.EnterHit(in request);
     }
 
@@ -125,6 +231,7 @@ public sealed class CharacterActor :
     public void EnterDeath(in CharacterReactionRequest request)
     {
         ClearControlledInput();
+        SnapVisualResidual();
         _stateMachine.EnterDeath(in request);
     }
 
@@ -153,6 +260,8 @@ public sealed class CharacterActor :
     {
         _currentFrameIndex = frameIndex;
         _presentation.BeginSimulationStep();
+        // 逻辑步内残差贴帧，避免挂点读到上一渲染插值
+        _visualMotion?.ApplyLogicLocalPose();
         try
         {
             _inputManager.IngestFrame(inputFrame);
@@ -166,11 +275,46 @@ public sealed class CharacterActor :
             // Manual Playable：同帧末推进时间与 CrossFade。
             // 未烘焙招式仍可能由此 Evaluate 产生 Native RM delta；已烘焙招式 RM 在 ApplyStep 已关闭。
             _animation.Tick(fixedDeltaSeconds);
+            UpdateActionLateralPeakSample();
         }
         finally
         {
             _presentation.EndSimulationStep();
+            _visualMotion?.ApplyLogicLocalPose();
         }
+    }
+
+    /// <summary>
+    /// Wave 0：记录招式会话内 Motor 世界位移在角色右向的峰峰值，用于对照横摆是否进了逻辑根。
+    /// </summary>
+    void UpdateActionLateralPeakSample()
+    {
+        bool active = _actionSim != null && _actionSim.IsActive;
+        CharacterMotorSim motor = _motor.Sim;
+        if (active && !_wasActionActive)
+        {
+            _actionLateralPeakMm = 0;
+            _hasPrevMotorSample = false;
+        }
+
+        if (active && _hasPrevMotorSample && _simulationRoot != null)
+        {
+            int dx = motor.PositionMm.X - _prevMotorXMm;
+            int dz = motor.PositionMm.Z - _prevMotorZMm;
+            Vector3 worldDelta = new(
+                MotionQuantization.MmToMeters(dx),
+                0f,
+                MotionQuantization.MmToMeters(dz));
+            float lateralMeters = Vector3.Dot(worldDelta, _simulationRoot.right);
+            int lateralMm = Mathf.Abs(MotionQuantization.MetersToMm(lateralMeters));
+            if (lateralMm > _actionLateralPeakMm)
+                _actionLateralPeakMm = lateralMm;
+        }
+
+        _prevMotorXMm = motor.PositionMm.X;
+        _prevMotorZMm = motor.PositionMm.Z;
+        _hasPrevMotorSample = true;
+        _wasActionActive = active;
     }
 
     /// <summary>在整帧命中结算后处理 OnHitConfirm/OnWhiff 等自动衔接与自然结束。</summary>
@@ -191,8 +335,17 @@ public sealed class CharacterActor :
         _presentation.RefreshCurrentPoseFromSimulationRoot();
     }
 
-    /// <summary>把前后逻辑 Pose 插值到模型表现锚点，不修改权威角色根。</summary>
-    public void Render(float interpolationAlpha) => _presentation.Render(interpolationAlpha);
+    /// <summary>把前后逻辑 Pose 插值到表现锚点，再插值视觉残差到模型根。</summary>
+    public void Render(float interpolationAlpha)
+    {
+        _presentation.Render(interpolationAlpha);
+        // BlendOut 跟渲染帧走，避免逻辑 60Hz 与显示帧率脱节
+        _visualMotion?.Render(interpolationAlpha, Time.deltaTime);
+    }
+
+    /// <summary>死亡/传送时立刻清掉视觉残差，避免模型停在偏移。</summary>
+    public void SnapVisualResidual() =>
+        _visualMotion?.EndAction(VisualResidualExitPolicy.SnapToZero);
 
     /// <summary>释放动画 PlayableGraph 等资源。</summary>
     public void Dispose() => _animation?.Dispose();

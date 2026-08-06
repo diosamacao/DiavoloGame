@@ -44,7 +44,7 @@ public sealed class ActionBakedMotionTests
         Assert.That(delta.Z, Is.EqualTo(7));
     }
 
-    /// <summary>ForwardOnly 把水平模长投到 +Z，清零横向。</summary>
+    /// <summary>ForwardOnly 把水平模长投到 +Z，清零横向（旧语义保持不变）。</summary>
     [Test]
     public void TryGetDelta_ForwardOnlyProjectsToZ()
     {
@@ -62,6 +62,60 @@ public sealed class ActionBakedMotionTests
         Assert.That(motion.TryGetDelta(0, out SimVec2 delta, out _), Is.True);
         Assert.That(delta.X, Is.EqualTo(0));
         Assert.That(delta.Z, Is.EqualTo(50));
+    }
+
+    /// <summary>ForwardSigned：纯横摆不产生前进，只保留原始 dz。</summary>
+    [Test]
+    public void TryGetDelta_ForwardSignedDropsXKeepsZ()
+    {
+        var motion = new ActionBakedMotion
+        {
+            logicHz = 60,
+            frameCount = 2,
+            planarMode = ActionMotionPlanarMode.ForwardSigned,
+            positionDeltaMmX = new[] { 100, 20 },
+            positionDeltaMmZ = new[] { 0, 40 },
+            yawDeltaMilliDeg = new[] { 0, 0 },
+            bakeStatus = ActionBakedMotionStatus.Ok,
+        };
+
+        Assert.That(motion.TryGetDelta(0, out SimVec2 frame0, out _), Is.True);
+        Assert.That(frame0.X, Is.EqualTo(0));
+        Assert.That(frame0.Z, Is.EqualTo(0));
+
+        Assert.That(motion.TryGetDelta(1, out SimVec2 frame1, out _), Is.True);
+        Assert.That(frame1.X, Is.EqualTo(0));
+        Assert.That(frame1.Z, Is.EqualTo(40));
+    }
+
+    /// <summary>Wave2：ForwardSigned 残差吸收横向，Gameplay+Residual 重建 Full。</summary>
+    [Test]
+    public void TryGetVisualResidual_ForwardSignedHoldsLateral()
+    {
+        var motion = new ActionBakedMotion
+        {
+            logicHz = 60,
+            frameCount = 2,
+            planarMode = ActionMotionPlanarMode.ForwardSigned,
+            positionDeltaMmX = new[] { 100, 20 },
+            positionDeltaMmZ = new[] { 0, 40 },
+            yawDeltaMilliDeg = new[] { 0, 0 },
+            bakeStatus = ActionBakedMotionStatus.Ok,
+        };
+
+        Assert.That(motion.TryGetVisualResidualMm(0, out int r0x, out int r0z), Is.True);
+        Assert.That(r0x, Is.EqualTo(100));
+        Assert.That(r0z, Is.EqualTo(0));
+
+        Assert.That(motion.TryGetVisualResidualMm(1, out int r1x, out int r1z), Is.True);
+        Assert.That(r1x, Is.EqualTo(120));
+        Assert.That(r1z, Is.EqualTo(0));
+
+        // FullPlanar 残差应为 0
+        motion.planarMode = ActionMotionPlanarMode.FullPlanar;
+        Assert.That(motion.TryGetVisualResidualMm(1, out int fullRx, out int fullRz), Is.True);
+        Assert.That(fullRx, Is.EqualTo(0));
+        Assert.That(fullRz, Is.EqualTo(0));
     }
 
     /// <summary>未烘焙表不得查表。</summary>

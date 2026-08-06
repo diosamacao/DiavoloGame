@@ -28,14 +28,6 @@ MonoBehaviour:
   executionPolicy:
     interruptPriority: 0
     useRootMotion: 1
-  resourceSpec:
-    EnergyCost: 0
-    EnergyGrantOnHit: 0
-    DecibelGrantOnHit: 0
-    ConsumeDodgeCharge: 0
-    ClearsDecibelOnStart: 0
-    RequiresDecibelFull: 0
-    ResourceTag: 0
   timeline:
     actionEvents: []
     playVfxNotifies:

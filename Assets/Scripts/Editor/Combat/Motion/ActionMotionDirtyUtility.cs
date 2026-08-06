@@ -6,6 +6,7 @@ using UnityEngine;
 
 /// <summary>
 /// 运动表脏检测：InPlace/RM 内容 hash、logicHz、段帧窗口任一变化即视为 Dirty。
+/// 指纹构建只做匹配与 hash/帧数估算，不采样烘焙曲线（供 Inspector 热路径安全调用）。
 /// </summary>
 public static class ActionMotionDirtyUtility
 {
@@ -143,23 +144,21 @@ public static class ActionMotionDirtyUtility
                 return false;
             }
 
-            ActionBakedMotion part = RootMotionBakeUtility.BakeClip(
-                pair.RootMotionClip,
-                logicHz,
-                ActionMotionPlanarMode.FullPlanar,
-                pair.RootMotionClip.name,
-                RootMotionBakeUtility.ComputeClipContentHash(inplace),
-                RootMotionBakeUtility.ComputeClipContentHash(pair.RootMotionClip));
-            if (!part.IsReady)
+            // 指纹只需 hash + 与 BakeClip 一致的帧数估算；禁止在此路径 BakeClip
+            // （Inspector 每次 OnInspectorGUI 都会调用 IsDirty）。
+            string segmentInplaceHash = RootMotionBakeUtility.ComputeClipContentHash(inplace);
+            string segmentRmHash = RootMotionBakeUtility.ComputeClipContentHash(pair.RootMotionClip);
+            int partFrameCount = RootMotionBakeUtility.EstimateFrameCount(pair.RootMotionClip, logicHz);
+            if (partFrameCount <= 0)
             {
-                error = $"段[{i}] 无法采样 RM: {pair.RootMotionClip.name}";
+                error = $"段[{i}] 无法估算 RM 帧数: {pair.RootMotionClip.name}";
                 return false;
             }
 
             int start = Mathf.Max(0, segments[i].startFrame);
             int end = segments[i].endFrame < 0
-                ? part.frameCount - 1
-                : Mathf.Min(segments[i].endFrame, part.frameCount - 1);
+                ? partFrameCount - 1
+                : Mathf.Min(segments[i].endFrame, partFrameCount - 1);
             if (end < start)
             {
                 error = $"段[{i}] 帧区间无效";
@@ -167,8 +166,8 @@ public static class ActionMotionDirtyUtility
             }
 
             frames += end - start + 1;
-            inplaceParts.Add(part.inplaceContentHash);
-            rmParts.Add(part.rootMotionContentHash);
+            inplaceParts.Add(segmentInplaceHash);
+            rmParts.Add(segmentRmHash);
         }
 
         if (frames <= 0)

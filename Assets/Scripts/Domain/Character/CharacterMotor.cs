@@ -12,6 +12,9 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     readonly CharacterMotorSim _sim;
 
     Transform _cameraTransform;
+    Vector3 _cameraPlanarForward;
+    Vector3 _cameraPlanarRight;
+    bool _hasCameraPlanarBasis;
     float _rotationVelocity;
     float _moveInputMagnitude;
     float _planarSpeedEstimate;
@@ -64,7 +67,25 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
 
     public float DefaultRotationSmoothTime => _config.RotationSmoothTime;
 
-    /// <summary>更新相机 Transform，用于相机相对移动。</summary>
+    /// <summary>
+    /// Wave 1：写入 Orbit Yaw 投影的前向/右向，避免挤墙后 Camera.main.forward 扭曲走位。
+    /// </summary>
+    public void SetCameraPlanarBasis(Vector3 planarForward, Vector3 planarRight)
+    {
+        planarForward.y = 0f;
+        planarRight.y = 0f;
+        if (planarForward.sqrMagnitude < 0.0001f || planarRight.sqrMagnitude < 0.0001f)
+        {
+            _hasCameraPlanarBasis = false;
+            return;
+        }
+
+        _cameraPlanarForward = planarForward.normalized;
+        _cameraPlanarRight = planarRight.normalized;
+        _hasCameraPlanarBasis = true;
+    }
+
+    /// <summary>更新相机 Transform；无 Orbit 基时作为移动朝向回退。</summary>
     public void SetCameraTransform(Transform cameraTransform)
     {
         _cameraTransform = cameraTransform;
@@ -242,9 +263,13 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         if (moveIntent.sqrMagnitude < 0.01f)
             return Vector3.zero;
 
+        if (_hasCameraPlanarBasis)
+            return (_cameraPlanarForward * moveIntent.y + _cameraPlanarRight * moveIntent.x).normalized;
+
         if (_cameraTransform == null)
             return new Vector3(moveIntent.x, 0f, moveIntent.y).normalized;
 
+        // 回退：无 Orbit 基时仍 flatten Camera Transform（可能含 Collider 偏转）
         Vector3 forward = _cameraTransform.forward;
         Vector3 right = _cameraTransform.right;
         forward.y = 0f;

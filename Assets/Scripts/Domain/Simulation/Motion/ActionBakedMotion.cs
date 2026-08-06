@@ -43,16 +43,7 @@ public sealed class ActionBakedMotion
 
         int dx = positionDeltaMmX[index];
         int dz = positionDeltaMmZ[index];
-        if (planarMode == ActionMotionPlanarMode.ForwardOnly)
-        {
-            // 前向模长保留符号到 +Z，横向清零
-            int sign = dz >= 0 ? 1 : -1;
-            long magSq = (long)dx * dx + (long)dz * dz;
-            int mag = (int)Math.Round(Math.Sqrt(magSq), MidpointRounding.AwayFromZero);
-            dx = 0;
-            dz = sign * mag;
-        }
-
+        ApplyPlanarMode(planarMode, ref dx, ref dz);
         deltaMm = new SimVec2(dx, dz);
         // 即使旧资产里残留非零 yaw 数组，查表也不向外提供偏航
         yawMilliDeg = 0;
@@ -93,6 +84,70 @@ public sealed class ActionBakedMotion
         rootMotionContentHash = string.Empty;
         matchedRootMotionName = string.Empty;
         bakeStatus = ActionBakedMotionStatus.None;
+    }
+
+    /// <summary>
+    /// Wave 2：相对 Gameplay 路径的视觉残差（累计绝对本地毫米）。
+    /// Full = 原始累计；Gameplay = 对每帧 Δ 做 planarMode 后再累计；Residual = Full - Gameplay。
+    /// 运行时派生，无需另存数组；ForwardSigned 时残差主要为横向。
+    /// </summary>
+    public bool TryGetVisualResidualMm(int frame, out int residualMmX, out int residualMmZ)
+    {
+        residualMmX = 0;
+        residualMmZ = 0;
+        if (!IsReady)
+            return false;
+
+        int index = frame < 0 ? 0 : frame;
+        if (index >= frameCount)
+            index = frameCount - 1;
+
+        long fullX = 0;
+        long fullZ = 0;
+        long gameX = 0;
+        long gameZ = 0;
+        for (int i = 0; i <= index; i++)
+        {
+            int dx = positionDeltaMmX[i];
+            int dz = positionDeltaMmZ[i];
+            fullX += dx;
+            fullZ += dz;
+
+            int gdx = dx;
+            int gdz = dz;
+            ApplyPlanarMode(planarMode, ref gdx, ref gdz);
+            gameX += gdx;
+            gameZ += gdz;
+        }
+
+        residualMmX = (int)(fullX - gameX);
+        residualMmZ = (int)(fullZ - gameZ);
+        return true;
+    }
+
+    /// <summary>
+    /// 按 planarMode 投影单帧原始 Δ。
+    /// ForwardSigned：等价于累计轨迹取 (0, Full.z) 后再差分，即丢弃 dx、保留 dz。
+    /// ForwardOnly：保留旧逐帧保模长语义，禁止静默改写。
+    /// </summary>
+    public static void ApplyPlanarMode(ActionMotionPlanarMode mode, ref int dxMm, ref int dzMm)
+    {
+        switch (mode)
+        {
+            case ActionMotionPlanarMode.ForwardSigned:
+                dxMm = 0;
+                break;
+            case ActionMotionPlanarMode.ForwardOnly:
+            {
+                // 旧资产兼容：模长投到带符号 Z（Wave 2 前不删除）
+                int sign = dzMm >= 0 ? 1 : -1;
+                long magSq = (long)dxMm * dxMm + (long)dzMm * dzMm;
+                int mag = (int)Math.Round(Math.Sqrt(magSq), MidpointRounding.AwayFromZero);
+                dxMm = 0;
+                dzMm = sign * mag;
+                break;
+            }
+        }
     }
 
     static int[] CloneArray(int[] source)
