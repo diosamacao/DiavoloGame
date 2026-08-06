@@ -40,6 +40,14 @@ public class CameraManager : AppControllerBase
     [Range(0f, 1f)]
     [SerializeField] float lateralFollowFactor = 0.1f;
 
+    [Header("Debug Visualization")]
+    [Tooltip("Play 时生成实心锚点球（Game 视图可见），并驱动 Scene 附加箭头/图例。")]
+    [SerializeField] bool drawCameraDebugGizmos = true;
+    [Tooltip("实心锚点球半径（米）。")]
+    [SerializeField] float debugAnchorRadius = 0.07f;
+    [Tooltip("Game 视图是否叠锚点名称。")]
+    [SerializeField] bool debugAnchorLabels = true;
+
     CinemachineVirtualCamera virtualCamera;
     Transform cameraRoot;
     Transform orbitPivot;
@@ -50,6 +58,7 @@ public class CameraManager : AppControllerBase
     Vector3 orbitFollowVelocity;
     bool orbitPositionInitialized;
     Vector3 followAnchorPosition;
+    CameraDebugAnchorVisualizer _debugAnchorVisualizer;
 
     public Transform FollowTarget => cameraRoot != null ? cameraRoot : followTarget;
 
@@ -58,6 +67,30 @@ public class CameraManager : AppControllerBase
 
     /// <summary>水平 Orbit 枢轴；供 Gizmo 调试。</summary>
     public Transform OrbitPivotTransform => orbitPivot;
+
+    /// <summary>俯仰枢轴（VCam Follow）；供 Gizmo 调试。</summary>
+    public Transform PitchPivotTransform => pitchPivot;
+
+    /// <summary>滤左右 + SmoothDamp 后的跟随点（逻辑 FollowAnchor）。</summary>
+    public Vector3 FollowAnchorPosition => followAnchorPosition;
+
+    /// <summary>当前 yaw（度）。</summary>
+    public float YawDegrees => yaw;
+
+    /// <summary>当前 pitch（度）。</summary>
+    public float PitchDegrees => pitch;
+
+    /// <summary>滤左右吸收系数；供调试面板显示。</summary>
+    public float LateralFollowFactor => lateralFollowFactor;
+
+    /// <summary>是否绘制相机调试锚点（运行时实心球 + Scene 附加信息）。</summary>
+    public bool DrawCameraDebugGizmos => drawCameraDebugGizmos;
+
+    /// <summary>实心锚点球半径（米）。</summary>
+    public float DebugAnchorRadius => debugAnchorRadius;
+
+    /// <summary>Presentation / 跟随用角色根（相机源父级）。</summary>
+    public Transform PresentationFollowTarget => followTarget;
 
     /// <summary>Orbit Yaw 投影的水平前向；供 Motor 相机相对移动（不含挤墙偏转）。</summary>
     public Vector3 PlanarForward
@@ -121,6 +154,32 @@ public class CameraManager : AppControllerBase
     {
         SyncOrbitPivots();
         PushPlanarBasisToPlayer();
+        SyncDebugAnchorVisualizer();
+    }
+
+    /// <summary>确保开发构建下有实心球可视化，并同步半径/开关。</summary>
+    void SyncDebugAnchorVisualizer()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (!drawCameraDebugGizmos)
+        {
+            if (_debugAnchorVisualizer != null)
+                _debugAnchorVisualizer.Sync();
+            return;
+        }
+
+        if (_debugAnchorVisualizer == null)
+        {
+            _debugAnchorVisualizer = GetComponent<CameraDebugAnchorVisualizer>();
+            if (_debugAnchorVisualizer == null)
+                _debugAnchorVisualizer = gameObject.AddComponent<CameraDebugAnchorVisualizer>();
+            _debugAnchorVisualizer.Bind(this);
+        }
+
+        _debugAnchorVisualizer.SetRadius(debugAnchorRadius);
+        _debugAnchorVisualizer.SetShowLabels(debugAnchorLabels);
+        // 位置刷新放在 Visualizer.LateUpdate（更高 executionOrder），保证本帧 Follow 已写入
+#endif
     }
 
     /// <summary>每帧把 Orbit 水平基交给玩家 Motor。</summary>
@@ -361,6 +420,9 @@ public class CameraManager : AppControllerBase
             return PlanarForward;
         return forward.normalized;
     }
+
+    /// <summary>供 Gizmo 绘制滤左右轴向。</summary>
+    public Vector3 GetFollowForwardAxis() => ResolveFollowForwardAxis();
 
     /// <summary>立刻吸附到 CameraRoot（传送、切场景等场景用）。</summary>
     public void SnapFollowToTarget()
