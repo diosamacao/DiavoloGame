@@ -2,11 +2,12 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Wave 0：Play/Edit Mode Scene Gizmo — Motor 碰撞圆、SimulationRoot、PresentationRoot、CameraRoot/Orbit。
+/// Wave 0：角色逻辑/表现锚点 Gizmo（Motor 圆、Sim/Presentation/Visual）。
+/// 相机链（CameraRoot / FollowAnchor / Orbit / VCam）见 <see cref="CameraDebugGizmoDrawer"/>。
 /// </summary>
 public static class CharacterAnchorGizmoDrawer
 {
-    /// <summary>绘制玩家锚点与 Motor 圆。</summary>
+    /// <summary>绘制玩家 Motor 与表现层级锚点（不含相机 Rig）。</summary>
     [DrawGizmo(GizmoType.Selected | GizmoType.NonSelected | GizmoType.Active)]
     public static void DrawPlayerAnchors(PlayerController player, GizmoType gizmoType)
     {
@@ -21,22 +22,13 @@ public static class CharacterAnchorGizmoDrawer
         DrawMotorDisk(simRoot, motor, new Color(0.2f, 1f, 0.35f, 0.85f));
         DrawAxisMarker(simRoot.position, Color.green, "SimulationRoot/Motor");
 
-        if (presentation != null)
-        {
-            DrawAxisMarker(presentation.position, Color.cyan, "PresentationRoot");
-            Transform visual = presentation.Find("CharacterVisualMotionRoot");
-            if (visual != null)
-                DrawAxisMarker(visual.position, new Color(1f, 0.3f, 0.85f), "VisualMotionRoot");
-        }
-
-        CameraManager camera = Object.FindObjectOfType<CameraManager>();
-        if (camera == null)
+        if (presentation == null)
             return;
 
-        if (camera.CameraRootTransform != null)
-            DrawAxisMarker(camera.CameraRootTransform.position, Color.yellow, "CameraRoot");
-        if (camera.OrbitPivotTransform != null)
-            DrawAxisMarker(camera.OrbitPivotTransform.position, new Color(1f, 0.4f, 0.9f), "OrbitPivot");
+        DrawAxisMarker(presentation.position, Color.cyan, "PresentationRoot");
+        Transform visual = presentation.Find("CharacterVisualMotionRoot");
+        if (visual != null)
+            DrawAxisMarker(visual.position, new Color(1f, 0.3f, 0.85f), "VisualMotionRoot");
     }
 
     static void DrawMotorDisk(Transform root, CharacterMotorSim motor, Color color)
@@ -56,9 +48,14 @@ public static class CharacterAnchorGizmoDrawer
 
     static void DrawAxisMarker(Vector3 position, Color color, string label)
     {
+        // Play 时由 CameraDebugAnchorVisualizer 画实心球，此处仅 Edit 补球，避免叠两层
+        if (!Application.isPlaying)
+        {
+            Handles.color = color;
+            Handles.SphereHandleCap(0, position, Quaternion.identity, 0.14f, EventType.Repaint);
+        }
+
         Handles.color = color;
-        Handles.DrawWireCube(position, Vector3.one * 0.08f);
-        Handles.DrawLine(position, position + Vector3.up * 0.25f);
-        Handles.Label(position + Vector3.up * 0.28f, label);
+        Handles.Label(position + Vector3.up * 0.16f, label);
     }
 }

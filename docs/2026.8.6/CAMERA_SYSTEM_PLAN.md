@@ -97,7 +97,7 @@ LockGroup（CinemachineTargetGroup，锁定时）
 | `Orbit/Pitch` | Look 输入；位置跟 Follow 或 Predict | Free VCam Follow/LookAt |
 | `LockGroup` | 锁定时维护成员 | LockOn VCam LookAt |
 
-**调试：** Editor 下对各锚点画 gizmo（颜色区分），便于调 lead / 滤侧向系数。
+**调试（已落地骨架）：** Scene Gizmo `CameraDebugGizmoDrawer`（挂 `CameraManager`；Inspector `drawCameraDebugGizmos`）。颜色区分 Sim / Presentation / Visual / CameraRoot / FollowAnchor / Orbit / Pitch / MainCamera；红虚线=滤掉的左右残差；左上角图例含 Yaw/Pitch/Lateral。角色 Motor 圆仍由 `CharacterAnchorGizmoDrawer` 绘制。Predict / LockGroup 待对应功能接入后再补。
 
 ### 3.3 虚拟相机与模式（含优先级栈）
 
