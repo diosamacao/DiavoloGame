@@ -75,6 +75,7 @@ public static class ActionEditorAnimationSampler
 {
     static GameObject s_sampleRoot;
     static Animator s_animator;
+    static Transform s_boundPreviewCharacter;
     static bool s_animatorWasEnabled;
 
     public static bool IsSessionActive => AnimationMode.InAnimationMode();
@@ -100,16 +101,27 @@ public static class ActionEditorAnimationSampler
     /// <summary>开启 AnimationMode 并暂时禁用 Animator，避免与采样结果冲突。</summary>
     public static bool BeginSession(Transform previewCharacter)
     {
+        // 热路径：同一 Preview Character 已在 AnimationMode 时跳过 GetComponentInChildren。
+        if (previewCharacter != null
+            && s_boundPreviewCharacter == previewCharacter
+            && s_sampleRoot != null
+            && IsSessionActive)
+            return true;
+
         if (!TryResolveSampleRoot(previewCharacter, out GameObject sampleRoot, out Animator animator))
             return false;
 
         if (s_sampleRoot == sampleRoot && IsSessionActive)
+        {
+            s_boundPreviewCharacter = previewCharacter;
             return true;
+        }
 
         EndSession();
 
         s_sampleRoot = sampleRoot;
         s_animator = animator;
+        s_boundPreviewCharacter = previewCharacter;
         s_animatorWasEnabled = animator.enabled;
         animator.enabled = false;
         AnimationMode.StartAnimationMode();
@@ -128,8 +140,6 @@ public static class ActionEditorAnimationSampler
         AnimationMode.BeginSampling();
         AnimationMode.SampleAnimationClip(s_sampleRoot, clip, time);
         AnimationMode.EndSampling();
-
-        SceneView.RepaintAll();
     }
 
     /// <summary>结束采样并恢复 Animator 状态。</summary>
@@ -143,6 +153,7 @@ public static class ActionEditorAnimationSampler
 
         s_sampleRoot = null;
         s_animator = null;
+        s_boundPreviewCharacter = null;
     }
 }
 
@@ -237,6 +248,7 @@ public sealed class ActionEditorPreviewSession : IDisposable
             return;
         }
 
+        bool resampled = false;
         if (NeedsResample())
         {
             ActionFrameQueryResult query =
@@ -248,6 +260,7 @@ public sealed class ActionEditorPreviewSession : IDisposable
             _lastSampledFrame = _previewFrame;
             _lastSampledClip = clip;
             _lastSampledCharacter = _previewCharacter;
+            resampled = true;
         }
 
         BeginExtensionsIfNeeded(context);
@@ -255,6 +268,10 @@ public sealed class ActionEditorPreviewSession : IDisposable
         context = BuildContext();
         for (int i = 0; i < _extensions.Count; i++)
             _extensions[i].OnPreviewUpdate(in context);
+
+        // 仅在 Pose 实际重采样时刷新 Scene，避免 EditorApplication.update 每帧 RepaintAll。
+        if (resampled)
+            SceneView.RepaintAll();
     }
 
     public void Dispose()
@@ -349,6 +366,8 @@ public sealed class ActionEditorVfxPreviewExtension : IActionEditorPreviewExtens
     Func<SerializedProperty> _getVfxArrayProp;
     readonly Dictionary<int, PreviewSlot> _slots = new();
     readonly List<int> _staleSlotKeys = new();
+    int _lastSimulatedFrame = int.MinValue;
+    bool _lastEnabled;
 
     /// <summary>关闭时不实例化 Prefab、不驱动粒子模拟。</summary>
     public bool IsEnabled { get; set; } = true;
@@ -361,16 +380,30 @@ public sealed class ActionEditorVfxPreviewExtension : IActionEditorPreviewExtens
     {
         IsEnabled = enabled;
         if (!enabled)
+        {
             DestroyAllPreviewInstances();
+            _lastSimulatedFrame = int.MinValue;
+            _lastEnabled = false;
+        }
     }
 
-    public void OnPreviewBegin(in ActionEditorPreviewContext context) { }
+    public void OnPreviewBegin(in ActionEditorPreviewContext context)
+    {
+        _lastSimulatedFrame = int.MinValue;
+        _lastEnabled = IsEnabled;
+    }
 
     public void OnPreviewUpdate(in ActionEditorPreviewContext context)
     {
         if (!IsEnabled)
         {
-            DestroyAllPreviewInstances();
+            if (_lastEnabled)
+            {
+                DestroyAllPreviewInstances();
+                _lastSimulatedFrame = int.MinValue;
+            }
+
+            _lastEnabled = false;
             return;
         }
 
@@ -378,8 +411,14 @@ public sealed class ActionEditorVfxPreviewExtension : IActionEditorPreviewExtens
         if (arrayProp == null || !arrayProp.isArray || context.PreviewCharacter == null)
         {
             DestroyAllPreviewInstances();
+            _lastSimulatedFrame = int.MinValue;
+            _lastEnabled = IsEnabled;
             return;
         }
+
+        // 粒子 Simulate 昂贵：仅 Preview Frame / 刚开启时重采样；Transform 每帧仍同步以支持 Handles。
+        bool shouldResimulateParticles =
+            !_lastEnabled || context.PreviewFrame != _lastSimulatedFrame;
 
         int sampleRate = Mathf.Max(1, Mathf.RoundToInt(context.SampleRate));
         var alive = new HashSet<int>();
@@ -414,6 +453,9 @@ public sealed class ActionEditorVfxPreviewExtension : IActionEditorPreviewExtens
             alive.Add(i);
             ApplyPreviewTransform(slot.Instance, vfxProp, anchor);
 
+            if (!shouldResimulateParticles)
+                continue;
+
             SerializedProperty speedProp = vfxProp.FindPropertyRelative("playbackSpeed");
             float localTime =
                 ActionFrameQuery.GetElapsedSecondsSincePoint(trigger, context.PreviewFrame, sampleRate);
@@ -422,6 +464,12 @@ public sealed class ActionEditorVfxPreviewExtension : IActionEditorPreviewExtens
         }
 
         DestroySlotsNotIn(alive);
+        _lastSimulatedFrame = context.PreviewFrame;
+        _lastEnabled = true;
+
+        // 刚开启或帧变化时补刷新；稳态不再每帧 RepaintAll。
+        if (shouldResimulateParticles && alive.Count > 0)
+            SceneView.RepaintAll();
     }
 
     public void OnPreviewEnd(in ActionEditorPreviewContext context) => DestroyAllPreviewInstances();
@@ -519,17 +567,17 @@ public sealed class ActionEditorVfxPreviewExtension : IActionEditorPreviewExtens
     /// <summary>手动重播当前仍可见的全部 VFX 预览粒子。</summary>
     public void Replay()
     {
-        bool any = false;
+        // 强制下一 Tick 重新 SimulateAt（否则同帧会被跳过）。
+        _lastSimulatedFrame = int.MinValue;
+
         foreach (KeyValuePair<int, PreviewSlot> pair in _slots)
         {
             if (pair.Value.Instance == null)
                 continue;
 
             ActionVfxEditorPreview.RestartParticleSystems(pair.Value.Instance);
-            any = true;
         }
 
-        if (!any)
-            SceneView.RepaintAll();
+        SceneView.RepaintAll();
     }
 }

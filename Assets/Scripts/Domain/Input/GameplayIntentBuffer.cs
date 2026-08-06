@@ -77,4 +77,21 @@ public sealed class GameplayIntentBuffer : IActionInputBuffer
 
     /// <summary>清除全部动作意图缓冲。</summary>
     public void ClearAllBuffers() => _bufferedIntents.Clear();
+
+    /// <summary>复制当前跨帧缓冲供 Debug HUD 只读展示；不修改缓冲状态。</summary>
+    public int CopyBufferedForDebug(BufferedIntentDebug[] destination)
+    {
+        if (destination == null || destination.Length == 0)
+            return 0;
+
+        int written = 0;
+        foreach (System.Collections.Generic.KeyValuePair<GameplayIntentType, int> pair in _bufferedIntents)
+        {
+            if (written >= destination.Length)
+                break;
+            destination[written++] = new BufferedIntentDebug(pair.Key, pair.Value);
+        }
+
+        return written;
+    }
 }

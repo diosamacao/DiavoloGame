@@ -48,6 +48,10 @@ public readonly struct MotionClipMatchIssue
 /// <summary>在指定 InPlace / RootMotion 文件夹内按命名规则自动配对。</summary>
 public static class MotionClipPairMatcher
 {
+    static readonly Dictionary<string, List<ClipEntry>> s_folderClipCache =
+        new(StringComparer.Ordinal);
+    static bool s_projectChangedHooked;
+
     /// <summary>扫描两文件夹并构建配对；issues 含不合规、未匹配与歧义。</summary>
     public static void BuildPairs(
         string inplaceFolder,
@@ -206,12 +210,34 @@ public static class MotionClipPairMatcher
         return true;
     }
 
+    /// <summary>工程变更时清空文件夹 Clip 缓存，避免匹配到已删除/改名资产。</summary>
+    static void EnsureProjectChangedHook()
+    {
+        if (s_projectChangedHooked)
+            return;
+
+        s_projectChangedHooked = true;
+        EditorApplication.projectChanged += ClearFolderClipCache;
+    }
+
+    /// <summary>清空 InPlace/RM 文件夹扫描缓存。</summary>
+    public static void ClearFolderClipCache() => s_folderClipCache.Clear();
+
+    /// <summary>
+    /// 扫描文件夹下全部 AnimationClip；结果按路径缓存。
+    /// Dirty / TryMatchSingle 热路径依赖此缓存，避免每次 FindAssets + LoadAllAssetsAtPath。
+    /// </summary>
     static List<ClipEntry> CollectClipsUnderFolder(string folder)
     {
-        var result = new List<ClipEntry>(64);
-        if (string.IsNullOrEmpty(folder) || !AssetDatabase.IsValidFolder(folder))
-            return result;
+        EnsureProjectChangedHook();
 
+        if (string.IsNullOrEmpty(folder) || !AssetDatabase.IsValidFolder(folder))
+            return new List<ClipEntry>(0);
+
+        if (s_folderClipCache.TryGetValue(folder, out List<ClipEntry> cached))
+            return cached;
+
+        var result = new List<ClipEntry>(64);
         string[] guids = AssetDatabase.FindAssets("t:AnimationClip", new[] { folder });
         Array.Sort(guids, StringComparer.Ordinal);
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -238,6 +264,7 @@ public static class MotionClipPairMatcher
             }
         }
 
+        s_folderClipCache[folder] = result;
         return result;
     }
 

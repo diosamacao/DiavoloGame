@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-04
+> Last updated: 2026-08-06
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -8,6 +8,9 @@
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
 | 固定帧模拟宿主 | ✅ L0A 已实现 | `SimulationHost`、`SimulationWorld`、`SimActorId` | 60Hz，无资产 |
+| Wave0 动作审计 / 锚点可视化 / Debug HUD | ✅ 已实现 | `ActionDefinitionAuditUtility`、`CharacterAnchorGizmoDrawer`、`CombatDebugHudController` | 菜单 `ACTGame/Action/Validate Motion Sources`；场景挂 HUD |
+| Wave1 位移止血 / BaseMotionMode / 相机滤左右 | ✅ 已实现 | `ForwardSigned`、`ActionBaseMotionMode`、`CameraManager.lateralFollowFactor` | Attack 需以 ForwardSigned 重烘焙；菜单 Migrate Base Motion Mode |
+| Wave2 视觉残差 / VisualMotionRoot | ✅ 核心已实现 | `CharacterVisualMotionBridge`、`TryGetVisualResidualMm` | ForwardSigned：Motor 无横摆，模型在 VisualRoot 摆；2.4/2.5 删 RM 待迁完 |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B 代码已实现 | `InputFrameBuffer`、`InputReader`、`AIInputWriter`、`GameplayIntentProducer` | `GameInputActions.inputactions` + `GameplayIntentProfile` |
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
@@ -751,3 +754,44 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-04 | L2 静态碰撞：`SimStaticCollisionWorld` + `StaticCollisionBake` Editor 烘焙；Host 共享 CollisionWorld |
 | 2026-08-04 | L2 重力迁出 CC：`CharacterMotorSim` 竖直权威；`CharacterMotor` 只 Sync 根位姿 |
 | 2026-08-04 | L2/M2：Bake Dirty Only、Dirty 指纹黄条、Validate Motion Dirty 菜单 |
+| 2026-08-06 | Wave 0：`ActionMotionSourceClassifier` 全库审计；烘焙轨迹 Scene 预览；Motor/相机锚点 Gizmo；`CombatDebugHudController` + `CharacterDebugSnapshot`（N0） |
+| 2026-08-06 | Wave 1：`ForwardSigned`；`ActionBaseMotionMode`+迁移；相机 `lateralFollowFactor`；Motor 读 Orbit `PlanarForward` |
+| 2026-08-06 | Wave 2 核心：`CharacterVisualMotionRoot` + 残差派生；Gameplay→Motor，Residual→模型；未删 RM 回退 |
+
+---
+
+## Wave 0 — 观测与保护网
+
+### 功能说明
+
+不改手感：全库归类动作位移源（Baked/Scripted/None/Conflict），Scene 对照烘焙轨迹与 Motor/相机锚点，Play Mode 左上角可读 Intent/Buffer/HP/Lock/横向峰峰值。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 位移源归类 | `ActionMotionSourceClassifier`（Simulation）+ Editor `ActionDefinitionAuditUtility` |
+| 轨迹预览 | Action Inspector「Show Baked Trajectory」→ `ActionMotionTrajectorySceneDrawing` |
+| 锚点 Gizmo | Editor `CharacterAnchorGizmoDrawer`（DrawGizmo → PlayerController） |
+| Debug HUD | `CharacterActor.BuildDebugSnapshot` + `CombatDebugHudController`（F3） |
+
+### 运行时流程
+
+```
+菜单 Validate Motion Sources → 报告窗口（不改资产）
+Play：Actor.Step 更新 ActionLateralPeakMm
+LateUpdate：HUD 采样 Snapshot → OnGUI 绘制
+```
+
+### 已知限制
+
+- 0.4 基准招样例需人工填写 `docs/2026.8.6/WAVE0_BASELINE_NOTES.md`
+- 尚未删除 Animator RM 回退（Wave 2）
+- 资源条（EX/喧响）仍未实现（Wave 3 / N1+）
+
+### 相关文件
+
+- `Assets/Scripts/Domain/Simulation/Motion/ActionMotionSourceClassifier.cs`
+- `Assets/Scripts/Editor/Combat/Motion/ActionDefinitionAuditUtility.cs`
+- `Assets/Scripts/App/Controllers/Debug/CombatDebugHudController.cs`
+- `docs/2026.8.6/MASTER_IMPLEMENTATION_PLAN.md`

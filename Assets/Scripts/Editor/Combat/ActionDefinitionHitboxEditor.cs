@@ -1,3 +1,4 @@
+using System;
 using UnityEditor;
 using UnityEngine;
 
@@ -11,6 +12,7 @@ public class ActionDefinitionHitboxEditor : Editor
     const string PreviewFramePrefKeyPrefix = "ACTGame.ActionEditorPreview.Frame.";
     const string PreviewHitboxEnabledPrefKey = "ACTGame.ActionEditorPreview.ShowHitbox";
     const string PreviewVfxEnabledPrefKey = "ACTGame.ActionEditorPreview.ShowVfx";
+    const string PreviewTrajectoryEnabledPrefKey = "ACTGame.ActionEditorPreview.ShowTrajectory";
     const string RootMotionFolderPrefKey = "ACTGame.MotionBake.RootMotionFolder";
 
     SerializedProperty _hitboxStatesProp;
@@ -25,8 +27,18 @@ public class ActionDefinitionHitboxEditor : Editor
     int _selectedVfxIndex;
     bool _previewHitboxEnabled;
     bool _previewVfxEnabled;
+    bool _previewTrajectoryEnabled;
     DefaultAsset _rootMotionFolder;
-    ActionMotionPlanarMode _motionPlanarMode = ActionMotionPlanarMode.FullPlanar;
+    // 直线连击默认 ForwardSigned，避免把横摆 bake 进逻辑根；侧闪类招式请改 FullPlanar
+    ActionMotionPlanarMode _motionPlanarMode = ActionMotionPlanarMode.ForwardSigned;
+
+    bool _editorUpdateHooked;
+    bool _hasMotionDirtyCache;
+    bool _cachedMotionDirty;
+    string _cachedMotionDirtyFolder;
+    int _cachedMotionDirtyCount = -1;
+    int _cachedNaturalDurationPrefabId;
+    float _cachedNaturalDurationSeconds;
 
     void OnEnable()
     {
@@ -42,20 +54,21 @@ public class ActionDefinitionHitboxEditor : Editor
         _previewSession.SetAction((ActionDefinition)target);
 
         SceneView.duringSceneGui += OnSceneGUI;
-        EditorApplication.update += OnEditorUpdate;
 
         RestorePreviewCharacter();
         RestorePreviewFrame();
         RestorePreviewToggles();
+        SyncEditorUpdateHook();
 
         string rmPath = EditorPrefs.GetString(RootMotionFolderPrefKey, "Assets/Art/Arts/Unagi/RootMotion");
         _rootMotionFolder = AssetDatabase.LoadAssetAtPath<DefaultAsset>(rmPath);
+        InvalidateMotionDirtyCache();
     }
 
     void OnDisable()
     {
         SceneView.duringSceneGui -= OnSceneGUI;
-        EditorApplication.update -= OnEditorUpdate;
+        SetEditorUpdateHooked(false);
 
         SavePreviewCharacter();
         SavePreviewFrame();
@@ -68,7 +81,7 @@ public class ActionDefinitionHitboxEditor : Editor
     /// <summary>同步 Session 状态并驱动动画采样与各 PreviewExtension。</summary>
     void OnEditorUpdate()
     {
-        if (_previewSession == null)
+        if (_previewSession == null || _previewCharacter == null)
             return;
 
         _previewSession.SetAction((ActionDefinition)target);
@@ -76,6 +89,48 @@ public class ActionDefinitionHitboxEditor : Editor
         _previewSession.SetPreviewFrame(_previewFrame);
         _vfxPreviewExtension.IsEnabled = _previewVfxEnabled;
         _previewSession.Tick();
+    }
+
+    /// <summary>仅在绑定 Preview Character 时挂 EditorApplication.update，避免无预览时空转。</summary>
+    void SyncEditorUpdateHook() => SetEditorUpdateHooked(_previewCharacter != null);
+
+    void SetEditorUpdateHooked(bool hooked)
+    {
+        if (_editorUpdateHooked == hooked)
+            return;
+
+        if (hooked)
+            EditorApplication.update += OnEditorUpdate;
+        else
+            EditorApplication.update -= OnEditorUpdate;
+
+        _editorUpdateHooked = hooked;
+    }
+
+    /// <summary>缓存 Dirty 查询；资产 DirtyCount 或 RM 文件夹变化时失效。</summary>
+    bool ResolveMotionDirty(ActionDefinition action, string rootMotionFolder)
+    {
+        if (action == null || !AssetDatabase.IsValidFolder(rootMotionFolder))
+            return false;
+
+        int dirtyCount = EditorUtility.GetDirtyCount(action);
+        if (_hasMotionDirtyCache
+            && _cachedMotionDirtyCount == dirtyCount
+            && string.Equals(_cachedMotionDirtyFolder, rootMotionFolder, StringComparison.Ordinal))
+            return _cachedMotionDirty;
+
+        _cachedMotionDirty = ActionMotionDirtyUtility.IsDirty(action, rootMotionFolder, ActionSim.LogicHz);
+        _cachedMotionDirtyCount = dirtyCount;
+        _cachedMotionDirtyFolder = rootMotionFolder;
+        _hasMotionDirtyCache = true;
+        return _cachedMotionDirty;
+    }
+
+    void InvalidateMotionDirtyCache()
+    {
+        _hasMotionDirtyCache = false;
+        _cachedMotionDirtyCount = -1;
+        _cachedMotionDirtyFolder = null;
     }
 
     public override void OnInspectorGUI()
@@ -101,12 +156,16 @@ public class ActionDefinitionHitboxEditor : Editor
         EditorGUILayout.Space(4f);
         _previewHitboxEnabled = EditorGUILayout.Toggle("Show Hitbox Preview", _previewHitboxEnabled);
         _previewVfxEnabled = EditorGUILayout.Toggle("Show VFX Preview", _previewVfxEnabled);
+        _previewTrajectoryEnabled = EditorGUILayout.Toggle(
+            "Show Baked Trajectory (Wave0)",
+            _previewTrajectoryEnabled);
 
         if (EditorGUI.EndChangeCheck())
         {
             SavePreviewCharacter();
             SavePreviewFrame();
             SavePreviewToggles();
+            SyncEditorUpdateHook();
             if (!_previewVfxEnabled)
                 _vfxPreviewExtension?.SetEnabled(false);
             SceneView.RepaintAll();
@@ -137,8 +196,8 @@ public class ActionDefinitionHitboxEditor : Editor
         string rmPathForDirty = _rootMotionFolder != null
             ? AssetDatabase.GetAssetPath(_rootMotionFolder)
             : EditorPrefs.GetString(RootMotionFolderPrefKey, string.Empty);
-        bool dirty = AssetDatabase.IsValidFolder(rmPathForDirty)
-            && ActionMotionDirtyUtility.IsDirty(action, rmPathForDirty, ActionSim.LogicHz);
+        // Dirty 结果按资产 DirtyCount + 文件夹缓存，避免滚动 Inspector 时反复扫 RM 目录。
+        bool dirty = ResolveMotionDirty(action, rmPathForDirty);
         if (dirty)
         {
             EditorGUILayout.HelpBox(
@@ -154,16 +213,21 @@ public class ActionDefinitionHitboxEditor : Editor
             EditorGUILayout.Toggle("Dirty", dirty);
         }
 
+        EditorGUI.BeginChangeCheck();
         _rootMotionFolder = (DefaultAsset)EditorGUILayout.ObjectField(
             "RootMotion Folder",
             _rootMotionFolder,
             typeof(DefaultAsset),
             false);
+        if (EditorGUI.EndChangeCheck())
+            InvalidateMotionDirtyCache();
+
         _motionPlanarMode = (ActionMotionPlanarMode)EditorGUILayout.EnumPopup(
             "Planar Mode",
             _motionPlanarMode);
         EditorGUILayout.HelpBox(
-            "只烘焙水平位移；朝向由 Rotation 窗 + 索敌/输入控制，不读运动表 yaw。",
+            "Wave1：直线连击用 ForwardSigned（丢弃横摆进逻辑根）；侧闪/横移斩用 FullPlanar；"
+            + "ForwardOnly 为旧保模长语义勿再用于新烘焙。只烘焙水平位移；朝向不读运动表 yaw。",
             MessageType.None);
 
         using (new EditorGUILayout.HorizontalScope())
@@ -186,6 +250,7 @@ public class ActionDefinitionHitboxEditor : Editor
                         _motionPlanarMode,
                         ActionSim.LogicHz,
                         out string message);
+                    InvalidateMotionDirtyCache();
                     EditorUtility.DisplayDialog(
                         ok ? "Bake Motion OK" : "Bake Motion Failed",
                         message,
@@ -297,9 +362,15 @@ public class ActionDefinitionHitboxEditor : Editor
             GameObject prefab = selectedProp.FindPropertyRelative("prefab")?.objectReferenceValue as GameObject;
             if (prefab != null)
             {
-                float natural = ActionVfxPlayback.EstimateNaturalDurationSeconds(prefab);
+                int prefabId = prefab.GetInstanceID();
+                if (_cachedNaturalDurationPrefabId != prefabId)
+                {
+                    _cachedNaturalDurationPrefabId = prefabId;
+                    _cachedNaturalDurationSeconds = ActionVfxPlayback.EstimateNaturalDurationSeconds(prefab);
+                }
+
                 using (new EditorGUI.DisabledScope(true))
-                    EditorGUILayout.FloatField("Estimated Duration (s)", natural);
+                    EditorGUILayout.FloatField("Estimated Duration (s)", _cachedNaturalDurationSeconds);
             }
 
             if (EditorGUI.EndChangeCheck())
@@ -330,7 +401,14 @@ public class ActionDefinitionHitboxEditor : Editor
 
     void OnSceneGUI(SceneView sceneView)
     {
-        if (target is not ActionDefinition action || _previewCharacter == null)
+        if (target is not ActionDefinition action)
+            return;
+
+        // Wave 0：烘焙累计轨迹（橙=原始 Δ 累计，青=planarMode 生效后）
+        if (_previewTrajectoryEnabled && _previewCharacter != null)
+            ActionMotionTrajectorySceneDrawing.DrawBakedTrajectories(action, _previewCharacter);
+
+        if (_previewCharacter == null)
             return;
 
         Transform root = _previewCharacter;
@@ -513,7 +591,7 @@ public class ActionDefinitionHitboxEditor : Editor
         if (!GlobalObjectId.TryParse(idString, out GlobalObjectId globalId))
             return;
 
-        Object obj = GlobalObjectId.GlobalObjectIdentifierToObjectSlow(globalId);
+        UnityEngine.Object obj = GlobalObjectId.GlobalObjectIdentifierToObjectSlow(globalId);
         _previewCharacter = obj as Transform;
     }
 
@@ -539,11 +617,14 @@ public class ActionDefinitionHitboxEditor : Editor
     {
         EditorPrefs.SetBool(PreviewHitboxEnabledPrefKey, _previewHitboxEnabled);
         EditorPrefs.SetBool(PreviewVfxEnabledPrefKey, _previewVfxEnabled);
+        EditorPrefs.SetBool(PreviewTrajectoryEnabledPrefKey, _previewTrajectoryEnabled);
     }
 
     void RestorePreviewToggles()
     {
         _previewHitboxEnabled = EditorPrefs.GetBool(PreviewHitboxEnabledPrefKey, true);
         _previewVfxEnabled = EditorPrefs.GetBool(PreviewVfxEnabledPrefKey, false);
+        // 轨迹折线按帧累计绘制，默认关闭以免打开 Inspector 时 Scene 额外开销。
+        _previewTrajectoryEnabled = EditorPrefs.GetBool(PreviewTrajectoryEnabledPrefKey, false);
     }
 }

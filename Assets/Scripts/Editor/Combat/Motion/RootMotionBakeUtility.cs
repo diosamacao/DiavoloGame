@@ -79,6 +79,18 @@ public static class RootMotionBakeUtility
         return $"{path}|{clip.name}|{clip.length:F5}|{clip.frameRate:F3}";
     }
 
+    /// <summary>
+    /// 与 <see cref="BakeClip"/> 相同的帧数估算（Ceil(length*Hz)），不采样曲线。
+    /// 供 Dirty 指纹热路径使用，避免 Inspector 重绘时重复烘焙。
+    /// </summary>
+    public static int EstimateFrameCount(AnimationClip rootMotionClip, int logicHz)
+    {
+        if (rootMotionClip == null || rootMotionClip.length <= 0f)
+            return 0;
+
+        return Mathf.Max(1, Mathf.CeilToInt(rootMotionClip.length * Mathf.Max(1, logicHz)));
+    }
+
     /// <summary>校验累计水平位移误差（米）；超阈值返回 false。</summary>
     public static bool ValidateAgainstTrack(
         AnimationClip rootMotionClip,
@@ -113,8 +125,14 @@ public static class RootMotionBakeUtility
             float t1 = (frame + 1) / (float)table.logicHz;
             track.TryGetDelta(t0, t1, out Vector3 srcDelta, out _);
             Vector3 srcLocal = new(srcDelta.x, 0f, srcDelta.z);
-            if (table.planarMode == ActionMotionPlanarMode.ForwardOnly)
-                srcLocal = new Vector3(0f, 0f, srcLocal.z);
+            // 与 TryGetDelta 对齐：ForwardSigned/ForwardOnly 都在本地 mm 上投影后再比
+            int dxMm = MotionQuantization.MetersToMm(srcLocal.x);
+            int dzMm = MotionQuantization.MetersToMm(srcLocal.z);
+            ActionBakedMotion.ApplyPlanarMode(table.planarMode, ref dxMm, ref dzMm);
+            srcLocal = new Vector3(
+                MotionQuantization.MmToMeters(dxMm),
+                0f,
+                MotionQuantization.MmToMeters(dzMm));
             accumSource += srcLocal;
 
             table.TryGetDelta(frame, out SimVec2 mm, out _);

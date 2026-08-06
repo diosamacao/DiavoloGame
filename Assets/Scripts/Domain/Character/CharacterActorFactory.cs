@@ -22,7 +22,9 @@ public static class CharacterActorFactory
         CharacterActor actor = null;
         CharacterMotorConfig motorConfig = config.Motor;
         Transform presentationRoot = CreatePresentationRoot(root);
-        Transform modelRoot = SpawnModelInstance(config, presentationRoot);
+        // Wave 2：模型挂在 VisualMotionRoot，横摆残差不进 SimulationRoot / CameraRoot
+        Transform visualMotionRoot = CreateVisualMotionRoot(presentationRoot);
+        Transform modelRoot = SpawnModelInstance(config, visualMotionRoot);
         Animator animator = modelRoot.GetComponentInChildren<Animator>();
         if (animator == null)
             throw new MissingComponentException("CharacterActorFactory: ModelPrefab 中找不到 Animator。");
@@ -105,6 +107,7 @@ public static class CharacterActorFactory
             combatHitPipeline);
         var vfxPlayer = new ActionVfxPlayer(root, attachPoints);
         var sfxPlayer = new ActionSfxPlayer(root);
+        var visualMotion = new CharacterVisualMotionBridge(visualMotionRoot);
         var actionPresentation = new CharacterActionPresentationBridge(
             actionSim,
             root,
@@ -114,7 +117,8 @@ public static class CharacterActorFactory
             combatMode,
             motor,
             new ActionTimelineRunner(),
-            defaultAttach);
+            defaultAttach,
+            visualMotion);
         actionPresentation.RegisterFrameConsumer(hitboxFrameConsumer);
         actionPresentation.RegisterNotifyConsumer(vfxPlayer);
         actionPresentation.RegisterNotifyConsumer(sfxPlayer);
@@ -141,7 +145,11 @@ public static class CharacterActorFactory
             actionPresentation,
             combatMode,
             animation,
-            new CharacterPresentationBridge(root, presentationRoot));
+            new CharacterPresentationBridge(root, presentationRoot),
+            visualMotion,
+            intentBuffer,
+            targetLock,
+            root);
 
         var rotationDriver = new ActionRotationDriver(
             root,
@@ -171,6 +179,17 @@ public static class CharacterActorFactory
         Transform presentationRoot = presentationObject.transform;
         presentationRoot.SetParent(simulationRoot, false);
         return presentationRoot;
+    }
+
+    /// <summary>Wave 2：动作视觉残差根；与 CameraRoot 并列，禁止把相机挂到其下。</summary>
+    static Transform CreateVisualMotionRoot(Transform presentationRoot)
+    {
+        var visualObject = new GameObject("CharacterVisualMotionRoot");
+        Transform visualRoot = visualObject.transform;
+        visualRoot.SetParent(presentationRoot, false);
+        visualRoot.localPosition = Vector3.zero;
+        visualRoot.localRotation = Quaternion.identity;
+        return visualRoot;
     }
 
     static CharacterController GetOrAddCharacterController(GameObject owner)

@@ -15,6 +15,7 @@ public sealed class CharacterActionPresentationBridge
     readonly List<ICombatFrameConsumer> _frameConsumers = new();
     readonly List<IActionNotifyConsumer> _notifyConsumers = new();
     readonly ActionTimelineRunner _timelineRunner;
+    readonly CharacterVisualMotionBridge _visualMotion;
     readonly List<ActionSimEvent> _events = new(16);
     Transform _defaultAttachPoint;
     ActionDefinition _animationAction;
@@ -32,7 +33,8 @@ public sealed class CharacterActionPresentationBridge
         CombatModeService combatMode,
         IActionStartContext startContext,
         ActionTimelineRunner timelineRunner,
-        Transform defaultAttachPoint)
+        Transform defaultAttachPoint,
+        CharacterVisualMotionBridge visualMotion = null)
     {
         _actionSim = actionSim ?? throw new ArgumentNullException(nameof(actionSim));
         _actorRoot = actorRoot;
@@ -43,6 +45,7 @@ public sealed class CharacterActionPresentationBridge
         _startContext = startContext;
         _timelineRunner = timelineRunner ?? new ActionTimelineRunner();
         _defaultAttachPoint = defaultAttachPoint != null ? defaultAttachPoint : actorRoot;
+        _visualMotion = visualMotion;
     }
 
     /// <summary>注册整数动作帧消费者；同一实例不会重复注册。</summary>
@@ -94,9 +97,16 @@ public sealed class CharacterActionPresentationBridge
             && snapshot.Content is ActionDefinition current)
         {
             SyncAnimation(current, snapshot.CurrentFrame);
-            // 有就绪运动表则只信表；否则脚本位移 /（未烘焙时）Animator RM
-            if (!ApplyBakedMotionDisplacement(current, snapshot.CurrentFrame))
-                ApplyScriptedDisplacement(current, snapshot.CurrentFrame, stepDelta);
+            ApplyDisplacementForAction(current, snapshot.CurrentFrame, stepDelta);
+        }
+
+        // Wave 2：逻辑帧贴齐视觉残差（冻结时也保持当前帧残差，供挂点对齐）
+        if (snapshot.IsActive && snapshot.Content is ActionDefinition residualAction)
+        {
+            int residualFrame = snapshot.CurrentFrame;
+            if (residualFrame >= residualAction.TotalFrames)
+                residualFrame = Mathf.Max(0, residualAction.TotalFrames - 1);
+            _visualMotion?.CaptureSimulationFrame(residualAction, residualFrame, actionActive: true);
         }
 
         for (int i = 0; i < _events.Count; i++)
@@ -142,13 +152,14 @@ public sealed class CharacterActionPresentationBridge
             return;
 
         ExecuteStartBehaviors(actionEvent.Graph as ActionGraph, actionEvent.NodeId);
-        // 烘焙表就绪后禁止 OnAnimatorMove，避免与查表位移双加
-        _rootMotion?.SetActive(ShouldUseAnimatorRootMotion(action));
+        // 仅解析结果为 AnimatorRootMotion 时开启 OnAnimatorMove，避免与查表双加
+        _rootMotion?.SetActive(
+            ActionMotionRuntimePolicy.ShouldEnableAnimatorRootMotion(ResolveDisplacementSource(action)));
         for (int i = 0; i < _frameConsumers.Count; i++)
             _frameConsumers[i].OnActionBegan(action);
     }
 
-    /// <summary>结束实例时先通知帧和音效消费者，再关闭 Root Motion。</summary>
+    /// <summary>结束实例时先通知帧和音效消费者，再关闭 Root Motion，并退出视觉残差。</summary>
     void HandleStopped()
     {
         for (int i = 0; i < _frameConsumers.Count; i++)
@@ -160,6 +171,8 @@ public sealed class CharacterActionPresentationBridge
         _animationAction = null;
         _animationSegmentIndex = -1;
         SyncHitStopPresentation(frozen: false);
+        // 取消/受击/自然结束统一短时回锚，避免模型停在偏移处
+        _visualMotion?.EndAction(VisualResidualExitPolicy.BlendToZero);
     }
 
     /// <summary>按整数帧派发判定与时间轴；终止哨兵只产生区间 Exit。</summary>
@@ -209,7 +222,8 @@ public sealed class CharacterActionPresentationBridge
 
         ActionAnimationSegment segment = query.Segment;
         bool restoreAnimatorRm = false;
-        if (_rootMotion != null && ShouldUseAnimatorRootMotion(action))
+        if (_rootMotion != null
+            && ActionMotionRuntimePolicy.ShouldEnableAnimatorRootMotion(ResolveDisplacementSource(action)))
         {
             // Seek/Evaluate(0) 的姿态跳变不能写进 CharacterController。
             _rootMotion.SetActive(false);
@@ -249,24 +263,53 @@ public sealed class CharacterActionPresentationBridge
         _hitStopPresentationActive = false;
     }
 
-    /// <summary>按 currentFrame 查烘焙表施加水平位移；权威经 MotorSim，不读表 yaw。</summary>
-    bool ApplyBakedMotionDisplacement(ActionDefinition action, int frame)
+    /// <summary>按 BaseMotionMode / Legacy 策略施加唯一基础位移源。</summary>
+    void ApplyDisplacementForAction(ActionDefinition action, int frame, float fixedDeltaSeconds)
+    {
+        switch (ResolveDisplacementSource(action))
+        {
+            case ActionDisplacementSource.BakedMotion:
+                ApplyBakedMotionDisplacement(action, frame);
+                break;
+            case ActionDisplacementSource.ScriptedTimeline:
+                ApplyScriptedDisplacement(action, frame, fixedDeltaSeconds);
+                break;
+            // AnimatorRootMotion：由 CharacterRootMotionDriver / OnAnimatorMove 消费
+            // None：本帧无动作位移
+        }
+    }
+
+    /// <summary>解析当前招式位移权威。</summary>
+    static ActionDisplacementSource ResolveDisplacementSource(ActionDefinition action)
     {
         if (action == null)
-            return false;
+            return ActionDisplacementSource.None;
+
+        ActionExecutionPolicy policy = action.ExecutionPolicy;
+        return ActionMotionRuntimePolicy.Resolve(
+            policy.BaseMotionMode,
+            policy.UseRootMotion,
+            action.BakedMotion.IsReady,
+            action.Timeline.HasScriptedMovement);
+    }
+
+    /// <summary>按 currentFrame 查烘焙表施加水平位移；权威经 MotorSim，不读表 yaw。</summary>
+    void ApplyBakedMotionDisplacement(ActionDefinition action, int frame)
+    {
+        if (action == null)
+            return;
 
         ActionBakedMotion motion = action.BakedMotion;
         if (!motion.IsReady || !motion.TryGetDelta(frame, out SimVec2 deltaMm, out _))
-            return false;
+            return;
 
         _motor.MoveLocalMm(deltaMm);
-        return true;
     }
 
-    /// <summary>脚本位移窗口：世界前向速度经 MotorSim；有烘焙表时不会走到这里。</summary>
+    /// <summary>脚本位移窗口：世界前向速度经 MotorSim。</summary>
     void ApplyScriptedDisplacement(ActionDefinition action, int frame, float fixedDeltaSeconds)
     {
-        if (!action.HasScriptedDisplacement)
+        if (action == null || !action.Timeline.HasScriptedMovement)
             return;
 
         MovementNotifyState movement = action.GetActiveMovementStateAtFrame(frame);
@@ -282,13 +325,6 @@ public sealed class CharacterActionPresentationBridge
         float signedSpeed = movement.ResolveSpeed(action.SampleRate);
         _motor.MovePlanar(forward * (signedSpeed * fixedDeltaSeconds), fixedDeltaSeconds);
     }
-
-    /// <summary>仅未烘焙且策略要求时启用 Animator Root Motion。</summary>
-    static bool ShouldUseAnimatorRootMotion(ActionDefinition action) =>
-        action != null
-        && ActionMotionRuntimePolicy.ShouldUseAnimatorRootMotion(
-            action.ExecutionPolicy.UseRootMotion,
-            action.BakedMotion.IsReady);
 
     /// <summary>读取图节点并按配置顺序执行当前实例的起手行为。</summary>
     void ExecuteStartBehaviors(ActionGraph graph, string nodeId)
