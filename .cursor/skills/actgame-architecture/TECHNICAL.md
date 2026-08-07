@@ -572,6 +572,7 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 - Scrub / 播放 / 工具栏改帧时，playhead 超出 Zoom 可视区会**自动平移**时间轴视图
 - Scene Hitbox 线框与 VFX Prefab/粒子按 **Preview Frame** 驱动：拖到对应帧/区间即可预览（Hitbox 仅在窗口激活时可见），无需选中时间轴窗口；选中仅用于 Handles 编辑
 - Create：选角色文件夹（如 Unagi），自动保存到其子目录 `ActionDefinition`（无则创建；已有旧名 `ActioniDefinition` 则复用）；默认名可改；左侧列表按文件夹分组
+- 时间轴多选：Ctrl 点选 / Shift 同轨范围选；Ctrl+C/V 复制粘贴（可跨 Action，按预览帧对齐）；Delete 删多选
 
 ### ActionEditor 对齐状态（2026-08-02）
 
