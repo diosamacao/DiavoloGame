@@ -358,22 +358,19 @@ public sealed class ActionEditorWindow : EditorWindow
         if (_selectedAction == null || _previewCharacter == null)
             return;
 
+        // Hitbox 与 VFX 一致：仅在窗口覆盖当前预览帧时绘制，区间外不可见。
         ActionFrameQueryResult frameQuery =
             ActionFrameQuery.Query(_selectedAction, _previewFrame);
         HitboxNotifyState[] hitboxes = _selectedAction.HitboxStates;
         for (int i = 0; i < hitboxes.Length; i++)
         {
             HitboxNotifyState hitbox = hitboxes[i];
-            if (hitbox == null)
+            if (hitbox == null || !frameQuery.IsStateActive(hitbox))
                 continue;
 
             Transform hitboxAnchor = ActionEditorPreviewAttachPoint.Resolve(_previewCharacter, hitbox.AttachPointId);
-            bool active = frameQuery.IsStateActive(hitbox);
-            Color color = active
-                ? new Color(1f, 0.35f, 0.15f, 0.95f)
-                : new Color(0.6f, 0.6f, 0.6f, 0.35f);
             HitboxOrientedBox box = HitboxMath.BuildFromHitbox(_previewCharacter, hitboxAnchor, hitbox);
-            HitboxSceneDrawing.DrawWireOrientedBox(box, color);
+            HitboxSceneDrawing.DrawWireOrientedBox(box, new Color(1f, 0.35f, 0.15f, 0.95f));
         }
 
         PlayVfxNotify[] vfxList = _selectedAction.PlayVfxNotifies;
