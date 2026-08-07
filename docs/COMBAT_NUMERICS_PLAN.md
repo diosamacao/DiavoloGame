@@ -1,23 +1,27 @@
 # 战斗数值总案 — 属性 / 伤害 / 玩法资源 / Debug HUD
 
-> 状态：**方案待实施（合并版）**  
+> 状态：**字段与产品语义真源；运行时口袋 = GAS-lite `NumericSystem`（G5 完成）**  
 > 创建：2026-08-04  
-> 修订：2026-08-06 — N5 同键 EX 升格必做；排期对齐 `docs/2026.8.6/MASTER_IMPLEMENTATION_PLAN` Wave 3  
+> 修订：2026-08-06 — N5 同键 EX 升格必做  
+> 修订：2026-08-07 — N1 ResourceSim / 旧 Health **标为过渡**；终态见 GAS G0～G5  
+> 修订：2026-08-08 — G5：旧口袋已删；本文 §3 对齐完成态  
 > 合并自：  
 > - [COMBAT_ATTRIBUTES_DAMAGE_PLAN.md](./COMBAT_ATTRIBUTES_DAMAGE_PLAN.md)（归档）  
 > - [COMBAT_RESOURCE_SYSTEM_PLAN.md](./COMBAT_RESOURCE_SYSTEM_PLAN.md)（归档）  
 > 关联锁步：[ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](./ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)  
 > 技能槽语义：[2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md](./2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md)  
-> **跨系统排期：** [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md)
+> **跨系统排期：** [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md)  
+> **数值改造真源：** [2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md](./2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md)
 
 ---
 
 ## 1. 结论摘要
 
-1. **一份真源**：属性/伤害与玩法资源（EX、喧响、闪避）共用 `CombatHitPipeline` 帧末结算；禁止再引入 `ApplyHitCommand` 旁路扣血。
-2. **现状已有**：`CharacterHealth` + `HitPayload.BaseDamage` + `CombatDamageCalculator` 已打通「命中 → 扣血 → Hit/Death」；本方案在其上演进，而非从零重做。
-3. **待补**：ATK/DEF/`AttributeSheet`（可选增强）、绝区零式玩法资源 + Gate、左上角 Debug HUD。
-4. **落地顺序**：先可观测（HUD）→ 再资源闸门 → 再属性公式增强（避免无观测联调）。
+1. **一份结算口**：属性/伤害与玩法资源共用 `CombatHitPipeline` 帧末结算；禁止 `ApplyHitCommand` 旁路扣血。  
+2. **字段语义**（Energy/Decibel/Dodge/`ActionResourceSpec` 等）以本文为准。  
+3. **运行时真源**：GAS-lite `NumericSystem`（Attribute + Effect + Flags）；旧 `CharacterResourceSim` / `CharacterHealth` / `EnemyHealth` 已于 G3/G5 删除。  
+4. 新权威字段写入 GAS §5 / `AttributeId`；`ActionResourceSpec` 仅为作者壳，运行时编译为 Instant Effect。  
+5. ATK/DEF / Buff·DOT：已按 GAS G2/G4 落地；无独立 AttributeSheet/BuffSim。
 
 ---
 
@@ -43,21 +47,23 @@
 | 旧属性稿写法 | 当前真源 |
 |--------------|----------|
 | `HitboxFrameConsumer → ApplyHitCommand` | `Collect → CombatHitPipeline.Resolve → target.OnHit` |
-| 木桩无扣血 | `CharacterHurtboxTarget` → `CharacterHealth.ApplyDamage` |
-| 招式 `damageMultiplier` + Attack | 首版伤害唯一来自 `HitPayload.BaseDamage` |
+| 木桩无扣血 | 现：`CharacterHurtboxTarget` → Vitality / Health Attribute |
+| 招式 `damageMultiplier` + Attack | 伤害经 `DamageNumericCalculator`（BaseDamage × ATK/DEF × 倍率） |
 | Domain 经 Command 编排扣血 | **禁止** App Command 改 HP；只发布已结算结果 |
 
 ---
 
-## 3. 现状（2026-08 代码真源）
+## 3. 现状（2026-08-08 代码真源 · G5）
 
 ```text
 SimulationWorld.Step
   → Actors Collect（HitDetector → Pipeline.Collect）
   → Pipeline.ResolveBeforePostCombat
+       → 完美窗/无敌早退
        → target.OnHit(context)
-            → CombatDamageCalculator.Calculate → HitPayload.BaseDamage
-            → CharacterHealth.ApplyDamage
+            → CombatDamageCalculator → DamageNumericCalculator
+            → CharacterVitality / Health Attribute
+       → ConfirmHit → Grant Instant Effect
        → hitReceiver.NotifyHit
   → PostCombatActors
   → Pipeline.CompleteFrame → PublishResolvedHit（App 只读反馈）
@@ -65,12 +71,11 @@ SimulationWorld.Step
 
 | 模块 | 状态 |
 |------|------|
-| `CharacterHealth` / `EnemyHealth` | ✅ 扣血与死亡边沿 |
-| `CombatDamageCalculator` | ✅ 扁平 `BaseDamage` |
-| `HitPayload` | ✅ damage / reactionId / feedback |
-| `AttributeSheet` / ATK·DEF 公式 | ⬜ 未做 |
-| `CharacterResourceSim` / Gate | ✅ Wave 3 代码已接；资产填表中 |
-| Debug HUD / `CharacterDebugSnapshot` | ✅ N0 + 资源行 + Next Special |
+| `NumericSystem` + `CharacterVitality` | ✅ 唯一数值/生命权威 |
+| `DamageNumericCalculator` | ✅ ATK/DEF + Out/In 倍率 |
+| `HitPayload` | ✅ BaseDamage / reactionId / feedback |
+| `NumericCostGate` + Spec 编译器 | ✅ 起手扣费 / 命中 Grant |
+| Debug HUD / Snapshot | ✅ Attribute + Effects + Flags（F3） |
 | IntentBuffer / TargetLock 对外暴露 | ✅ |
 
 ---
@@ -81,15 +86,9 @@ SimulationWorld.Step
 
 ```text
 Assets/Scripts/Domain/Combat/
-  Damage/                    # 已有 CharacterHealth、CombatDamageCalculator
-    （演进）AttributeId.cs / AttributeSheet.cs / AttributeProfile.cs
-    （演进）DamageRequest.cs / DamageResult.cs  — 若公式复杂化再拆
-  Resources/                 # 新增
-    ResourceId.cs
-    CharacterResourceSim.cs
-    CharacterResourceConfig.cs
-    ActionResourceSpec.cs
-    IActionResourceGate.cs / ActionResourceGate.cs
+  Damage/                    # CombatDamageCalculator → DamageNumericCalculator
+  Resources/                 # 作者壳：ActionResourceSpec / Tag / Config / EnergyFormSelector
+  Numeric/                   # 权威：AttributeSet / Effect / NumericSystem / Flags
   Hitbox/CombatHitPipeline.cs  # 结算顺序扩展点
 
 Assets/Scripts/Domain/Character/
@@ -101,23 +100,25 @@ Assets/Scripts/App/Controllers/Debug/
 
 ### 4.2 分层铁律
 
-- Domain：`AttributeSheet` / `CharacterResourceSim` / Gate / Calculator — **零** Architecture 引用。
-- Pipeline 帧末：扣血 →（有效命中则）资源 Grant → NotifyHit；Collect 阶段禁止副作用。
-- App：`PublishResolvedHit` / Debug HUD **只读**；禁止 Spend/Grant/ApplyDamage。
+- Domain：数值口袋 / Gate / Calculator — **零** Architecture 引用。  
+- Pipeline 帧末：扣血 →（有效命中则）资源 Grant → NotifyHit；Collect 阶段禁止副作用。  
+- App：`PublishResolvedHit` / Debug HUD **只读**；禁止 Spend/Grant/ApplyDamage。  
+- **权威只在 `NumericSystem`**；禁止再引入第二套资源/血量口袋。
 
 ### 4.3 帧末结算顺序（定案）
 
 ```text
 对每条 pending hit（SimHitKey 排序后）:
+  0. 完美闪避窗 / Invincible → 早退（不写血、不 Grant；完美另武装反击旗标）
   1. 若目标已死 → skip 权威副作用（仍可按现有策略处理）
-  2. damage = Calculator(...) → target.Health.ApplyDamage
+  2. damage = DamageNumericCalculator(...) → Health Attribute（经 Vitality）
   3. 若本次为有效几何确认（NotifyHit 路径）:
-       attacker.ResourceSim.GrantOnHit(action.ResourceSpec)
+       Instant Grant Effect（Spec 编译）
   4. hitReceiver.NotifyHit
 CompleteFrame → 发布 ResolvedCombatHit（表现）
 ```
 
-攻击者资源查找：Pipeline 注入 `Func<SimActorId, CharacterResourceSim>`（或等价注册表），禁止经 App Command 回写。
+攻击者资源查找：Pipeline 注入 `NumericSystem` 查找表，禁止经 App Command 回写。
 
 ---
 
@@ -132,14 +133,14 @@ CharacterHealth.ApplyDamage(finalDamage, context)
 
 0 伤仍可 `HitReceived`（现有行为保留）。
 
-### 5.2 增强目标（N2，按需）
+### 5.2 增强目标 → 改挂 GAS G4
 
-当需要角色成长 / 防御减伤时，引入：
+成长 / 防御减伤**不再**单开长期 `AttributeSheet`。终态：
 
 | Id | 说明 |
 |----|------|
-| `MaxHp` / `Hp` | 生命；Hp 不参与修饰公式 |
-| `Attack` / `Defense` | 攻防 |
+| `MaxHealth` / `Health` | Vital Attribute |
+| `Attack` / `Defense` | Combat Attribute；公式见 GAS G4 |
 
 ```text
 raw = Attack * hitPayloadScale *（可选 weight）
@@ -147,18 +148,19 @@ mitigation = Defense / (Defense + K)   // K=100
 final = raw<=0 ? 0 : max(1, raw * (1 - mitigation))
 ```
 
-- `AttributeProfile` SO + `AttributeSheet`（base + Flat/PercentAdd 修饰器）。
-- `CharacterHealth` 可改为 Sheet 的 Hp 门面，或 Sheet 内聚 Hp — **禁止** float 血条与 Sheet 双轨。
-- `HitPayload.BaseDamage` 语义可收束为「框系数/固定段伤」之一；迁移时二选一写死，删另一语义。
-- **不**恢复 `ApplyHitCommand`；公式仍在 Domain，由 Pipeline/`OnHit` 调用。
+- 临时加减益走 Duration Effect Modifier；DOT 走 Periodic。  
+- `HitPayload.BaseDamage` 语义可收束为「框系数/固定段伤」之一；迁移时二选一写死。  
+- **不**恢复 `ApplyHitCommand`；公式仍在 Domain，由 Pipeline 调用。
 
 ### 5.3 木桩
 
-`HurtboxTarget` 若仍存在：与角色同源 `CharacterHealth`（或 Sheet），删除孤立业务语义血量双轨。
+`HurtboxTarget` 若仍存在：与角色同源 Health Attribute（经 Vitality），禁止孤立业务语义血量口袋。
 
 ---
 
 ## 6. 块 B — 玩法资源（绝区零骨架）
+
+> **存储说明：** 下列字段语义长期有效；运行时映射见 GAS §5 AttributeId / Flags。
 
 ### 6.1 资源表
 
@@ -168,7 +170,7 @@ final = raw<=0 ? 0 : max(1, raw * (1 - mitigation))
 | **Decibel（喧响）** | 角色（单机个人条） | 终结技 | max=3000；命中增加；大招清空 |
 | **DodgeCharges** | 角色 | 闪避 | max=2；耗 1；`rechargeFrames=60` |
 
-权威时钟：仅 `ResourceSim.Step`（1 逻辑帧）；禁止 `Time.deltaTime` / OnGUI 改资源。
+权威时钟：仅逻辑帧 `NumericSystem.Step`；禁止 `Time.deltaTime` / OnGUI 改资源。
 
 接战：Action/Hit 态，或命中后 `combatHoldFrames`（如 180）倒计时。
 
@@ -203,7 +205,7 @@ maxDecibel, maxDodgeCharges, dodgeRechargeFrames, combatHoldFrames
 |------|------|
 | `CharacterActionDriver` 起手/高优打断 | `CanAfford` → `TryStart` → `CommitCost` |
 | `ActionSim.CommitPendingDecision` | Begin 前 `CanAfford`；失败丢弃本次 pending |
-| `CharacterActor.Step` | `ResourceSim.Step`（被动回能 + 闪避充能） |
+| `CharacterActor.Step` | `NumericSystem.Step`（被动回能 + 闪避充能 + Effect） |
 | Pipeline 有效命中后 | `GrantOnHit` |
 
 同键双形态（N5）：能量够走 EX 节点，否则普通 Special — 挂 Resolver/Graph，不改 Cancel 窗口语义。
@@ -234,7 +236,7 @@ Motor: (...) SoftBody: mass=100 immovable=false
 ### 7.3 `CharacterDebugSnapshot`
 
 由 `CharacterActor.BuildDebugSnapshot()` 只读填充；含 HP、资源、意图、缓冲剩余帧、锁定、Motor/软体。  
-需暴露：`IntentBuffer`、`TargetLock`、`ResourceSim`、Health；`GameplayIntentBuffer.CopyBufferedForDebug(...)`。
+需暴露：`IntentBuffer`、`TargetLock`、`NumericSystem`（经 Snapshot）、Vitality；`GameplayIntentBuffer.CopyBufferedForDebug(...)`。
 
 刷新：`LateUpdate` 采样缓存，`OnGUI` 只绘制。禁止 HUD 写 Sim。
 
@@ -251,29 +253,30 @@ Motor: (...) SoftBody: mass=100 immovable=false
 **验收：** Play Mode 攻击可见缓冲/锁定/掉血数字变化。  
 **Editor：** 在场景中挂 `CombatDebugHudController` 并指定 Player；F3 开关。
 
-### Phase N1 — Energy + Gate + 命中回能
+### Phase N1 — Energy + Gate + 命中回能（历史：Wave 3；现 Numeric）
 
-- [x] `CharacterResourceSim` / Config / `ActionResourceSpec`  
+- [x] Config / `ActionResourceSpec`（权威已迁 `NumericSystem` / `NumericCostGate`）  
 - [x] Gate → Driver + ActionSim  
 - [x] Pipeline GrantOnHit；接战被动回能  
 - [x] HUD 显示 EX  
 
 **验收：** `energyCost` 不够不起手；普攻命中回能；HUD 同步。  
-**状态（2026-08-06）：** 代码已落地；正式招费用需 Editor 填表。
+**状态（2026-08-06）：** 代码已落地；正式招费用需 Editor 填表。  
+**终态（2026-08-07）：** 由 GAS **G3/G5** 替换为 NumericSystem；本文 N1 不再作为长期架构。
 
-### Phase N2 — 属性公式增强（按需，可与 N1 并行后置）
+### Phase N2 — 属性公式增强 → 改挂 GAS G4
 
-- [ ] `AttributeSheet` / Profile；Attack/Defense  
-- [ ] Calculator 升级；Health 与 Sheet 单轨  
-- [ ] HUD 显示 Attack/Defense（可选）  
+- [ ] ~~独立 `AttributeSheet` 长期双轨~~ → **取消**  
+- [ ] Attack/Defense + Calculator：见 GAS G4 `DamageNumericCalculator`  
+- [ ] Health 并入 Attribute：见 GAS G3  
 
-**验收：** 改攻防影响伤害；无双轨血量。
+**验收：** 见 GAS G4 门禁。
 
 ### Phase N3 — 闪避充能
 
 - [x] DodgeCharges + recharge；`consumeDodgeCharge` Gate  
 - [x] HUD 次数与充能帧  
-- [ ] 完美闪避窗 + DodgeCounter（Wave 3.4）
+- [ ] 玩家 Dodge `PerfectDodgeWindow` + `PerfectDodgeAttack`→Counter（Wave 3.4）
 
 ### Phase N4 — 喧响
 
@@ -295,8 +298,8 @@ Motor: (...) SoftBody: mass=100 immovable=false
 | 位置 | 改动 |
 |------|------|
 | `CharacterConfig` | 嵌 `CharacterResourceConfig`；N2 时加 `AttributeProfile` |
-| `CharacterActorFactory` | 创建 ResourceSim/Gate；Buffer/Lock/Health 注入 Actor |
-| `CharacterActor` | 只读暴露 + `BuildDebugSnapshot` + `ResourceSim.Step` |
+| `CharacterActorFactory` | 创建 NumericSystem / NumericCostGate；Buffer/Lock/Vitality 注入 Actor |
+| `CharacterActor` | 只读暴露 + `BuildDebugSnapshot` + `NumericSystem.Step` |
 | `ActionDefinition` | `ActionResourceSpec`；N2 时明确 Payload/系数语义 |
 | `CombatHitPipeline` | 注入资源查找；Resolve 内 Grant 顺序 |
 | `GameplayIntentBuffer` | `CopyBufferedForDebug` |
@@ -362,4 +365,4 @@ Motor: (...) SoftBody: mass=100 immovable=false
 
 ## 14. 一句话
 
-在现有 **Pipeline + CharacterHealth + HitPayload** 上，用 **ResourceSim/Gate** 补绝区零式循环，用 **AttributeSheet（按需）** 升级攻防，并用 **OnGUI Debug Snapshot** 把数值与输入状态打到左上角；先 N0 看见，再 N1～N5 逐项接真逻辑。
+字段与产品语义以本文为准；运行时数值口袋为 **GAS-lite `NumericSystem`**（Attribute + Effect + Flags），经 Pipeline / Gate 跑通绝区零式循环与 Debug HUD；无 AttributeSheet/ResourceSim 双轨。

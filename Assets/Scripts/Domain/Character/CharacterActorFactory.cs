@@ -80,8 +80,12 @@ public static class CharacterActorFactory
         var intentBuffer = new GameplayIntentBuffer(
             config.GameplayIntentProfile.ActionBufferDurationFrames);
         var resolverService = new ActionResolverService(combatMode);
-        var resourceSim = new CharacterResourceSim(config.Resources);
-        var resourceGate = new ActionResourceGate(resourceSim);
+        var numeric = new NumericSystem(
+            CharacterNumericConfig.FromResourceConfig(config.Resources, config.Combat.MaxHealth));
+        var vitality = new CharacterVitality(numeric);
+        // DOT 扣血走 Vitality：无 Hit Reaction，死亡边沿仍生效
+        numeric.Effects.SetHealthDamageHandler(vitality.ApplyPeriodicHealthDamageMilli);
+        var resourceGate = new NumericCostGate(numeric);
         // Bridge 需 Gate 做同键 EX 选形；ActionSim 再用同一 Gate 扣费
         var resolverBridge = new ActionSimResolverBridge(resolverService, root, motor, resourceGate);
         actionSim = new ActionSim(resolverBridge, intentBuffer, resourceGate);
@@ -150,7 +154,8 @@ public static class CharacterActorFactory
             animation,
             new CharacterPresentationBridge(root, presentationRoot),
             visualMotion,
-            resourceSim,
+            numeric,
+            vitality,
             intentBuffer,
             targetLock,
             root);

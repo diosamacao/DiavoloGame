@@ -1,14 +1,16 @@
 using System;
 using UnityEngine;
 
-/// <summary>纯 C# 角色受击目标；Hurtbox 由 MotorSim 逻辑根位姿构建。</summary>
-public sealed class CharacterHurtboxTarget : ITargetable
+/// <summary>纯 C# 角色受击目标；Hurtbox 由 MotorSim 逻辑根位姿构建；伤害写 Numeric Health。</summary>
+public sealed class CharacterHurtboxTarget : ITargetable, IHitAbsorbQuery
 {
     readonly Transform _root;
     readonly Transform _aimTransform;
     readonly HurtboxDefinition _hurtbox;
-    readonly CharacterHealth _health;
+    readonly CharacterVitality _vitality;
+    readonly ActionSim _actionSim;
     readonly Func<SimActorId> _simulationIdProvider;
+    Func<SimActorId, NumericSystem> _numericLookup;
     readonly CharacterMotorSim _motorSim;
 
     /// <summary>创建随逻辑电机移动的受击目标。</summary>
@@ -17,42 +19,55 @@ public sealed class CharacterHurtboxTarget : ITargetable
         Transform aimTransform,
         int teamId,
         HurtboxDefinition hurtbox,
-        CharacterHealth health,
+        CharacterVitality vitality,
+        ActionSim actionSim,
         Func<SimActorId> simulationIdProvider,
-        CharacterMotorSim motorSim)
+        CharacterMotorSim motorSim,
+        Func<SimActorId, NumericSystem> numericLookup = null)
     {
         _root = root;
         _aimTransform = aimTransform != null ? aimTransform : root;
         TeamId = teamId;
         _hurtbox = hurtbox ?? new HurtboxDefinition();
-        _health = health;
+        _vitality = vitality ?? throw new ArgumentNullException(nameof(vitality));
+        _actionSim = actionSim;
         _simulationIdProvider = simulationIdProvider;
         _motorSim = motorSim ?? throw new ArgumentNullException(nameof(motorSim));
+        _numericLookup = numericLookup;
     }
 
-    /// <summary>角色在 SimulationWorld 内的稳定身份。</summary>
+    /// <summary>Host 就绪后注入攻击者 Numeric 查找（敌人延迟装配）。</summary>
+    public void SetNumericLookup(Func<SimActorId, NumericSystem> numericLookup) =>
+        _numericLookup = numericLookup;
+
+    /// <inheritdoc />
     public SimActorId SimulationId => _simulationIdProvider?.Invoke() ?? SimActorId.Invalid;
 
-    /// <summary>角色受击根节点（索敌/表现）；命中几何不读其世界矩阵作权威。</summary>
+    /// <inheritdoc />
     public Transform TargetTransform => _root;
 
     /// <summary>索敌瞄准点。</summary>
     public Transform AimTransform => _aimTransform;
 
-    /// <summary>根节点有效且生命值未归零时可被索敌。</summary>
+    /// <inheritdoc />
     public bool IsAlive =>
         _root != null
         && _root.gameObject.activeInHierarchy
-        && _health != null
-        && !_health.IsDead;
+        && !_vitality.IsDead;
 
-    /// <summary>当前生命值。</summary>
-    public float CurrentHealth => _health != null ? _health.CurrentHealth : 0f;
+    /// <inheritdoc />
+    public float CurrentHealth => _vitality.CurrentHealth;
 
     /// <summary>角色阵营 id。</summary>
     public int TeamId { get; }
 
-    /// <summary>按 MotorSim 逻辑根构建受击框。</summary>
+    /// <inheritdoc />
+    public bool IsInvincible => QueryDefensiveWindow(perfectDodge: false);
+
+    /// <inheritdoc />
+    public bool IsInPerfectDodgeWindow => QueryDefensiveWindow(perfectDodge: true);
+
+    /// <inheritdoc />
     public HitboxOrientedBox GetLogicalHurtbox()
     {
         float heightY = _root != null ? _root.position.y : 0f;
@@ -60,12 +75,28 @@ public sealed class CharacterHurtboxTarget : ITargetable
         return HitboxMath.BuildFromHurtboxLogical(in pose, _hurtbox);
     }
 
-    /// <summary>把命中上下文换算为伤害并交给生命值模型。</summary>
+    /// <summary>按攻防公式结算伤害并写入 Health Attribute。</summary>
     public void OnHit(in ActionHitContext context)
     {
         if (!IsAlive)
             return;
 
-        _health.ApplyDamage(CombatDamageCalculator.Calculate(in context), in context);
+        NumericSystem attacker = _numericLookup?.Invoke(context.AttackerId);
+        float damage = CombatDamageCalculator.Calculate(in context, attacker, _vitality.Numeric);
+        _vitality.ApplyDamage(damage, in context);
+    }
+
+    bool QueryDefensiveWindow(bool perfectDodge)
+    {
+        if (_actionSim == null || !_actionSim.IsActive)
+            return false;
+
+        ActionSimSnapshot snap = _actionSim.Snapshot;
+        if (snap.Content is not ActionDefinition action)
+            return false;
+
+        return perfectDodge
+            ? action.IsPerfectDodgeWindowActiveAtFrame(snap.CurrentFrame)
+            : action.IsInvincibleAtFrame(snap.CurrentFrame);
     }
 }

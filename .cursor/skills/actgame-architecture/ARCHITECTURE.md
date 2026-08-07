@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-06（Wave 3：ResourceSim / 同键 EX）
+> Last audited: 2026-08-08（GAS G5：Numeric 完成态；Resources 仅作者壳）
 
 ## 项目概述
 
@@ -23,7 +23,9 @@ Assets/
 │   │   ├── Enemy/             # Definition、AI FSM、生命值、工厂与句柄
 │   │   ├── Combat/
 │   │   │   ├── Actions/       # Definitions / Resolution / Execution / Frames
-│   │   │   ├── Damage/        # 伤害计算与生命值
+│   │   │   ├── Damage/        # CombatDamageCalculator（G4 升级公式）
+│   │   │   ├── Resources/     # 作者壳：ActionResourceSpec / Tag / Config / EnergyFormSelector
+│   │   │   ├── Numeric/       # 数值权威：AttributeSet / Effect / NumericSystem
 │   │   │   ├── Hitbox/        # OBB 判定与角色 Hurtbox
 │   │   │   ├── VFX/           # 招式 VFX 帧事件
 │   │   │   └── Targeting/     # 索敌
@@ -166,9 +168,10 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 | `HitboxFrameConsumer` / `HitDetector` / `CombatHitPipeline` / `TargetingResolver` | 动作帧几何检测只 Collect；命中按 `SimHitKey` 排序后帧末统一结算 |
 | `HitPayload` / `HitFeedbackSettings` | 单个 Hitbox 的伤害、HitReactionId、镜头震动与卡肉载荷 |
 | `CharacterReactionSet` / `CharacterReactionResolver` | 按 HitReactionId 与反应类型生成完整受击/死亡状态请求；默认硬直时长也由规则集持有 |
-| `CharacterReactionService` | 玩家/敌人共用的 Health 事件桥接：执行可选上层副作用，并把解析结果交给 CharacterActor |
+| `CharacterReactionService` | 玩家/敌人共用的 Vitality 边沿桥接：副作用 + 解析结果交给 CharacterActor |
 | `PlayerActionSet` | 出招表：绑定一张 `ActionGraph`（节点按语义 Intent 匹配） |
-| `CharacterResourceSim` / `ActionResourceGate` / `ActionResourceSpec` | 玩法资源权威与起手扣费；价签挂 ActionDefinition；ConfirmHit 经 Pipeline 回填 |
+| `NumericSystem` / `NumericCostGate` / `ActionResourceSpec` | 数值权威与起手扣费；价签挂 ActionDefinition；ConfirmHit 经 Pipeline Grant Effect |
+| `CharacterVitality` | Health Attribute 边沿（扣血 / Hit / Death） |
 | `ActionEnergyFormSelector` | Special 同键：可负担则 ExSpecial，否则普通 Special |
 
 **当前 Logic Tick**：Runtime 由 `CharacterActor` 在每个 `SimulationWorld` 固定帧唯一调用一次 `ActionSim.Step`；Action 内容严格为 60Hz。表现桥只读事件与 Snapshot；Hitbox 仅收集事件，Host 在全 Actor Step 后统一 Resolve；PostCombat 排队自动 Transition，目标 frame 0 下一 World 帧提交。
@@ -219,7 +222,7 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 | `EnemyDefinition` / `EnemyBrainProfile` | 组合 CharacterConfig、AI 半径/冷却、HP 与敌人阵营；动作配置只在 CharacterConfig |
 | `AIInputWriter` | 将 AI 移动与 Attack 脉冲量化为当帧 `InputFrame`，继续走统一语义意图管线 |
 | `EnemyBrain` / `EnemyPerception` | Idle / Chase / Attack / Hit / Dead FSM 与只读感知快照 |
-| `EnemyActorFactory` / `EnemyHandle` | 复用 CharacterActorFactory，聚合 Actor、Brain、Health、Hurtbox 生命周期 |
+| `EnemyActorFactory` / `EnemyHandle` | 复用 CharacterActorFactory，聚合 Actor、Brain、Vitality、Hurtbox 生命周期 |
 | `EnemyController` / `EnemySpawnController` | 单敌 Tick 入口与场景刷怪入口 |
 | `EnemySpawnSystem` | 架构级敌人实例注册与同 Definition 存活上限 |
 
@@ -228,7 +231,7 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 ```
 EnemyDefinition → EnemyActorFactory → CharacterActorFactory
 EnemyBrain → AIInputWriter → InputFrameBuffer → InputManager → GameplayIntentProducer → CharacterActionDriver
-玩家 Hitbox → CombatHitPipeline.Collect → 稳定排序/Resolve → CharacterHurtboxTarget → EnemyHealth
+玩家 Hitbox → CombatHitPipeline.Collect → 稳定排序/Resolve → CharacterHurtboxTarget → CharacterVitality
               └─ CharacterReactionService → CharacterReactionResolver
                    ├─ 非致命：EnemyBrain.NotifyHit → CharacterActor.EnterHit
                    └─ 致命：EnemyBrain.NotifyDeath → CharacterActor.EnterDeath

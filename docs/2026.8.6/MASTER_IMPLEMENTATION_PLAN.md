@@ -1,6 +1,7 @@
 # ACTGame 2026.8.6 分步实施总案
 
 > 制定：2026-08-06  
+> 修订：2026-08-07 — 插入 GAS-lite G0～G5；完美闪避真源改为玩家 Dodge 窗；Wave 4 入口 = G5  
 > 基准：`develop`  
 > 角色：**跨文档唯一排期与依赖真源**；单篇方案保留设计细节，阶段号与开工顺序以本文为准  
 > 覆盖文档：
@@ -9,7 +10,8 @@
 > - [CHARACTER_MOVEMENT_ANCHOR_OPTIMIZATION_PLAN.md](./CHARACTER_MOVEMENT_ANCHOR_OPTIMIZATION_PLAN.md)
 > - [SKILL_AND_RESOURCE_SYSTEM_PLAN.md](./SKILL_AND_RESOURCE_SYSTEM_PLAN.md)
 > - [CAMERA_SYSTEM_PLAN.md](./CAMERA_SYSTEM_PLAN.md)
-> - 关联真源：[COMBAT_NUMERICS_PLAN.md](../COMBAT_NUMERICS_PLAN.md)（资源字段 / N*）
+> - 关联真源：[COMBAT_NUMERICS_PLAN.md](../COMBAT_NUMERICS_PLAN.md)（字段语义 / N*）  
+> - **数值改造真源：** [GAS_STYLE_COMBAT_REFACTOR_PLAN.md](../2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md)（G0～G5；替换 ResourceSim/旧 Health）
 
 ---
 
@@ -27,11 +29,12 @@
 | 主题 | 真源文档 | 其它文档职责 |
 |------|----------|--------------|
 | 排期 / 依赖 / 并行边界 | **本文** | 单篇只描述本域设计，阶段勾选同步本文 |
-| `ActionResourceSpec` 字段与 N* | **`COMBAT_NUMERICS_PLAN`** | Skill 篇只补槽位语义、Graph 路由、产品裁剪；不另立字段表 |
+| `ActionResourceSpec` 字段语义 | **`COMBAT_NUMERICS_PLAN`** | 运行时存储/结算改造以 **GAS G*** 为准 |
+| 数值口袋 / Resource·Health·Buff 终态 | **`GAS_STYLE_COMBAT_REFACTOR_PLAN`** | NUMERICS/Skill 只保留字段与产品语义 |
 | Action 位移权威 / Modifier / Command | **ActionDefinition 优化篇** | Anchor 篇消费其 BaseMotion，不另立 BaseMotionMode |
 | 烘焙轨迹 Gameplay/Residual | **Movement Anchor 篇** | Action 篇的 `bakedMotion` **演进为** `ActionBakedTrajectory`（见 §3） |
 | 相机模式 / LockOn / SkillShot | **Camera 篇** | 日常跟随锚点必须挂在无视觉残差的 `CameraRoot` |
-| 技能槽 / Special·EX / 完美闪避产品 | **Skill 篇** | 阶段号对齐本文 Wave 与 NUMERICS N* |
+| 技能槽 / Special·EX / 完美闪避产品 | **Skill 篇** | 阶段号对齐本文 Wave；存储迁 GAS Numeric |
 
 **优先级冲突裁定（已定案）：**
 
@@ -41,7 +44,8 @@
 | 相机「滤左右即可」vs 锚点「必须拆轨迹」 | **Wave 1 可临时滤左右止血**；Wave 2 轨迹拆分落地后，滤左右降为构图缓冲，不得替代拆分 |
 | `ActionBakedMotion` vs `ActionBakedTrajectory` | **一套数据**：逻辑表 + 可选残差；见 §3 |
 | Spec 再堆无敌/硬直 | **禁止**；无敌/Poise 走 Timeline；Spec 只保留 NUMERICS 字段 + `tags` |
-| 完美闪避窗口双来源 | **敌方攻击 Timeline `PerfectDodgeWindow` 为唯一逻辑真源**；玩家侧只消费 Flag |
+| 完美闪避窗口双来源 | **玩家 Dodge Timeline `PerfectDodgeWindow` 为唯一逻辑真源**；敌攻击窗内命中 → 完美闪避 |
+| 长期保留 ResourceSim vs GAS-lite | ✅ G5 已零兼容删除；权威仅 `NumericSystem` |
 
 ---
 
@@ -97,7 +101,8 @@ Player / SimulationRoot
 Wave 0  观测与保护网（不改 Runtime 行为）
 Wave 1  位移权威止血（ForwardSigned + BaseMotionMode + 相机临时滤左右）
 Wave 2  稳定锚点闭环（双轨迹 + VisualMotionRoot + 删 RM 权威回退）
-Wave 3  技能资源循环（对齐 NUMERICS N0～N5；同键 EX 必做）
+Wave 3  技能资源循环（产品语义；实现口袋即将被 GAS 替换）
+G0～G5  GAS-lite 数值重构（Attribute+Effect；G5 零兼容）← Wave 4 前必做
 Wave 4  玩法位移扩展（吸附 Modifier + 绕背 Command）+ Lock-On 相机
 Wave 5  大招演出 + 可选失衡；命中盒烘焙后置
 ```
@@ -108,6 +113,7 @@ Wave 5  大招演出 + 可选失衡；命中盒烘焙后置
 | 1 | Anchor M1、Action A1、Camera C0（部分） | 三者可并行 | 无（旧字段只读迁移） |
 | 2 | Anchor M2～M3、Action A2～A3、Camera 跟稳定根 | 代码可并行；资产迁移串行验收 | **删除 Animator RM 权威回退、旧 ForwardOnly 运行时语义** |
 | 3 | Skill S0～S4 ≡ NUMERICS N0～N5 + Action A6 | HUD 与资源逻辑可交错 | 禁止散落 cost 字段 |
+| **G*** | **GAS_STYLE_COMBAT_REFACTOR_PLAN** | G0～G2 少碰资产；G3 单出口切换 | **G5：删除 ResourceSim / 旧 Health·EnemyHealth** |
 | 4 | Action A5、Camera C1～C2 | LockOn 与 Modifier 可并行 | 无 |
 | 5 | Camera C3、Skill S5 可选、Anchor M4 后置 | SkillShot 优先；命中盒烘焙不阻塞 | 无 |
 
@@ -213,7 +219,7 @@ Wave 5  大招演出 + 可选失衡；命中盒烘焙后置
 | 3.1 | `CharacterResourceSim` + Config + Gate | N1 / Skill S1 | 能量不够不起手；挥空不回能 |
 | 3.2 | `ActionResourceSpec` 挂 Action；Inspector Resource 分组 | Action A6 / NUMERICS | 无顶层散落 cost |
 | 3.3 | Special Intent + Graph 能量分支（同键 EX） | **必做** N5/S2 | 临界上下打出两套招 |
-| 3.4 | DodgeCharges + 完美闪避窗口（敌方 Timeline）+ DodgeCounter | N3/S3 | 耗次数；窗内闪→攻出反击 |
+| 3.4 | DodgeCharges + 完美闪避（**玩家 Dodge Timeline**）+ `PerfectDodgeAttack`→Counter | N3/S3 | 耗次数；窗内挨打吞伤→反击 |
 | 3.5 | Decibel + Ult 清条 | N4/S4 | 满档可放；放后不能连放 |
 | 3.6 | `freezeFrames>0` 时暂停被动回能与闪避充能 | Skill 定案 | 卡肉期资源不偷跑 |
 
@@ -222,7 +228,7 @@ Wave 5  大招演出 + 可选失衡；命中盒烘焙后置
 - [x] 3.1 `CharacterResourceSim` + Config + Gate；EditMode：`CharacterResourceSimTests` / `ActionSimResourceGateTests`
 - [x] 3.2 `ActionDefinition.resourceSpec`；费用字段只认 Spec
 - [x] 3.3 `GameplayIntentType.Special`（原 Skill=6）+ `Ultimate`；`ActionEnergyFormSelector` 同键 EX；HUD `Next Special`
-- [ ] 3.4 完美闪避窗 + DodgeCounter 路由（DodgeCharges/Consume 已就绪）
+- [ ] 3.4 玩家 Dodge `PerfectDodgeWindow` + Pipeline 吞伤/武装 + `PerfectDodgeAttack`→Counter（DodgeCharges/Consume 已就绪）
 - [x] 3.5 Sim 侧 Decibel 门槛/清条就绪；需 Graph Entry=`Ultimate` + 资产填 Spec（人工）
 - [x] 3.6 卡肉期间跳过 `ResourceSim.Step`
 
@@ -241,10 +247,31 @@ clearsDecibelOnStart
 ```
 
 EX/Ult 的「命中不回能」用 `energyGrantOnHit = 0` 表达，**不**另增 `grantsEnergyOnHit` 布尔。  
-无敌 / 重击 / 完美窗：**Timeline 或敌方窗口**，不进 Spec。
+无敌 / 重击 / 完美窗：**玩家 Dodge Timeline**（Invincible / PerfectDodge），不进 Spec。
 
 **入口：** Wave 2 出口（避免资源接在仍抖动的位移上调表）。  
-**可提前：** 3.1 的纯 EditMode 单测可在 Wave 2 末并行，但不得依赖未删的 RM 回退。
+**可提前：** 3.1 的纯 EditMode 单测可在 Wave 2 末并行，但不得依赖未删的 RM 回退。  
+**后续：** Wave 3 玩法语义保留；**数值口袋改造走下方 G0～G5**，勿再扩展 `CharacterResourceSim` 权威字段。
+
+---
+
+### G0～G5 — GAS-lite 数值重构（Wave 3 后 / Wave 4 前）
+
+**目标：** 用 `NumericSystem`（Attribute + Effect + 上下文旗标）替换 ResourceSim / 旧 Health / 独立 Buff；Action 骨架不动。  
+**真源：** [GAS_STYLE_COMBAT_REFACTOR_PLAN.md](../2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md)
+
+| # | 任务 | 验收摘要 |
+|---|------|----------|
+| G0 | 契约冻结、交叉文档对齐 | ✅ 2026-08-07 |
+| G1 | AttributeSet + 聚合器 + Flags | ✅ 2026-08-07（未接 Actor） |
+| G2 | EffectContainer | ✅ 2026-08-07（未接 Pipeline） |
+| G3 | Gate/Pipeline 切换并切断旧写入 | ✅ 2026-08-07（Counter Intent 路由仍待 3.4） |
+| G4 | 伤害成长 + DOT | ✅ 2026-08-07 |
+| G5 | 零兼容清理 | ✅ 2026-08-08（`rg` 归零；Snapshot/HUD；文档完成态） |
+
+**入口：** Wave 3 产品语义已代码落地（可与资产填表交错）。  
+**出口（G5）：** ✅ 已达成；可开始 Wave 4 中依赖稳定数值 API 的新功能。  
+**历史禁止（已兑现）：** 不得合入「ResourceSim 门面长期共存」。
 
 ---
 
@@ -261,8 +288,8 @@ EX/Ult 的「命中不回能」用 `energyGrantOnHit = 0` 表达，**不**另增
 | 4.5 | LockOn VCam + TargetGroup + Director Free/LockOn | Camera C1 | 与 CombatTargetLock 一致；进出可 Blend |
 | 4.6 | Predict + 受击/弹刀 Feedback（可选） | Camera C2 | 不进逻辑 Hash |
 
-**入口：** Wave 2 完成；Wave 3 至少完成 3.1～3.2（Ult 镜头可到 Wave 5）。  
-**禁止：** Relocate 直接改 Transform；Modifier 读表现骨骼。
+**入口：** Wave 2 完成；**GAS G5 完成**（数值唯一真源为 NumericSystem）。Ult 镜头可到 Wave 5。  
+**禁止：** Relocate 直接改 Transform；Modifier 读表现骨骼；在旧 ResourceSim API 上堆 Wave 4 依赖。
 
 ---
 
@@ -322,6 +349,7 @@ EX/Ult 的「命中不回能」用 `energyGrantOnHit = 0` 表达，**不**另增
 - [ ] 每个正式 Action 仅一个基础位移权威；无 Animator RM 逻辑回退  
 - [ ] 无玩法意义的横摆不进 MotorSim / 受击体 / 相机源  
 - [ ] 资源字段唯一来自 `ActionResourceSpec`（NUMERICS 表）；同键 EX + 闪避反击 + Ult 闭环  
+- [x] GAS G5：数值唯一真源为 `NumericSystem`；旧 ResourceSim/Health 权威已删（2026-08-08）  
 - [ ] 吸附/瞬移经 MotionResolver + MotorSim，可重放  
 - [ ] Lock-On 与多段 SkillShot 为纯表现，不写回 Sim  
 - [ ] 全库 Action 校验无 Error；关键路径 EditMode/Play 门禁通过  
@@ -330,4 +358,4 @@ EX/Ult 的「命中不回能」用 `energyGrantOnHit = 0` 表达，**不**另增
 
 ## 11. 一句话
 
-先用校验与 `ForwardSigned` 止血，再用 Gameplay/Residual 稳住锚点并删除 RM 回退，然后接入唯一资源 Spec 做成绝区零式循环，最后才上吸附瞬移、Lock-On 与大招多段镜头——**顺序不能倒，真源不能分叉。**
+先用校验与 `ForwardSigned` 止血，再用 Gameplay/Residual 稳住锚点并删除 RM 回退，接入唯一资源 Spec 跑通绝区零式循环，再以 **GAS-lite G0～G5** 收敛数值口袋，最后才上吸附瞬移、Lock-On 与大招多段镜头——**顺序不能倒，真源不能分叉。**

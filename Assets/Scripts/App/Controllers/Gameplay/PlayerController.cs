@@ -9,7 +9,6 @@ public class PlayerController : AppControllerBase
     [SerializeField] Transform cameraTransform;
 
     CharacterActor actor;
-    CharacterHealth health;
     CharacterHurtboxTarget hurtboxTarget;
     CharacterReactionService reactionService;
     SimulationHost simulationHost;
@@ -25,7 +24,7 @@ public class PlayerController : AppControllerBase
     public Vector2 LookInput => actor?.LookInput ?? Vector2.zero;
 
     /// <summary>玩家当前生命值；运行时未创建时为 0。</summary>
-    public float CurrentHealth => health != null ? health.CurrentHealth : 0f;
+    public float CurrentHealth => actor != null ? actor.Vitality.CurrentHealth : 0f;
 
     /// <summary>相机应跟随的插值表现锚点；Actor 尚未创建时回退权威根。</summary>
     public Transform PresentationRoot => actor?.PresentationRoot != null
@@ -67,10 +66,8 @@ public class PlayerController : AppControllerBase
             out CharacterAnimationService animation,
             simulationHost.CollisionWorld);
 
-        health = new CharacterHealth(characterConfig.Combat.MaxHealth);
-        actor.AttachHealth(health);
         reactionService = new CharacterReactionService(
-            health,
+            actor.Vitality,
             actor,
             new CharacterReactionResolver(characterConfig.Combat.Reactions));
         hurtboxTarget = new CharacterHurtboxTarget(
@@ -78,9 +75,11 @@ public class PlayerController : AppControllerBase
             transform,
             characterConfig.Combat.TeamId,
             characterConfig.Combat.Hurtbox,
-            health,
+            actor.Vitality,
+            actionSim,
             () => actor?.SimulationId ?? SimActorId.Invalid,
-            actor.MotorSim);
+            actor.MotorSim,
+            id => simulationHost != null ? simulationHost.LookupNumeric(id) : null);
 
         GetSystem<CombatActorSystem>()?.Register(transform, actor, animation);
         GetSystem<TargetSystem>()?.Register(hurtboxTarget);
@@ -92,7 +91,7 @@ public class PlayerController : AppControllerBase
         if (actor != null && simulationHost != null && !simulationRegistration.IsValid)
         {
             simulationRegistration = simulationHost.RegisterPlayer(actor);
-            simulationHost.RegisterResources(actor.SimulationId, actor.Resources);
+            simulationHost.RegisterNumeric(actor.SimulationId, actor.Numeric);
         }
     }
 
@@ -113,7 +112,6 @@ public class PlayerController : AppControllerBase
         GetSystem<CombatActorSystem>()?.Unregister(transform);
         actor?.Dispose();
         actor = null;
-        health = null;
         hurtboxTarget = null;
         reactionService = null;
         simulationHost = null;

@@ -3,7 +3,8 @@
     "rootNamespace": "",
     "references": [
         "ACTGame.Simulation",
-        "ACTGame.Combat.Resources"
+        "ACTGame.Combat.Resources",
+        "ACTGame.Combat.Numeric"
     ],
     "includePlatforms": [
         "Editor"

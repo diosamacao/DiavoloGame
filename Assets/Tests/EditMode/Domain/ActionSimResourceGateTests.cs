@@ -1,14 +1,16 @@
 using NUnit.Framework;
 
-/// <summary>验证 ActionSim 起手前 Gate 鉴权与 Begin 扣费一次。</summary>
+/// <summary>验证 ActionSim 起手前 NumericCostGate 鉴权与 Begin 扣费一次。</summary>
 public sealed class ActionSimResourceGateTests
 {
     [Test]
     public void TryStart_FailsWhenCannotAfford_AndDoesNotBegin()
     {
-        var resources = new CharacterResourceSim(CharacterResourceConfig.Default);
-        resources.CommitCost(ActionResourceSpec.Create(energyCost: resources.MaxEnergy));
-        var gate = new CountingGate(resources);
+        var numeric = new NumericSystem(CharacterNumericConfig.Default);
+        ActionResourceSpecEffectCompiler.ApplyCost(
+            numeric,
+            ActionResourceSpec.Create(energyCost: numeric.Attributes.GetPoints(AttributeId.MaxEnergy)));
+        var gate = new CountingGate(numeric);
         var sim = new ActionSim(resourceGate: gate);
         var content = new FakeContent();
 
@@ -21,34 +23,55 @@ public sealed class ActionSimResourceGateTests
     [Test]
     public void TryStart_CommitsCostOnceOnSuccess()
     {
-        var resources = new CharacterResourceSim(CharacterResourceConfig.Default);
-        var gate = new CountingGate(resources);
+        var numeric = new NumericSystem(CharacterNumericConfig.Default);
+        var gate = new CountingGate(numeric);
         var sim = new ActionSim(resourceGate: gate);
         var content = new FakeContent();
+        int maxEnergy = numeric.Attributes.GetPoints(AttributeId.MaxEnergy);
 
         Assert.That(sim.TryStart(ActionSimResolveResult.FromContent(content)), Is.True);
         Assert.That(gate.CommitCount, Is.EqualTo(1));
-        Assert.That(resources.EnergyPoints, Is.EqualTo(resources.MaxEnergy - 10));
+        Assert.That(numeric.Attributes.GetPoints(AttributeId.Energy), Is.EqualTo(maxEnergy - 10));
+    }
+
+    [Test]
+    public void Grant_OnlyViaCompiler_DoesNotDoubleApply()
+    {
+        var numeric = new NumericSystem(CharacterNumericConfig.Default);
+        ActionResourceSpecEffectCompiler.ApplyCost(
+            numeric,
+            ActionResourceSpec.Create(energyCost: 40));
+        ActionResourceSpecEffectCompiler.ApplyGrant(
+            numeric,
+            ActionResourceSpec.Create(energyGrantOnHit: 10, decibelGrantOnHit: 80));
+
+        Assert.That(
+            numeric.Attributes.GetPoints(AttributeId.Energy),
+            Is.EqualTo(numeric.Attributes.GetPoints(AttributeId.MaxEnergy) - 40 + 10));
+        Assert.That(numeric.Attributes.GetPoints(AttributeId.Decibel), Is.EqualTo(80));
     }
 
     sealed class CountingGate : IActionResourceGate
     {
-        readonly CharacterResourceSim _resources;
+        readonly NumericSystem _numeric;
         public int CommitCount { get; private set; }
 
-        public CountingGate(CharacterResourceSim resources) => _resources = resources;
+        public CountingGate(NumericSystem numeric) => _numeric = numeric;
 
         public bool CanAfford(IActionSimContent content) =>
-            _resources.CanAfford(ActionResourceSpec.Create(energyCost: 10));
+            ActionResourceSpecEffectCompiler.CanAfford(
+                _numeric,
+                ActionResourceSpec.Create(energyCost: 10));
 
         public void CommitCost(IActionSimContent content)
         {
             CommitCount++;
-            _resources.CommitCost(ActionResourceSpec.Create(energyCost: 10));
+            ActionResourceSpecEffectCompiler.ApplyCost(
+                _numeric,
+                ActionResourceSpec.Create(energyCost: 10));
         }
     }
 
-    /// <summary>最小可 Begin 的假内容。</summary>
     sealed class FakeContent : IActionSimContent
     {
         public bool IsSimulationReady => true;

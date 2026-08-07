@@ -8,7 +8,7 @@ using UnityEngine;
 public sealed class SimulationHost : AppControllerBase
 {
     readonly Dictionary<SimActorId, EnemyController> _enemyControllers = new();
-    readonly Dictionary<SimActorId, CharacterResourceSim> _resourcesByActor = new();
+    readonly Dictionary<SimActorId, NumericSystem> _numericByActor = new();
     readonly List<EnemyController> _enemyStepSnapshot = new();
 
     SimulationConfig _config;
@@ -41,29 +41,30 @@ public sealed class SimulationHost : AppControllerBase
             _config.MaxFrameCatchUp);
         _world = new SimulationWorld(_config);
         _combatHits = new CombatHitPipeline(PublishResolvedHit);
-        _combatHits.BindResourceLookup(LookupResources);
+        _combatHits.BindNumericLookup(LookupNumeric);
     }
 
-    /// <summary>注册 Actor 资源表，供命中 GrantOnHit。</summary>
-    public void RegisterResources(SimActorId actorId, CharacterResourceSim resources)
+    /// <summary>注册 Actor Numeric，供命中 Grant / 完美闪避武装。</summary>
+    public void RegisterNumeric(SimActorId actorId, NumericSystem numeric)
     {
-        if (!actorId.IsValid || resources == null)
+        if (!actorId.IsValid || numeric == null)
             return;
-        _resourcesByActor[actorId] = resources;
+        _numericByActor[actorId] = numeric;
     }
 
-    /// <summary>注销 Actor 资源表。</summary>
-    public void UnregisterResources(SimActorId actorId)
+    /// <summary>注销 Actor Numeric。</summary>
+    public void UnregisterNumeric(SimActorId actorId)
     {
         if (actorId.IsValid)
-            _resourcesByActor.Remove(actorId);
+            _numericByActor.Remove(actorId);
     }
 
-    CharacterResourceSim LookupResources(SimActorId actorId)
+    /// <summary>供 Hurtbox 查攻击者 Numeric；未注册返回 null。</summary>
+    public NumericSystem LookupNumeric(SimActorId actorId)
     {
         if (!actorId.IsValid)
             return null;
-        return _resourcesByActor.TryGetValue(actorId, out CharacterResourceSim sim) ? sim : null;
+        return _numericByActor.TryGetValue(actorId, out NumericSystem numeric) ? numeric : null;
     }
 
     /// <summary>
@@ -145,7 +146,7 @@ public sealed class SimulationHost : AppControllerBase
             return false;
 
         _enemyControllers.Remove(registration.Id);
-        UnregisterResources(registration.Id);
+        UnregisterNumeric(registration.Id);
         return _world.Unregister(registration);
     }
 
