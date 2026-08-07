@@ -297,7 +297,7 @@ public class ActionDefinitionHitboxEditor : Editor
         if (hitboxCount > 0)
         {
             EditorGUILayout.HelpBox(
-                "Hitbox 线框按 Preview Frame 高亮当前激活窗口；Selected 仅用于 Scene Handles 编辑。",
+                "Hitbox 线框仅在 Preview Frame 落在窗口区间内时显示（与 VFX 一致）；Selected 仅用于 Scene Handles 编辑。",
                 MessageType.None);
             _selectedHitboxIndex = EditorGUILayout.IntSlider(
                 "Selected Hitbox (Handles)",
@@ -445,7 +445,7 @@ public class ActionDefinitionHitboxEditor : Editor
     /// <summary>提供全部 VFX 数组，供预览扩展按 Preview Frame 驱动（无需选中条目）。</summary>
     SerializedProperty GetVfxArrayProperty() => _playVfxNotifiesProp;
 
-    /// <summary>绘制全部 Hitbox 线框：按各自 attachPointId 解析挂点。</summary>
+    /// <summary>仅绘制当前预览帧落在窗口区间内的 Hitbox 线框（区间外不显示）。</summary>
     void DrawAllHitboxPreviews(ActionDefinition action, Transform root)
     {
         ActionFrameQueryResult frameQuery = ActionFrameQuery.Query(action, _previewFrame);
@@ -453,17 +453,14 @@ public class ActionDefinitionHitboxEditor : Editor
         for (int i = 0; i < hitboxes.Length; i++)
         {
             HitboxNotifyState hitbox = hitboxes[i];
-            if (hitbox == null)
+            if (hitbox == null || !frameQuery.IsStateActive(hitbox))
                 continue;
 
             Transform anchor = ActionEditorPreviewAttachPoint.Resolve(root, hitbox.AttachPointId);
-            bool isActive = frameQuery.IsStateActive(hitbox);
             bool isSelected = i == _selectedHitboxIndex;
             Color color = isSelected
                 ? new Color(1f, 0.85f, 0.1f, 1f)
-                : isActive
-                    ? new Color(1f, 0.35f, 0.15f, 0.95f)
-                    : new Color(0.6f, 0.6f, 0.6f, 0.35f);
+                : new Color(1f, 0.35f, 0.15f, 0.95f);
 
             HitboxOrientedBox box = HitboxMath.BuildFromHitbox(root, anchor, hitbox);
             HitboxSceneDrawing.DrawWireOrientedBox(box, color);

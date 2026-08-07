@@ -570,7 +570,7 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 - VFX/SFX/Event 点事件在时间轴上绘制为**菱形**（热区按轨高，不随 1 帧条宽缩小）
 - Timeline 顶栏 **Zoom**（1×–16×）+ Ctrl/Cmd+滚轮；放大后横向滚动以精确拖帧
 - Scrub / 播放 / 工具栏改帧时，playhead 超出 Zoom 可视区会**自动平移**时间轴视图
-- Scene Hitbox 线框与 VFX Prefab/粒子按 **Preview Frame** 驱动：拖到对应帧即可预览，无需选中时间轴窗口；选中仅用于 Handles 编辑
+- Scene Hitbox 线框与 VFX Prefab/粒子按 **Preview Frame** 驱动：拖到对应帧/区间即可预览（Hitbox 仅在窗口激活时可见），无需选中时间轴窗口；选中仅用于 Handles 编辑
 - Create：选角色文件夹（如 Unagi），自动保存到其子目录 `ActionDefinition`（无则创建；已有旧名 `ActioniDefinition` 则复用）；默认名可改；左侧列表按文件夹分组
 
 ### ActionEditor 对齐状态（2026-08-02）
