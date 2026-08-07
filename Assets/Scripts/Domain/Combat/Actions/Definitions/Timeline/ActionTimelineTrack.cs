@@ -14,6 +14,8 @@ public enum ActionTimelineTrackKind
     Phase = 8,
     /// <summary>默认动画轨：展示 ActionDefinition.animationSegments，非 timeline 窗口数组。</summary>
     Animation = 9,
+    /// <summary>完美闪避窗：玩家 Dodge 上窗内被命中时 Pipeline 吞伤并武装反击缓冲。</summary>
+    PerfectDodgeWindow = 10,
 }
 
 /// <summary>时间轴轨道描述；允许空轨存在，窗口通过 trackName 归属到轨。</summary>

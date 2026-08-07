@@ -140,7 +140,7 @@ MonoBehaviour:
       policy: 0
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
-    editorPosition: {x: 878.6667, y: -1420.6666}
+    editorPosition: {x: 872, y: -1251.3334}
   - nodeId: Unagi_Attack_Branch_02
     action: {fileID: 11400000, guid: 36239327dd50e6945a178edda90d407e, type: 2}
     intent: 6
@@ -156,7 +156,7 @@ MonoBehaviour:
       policy: 0
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
-    editorPosition: {x: 872, y: -846}
+    editorPosition: {x: 872, y: -930.6667}
   - nodeId: Unagi_Attack_Branch_02_Perfect
     action: {fileID: 11400000, guid: 06815d13e71fa4344aa893b2a53a81be, type: 2}
     intent: 6
@@ -221,6 +221,22 @@ MonoBehaviour:
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
     editorPosition: {x: -290, y: -409.33334}
+  - nodeId: Unagi_Attack_Rush_02
+    action: {fileID: 11400000, guid: beb27788e0aac394187213d668996f65, type: 2}
+    intent: 9
+    isEntry: 1
+    variantResolver: {fileID: 0}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 0
+      lockRange: 8
+      forwardConeAngle: 120
+      policy: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions: []
+    editorPosition: {x: 380.66666, y: -266.6667}
   - nodeId: Unagi_ChargeAttack_01
     action: {fileID: 11400000, guid: 7d8cee984a26d1b488757963d558c447, type: 2}
     intent: 5
@@ -333,6 +349,9 @@ MonoBehaviour:
     routeKind: 1
     toNodeId: Unagi_Attack_Branch_01_Perfect
   - fromNodeId: Unagi_Attack_Branch_01_Perfect
+    routeKind: 0
+    toNodeId: Unagi_Attack_03
+  - fromNodeId: Unagi_Attack_Rush_02
     routeKind: 0
     toNodeId: Unagi_Attack_03
   sharedRoutes: []

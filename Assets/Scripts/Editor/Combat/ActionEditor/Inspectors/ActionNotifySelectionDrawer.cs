@@ -71,6 +71,9 @@ public static class ActionNotifySelectionDrawer
                 case ActionTimelineTrackKind.Event:
                     DrawEvent(element);
                     break;
+                case ActionTimelineTrackKind.PerfectDodgeWindow:
+                    DrawPerfectDodgeWindow();
+                    break;
             }
         }
 
@@ -250,6 +253,15 @@ public static class ActionNotifySelectionDrawer
     {
         EditorGUILayout.PropertyField(element.FindPropertyRelative("kind"));
         EditorGUILayout.PropertyField(element.FindPropertyRelative("payloadId"));
+    }
+
+    /// <summary>完美闪避窗无额外载荷；语义由 Pipeline 消费。</summary>
+    static void DrawPerfectDodgeWindow()
+    {
+        EditorGUILayout.HelpBox(
+            "玩家 Dodge 上的完美闪避窗。窗内被命中：吞伤、不 Grant，并武装 PerfectDodgeCounter。\n"
+            + "与 Phase=Invincible 不同：完美窗优先且会武装反击缓冲。",
+            MessageType.Info);
     }
 
     /// <summary>显式播放倍率；可选显示资源估测自然时长（只读，不驱动倍率）。</summary>

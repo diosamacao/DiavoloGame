@@ -88,7 +88,16 @@ public static class CharacterActorFactory
         var resourceGate = new NumericCostGate(numeric);
         // Bridge 需 Gate 做同键 EX 选形；ActionSim 再用同一 Gate 扣费
         var resolverBridge = new ActionSimResolverBridge(resolverService, root, motor, resourceGate);
-        actionSim = new ActionSim(resolverBridge, intentBuffer, resourceGate);
+        // Begin 成功清完美反击缓冲（含 Cancel/硬打断起手）
+        actionSim = new ActionSim(
+            resolverBridge,
+            intentBuffer,
+            resourceGate,
+            onBegun: intent =>
+            {
+                if (intent == GameplayIntentType.PerfectDodgeAttack)
+                    numeric.ClearPerfectDodgeCounter();
+            });
         context.ActionSim = actionSim;
 
         var intentProducer = new GameplayIntentProducer(
@@ -97,7 +106,8 @@ public static class CharacterActorFactory
             intentBuffer,
             stateMachine,
             locomotionStateMachine,
-            actionSim);
+            actionSim,
+            hasPerfectDodgeCounter: () => numeric.Flags.HasPerfectDodgeCounter);
 
         Transform defaultAttach = ResolveModelPoint(config.Combat.AttachPointName, modelRoot, root);
         Transform aimOrigin = ResolveModelPoint(config.Combat.AimOriginName, modelRoot, root);

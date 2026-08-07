@@ -171,6 +171,7 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 | `CharacterReactionService` | 玩家/敌人共用的 Vitality 边沿桥接：副作用 + 解析结果交给 CharacterActor |
 | `PlayerActionSet` | 出招表：绑定一张 `ActionGraph`（节点按语义 Intent 匹配） |
 | `NumericSystem` / `NumericCostGate` / `ActionResourceSpec` | 数值权威与起手扣费；价签挂 ActionDefinition；ConfirmHit 经 Pipeline Grant Effect |
+| `PerfectDodgeAttack` / `PerfectDodgeWindow` | 完美闪避：窗内吞伤武装 Flags；Producer 派生 Intent；Begin 清缓冲；Graph Entry→Counter |
 | `CharacterVitality` | Health Attribute 边沿（扣血 / Hit / Death） |
 | `ActionEnergyFormSelector` | Special 同键：可负担则 ExSpecial，否则普通 Special |
 

@@ -12,7 +12,8 @@
 | Wave1 位移止血 / BaseMotionMode / 相机滤左右 | ✅ 已实现 | `ForwardSigned`、`ActionBaseMotionMode`、`CameraManager.lateralFollowFactor` | Attack 需以 ForwardSigned 重烘焙；菜单 Migrate Base Motion Mode |
 | Wave2 视觉残差 / VisualMotionRoot | ✅ 核心已实现 | `CharacterVisualMotionBridge`、`TryGetVisualResidualMm` | ForwardSigned：Motor 无横摆，模型在 VisualRoot 摆；2.4/2.5 删 RM 待迁完 |
 | Wave3 玩法资源 / 同键 EX | 🟡 资产待绑；运行时已迁 Numeric | `NumericCostGate`、`ActionResourceSpec`、`ActionEnergyFormSelector` | Spec 填表；Graph 双 Entry |
-| GAS-lite 数值重构 | ✅ G0～G5 完成 | `NumericSystem`、`DamageNumericCalculator`、`CharacterVitality` | Wave 3.4 Counter Intent |
+| GAS-lite 数值重构 | ✅ G0～G5 完成 | `NumericSystem`、`DamageNumericCalculator`、`CharacterVitality` | Effect SO 壳 |
+| 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B 代码已实现 | `InputFrameBuffer`、`InputReader`、`AIInputWriter`、`GameplayIntentProducer` | `GameInputActions.inputactions` + `GameplayIntentProfile` |
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
@@ -765,6 +766,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-07 | GAS G3：`NumericCostGate`+Spec 编译器；Factory/Host/Pipeline/Vitality；删 ResourceSim/旧 Health；完美窗/无敌早退 |
 | 2026-08-07 | GAS G4：`DamageNumericCalculator`；Outgoing/IncomingDamageMult；DOT Health handler 无 Reaction |
 | 2026-08-08 | GAS G5：旧权威删除确认；Snapshot/HUD（Effects/Flags/ATK）；文档完成态；Resources 仅作者壳 |
+| 2026-08-08 | Wave 3.4：`PerfectDodgeAttack` Intent；Producer 缓冲内劫持攻击键；Begin 清 Flags；Cancel 优先级 93 |
 
 ---
 
@@ -788,17 +790,17 @@ Attribute + Effect + Flags 为唯一数值权威；Gate/Pipeline/Hurtbox/Reactio
 
 ### 已知限制
 
-- `PerfectDodgeAttack` Intent / Graph Counter 路由未做（Wave 3.4）
 - 完美闪避慢动作表现事件未做
 - HitStop / EffectNotifyState 未进 Effect
 - Effect 尚无 ScriptableObject 资产壳（程序 `Create*`）
+- Graph Counter Entry / Dodge 完美窗资产需 Editor 人工
 
 ### 相关文件
 
 - `Assets/Scripts/Domain/Combat/Numeric/*`
 - `Assets/Scripts/Domain/Combat/Actions/Execution/NumericCostGate.cs`
 - `Assets/Scripts/Domain/Character/Reactions/CharacterVitality.cs`
-- `Assets/Tests/EditMode/Domain/*Numeric*` / `EffectContainerTests` / `DamageNumericCalculatorTests` / `ActionSimResourceGateTests`
+- `Assets/Tests/EditMode/Domain/*Numeric*` / `EffectContainerTests` / `DamageNumericCalculatorTests` / `ActionSimResourceGateTests` / `PerfectDodgeAttackTests`
 
 ---
 
@@ -867,14 +869,15 @@ Actor.Step：非卡肉时 NumericSystem.Step
 
 ### 已知限制
 
-- 3.4：`PerfectDodgeAttack` Intent / Graph Counter 路由未做（窗与武装旗标已在 Pipeline）
-- 正式招费用 / Graph 双 Entry / Ultimate / Dodge 完美窗资产需 Editor 人工
-- 未删 Wave 2 RM 回退
+- Graph Counter Entry（`Intent=PerfectDodgeAttack`）与 Dodge 完美窗轨需 Editor 人工
+- 正式招费用 / Graph Special 双 Entry / Ultimate 资产需 Editor 人工
+- 完美闪避慢动作表现未做；未删 Wave 2 RM 回退
 
 ### 相关文件
 
 - `Assets/Scripts/Domain/Combat/Numeric/*`
 - `Assets/Scripts/Domain/Combat/Resources/*`（价签）
+- `Assets/Scripts/Domain/Input/GameplayIntentProducer.cs`
 - `Assets/Scripts/Domain/Combat/Actions/Execution/NumericCostGate.cs`
-- `Assets/Tests/EditMode/Domain/ActionSimResourceGateTests.cs` / `ActionEnergyFormSelectionTests.cs`
+- `Assets/Tests/EditMode/Domain/ActionSimResourceGateTests.cs` / `ActionEnergyFormSelectionTests.cs` / `PerfectDodgeAttackTests.cs`
 - `docs/2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md`

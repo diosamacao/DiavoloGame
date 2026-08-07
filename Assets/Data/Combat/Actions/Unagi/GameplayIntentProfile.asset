@@ -55,4 +55,10 @@ MonoBehaviour:
     condition: 2
     holdFrames: 0
     priority: 0
+  - input: {fileID: -364390652058108349, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
+    phase: 0
+    intent: 9
+    condition: 3
+    holdFrames: 0
+    priority: 0
   actionBufferDurationFrames: 60

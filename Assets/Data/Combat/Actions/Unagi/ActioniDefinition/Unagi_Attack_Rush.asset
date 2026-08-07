@@ -100,7 +100,7 @@ MonoBehaviour:
       endFrame: 251
       priority: 0
       trackName: Phase_1
-      kind: 0
+      kind: 2
       interruptible: 1
       allowMovementCancel: 1
       allowEntryRestart: 1

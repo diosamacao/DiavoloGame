@@ -228,7 +228,7 @@ Wave 5  大招演出 + 可选失衡；命中盒烘焙后置
 - [x] 3.1 `CharacterResourceSim` + Config + Gate；EditMode：`CharacterResourceSimTests` / `ActionSimResourceGateTests`
 - [x] 3.2 `ActionDefinition.resourceSpec`；费用字段只认 Spec
 - [x] 3.3 `GameplayIntentType.Special`（原 Skill=6）+ `Ultimate`；`ActionEnergyFormSelector` 同键 EX；HUD `Next Special`
-- [ ] 3.4 玩家 Dodge `PerfectDodgeWindow` + Pipeline 吞伤/武装 + `PerfectDodgeAttack`→Counter（DodgeCharges/Consume 已就绪）
+- [x] 3.4 玩家 Dodge `PerfectDodgeWindow` + Pipeline 吞伤/武装 + `PerfectDodgeAttack` Intent/清缓冲（✅ 2026-08-08；Graph Counter Entry / Profile 可选绑定需 Editor）
 - [x] 3.5 Sim 侧 Decibel 门槛/清条就绪；需 Graph Entry=`Ultimate` + 资产填 Spec（人工）
 - [x] 3.6 卡肉期间跳过 `ResourceSim.Step`
 

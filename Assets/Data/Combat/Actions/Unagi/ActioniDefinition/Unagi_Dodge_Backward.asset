@@ -51,12 +51,20 @@ MonoBehaviour:
       interruptible: 1
       allowMovementCancel: 1
       allowEntryRestart: 1
-    perfectDodgeWindowStates: []
+    perfectDodgeWindowStates:
+    - id: PerfectDodge_1
+      startFrame: 0
+      endFrame: 21
+      priority: 0
+      trackName: PerfectDodge_1
     movementStates: []
     rotationStates: []
     tracks:
     - trackName: Phase_1
       kind: 8
+      visible: 1
+    - trackName: PerfectDodge_1
+      kind: 10
       visible: 1
   bakedMotion:
     logicHz: 60

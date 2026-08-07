@@ -227,9 +227,12 @@ public sealed class CharacterActor :
             buffers);
     }
 
-    /// <summary>HUD：根据当前能量预判 Special 同键下一发是 EX 还是普通。</summary>
+    /// <summary>HUD：反击缓冲优先显示 Counter；否则预判 Special 同键 EX/普通。</summary>
     string ResolveNextSpecialFormLabel()
     {
+        if (_numeric != null && _numeric.Flags.HasPerfectDodgeCounter)
+            return "Counter";
+
         ActionGraph graph = _combatMode?.ActiveActionSet?.ActionGraph;
         if (graph == null || _actionSim == null)
             return "-";
