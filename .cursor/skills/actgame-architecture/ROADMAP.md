@@ -70,12 +70,13 @@
 
 ### [P1] 战斗数值（属性 / 伤害 / EX·喧响·闪避 / Debug HUD）
 
-**方案**：`docs/COMBAT_NUMERICS_PLAN.md`  
+**字段/产品语义**：`docs/COMBAT_NUMERICS_PLAN.md`  
+**数值口袋改造真源**：`docs/2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md`（G0～G5；Wave 4 前）  
 （归档：`COMBAT_ATTRIBUTES_DAMAGE_PLAN.md`、`COMBAT_RESOURCE_SYSTEM_PLAN.md`）
 
-**方向**：以 `CombatHitPipeline` 为唯一结算口；在现有 `CharacterHealth` + `HitPayload` 上演进 AttributeSheet（按需）、`CharacterResourceSim` + Gate、OnGUI Debug Snapshot。阶段 N0（HUD）→ N1（能量）→ N2（攻防公式按需）→ N3/N4（闪避/喧响）。
+**方向**：`CombatHitPipeline` 唯一结算口；数值权威为 Attribute + Effect + Flags（`NumericSystem`）。旧 ResourceSim/Health 已删。
 
-**状态**：合并方案待实施（2026-08-04）
+**状态**：GAS G0～G5 已完成（2026-08-08）；下一玩法项 **Wave 3.4** `PerfectDodgeAttack` → Counter Intent/Graph（及慢动作表现）
 
 ### [P1] Lockstep 模拟核迁移
 

@@ -24,11 +24,11 @@ public sealed class CharacterActor :
     readonly CharacterAnimationService _animation;
     readonly CharacterPresentationBridge _presentation;
     readonly CharacterVisualMotionBridge _visualMotion;
-    readonly CharacterResourceSim _resources;
+    readonly NumericSystem _numeric;
+    readonly CharacterVitality _vitality;
     readonly GameplayIntentBuffer _intentBuffer;
     readonly CombatTargetLock _targetLock;
     readonly Transform _simulationRoot;
-    CharacterHealth _health;
     InputFrameBuffer _inputFrames;
     SimActorId _actorId;
     long _currentFrameIndex = -1;
@@ -94,8 +94,11 @@ public sealed class CharacterActor :
     /// <summary>索敌锁定状态（只读观测 / Debug HUD）。</summary>
     public CombatTargetLock TargetLock => _targetLock;
 
-    /// <summary>玩法资源权威（Energy/Decibel/Dodge）。</summary>
-    public CharacterResourceSim Resources => _resources;
+    /// <summary>数值中枢（Attribute + Effect + Flags）。</summary>
+    public NumericSystem Numeric => _numeric;
+
+    /// <summary>Health 边沿（扣血 / Hit / Death 事件）。</summary>
+    public CharacterVitality Vitality => _vitality;
 
     /// <summary>创建角色实例；所有依赖由工厂一次性注入。</summary>
     public CharacterActor(
@@ -111,7 +114,8 @@ public sealed class CharacterActor :
         CharacterAnimationService animation,
         CharacterPresentationBridge presentation,
         CharacterVisualMotionBridge visualMotion,
-        CharacterResourceSim resources,
+        NumericSystem numeric,
+        CharacterVitality vitality,
         GameplayIntentBuffer intentBuffer,
         CombatTargetLock targetLock,
         Transform simulationRoot)
@@ -128,14 +132,12 @@ public sealed class CharacterActor :
         _animation = animation;
         _presentation = presentation;
         _visualMotion = visualMotion;
-        _resources = resources;
+        _numeric = numeric;
+        _vitality = vitality;
         _intentBuffer = intentBuffer;
         _targetLock = targetLock;
         _simulationRoot = simulationRoot;
     }
-
-    /// <summary>绑定生命值供 Debug HUD；不改变伤害权威路径。</summary>
-    public void AttachHealth(CharacterHealth health) => _health = health;
 
     /// <summary>组装只读调试快照；供 CombatDebugHudController LateUpdate 采样。</summary>
     public CharacterDebugSnapshot BuildDebugSnapshot()
@@ -181,7 +183,10 @@ public sealed class CharacterActor :
         }
 
         CharacterMotorSim motor = _motor.Sim;
-        CharacterResourceSim res = _resources;
+        // HUD 只读 Numeric：属性点 + Flags + ActiveEffects
+        NumericDebugSnapshot numericSnap = _numeric.BuildDebugSnapshot();
+        AttributeSet attrs = _numeric.Attributes;
+        CombatContextFlags flags = _numeric.Flags;
         return new CharacterDebugSnapshot(
             CurrentState,
             snap.IsActive,
@@ -189,18 +194,24 @@ public sealed class CharacterActor :
             snap.CurrentFrame,
             totalFrames,
             snap.FreezeFrames,
-            _health != null ? _health.CurrentHealth : 0f,
-            _health != null ? _health.MaxHealth : 0f,
-            res != null ? res.EnergyPoints : 0,
-            res != null ? res.MaxEnergy : 0,
-            res != null ? res.EnergyRegenMilliPerFrame : 0,
-            res != null ? res.Decibel : 0,
-            res != null ? res.MaxDecibel : 0,
-            res != null ? res.DodgeCharges : 0,
-            res != null ? res.MaxDodgeCharges : 0,
-            res != null ? res.DodgeRechargeFramesLeft : 0,
-            res != null && res.IsInCombat,
-            res != null ? res.InCombatHoldFrames : 0,
+            _vitality.CurrentHealth,
+            _vitality.MaxHealth,
+            attrs.GetPoints(AttributeId.Energy),
+            attrs.GetPoints(AttributeId.MaxEnergy),
+            attrs.GetCurrent(AttributeId.EnergyRegenMilliPerFrame),
+            attrs.GetPoints(AttributeId.Decibel),
+            attrs.GetPoints(AttributeId.MaxDecibel),
+            attrs.GetPoints(AttributeId.DodgeCharges),
+            attrs.GetPoints(AttributeId.MaxDodgeCharges),
+            flags.DodgeRechargeFramesLeft,
+            flags.IsInCombat,
+            flags.InCombatHoldFrames,
+            numericSnap.PerfectDodgeCounterFrames,
+            attrs.GetPoints(AttributeId.Attack),
+            attrs.GetPoints(AttributeId.Defense),
+            numericSnap.OutgoingDamageMultMilli,
+            numericSnap.IncomingDamageMultMilli,
+            numericSnap.Effects,
             ResolveNextSpecialFormLabel(),
             hasLock,
             lockName,
@@ -325,17 +336,17 @@ public sealed class CharacterActor :
             _animation.Tick(fixedDeltaSeconds);
             UpdateActionLateralPeakSample();
 
-            // 卡肉期间暂停被动回能/闪避充能；动作或受击态刷新接战门闩
+            // 卡肉期间暂停 Numeric.Step（被动回能/充能/Effect/旗标）；动作或受击态刷新接战门闩
             if (_actionSim != null && !_actionSim.IsFrozen)
             {
                 if (_actionSim.IsActive
                     || CurrentState == CharacterStateType.Hit
                     || CurrentState == CharacterStateType.Action)
                 {
-                    _resources?.NotifyInCombat();
+                    _numeric.NotifyInCombat();
                 }
 
-                _resources?.Step();
+                _numeric.Step();
             }
         }
         finally

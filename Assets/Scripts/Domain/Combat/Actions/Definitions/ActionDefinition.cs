@@ -210,6 +210,23 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
     public IReadOnlyList<ActionPhaseNotifyState> GetActivePhasesAtFrame(int frame) =>
         Timeline.GetActivePhaseStatesAtFrame(frame);
 
+    /// <summary>指定帧是否处于 Invincible 相位（普通 i-frame）。</summary>
+    public bool IsInvincibleAtFrame(int frame)
+    {
+        IReadOnlyList<ActionPhaseNotifyState> phases = GetActivePhasesAtFrame(frame);
+        for (int i = 0; i < phases.Count; i++)
+        {
+            if (phases[i] != null && phases[i].Kind == ActionPhaseKind.Invincible)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>指定帧是否处于完美闪避窗口。</summary>
+    public bool IsPerfectDodgeWindowActiveAtFrame(int frame) =>
+        Timeline.IsPerfectDodgeWindowActiveAtFrame(frame);
+
     /// <summary>
     /// 指定帧是否允许高优硬打断。
     /// 无三相窗口覆盖时默认可打断；有覆盖时任一 Interruptible 即可；Invincible/SuperArmor 不参与。

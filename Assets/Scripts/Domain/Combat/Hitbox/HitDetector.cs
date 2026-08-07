@@ -80,7 +80,12 @@ public static class HitDetector
                     continue;
 
                 hitPairs.Add(pair);
-                var context = new ActionHitContext(action, hitbox, attackerRootForContext, actionInstanceId);
+                var context = new ActionHitContext(
+                    action,
+                    hitbox,
+                    attackerRootForContext,
+                    actionInstanceId,
+                    attackerId);
                 hitPipeline.Collect(
                     attackerId,
                     actionInstanceId,

@@ -2,10 +2,13 @@
 
 > 制定：2026-08-06  
 > 修订：2026-08-06 — 收敛字段真源到 NUMERICS；同键 EX 定为必做；完美闪避单真源  
+> 修订：2026-08-07 — 完美窗改玩家 Dodge Timeline；ResourceSim 标过渡；存储终态指 GAS Numeric  
+> 修订：2026-08-08 — GAS G5：数值口袋完成态为 NumericSystem；旧 ResourceSim/Gate 已删  
 > 基准：`develop`（`ActionSim` / `ActionGraph` / Intent / `CombatHitPipeline` / `COMBAT_NUMERICS_PLAN`）  
 > 产品参考：**绝区零**战斗技能槽 + 能量 / 喧响 / 闪避反击循环  
-> **排期真源：** [MASTER_IMPLEMENTATION_PLAN.md](./MASTER_IMPLEMENTATION_PLAN.md)（Wave 3）  
+> **排期真源：** [MASTER_IMPLEMENTATION_PLAN.md](./MASTER_IMPLEMENTATION_PLAN.md)（Wave 3 产品；数值口袋 → [GAS G0～G5](../2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md)）  
 > **字段 / N* 真源：** [COMBAT_NUMERICS_PLAN.md](../COMBAT_NUMERICS_PLAN.md)  
+> **数值口袋终态：** [GAS_STYLE_COMBAT_REFACTOR_PLAN.md](../2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md)  
 > 关联：[ACTION_DEFINITION_OPTIMIZATION_PLAN.md](./ACTION_DEFINITION_OPTIMIZATION_PLAN.md)、[ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](../ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)、[CAMERA_SYSTEM_PLAN.md](./CAMERA_SYSTEM_PLAN.md)  
 >  
 > **文档分工：** 本文只负责技能槽语义、Graph/Intent 路由、产品裁剪与完美闪避规则；**不**另立 `ActionResourceSpec` 字段表或与 NUMERICS 平行的实施阶段。归档的 `COMBAT_RESOURCE_SYSTEM_PLAN` 勿再实施。
@@ -38,10 +41,11 @@
 1. **绝区零技能不是「每人一套完全不同的系统」**，而是 **统一技能槽 + 资源门槛 + 条件变招**；角色差异主要在数值、Tag、被动与演出。  
 2. 本项目应对齐的核心循环：  
    `普攻/反击命中回能 → 能量够放强化特殊技 → 命中攒喧响 → 满喧响放大招 → 闪避有限次数 / 完美闪避接反击`。  
-3. **实现落点**：资源进 `CharacterResourceSim`；扣费进 `ActionResourceGate`；招式仍是 `ActionDefinition`；同键 Special/EX、闪避反击等用 **Intent + Graph 路由**，不新开第二套执行器。  
-4. **首版（单机单角色 ACT）**：Energy + Decibel + DodgeCharges + PerfectDodge 窗口 + **Special/EX 同键双形态（必做）** + Ult；**暂缓**切人支援、连携技、邦布、属性异常。  
-5. **失衡（Daze）** 可作为敌方资源后置（Wave 5），与「重击 Tag」预留接口，不阻塞技能资源主线。  
-6. 与 `COMBAT_NUMERICS_PLAN` **合并实施**：阶段号只用 **N0～N5**（总案 Wave 3）；本文 S* 仅作旧索引别名，**N5 同键 EX 升格为必做**（覆盖 NUMERICS 原文「可选」表述）。
+3. **实现落点（产品层）**：招式仍是 `ActionDefinition`；同键 Special/EX、闪避反击等用 **Intent + Graph 路由**，不新开第二套执行器。  
+4. **数值口袋**：GAS-lite `NumericSystem` + `NumericCostGate`（G5 完成）；`ActionResourceSpec` 仅为价签并编译为 Instant Effect。新权威字段写入 GAS §5 / Attribute。  
+5. **首版（单机单角色 ACT）**：Energy + Decibel + DodgeCharges + PerfectDodge 窗口 + **Special/EX 同键双形态（必做）** + Ult；**暂缓**切人支援、连携技、邦布、属性异常。  
+6. **失衡（Daze）** 可作为敌方资源后置（Wave 5），与「重击 Tag」预留接口，不阻塞技能资源主线。  
+7. 与 `COMBAT_NUMERICS_PLAN` **合并产品语义**：阶段号 **N0～N5** ≡ 总案 Wave 3；本文 S* 为索引别名。数值改造排期以 **GAS G*** 为准。
 
 ---
 
@@ -105,12 +109,12 @@
 ### 2.5 完美闪避 → 反击（框架级共性）
 
 ```text
-敌方攻击进入可闪窗口（闪光）
-  → 玩家闪避成功 = 极限闪避（短无敌 / 子弹时间可选）
-  → 窗口内点攻击 = 闪避反击（独立 Action，常高伤+回能+无敌）
+玩家进入 Dodge，Timeline 处于 PerfectDodgeWindow
+  → 敌攻击在该窗内命中玩家 = 极限闪避（吞伤 / 可选慢动作）
+  → 武装反击缓冲 → 缓冲内出 PerfectDodgeAttack Intent → Counter Action
 ```
 
-与「消耗闪避次数的普通闪避」是两条线：次数 Gate + 完美窗口上下文。
+与「消耗闪避次数的普通闪避」是两条线：次数 Gate + 玩家 Dodge 窗 + 反击缓冲旗标。
 
 ---
 
@@ -140,17 +144,17 @@
 
 ```text
 InputFrame
-  → GameplayIntentProducer（Attack / Special / Ult / Dodge …）
+  → GameplayIntentProducer（Attack / Special / Ult / Dodge / PerfectDodgeAttack …）
   → CharacterActionDriver
-       → ActionResourceGate.CanAfford / CommitCost
-       → ActionGraph / Resolver（含 Special↔EX、闪避反击路由）
-  → ActionSim（整数帧 Timeline）
+       → Gate.CanAfford / CommitCost（`NumericCostGate`）
+       → ActionGraph / Resolver（含 Special↔EX、PerfectDodgeAttack→Counter）
+  → ActionSim（整数帧 Timeline：含 PerfectDodge / Invincible）
   → Collect Hits
   → CombatHitPipeline.Resolve
-       → Damage
-       → ResourceSim.GrantOnHit（仅 ConfirmHit）
+       → 完美窗/无敌早退 或 伤害
+       → GrantOnHit（仅 ConfirmHit；Instant Grant Effect）
        → NotifyHit / Reaction
-  → ResourceSim.Step（接战回能、闪避充能）
+  → Step 被动回能/充能（NumericSystem）
 ```
 
 **成熟框架对齐点：**
@@ -160,7 +164,7 @@ InputFrame
 | Intent | 「玩家想干什么」 | 不直接扣资源 |
 | Gate | 「付不付得起、付哪招」 | 不播动画 |
 | Graph/Action | 「播哪招、窗口、Cancel」 | 不在 Collect 改资源 |
-| ResourceSim | 数值权威 | 不读 `Time.deltaTime` |
+| 数值口袋 | 资源/旗标权威（`NumericSystem`） | 不读 `Time.deltaTime`；禁止第二套口袋 |
 | Pipeline | 命中副作用顺序 | App Command 旁路扣费/扣血 |
 
 ---
@@ -185,16 +189,17 @@ enum ActionResourceTag :
 
 挂在 `ActionDefinition.resourceSpec.tag`（或并列 tags）。
 
-### 5.2 Intent 扩展（建议）
+### 5.2 Intent 扩展（定案）
 
 | Intent | 说明 |
 |--------|------|
-| `Attack` | 已有；上下文可路由冲刺攻击 / 闪避反击 |
-| `Special` | **新增**；Producer 不区分 EX，由 Gate+Resolver 分支 |
-| `Ultimate` | **新增**；需喧响满档 |
-| `Dodge` | 已有或补齐 |
+| `Attack` | 已有；可路由冲刺攻击等（**不**再兼完美反击选形） |
+| `Special` | 已有；Producer 不区分 EX，由 Gate+Selector 分支 |
+| `Ultimate` | 已有；需喧响满档 |
+| `Dodge` | 已有 |
+| `PerfectDodgeAttack` | **完美反击专用 Intent**；条件含 `HasPerfectDodgeCounter`；Graph Entry 指向 Counter |
 
-`GameplayIntentProfile`：为 Special / Ultimate 配按键与缓冲帧。
+`GameplayIntentProfile`：Special / Ultimate / PerfectDodgeAttack（高优先级）绑定。
 
 ### 5.3 Graph 路由规则（定案）
 
@@ -203,8 +208,8 @@ Special Intent:
   if Gate.CanAfford(ExSpecialSpec) → 选 ExSpecial Action，Commit energyCost
   else → 选 Special Action（energyCost=0）
 
-Attack Intent + 上下文 PerfectDodgeWindow:
-  → DodgeCounter Action（优先于普通连招）
+PerfectDodgeAttack Intent（HasPerfectDodgeCounter）:
+  → DodgeCounter / Counter Action（Entry.Intent = PerfectDodgeAttack）
 
 Attack Intent + Sprint/DodgeForward 上下文:
   → DashAttack Action（可选）
@@ -214,7 +219,8 @@ Ultimate Intent:
   else → 忽略或 UI 提示（不扣费）
 ```
 
-Cancel 切招：按 **目标招** 的 Spec 再 `CanAfford`；不够则 **不 Begin**，缓冲保留至过期（与 NUMERICS 定案一致）。
+Cancel 切招：按 **目标招** 的 Spec 再 `CanAfford`；不够则 **不 Begin**，缓冲保留至过期（与 NUMERICS 定案一致）。  
+**禁止**在 Attack Intent 上再叠一套「有 Counter Tag 则换招」双轨选形。
 
 ### 5.4 `ActionResourceSpec`
 
@@ -223,30 +229,28 @@ Cancel 切招：按 **目标招** 的 Spec 再 `CanAfford`；不够则 **不 Beg
 - EX/Ult「命中不回能」→ `energyGrantOnHit = 0`，不另增布尔。  
 - 无敌 / Poise → Timeline 窗口，不进 Spec。  
 - `HeavyHit` → `ActionResourceTag` / 独立 Tag，供 Wave 5 失衡使用。  
-- 完美闪避窗口 → **敌方攻击 Timeline**（见 §5.6），不进玩家 Action Spec。
+- 完美闪避窗口 → **玩家 Dodge Timeline**（见 §5.6），不进 Spec。
 
-### 5.5 `CharacterResourceSim`（权威）
+### 5.5 数值口袋（完成态）
 
-配置与步进规则见 NUMERICS；运行时额外上下文：
+| 项 | 实现 | 说明 |
+|------|------|------|
+| 权威 | `NumericSystem` + Flags + `NumericCostGate` | 见 GAS §5；G5 已删除 ResourceSim/旧 Health |
+| 价签 | `ActionResourceSpec` | 运行时只编译 Instant Cost/Grant Effect |
 
-| 字段 | 说明 |
-|------|------|
-| （NUMERICS 资源字段） | energy / decibel / dodgeCharges / 充能与接战门闩 |
-| `perfectDodgeWindowFrames` | 玩家成功极限闪避后的反击缓冲（由 §5.6 置位） |
+`Step`：仅逻辑帧；`freezeFrames>0` / `ActionSim.IsFrozen` 时暂停被动回能与闪避充能。
 
-`Step`：仅逻辑帧；`freezeFrames>0` 时暂停被动回能与闪避充能（总案定案）。
+### 5.6 完美闪避窗口（单真源 · 玩家 Dodge）
 
-### 5.6 完美闪避窗口（最小实现，单真源）
+**逻辑唯一真源：玩家 Dodge Action Timeline 上的 `PerfectDodgeWindowNotifyState`（相对玩家逻辑帧）。**
 
-**逻辑唯一真源：敌方攻击 Timeline 上的 `PerfectDodgeWindow`（相对攻击者逻辑帧）。**
+1. 玩家 Dodge 进入完美窗；窗内被敌攻击命中 → Pipeline **吞伤**（不写 Health、不 Grant）。  
+2. 武装 `PerfectDodgeCounterFrames`（反击缓冲）；可选慢动作表现事件。  
+3. 缓冲内输入派生 `PerfectDodgeAttack` → Graph 出 Counter；起手清空缓冲。  
+4. 普通 i-frame 由 Timeline `Invincible` 相位消费；**完美窗优先于无敌早退语义**（完美：吞伤+武装；无敌：仅吞伤）。
 
-1. 敌方攻击进入窗口 → 对范围内玩家广播「可完美闪避」Flag（逻辑）。  
-2. 玩家在窗口内成功 Dodge → 置 `perfectDodgeWindowFrames`（反击缓冲）。  
-3. 缓冲内 Attack Intent → 路由 `DodgeCounter`（优先于普通连招）。  
-
-**不做**「玩家受击前 N 帧」第二套权威来源（避免双轨）。  
-表现层：子弹 / 闪光仅表现，逻辑只认帧窗口 Flag。  
-**不必先做完整闪光 UI。**
+**不做**：敌方攻击 Timeline 广播「可完美闪避」作为第二权威；不做「受击前 N 帧」第二套来源。  
+表现层：子弹 / 闪光仅表现。**不必先做完整闪光 UI。**
 
 ---
 
@@ -259,9 +263,9 @@ Cancel 切招：按 **目标招** 的 Spec 再 `CanAfford`；不够则 **不 Beg
 | `GameplayIntentProducer` | Special / Ultimate Intent |
 | `CharacterActionDriver` | Begin 前 Gate |
 | `ActionSim.CommitPendingDecision` | 二次 CanAfford，防 Cancel 偷放 |
-| `CombatHitPipeline` | ConfirmHit 后 GrantOnHit |
-| `CharacterActor` | 每帧 `ResourceSim.Step`；暴露 Debug Snapshot |
-| `CharacterConfig` | `CharacterResourceConfig` |
+| `CombatHitPipeline` | 完美窗/无敌早退；ConfirmHit 后 Grant |
+| `CharacterActor` | 每帧数值 Step；暴露 Debug Snapshot |
+| `CharacterConfig` | 资源字段经 `CharacterNumericConfig.FromResourceConfig` 灌入 Numeric |
 
 **不新建** `SkillExecutor`；技能 = 带资源 Spec 的 Action。
 
@@ -331,7 +335,9 @@ EX/Ult 默认 `grantsEnergyOnHit=false`。
 | 回能与 EX 循环炸经济 | EX/Ult 不回能；回能表走配置 |
 | Gate 与 Graph 双真源 | 费用只认 Spec；Graph 只选节点 |
 | 与 NUMERICS 文档重复 | 字段与 N* 只认 NUMERICS；本文只管槽位/路由；排期认总案 Wave |
-| 完美闪避依赖复杂闪光 | 先逻辑窗口，表现后补 |
+| 完美闪避依赖复杂闪光 | 先玩家 Dodge 逻辑窗 + Pipeline 早退，表现后补 |
+| 文档仍写敌方窗权威 | 以 §5.6 / MASTER 裁定为准 |
+| ResourceSim 被当作终态 | 已删除；权威仅 NumericSystem |
 
 ---
 
@@ -356,7 +362,9 @@ EX/Ult 默认 `grantsEnergyOnHit=false`。
 | 2026-08-06 | 技能=Action+Spec+Gate，不新建 SkillExecutor | 符合现有动作核 |
 | 2026-08-06 | 与 NUMERICS N* 并行，技能阶段用 S* | 避免文档打架 |
 | 2026-08-06 | N5 同键 EX 升格必做；Spec 不加肥 | 与总案 Wave 3 对齐 |
-| 2026-08-06 | 完美闪避仅敌方 Timeline 窗口 | 消灭双权威 |
+| 2026-08-06 | 完美闪避单真源（初稿：敌方 Timeline） | 消灭双权威 |
+| 2026-08-07 | **改定**：完美窗在玩家 Dodge Timeline；Intent=`PerfectDodgeAttack` | 与产品/Pipeline 设计对齐 |
+| 2026-08-07 | ResourceSim 为 Wave 3 过渡；终态 NumericSystem | 对齐 GAS-lite |
 
 ---
 
@@ -364,9 +372,11 @@ EX/Ult 默认 `grantsEnergyOnHit=false`。
 
 1. `CharacterConfig` 填 Energy/Decibel/Dodge 默认值。  
 2. 普攻各段填 `energyGrantOnHit`；做一条 EX（cost）与一条 Special（0）。  
-3. Graph：Special Intent → Energy 路由；Attack → PerfectDodge 上下文 → DodgeCounter。  
-4. 一条 Ult：`requiresDecibelFull` + `clearsDecibelOnStart`；可选 CameraShotSequence。  
-5. 挂 Debug HUD，跑 S1～S4 验收清单。  
+3. Graph：Special Intent → Energy 路由；**Counter Entry Intent=`PerfectDodgeAttack`**（条件 `HasPerfectDodgeCounter`）。  
+4. Dodge Action：配 `Invincible` 与/或 `PerfectDodgeWindow` 轨；ActionType=Dodge。  
+5. Profile：Pressed+HasPerfectDodgeCounter → PerfectDodgeAttack（高优先级）。  
+6. 一条 Ult：`requiresDecibelFull` + `clearsDecibelOnStart`；可选 CameraShotSequence。  
+7. 挂 Debug HUD，跑 S1～S4 验收清单。  
 
 ---
 
@@ -375,7 +385,7 @@ EX/Ult 默认 `grantsEnergyOnHit=false`。
 - [x] 玩家必须消耗资源才能放强化技 / 大招（Gate 生效；资产填 cost 后验收）  
 - [x] 同键 Special/EX 行为符合绝区零心智模型（代码选形就绪；Graph 双 Entry 人工）  
 - [x] 命中回能/喧响仅在 Pipeline ConfirmHit  
-- [ ] 闪避有限 + 可完美反击（次数就绪；完美窗/反击待 3.4）  
+- [ ] 闪避有限 + 可完美反击（次数就绪；**玩家 Dodge 窗 + PerfectDodgeAttack 待 Wave 3.4**）  
 - [x] 技能差异主要靠 Action 资产与 Tag，而非角色硬编码  
 - [x] Debug HUD 可观测全部资源与当前路由结果（Next Special）  
 
@@ -383,4 +393,4 @@ EX/Ult 默认 `grantsEnergyOnHit=false`。
 
 ## 15. 一句话
 
-绝区零教给我们的不是「一百套独特技能脚本」，而是 **统一技能槽 + 能量/喧响/闪避门槛 + 同键强化 + 完美闪避反击**；本项目用 **ResourceSim + Gate + Intent/Graph 路由** 接在现有 `ActionSim` 上，先做单角色完整循环，再考虑失衡、编队与异常。
+绝区零教给我们的不是「一百套独特技能脚本」，而是 **统一技能槽 + 能量/喧响/闪避门槛 + 同键强化 + 完美闪避反击**；本项目用 **Intent/Graph 路由 + Gate** 叠在 `ActionSim` 上，数值口袋为 GAS Numeric，先做单角色完整循环，再考虑失衡、编队与异常。

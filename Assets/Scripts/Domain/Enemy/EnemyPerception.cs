@@ -21,17 +21,11 @@ public readonly struct EnemyPerceptionSnapshot
         IsDead = isDead;
     }
 
-    /// <summary>当前是否有有效目标。</summary>
     public bool HasTarget { get; }
-    /// <summary>目标世界位置。</summary>
     public Vector3 TargetPosition { get; }
-    /// <summary>自身指向目标的水平单位方向。</summary>
     public Vector3 PlanarDirection { get; }
-    /// <summary>自身到目标的水平距离。</summary>
     public float PlanarDistance { get; }
-    /// <summary>角色运行时顶层状态。</summary>
     public CharacterStateType CharacterState { get; }
-    /// <summary>生命值是否已归零。</summary>
     public bool IsDead { get; }
 }
 
@@ -41,19 +35,19 @@ public sealed class EnemyPerception
     readonly Transform _self;
     readonly Func<Transform> _targetProvider;
     readonly Func<CharacterStateType> _stateProvider;
-    readonly EnemyHealth _health;
+    readonly Func<bool> _isDeadProvider;
 
     /// <summary>创建敌人感知服务。</summary>
     public EnemyPerception(
         Transform self,
         Func<Transform> targetProvider,
         Func<CharacterStateType> stateProvider,
-        EnemyHealth health)
+        Func<bool> isDeadProvider)
     {
         _self = self;
         _targetProvider = targetProvider;
         _stateProvider = stateProvider;
-        _health = health;
+        _isDeadProvider = isDeadProvider;
     }
 
     /// <summary>采样当前目标距离、方向和角色状态。</summary>
@@ -74,6 +68,6 @@ public sealed class EnemyPerception
             direction,
             distance,
             _stateProvider != null ? _stateProvider() : CharacterStateType.Locomotion,
-            _health == null || _health.IsDead);
+            _isDeadProvider != null && _isDeadProvider());
     }
 }

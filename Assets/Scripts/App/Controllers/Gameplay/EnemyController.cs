@@ -136,7 +136,8 @@ public sealed class EnemyController : AppControllerBase
 
         _simulationRegistration = _simulationHost.RegisterEnemy(_handle, this);
         if (_handle?.Actor != null)
-            _simulationHost.RegisterResources(_handle.Actor.SimulationId, _handle.Actor.Resources);
+            _simulationHost.RegisterNumeric(_handle.Actor.SimulationId, _handle.Actor.Numeric);
+        _handle?.Target?.SetNumericLookup(_simulationHost.LookupNumeric);
     }
 
     /// <summary>禁用或销毁时从固定帧 World 对称注销，避免停用对象继续推进。</summary>

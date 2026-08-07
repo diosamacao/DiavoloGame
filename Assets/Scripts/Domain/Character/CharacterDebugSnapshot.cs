@@ -3,7 +3,7 @@ using System;
 /// <summary>角色只读调试快照；由 CharacterActor.BuildDebugSnapshot 填充，HUD 禁止写回。</summary>
 public readonly struct CharacterDebugSnapshot
 {
-    /// <summary>组装一帧调试快照。</summary>
+    /// <summary>组装一帧调试快照（含 Numeric Attribute / Effects / Flags）。</summary>
     public CharacterDebugSnapshot(
         CharacterStateType state,
         bool actionActive,
@@ -23,6 +23,12 @@ public readonly struct CharacterDebugSnapshot
         int dodgeRechargeFramesLeft,
         bool inCombat,
         int inCombatHoldFrames,
+        int perfectDodgeCounterFrames,
+        int attackPoints,
+        int defensePoints,
+        int outgoingDamageMultMilli,
+        int incomingDamageMultMilli,
+        NumericEffectDebugEntry[] activeEffects,
         string nextSpecialForm,
         bool hasLock,
         string lockTargetName,
@@ -55,6 +61,12 @@ public readonly struct CharacterDebugSnapshot
         DodgeRechargeFramesLeft = dodgeRechargeFramesLeft;
         InCombat = inCombat;
         InCombatHoldFrames = inCombatHoldFrames;
+        PerfectDodgeCounterFrames = perfectDodgeCounterFrames;
+        AttackPoints = attackPoints;
+        DefensePoints = defensePoints;
+        OutgoingDamageMultMilli = outgoingDamageMultMilli;
+        IncomingDamageMultMilli = incomingDamageMultMilli;
+        ActiveEffects = activeEffects ?? Array.Empty<NumericEffectDebugEntry>();
         NextSpecialForm = nextSpecialForm ?? "-";
         HasLock = hasLock;
         LockTargetName = lockTargetName ?? string.Empty;
@@ -88,6 +100,14 @@ public readonly struct CharacterDebugSnapshot
     public int DodgeRechargeFramesLeft { get; }
     public bool InCombat { get; }
     public int InCombatHoldFrames { get; }
+    /// <summary>完美反击缓冲剩余逻辑帧（Flags）。</summary>
+    public int PerfectDodgeCounterFrames { get; }
+    public int AttackPoints { get; }
+    public int DefensePoints { get; }
+    public int OutgoingDamageMultMilli { get; }
+    public int IncomingDamageMultMilli { get; }
+    /// <summary>当前 ActiveEffect 列表（只读拷贝）。</summary>
+    public NumericEffectDebugEntry[] ActiveEffects { get; }
     /// <summary>下一发 Special 同键形态：EX / Special / -。</summary>
     public string NextSpecialForm { get; }
     public bool HasLock { get; }

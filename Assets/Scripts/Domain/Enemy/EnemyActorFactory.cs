@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>敌人实例工厂；在共享 CharacterActor 管线上装配 AI、生命值和 Hurtbox。</summary>
+/// <summary>敌人实例工厂；在共享 CharacterActor 管线上装配 AI、Vitality 和 Hurtbox。</summary>
 public static class EnemyActorFactory
 {
     /// <summary>按 EnemyDefinition 创建完整敌人句柄；架构注册仍由 App Controller 负责。</summary>
@@ -43,15 +43,17 @@ public static class EnemyActorFactory
             out CharacterAnimationService animation,
             collisionWorld);
 
-        var health = new EnemyHealth(definition.MaxHp);
+        // 敌人 MaxHp 以 Definition 为准，覆盖 Config 默认
+        actor.Vitality.ResetMaxHealthPoints(Mathf.RoundToInt(definition.MaxHp));
+
         var perception = new EnemyPerception(
             root,
             targetProvider,
             () => actor.CurrentState,
-            health);
+            () => actor.Vitality.IsDead);
         var brain = new EnemyBrain(definition.BrainProfile, perception, input, facingProxy);
         var reactionService = new CharacterReactionService(
-            health,
+            actor.Vitality,
             actor,
             reactionResolver,
             _ => brain.NotifyHit(),
@@ -61,7 +63,8 @@ public static class EnemyActorFactory
             root,
             definition.TeamId,
             config.Combat.Hurtbox,
-            health,
+            actor.Vitality,
+            actionSim,
             () => actor.SimulationId,
             actor.MotorSim);
 
@@ -73,7 +76,6 @@ public static class EnemyActorFactory
             animation,
             brain,
             input,
-            health,
             target,
             facingProxy,
             reactionService);

@@ -8,7 +8,7 @@ public sealed class CombatHitPipeline
     readonly List<CombatHitEvent> _pending = new();
     readonly List<ResolvedCombatHit> _resolved = new();
     readonly Action<ResolvedCombatHit> _publishResolvedHit;
-    Func<SimActorId, CharacterResourceSim> _resourceLookup;
+    Func<SimActorId, NumericSystem> _numericLookup;
     long _collectingFrame = -1;
 
     /// <summary>创建帧末命中流水线；发布回调只能消费只读表现结果。</summary>
@@ -17,9 +17,9 @@ public sealed class CombatHitPipeline
         _publishResolvedHit = publishResolvedHit;
     }
 
-    /// <summary>绑定攻击者资源查找，供 ConfirmHit 后 GrantOnHit。</summary>
-    public void BindResourceLookup(Func<SimActorId, CharacterResourceSim> lookup) =>
-        _resourceLookup = lookup;
+    /// <summary>绑定攻击者/防御者 Numeric 查找，供 Grant 与完美闪避武装。</summary>
+    public void BindNumericLookup(Func<SimActorId, NumericSystem> lookup) =>
+        _numericLookup = lookup;
 
     /// <summary>开始收集下一逻辑帧；遗留事件会被清除，避免异常帧污染后续结算。</summary>
     public void BeginFrame(long frame)
@@ -76,7 +76,6 @@ public sealed class CombatHitPipeline
         ValidateFrame(frame);
         ResolvePending();
 
-        // App 反馈晚于整批 Sim 结算，事件订阅者不能影响本帧后续命中的权威结果。
         for (int i = 0; i < _resolved.Count; i++)
             _publishResolvedHit?.Invoke(_resolved[i]);
 
@@ -97,16 +96,37 @@ public sealed class CombatHitPipeline
                 continue;
             }
 
-            // 全部检测已结束后才按稳定键写入权威状态，Actor 注册顺序不再改变检测阶段的目标状态。
             ActionHitContext context = hit.Context;
+
+            // 完美闪避优先于普通无敌：吞伤、不 Grant、武装反击缓冲
+            if (hit.Target is IHitAbsorbQuery absorb && absorb.IsInPerfectDodgeWindow)
+            {
+                _numericLookup?.Invoke(hit.Key.TargetId)?.ArmPerfectDodgeCounter();
+                hit.HitReceiver?.ConfirmHit(hit.Key.ActionInstanceId);
+                _resolved.Add(new ResolvedCombatHit(
+                    context,
+                    hit.TargetTransform,
+                    ResolveHitDirection(hit.Context.Attacker, hit.TargetTransform)));
+                continue;
+            }
+
+            if (hit.Target is IHitAbsorbQuery invuln && invuln.IsInvincible)
+            {
+                hit.HitReceiver?.ConfirmHit(hit.Key.ActionInstanceId);
+                continue;
+            }
+
             hit.Target.OnHit(in context);
             hit.HitReceiver?.ConfirmHit(hit.Key.ActionInstanceId);
 
-            // 有效几何命中确认后回填资源；Collect 阶段禁止副作用
-            CharacterResourceSim attackerResources = _resourceLookup?.Invoke(hit.Key.AttackerId);
-            attackerResources?.GrantOnHit(context.Action != null
-                ? context.Action.ResourceSpec
-                : ActionResourceSpec.Empty);
+            NumericSystem attackerNumeric = _numericLookup?.Invoke(hit.Key.AttackerId);
+            if (attackerNumeric != null)
+            {
+                ActionResourceSpec spec = context.Action != null
+                    ? context.Action.ResourceSpec
+                    : ActionResourceSpec.Empty;
+                ActionResourceSpecEffectCompiler.ApplyGrant(attackerNumeric, spec);
+            }
 
             HitFeedbackSettings feedback = context.Hitbox != null
                 ? context.Hitbox.Payload.Feedback
@@ -128,7 +148,6 @@ public sealed class CombatHitPipeline
         _pending.Clear();
     }
 
-    /// <summary>拒绝跨帧或未 BeginFrame 的错误结算调用。</summary>
     void ValidateFrame(long frame)
     {
         if (frame != _collectingFrame)
@@ -138,11 +157,9 @@ public sealed class CombatHitPipeline
         }
     }
 
-    /// <summary>按纯模拟键比较命中，不读取 Transform 或 Unity 实例身份。</summary>
     static int CompareEvents(CombatHitEvent left, CombatHitEvent right) =>
         left.Key.CompareTo(right.Key);
 
-    /// <summary>计算帧末表现反馈使用的水平命中方向。</summary>
     static Vector3 ResolveHitDirection(Transform attacker, Transform target)
     {
         if (attacker == null)

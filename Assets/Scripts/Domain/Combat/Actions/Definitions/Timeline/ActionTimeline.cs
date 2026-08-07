@@ -13,6 +13,8 @@ public class ActionTimeline
     [SerializeField] HurtboxNotifyState[] hurtboxStates = Array.Empty<HurtboxNotifyState>();
     [SerializeField] CancelWindowNotifyState[] cancelWindowStates = Array.Empty<CancelWindowNotifyState>();
     [SerializeField] ActionPhaseNotifyState[] phaseStates = Array.Empty<ActionPhaseNotifyState>();
+    [SerializeField] PerfectDodgeWindowNotifyState[] perfectDodgeWindowStates =
+        Array.Empty<PerfectDodgeWindowNotifyState>();
     [SerializeField] MovementNotifyState[] movementStates = Array.Empty<MovementNotifyState>();
     [SerializeField] RotationNotifyState[] rotationStates = Array.Empty<RotationNotifyState>();
     [SerializeField] ActionTimelineTrack[] tracks = Array.Empty<ActionTimelineTrack>();
@@ -54,6 +56,10 @@ public class ActionTimeline
 
     /// <summary>动作阶段区间列表；后摇退出能力也由对应 Recovery 窗口声明。</summary>
     public ActionPhaseNotifyState[] PhaseStates => phaseStates ?? Array.Empty<ActionPhaseNotifyState>();
+
+    /// <summary>完美闪避窗口列表（通常挂在 Dodge Action）。</summary>
+    public PerfectDodgeWindowNotifyState[] PerfectDodgeWindowStates =>
+        perfectDodgeWindowStates ?? Array.Empty<PerfectDodgeWindowNotifyState>();
 
     /// <summary>脚本位移区间列表。</summary>
     public MovementNotifyState[] MovementStates => movementStates ?? Array.Empty<MovementNotifyState>();
@@ -123,6 +129,12 @@ public class ActionTimeline
         }
 
         foreach (ActionPhaseNotifyState state in PhaseStates)
+        {
+            if (state != null)
+                yield return state;
+        }
+
+        foreach (PerfectDodgeWindowNotifyState state in PerfectDodgeWindowStates)
         {
             if (state != null)
                 yield return state;
@@ -199,6 +211,18 @@ public class ActionTimeline
         }
 
         return active;
+    }
+
+    /// <summary>指定帧是否处于完美闪避窗口内。</summary>
+    public bool IsPerfectDodgeWindowActiveAtFrame(int frame)
+    {
+        foreach (PerfectDodgeWindowNotifyState state in PerfectDodgeWindowStates)
+        {
+            if (state != null && state.IsActiveAtFrame(frame))
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>查询指定帧的最高优先级脚本位移窗口。</summary>

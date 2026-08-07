@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-06
+> Last updated: 2026-08-07
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -11,7 +11,8 @@
 | Wave0 动作审计 / 锚点可视化 / Debug HUD | ✅ 已实现 | `ActionDefinitionAuditUtility`、`CharacterAnchorGizmoDrawer`、`CombatDebugHudController` | 菜单 `ACTGame/Action/Validate Motion Sources`；场景挂 HUD |
 | Wave1 位移止血 / BaseMotionMode / 相机滤左右 | ✅ 已实现 | `ForwardSigned`、`ActionBaseMotionMode`、`CameraManager.lateralFollowFactor` | Attack 需以 ForwardSigned 重烘焙；菜单 Migrate Base Motion Mode |
 | Wave2 视觉残差 / VisualMotionRoot | ✅ 核心已实现 | `CharacterVisualMotionBridge`、`TryGetVisualResidualMm` | ForwardSigned：Motor 无横摆，模型在 VisualRoot 摆；2.4/2.5 删 RM 待迁完 |
-| Wave3 玩法资源 / 同键 EX | 🟡 代码已接、资产待绑 | `CharacterResourceSim`、`ActionResourceGate`、`ActionEnergyFormSelector` | Spec 填表；Graph 双 Entry Special/ExSpecial；Profile→Special/Ultimate |
+| Wave3 玩法资源 / 同键 EX | 🟡 资产待绑；运行时已迁 Numeric | `NumericCostGate`、`ActionResourceSpec`、`ActionEnergyFormSelector` | Spec 填表；Graph 双 Entry |
+| GAS-lite 数值重构 | ✅ G0～G5 完成 | `NumericSystem`、`DamageNumericCalculator`、`CharacterVitality` | Wave 3.4 Counter Intent |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B 代码已实现 | `InputFrameBuffer`、`InputReader`、`AIInputWriter`、`GameplayIntentProducer` | `GameInputActions.inputactions` + `GameplayIntentProfile` |
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
@@ -759,6 +760,45 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-06 | Wave 1：`ForwardSigned`；`ActionBaseMotionMode`+迁移；相机 `lateralFollowFactor`；Motor 读 Orbit `PlanarForward` |
 | 2026-08-06 | Wave 2 核心：`CharacterVisualMotionRoot` + 残差派生；Gameplay→Motor，Residual→模型；未删 RM 回退 |
 | 2026-08-06 | Wave 3：`CharacterResourceSim`/Gate/Spec；Pipeline GrantOnHit；`Special`/`Ultimate` Intent；同键 EX 选形；HUD Next Special；卡肉跳过资源 Step |
+| 2026-08-07 | GAS G1：`Domain/Combat/Numeric`（AttributeSet/Aggregator/Flags/NumericSystem）；EditMode `NumericSystemTests`；未接 Actor/Pipeline |
+| 2026-08-07 | GAS G2：`EffectDefinition`/`EffectContainer`（Instant/Duration/Periodic + 叠层）；`NumericDebugSnapshot`；`EffectContainerTests` |
+| 2026-08-07 | GAS G3：`NumericCostGate`+Spec 编译器；Factory/Host/Pipeline/Vitality；删 ResourceSim/旧 Health；完美窗/无敌早退 |
+| 2026-08-07 | GAS G4：`DamageNumericCalculator`；Outgoing/IncomingDamageMult；DOT Health handler 无 Reaction |
+| 2026-08-08 | GAS G5：旧权威删除确认；Snapshot/HUD（Effects/Flags/ATK）；文档完成态；Resources 仅作者壳 |
+
+---
+
+## GAS G0～G5 — Numeric 完成态
+
+### 功能说明
+
+Attribute + Effect + Flags 为唯一数值权威；Gate/Pipeline/Hurtbox/Reaction/伤害公式已切换；旧 ResourceSim/Health 已删除；F3 HUD 展示 ATK/DEF/倍率/Effects/反击缓冲。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 中枢 | `NumericSystem`（Factory 装配；Host 注册；Actor.Step） |
+| 扣费/回填 | `NumericCostGate` + `ActionResourceSpecEffectCompiler` |
+| 生命边沿 | `CharacterVitality` → Reaction Hit/Death |
+| 命中 | Pipeline：完美窗/无敌早退 → OnHit → Grant Effect |
+| 伤害 | `DamageNumericCalculator`（Attack/Defense + Out/In 倍率） |
+| 配置 | `CharacterNumericConfig.FromResourceConfig`（作者壳 Config） |
+| Snapshot | `NumericDebugSnapshot` / `CharacterDebugSnapshot` → `CombatDebugHudController` |
+
+### 已知限制
+
+- `PerfectDodgeAttack` Intent / Graph Counter 路由未做（Wave 3.4）
+- 完美闪避慢动作表现事件未做
+- HitStop / EffectNotifyState 未进 Effect
+- Effect 尚无 ScriptableObject 资产壳（程序 `Create*`）
+
+### 相关文件
+
+- `Assets/Scripts/Domain/Combat/Numeric/*`
+- `Assets/Scripts/Domain/Combat/Actions/Execution/NumericCostGate.cs`
+- `Assets/Scripts/Domain/Character/Reactions/CharacterVitality.cs`
+- `Assets/Tests/EditMode/Domain/*Numeric*` / `EffectContainerTests` / `DamageNumericCalculatorTests` / `ActionSimResourceGateTests`
 
 ---
 
@@ -809,31 +849,32 @@ LateUpdate：HUD 采样 Snapshot → OnGUI 绘制
 
 | 项 | 方案 |
 |----|------|
-| 资源权威 | `CharacterResourceSim` + `CharacterResourceConfig`（嵌 CharacterConfig） |
+| 数值权威 | `NumericSystem` + `CharacterVitality` |
 | 价签 | `ActionDefinition.ResourceSpec`（`ActionResourceSpec`） |
-| 扣费 | `ActionResourceGate` → `ActionSim.Begin` / 二次 `CommitPendingDecision` |
-| 回能 | `CombatHitPipeline` ConfirmHit → `GrantOnHit` |
+| 扣费 | `NumericCostGate` → Spec→Instant Cost Effect |
+| 回能 | Pipeline ConfirmHit → `ActionResourceSpecEffectCompiler.ApplyGrant` |
 | 同键 EX | `GameplayIntentType.Special` + `ActionEnergyFormSelector`；Graph 多 Entry |
-| 观测 | HUD：EX/Decibel/Dodge + `Next Special` |
+| 观测 | HUD：EX/Decibel/Dodge + `Next Special`（读 Numeric） |
 
 ### 运行时流程
 
 ```
 Intent Special → Graph 收集 Entry → EnergyFormSelector(Ex if CanAfford else Special)
-  → ActionSim.TryStart → Gate.CommitCost
-ConfirmHit → GrantOnHit（挥空不回）
-Actor.Step：非卡肉时 ResourceSim.Step（接战回能 / 闪避充能）
+  → ActionSim.TryStart → NumericCostGate.CommitCost
+ConfirmHit → ApplyGrant（挥空不回）
+Actor.Step：非卡肉时 NumericSystem.Step
 ```
 
 ### 已知限制
 
-- 3.4 完美闪避窗 + DodgeCounter 未做
-- 正式招费用 / Graph 双 Entry / Ultimate 绑定需 Editor 人工
+- 3.4：`PerfectDodgeAttack` Intent / Graph Counter 路由未做（窗与武装旗标已在 Pipeline）
+- 正式招费用 / Graph 双 Entry / Ultimate / Dodge 完美窗资产需 Editor 人工
 - 未删 Wave 2 RM 回退
 
 ### 相关文件
 
-- `Assets/Scripts/Domain/Combat/Resources/*`
-- `Assets/Scripts/Domain/Combat/Actions/Resolution/ActionGraph.cs`
-- `Assets/Tests/EditMode/Domain/*Resource*` / `ActionEnergyFormSelectionTests.cs`
-- `docs/2026.8.6/MASTER_IMPLEMENTATION_PLAN.md` Wave 3
+- `Assets/Scripts/Domain/Combat/Numeric/*`
+- `Assets/Scripts/Domain/Combat/Resources/*`（价签）
+- `Assets/Scripts/Domain/Combat/Actions/Execution/NumericCostGate.cs`
+- `Assets/Tests/EditMode/Domain/ActionSimResourceGateTests.cs` / `ActionEnergyFormSelectionTests.cs`
+- `docs/2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md`

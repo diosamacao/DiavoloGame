@@ -16,7 +16,7 @@
 3. `sampleRate`、`totalFrames`、`bakedMotion.logicHz/frameCount` 存在重复表达，应明确唯一真源并自动校验。
 4. 伤害与 HitStop 已正确下沉到 `HitPayload`，禁止重新提升到 Action 顶层。
 5. CancelWindow 与 Phase Recovery 不是重复配置，但必须在编辑器中明确区分语义。
-6. 技能资源系统只向 Action 增加一份 `ActionResourceSpec`「价签」；字段以 `COMBAT_NUMERICS_PLAN` 为准；鉴权、扣费和回填由 Gate、ResourceSim、Pipeline 负责。
+6. 技能资源系统只向 Action 增加一份 `ActionResourceSpec`「价签」；字段以 `COMBAT_NUMERICS_PLAN` 为准；鉴权、扣费和回填由 Gate、Pipeline 负责（过渡 ResourceSim → 终态 GAS NumericSystem）。
 7. 位移必须预留**组合规则层**：基础位移之外允许目标吸附、距离修正与离散重定位，但这些规则不得成为新的基础位移权威。
 8. `bakedMotion` **演进为** `ActionBakedTrajectory`（GameplayDelta + VisualResidual）；轨迹拆分细节见 Movement Anchor 篇。
 9. 优化按总案 Wave 推进：先校验与可视化，再迁资产，**Wave 2 出口硬删除**旧路径；不直接批量手改 `.asset`。
