@@ -66,40 +66,28 @@ MonoBehaviour:
       localScale: {x: 0.2, y: 0.2, z: 0.2}
       parentToAttachPoint: 1
       playbackSpeed: 1
-    - id: VFX_3
-      startFrame: 8
-      endFrame: 8
-      priority: 0
-      trackName: VFX_1
-      prefab: {fileID: 6855955652325114174, guid: 9b46a484efe4de54da682f6bbfc2ece2, type: 3}
-      attachPointId: 
-      localOffset: {x: 0, y: 0.64, z: 0.25}
-      localEulerAngles: {x: 0, y: 0, z: 0}
-      localScale: {x: 1, y: 1, z: 1.3}
-      parentToAttachPoint: 0
-      playbackSpeed: 1
     - id: VFX_4
       startFrame: 22
       endFrame: 22
       priority: 0
       trackName: VFX_1
-      prefab: {fileID: 6855955652325114174, guid: 9b46a484efe4de54da682f6bbfc2ece2, type: 3}
+      prefab: {fileID: 6855955652325114174, guid: c02543e57b00460393df4a8216a35d90, type: 3}
       attachPointId: 
       localOffset: {x: 0, y: 0.64, z: 1.71}
       localEulerAngles: {x: 0, y: 0, z: 0}
-      localScale: {x: 1, y: 1, z: 1}
+      localScale: {x: 1.3, y: 1.3, z: 1.7}
       parentToAttachPoint: 0
       playbackSpeed: 1
     - id: VFX_5
-      startFrame: 38
-      endFrame: 38
+      startFrame: 33
+      endFrame: 33
       priority: 0
       trackName: VFX_1
       prefab: {fileID: 6855955652325114174, guid: c02543e57b00460393df4a8216a35d90, type: 3}
       attachPointId: 
       localOffset: {x: 0, y: 0.64, z: 1.74}
       localEulerAngles: {x: 0, y: 0, z: 0}
-      localScale: {x: 1.3, y: 1.3, z: 1.3}
+      localScale: {x: 1.3, y: 1.3, z: 1.7}
       parentToAttachPoint: 0
       playbackSpeed: 1
     - id: VFX_6
@@ -111,11 +99,137 @@ MonoBehaviour:
       attachPointId: 
       localOffset: {x: 0, y: 0.64, z: 1.72}
       localEulerAngles: {x: 0, y: 45, z: 45}
-      localScale: {x: 1.3, y: 1.3, z: 1.3}
+      localScale: {x: 1.3, y: 1.3, z: 1.7}
       parentToAttachPoint: 0
       playbackSpeed: 1
     playSfxStates: []
-    hitboxStates: []
+    hitboxStates:
+    - id: Hitbox_1
+      startFrame: 14
+      endFrame: 18
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 1}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 0
+          hitStopFrames: 0
+          hitStopOncePerAction: 0
+    - id: Hitbox_2
+      startFrame: 29
+      endFrame: 30
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 1}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 0
+          hitStopFrames: 0
+          hitStopOncePerAction: 0
+    - id: Hitbox_3
+      startFrame: 33
+      endFrame: 34
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 1}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 0
+          hitStopFrames: 0
+          hitStopOncePerAction: 0
+    - id: Hitbox_4
+      startFrame: 37
+      endFrame: 38
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 1}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 0
+          hitStopFrames: 0
+          hitStopOncePerAction: 0
+    - id: Hitbox_5
+      startFrame: 41
+      endFrame: 42
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 1}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 0
+          hitStopFrames: 0
+          hitStopOncePerAction: 0
+    - id: Hitbox_6
+      startFrame: 45
+      endFrame: 46
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 1}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 0
+          hitStopFrames: 0
+          hitStopOncePerAction: 0
+    - id: Hitbox_7
+      startFrame: 49
+      endFrame: 50
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 1}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 0
+          hitStopFrames: 0
+          hitStopOncePerAction: 0
     hurtboxStates: []
     cancelWindowStates:
     - id: Cancel_1
@@ -136,7 +250,13 @@ MonoBehaviour:
       allowEntryRestart: 1
     perfectDodgeWindowStates: []
     movementStates: []
-    rotationStates: []
+    rotationStates:
+    - id: Rotation_1
+      startFrame: 0
+      endFrame: 7
+      priority: 0
+      trackName: Rotation_1
+      smoothTimeOverride: 0
     tracks:
     - trackName: Phase_1
       kind: 8
@@ -146,6 +266,12 @@ MonoBehaviour:
       visible: 1
     - trackName: VFX_1
       kind: 2
+      visible: 1
+    - trackName: Rotation_1
+      kind: 6
+      visible: 1
+    - trackName: Hitbox_1
+      kind: 0
       visible: 1
   bakedMotion:
     logicHz: 60

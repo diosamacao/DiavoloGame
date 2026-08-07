@@ -4,8 +4,8 @@ using UnityEngine;
 /// <summary>右侧选中窗口细节面板；按类型绘制字段，帧数字与轨道双向同步。</summary>
 public static class ActionNotifySelectionDrawer
 {
-    /// <summary>绘制选中窗口；无选中时显示动作基础字段。</summary>
-    public static void Draw(Rect rect, SerializedObject so, ActionEditorSelection selection, ActionDefinition action)
+    /// <summary>绘制主选中窗口；多选时提示数量，无选中时显示动作基础字段。</summary>
+    public static void Draw(Rect rect, SerializedObject so, ActionEditorSelectionSet selectionSet, ActionDefinition action)
     {
         GUILayout.BeginArea(rect);
 
@@ -17,6 +17,14 @@ public static class ActionNotifySelectionDrawer
         }
 
         so.Update();
+
+        ActionEditorSelection selection = selectionSet != null ? selectionSet.Primary : default;
+        if (selectionSet != null && selectionSet.Count > 1)
+        {
+            EditorGUILayout.HelpBox(
+                $"已选中 {selectionSet.Count} 个窗口。Ctrl+C 复制 / Ctrl+V 粘贴到预览帧（可跨 Action）。下方编辑主选中项。",
+                MessageType.Info);
+        }
 
         if (!selection.IsValid)
         {
@@ -110,7 +118,9 @@ public static class ActionNotifySelectionDrawer
     static void DrawActionBasics(SerializedObject so, ActionDefinition action)
     {
         EditorGUILayout.LabelField("Action", EditorStyles.boldLabel);
-        EditorGUILayout.HelpBox("选中 Animation 轨上的段或其它窗口可编辑细节。显示名即资产文件名。", MessageType.None);
+        EditorGUILayout.HelpBox(
+            "选中 Animation 段或其它窗口可编辑细节。多选：Ctrl 点选 / Shift 同轨范围选；Ctrl+C/V 复制粘贴（可跨 Action）。",
+            MessageType.None);
 
         EditorGUI.BeginChangeCheck();
         using (new EditorGUI.DisabledScope(true))

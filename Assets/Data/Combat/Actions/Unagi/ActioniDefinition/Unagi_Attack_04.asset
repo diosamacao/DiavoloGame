@@ -66,7 +66,15 @@ MonoBehaviour:
       localScale: {x: 0.2, y: 0.2, z: 0.2}
       parentToAttachPoint: 1
       playbackSpeed: 1
-    playSfxStates: []
+    playSfxStates:
+    - id: SFX_1
+      startFrame: 0
+      endFrame: 0
+      priority: 0
+      trackName: SFX_1
+      audioClip: {fileID: 8300000, guid: 36de77c2058f38e4985ef58f57b9fdaa, type: 3}
+      volume: 1
+      playbackSpeed: 1
     hitboxStates:
     - id: Hitbox_1
       startFrame: 12
@@ -75,7 +83,7 @@ MonoBehaviour:
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 1, z: 0}
+      localOffset: {x: 0, y: 1, z: 0.86}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 2, y: 2, z: 3}
       payload:
@@ -85,7 +93,7 @@ MonoBehaviour:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 1
           hitStopFrames: 4
-          hitStopOncePerAction: 1
+          hitStopOncePerAction: 0
     hurtboxStates: []
     cancelWindowStates:
     - id: Attack
@@ -128,6 +136,9 @@ MonoBehaviour:
       visible: 1
     - trackName: Hitbox_1
       kind: 0
+      visible: 1
+    - trackName: SFX_1
+      kind: 3
       visible: 1
   bakedMotion:
     logicHz: 60

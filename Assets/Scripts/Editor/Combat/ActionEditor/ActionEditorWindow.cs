@@ -17,7 +17,7 @@ public sealed class ActionEditorWindow : EditorWindow
 
     ActionDefinition _selectedAction;
     SerializedObject _serializedObject;
-    ActionEditorSelection _selection;
+    readonly ActionEditorSelectionSet _selection = new();
     ActionEditorPreviewSession _previewSession;
     ActionEditorVfxPreviewExtension _vfxPreviewExtension;
 
@@ -99,7 +99,7 @@ public sealed class ActionEditorWindow : EditorWindow
                     centerBody,
                     _serializedObject,
                     _selectedAction,
-                    ref _selection,
+                    _selection,
                     ref _previewFrame,
                     ShowAddTrackMenu))
             {
@@ -297,7 +297,7 @@ public sealed class ActionEditorWindow : EditorWindow
     void SelectAction(ActionDefinition action)
     {
         _selectedAction = action;
-        _selection = default;
+        _selection.Clear();
         _isPlaying = false;
         _serializedObject = action != null ? new SerializedObject(action) : null;
         if (_serializedObject != null)

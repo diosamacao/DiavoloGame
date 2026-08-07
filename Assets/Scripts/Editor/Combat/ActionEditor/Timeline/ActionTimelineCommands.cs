@@ -100,13 +100,92 @@ public static class ActionTimelineCommands
             return;
 
         Undo.RecordObject(so.targetObject, "Add Action Track");
+        string defaultName = $"{ActionEditorStyles.DisplayName(kind)}_{CountTracksOfKind(tracksProp, kind) + 1}";
+        AppendTrack(tracksProp, kind, defaultName);
+        so.ApplyModifiedProperties();
+        EditorUtility.SetDirty(so.targetObject);
+    }
+
+    /// <summary>粘贴时确保存在指定 kind+trackName 的轨道；已存在则不改。</summary>
+    public static void EnsureTrack(SerializedObject so, ActionTimelineTrackKind kind, string trackName)
+    {
+        if (so == null || kind == ActionTimelineTrackKind.Animation)
+            return;
+
+        SerializedProperty tracksProp = so.FindProperty("timeline.tracks");
+        if (tracksProp == null)
+            return;
+
+        string name = string.IsNullOrEmpty(trackName) ? "Default" : trackName;
+        for (int i = 0; i < tracksProp.arraySize; i++)
+        {
+            SerializedProperty track = tracksProp.GetArrayElementAtIndex(i);
+            if (track.FindPropertyRelative("kind").enumValueIndex != (int)kind)
+                continue;
+            if (track.FindPropertyRelative("trackName").stringValue == name)
+                return;
+        }
+
+        AppendTrack(tracksProp, kind, name);
+    }
+
+    static void AppendTrack(SerializedProperty tracksProp, ActionTimelineTrackKind kind, string trackName)
+    {
         int index = tracksProp.arraySize;
         tracksProp.arraySize++;
         SerializedProperty track = tracksProp.GetArrayElementAtIndex(index);
-        string defaultName = $"{ActionEditorStyles.DisplayName(kind)}_{CountTracksOfKind(tracksProp, kind) + 1}";
-        track.FindPropertyRelative("trackName").stringValue = defaultName;
+        track.FindPropertyRelative("trackName").stringValue = trackName;
         track.FindPropertyRelative("kind").enumValueIndex = (int)kind;
         track.FindPropertyRelative("visible").boolValue = true;
+    }
+
+    /// <summary>删除多个窗口；按 Kind 分组并从高下标到低下标删除，避免索引错位。</summary>
+    public static void RemoveWindows(SerializedObject so, ActionEditorSelectionSet selection)
+    {
+        if (so == null || selection == null || !selection.HasSelection)
+            return;
+
+        var byKind = new System.Collections.Generic.Dictionary<ActionTimelineTrackKind, System.Collections.Generic.List<int>>();
+        for (int i = 0; i < selection.Items.Count; i++)
+        {
+            ActionEditorSelection item = selection.Items[i];
+            if (!item.IsValid)
+                continue;
+
+            if (!byKind.TryGetValue(item.Kind, out System.Collections.Generic.List<int> indices))
+            {
+                indices = new System.Collections.Generic.List<int>();
+                byKind.Add(item.Kind, indices);
+            }
+
+            if (!indices.Contains(item.Index))
+                indices.Add(item.Index);
+        }
+
+        if (byKind.Count == 0)
+            return;
+
+        Undo.RecordObject(so.targetObject, "Remove Action Windows");
+        foreach (System.Collections.Generic.KeyValuePair<ActionTimelineTrackKind, System.Collections.Generic.List<int>> pair in byKind)
+        {
+            string arrayName = pair.Key == ActionTimelineTrackKind.Animation
+                ? null
+                : GetArrayPropertyName(pair.Key);
+            SerializedProperty arrayProp = pair.Key == ActionTimelineTrackKind.Animation
+                ? so.FindProperty("animationSegments")
+                : arrayName != null ? so.FindProperty($"timeline.{arrayName}") : null;
+            if (arrayProp == null)
+                continue;
+
+            pair.Value.Sort((a, b) => b.CompareTo(a));
+            for (int i = 0; i < pair.Value.Count; i++)
+            {
+                int index = pair.Value[i];
+                if (index >= 0 && index < arrayProp.arraySize)
+                    arrayProp.DeleteArrayElementAtIndex(index);
+            }
+        }
+
         so.ApplyModifiedProperties();
         EditorUtility.SetDirty(so.targetObject);
     }

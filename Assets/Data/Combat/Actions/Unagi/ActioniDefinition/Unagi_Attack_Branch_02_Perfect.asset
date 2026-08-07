@@ -43,8 +43,8 @@ MonoBehaviour:
     actionEvents: []
     playVfxNotifies:
     - id: VFX_1
-      startFrame: 12
-      endFrame: 12
+      startFrame: 28
+      endFrame: 28
       priority: 0
       trackName: VFX_1
       prefab: {fileID: 6855955652325114174, guid: e6ab044536df47e0ade30b4e41e559f4, type: 3}
@@ -67,7 +67,133 @@ MonoBehaviour:
       parentToAttachPoint: 1
       playbackSpeed: 1
     playSfxStates: []
-    hitboxStates: []
+    hitboxStates:
+    - id: Hitbox_7
+      startFrame: 48
+      endFrame: 49
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 1}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 10
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 0
+          hitStopFrames: 0
+          hitStopOncePerAction: 0
+    - id: Hitbox_6
+      startFrame: 44
+      endFrame: 45
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 1}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 0
+          hitStopFrames: 0
+          hitStopOncePerAction: 0
+    - id: Hitbox_5
+      startFrame: 40
+      endFrame: 41
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 1}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 0
+          hitStopFrames: 0
+          hitStopOncePerAction: 0
+    - id: Hitbox_4
+      startFrame: 36
+      endFrame: 37
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 1}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 0
+          hitStopFrames: 0
+          hitStopOncePerAction: 0
+    - id: Hitbox_3
+      startFrame: 32
+      endFrame: 33
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 1}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 0
+          hitStopFrames: 0
+          hitStopOncePerAction: 0
+    - id: Hitbox_2
+      startFrame: 28
+      endFrame: 29
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 1}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 0
+          hitStopFrames: 0
+          hitStopOncePerAction: 0
+    - id: Hitbox_1
+      startFrame: 13
+      endFrame: 17
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 1}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 0
+          hitStopFrames: 0
+          hitStopOncePerAction: 0
     hurtboxStates: []
     cancelWindowStates:
     - id: Cancel_2
@@ -88,7 +214,13 @@ MonoBehaviour:
       allowEntryRestart: 1
     perfectDodgeWindowStates: []
     movementStates: []
-    rotationStates: []
+    rotationStates:
+    - id: Rotation_1
+      startFrame: 0
+      endFrame: 10
+      priority: 0
+      trackName: Rotation_1
+      smoothTimeOverride: 0
     tracks:
     - trackName: Cancel_3
       kind: 4
@@ -98,6 +230,12 @@ MonoBehaviour:
       visible: 1
     - trackName: VFX_1
       kind: 2
+      visible: 1
+    - trackName: Hitbox_1
+      kind: 0
+      visible: 1
+    - trackName: Rotation_1
+      kind: 6
       visible: 1
   bakedMotion:
     logicHz: 60

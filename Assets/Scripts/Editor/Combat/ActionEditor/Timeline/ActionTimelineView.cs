@@ -26,6 +26,8 @@ public sealed class ActionTimelineView
     int _dragOriginalStart;
     int _dragOriginalEnd;
     int _dragControlId = -1;
+    /// <summary>多选平移时各窗口的原始起止帧。</summary>
+    readonly List<DragWindowOriginal> _dragGroupOriginals = new();
     /// <summary>动画段换序：鼠标按下位置，用于区分点击选中与真正拖拽。</summary>
     Vector2 _reorderMouseDownPos;
     /// <summary>动画段换序：是否已超过拖拽阈值并开始改序。</summary>
@@ -52,6 +54,15 @@ public sealed class ActionTimelineView
     bool _hasPendingSelection;
     bool _clearSelection;
 
+    /// <summary>多选拖拽时单窗口的原始帧区间。</summary>
+    struct DragWindowOriginal
+    {
+        public ActionTimelineTrackKind Kind;
+        public int Index;
+        public int Start;
+        public int End;
+    }
+
     /// <summary>是否有菜单等异步操作需要宿主窗口重绘。</summary>
     public bool ConsumePendingRepaint()
     {
@@ -70,7 +81,7 @@ public sealed class ActionTimelineView
         Rect rect,
         SerializedObject so,
         ActionDefinition action,
-        ref ActionEditorSelection selection,
+        ActionEditorSelectionSet selection,
         ref int previewFrame,
         System.Action onAddTrack)
     {
@@ -80,16 +91,18 @@ public sealed class ActionTimelineView
             return false;
         }
 
+        selection ??= new ActionEditorSelectionSet();
+
         // GenericMenu 回调在下一帧生效，此处消费挂起的选中变更。
         if (_hasPendingSelection)
         {
-            selection = _pendingSelection;
+            selection.Set(_pendingSelection);
             _hasPendingSelection = false;
         }
 
         if (_clearSelection)
         {
-            selection = default;
+            selection.Clear();
             _clearSelection = false;
         }
 
@@ -179,7 +192,7 @@ public sealed class ActionTimelineView
 
         // 默认动画轨：始终置顶，展示 animationSegments。
         Rect animationTrackRect = new(0f, y, contentWidth, ActionEditorStyles.TrackHeight);
-        DrawAnimationTrack(animationTrackRect, so, action, totalFrames, ref selection, ref changed);
+        DrawAnimationTrack(animationTrackRect, so, action, totalFrames, selection, ref changed);
         y += ActionEditorStyles.TrackHeight + 2f;
 
         if (trackCount == 0)
@@ -194,7 +207,7 @@ public sealed class ActionTimelineView
                 continue;
 
             Rect trackRect = new(0f, y, contentWidth, ActionEditorStyles.TrackHeight);
-            DrawTrack(trackRect, so, action, trackProp, trackIndex, totalFrames, ref selection, previewFrame, ref changed);
+            DrawTrack(trackRect, so, action, trackProp, trackIndex, totalFrames, selection, previewFrame, ref changed);
             y += ActionEditorStyles.TrackHeight + 2f;
         }
 
@@ -202,10 +215,10 @@ public sealed class ActionTimelineView
             changed = true;
 
         // 拖拽期间在 ScrollView 内统一处理，避免依赖每帧重建的 SerializedProperty 引用。
-        if (ProcessActiveAnimationReorder(so, action, ref selection, ref changed))
+        if (ProcessActiveAnimationReorder(so, action, selection, ref changed))
             changed = true;
 
-        if (ProcessActiveWindowDrag(so, totalFrames, ref changed))
+        if (ProcessActiveWindowDrag(so, totalFrames, selection, ref changed))
             changed = true;
 
         float playheadX = ActionEditorStyles.TrackHeaderWidth + previewFrame * _pixelsPerFrame;
@@ -215,7 +228,7 @@ public sealed class ActionTimelineView
         Handles.EndGUI();
 
         GUI.EndScrollView();
-        HandleDeleteKey(so, ref selection, ref changed);
+        HandleEditHotkeys(so, action, selection, previewFrame, ref changed);
         return changed;
     }
 
@@ -235,7 +248,7 @@ public sealed class ActionTimelineView
         SerializedObject so,
         ActionDefinition action,
         int totalFrames,
-        ref ActionEditorSelection selection,
+        ActionEditorSelectionSet selection,
         ref bool changed)
     {
         Rect headerRect = new(trackRect.x, trackRect.y, ActionEditorStyles.TrackHeaderWidth, trackRect.height);
@@ -268,7 +281,7 @@ public sealed class ActionTimelineView
             && laneRect.Contains(evt.mousePosition)
             && _dragMode == DragMode.None)
         {
-            selection = ActionTimelineCommands.AddAnimationSegment(so);
+            selection.Set(ActionTimelineCommands.AddAnimationSegment(so));
             changed = true;
             evt.Use();
         }
@@ -292,7 +305,7 @@ public sealed class ActionTimelineView
                 new ActionEditorSelection(segmentsProp, i, ActionTimelineTrackKind.Animation),
                 globalStart,
                 globalEnd,
-                ref selection,
+                selection,
                 ref changed);
         }
 
@@ -327,14 +340,14 @@ public sealed class ActionTimelineView
         ActionEditorSelection itemSelection,
         int globalStart,
         int globalEnd,
-        ref ActionEditorSelection selection,
+        ActionEditorSelectionSet selection,
         ref bool changed)
     {
         float x = laneRect.x + globalStart * _pixelsPerFrame;
         float width = Mathf.Max(_pixelsPerFrame, (globalEnd - globalStart + 1) * _pixelsPerFrame);
         Rect clipRect = new(x, laneRect.y + 3f, width, laneRect.height - 6f);
 
-        bool selected = selection.Equals(itemSelection);
+        bool selected = selection.Contains(itemSelection);
         // 换序拖拽中：源片段半透明，提示正在移动。
         bool dimSource = _dragMode == DragMode.ReorderAnimation
             && _reorderDragActivated
@@ -359,7 +372,7 @@ public sealed class ActionTimelineView
         if (_dragMode != DragMode.None && _dragMode != DragMode.Scrub)
             return;
 
-        selection = itemSelection;
+        selection.Set(itemSelection);
         _dragMode = DragMode.ReorderAnimation;
         _dragKind = ActionTimelineTrackKind.Animation;
         _dragIndex = itemSelection.Index;
@@ -415,7 +428,7 @@ public sealed class ActionTimelineView
     bool ProcessActiveAnimationReorder(
         SerializedObject so,
         ActionDefinition action,
-        ref ActionEditorSelection selection,
+        ActionEditorSelectionSet selection,
         ref bool changed)
     {
         if (_dragMode != DragMode.ReorderAnimation || _dragIndex < 0)
@@ -463,7 +476,7 @@ public sealed class ActionTimelineView
                     if (reordered.IsValid)
                     {
                         _dragIndex = reordered.Index;
-                        selection = reordered;
+                        selection.Set(reordered);
                         reorderChanged = true;
                         changed = true;
                     }
@@ -648,7 +661,7 @@ public sealed class ActionTimelineView
         SerializedProperty trackProp,
         int trackIndex,
         int totalFrames,
-        ref ActionEditorSelection selection,
+        ActionEditorSelectionSet selection,
         int previewFrame,
         ref bool changed)
     {
@@ -709,8 +722,8 @@ public sealed class ActionTimelineView
             && _dragMode == DragMode.None)
         {
             int frame = FrameAtX(evt.mousePosition.x, totalFrames);
-            selection = ActionTimelineCommands.AddWindow(
-                so, kind, trackName, frame, action.SampleRate, action.TotalFrames);
+            selection.Set(ActionTimelineCommands.AddWindow(
+                so, kind, trackName, frame, action.SampleRate, action.TotalFrames));
             changed = true;
             evt.Use();
         }
@@ -723,6 +736,7 @@ public sealed class ActionTimelineView
         if (arrayProp == null)
             return;
 
+        bool hitWindow = false;
         for (int i = 0; i < arrayProp.arraySize; i++)
         {
             SerializedProperty element = arrayProp.GetArrayElementAtIndex(i);
@@ -731,7 +745,24 @@ public sealed class ActionTimelineView
                 continue;
 
             var itemSelection = new ActionEditorSelection(arrayProp, i, kind);
-            DrawWindow(laneRect, element, itemSelection, totalFrames, ref selection, ref changed);
+            if (DrawWindow(laneRect, element, itemSelection, totalFrames, selection, arrayProp, trackName, ref changed))
+                hitWindow = true;
+        }
+
+        // 单击空白轨道路面：清空选中（双击加窗已在上方处理）。
+        if (!hitWindow
+            && evt.type == EventType.MouseDown
+            && evt.button == 0
+            && evt.clickCount == 1
+            && laneRect.Contains(evt.mousePosition)
+            && !evt.control
+            && !evt.command
+            && !evt.shift
+            && _dragMode == DragMode.None)
+        {
+            selection.Clear();
+            changed = true;
+            evt.Use();
         }
     }
 
@@ -854,25 +885,30 @@ public sealed class ActionTimelineView
         menu.ShowAsContext();
     }
 
-    /// <summary>绘制窗口条块或点事件菱形；仅在 MouseDown 时开始拖拽，实际改帧在 ProcessActiveWindowDrag。</summary>
-    void DrawWindow(
+    /// <summary>
+    /// 绘制窗口条块或点事件菱形；支持 Ctrl 多选 / Shift 同轨范围选。
+    /// 返回本窗口是否命中并消费了 MouseDown。
+    /// </summary>
+    bool DrawWindow(
         Rect laneRect,
         SerializedProperty element,
         ActionEditorSelection itemSelection,
         int totalFrames,
-        ref ActionEditorSelection selection,
+        ActionEditorSelectionSet selection,
+        SerializedProperty arrayProp,
+        string trackName,
         ref bool changed)
     {
         SerializedProperty startProp = element.FindPropertyRelative("startFrame");
         SerializedProperty endProp = element.FindPropertyRelative("endFrame");
         SerializedProperty idProp = element.FindPropertyRelative("id");
         if (startProp == null || endProp == null)
-            return;
+            return false;
 
         int start = startProp.intValue;
         int end = endProp.intValue;
         bool pointEvent = ActionEditorStyles.IsPointEventTrack(itemSelection.Kind);
-        bool selected = selection.Equals(itemSelection);
+        bool selected = selection.Contains(itemSelection);
         Color color = selected
             ? ActionEditorStyles.ColorForSelectedTrack(itemSelection.Kind)
             : ActionEditorStyles.ColorForTrack(itemSelection.Kind);
@@ -892,7 +928,6 @@ public sealed class ActionTimelineView
             hitRect = new Rect(x, laneRect.y + 3f, width, laneRect.height - 6f);
             ActionEditorStyles.DrawRoundedWindowClip(hitRect, color, selected);
 
-            // 用 Label 仅作绘制，不参与控件焦点，避免抢走拖拽事件。
             string clipLabel = idProp != null ? idProp.stringValue : itemSelection.Kind.ToString();
             if (itemSelection.Kind == ActionTimelineTrackKind.Cancel)
             {
@@ -913,22 +948,43 @@ public sealed class ActionTimelineView
 
         Event evt = Event.current;
         if (evt.type != EventType.MouseDown || evt.button != 0 || !hitRect.Contains(evt.mousePosition))
-            return;
+            return false;
 
-        // 已有其它拖拽（含 Scrub）时不抢占。
         if (_dragMode != DragMode.None && _dragMode != DragMode.Scrub)
-            return;
+            return false;
 
-        selection = itemSelection;
+        bool additive = evt.control || evt.command;
+        bool range = evt.shift;
+
+        if (additive)
+        {
+            selection.Toggle(itemSelection);
+            changed = true;
+            evt.Use();
+            return true;
+        }
+
+        if (range && selection.HasSelection && selection.Primary.Kind == itemSelection.Kind)
+        {
+            SelectTrackRange(selection, arrayProp, trackName, itemSelection.Kind, selection.Primary, itemSelection);
+            changed = true;
+            evt.Use();
+            return true;
+        }
+
+        // 点已在多选中：保持多选并开始群体平移；否则单选。
+        if (!selected)
+            selection.Set(itemSelection);
+
         _dragKind = itemSelection.Kind;
         _dragIndex = itemSelection.Index;
         _dragStartFrame = FrameAtX(evt.mousePosition.x, totalFrames);
         _dragOriginalStart = start;
         _dragOriginalEnd = end;
+        CaptureDragGroupOriginalsFromSelection(selection);
         _dragControlId = GUIUtility.GetControlID(FocusType.Passive);
         GUIUtility.hotControl = _dragControlId;
 
-        // 点事件只允许平移触发帧；区间窗可命中左右边柄改时长。
         if (!pointEvent)
         {
             float edge = Mathf.Min(ActionEditorStyles.EdgeHandleWidth, hitRect.width * 0.35f);
@@ -944,8 +1000,76 @@ public sealed class ActionTimelineView
         else
             _dragMode = DragMode.Move;
 
+        // 多选时只允许平移，避免边柄误改单个时长。
+        if (selection.Count > 1)
+            _dragMode = DragMode.Move;
+
         changed = true;
         evt.Use();
+        return true;
+    }
+
+    /// <summary>Shift 同轨范围选：按 startFrame 在锚点与目标之间全选。</summary>
+    static void SelectTrackRange(
+        ActionEditorSelectionSet selection,
+        SerializedProperty arrayProp,
+        string trackName,
+        ActionTimelineTrackKind kind,
+        ActionEditorSelection anchor,
+        ActionEditorSelection target)
+    {
+        int anchorStart = arrayProp.GetArrayElementAtIndex(anchor.Index)
+            .FindPropertyRelative("startFrame")?.intValue ?? 0;
+        int targetStart = arrayProp.GetArrayElementAtIndex(target.Index)
+            .FindPropertyRelative("startFrame")?.intValue ?? 0;
+        int minStart = Mathf.Min(anchorStart, targetStart);
+        int maxStart = Mathf.Max(anchorStart, targetStart);
+
+        selection.Clear();
+        var collected = new List<ActionEditorSelection>();
+        for (int i = 0; i < arrayProp.arraySize; i++)
+        {
+            SerializedProperty element = arrayProp.GetArrayElementAtIndex(i);
+            SerializedProperty nameProp = element.FindPropertyRelative("trackName");
+            if (nameProp != null && nameProp.stringValue != trackName)
+                continue;
+
+            int start = element.FindPropertyRelative("startFrame")?.intValue ?? 0;
+            if (start < minStart || start > maxStart)
+                continue;
+
+            collected.Add(new ActionEditorSelection(arrayProp, i, kind));
+        }
+
+        selection.AddRange(collected, target);
+    }
+
+    void CaptureDragGroupOriginalsFromSelection(ActionEditorSelectionSet selection)
+    {
+        _dragGroupOriginals.Clear();
+        if (selection == null)
+            return;
+
+        for (int i = 0; i < selection.Items.Count; i++)
+        {
+            ActionEditorSelection item = selection.Items[i];
+            if (!item.IsValid || item.Kind == ActionTimelineTrackKind.Animation)
+                continue;
+
+            SerializedProperty element = item.ElementProperty;
+            SerializedProperty startProp = element?.FindPropertyRelative("startFrame");
+            SerializedProperty endProp = element?.FindPropertyRelative("endFrame");
+            if (startProp == null || endProp == null)
+                continue;
+
+            _dragGroupOriginals.Add(new DragWindowOriginal
+            {
+                Kind = item.Kind,
+                Index = item.Index,
+                Start = startProp.intValue,
+                End = endProp.intValue,
+            });
+        }
     }
 
     /// <summary>Ctrl/Cmd + 滚轮缩放时间轴；以预览帧为锚，尽量保持 playhead 可见。</summary>
@@ -979,8 +1103,12 @@ public sealed class ActionTimelineView
         evt.Use();
     }
 
-    /// <summary>在持有 hotControl 期间处理窗口平移/缩放；用 Kind+Index 重新取属性。</summary>
-    bool ProcessActiveWindowDrag(SerializedObject so, int totalFrames, ref bool changed)
+    /// <summary>在持有 hotControl 期间处理窗口平移/缩放；多选时同步平移全部选中窗口。</summary>
+    bool ProcessActiveWindowDrag(
+        SerializedObject so,
+        int totalFrames,
+        ActionEditorSelectionSet selection,
+        ref bool changed)
     {
         // Animation 片段与轨道换序分别由专用处理器消费。
         if (_dragMode is DragMode.None
@@ -994,31 +1122,7 @@ public sealed class ActionTimelineView
         if (evt.type != EventType.MouseDrag && evt.type != EventType.MouseUp && evt.type != EventType.Ignore)
             return false;
 
-        // hotControl 被清掉时结束拖拽，避免残留状态。
         if (_dragControlId >= 0 && GUIUtility.hotControl != _dragControlId && evt.type != EventType.MouseUp)
-        {
-            EndWindowDrag();
-            return false;
-        }
-
-        string arrayName = ActionTimelineCommands.GetArrayPropertyName(_dragKind);
-        if (arrayName == null)
-        {
-            EndWindowDrag();
-            return false;
-        }
-
-        SerializedProperty arrayProp = so.FindProperty($"timeline.{arrayName}");
-        if (arrayProp == null || _dragIndex >= arrayProp.arraySize)
-        {
-            EndWindowDrag();
-            return false;
-        }
-
-        SerializedProperty element = arrayProp.GetArrayElementAtIndex(_dragIndex);
-        SerializedProperty startProp = element.FindPropertyRelative("startFrame");
-        SerializedProperty endProp = element.FindPropertyRelative("endFrame");
-        if (startProp == null || endProp == null)
         {
             EndWindowDrag();
             return false;
@@ -1028,25 +1132,65 @@ public sealed class ActionTimelineView
         int delta = frame - _dragStartFrame;
 
         Undo.RecordObject(so.targetObject, "Edit Action Window");
-        startProp.intValue = _dragOriginalStart;
-        endProp.intValue = _dragOriginalEnd;
 
-        switch (_dragMode)
+        if (_dragMode == DragMode.Move && _dragGroupOriginals.Count > 1)
         {
-            case DragMode.Move:
+            // 多选平移：各组从各自原始帧施加同一 delta。
+            for (int i = 0; i < _dragGroupOriginals.Count; i++)
+            {
+                DragWindowOriginal original = _dragGroupOriginals[i];
+                string arrayName = ActionTimelineCommands.GetArrayPropertyName(original.Kind);
+                if (arrayName == null)
+                    continue;
+
+                SerializedProperty arrayProp = so.FindProperty($"timeline.{arrayName}");
+                if (arrayProp == null || original.Index < 0 || original.Index >= arrayProp.arraySize)
+                    continue;
+
+                SerializedProperty element = arrayProp.GetArrayElementAtIndex(original.Index);
+                element.FindPropertyRelative("startFrame").intValue = original.Start;
+                element.FindPropertyRelative("endFrame").intValue = original.End;
                 ActionTimelineCommands.MoveWindow(element, delta, totalFrames);
-                break;
-            case DragMode.ResizeStart:
-                ActionTimelineCommands.ResizeWindowStart(element, _dragOriginalStart + delta, totalFrames);
-                break;
-            case DragMode.ResizeEnd:
-                ActionTimelineCommands.ResizeWindowEnd(element, _dragOriginalEnd + delta, totalFrames);
-                break;
+            }
+        }
+        else
+        {
+            string arrayName = ActionTimelineCommands.GetArrayPropertyName(_dragKind);
+            if (arrayName == null)
+            {
+                EndWindowDrag();
+                return false;
+            }
+
+            SerializedProperty arrayProp = so.FindProperty($"timeline.{arrayName}");
+            if (arrayProp == null || _dragIndex >= arrayProp.arraySize)
+            {
+                EndWindowDrag();
+                return false;
+            }
+
+            SerializedProperty element = arrayProp.GetArrayElementAtIndex(_dragIndex);
+            element.FindPropertyRelative("startFrame").intValue = _dragOriginalStart;
+            element.FindPropertyRelative("endFrame").intValue = _dragOriginalEnd;
+
+            switch (_dragMode)
+            {
+                case DragMode.Move:
+                    ActionTimelineCommands.MoveWindow(element, delta, totalFrames);
+                    break;
+                case DragMode.ResizeStart:
+                    ActionTimelineCommands.ResizeWindowStart(element, _dragOriginalStart + delta, totalFrames);
+                    break;
+                case DragMode.ResizeEnd:
+                    ActionTimelineCommands.ResizeWindowEnd(element, _dragOriginalEnd + delta, totalFrames);
+                    break;
+            }
         }
 
         so.ApplyModifiedProperties();
         EditorUtility.SetDirty(so.targetObject);
         changed = true;
+        _ = selection;
 
         if (evt.type is EventType.MouseUp or EventType.Ignore)
             EndWindowDrag();
@@ -1063,6 +1207,7 @@ public sealed class ActionTimelineView
         _dragMode = DragMode.None;
         _dragIndex = -1;
         _dragControlId = -1;
+        _dragGroupOriginals.Clear();
         _reorderDragActivated = false;
         _reorderMouseDownPos = default;
         _trackReorderActivated = false;
@@ -1186,29 +1331,73 @@ public sealed class ActionTimelineView
     }
 
     /// <summary>
-    /// Delete 删除当前选中窗口；正在 Inspector 文本框编辑时忽略，避免改 Id 时 Backspace 误删整段窗口。
+    /// 快捷键：Delete 删多选；Ctrl/Cmd+C 复制；Ctrl/Cmd+V 粘贴到预览帧；Esc 清空选中。
+    /// 文本框编辑时忽略，避免误操作。
     /// </summary>
-    void HandleDeleteKey(SerializedObject so, ref ActionEditorSelection selection, ref bool changed)
+    void HandleEditHotkeys(
+        SerializedObject so,
+        ActionDefinition action,
+        ActionEditorSelectionSet selection,
+        int previewFrame,
+        ref bool changed)
     {
         Event evt = Event.current;
         if (evt.type != EventType.KeyDown)
             return;
 
-        // Backspace 留给文本编辑；仅 Delete 删除时间轴窗口。
-        if (evt.keyCode != KeyCode.Delete)
-            return;
-
-        // 右侧详情/任意文本字段获得焦点时，不拦截按键。
         if (EditorGUIUtility.editingTextField)
             return;
 
-        if (!selection.IsValid)
-            return;
+        bool modifier = evt.control || evt.command;
 
-        ActionTimelineCommands.RemoveWindow(so, selection);
-        selection = default;
-        changed = true;
-        evt.Use();
+        if (evt.keyCode == KeyCode.Escape)
+        {
+            if (!selection.HasSelection)
+                return;
+
+            selection.Clear();
+            changed = true;
+            evt.Use();
+            return;
+        }
+
+        if (evt.keyCode == KeyCode.Delete)
+        {
+            if (!selection.HasSelection)
+                return;
+
+            ActionTimelineCommands.RemoveWindows(so, selection);
+            selection.Clear();
+            changed = true;
+            evt.Use();
+            return;
+        }
+
+        if (modifier && evt.keyCode == KeyCode.C)
+        {
+            int count = ActionTimelineClipboard.Copy(so, selection);
+            if (count > 0)
+            {
+                _pendingRepaint = true;
+                evt.Use();
+            }
+
+            return;
+        }
+
+        if (modifier && evt.keyCode == KeyCode.V)
+        {
+            if (!ActionTimelineClipboard.HasData)
+                return;
+
+            ActionEditorSelectionSet pasted = ActionTimelineClipboard.Paste(so, action, previewFrame);
+            if (!pasted.HasSelection)
+                return;
+
+            selection.ReplaceWith(pasted);
+            changed = true;
+            evt.Use();
+        }
     }
 
     int FrameAtX(float x, int totalFrames)

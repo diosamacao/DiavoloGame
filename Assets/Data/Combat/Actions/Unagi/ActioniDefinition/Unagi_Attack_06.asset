@@ -16,10 +16,12 @@ MonoBehaviour:
   - clip: {fileID: 1696528092061637546, guid: aa0810feb567bc644a99990bfe111090, type: 3}
     startFrame: 0
     endFrame: -1
+    hasCrossFadeOverride: 0
     crossFadeDuration: 0
   - clip: {fileID: -4398902070442326039, guid: 4e713cfbb0e67c44ba8b42e37c8fad06, type: 3}
     startFrame: 0
     endFrame: -1
+    hasCrossFadeOverride: 0
     crossFadeDuration: 0
   sampleRate: 60
   totalFrames: 284
@@ -28,6 +30,15 @@ MonoBehaviour:
   executionPolicy:
     interruptPriority: 0
     useRootMotion: 1
+    baseMotionMode: 0
+  resourceSpec:
+    resourceTag: 0
+    energyCost: 0
+    energyGrantOnHit: 0
+    decibelGrantOnHit: 0
+    consumeDodgeCharge: 0
+    requiresDecibelFull: 0
+    clearsDecibelOnStart: 0
   timeline:
     actionEvents: []
     playVfxNotifies:
@@ -72,7 +83,7 @@ MonoBehaviour:
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 1, z: 0}
+      localOffset: {x: 0, y: 1, z: 0.85}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 3, y: 3, z: 3}
       payload:
@@ -82,7 +93,7 @@ MonoBehaviour:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 1
           hitStopFrames: 4
-          hitStopOncePerAction: 1
+          hitStopOncePerAction: 0
     - id: Hitbox_2
       startFrame: 16
       endFrame: 21
@@ -90,7 +101,7 @@ MonoBehaviour:
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 1, z: 0}
+      localOffset: {x: 0, y: 1, z: 0.85}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 3, y: 3, z: 3}
       payload:
@@ -100,7 +111,7 @@ MonoBehaviour:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 1
           hitStopFrames: 6
-          hitStopOncePerAction: 1
+          hitStopOncePerAction: 0
     - id: Hitbox_3
       startFrame: 22
       endFrame: 29
@@ -108,7 +119,7 @@ MonoBehaviour:
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 1, z: 0}
+      localOffset: {x: 0, y: 1, z: 0.85}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 3, y: 3, z: 3}
       payload:
@@ -118,7 +129,7 @@ MonoBehaviour:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 1
           hitStopFrames: 6
-          hitStopOncePerAction: 1
+          hitStopOncePerAction: 0
     - id: Hitbox_4
       startFrame: 30
       endFrame: 35
@@ -126,7 +137,7 @@ MonoBehaviour:
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 1, z: 0}
+      localOffset: {x: 0, y: 1, z: 0.85}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 3, y: 3, z: 3}
       payload:
@@ -136,7 +147,7 @@ MonoBehaviour:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 1
           hitStopFrames: 6
-          hitStopOncePerAction: 1
+          hitStopOncePerAction: 0
     - id: Hitbox_5
       startFrame: 36
       endFrame: 41
@@ -144,7 +155,7 @@ MonoBehaviour:
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 1, z: 0}
+      localOffset: {x: 0, y: 1, z: 0.85}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 3, y: 3, z: 3}
       payload:
@@ -153,8 +164,8 @@ MonoBehaviour:
         feedback:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 1
-          hitStopFrames: 6
-          hitStopOncePerAction: 1
+          hitStopFrames: 10
+          hitStopOncePerAction: 0
     hurtboxStates: []
     cancelWindowStates:
     - id: Attack
@@ -173,6 +184,7 @@ MonoBehaviour:
       interruptible: 1
       allowMovementCancel: 1
       allowEntryRestart: 1
+    perfectDodgeWindowStates: []
     movementStates: []
     rotationStates:
     - id: Rotation_1
