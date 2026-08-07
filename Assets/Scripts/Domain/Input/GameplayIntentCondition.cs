@@ -7,4 +7,6 @@ public enum GameplayIntentCondition
     IsSprinting = 1,
     /// <summary>角色当前正在播放 Dodge 类型 Action。</summary>
     IsDodging = 2,
+    /// <summary>Numeric Flags 武装了完美闪避反击缓冲。</summary>
+    HasPerfectDodgeCounter = 3,
 }

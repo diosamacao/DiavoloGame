@@ -276,7 +276,7 @@ Motor: (...) SoftBody: mass=100 immovable=false
 
 - [x] DodgeCharges + recharge；`consumeDodgeCharge` Gate  
 - [x] HUD 次数与充能帧  
-- [ ] 玩家 Dodge `PerfectDodgeWindow` + `PerfectDodgeAttack`→Counter（Wave 3.4）
+- [x] 玩家 Dodge `PerfectDodgeWindow` + `PerfectDodgeAttack`→Counter（Wave 3.4 代码；Graph Entry Editor）
 
 ### Phase N4 — 喧响
 

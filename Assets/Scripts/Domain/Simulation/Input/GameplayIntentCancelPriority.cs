@@ -10,6 +10,8 @@ public static class GameplayIntentCancelPriority
                 return 100;
             case GameplayIntentType.Ultimate:
                 return 95;
+            case GameplayIntentType.PerfectDodgeAttack:
+                return 93;
             case GameplayIntentType.DodgeAttack:
                 return 90;
             case GameplayIntentType.AttackRelease:

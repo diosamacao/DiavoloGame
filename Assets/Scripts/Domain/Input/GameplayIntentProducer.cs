@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 /// <summary>把原始输入生命周期与角色上下文解释为设备无关的动作意图。</summary>
@@ -9,18 +10,23 @@ public sealed class GameplayIntentProducer
     readonly CharacterStateMachine _stateMachine;
     readonly LocomotionStateMachine _locomotion;
     readonly ActionSim _actionSim;
+    readonly Func<bool> _hasPerfectDodgeCounter;
     readonly InputButton[] _buttons;
     readonly Dictionary<InputButton, int> _heldFrames = new();
     readonly HashSet<InputButton> _holdIntentEmitted = new();
 
-    /// <summary>创建意图生产器；Profile 是物理输入映射的唯一配置源。</summary>
+    /// <summary>
+    /// 创建意图生产器；Profile 是物理输入映射的唯一配置源。
+    /// hasPerfectDodgeCounter：武装反击缓冲时攻击键派生 PerfectDodgeAttack。
+    /// </summary>
     public GameplayIntentProducer(
         GameplayIntentProfile profile,
         InputManager input,
         GameplayIntentBuffer output,
         CharacterStateMachine stateMachine,
         LocomotionStateMachine locomotion,
-        ActionSim actionSim)
+        ActionSim actionSim,
+        Func<bool> hasPerfectDodgeCounter = null)
     {
         _profile = profile;
         _input = input;
@@ -28,6 +34,7 @@ public sealed class GameplayIntentProducer
         _stateMachine = stateMachine;
         _locomotion = locomotion;
         _actionSim = actionSim;
+        _hasPerfectDodgeCounter = hasPerfectDodgeCounter;
         _buttons = CollectButtons(profile);
     }
 
@@ -80,6 +87,16 @@ public sealed class GameplayIntentProducer
     /// <summary>从同一物理事件的匹配规则中选最高优先级并独占输出。</summary>
     bool TryEmit(InputButton button, GameplayIntentInputPhase phase, int heldFrames)
     {
+        // Wave 3.4：反击缓冲内攻击键强制派生 PerfectDodgeAttack（盖过 Attack/DodgeAttack）
+        if (phase == GameplayIntentInputPhase.Pressed
+            && _hasPerfectDodgeCounter != null
+            && _hasPerfectDodgeCounter()
+            && ButtonMapsToAttackFamilyPressed(button))
+        {
+            _output.Emit(GameplayIntentType.PerfectDodgeAttack);
+            return true;
+        }
+
         GameplayIntentBinding selected = default;
         bool found = false;
 
@@ -136,20 +153,66 @@ public sealed class GameplayIntentProducer
                     && _stateMachine.CurrentStateId == CharacterStateType.Action
                     && currentAction != null
                     && currentAction.ActionType == CombatActionType.Dodge;
+            case GameplayIntentCondition.HasPerfectDodgeCounter:
+                return _hasPerfectDodgeCounter != null && _hasPerfectDodgeCounter();
             default:
                 return true;
         }
     }
 
-    /// <summary>相同显式优先级下，上下文限定规则优先于 Always 回退。</summary>
-    static int ConditionSpecificity(GameplayIntentCondition condition) =>
-        condition == GameplayIntentCondition.Always ? 0 : 1;
+    /// <summary>
+    /// Profile 是否把该按钮的 Pressed 映射到攻击族意图。
+    /// 用于反击缓冲强制派生，无需资产先配 PerfectDodgeAttack 绑定。
+    /// </summary>
+    bool ButtonMapsToAttackFamilyPressed(InputButton button)
+    {
+        IReadOnlyList<GameplayIntentBinding> bindings = _profile.Bindings;
+        for (int i = 0; i < bindings.Count; i++)
+        {
+            GameplayIntentBinding binding = bindings[i];
+            if (!binding.IsValid
+                || binding.Button != button
+                || binding.Phase != GameplayIntentInputPhase.Pressed)
+            {
+                continue;
+            }
+
+            if (IsAttackFamily(binding.Intent))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>攻击族意图：反击缓冲应劫持这些按键映射。</summary>
+    static bool IsAttackFamily(GameplayIntentType intent) =>
+        intent == GameplayIntentType.Attack
+        || intent == GameplayIntentType.SprintAttack
+        || intent == GameplayIntentType.DodgeAttack
+        || intent == GameplayIntentType.PerfectDodgeAttack
+        || intent == GameplayIntentType.LongPressedAttack;
+
+    /// <summary>
+    /// 相同显式优先级下：HasPerfectDodgeCounter &gt; 其它上下文 &gt; Always。
+    /// </summary>
+    static int ConditionSpecificity(GameplayIntentCondition condition)
+    {
+        switch (condition)
+        {
+            case GameplayIntentCondition.Always:
+                return 0;
+            case GameplayIntentCondition.HasPerfectDodgeCounter:
+                return 2;
+            default:
+                return 1;
+        }
+    }
 
     /// <summary>按 Profile 首次出现顺序收集稳定按钮，避免每帧扫描重复映射。</summary>
     static InputButton[] CollectButtons(GameplayIntentProfile profile)
     {
         if (profile == null)
-            return System.Array.Empty<InputButton>();
+            return Array.Empty<InputButton>();
 
         var result = new List<InputButton>(profile.Bindings.Count);
         var seen = new HashSet<InputButton>();

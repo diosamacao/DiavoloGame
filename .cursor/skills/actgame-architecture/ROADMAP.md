@@ -76,7 +76,7 @@
 
 **方向**：`CombatHitPipeline` 唯一结算口；数值权威为 Attribute + Effect + Flags（`NumericSystem`）。旧 ResourceSim/Health 已删。
 
-**状态**：GAS G0～G5 已完成（2026-08-08）；下一玩法项 **Wave 3.4** `PerfectDodgeAttack` → Counter Intent/Graph（及慢动作表现）
+**状态**：GAS G0～G5 + Wave 3.4 代码路由已完成（2026-08-08）；待 Editor 配 Counter Graph Entry；慢动作表现后置
 
 ### [P1] Lockstep 模拟核迁移
 

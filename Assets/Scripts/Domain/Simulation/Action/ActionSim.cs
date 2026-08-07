@@ -10,6 +10,7 @@ public sealed class ActionSim : IActionSimHitReceiver
     readonly IActionSimResolver _resolver;
     readonly IActionInputBuffer _inputBuffer;
     readonly IActionResourceGate _resourceGate;
+    readonly Action<GameplayIntentType> _onBegun;
     readonly HashSet<GameplayIntentType> _candidateIntents = new HashSet<GameplayIntentType>();
     readonly HashSet<GameplayIntentType> _routeCandidateIntents = new HashSet<GameplayIntentType>();
     readonly List<GameplayIntentType> _bufferedIntents = new List<GameplayIntentType>(8);
@@ -29,15 +30,20 @@ public sealed class ActionSim : IActionSimHitReceiver
     bool _hasPendingTransition;
     bool _pendingStop;
 
-    /// <summary>创建动作模拟核；Resolver / 输入缓冲 / 资源 Gate 可为空。</summary>
+    /// <summary>
+    /// 创建动作模拟核；Resolver / 输入缓冲 / 资源 Gate / 起手回调可为空。
+    /// onBegun：Begin 成功后按 Intent 通知（如清完美反击缓冲），Simulation 不引用 Numeric。
+    /// </summary>
     public ActionSim(
         IActionSimResolver resolver = null,
         IActionInputBuffer inputBuffer = null,
-        IActionResourceGate resourceGate = null)
+        IActionResourceGate resourceGate = null,
+        Action<GameplayIntentType> onBegun = null)
     {
         _resolver = resolver;
         _inputBuffer = inputBuffer;
         _resourceGate = resourceGate;
+        _onBegun = onBegun;
     }
 
     /// <summary>当前权威动作帧；无活动动作时返回 0。</summary>
@@ -260,6 +266,8 @@ public sealed class ActionSim : IActionSimHitReceiver
 
         // 价签扣费与 Begin 同事务：仅成功起手路径调用一次
         _resourceGate?.CommitCost(_content);
+        // 起手副作用（如 ClearPerfectDodgeCounter）经回调注入，覆盖 Start/Interrupt/Cancel
+        _onBegun?.Invoke(result.Intent);
 
         _events.Add(new ActionSimEvent(
             ActionSimEventType.Started,

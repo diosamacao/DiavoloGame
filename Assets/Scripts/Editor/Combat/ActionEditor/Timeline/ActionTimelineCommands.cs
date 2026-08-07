@@ -17,6 +17,7 @@ public static class ActionTimelineCommands
         ActionTimelineTrackKind.Rotation => "rotationStates",
         ActionTimelineTrackKind.Event => "actionEvents",
         ActionTimelineTrackKind.Animation => null,
+        ActionTimelineTrackKind.PerfectDodgeWindow => "perfectDodgeWindowStates",
         _ => null,
     };
 
@@ -39,6 +40,7 @@ public static class ActionTimelineCommands
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Movement);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Rotation);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Event);
+        anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.PerfectDodgeWindow);
 
         if (!anyAdded)
             return;

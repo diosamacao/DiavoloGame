@@ -188,6 +188,7 @@ public static class ActionEditorStyles
         ActionTimelineTrackKind.Event => new Color(0.95f, 0.85f, 0.3f, 0.85f),
         ActionTimelineTrackKind.Phase => new Color(0.55f, 0.55f, 0.6f, 0.85f),
         ActionTimelineTrackKind.Animation => new Color(0.45f, 0.65f, 1f, 0.9f),
+        ActionTimelineTrackKind.PerfectDodgeWindow => new Color(1f, 0.85f, 0.25f, 0.9f),
         _ => new Color(0.6f, 0.6f, 0.65f, 0.85f),
     };
 
@@ -215,6 +216,7 @@ public static class ActionEditorStyles
         ActionTimelineTrackKind.Event => "Event",
         ActionTimelineTrackKind.Phase => "Phase",
         ActionTimelineTrackKind.Animation => "Animation",
+        ActionTimelineTrackKind.PerfectDodgeWindow => "PerfectDodge",
         _ => kind.ToString(),
     };
 }

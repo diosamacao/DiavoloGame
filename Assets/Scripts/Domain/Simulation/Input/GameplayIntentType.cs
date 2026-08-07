@@ -29,4 +29,10 @@ public enum GameplayIntentType
 
     /// <summary>终结技意图；需喧响满档（RequiresDecibelFull）。</summary>
     Ultimate = 8,
+
+    /// <summary>
+    /// 完美闪避反击专用意图；仅在 HasPerfectDodgeCounter 时由 Producer 派生。
+    /// Graph Entry 指向 Counter，禁止挂在 Attack 上隐式换招。
+    /// </summary>
+    PerfectDodgeAttack = 9,
 }
