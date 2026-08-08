@@ -108,7 +108,7 @@ public class MyBehaviour : MonoBehaviour
 - **顺序组**：组内 Action 按行顺序自动生成 Normal Cancel 链；每行保留独立 In；组级 Normal / Perfect 出口分别展开到配置对应窗口的全部子节点
 - **变体节点**：Directional 等 Resolver 只改变实际播放 Action，不改变逻辑 Graph 节点；同语义六向变体禁止复制节点和出边
 - **线性连招**：`ComboActionResolver` / `ComboLeafPolicy` 已删除；`ActionGraph` 是唯一连招拓扑真源
-- **战斗模式**：`CombatModeProfile` + `CombatModeService`；`PlayerActionSet` 绑定一张 Graph
+- **战斗模式**：`CombatModeProfile` + `CombatModeService`；**mode 直挂 `ActionGraph`**（已删除 PlayerActionSet 壳）
 - **缓冲**：招式中 `Buffer(GameplayIntentType)`；`ActionSim` 经 `IActionInputBuffer` 在 `CancelWindow` 内消费
 - **Locomotion 边界**：连续 Move 不枚举化；Action→Locomotion 特殊恢复使用一次性 `LocomotionResumeRequest`
 - **后摇窗口**：Timeline 的 `ActionPhaseNotifyState(Recovery)` 同时配置 `allowMovementCancel` 与 `allowEntryRestart`；禁止创建 Recovery CancelWindow、独立 phases 或回根显式边

@@ -159,7 +159,7 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 | `ActionResolverService` | 调当前模式 Graph 的起手/Cancel 解析 |
 | `CharacterActionDriver` | 角色无关：消费语义意图、起手切状态、动作缓冲与移动取消 |
 | `ActionRotationDriver` | `RotationNotifyState` + 索敌转向 |
-| `CombatModeService` | 战斗模式、出招表、Locomotion Profile 切换 |
+| `CombatModeService` | 战斗模式、`ActiveGraph`、Locomotion Profile 切换（无 ActionSet） |
 | `CombatWorldController` | 场景级战斗系统生命周期锚点 |
 | `ACTGameArchitecture` | QFramework 风格架构入口：System/Model/Utility 注册、Command 执行、Query 查询、Event 分发 |
 | `ArchitectureSystemBase` / `AppControllerBase` / `ArchitectureCommandBase` / `ArchitectureQueryBase` | 架构对象基类；通过能力接口限制谁能访问 System、发送 Command、订阅 Event |
@@ -169,7 +169,7 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 | `HitPayload` / `HitFeedbackSettings` | 单个 Hitbox 的伤害、HitReactionId、镜头震动与卡肉载荷 |
 | `CharacterReactionSet` / `CharacterReactionResolver` | 按 HitReactionId 与反应类型生成完整受击/死亡状态请求；默认硬直时长也由规则集持有 |
 | `CharacterReactionService` | 玩家/敌人共用的 Vitality 边沿桥接：副作用 + 解析结果交给 CharacterActor |
-| `PlayerActionSet` | 出招表：绑定一张 `ActionGraph`（节点按语义 Intent 匹配） |
+| `CombatModeProfile` | mode → `ActionGraph`（节点按语义 Intent 匹配；无 ActionSet 壳） |
 | `NumericSystem` / `NumericCostGate` / `ActionResourceSpec` | 数值权威与起手扣费；价签挂 ActionDefinition；ConfirmHit 经 Pipeline Grant Effect |
 | `PerfectDodgeAttack` / `PerfectDodgeWindow` | 完美闪避：窗内吞伤武装 Flags；Producer 派生 Intent；Begin 清缓冲；Graph Entry→Counter |
 | `CharacterVitality` | Health Attribute 边沿（扣血 / Hit / Death） |

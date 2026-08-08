@@ -15,5 +15,5 @@ MonoBehaviour:
   defaultMode: 0
   entries:
   - mode: 0
-    actionSet: {fileID: 11400000, guid: 57bde308bbb9ef84883151772bae86fb, type: 2}
+    actionGraph: {fileID: 11400000, guid: 67683ddb7043a6643814ab1931367335, type: 2}
     locomotionProfile: {fileID: 11400000, guid: 5c1b5a8bfed658e4ba2834fc0c7814b4, type: 2}

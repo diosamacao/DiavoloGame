@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-/// <summary>战斗模式服务：维护 mode、出招表与 Locomotion Profile。</summary>
+/// <summary>战斗模式服务：维护 mode、ActiveGraph 与 Locomotion Profile。</summary>
 public sealed class CombatModeService : ICombatModeService
 {
     readonly CombatModeProfile profile;
@@ -10,21 +10,25 @@ public sealed class CombatModeService : ICombatModeService
     bool _hasPendingMode;
     CombatModeType _pendingMode;
 
+    /// <summary>当前模式。</summary>
     public CombatModeType CurrentMode => _currentMode;
+
+    /// <summary>模式配置。</summary>
     public CombatModeProfile Profile => profile;
 
+    /// <summary>模式切换事件。</summary>
     public event Action<CombatModeType, CombatModeType> ModeChanged;
 
-    /// <summary>当前模式绑定的出招表；未配置 profile 或条目缺失时为 null。</summary>
-    public PlayerActionSet ActiveActionSet
+    /// <summary>当前模式绑定的 ActionGraph；未配置时为 null。</summary>
+    public ActionGraph ActiveGraph
     {
         get
         {
             if (profile == null)
                 return null;
 
-            profile.TryGetActionSet(_currentMode, out PlayerActionSet actionSet);
-            return actionSet;
+            profile.TryGetActionGraph(_currentMode, out ActionGraph graph);
+            return graph;
         }
     }
 
@@ -34,13 +38,14 @@ public sealed class CombatModeService : ICombatModeService
         profile = combatProfile;
         _animation = animation;
         if (profile == null)
-            throw new ArgumentNullException(nameof(combatProfile), "CombatModeService: profile 未绑定，无法解析出招表。");
+            throw new ArgumentNullException(nameof(combatProfile), "CombatModeService: profile 未绑定，无法解析出招图。");
 
         _currentMode = profile.DefaultMode;
 
-        if (ActiveActionSet == null)
+        if (ActiveGraph == null)
             throw new InvalidOperationException(
-                $"CombatModeService: defaultMode={profile.DefaultMode} 未在 profile 中配置出招表。");
+                $"CombatModeService: defaultMode={profile.DefaultMode} 未在 profile 中配置 ActionGraph。" +
+                "若刚从 ActionSet 迁移，请打开 Unity 让 Migrator 跑完或执行 ACTGame/Combat/Migrate ActionSet To Mode Graph。");
 
         ApplyLocomotionForMode(_currentMode);
     }
@@ -51,7 +56,7 @@ public sealed class CombatModeService : ICombatModeService
         CombatModeSwitchPolicy policy = CombatModeSwitchPolicy.Immediate,
         bool isActionPlaying = false)
     {
-        if (profile == null || !profile.TryGetActionSet(mode, out _))
+        if (profile == null || !profile.TryGetActionGraph(mode, out _))
             return CombatModeSwitchResult.Failed;
 
         if (mode == _currentMode)

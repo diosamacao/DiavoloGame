@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-/// <summary>战斗模式标识：每种模式绑定独立 PlayerActionSet 出招表。</summary>
+/// <summary>战斗模式标识；每种模式绑定一张 ActionGraph。</summary>
 public enum CombatModeType
 {
     Default = 0,
@@ -12,7 +12,7 @@ public enum CombatModeType
 /// <summary>切换战斗模式时的时机策略。</summary>
 public enum CombatModeSwitchPolicy
 {
-    /// <summary>立即切换出招表；当前招式继续播放。</summary>
+    /// <summary>立即切换出招图；当前招式继续播放。</summary>
     Immediate = 0,
 
     /// <summary>若正在招式中则延迟，回到 Locomotion 后再切换。</summary>
@@ -22,33 +22,41 @@ public enum CombatModeSwitchPolicy
     StopCurrentAction = 2,
 }
 
-/// <summary>单个战斗模式与出招表、Locomotion 动画配置的绑定项。</summary>
+/// <summary>单个战斗模式与 ActionGraph、Locomotion 动画配置的绑定项。</summary>
 [Serializable]
 public struct CombatModeEntry
 {
     [SerializeField] CombatModeType mode;
-    [SerializeField] PlayerActionSet actionSet;
+    [Tooltip("本模式出招图（Entry×Intent / Cancel）；不再经 PlayerActionSet。")]
+    [SerializeField] ActionGraph actionGraph;
     [Tooltip("该模式的 Idle/Walk/Run 映射；为空则切换到此 mode 时不改 Locomotion Profile。")]
     [SerializeField] CharacterAnimationProfile locomotionProfile;
 
+    /// <summary>模式枚举。</summary>
     public CombatModeType Mode => mode;
-    public PlayerActionSet ActionSet => actionSet;
+
+    /// <summary>本模式 ActionGraph。</summary>
+    public ActionGraph ActionGraph => actionGraph;
+
+    /// <summary>可选 Locomotion Clip 映射。</summary>
     public CharacterAnimationProfile LocomotionProfile => locomotionProfile;
 
-    public bool IsValid => actionSet != null && actionSet.IsValid;
+    /// <summary>已绑定有效 ActionGraph。</summary>
+    public bool IsValid => actionGraph != null;
 }
 
-/// <summary>战斗模式配置：mode → PlayerActionSet（内含 ActionGraph）/ Locomotion Profile。</summary>
+/// <summary>战斗模式配置：mode → ActionGraph / 可选 Locomotion Profile。</summary>
 [CreateAssetMenu(fileName = "CombatModeProfile", menuName = "ACT/Combat/Combat Mode Profile")]
 public class CombatModeProfile : ScriptableObject
 {
     [SerializeField] CombatModeType defaultMode = CombatModeType.Default;
     [SerializeField] CombatModeEntry[] entries = Array.Empty<CombatModeEntry>();
 
+    /// <summary>进入运行时时的默认模式。</summary>
     public CombatModeType DefaultMode => defaultMode;
 
-    /// <summary>查找指定模式的出招表。</summary>
-    public bool TryGetActionSet(CombatModeType mode, out PlayerActionSet actionSet)
+    /// <summary>查找指定模式的 ActionGraph。</summary>
+    public bool TryGetActionGraph(CombatModeType mode, out ActionGraph actionGraph)
     {
         if (entries != null)
         {
@@ -57,12 +65,12 @@ public class CombatModeProfile : ScriptableObject
                 if (!entry.IsValid || entry.Mode != mode)
                     continue;
 
-                actionSet = entry.ActionSet;
+                actionGraph = entry.ActionGraph;
                 return true;
             }
         }
 
-        actionSet = null;
+        actionGraph = null;
         return false;
     }
 
@@ -84,5 +92,4 @@ public class CombatModeProfile : ScriptableObject
         locomotionProfile = null;
         return false;
     }
-
 }

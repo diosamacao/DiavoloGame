@@ -39,7 +39,7 @@ MonoBehaviour:
     hurtbox:
       localOffset: {x: 0, y: 0.9, z: 0}
       localEulerAngles: {x: 0, y: 0, z: 0}
-      size: {x: 0.8, y: 1.8, z: 0.8}
+      size: {x: 1.5, y: 1.5, z: 1.5}
     maxHealth: 100
     reactions:
       defaultHitStunFrames: 21
