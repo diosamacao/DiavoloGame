@@ -49,6 +49,20 @@ public sealed class EnemyBrain
             return;
         }
 
+        // 木桩：禁止 Chase/Attack，但必须继续 TickHit，否则硬直结束无法回 Idle
+        if (!_profile.EnableCombatActions)
+        {
+            if (State == EnemyBrainState.Hit)
+            {
+                TickHit(in snapshot);
+                return;
+            }
+
+            _input.ClearAll();
+            State = EnemyBrainState.Idle;
+            return;
+        }
+
         switch (State)
         {
             case EnemyBrainState.Idle:
@@ -161,6 +175,13 @@ public sealed class EnemyBrain
         _input.ClearAll();
         if (snapshot.CharacterState == CharacterStateType.Hit)
             return;
+
+        // 木桩硬直结束后不得因距离误入 Chase
+        if (!_profile.EnableCombatActions)
+        {
+            State = EnemyBrainState.Idle;
+            return;
+        }
 
         State = HasAggro(in snapshot) ? EnemyBrainState.Chase : EnemyBrainState.Idle;
     }

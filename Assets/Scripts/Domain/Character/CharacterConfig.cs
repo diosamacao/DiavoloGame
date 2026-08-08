@@ -19,9 +19,8 @@ public class CharacterConfig : ScriptableObject
     [SerializeField] CharacterLocomotionProfile locomotionProfile = null;
 
     [Header("Input")]
+    [Tooltip("仅玩家需要；意图映射已改为项目全局 GameplayIntentSettings。")]
     [SerializeField] InputActionAsset inputActions = null;
-    [Tooltip("物理输入到 GameplayIntentType 的唯一映射配置。")]
-    [SerializeField] GameplayIntentProfile gameplayIntentProfile = null;
 
     [Header("Movement")]
     [SerializeField] CharacterMotorConfig motor = CharacterMotorConfig.Default;
@@ -52,9 +51,6 @@ public class CharacterConfig : ScriptableObject
     /// <summary>玩家输入资产。</summary>
     public InputActionAsset InputActions => inputActions;
 
-    /// <summary>设备输入到玩法语义的映射。</summary>
-    public GameplayIntentProfile GameplayIntentProfile => gameplayIntentProfile;
-
     /// <summary>移动和 CharacterController 参数。</summary>
     public CharacterMotorConfig Motor => motor;
 
@@ -80,13 +76,13 @@ public class CharacterConfig : ScriptableObject
         return valid;
     }
 
-    /// <summary>检查敌人角色配置；AI 复用语义意图配置，但不要求玩家 InputActionAsset。</summary>
+    /// <summary>检查敌人角色配置；不要求玩家 InputActionAsset；意图走全局 Settings。</summary>
     public bool ValidateForEnemy(UnityEngine.Object context)
     {
         return ValidateShared(context);
     }
 
-    /// <summary>校验玩家与敌人共用的模型、动画、意图和战斗配置。</summary>
+    /// <summary>校验玩家与敌人共用的模型、动画和战斗配置。</summary>
     bool ValidateShared(UnityEngine.Object context)
     {
         bool valid = true;
@@ -106,9 +102,11 @@ public class CharacterConfig : ScriptableObject
             valid = false;
         }
 
-        if (gameplayIntentProfile == null)
+        if (GameplayIntentSettings.Active == null)
         {
-            Debug.LogError("CharacterConfig: GameplayIntentProfile 未配置。", context);
+            Debug.LogError(
+                "CharacterConfig: 全局 GameplayIntentProfile 未就绪（GameplayIntentSettings）。",
+                context);
             valid = false;
         }
 

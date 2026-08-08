@@ -51,16 +51,16 @@
 | 正式 UI / 血条 | ⬜ | 仅 Debug HUD；目标 MVVM |
 | 吸附 / 绕背 | ⬜ | Wave 4 |
 | 预测回滚 / 联网 | ⬜ | L3 / L5 |
-| 打击感木桩验收台 | ⬜ | 日计划 **A1（下一项）** |
+| 打击感木桩验收台 | 🟡 | Brain `enableCombatActions` 已落地；Editor 关开关 + Hit Default |
 | 学习/工程实践轨 | ⬜ | BT 编辑器、A*、AB/Lua、SDK、剧情等（§6.4） |
 
 ---
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项：** 日计划 **A1 — 打击感木桩**  
-→ 大纲：[`2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md`](./2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md)  
-→ **执行方案：** [`2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_EXECUTION.md`](./2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_EXECUTION.md)
+**下一项：** A1 木桩 Editor 验收 + 配置链 Phase B（删 ActionSet）  
+→ 木桩/配置链：[`2026.8.8/CONFIG_CHAIN_AND_DUMMY_AI_PLAN.md`](./2026.8.8/CONFIG_CHAIN_AND_DUMMY_AI_PLAN.md)（A/A2 代码 ✅）  
+→ 日计划：[`2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md`](./2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md)
 
 | # | 项 | 状态 |
 |---|------|------|

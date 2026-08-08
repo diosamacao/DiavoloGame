@@ -15,7 +15,8 @@
 | GAS-lite 数值重构 | ✅ G0～G5 完成 | `NumericSystem`、`DamageNumericCalculator`、`CharacterVitality` | Effect SO 壳 |
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
-| 输入（量化帧 + 语义意图） | ✅ L0B 代码已实现 | `InputFrameBuffer`、`InputReader`、`AIInputWriter`、`GameplayIntentProducer` | `GameInputActions.inputactions` + `GameplayIntentProfile` |
+| 输入（量化帧 + 语义意图） | ✅ L0B 代码已实现 | `InputFrameBuffer`、`InputReader`、`AIInputWriter`、`GameplayIntentProducer` | `GameInputActions.inputactions` + 全局 `GameplayIntentSettings` |
+| 敌人木桩 AI 开关 | ✅ 已实现 | `EnemyBrainProfile.enableCombatActions` | false=不追打，仍受击 |
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
 | 架构通信框架 | ✅ 已实现 | `ACTGameArchitecture`、`ArchitectureSystemBase`、`AppControllerBase`、Command / Query / Event | — |
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionStateMachine` + `LocomotionState` | AnimationProfile + `CharacterLocomotionProfile` |
@@ -230,7 +231,7 @@ SimulationWorld.Step
 
 ### 错误处理
 
-未分配 `inputActions` 或 `GameplayIntentProfile` 时 CharacterConfig 校验失败，不创建角色运行时。L0B 直接删除秒字段：现有 Intent Profile 需在 Editor 将 Unagi 长按设为 18 帧、动作缓冲设为 60 帧；EnemyBrainProfile 建议设为攻击冷却 72、失败重试 12、朝向刷新 6 帧。
+未分配 `inputActions`（玩家）或全局 `GameplayIntentProfile` 未就绪时校验/工厂失败。意图经 `GameplayIntentSettings`（Resources `ACT/GameplayIntentProfile`，菜单可迁移）。木桩：Brain `enableCombatActions=false`。L0B 帧阈值：Intent 缓冲常见 60；EnemyBrainProfile 建议攻击冷却 72、失败重试 12、朝向刷新 6。
 
 ### 相关文件
 

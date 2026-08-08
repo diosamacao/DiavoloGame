@@ -97,7 +97,7 @@ public class MyBehaviour : MonoBehaviour
 - **采集**：玩家设备边界实现 `ILocalInputSampler` 并写下一逻辑帧槽；AI 使用 `AIInputWriter` 在 World Input Produce 阶段直接构造 `InputFrame`
 - **原始中枢**：`InputManager` 由 `CharacterActor` 持有；摄入量化 Move 与 Pressed/Held/Released bitset，不承担动作缓冲
 - **相机 Look**：渲染帧 Look 不进入玩法 InputFrame，由 `PlayerController.LookInput` 直接提供给 CameraManager
-- **设备映射**：`GameplayIntentProfile` 是 InputActionReference、长按阈值与上下文映射的唯一配置源
+- **设备映射**：`GameplayIntentProfile` 是 InputActionReference、长按阈值与上下文映射的**项目唯一**配置源，经 `GameplayIntentSettings` 加载；**禁止**再挂到 `CharacterConfig`
 - **语义生产**：`GameplayIntentProducer` 在 `InputManager.IngestFrame` 后输出 `GameplayIntentType`
 - **上下文意图**：SprintAttack / DodgeAttack 由 `GameplayIntentProfile` 条件映射产生；闪避攻击使用 `IsDodging + Attack Pressed`，禁止在 Driver 中按键名特判
 - **选招层**：`ActionResolverService` → 当前模式 `ActionGraph`（多 Entry × Intent 起手 + Cancel 边）；`DirectionalActionResolver` 可作为节点 `VariantResolver`
@@ -114,7 +114,8 @@ public class MyBehaviour : MonoBehaviour
 - **后摇窗口**：Timeline 的 `ActionPhaseNotifyState(Recovery)` 同时配置 `allowMovementCancel` 与 `allowEntryRestart`；禁止创建 Recovery CancelWindow、独立 phases 或回根显式边
 - **CancelWindow**：每个 Action 必须且只能有一个 Normal，可选一个 Perfect；两个窗口可重叠，同一 Intent 始终优先 Perfect；禁止重新引入分割帧、槽 Id 或同类型多窗口
 - 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `CharacterMotor` / State）
-- **玩家装配**：`InputActionAsset` 与 `GameplayIntentProfile` 由 `CharacterConfig` 注入，不在玩家 Prefab 上重复配置
+- **玩家装配**：`InputActionAsset` 由 `CharacterConfig` 注入；意图映射用全局 `GameplayIntentSettings`，不在 Prefab / 每角色 Config 重复配置
+- **敌人木桩**：`EnemyBrainProfile.enableCombatActions = false` 关闭追打，保留受击/死亡；不以空 Graph / aggro=0 定义木桩
 - **AI 输入**：`AIInputWriter` 必须写与玩家相同布局的 `InputFrame`；Brain 禁止直接调用 `ActionSim.TryStart/TryInterrupt`
 - **输入计时**：Hold、Action Buffer 与 AI 攻击/重试/刷新冷却只使用整数逻辑帧；禁止重新引入秒制输入 TTL
 - **AI 移动**：相机相对 Motor 通过 facing proxy + `Move=(0, magnitude)` 复用，禁止另建敌人移动栈
