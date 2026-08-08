@@ -1,8 +1,10 @@
 using System;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
-/// <summary>角色装配根配置；PlayerController 只引用该资产即可生成角色运行时。</summary>
+/// <summary>
+/// 角色装配根配置。Clip 映射在 CombatModeProfile；输入/意图为项目全局；
+/// 本资产只保留模型、Locomotion 参数、Motor、战斗身体与资源。
+/// </summary>
 [CreateAssetMenu(fileName = "CharacterConfig", menuName = "ACT/Character/Character Config")]
 public class CharacterConfig : ScriptableObject
 {
@@ -11,21 +13,15 @@ public class CharacterConfig : ScriptableObject
     [SerializeField] Vector3 modelLocalPosition = Vector3.zero;
     [SerializeField] Vector3 modelLocalEulerAngles = Vector3.zero;
 
-    [Header("Animation")]
-    [SerializeField] CharacterAnimationProfile defaultLocomotionProfile = null;
-
     [Header("Locomotion")]
-    [Tooltip("相位阈值、落脚标记与脚步音；为空时运行时使用默认阈值实例。")]
+    [Tooltip("相位阈值、落脚标记、脚步与 Stop/Pivot 烘焙轨；必填，禁止运行时 CreateInstance 容错。")]
     [SerializeField] CharacterLocomotionProfile locomotionProfile = null;
-
-    [Header("Input")]
-    [Tooltip("仅玩家需要；意图映射已改为项目全局 GameplayIntentSettings。")]
-    [SerializeField] InputActionAsset inputActions = null;
 
     [Header("Movement")]
     [SerializeField] CharacterMotorConfig motor = CharacterMotorConfig.Default;
 
     [Header("Combat")]
+    [Tooltip("mode → ActionGraph + AnimationProfile（Idle/Walk/Run Clip 映射真源）。")]
     [SerializeField] CombatModeProfile combatProfile = null;
     [SerializeField] CharacterCombatConfig combat = CharacterCombatConfig.Default;
 
@@ -42,19 +38,13 @@ public class CharacterConfig : ScriptableObject
     /// <summary>模型实例本地旋转。</summary>
     public Quaternion ModelLocalRotation => Quaternion.Euler(modelLocalEulerAngles);
 
-    /// <summary>默认 Locomotion 动画映射。</summary>
-    public CharacterAnimationProfile DefaultLocomotionProfile => defaultLocomotionProfile;
-
-    /// <summary>Locomotion 相位与落脚配置；可为空。</summary>
+    /// <summary>Locomotion 相位与落脚配置（必填）。</summary>
     public CharacterLocomotionProfile LocomotionProfile => locomotionProfile;
-
-    /// <summary>玩家输入资产。</summary>
-    public InputActionAsset InputActions => inputActions;
 
     /// <summary>移动和 CharacterController 参数。</summary>
     public CharacterMotorConfig Motor => motor;
 
-    /// <summary>战斗模式与技能表配置。</summary>
+    /// <summary>战斗模式与出招图 / Clip 映射。</summary>
     public CombatModeProfile CombatProfile => combatProfile;
 
     /// <summary>战斗运行时装配参数。</summary>
@@ -63,26 +53,28 @@ public class CharacterConfig : ScriptableObject
     /// <summary>玩法资源上限与回复；未序列化时用默认骨架值。</summary>
     public CharacterResourceConfig Resources => resources ?? CharacterResourceConfig.Default;
 
-    /// <summary>检查必需配置；失败时输出明确错误，避免运行时热路径反复判空。</summary>
+    /// <summary>检查玩家必需配置（含全局 Input）。</summary>
     public bool ValidateForPlayer(UnityEngine.Object context)
     {
         bool valid = ValidateShared(context);
-        if (inputActions == null)
+        if (GameInputSettings.Active == null)
         {
-            Debug.LogError("CharacterConfig: InputActions 未配置。", context);
+            Debug.LogError(
+                "CharacterConfig: 全局 InputActionAsset 未就绪（GameInputSettings）。",
+                context);
             valid = false;
         }
 
         return valid;
     }
 
-    /// <summary>检查敌人角色配置；不要求玩家 InputActionAsset；意图走全局 Settings。</summary>
+    /// <summary>检查敌人角色配置；输入走全局，不要求本资产挂 InputActions。</summary>
     public bool ValidateForEnemy(UnityEngine.Object context)
     {
         return ValidateShared(context);
     }
 
-    /// <summary>校验玩家与敌人共用的模型、动画和战斗配置。</summary>
+    /// <summary>校验模型、Locomotion 参数、全局意图与 CombatMode。</summary>
     bool ValidateShared(UnityEngine.Object context)
     {
         bool valid = true;
@@ -92,13 +84,11 @@ public class CharacterConfig : ScriptableObject
             valid = false;
         }
 
-        if (defaultLocomotionProfile == null)
+        if (locomotionProfile == null)
         {
-            Debug.LogError("CharacterConfig: DefaultLocomotionProfile 未配置。", context);
-            valid = false;
-        }
-        else if (!defaultLocomotionProfile.ValidateClips(context))
-        {
+            Debug.LogError(
+                "CharacterConfig: LocomotionProfile 未配置（相位/落脚参数，必填）。",
+                context);
             valid = false;
         }
 
@@ -113,6 +103,10 @@ public class CharacterConfig : ScriptableObject
         if (combatProfile == null)
         {
             Debug.LogError("CharacterConfig: CombatProfile 未配置。", context);
+            valid = false;
+        }
+        else if (!combatProfile.Validate(context))
+        {
             valid = false;
         }
 

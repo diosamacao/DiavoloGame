@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 /// <summary>玩家角色装配与位移入口；Scene 空物体只需挂本组件并指定 CharacterConfig。</summary>
 [DefaultExecutionOrder(-50)]
@@ -49,7 +50,15 @@ public class PlayerController : AppControllerBase
             return;
         }
 
-        var inputSource = new InputReader(characterConfig.InputActions);
+        InputActionAsset inputActions = GameInputSettings.Active;
+        if (inputActions == null)
+        {
+            Debug.LogError("PlayerController: 全局 InputActionAsset 未就绪（GameInputSettings）。", this);
+            enabled = false;
+            return;
+        }
+
+        var inputSource = new InputReader(inputActions);
         CombatWorldController combatWorld = EnsureCombatWorldController();
         simulationHost = combatWorld.EnsureSimulationHost();
 
