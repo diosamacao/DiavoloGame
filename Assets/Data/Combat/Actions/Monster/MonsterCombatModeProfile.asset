@@ -16,4 +16,4 @@ MonoBehaviour:
   entries:
   - mode: 0
     actionGraph: {fileID: 11400000, guid: 425b15927a23af54aad2ceb040be7065, type: 2}
-    locomotionProfile: {fileID: 11400000, guid: 38bb8422962bc454aa6af616a535d635, type: 2}
+    locomotionProfile: {fileID: 11400000, guid: 04c97d7aa4cbe0f4b97d7ca551d406d8, type: 2}

@@ -1,10 +1,17 @@
 using System;
 using UnityEngine;
 
-/// <summary>Locomotion 相位参数、落脚标记与脚步音配置（与 AnimationProfile 分离）。</summary>
+/// <summary>
+/// 一套 Locomotion 完整配置：Clip 映射（AnimationProfile）+ 相位/落脚/脚步/烘焙轨。
+/// 由 CombatMode 挂载；不再在 CharacterConfig 上单独配置。
+/// </summary>
 [CreateAssetMenu(fileName = "CharacterLocomotionProfile", menuName = "ACT/Character/Locomotion Profile")]
 public class CharacterLocomotionProfile : ScriptableObject
 {
+    [Header("Animation")]
+    [Tooltip("Idle/Walk/Run 等 Clip 映射；必填。")]
+    [SerializeField] CharacterAnimationProfile animationProfile = null;
+
     [Header("Thresholds")]
     [SerializeField] float idleInputThreshold = 0.01f;
     [SerializeField] float stopMinSpeedFactor = 0.5f;
@@ -44,6 +51,9 @@ public class CharacterLocomotionProfile : ScriptableObject
     [SerializeField] LocomotionRootMotionTrack stopLRootMotion;
     [SerializeField] LocomotionRootMotionTrack stopRRootMotion;
     [SerializeField] LocomotionRootMotionTrack pivotTurnRootMotion;
+
+    /// <summary>本套 Locomotion 的 Clip 映射。</summary>
+    public CharacterAnimationProfile AnimationProfile => animationProfile;
 
     public float IdleInputThreshold => idleInputThreshold;
     public float StopMinSpeedFactor => stopMinSpeedFactor;
@@ -144,6 +154,18 @@ public class CharacterLocomotionProfile : ScriptableObject
         if (foot == FootSide.Left)
             return footstepLeft != null ? footstepLeft : footstepRight;
         return footstepRight != null ? footstepRight : footstepLeft;
+    }
+
+    /// <summary>校验已挂 AnimationProfile 且含 Idle/Walk/Run。</summary>
+    public bool Validate(UnityEngine.Object context)
+    {
+        if (animationProfile == null)
+        {
+            Debug.LogError("CharacterLocomotionProfile: AnimationProfile 未配置。", context != null ? context : this);
+            return false;
+        }
+
+        return animationProfile.ValidateClips(context != null ? context : this);
     }
 }
 

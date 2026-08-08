@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a1601a372e9b98e42912925db0cd17d2, type: 3}
   m_Name: Unagi_LocomotionSO
   m_EditorClassIdentifier: 
+  animationProfile: {fileID: 11400000, guid: 5c1b5a8bfed658e4ba2834fc0c7814b4, type: 2}
   idleInputThreshold: 0.01
   stopMinSpeedFactor: 0.5
   pivotAngleDegrees: 135

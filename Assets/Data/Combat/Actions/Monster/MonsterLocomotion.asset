@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a1601a372e9b98e42912925db0cd17d2, type: 3}
   m_Name: MonsterLocomotion
   m_EditorClassIdentifier: 
+  animationProfile: {fileID: 11400000, guid: 38bb8422962bc454aa6af616a535d635, type: 2}
   idleInputThreshold: 0.01
   stopMinSpeedFactor: 0.5
   pivotAngleDegrees: 135

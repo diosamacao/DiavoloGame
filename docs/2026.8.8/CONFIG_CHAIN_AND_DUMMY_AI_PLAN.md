@@ -8,7 +8,8 @@
 > 2. **配置链过长是玩家+敌人共同问题**：需整体分析并删除多余层（如 ActionSet），建立配置规范  
 > 3. **`GameplayIntentProfile` 改为项目全局唯一真源**：角色不再逐个配置  
 > 4. **`InputActionAsset` 同样全局唯一**；CharacterConfig 不再挂 Input  
-> 5. **删除 Locomotion「默认/容错」双配**：Clip 映射只在 CombatMode；`CharacterLocomotionProfile` 必填且禁止 `CreateInstance` 回退  
+> 5. **删除 Locomotion「默认/容错」双配**：禁止 Config 默认 Clip / `CreateInstance`  
+> 6. **`AnimationProfile` 并入 `LocomotionProfile`**；`CombatMode` 直挂 `LocomotionProfile`；**CharacterConfig 不再配 Locomotion**  
 
 **原则：** 新逻辑为唯一真源；删除被替代壳层与静默容错，不长期双轨。
 
@@ -108,10 +109,9 @@ EnemyDefinition
 | **PlayerActionSet** | **冗余壳**，应删除；Mode/Config 直挂 `ActionGraph` |
 | **CombatModeProfile** | 多模式（Katana/Beast）有价值；**单模式**时不应再强制独立 SO + Set |
 | **ActionGraph** | **出招真源，保留** |
-| **AnimationProfile vs LocomotionProfile** | **正交，勿合并**（Clip 映射 ≠ 相位/落脚/烘焙） |
+| **AnimationProfile vs LocomotionProfile** | **Anim 嵌进 Loco**；Mode 只挂 Loco（B3） |
 | **InputActions vs IntentProfile** | **均全局唯一**（`GameInputSettings` / `GameplayIntentSettings`）；CharacterConfig 都不挂 |
-| **DefaultLocomotionProfile vs Mode.AnimationProfile** | **删 Config 上的 DefaultLocomotionProfile**；Clip 映射只认 Mode 条目的 `animationProfile` |
-| **LocomotionProfile 空则 CreateInstance** | **删除容错**；`CharacterLocomotionProfile` 必填 |
+| **Config 上任何 Locomotion 槽** | **删除**；只认 Mode→Loco |
 | **Reactions vs Graph** | **分流，保留**（受控态 ≠ 主动作）；勿把 Hit/Death 塞回 Graph |
 | **Config.teamId/maxHealth vs Definition** | 敌人以 Definition 为准；Config 同字段易误导 → 校验/Inspector 隐藏或报 Warning |
 
@@ -152,15 +152,13 @@ GameplayIntentSettings → GameplayIntentProfile（唯一）
 
 【角色 CharacterConfig】
 ├─ ModelPrefab
-├─ CharacterLocomotionProfile     // 相位/落脚/烘焙参数（必填）
 ├─ CombatModeProfile
-│    └─ mode → ActionGraph + AnimationProfile（Clip 映射，必填）
+│    └─ mode → ActionGraph + CharacterLocomotionProfile
+│                              └─ AnimationProfile（Idle/Walk/Run…）
+│                              └─ 相位 / 落脚 / 脚步 / 烘焙轨
 ├─ Combat（Hurtbox / Reactions / …）
 ├─ Motor / Resources
-└─ （无 Input、无 Intent、无 DefaultLocomotionProfile）
-
-【单模式后续 Phase C】
-CharacterConfig.defaultActionGraph …（尚未做；可与 Mode 并存策略另定）
+└─ （无 Input / Intent / 任何 Locomotion 槽）
 ```
 
 `CombatModeService` / `ActionResolverService`：`ActiveGraph` 直接来自 ModeEntry 或 Config 的 Graph，**不再**经 ActionSet。
@@ -184,8 +182,8 @@ GameplayIntentProfile = 项目全局（物理→意图），不属于单个角�
 
 **玩家 / 敌人身体：**
 
-1. CharacterConfig + Model + **必填** `CharacterLocomotionProfile`  
-2. CombatModeProfile：每模式 **ActionGraph + AnimationProfile**（Idle/Walk/Run）  
+1. CharacterConfig + Model  
+2. CombatModeProfile：每模式 **ActionGraph + LocomotionProfile**（Loco 内挂 AnimationProfile）  
 3. Reactions：默认 Hit（+ 可选 Death）  
 4. Resources / Hurtbox / Motor  
 
@@ -198,8 +196,8 @@ GameplayIntentProfile = 项目全局（物理→意图），不属于单个角�
 InputActionAsset + GameplayIntentProfile
 
 【玩家】PlayerController → CharacterConfig
-  ├─ Model / CharacterLocomotionProfile
-  ├─ CombatMode → Graph + AnimationProfile
+  ├─ Model
+  ├─ CombatMode → Graph + LocomotionProfile（含 Anim）
   └─ Reactions / Resources / Motor
 
 【敌人】EnemyDefinition → 同上 CharacterConfig + Brain + MaxHp/Team
@@ -258,19 +256,22 @@ InputActionAsset + GameplayIntentProfile
 
 ### Phase B2 — 全局 Input + 去掉 Locomotion 容错双配 ✅ 代码 2026-08-08
 
+（已被 B3 进一步收敛；Input 全局化保留。）
+
+### Phase B3 — Locomotion 并入 Mode ✅ 代码 2026-08-08
+
 **代码**
 
-- [x] `GameInputSettings` + 菜单 `Migrate Input Actions To Resources`  
-- [x] 删除 `CharacterConfig.inputActions` / `defaultLocomotionProfile`  
-- [x] Clip 映射仅 `CombatModeEntry.animationProfile`（原 `locomotionProfile`，FormerlySerializedAs）  
-- [x] `CharacterLocomotionProfile` 必填；删除 Factory `CreateInstance` 容错  
-- [x] `CombatModeProfile.Validate`：默认模式必须 Graph + AnimationProfile + Idle/Walk/Run  
+- [x] `CharacterLocomotionProfile.animationProfile`  
+- [x] `CombatModeEntry.locomotionProfile`（完整 Loco，不再只挂 Anim）  
+- [x] 删除 `CharacterConfig` 上全部 Locomotion 槽  
+- [x] Factory 从默认 Mode 取 Loco + Anim  
+- [x] 菜单 / 自动：`ACTGame/Combat/Migrate Animation Into Locomotion Profile`  
 
 **Editor（人工）**
 
-- [ ] 运行 Input 迁移菜单（打包前）  
-- [ ] 确认各 Mode 条目 Animation Profile 有值（原 Locomotion Profile 槽）  
-- [ ] CharacterConfig 仍挂好 **Locomotion Profile（参数资产）**  
+- [ ] 打开 Unity 看迁移日志；检查 Loco 上 Animation Profile、Mode 上 Locomotion Profile  
+- [ ] Play：移动步态 / 出招  
 
 ### Phase C — 单模式直挂 Graph（中，未做）
 
@@ -301,11 +302,11 @@ InputActionAsset + GameplayIntentProfile
 1. **出招真源只有 ActionGraph**；禁止再引入「Set」类转发 SO。  
 2. **受击/死亡真源只有 CharacterConfig.Combat.Reactions**。  
 3. **意图与设备输入均为项目全局**（`GameplayIntentSettings` / `GameInputSettings`）；`CharacterConfig` 不挂二者。  
-3b. **Locomotion Clip 映射只在 CombatMode.AnimationProfile**；相位参数只在 `CharacterLocomotionProfile`；禁止 Config 默认 Clip 与运行时空实例容错。  
+3b. **Locomotion 真源是 `CharacterLocomotionProfile`（内含 AnimationProfile）**，仅由 CombatMode 挂载；CharacterConfig 不配 Locomotion。  
 4. **敌人身份字段在 EnemyDefinition**；身体在 CharacterConfig。  
 5. **木桩 = Brain 关闭行动**；受击走 Reactions，与玩家打真敌同一管道。  
 6. **一个模式 = 一张 Graph**；多模式才用 Mode 表。  
-7. **Clip 映射与 Locomotion 参数分资产**，命名避免都叫「Locomotion」造成误绑（文档写清：`AnimationProfile` vs `LocomotionProfile`）。  
+7. **LocomotionProfile 内嵌 AnimationProfile**；Mode 挂 Loco，勿再把 Anim 直接挂到 Mode/Config。  
 8. **新建角色检查表**：按 §3.3 勾选；缺 Default Hit 的正式敌人/木桩视为未完成；**不**再检查 Intent 槽位。
 
 ---
@@ -333,4 +334,4 @@ InputActionAsset + GameplayIntentProfile
 6. Phase D：校验/Inspector 规范
 ```
 
-**已落地代码：** Phase A / A2 / B / B2。打开 Unity 确认 Input 迁移与 Mode.AnimationProfile；Phase C 按需再开。
+**已落地代码：** Phase A / A2 / B / B2 / B3。打开 Unity 确认 Loco←Anim 与 Mode←Loco 迁移；Phase C 按需再开。
