@@ -17,11 +17,16 @@ public static class EnemyActorFactory
         ISimCollisionWorld collisionWorld = null)
     {
         CharacterConfig config = definition.CharacterConfig;
-        var input = new AIInputWriter(config.GameplayIntentProfile);
+        GameplayIntentProfile intentProfile = GameplayIntentSettings.Active;
+        if (intentProfile == null)
+            throw new InvalidOperationException(
+                "EnemyActorFactory: 全局 GameplayIntentProfile 未就绪。");
+
+        var input = new AIInputWriter(intentProfile);
         if (!input.CanPulseAttack)
         {
             Debug.LogWarning(
-                "EnemyActorFactory: GameplayIntentProfile 缺少 Always + Pressed → Attack 映射，敌人只能追击。",
+                "EnemyActorFactory: 全局 GameplayIntentProfile 缺少 Always + Pressed → Attack 映射，敌人只能追击。",
                 owner);
         }
 

@@ -1,9 +1,14 @@
 using UnityEngine;
 
-/// <summary>敌人追击、攻击与受控时序配置。</summary>
+/// <summary>敌人追击、攻击与受控时序配置；木桩通过关闭行动开关实现。</summary>
 [CreateAssetMenu(fileName = "EnemyBrainProfile", menuName = "ACT/Enemy/Brain Profile")]
 public sealed class EnemyBrainProfile : ScriptableObject
 {
+    [Header("Actions")]
+    [Tooltip("关闭后不追击、不攻击（木桩）；仍响应受击/死亡门闩与 Reaction 表现。")]
+    [SerializeField] bool enableCombatActions = true;
+
+    [Header("Combat AI")]
     [SerializeField] float aggroRadius = 10f;
     [SerializeField] float loseAggroRadius = 14f;
     [SerializeField] float attackRange = 2f;
@@ -14,6 +19,9 @@ public sealed class EnemyBrainProfile : ScriptableObject
     [SerializeField] bool faceTargetWhileChase = true;
     [SerializeField] int failedAttackRetryFrames = 12;
     [SerializeField] float deathDespawnDelaySeconds = 0.5f;
+
+    /// <summary>为 false 时 Brain 不写移动/攻击输入（木桩）；Hit/Death 门闩仍生效。</summary>
+    public bool EnableCombatActions => enableCombatActions;
 
     /// <summary>进入仇恨的水平距离。</summary>
     public float AggroRadius => Mathf.Max(0f, aggroRadius);

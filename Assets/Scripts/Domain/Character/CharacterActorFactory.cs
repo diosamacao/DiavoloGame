@@ -35,7 +35,12 @@ public static class CharacterActorFactory
         controller.enabled = false;
 
         var sharedInput = new InputManager();
-        localInput?.ConfigureDiscreteInputs(config.GameplayIntentProfile.CollectInputReferences());
+        GameplayIntentProfile intentProfile = GameplayIntentSettings.Active;
+        if (intentProfile == null)
+            throw new InvalidOperationException(
+                "CharacterActorFactory: 全局 GameplayIntentProfile 未就绪。");
+
+        localInput?.ConfigureDiscreteInputs(intentProfile.CollectInputReferences());
         ISimCollisionWorld world = collisionWorld ?? OpenFieldSimCollisionWorld.Instance;
         var motorSim = new CharacterMotorSim(
             world,
@@ -76,9 +81,8 @@ public static class CharacterActorFactory
         context.LocomotionStateMachine = locomotionStateMachine;
 
         var stateMachine = new CharacterStateMachine(context);
-        // 缓冲时长由输入 Profile 统一配置，避免工厂与动作执行器各自维护不同窗口。
-        var intentBuffer = new GameplayIntentBuffer(
-            config.GameplayIntentProfile.ActionBufferDurationFrames);
+        // 缓冲时长由全局 Intent Profile 统一配置
+        var intentBuffer = new GameplayIntentBuffer(intentProfile.ActionBufferDurationFrames);
         var resolverService = new ActionResolverService(combatMode);
         var numeric = new NumericSystem(
             CharacterNumericConfig.FromResourceConfig(config.Resources, config.Combat.MaxHealth));
@@ -101,7 +105,7 @@ public static class CharacterActorFactory
         context.ActionSim = actionSim;
 
         var intentProducer = new GameplayIntentProducer(
-            config.GameplayIntentProfile,
+            intentProfile,
             sharedInput,
             intentBuffer,
             stateMachine,
