@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-/// <summary>时间轴 Frameline：标尺、多轨绘制、窗口拖拽与选中。</summary>
+/// <summary>时间轴 Frameline：标尺、多轨绘制、窗口拖拽、框选与选中。</summary>
 public sealed class ActionTimelineView
 {
     enum DragMode
@@ -16,6 +16,15 @@ public sealed class ActionTimelineView
         ReorderAnimation,
         /// <summary>拖动手动轨道头以调整 timeline.tracks 数组顺序。</summary>
         ReorderTrack,
+        /// <summary>在轨道路面空白处拖拽框选多个窗口。</summary>
+        Marquee,
+    }
+
+    /// <summary>框选判定用的窗口热区缓存。</summary>
+    struct WindowHitEntry
+    {
+        public Rect HitRect;
+        public ActionEditorSelection Selection;
     }
 
     Vector2 _scroll;
@@ -40,6 +49,12 @@ public sealed class ActionTimelineView
     Vector2 _trackReorderMouseDownPos;
     bool _trackReorderActivated;
     int _trackReorderTargetIndex = -1;
+    /// <summary>本帧各业务窗口热区，供框选相交测试。</summary>
+    readonly List<WindowHitEntry> _windowHitCache = new();
+    Vector2 _marqueeStart;
+    Vector2 _marqueeEnd;
+    /// <summary>框选时是否 Ctrl/Cmd 叠加到现有选中。</summary>
+    bool _marqueeAdditive;
     /// <summary>每帧像素宽；由可视宽度铺满值 × 缩放倍率得到。</summary>
     float _pixelsPerFrame = 8f;
     /// <summary>时间轴水平缩放：1 = 铺满可视区，&gt;1 可横向滚动以精确拖帧。</summary>
@@ -176,6 +191,9 @@ public sealed class ActionTimelineView
             needsHorizontalScroll,
             needsVerticalScroll);
 
+        // 每帧重建热区；框选 MouseUp 与绘制同一次 OnGUI，可直接用缓存求交。
+        _windowHitCache.Clear();
+
         EditorGUI.DrawRect(
             new Rect(0f, 0f, ActionEditorStyles.TrackHeaderWidth, ActionEditorStyles.RulerHeight),
             ActionEditorStyles.PanelHeader);
@@ -211,6 +229,15 @@ public sealed class ActionTimelineView
             y += ActionEditorStyles.TrackHeight + 2f;
         }
 
+        // 轨间空隙 / 内容底部空白：仍可起框选（未被轨道空白处理消费时）。
+        TryBeginMarqueeOnEmptyLanes(
+            new Rect(
+                ActionEditorStyles.TrackHeaderWidth,
+                ActionEditorStyles.RulerHeight + 2f,
+                contentLaneWidth,
+                Mathf.Max(0f, contentHeight - ActionEditorStyles.RulerHeight - 2f)),
+            selection);
+
         if (ProcessActiveTrackReorder(so, ref changed))
             changed = true;
 
@@ -221,11 +248,17 @@ public sealed class ActionTimelineView
         if (ProcessActiveWindowDrag(so, totalFrames, selection, ref changed))
             changed = true;
 
+        if (ProcessActiveMarquee(selection, ref changed))
+            changed = true;
+
         float playheadX = ActionEditorStyles.TrackHeaderWidth + previewFrame * _pixelsPerFrame;
         Handles.BeginGUI();
         Handles.color = ActionEditorStyles.Playhead;
         Handles.DrawLine(new Vector3(playheadX, 0f), new Vector3(playheadX, contentHeight));
         Handles.EndGUI();
+
+        if (_dragMode == DragMode.Marquee)
+            DrawMarqueeOverlay();
 
         GUI.EndScrollView();
         HandleEditHotkeys(so, action, selection, previewFrame, ref changed);
@@ -311,6 +344,18 @@ public sealed class ActionTimelineView
 
         if (_dragMode == DragMode.ReorderAnimation && _reorderDragActivated)
             DrawAnimationReorderGhost(laneRect, segmentsProp, sampleRate, evt.mousePosition.x);
+
+        // Animation 轨空白：起框选（不选中动画段；业务窗口可跨轨框选）。
+        if (evt.type == EventType.MouseDown
+            && evt.button == 0
+            && evt.clickCount == 1
+            && laneRect.Contains(evt.mousePosition)
+            && !evt.shift
+            && _dragMode == DragMode.None)
+        {
+            BeginMarquee(selection, evt);
+            changed = true;
+        }
 
         if (segmentsProp.arraySize == 0)
         {
@@ -749,20 +794,17 @@ public sealed class ActionTimelineView
                 hitWindow = true;
         }
 
-        // 单击空白轨道路面：清空选中（双击加窗已在上方处理）。
+        // 单击/拖拽空白轨道路面：起框选（单击无位移则清空选中；双击加窗已在上方处理）。
         if (!hitWindow
             && evt.type == EventType.MouseDown
             && evt.button == 0
             && evt.clickCount == 1
             && laneRect.Contains(evt.mousePosition)
-            && !evt.control
-            && !evt.command
             && !evt.shift
             && _dragMode == DragMode.None)
         {
-            selection.Clear();
+            BeginMarquee(selection, evt);
             changed = true;
-            evt.Use();
         }
     }
 
@@ -886,7 +928,7 @@ public sealed class ActionTimelineView
     }
 
     /// <summary>
-    /// 绘制窗口条块或点事件菱形；支持 Ctrl 多选 / Shift 同轨范围选。
+    /// 绘制窗口条块或点事件菱形；支持 Ctrl 多选 / Shift 同轨范围选 / 框选热区缓存。
     /// 返回本窗口是否命中并消费了 MouseDown。
     /// </summary>
     bool DrawWindow(
@@ -945,6 +987,8 @@ public sealed class ActionTimelineView
             EditorGUIUtility.AddCursorRect(rightHandle, MouseCursor.ResizeHorizontal);
             EditorGUIUtility.AddCursorRect(hitRect, MouseCursor.MoveArrow);
         }
+
+        _windowHitCache.Add(new WindowHitEntry { HitRect = hitRect, Selection = itemSelection });
 
         Event evt = Event.current;
         if (evt.type != EventType.MouseDown || evt.button != 0 || !hitRect.Contains(evt.mousePosition))
@@ -1110,11 +1154,12 @@ public sealed class ActionTimelineView
         ActionEditorSelectionSet selection,
         ref bool changed)
     {
-        // Animation 片段与轨道换序分别由专用处理器消费。
+        // Animation / 轨道换序 / 框选分别由专用处理器消费。
         if (_dragMode is DragMode.None
             or DragMode.Scrub
             or DragMode.ReorderAnimation
             or DragMode.ReorderTrack
+            or DragMode.Marquee
             || _dragIndex < 0)
             return false;
 
@@ -1213,6 +1258,157 @@ public sealed class ActionTimelineView
         _trackReorderActivated = false;
         _trackReorderMouseDownPos = default;
         _trackReorderTargetIndex = -1;
+        _marqueeStart = default;
+        _marqueeEnd = default;
+        _marqueeAdditive = false;
+    }
+
+    /// <summary>轨道路面空白按下：开始框选；非叠加时先清空选中。</summary>
+    void BeginMarquee(ActionEditorSelectionSet selection, Event evt)
+    {
+        _dragMode = DragMode.Marquee;
+        _marqueeStart = evt.mousePosition;
+        _marqueeEnd = evt.mousePosition;
+        _marqueeAdditive = evt.control || evt.command;
+        if (!_marqueeAdditive)
+            selection.Clear();
+
+        _dragControlId = GUIUtility.GetControlID(FocusType.Passive);
+        GUIUtility.hotControl = _dragControlId;
+        _pendingRepaint = true;
+        evt.Use();
+    }
+
+    /// <summary>轨道间隙或内容底部空白起框选（事件未被窗口/轨道空白消费时）。</summary>
+    void TryBeginMarqueeOnEmptyLanes(Rect lanesRect, ActionEditorSelectionSet selection)
+    {
+        Event evt = Event.current;
+        if (evt.type != EventType.MouseDown
+            || evt.button != 0
+            || evt.clickCount != 1
+            || _dragMode != DragMode.None
+            || evt.shift
+            || !lanesRect.Contains(evt.mousePosition))
+        {
+            return;
+        }
+
+        BeginMarquee(selection, evt);
+    }
+
+    /// <summary>框选拖拽中更新矩形；松开时按热区相交多选窗口。</summary>
+    bool ProcessActiveMarquee(ActionEditorSelectionSet selection, ref bool changed)
+    {
+        if (_dragMode != DragMode.Marquee)
+            return false;
+
+        Event evt = Event.current;
+        if (evt.type != EventType.MouseDrag
+            && evt.type != EventType.MouseUp
+            && evt.type != EventType.Ignore)
+        {
+            return false;
+        }
+
+        if (_dragControlId >= 0
+            && GUIUtility.hotControl != _dragControlId
+            && evt.type != EventType.MouseUp)
+        {
+            EndWindowDrag();
+            return false;
+        }
+
+        if (evt.type == EventType.MouseDrag)
+        {
+            _marqueeEnd = evt.mousePosition;
+            _pendingRepaint = true;
+            evt.Use();
+            return false;
+        }
+
+        // MouseUp / Ignore：位移不足视为点击空白；否则按框选相交选中。
+        const float clickThresholdSqr = 16f;
+        bool dragged = (_marqueeEnd - _marqueeStart).sqrMagnitude >= clickThresholdSqr;
+        if (dragged)
+        {
+            ApplyMarqueeSelection(selection);
+            changed = true;
+        }
+        else if (!_marqueeAdditive)
+        {
+            // 已在 MouseDown 清空；标记变更以刷新右侧面板
+            changed = true;
+        }
+
+        EndWindowDrag();
+        _pendingRepaint = true;
+        evt.Use();
+        return changed;
+    }
+
+    /// <summary>将与框选矩形相交的业务窗口写入选中集。</summary>
+    void ApplyMarqueeSelection(ActionEditorSelectionSet selection)
+    {
+        Rect marquee = GetMarqueeRect();
+        var hits = new List<ActionEditorSelection>();
+        for (int i = 0; i < _windowHitCache.Count; i++)
+        {
+            WindowHitEntry entry = _windowHitCache[i];
+            if (entry.HitRect.width < 1f || entry.HitRect.height < 1f)
+                continue;
+            if (!marquee.Overlaps(entry.HitRect))
+                continue;
+            hits.Add(entry.Selection);
+        }
+
+        if (hits.Count == 0)
+        {
+            if (!_marqueeAdditive)
+                selection.Clear();
+            return;
+        }
+
+        if (_marqueeAdditive)
+        {
+            ActionEditorSelection last = hits[hits.Count - 1];
+            selection.AddRange(hits, last);
+            return;
+        }
+
+        selection.Clear();
+        selection.AddRange(hits, hits[hits.Count - 1]);
+    }
+
+    /// <summary>绘制框选半透明矩形与边框。</summary>
+    void DrawMarqueeOverlay()
+    {
+        Rect marquee = GetMarqueeRect();
+        if (marquee.width < 1f && marquee.height < 1f)
+            return;
+
+        EditorGUI.DrawRect(marquee, ActionEditorStyles.MarqueeFill);
+        Handles.BeginGUI();
+        Handles.color = ActionEditorStyles.MarqueeBorder;
+        Vector3[] verts =
+        {
+            new(marquee.xMin, marquee.yMin, 0f),
+            new(marquee.xMax, marquee.yMin, 0f),
+            new(marquee.xMax, marquee.yMax, 0f),
+            new(marquee.xMin, marquee.yMax, 0f),
+            new(marquee.xMin, marquee.yMin, 0f),
+        };
+        Handles.DrawAAPolyLine(2f, verts);
+        Handles.EndGUI();
+    }
+
+    /// <summary>由起止点构造轴对齐框选矩形。</summary>
+    Rect GetMarqueeRect()
+    {
+        float xMin = Mathf.Min(_marqueeStart.x, _marqueeEnd.x);
+        float yMin = Mathf.Min(_marqueeStart.y, _marqueeEnd.y);
+        float xMax = Mathf.Max(_marqueeStart.x, _marqueeEnd.x);
+        float yMax = Mathf.Max(_marqueeStart.y, _marqueeEnd.y);
+        return Rect.MinMaxRect(xMin, yMin, xMax, yMax);
     }
 
     void DrawRuler(Rect rect, int totalFrames)
@@ -1248,12 +1444,13 @@ public sealed class ActionTimelineView
     {
         Event evt = Event.current;
 
-        // 窗口/动画段拖拽进行中时不处理标尺。
+        // 窗口/动画段/框选拖拽进行中时不处理标尺。
         if (_dragMode is DragMode.Move
             or DragMode.ResizeStart
             or DragMode.ResizeEnd
             or DragMode.ReorderAnimation
-            or DragMode.ReorderTrack)
+            or DragMode.ReorderTrack
+            or DragMode.Marquee)
             return;
 
         if (!rulerRect.Contains(evt.mousePosition) && _dragMode != DragMode.Scrub)

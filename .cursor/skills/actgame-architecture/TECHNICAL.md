@@ -596,6 +596,8 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 - Scene Hitbox 线框与 VFX Prefab/粒子按 **Preview Frame** 驱动：拖到对应帧/区间即可预览（Hitbox 仅在窗口激活时可见），无需选中时间轴窗口；选中仅用于 Handles 编辑
 - Create：选角色文件夹（如 Unagi），自动保存到其子目录 `ActionDefinition`（无则创建；已有旧名 `ActioniDefinition` 则复用）；默认名可改；左侧列表按文件夹分组
 - 时间轴多选：Ctrl 点选 / Shift 同轨范围选；Ctrl+C/V 复制粘贴（可跨 Action，按预览帧对齐）；Delete 删多选
+- 同类型多选：右侧改任一字段（含 Hit Payload / VFX Prefab 等）批量写回全部选中窗口；混合类型仅改主选中项
+- 拖拽框选：轨道路面空白拖拽矩形多选窗口；Ctrl/Cmd 叠加；单击空白清空
 
 ### ActionEditor 对齐状态（2026-08-02）
 
@@ -793,6 +795,8 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-08 | Wave 3.4：`PerfectDodgeAttack` Intent；Producer 缓冲内劫持攻击键；Begin 清 Flags；Cancel 优先级 93 |
 | 2026-08-08 | Wave 2.5：删 Action `useRootMotion`/`LegacyResolve`/`ForwardOnly` 与 Animator RM→Motor |
 | 2026-08-08 | A2：`HitFeedbackSettings` 受击 VFX/SFX；`HitImpactController` 订 `AttackHitEvent`；PD 吞伤跳过 Cue |
+| 2026-08-08 | Action Editor：同类型多选窗口支持右侧属性批量应用 |
+| 2026-08-08 | Action Editor：轨道路面拖拽框选多窗口 |
 
 ---
 
