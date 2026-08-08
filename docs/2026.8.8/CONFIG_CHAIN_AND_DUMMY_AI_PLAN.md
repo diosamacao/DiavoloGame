@@ -7,8 +7,10 @@
 > 1. **木桩 = 敌人 AI 开关**：关闭后不再「行动」，仍保留受击等非行动能力  
 > 2. **配置链过长是玩家+敌人共同问题**：需整体分析并删除多余层（如 ActionSet），建立配置规范  
 > 3. **`GameplayIntentProfile` 改为项目全局唯一真源**：角色不再逐个配置  
+> 4. **`InputActionAsset` 同样全局唯一**；CharacterConfig 不再挂 Input  
+> 5. **删除 Locomotion「默认/容错」双配**：Clip 映射只在 CombatMode；`CharacterLocomotionProfile` 必填且禁止 `CreateInstance` 回退  
 
-**原则：** 新逻辑为唯一真源；删除被替代壳层，不长期双轨。
+**原则：** 新逻辑为唯一真源；删除被替代壳层与静默容错，不长期双轨。
 
 ---
 
@@ -107,7 +109,9 @@ EnemyDefinition
 | **CombatModeProfile** | 多模式（Katana/Beast）有价值；**单模式**时不应再强制独立 SO + Set |
 | **ActionGraph** | **出招真源，保留** |
 | **AnimationProfile vs LocomotionProfile** | **正交，勿合并**（Clip 映射 ≠ 相位/落脚/烘焙） |
-| **InputActions vs IntentProfile** | **分层保留**：InputActions 仍可挂玩家 Config（或日后也全局）；**Intent 改为项目全局唯一，删掉 CharacterConfig 字段** |
+| **InputActions vs IntentProfile** | **均全局唯一**（`GameInputSettings` / `GameplayIntentSettings`）；CharacterConfig 都不挂 |
+| **DefaultLocomotionProfile vs Mode.AnimationProfile** | **删 Config 上的 DefaultLocomotionProfile**；Clip 映射只认 Mode 条目的 `animationProfile` |
+| **LocomotionProfile 空则 CreateInstance** | **删除容错**；`CharacterLocomotionProfile` 必填 |
 | **Reactions vs Graph** | **分流，保留**（受控态 ≠ 主动作）；勿把 Hit/Death 塞回 Graph |
 | **Config.teamId/maxHealth vs Definition** | 敌人以 Definition 为准；Config 同字段易误导 → 校验/Inspector 隐藏或报 Warning |
 
@@ -142,21 +146,21 @@ CharacterConfig.gameplayIntentProfile  → 删除字段与 Validate 必填
 **删除 `PlayerActionSet`。**
 
 ```text
-【多模式玩家】
-CharacterConfig
-├─ InputActionAsset                  // 玩家设备（可后续再全局化，本方案不强制）
+【项目全局】
+GameInputSettings → InputActionAsset（唯一）
+GameplayIntentSettings → GameplayIntentProfile（唯一）
+
+【角色 CharacterConfig】
+├─ ModelPrefab
+├─ CharacterLocomotionProfile     // 相位/落脚/烘焙参数（必填）
 ├─ CombatModeProfile
-│    └─ mode → ActionGraph (+ 可选 AnimationProfile)
-│              └─ ActionDefinition
-└─ …模型 / 动画 / Locomotion / Reactions / Resources
+│    └─ mode → ActionGraph + AnimationProfile（Clip 映射，必填）
+├─ Combat（Hurtbox / Reactions / …）
+├─ Motor / Resources
+└─ （无 Input、无 Intent、无 DefaultLocomotionProfile）
 
-【单模式（多数敌人 / 初期玩家）】
-CharacterConfig
-├─ defaultActionGraph → ActionGraph
-└─ …（无 Intent 字段；敌人通常无 InputActions）
-
-【项目全局，角色外】
-GameplayIntentProfile（唯一）
+【单模式后续 Phase C】
+CharacterConfig.defaultActionGraph …（尚未做；可与 Mode 并存策略另定）
 ```
 
 `CombatModeService` / `ActionResolverService`：`ActiveGraph` 直接来自 ModeEntry 或 Config 的 Graph，**不再**经 ActionSet。
@@ -175,48 +179,30 @@ GameplayIntentProfile = 项目全局（物理→意图），不属于单个角�
 
 **项目级（一次）：**
 
-- [ ] 全局 `GameplayIntentProfile`（含 Always+Pressed→Attack，供 AI）  
-- [ ] 玩家用 `InputActionAsset`  
+- [ ] 全局 `GameplayIntentProfile`（含 Always+Pressed→Attack）  
+- [ ] 全局 `InputActionAsset`（`ACTGame/Input/Migrate Input Actions To Resources`）  
 
-**玩家（可玩）：**
+**玩家 / 敌人身体：**
 
-1. CharacterConfig + Model  
-2. AnimationProfile（Idle/Walk/Run 至少）+ LocomotionProfile  
-3. InputActions（角色侧仅此输入相关项）  
-4. **一张** ActionGraph（或 ModeProfile 多图）  
-5. Reactions：默认 Hit（+ 可选 Death）  
-6. Resources / Hurtbox / Motor  
+1. CharacterConfig + Model + **必填** `CharacterLocomotionProfile`  
+2. CombatModeProfile：每模式 **ActionGraph + AnimationProfile**（Idle/Walk/Run）  
+3. Reactions：默认 Hit（+ 可选 Death）  
+4. Resources / Hurtbox / Motor  
 
-**敌人（可追打）：**
-
-1. CharacterConfig（**不配 Intent**；Graph 含 Attack Entry）  
-2. Animation + Locomotion（Chase 需要 Walk/Run）  
-3. EnemyDefinition + BrainProfile（`enableCombatActions=true`）  
-4. Reactions 默认 Hit  
-
-**木桩：**
-
-1. 同上身体 + 默认 Hit  
-2. BrainProfile：`enableCombatActions=false`  
-3. Graph 可空；Walk/Run 可与 Idle 同 Clip（校验策略见 Phase D，非木桩定义）
+**敌人身份：** EnemyDefinition + BrainProfile（木桩关 `enableCombatActions`）
 
 ### 3.4 简化后整链一览
 
 ```text
 【全局】
-GameplayIntentProfile ──► 所有角色 Intent 生产 / AI Attack 探测
+InputActionAsset + GameplayIntentProfile
 
-【玩家】
-PlayerController → CharacterConfig
-  ├─ Model / Anim / Locomotion / InputActions
-  ├─ Mode→Graph 或 defaultActionGraph
-  └─ Reactions / Resources / Motor / Team·HP
+【玩家】PlayerController → CharacterConfig
+  ├─ Model / CharacterLocomotionProfile
+  ├─ CombatMode → Graph + AnimationProfile
+  └─ Reactions / Resources / Motor
 
-【敌人】
-EnemyDefinition
-  ├─ CharacterConfig（同上，无 InputActions，无 Intent 字段）
-  ├─ BrainProfile（enableCombatActions）
-  └─ maxHp / teamId
+【敌人】EnemyDefinition → 同上 CharacterConfig + Brain + MaxHp/Team
 ```
 
 ---
@@ -270,17 +256,27 @@ EnemyDefinition
 
 **验收：** 连招 / Cancel / 模式切换 / 敌人攻击与迁前一致。
 
-### Phase C — 单模式直挂 Graph（中）
+### Phase B2 — 全局 Input + 去掉 Locomotion 容错双配 ✅ 代码 2026-08-08
 
 **代码**
 
-- `CharacterConfig`：可选 `ActionGraph defaultActionGraph`  
-- 当 `combatProfile == null` 且 `defaultActionGraph != null`：`CombatModeService` 以 Default 单图构造  
-- 或：`combatProfile` 仍要，但允许「Inline 单图」嵌在 Config 而不建独立 Mode SO  
+- [x] `GameInputSettings` + 菜单 `Migrate Input Actions To Resources`  
+- [x] 删除 `CharacterConfig.inputActions` / `defaultLocomotionProfile`  
+- [x] Clip 映射仅 `CombatModeEntry.animationProfile`（原 `locomotionProfile`，FormerlySerializedAs）  
+- [x] `CharacterLocomotionProfile` 必填；删除 Factory `CreateInstance` 容错  
+- [x] `CombatModeProfile.Validate`：默认模式必须 Graph + AnimationProfile + Idle/Walk/Run  
 
-**规范：** 敌人默认走单图直挂；多模式玩家才建 ModeProfile。
+**Editor（人工）**
 
-**删除：** 「每个角色必须 ModeProfile + ActionSet + Graph 三件套」的作者流程。
+- [ ] 运行 Input 迁移菜单（打包前）  
+- [ ] 确认各 Mode 条目 Animation Profile 有值（原 Locomotion Profile 槽）  
+- [ ] CharacterConfig 仍挂好 **Locomotion Profile（参数资产）**  
+
+### Phase C — 单模式直挂 Graph（中，未做）
+
+**代码（后续）**
+
+- 在已删除 ActionSet / 全局输入的前提下，再考虑 Config 直挂单图是否仍值得（避免再引入「Mode 可空」容错）。  
 
 ### Phase D — 校验与 Inspector 体验（低风险跟进）
 
@@ -304,7 +300,8 @@ EnemyDefinition
 
 1. **出招真源只有 ActionGraph**；禁止再引入「Set」类转发 SO。  
 2. **受击/死亡真源只有 CharacterConfig.Combat.Reactions**。  
-3. **意图真源是项目唯一 `GameplayIntentProfile`**；`CharacterConfig` 不挂 Intent；InputActions 只服务玩家设备。  
+3. **意图与设备输入均为项目全局**（`GameplayIntentSettings` / `GameInputSettings`）；`CharacterConfig` 不挂二者。  
+3b. **Locomotion Clip 映射只在 CombatMode.AnimationProfile**；相位参数只在 `CharacterLocomotionProfile`；禁止 Config 默认 Clip 与运行时空实例容错。  
 4. **敌人身份字段在 EnemyDefinition**；身体在 CharacterConfig。  
 5. **木桩 = Brain 关闭行动**；受击走 Reactions，与玩家打真敌同一管道。  
 6. **一个模式 = 一张 Graph**；多模式才用 Mode 表。  
@@ -336,4 +333,4 @@ EnemyDefinition
 6. Phase D：校验/Inspector 规范
 ```
 
-**已落地代码：** Phase A / A2 / B。打开 Unity 后确认 ModeProfile 迁移成功；下一代码步为 **Phase C**（单模式 Config 直挂 Graph）。
+**已落地代码：** Phase A / A2 / B / B2。打开 Unity 确认 Input 迁移与 Mode.AnimationProfile；Phase C 按需再开。

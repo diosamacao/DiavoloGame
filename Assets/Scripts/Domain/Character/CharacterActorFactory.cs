@@ -58,17 +58,26 @@ public static class CharacterActorFactory
             cameraTransform,
             motorSim);
         IAnimationPlayback playback = new PlayableAnimationPlayback(animator);
-        animation = new CharacterAnimationService(
-            playback,
-            animator,
-            config.DefaultLocomotionProfile);
+        if (config.CombatProfile == null
+            || !config.CombatProfile.TryGetAnimationProfile(
+                config.CombatProfile.DefaultMode,
+                out CharacterAnimationProfile animationProfile))
+        {
+            throw new InvalidOperationException(
+                "CharacterActorFactory: CombatModeProfile 默认模式缺少 AnimationProfile（Idle/Walk/Run Clip 映射）。");
+        }
+
+        animation = new CharacterAnimationService(playback, animator, animationProfile);
         var rootMotion = new CharacterRootMotionDriver(motor, animator);
         var combatMode = new CombatModeService(config.CombatProfile, animation);
 
         var context = new CharacterContext(root, animation, controller, motor);
         CharacterLocomotionProfile locomotionProfile = config.LocomotionProfile;
         if (locomotionProfile == null)
-            locomotionProfile = ScriptableObject.CreateInstance<CharacterLocomotionProfile>();
+        {
+            throw new InvalidOperationException(
+                "CharacterActorFactory: CharacterLocomotionProfile 未配置（禁止运行时默认实例容错）。");
+        }
 
         var footstepPlayer = new LocomotionFootstepPlayer(root, locomotionProfile);
         var locomotionStateMachine = new LocomotionStateMachine(

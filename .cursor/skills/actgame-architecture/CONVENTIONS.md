@@ -114,7 +114,8 @@ public class MyBehaviour : MonoBehaviour
 - **后摇窗口**：Timeline 的 `ActionPhaseNotifyState(Recovery)` 同时配置 `allowMovementCancel` 与 `allowEntryRestart`；禁止创建 Recovery CancelWindow、独立 phases 或回根显式边
 - **CancelWindow**：每个 Action 必须且只能有一个 Normal，可选一个 Perfect；两个窗口可重叠，同一 Intent 始终优先 Perfect；禁止重新引入分割帧、槽 Id 或同类型多窗口
 - 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `CharacterMotor` / State）
-- **玩家装配**：`InputActionAsset` 由 `CharacterConfig` 注入；意图映射用全局 `GameplayIntentSettings`，不在 Prefab / 每角色 Config 重复配置
+- **玩家装配**：`InputActionAsset` / `GameplayIntentProfile` 均为项目全局（`GameInputSettings` / `GameplayIntentSettings`）；不在 Prefab / CharacterConfig 重复配置
+- **Locomotion 双资产正交且无容错**：`CombatModeEntry.animationProfile` = Clip 映射；`CharacterConfig.locomotionProfile` = 相位/落脚参数（必填）；禁止 Config 再挂 DefaultLocomotionProfile，禁止 Factory `CreateInstance` 空参数档案
 - **敌人木桩**：`EnemyBrainProfile.enableCombatActions = false` 关闭追打，保留受击/死亡；不以空 Graph / aggro=0 定义木桩
 - **AI 输入**：`AIInputWriter` 必须写与玩家相同布局的 `InputFrame`；Brain 禁止直接调用 `ActionSim.TryStart/TryInterrupt`
 - **输入计时**：Hold、Action Buffer 与 AI 攻击/重试/刷新冷却只使用整数逻辑帧；禁止重新引入秒制输入 TTL

@@ -97,13 +97,16 @@ public sealed class CombatModeService : ICombatModeService
         ModeChanged?.Invoke(previous, mode);
     }
 
-    /// <summary>按 mode 切换 Locomotion Profile；未配置 profile 时保持当前动画映射不变。</summary>
+    /// <summary>按 mode 切换 AnimationProfile；条目不完整时不应进入此路径（TrySetMode 已校验）。</summary>
     void ApplyLocomotionForMode(CombatModeType mode)
     {
-        if (!profile.TryGetLocomotionProfile(mode, out CharacterAnimationProfile locomotionProfile))
+        if (!profile.TryGetAnimationProfile(mode, out CharacterAnimationProfile animationProfile))
+        {
+            Debug.LogError($"CombatModeService: mode={mode} 缺少 AnimationProfile。", profile);
             return;
+        }
 
-        _animation.SetProfile(locomotionProfile);
+        _animation.SetProfile(animationProfile);
         _animation.ResetPlaybackState();
     }
 }
