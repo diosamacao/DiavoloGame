@@ -130,7 +130,7 @@ MonoBehaviour:
           hitStopFrames: 0
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
           hitImpactSfxVolume: 1
           hitImpactWorldOffset: {x: 0, y: 1, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
@@ -156,7 +156,7 @@ MonoBehaviour:
           hitStopFrames: 0
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
           hitImpactSfxVolume: 1
           hitImpactWorldOffset: {x: 0, y: 1, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
@@ -182,7 +182,7 @@ MonoBehaviour:
           hitStopFrames: 0
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
           hitImpactSfxVolume: 1
           hitImpactWorldOffset: {x: 0, y: 1, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
@@ -208,7 +208,7 @@ MonoBehaviour:
           hitStopFrames: 0
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
           hitImpactSfxVolume: 1
           hitImpactWorldOffset: {x: 0, y: 1, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
@@ -234,7 +234,7 @@ MonoBehaviour:
           hitStopFrames: 0
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
           hitImpactSfxVolume: 1
           hitImpactWorldOffset: {x: 0, y: 1, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
@@ -260,7 +260,7 @@ MonoBehaviour:
           hitStopFrames: 0
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
           hitImpactSfxVolume: 1
           hitImpactWorldOffset: {x: 0, y: 1, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
@@ -286,7 +286,7 @@ MonoBehaviour:
           hitStopFrames: 0
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
           hitImpactSfxVolume: 1
           hitImpactWorldOffset: {x: 0, y: 1, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}

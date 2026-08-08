@@ -84,8 +84,8 @@ MonoBehaviour:
       playbackSpeed: 1
     playSfxStates:
     - id: SFX_1
-      startFrame: 0
-      endFrame: 0
+      startFrame: 7
+      endFrame: 7
       priority: 0
       trackName: SFX_1
       audioClip: {fileID: 8300000, guid: 1fb279d94635cee4196410cf3d526e01, type: 3}
@@ -111,8 +111,8 @@ MonoBehaviour:
           hitStopFrames: 5
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
-          hitImpactSfxVolume: 1
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 0.3
           hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
           randomizeImpactRotation: 1
@@ -137,8 +137,8 @@ MonoBehaviour:
           hitStopFrames: 5
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
-          hitImpactSfxVolume: 1
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 0.3
           hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
           randomizeImpactRotation: 1
@@ -163,8 +163,8 @@ MonoBehaviour:
           hitStopFrames: 5
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
-          hitImpactSfxVolume: 1
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 0.3
           hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
           randomizeImpactRotation: 1
@@ -189,8 +189,8 @@ MonoBehaviour:
           hitStopFrames: 5
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
-          hitImpactSfxVolume: 1
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 0.3
           hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
           randomizeImpactRotation: 1
@@ -215,8 +215,8 @@ MonoBehaviour:
           hitStopFrames: 5
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
-          hitImpactSfxVolume: 1
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 0.3
           hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
           randomizeImpactRotation: 1
@@ -241,8 +241,8 @@ MonoBehaviour:
           hitStopFrames: 5
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
-          hitImpactSfxVolume: 1
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 0.3
           hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
           randomizeImpactRotation: 1
@@ -267,8 +267,8 @@ MonoBehaviour:
           hitStopFrames: 5
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
-          hitImpactSfxVolume: 1
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 0.3
           hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
           randomizeImpactRotation: 1
