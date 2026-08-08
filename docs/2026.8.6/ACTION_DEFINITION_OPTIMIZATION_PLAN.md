@@ -518,12 +518,12 @@ ACT/Tools/Migrate Action Motion Mode
 
 ### Phase A2 — 删除 Root Motion 权威回退 → **Wave 2**
 
-- [ ] 所有需要位移的 Action 完成烘焙或脚本化（含轨迹拆分，见 Anchor）；
-- [ ] 删除 Animator RM → Motor 的逻辑入口；
-- [ ] **删除**旧 `useRootMotion` 字段和全部分支（无长期兼容层）；
-- [ ] 表现动画不再影响权威根。
+- [x] 所有需要位移的 Action 完成烘焙或脚本化（含轨迹拆分，见 Anchor）；
+- [x] 删除 Animator RM → Motor 的逻辑入口；
+- [x] **删除**旧 `useRootMotion` / `LegacyResolve` / `ForwardOnly` 运行时路径（2026-08-08）；
+- [x] Action 表现动画不再驱动权威根（Locomotion Stop/Pivot 的 RM 另议）。
 
-**验收：** 关闭 Animator 仍可完成动作位移、命中和结束。
+**验收：** 关闭 Animator 仍可完成动作位移、命中和结束（Play 回归）。
 
 ### Phase A3 — 收束派生字段 → **Wave 1 校验 + Wave 2 删手改**
 

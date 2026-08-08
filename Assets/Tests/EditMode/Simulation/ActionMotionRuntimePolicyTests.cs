@@ -1,6 +1,6 @@
 using NUnit.Framework;
 
-/// <summary>Wave 1：验证 BaseMotionMode 解析与 Legacy 回退。</summary>
+/// <summary>Wave 2.5：验证 BaseMotionMode 解析，无 Legacy / Animator RM 回退。</summary>
 public sealed class ActionMotionRuntimePolicyTests
 {
     [Test]
@@ -9,7 +9,6 @@ public sealed class ActionMotionRuntimePolicyTests
         Assert.That(
             ActionMotionRuntimePolicy.Resolve(
                 ActionBaseMotionMode.BakedMotion,
-                useRootMotionPolicy: true,
                 bakedMotionReady: true,
                 hasScriptedMovement: false),
             Is.EqualTo(ActionDisplacementSource.BakedMotion));
@@ -17,48 +16,44 @@ public sealed class ActionMotionRuntimePolicyTests
         Assert.That(
             ActionMotionRuntimePolicy.Resolve(
                 ActionBaseMotionMode.BakedMotion,
-                useRootMotionPolicy: true,
                 bakedMotionReady: false,
                 hasScriptedMovement: true),
             Is.EqualTo(ActionDisplacementSource.None));
     }
 
     [Test]
-    public void Resolve_Legacy_PrefersBakedThenScriptedThenRm()
+    public void Resolve_ScriptedMode_RequiresMovementWindows()
     {
         Assert.That(
             ActionMotionRuntimePolicy.Resolve(
-                ActionBaseMotionMode.LegacyResolve,
-                useRootMotionPolicy: true,
-                bakedMotionReady: true,
-                hasScriptedMovement: true),
-            Is.EqualTo(ActionDisplacementSource.BakedMotion));
-
-        Assert.That(
-            ActionMotionRuntimePolicy.Resolve(
-                ActionBaseMotionMode.LegacyResolve,
-                useRootMotionPolicy: false,
+                ActionBaseMotionMode.ScriptedTimeline,
                 bakedMotionReady: false,
                 hasScriptedMovement: true),
             Is.EqualTo(ActionDisplacementSource.ScriptedTimeline));
 
         Assert.That(
             ActionMotionRuntimePolicy.Resolve(
-                ActionBaseMotionMode.LegacyResolve,
-                useRootMotionPolicy: true,
-                bakedMotionReady: false,
+                ActionBaseMotionMode.ScriptedTimeline,
+                bakedMotionReady: true,
                 hasScriptedMovement: false),
-            Is.EqualTo(ActionDisplacementSource.AnimatorRootMotion));
+            Is.EqualTo(ActionDisplacementSource.None));
     }
 
     [Test]
-    public void Resolve_ExplicitNone_BlocksAnimatorRm()
+    public void Resolve_NoneAndObsoleteLegacy_YieldNone()
     {
         Assert.That(
             ActionMotionRuntimePolicy.Resolve(
                 ActionBaseMotionMode.None,
-                useRootMotionPolicy: true,
-                bakedMotionReady: false,
+                bakedMotionReady: true,
+                hasScriptedMovement: true),
+            Is.EqualTo(ActionDisplacementSource.None));
+
+        // 已删除的 LegacyResolve=0
+        Assert.That(
+            ActionMotionRuntimePolicy.Resolve(
+                (ActionBaseMotionMode)0,
+                bakedMotionReady: true,
                 hasScriptedMovement: false),
             Is.EqualTo(ActionDisplacementSource.None));
     }

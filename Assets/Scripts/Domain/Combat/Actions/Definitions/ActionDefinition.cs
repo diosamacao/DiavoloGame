@@ -91,9 +91,8 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
         bakedMotion.CopyFrom(source);
     }
 
-    /// <summary>是否存在非 RootMotion 的脚本位移窗口。</summary>
-    public bool HasScriptedDisplacement =>
-        !ExecutionPolicy.UseRootMotion && Timeline.HasScriptedMovement;
+    /// <summary>Timeline 是否含脚本位移窗口（是否采用由 BaseMotionMode 决定）。</summary>
+    public bool HasScriptedDisplacement => Timeline.HasScriptedMovement;
 
     /// <summary>攻击判定框区间列表，来自统一 Timeline。</summary>
     public HitboxNotifyState[] HitboxStates => Timeline.HitboxStates;

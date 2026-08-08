@@ -191,7 +191,7 @@ Agent **不改** `.asset` / Prefab；对齐仓库规则。
 - Effect ScriptableObject 完整作者壳  
 - 正式战斗 UI 美术血条  
 - 联网 / 预测回滚  
-- 删除 Wave 2 RM 回退（另排期）  
+- ~~删除 Wave 2 RM 回退~~ → **已完成（2026-08-08 Wave 2.5）**；Locomotion Stop/Pivot RM 另议  
 - 第三方 GAS / BT 插件  
 
 ---

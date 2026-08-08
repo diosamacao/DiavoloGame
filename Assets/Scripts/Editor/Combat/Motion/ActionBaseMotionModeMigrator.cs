@@ -5,134 +5,81 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Wave 1：把无冲突 Action 的 BaseMotionMode 从 LegacyResolve 迁到 Baked/Scripted/None。
-/// Conflict（表+Movement 并存）只报告，不自动写入。
+/// Wave 2.5：LegacyResolve 已删除；本工具改为校验 BaseMotionMode，不再写入兼容回退。
 /// </summary>
 public static class ActionBaseMotionModeMigrator
 {
-    /// <summary>菜单：迁移无冲突资产并打印报告。</summary>
-    [MenuItem("ACTGame/Action/Migrate Base Motion Mode")]
-    public static void MigrateMenu()
+    /// <summary>菜单：校验全库 BaseMotionMode（非法 0 / 模式与数据不一致）。</summary>
+    [MenuItem("ACTGame/Action/Validate Base Motion Mode")]
+    public static void ValidateMenu()
     {
-        string report = MigrateProject(dryRun: false);
+        string report = ValidateProject();
         Debug.Log(report);
-        EditorUtility.DisplayDialog("Migrate Base Motion Mode", TrimForDialog(report), "OK");
+        EditorUtility.DisplayDialog("Validate Base Motion Mode", TrimForDialog(report), "OK");
     }
 
-    /// <summary>菜单：仅报告将如何迁移，不写资产。</summary>
-    [MenuItem("ACTGame/Action/Dry-Run Base Motion Mode Migration")]
-    public static void DryRunMenu()
-    {
-        string report = MigrateProject(dryRun: true);
-        Debug.Log(report);
-        EditorUtility.DisplayDialog("Dry-Run Base Motion Mode", TrimForDialog(report), "OK");
-    }
-
-    /// <summary>扫描并迁移（或 dry-run）。</summary>
-    public static string MigrateProject(bool dryRun)
+    /// <summary>扫描并报告非法或未就绪的 BaseMotionMode。</summary>
+    public static string ValidateProject()
     {
         string[] guids = AssetDatabase.FindAssets("t:ActionDefinition");
         Array.Sort(guids, StringComparer.Ordinal);
 
-        int migrated = 0;
-        int skippedLegacyOk = 0;
-        int conflict = 0;
-        int alreadySet = 0;
-        var conflictLines = new List<string>(16);
-        var migratedLines = new List<string>(32);
+        int ok = 0;
+        int legacyResidual = 0;
+        int bakedNotReady = 0;
+        int scriptedNoWindows = 0;
+        var lines = new List<string>(32);
 
-        if (!dryRun)
-            AssetDatabase.StartAssetEditing();
-        try
+        for (int i = 0; i < guids.Length; i++)
         {
-            for (int i = 0; i < guids.Length; i++)
+            string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+            ActionDefinition action = AssetDatabase.LoadAssetAtPath<ActionDefinition>(path);
+            if (action == null)
+                continue;
+
+            ActionBaseMotionMode mode = action.ExecutionPolicy.BaseMotionMode;
+            bool baked = action.BakedMotion != null && action.BakedMotion.IsReady;
+            bool scripted = action.Timeline != null && action.Timeline.HasScriptedMovement;
+
+            if ((int)mode == 0)
             {
-                string path = AssetDatabase.GUIDToAssetPath(guids[i]);
-                ActionDefinition action = AssetDatabase.LoadAssetAtPath<ActionDefinition>(path);
-                if (action == null)
-                    continue;
-
-                ActionExecutionPolicy policy = action.ExecutionPolicy;
-                if (policy.BaseMotionMode != ActionBaseMotionMode.LegacyResolve)
-                {
-                    alreadySet++;
-                    continue;
-                }
-
-                bool baked = action.BakedMotion != null && action.BakedMotion.IsReady;
-                bool scripted = action.Timeline != null && action.Timeline.HasScriptedMovement;
-                ActionMotionSourceKind kind = ActionMotionSourceClassifier.Classify(baked, scripted);
-                if (kind == ActionMotionSourceKind.Conflict)
-                {
-                    conflict++;
-                    if (conflictLines.Count < 24)
-                        conflictLines.Add($"CONFLICT: {action.name} ({path})");
-                    continue;
-                }
-
-                ActionBaseMotionMode target = kind switch
-                {
-                    ActionMotionSourceKind.Baked => ActionBaseMotionMode.BakedMotion,
-                    ActionMotionSourceKind.Scripted => ActionBaseMotionMode.ScriptedTimeline,
-                    _ => ActionBaseMotionMode.None,
-                };
-
-                migratedLines.Add($"{action.name}: LegacyResolve → {target}");
-                if (!dryRun)
-                {
-                    // 经 SerializedObject 写嵌套字段，避免 ExecutionPolicy getter 临时实例丢改动
-                    var so = new SerializedObject(action);
-                    SerializedProperty modeProp = so.FindProperty("executionPolicy")
-                        ?.FindPropertyRelative("baseMotionMode");
-                    if (modeProp != null)
-                    {
-                        modeProp.enumValueIndex = (int)target;
-                        so.ApplyModifiedPropertiesWithoutUndo();
-                        EditorUtility.SetDirty(action);
-                    }
-                }
-
-                migrated++;
+                legacyResidual++;
+                lines.Add($"LEGACY(0): {action.name} ({path})");
+                continue;
             }
-        }
-        finally
-        {
-            if (!dryRun)
+
+            if (mode == ActionBaseMotionMode.BakedMotion && !baked)
             {
-                AssetDatabase.StopAssetEditing();
-                AssetDatabase.SaveAssets();
+                bakedNotReady++;
+                lines.Add($"BAKED_NOT_READY: {action.name} ({path})");
+                continue;
             }
+
+            if (mode == ActionBaseMotionMode.ScriptedTimeline && !scripted)
+            {
+                scriptedNoWindows++;
+                lines.Add($"SCRIPTED_NO_WINDOWS: {action.name} ({path})");
+                continue;
+            }
+
+            ok++;
         }
 
         var sb = new StringBuilder(1024);
-        sb.AppendLine(dryRun
-            ? "=== Dry-Run Base Motion Mode Migration ==="
-            : "=== Base Motion Mode Migration ===");
+        sb.AppendLine("=== Validate Base Motion Mode (Wave 2.5) ===");
         sb.AppendLine(
-            $"migrated={migrated} alreadySet={alreadySet} conflictSkipped={conflict} unchangedLegacyOk={skippedLegacyOk}");
+            $"ok={ok} legacyResidual={legacyResidual} bakedNotReady={bakedNotReady} scriptedNoWindows={scriptedNoWindows}");
         sb.AppendLine();
-        sb.AppendLine("--- Migrated / Would migrate ---");
-        if (migratedLines.Count == 0)
+        sb.AppendLine("--- Issues ---");
+        if (lines.Count == 0)
             sb.AppendLine("(none)");
         else
         {
-            int limit = Math.Min(migratedLines.Count, 40);
+            int limit = Math.Min(lines.Count, 48);
             for (int i = 0; i < limit; i++)
-                sb.AppendLine(migratedLines[i]);
-            if (migratedLines.Count > limit)
-                sb.AppendLine($"… +{migratedLines.Count - limit} more");
-        }
-
-        sb.AppendLine();
-        sb.AppendLine("--- Conflicts (manual decision required) ---");
-        if (conflictLines.Count == 0)
-            sb.AppendLine("(none)");
-        else
-        {
-            for (int i = 0; i < conflictLines.Count; i++)
-                sb.AppendLine(conflictLines[i]);
-            if (conflict > conflictLines.Count)
-                sb.AppendLine($"… +{conflict - conflictLines.Count} more");
+                sb.AppendLine(lines[i]);
+            if (lines.Count > limit)
+                sb.AppendLine($"… +{lines.Count - limit} more");
         }
 
         return sb.ToString();

@@ -768,6 +768,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-07 | GAS G4：`DamageNumericCalculator`；Outgoing/IncomingDamageMult；DOT Health handler 无 Reaction |
 | 2026-08-08 | GAS G5：旧权威删除确认；Snapshot/HUD（Effects/Flags/ATK）；文档完成态；Resources 仅作者壳 |
 | 2026-08-08 | Wave 3.4：`PerfectDodgeAttack` Intent；Producer 缓冲内劫持攻击键；Begin 清 Flags；Cancel 优先级 93 |
+| 2026-08-08 | Wave 2.5：删 Action `useRootMotion`/`LegacyResolve`/`ForwardOnly` 与 Animator RM→Motor |
 
 ---
 
@@ -872,7 +873,8 @@ Actor.Step：非卡肉时 NumericSystem.Step
 
 - Graph Counter Entry（`Intent=PerfectDodgeAttack`）与 Dodge 完美窗轨需 Editor 人工
 - 正式招费用 / Graph Special 双 Entry / Ultimate 资产需 Editor 人工
-- 完美闪避慢动作表现未做；未删 Wave 2 RM 回退
+- 完美闪避慢动作表现未做
+- Wave 2.5：Action RM 回退已删（Locomotion Stop/Pivot 仍可选用 RM）
 
 ### 相关文件
 

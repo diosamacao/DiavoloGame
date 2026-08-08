@@ -127,27 +127,12 @@ public sealed class ActionBakedMotion
 
     /// <summary>
     /// 按 planarMode 投影单帧原始 Δ。
-    /// ForwardSigned：等价于累计轨迹取 (0, Full.z) 后再差分，即丢弃 dx、保留 dz。
-    /// ForwardOnly：保留旧逐帧保模长语义，禁止静默改写。
+    /// ForwardSigned：丢弃 dx、保留 dz；FullPlanar / 未知值保持原 Δ。
     /// </summary>
     public static void ApplyPlanarMode(ActionMotionPlanarMode mode, ref int dxMm, ref int dzMm)
     {
-        switch (mode)
-        {
-            case ActionMotionPlanarMode.ForwardSigned:
-                dxMm = 0;
-                break;
-            case ActionMotionPlanarMode.ForwardOnly:
-            {
-                // 旧资产兼容：模长投到带符号 Z（Wave 2 前不删除）
-                int sign = dzMm >= 0 ? 1 : -1;
-                long magSq = (long)dxMm * dxMm + (long)dzMm * dzMm;
-                int mag = (int)Math.Round(Math.Sqrt(magSq), MidpointRounding.AwayFromZero);
-                dxMm = 0;
-                dzMm = sign * mag;
-                break;
-            }
-        }
+        if (mode == ActionMotionPlanarMode.ForwardSigned)
+            dxMm = 0;
     }
 
     static int[] CloneArray(int[] source)

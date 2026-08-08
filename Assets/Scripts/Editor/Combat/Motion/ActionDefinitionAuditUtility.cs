@@ -25,7 +25,7 @@ public static class ActionDefinitionAuditUtility
         entry.AssetPath = assetPath ?? AssetDatabase.GetAssetPath(action);
         entry.SampleRate = action.SampleRate;
         entry.TotalFrames = action.TotalFrames;
-        entry.UseRootMotion = action.ExecutionPolicy.UseRootMotion;
+        entry.BaseMotionMode = action.ExecutionPolicy.BaseMotionMode;
 
         ActionBakedMotion baked = action.BakedMotion;
         entry.BakedReady = baked != null && baked.IsReady;
@@ -116,30 +116,22 @@ public static class ActionDefinitionAuditUtility
                 "烘焙运动表与 Timeline Movement 窗口并存。");
         }
 
-        if (entry.UseRootMotion && !entry.BakedReady)
+        ActionBaseMotionMode mode = entry.BaseMotionMode;
+        // 0 = 已删除的 LegacyResolve；序列化残留时按非法模式报错
+        if ((int)mode == 0)
         {
             entry.AddIssue(
-                ActionDefinitionAuditSeverity.Warning,
-                "USE_ROOT_MOTION_UNBAKED",
-                "UseRootMotion=true 且烘焙未就绪，Runtime 仍可能走 Animator RM 回退。");
+                ActionDefinitionAuditSeverity.Error,
+                "BASE_MOTION_LEGACY_RESIDUAL",
+                "BaseMotionMode 仍为已删除的 LegacyResolve(0)，请设为 None/Baked/Scripted。");
         }
 
-        ActionBaseMotionMode mode = action.ExecutionPolicy.BaseMotionMode;
-        if (mode == ActionBaseMotionMode.LegacyResolve)
+        if (entry.BakedReady && (int)action.BakedMotion.planarMode == 1)
         {
             entry.AddIssue(
-                ActionDefinitionAuditSeverity.Info,
-                "BASE_MOTION_LEGACY",
-                "BaseMotionMode=LegacyResolve，请跑 Migrate Base Motion Mode。");
-        }
-
-        if (entry.BakedReady
-            && action.BakedMotion.planarMode == ActionMotionPlanarMode.ForwardOnly)
-        {
-            entry.AddIssue(
-                ActionDefinitionAuditSeverity.Warning,
-                "FORWARD_ONLY_NEEDS_REBAKE",
-                "planarMode=ForwardOnly（旧保模长语义）。直线连击请改 ForwardSigned 后重烘焙。");
+                ActionDefinitionAuditSeverity.Error,
+                "FORWARD_ONLY_RESIDUAL",
+                "planarMode 仍为已删除的 ForwardOnly(1)，请改 ForwardSigned/FullPlanar 后重烘焙。");
         }
 
         if (mode == ActionBaseMotionMode.BakedMotion && !entry.BakedReady)
@@ -250,7 +242,7 @@ public static class ActionDefinitionAuditUtility
                 continue;
             any = true;
             sb.AppendLine(
-                $"{e.ActionName} | {e.AssetPath} | RM={e.UseRootMotion} baked={e.BakedReady} scripted={e.HasScriptedMovement} frames={e.TotalFrames}");
+                $"{e.ActionName} | {e.AssetPath} | mode={e.BaseMotionMode} baked={e.BakedReady} scripted={e.HasScriptedMovement} frames={e.TotalFrames}");
             for (int j = 0; j < e.Issues.Count; j++)
             {
                 ActionDefinitionAuditIssue issue = e.Issues[j];

@@ -1,6 +1,6 @@
 ﻿using NUnit.Framework;
 
-/// <summary>验证运动表就绪判定、越界钳制与 ForwardOnly 投影。</summary>
+/// <summary>验证运动表就绪判定、越界钳制与 ForwardSigned 投影。</summary>
 public sealed class ActionBakedMotionTests
 {
     /// <summary>Ok 且数组长度对齐时可以查表。</summary>
@@ -42,26 +42,6 @@ public sealed class ActionBakedMotionTests
         Assert.That(motion.TryGetDelta(99, out SimVec2 delta, out _), Is.True);
         Assert.That(delta.X, Is.EqualTo(5));
         Assert.That(delta.Z, Is.EqualTo(7));
-    }
-
-    /// <summary>ForwardOnly 把水平模长投到 +Z，清零横向（旧语义保持不变）。</summary>
-    [Test]
-    public void TryGetDelta_ForwardOnlyProjectsToZ()
-    {
-        var motion = new ActionBakedMotion
-        {
-            logicHz = 60,
-            frameCount = 1,
-            planarMode = ActionMotionPlanarMode.ForwardOnly,
-            positionDeltaMmX = new[] { 30 },
-            positionDeltaMmZ = new[] { 40 },
-            yawDeltaMilliDeg = new[] { 0 },
-            bakeStatus = ActionBakedMotionStatus.Ok,
-        };
-
-        Assert.That(motion.TryGetDelta(0, out SimVec2 delta, out _), Is.True);
-        Assert.That(delta.X, Is.EqualTo(0));
-        Assert.That(delta.Z, Is.EqualTo(50));
     }
 
     /// <summary>ForwardSigned：纯横摆不产生前进，只保留原始 dz。</summary>
@@ -126,16 +106,34 @@ public sealed class ActionBakedMotionTests
         Assert.That(motion.TryGetDelta(0, out _, out _), Is.False);
     }
 
-    /// <summary>表就绪后禁止 Animator RM，避免双倍位移。</summary>
+    /// <summary>显式模式互斥：Baked 就绪走表；无 RM 回退。</summary>
     [Test]
-    public void RuntimePolicy_BakedDisablesAnimatorRootMotion()
+    public void RuntimePolicy_Resolve_NeverReturnsAnimatorRootMotion()
     {
-        Assert.That(ActionMotionRuntimePolicy.ShouldUseBakedMotion(true), Is.True);
         Assert.That(
-            ActionMotionRuntimePolicy.ShouldUseAnimatorRootMotion(useRootMotionPolicy: true, bakedMotionReady: true),
-            Is.False);
+            ActionMotionRuntimePolicy.Resolve(
+                ActionBaseMotionMode.BakedMotion,
+                bakedMotionReady: true,
+                hasScriptedMovement: false),
+            Is.EqualTo(ActionDisplacementSource.BakedMotion));
         Assert.That(
-            ActionMotionRuntimePolicy.ShouldUseAnimatorRootMotion(useRootMotionPolicy: true, bakedMotionReady: false),
-            Is.True);
+            ActionMotionRuntimePolicy.Resolve(
+                ActionBaseMotionMode.BakedMotion,
+                bakedMotionReady: false,
+                hasScriptedMovement: true),
+            Is.EqualTo(ActionDisplacementSource.None));
+        Assert.That(
+            ActionMotionRuntimePolicy.Resolve(
+                ActionBaseMotionMode.ScriptedTimeline,
+                bakedMotionReady: false,
+                hasScriptedMovement: true),
+            Is.EqualTo(ActionDisplacementSource.ScriptedTimeline));
+        // 旧 LegacyResolve=0 → None
+        Assert.That(
+            ActionMotionRuntimePolicy.Resolve(
+                (ActionBaseMotionMode)0,
+                bakedMotionReady: true,
+                hasScriptedMovement: false),
+            Is.EqualTo(ActionDisplacementSource.None));
     }
 }
