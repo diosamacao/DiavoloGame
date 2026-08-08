@@ -16,8 +16,8 @@
 
 | 轨 | 就绪 | Agent（代码） | 你（Editor） |
 |----|------|---------------|--------------|
-| **A1 木桩** | 现网可配 | 可选：显式「关闭 AI」开关 | **必做**：高 HP Definition + Idle/aggro0 + 场景摆点 |
-| **A2 命中 Cue** | 缺通道 | **必做**：Confirm 后 VFX/SFX Cue | 普攻 Feedback / Timeline 刀光 / Prefab·Clip |
+| **A1 木桩** | ✅ 验收 2026-08-08 | `enableCombatActions` + Hit_Shake | Monster_EDF 高 HP + 场景 |
+| **A2 命中 Cue** | 代码通道 ✅；资产待绑 | 已做：`HitImpactController` | 普攻 Feedback 绑 VFX/SFX；刀光 Timeline；SS9 色系新 Prefab |
 | **A3 子弹** | 权威齐、表现零 | **必做**：完美吸收只读事件 + 短减速 | 调时长；用现敌测窗 |
 | **A4 相机** | Shake 已接 | 可选：lateral 运行时微调 API | **必做**：Shake / `lateralFollowFactor` 木桩调参 |
 | **A5 BT** | 代码 0 | **必做**：骨架 + 删五态决策双轨 | 挂树资产 / 只追不打变体 |
@@ -132,10 +132,10 @@ Monster_EDF (EnemyDefinition)
 
 大纲 §3.2；另加：
 
-- [ ] Console 无 `EnemyDefinition` / `CharacterConfig` 校验 Error  
-- [ ] 木桩不追人、不出招  
-- [ ] 受击播 `Hit_Stay`（或至少 defaultHitStun 硬直）  
-- [ ] F3 `MaxHp` 为 Definition 覆盖值（非 Config 默认 100）
+- [x] Console 无 `EnemyDefinition` / `CharacterConfig` 校验 Error  
+- [x] 木桩不追人、不出招（`enableCombatActions=false`）  
+- [x] 受击播 `Hit_Shake`（Default Reaction）  
+- [x] F3 `MaxHp` 为 Definition 覆盖值（非 Config 默认 100）
 
 ---
 
@@ -153,13 +153,40 @@ Monster_EDF (EnemyDefinition)
 
 **Agent 任务：**
 
-1. 扩展 `HitFeedbackSettings`：命中 VFX Prefab、SFX Clip（可空）。  
-2. App 层订阅命中事件（已有 Shake/HitStop 旁）播 Cue；命中点/朝向用事件数据。  
-3. 保证 Collect 阶段不播；`freezeFrames>0` 时不按 wall-clock 偷跑。
+1. ~~扩展 `HitFeedbackSettings`：命中 VFX Prefab、SFX Clip（可空）。~~ ✅  
+2. ~~App 层订阅命中事件播 Cue~~ ✅（`HitImpactController`；PD 吞伤跳过）  
+3. ~~Collect 不播；卡肉跟攻击者 Owner 暂停粒子~~ ✅  
 
-**Editor：** 1～2 段普攻 Hitbox 填 Feedback；火花 Prefab / 命中音；刀光仍走 Timeline。
+**Editor（当前卡点）：**
+
+1. 1～2 段普攻 Hitbox → Feedback：`Hit Impact Vfx Prefab` + `Hit Impact Sfx`  
+2. 刀光仍走 Timeline `PlayVfx`；受击火花走 Feedback（勿塞进 Collect）  
+3. **刀光色系 SS9 新资产**（见下方 §3.2.1）做完后，把 Timeline 引用切到 `_SS9` Prefab  
 
 **验收：** 大纲 §3.3；Domain HitDetector 无 Audio/VFX 引用。
+
+#### 3.2.1 Editor：刀光对齐 Sword Slash 9（人工，Agent 不改 Prefab/Mat）
+
+**色板真源**（`Sword Slash 9` / 已有 `M_slashD_wind_SS9`）：
+
+| 用途 | RGB（约） |
+|------|-----------|
+| 主色 `_Color` / gradient key0 | `(0.335, 0.537, 1.0)` |
+| 深蓝 key1 | `(0.222, 0.308, 1.0)` |
+| 浅蓝辅色 | `(0.467, 0.523, 1.0)` |
+
+**源 → 目标（复制后改色，勿改原包）：**
+
+| 源 Prefab | 已输出 ✅ |
+|-----------|----------|
+| `Slash_D_Quintuple` | `Assets/Art/VFX/Prefabs/SwordSlash9/Slash_D_Quintuple_SS9.prefab` |
+| `Slash_Aoe_A_Dstyle` | `.../SwordSlash9/Slash_Aoe_A_Dstyle_SS9.prefab` |
+| `Slash_B_BlueSlash` | `.../SwordSlash9/Slash_B_BlueSlash_SS9.prefab` |
+| `Slash_Aoe_A_Ball_Blue` | `.../SwordSlash9/Slash_Aoe_A_Ball_Blue_SS9.prefab` |
+
+材质在 `Assets/Art/VFX/Materials/Slash_SwordSlash9/`（`_Color` = SS9 蓝）；粒子青蓝已 remap。  
+Unagi `Attack_05/06/Branch_01/02`（含 Perfect）Timeline 已改指 `*_SS9`。  
+**仍需人工：** 受击火花挂 Feedback；Scene 确认 `FeedbackController` + `VFXManager`；Play 目视色差。
 
 ---
 
@@ -231,8 +258,9 @@ Monster_EDF (EnemyDefinition)
 
 对照大纲 §7，本日最低完成线：
 
-1. **Must：** A1 木桩可复现伤 / 停 / 震  
-2. **Must：** A2 至少一条普攻命中 Cue（VFX+SFX）完整  
+1. **Must：** A1 木桩可复现伤 / 停 / 震 → ✅ 2026-08-08  
+2. **Must：** A2 至少一条普攻命中 Cue（VFX+SFX）完整 ← 代码 ✅，Editor 绑资产中  
+
 3. **Should：** A3 子弹可感知 + 恢复正确  
 4. **Should：** A4 木桩镜头手感可接受  
 5. **Should：** A5 一棵近战树可跑；EditMode 有测  

@@ -79,7 +79,7 @@
 
 **状态**：GAS G0～G5 + Wave 3.4 完整闭环（代码 + Editor 窗/Counter Entry，2026-08-08）  
 
-**下一会话大纲**：`docs/2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md`（下一项 **A1 木桩** → 打击音画 / 子弹 / 相机 / AI BT）
+**下一会话大纲**：`docs/2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md`（A1 木桩 ✅；下一项 **A2 命中音画** → 子弹 / 相机 / AI BT）
 
 ### [P1] Lockstep 模拟核迁移
 

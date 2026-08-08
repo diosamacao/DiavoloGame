@@ -17,6 +17,6 @@ public sealed class HitPayload
     /// <summary>供目标上层选择受击动作的语义 Id。</summary>
     public string HitReactionId => hitReactionId ?? string.Empty;
 
-    /// <summary>命中镜头与卡肉反馈。</summary>
+    /// <summary>命中镜头、卡肉与受击 Cue（VFX/SFX）反馈。</summary>
     public HitFeedbackSettings Feedback => feedback ?? new HitFeedbackSettings();
 }

@@ -7,11 +7,13 @@ public readonly struct ResolvedCombatHit
     public ResolvedCombatHit(
         ActionHitContext context,
         Transform targetTransform,
-        Vector3 hitDirection)
+        Vector3 hitDirection,
+        bool absorbedByPerfectDodge = false)
     {
         Context = context;
         TargetTransform = targetTransform;
         HitDirection = hitDirection;
+        AbsorbedByPerfectDodge = absorbedByPerfectDodge;
     }
 
     /// <summary>已成功结算的命中上下文。</summary>
@@ -22,4 +24,7 @@ public readonly struct ResolvedCombatHit
 
     /// <summary>攻击者指向受击者的水平表现方向。</summary>
     public Vector3 HitDirection { get; }
+
+    /// <summary>是否为完美闪避吞伤（无扣血/受击 Reaction，表现侧勿播受击 Cue）。</summary>
+    public bool AbsorbedByPerfectDodge { get; }
 }

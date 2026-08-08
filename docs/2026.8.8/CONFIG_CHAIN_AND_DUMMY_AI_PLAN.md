@@ -66,10 +66,10 @@ NotifyHit / NotifyDeath 仍可把 State 打到 Hit/Dead（门闩保留）
 
 ### 1.5 验收
 
-- [ ] `enableCombatActions=false`：不追、不打  
-- [ ] 同配置被打：播 Hit_Shake（或默认受击）、扣血、可连打  
-- [ ] 死后 Despawn 行为与现网一致  
-- [ ] `=true`：恢复追打（同一身体资产）
+- [x] `enableCombatActions=false`：不追、不打（✅ 验收 2026-08-08）  
+- [x] 同配置被打：播 Hit_Shake、扣血、可连打  
+- [x] 超高 MaxHp 路径下可连续验收（死亡/Despawn 未作为当日必测）  
+- [ ] `=true`：恢复追打（需另建战斗用 BrainProfile，避免与木桩共用）
 
 ---
 
@@ -216,9 +216,9 @@ InputActionAsset + GameplayIntentProfile
 
 **Editor（人工）**
 
-- [ ] 木桩 BrainProfile：取消勾选 **Enable Combat Actions**  
-- [ ] Reactions Default → Hit_Shake  
-- [ ] 场景刷 `Monster_EDF`  
+- [x] 木桩 BrainProfile：取消勾选 **Enable Combat Actions**  
+- [x] Reactions Default → Hit_Shake  
+- [x] 场景刷 `Monster_EDF`（Play 验收 ✅）
 
 **删除：** 文档中「必须空 Graph / aggro0 才是木桩」的表述（aggro0 可留作调参，非定义）。
 

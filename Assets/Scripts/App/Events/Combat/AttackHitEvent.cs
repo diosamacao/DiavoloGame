@@ -4,11 +4,16 @@ using UnityEngine;
 public readonly struct AttackHitEvent : IArchitectureEvent
 {
     /// <summary>创建攻击命中事件。</summary>
-    public AttackHitEvent(ActionHitContext context, Transform targetTransform, Vector3 hitDirection)
+    public AttackHitEvent(
+        ActionHitContext context,
+        Transform targetTransform,
+        Vector3 hitDirection,
+        bool absorbedByPerfectDodge = false)
     {
         Context = context;
         TargetTransform = targetTransform;
         HitDirection = hitDirection;
+        AbsorbedByPerfectDodge = absorbedByPerfectDodge;
     }
 
     /// <summary>命中上下文，包含招式、Hitbox 与攻击者。</summary>
@@ -19,4 +24,7 @@ public readonly struct AttackHitEvent : IArchitectureEvent
 
     /// <summary>攻击者指向受击者的水平方向，用于镜头震动等反馈。</summary>
     public Vector3 HitDirection { get; }
+
+    /// <summary>完美闪避吞伤：无受击 Reaction，订阅者勿播受击 Cue。</summary>
+    public bool AbsorbedByPerfectDodge { get; }
 }

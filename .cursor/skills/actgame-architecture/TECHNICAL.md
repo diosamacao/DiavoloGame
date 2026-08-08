@@ -1,12 +1,13 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-07
+> Last updated: 2026-08-08
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
 
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
+| 命中受击 Cue（VFX/SFX） | 🟡 代码通道已接、资产待绑 | `HitImpactController` + `HitFeedbackSettings` | Hitbox Feedback 填 Prefab/Clip |
 | 固定帧模拟宿主 | ✅ L0A 已实现 | `SimulationHost`、`SimulationWorld`、`SimActorId` | 60Hz，无资产 |
 | Wave0 动作审计 / 锚点可视化 / Debug HUD | ✅ 已实现 | `ActionDefinitionAuditUtility`、`CharacterAnchorGizmoDrawer`、`CombatDebugHudController` | 菜单 `ACTGame/Action/Validate Motion Sources`；场景挂 HUD |
 | Wave1 位移止血 / BaseMotionMode / 相机滤左右 | ✅ 已实现 | `ForwardSigned`、`ActionBaseMotionMode`、`CameraManager.lateralFollowFactor` | Attack 需以 ForwardSigned 重烘焙；菜单 Migrate Base Motion Mode |
@@ -16,7 +17,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B 代码已实现 | `InputFrameBuffer`、`InputReader`、`AIInputWriter`、`GameplayIntentProducer` | `GameInputActions.inputactions` + 全局 `GameplayIntentSettings` |
-| 敌人木桩 AI 开关 | ✅ 已实现 | `EnemyBrainProfile.enableCombatActions` | false=不追打，仍受击 |
+| 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
@@ -560,7 +561,26 @@ SimulationHost 帧末
       → Graph 自动衔接排队；自然结束按 TotalFrames 停止
       → NotifyActionEnded → ActionSfxPlayer.OnActionEnded → 专用 AudioSource.Stop
   → PublishAttackHitCommand → AttackHitEvent（仅表现）
+      → HitImpactController：Feedback 受击 VFX/SFX（完美吞伤跳过）
+      → CameraShakeController / HitStopController（既有）
 ```
+
+### 7.1 命中受击 Cue（A2）
+
+**功能说明：** Confirm 命中后在受击点播特效与音效；挥空不播；完美闪避吞伤不播受击 Cue。
+
+**实现方案：**
+
+| 层 | 组件 |
+|----|------|
+| 配置 | `HitFeedbackSettings.hitImpactVfxPrefab` / `hitImpactSfx`（挂在 Hitbox Payload） |
+| 事件 | `AttackHitEvent.AbsorbedByPerfectDodge` |
+| App | `FeedbackController` → `HitImpactController`（世界点 Spawn + OneShot） |
+| 卡肉 | 火花 `VfxPooledInstance.SetSpawnOwner(attacker)`，与刀光同窗暂停 |
+
+**关键参数：** `hitImpactWorldOffset` 默认 `(0,1,0)`；`hitImpactScale` 默认 `1`；SFX Volume `0～1`。
+
+**已知限制：** 仍需在 Action Hitbox Feedback 人工绑定 Prefab/Clip；尚无独立「命中火花」美术资产清单。
 
 VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强制 Despawn；池化实例由 `VfxPooledInstance` 按粒子自然时长（含 `playbackSpeed` / 卡肉冻结）自行回池。无 `VFXManager` 时回退 `Destroy(lifetime)`。
 
@@ -772,6 +792,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-08 | GAS G5：旧权威删除确认；Snapshot/HUD（Effects/Flags/ATK）；文档完成态；Resources 仅作者壳 |
 | 2026-08-08 | Wave 3.4：`PerfectDodgeAttack` Intent；Producer 缓冲内劫持攻击键；Begin 清 Flags；Cancel 优先级 93 |
 | 2026-08-08 | Wave 2.5：删 Action `useRootMotion`/`LegacyResolve`/`ForwardOnly` 与 Animator RM→Motor |
+| 2026-08-08 | A2：`HitFeedbackSettings` 受击 VFX/SFX；`HitImpactController` 订 `AttackHitEvent`；PD 吞伤跳过 Cue |
 
 ---
 

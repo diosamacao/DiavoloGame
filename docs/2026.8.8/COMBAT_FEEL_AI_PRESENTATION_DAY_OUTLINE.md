@@ -29,9 +29,9 @@
 ```text
 A0  Editor 扫尾 ✅（2026-08-08）
       ↓
-A1  木桩靶（最早可玩验收台）← 下一项
+A1  木桩靶 ✅（2026-08-08 验收）
       ↓ 可并行
-A2  打击 VFX/SFX + HitFeedback 调参
+A2  打击 VFX/SFX + HitFeedback 调参 ← 代码通道已接；Editor 绑资产 / SS9 刀光
 A3  完美闪避子弹时间（表现事件，不改吞伤权威）
 A4  相机优化（跟拍 / 震屏 / 可选轻量 FOV；Lock-On 大改勿塞一天）
       ↓ 可并行或午后
@@ -60,7 +60,8 @@ Agent **不改** `.asset` / Prefab；对齐仓库规则。
 
 ### 3.2 A1 — 打击感木桩
 
-**目标：** 固定站桩、可被反复殴打、走完整 Numeric + Reaction + 反馈链路。
+**状态：✅ 已验收（2026-08-08）**  
+`Monster_EDF` + `enableCombatActions=false` + Default Hit → `Hit_Shake`；超高 MaxHp。
 
 | 项 | 建议 |
 |----|------|
@@ -71,12 +72,12 @@ Agent **不改** `.asset` / Prefab；对齐仓库规则。
 
 **验收：**
 
-- [ ] 普攻连段可稳定命中木桩  
-- [ ] 掉血 / 受击 Reaction / HitStop / 震屏可观测  
-- [ ] F3 或日志可对上 HP 与资源 Grant  
-- [ ] 死亡可选：倒地后重置按钮或超高血量不测死亡
+- [x] 普攻连段可稳定命中木桩  
+- [x] 掉血 / 受击 Reaction / HitStop / 震屏可观测  
+- [x] F3 或日志可对上 HP 与资源 Grant  
+- [x] 死亡可选：倒地后重置按钮或超高血量不测死亡
 
-**Editor：** Prefab / Definition / 场景摆放（人工）。
+**Editor：** Prefab / Definition / 场景摆放（人工）✅。
 
 ---
 
@@ -84,16 +85,16 @@ Agent **不改** `.asset` / Prefab；对齐仓库规则。
 
 **目标：** 命中瞬间「看得见、听得见」，配置入口清晰。
 
-| 层 | 现状锚点 | 明日动作 |
+| 层 | 现状锚点 | 当日动作 |
 |----|----------|----------|
-| 招式轨 VFX/SFX | Timeline `PlayVfx` / `PlaySfx`（起手演出） | 关键招式补点事件；确认挂点与 PlaybackSpeed |
-| 命中反馈 | `HitPayload.Feedback` → `AttackHitEvent` → Shake / HitStop | 统一：命中火花 / 命中音是否走 Feedback 或独立 Cue |
-| HitStop | `ActionSim.freezeFrames`（逻辑）+ 表现跟帧 | 木桩上调 `hitStopFrames` 手感表，禁止 unscaled 秒权威 |
+| 招式轨 VFX/SFX | Timeline `PlayVfx` / `PlaySfx` | 刀光换 SS9 色系 Prefab；挂点/PlaybackSpeed |
+| 命中反馈 | `HitPayload.Feedback` → `AttackHitEvent` → `HitImpactController` ✅ | Editor：Feedback 绑受击 Prefab/Clip |
+| HitStop | `ActionSim.freezeFrames` + Owner 暂停粒子 | 木桩调 `hitStopFrames`；禁 unscaled 秒权威 |
 
-**定案倾向（可明日修订）：**
+**定案：**
 
 - **起手刀光/脚步** → Timeline 点事件  
-- **命中火花/命中音/震屏** → Payload Feedback（或 ConfirmHit 后 App 只读 Cue），避免 Collect 阶段播特效  
+- **受击火花/受击音/震屏** → Payload Feedback → Confirm 后 App Cue  
 
 **验收：**
 
@@ -202,7 +203,7 @@ Agent **不改** `.asset` / Prefab；对齐仓库规则。
 
 | 时段 | 内容 |
 |------|------|
-| 上午前 | ~~A0 Editor 扫尾~~ ✅ → **A1 木桩场景** |
+| 上午前 | ~~A0 / A1~~ ✅ → **A2 命中音画** |
 | 上午后 | A2 命中 VFX/SFX + HitStop/震屏调参 |
 | 下午前 | A3 完美闪避子弹 + 相机轻量优化 |
 | 下午后 | A5 BT Phase-1 骨架与等价替换 |
@@ -212,16 +213,16 @@ Agent **不改** `.asset` / Prefab；对齐仓库规则。
 
 ## 7. 收工检查清单
 
-- [ ] 木桩场景可复现打击感（伤 / 停 / 震 / 音画）  
+- [x] 木桩场景可复现打击感（伤 / 停 / 震；音画 Cue 属 A2）  
 - [x] 完美闪避：窗 + Counter 路由 Play 通过（A0 ✅）；子弹仍属 A3  
 
-- [ ] 至少一条普攻命中 Cue 完整  
+- [ ] 至少一条普攻命中 Cue 完整（A2）  
 - [ ] BT：近战敌行为等价或可配置分支；无 Domain 越权  
-- [ ] 无新增双轨血量/资源权威；无表现回写 Sim  
-- [ ] 文档：本大纲勾选 + 若 BT/子弹有定案则回写对应真源篇 2～5 行  
+- [x] 无新增双轨血量/资源权威；无表现回写 Sim（木桩路径）  
+- [x] 文档：A1 勾选已回写  
 
 ---
 
 ## 8. 一句话
 
-明日以**木桩验收台**为中心，补齐**命中音画与完美闪避子弹**，相机只做轻量反馈；**AI 行为树按既有方案做 Phase-1 等价替换**，严格只输出输入帧、不碰数值权威。
+木桩验收台已就绪；下一步补齐**命中音画（A2）与完美闪避子弹（A3）**，相机只做轻量反馈；**AI 行为树按既有方案做 Phase-1 等价替换**，严格只输出输入帧、不碰数值权威。

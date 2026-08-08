@@ -103,10 +103,12 @@ public sealed class CombatHitPipeline
             {
                 _numericLookup?.Invoke(hit.Key.TargetId)?.ArmPerfectDodgeCounter();
                 hit.HitReceiver?.ConfirmHit(hit.Key.ActionInstanceId);
+                // 吞伤仍发布事件（相机等可订阅），但标记 PD 供受击 Cue 跳过
                 _resolved.Add(new ResolvedCombatHit(
                     context,
                     hit.TargetTransform,
-                    ResolveHitDirection(hit.Context.Attacker, hit.TargetTransform)));
+                    ResolveHitDirection(hit.Context.Attacker, hit.TargetTransform),
+                    absorbedByPerfectDodge: true));
                 continue;
             }
 
