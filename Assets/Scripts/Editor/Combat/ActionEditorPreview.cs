@@ -282,6 +282,38 @@ public sealed class ActionEditorPreviewSession : IDisposable
         return ok;
     }
 
+    /// <summary>
+    /// 临时采样到指定逻辑帧构建 Hitbox 世界 OBB，再恢复当前预览帧。
+    /// 供 parentToAttachPoint=false 的 Hitbox 在窗口进入帧冻结。
+    /// </summary>
+    public bool TryEvaluateHitboxWorldBoxAtFrame(
+        int frame,
+        HitboxNotifyState hitbox,
+        out HitboxOrientedBox box)
+    {
+        box = default;
+        if (hitbox == null
+            || _action == null
+            || _previewCharacter == null
+            || !ActionEditorAnimationSampler.IsSessionActive)
+        {
+            return false;
+        }
+
+        int restoreFrame = _previewFrame;
+        SamplePoseAndBakedMotionAtFrame(frame);
+
+        Transform anchor = ActionEditorPreviewAttachPoint.Resolve(
+            _previewCharacter,
+            hitbox.AttachPointId);
+        bool ok = anchor != null;
+        if (ok)
+            box = HitboxMath.BuildFromHitbox(_previewCharacter, anchor, hitbox);
+
+        SamplePoseAndBakedMotionAtFrame(restoreFrame);
+        return ok;
+    }
+
     /// <summary>采样动画 Pose 并贴烘焙位移到指定逻辑帧（不改 Session 的 PreviewFrame 缓存语义）。</summary>
     void SamplePoseAndBakedMotionAtFrame(int frame)
     {

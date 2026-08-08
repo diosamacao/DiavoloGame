@@ -69,4 +69,12 @@ public sealed class HitboxMathTests
         Assert.That(point.y, Is.EqualTo(1f).Within(0.001f));
         Assert.That(point.z, Is.EqualTo(0f).Within(0.001f));
     }
+
+    /// <summary>新字段默认跟随挂点，避免旧资产语义变化。</summary>
+    [Test]
+    public void HitboxNotifyState_ParentToAttachPoint_DefaultsTrue()
+    {
+        var hitbox = new HitboxNotifyState();
+        Assert.That(hitbox.ParentToAttachPoint, Is.True);
+    }
 }

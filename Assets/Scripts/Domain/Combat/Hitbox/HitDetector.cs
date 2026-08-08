@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 逻辑坐标命中检测：攻击/受击 OBB 由 MotorSim 根位姿构建；挂点仅提供相对根的局部 TRS。
+/// 逻辑坐标命中检测：攻击/受击 OBB 相交；攻击盒由调用方解析（跟随挂点或世界冻结）。
 /// </summary>
 public static class HitDetector
 {
@@ -11,10 +11,8 @@ public static class HitDetector
     public static void ProcessHitboxesAtFrame(
         ActionDefinition action,
         int frame,
-        SimCombatPose attackerPose,
         int attackerTeamId,
-        Func<HitboxNotifyState, Vector3> resolveAttachLocalPosition,
-        Func<HitboxNotifyState, Quaternion> resolveAttachLocalRotation,
+        Func<int, HitboxNotifyState, HitboxOrientedBox> resolveAttackBox,
         HashSet<(int HitboxIndex, SimActorId TargetId)> hitPairs,
         IActionSimHitReceiver hitReceiver,
         IReadOnlyList<IHurtboxTarget> activeTargets,
@@ -26,7 +24,8 @@ public static class HitDetector
         if (activeTargets == null
             || activeTargets.Count == 0
             || !attackerId.IsValid
-            || hitPipeline == null)
+            || hitPipeline == null
+            || resolveAttackBox == null)
         {
             return;
         }
@@ -41,18 +40,7 @@ public static class HitDetector
             if (hitbox == null || !hitbox.IsActiveAtFrame(frame))
                 continue;
 
-            Vector3 attachLocalPos = resolveAttachLocalPosition != null
-                ? resolveAttachLocalPosition(hitbox)
-                : Vector3.zero;
-            Quaternion attachLocalRot = resolveAttachLocalRotation != null
-                ? resolveAttachLocalRotation(hitbox)
-                : Quaternion.identity;
-
-            HitboxOrientedBox attackBox = HitboxMath.BuildFromHitboxLogical(
-                in attackerPose,
-                attachLocalPos,
-                attachLocalRot,
-                hitbox);
+            HitboxOrientedBox attackBox = resolveAttackBox(hitboxIndex, hitbox);
 
             foreach (IHurtboxTarget target in activeTargets)
             {

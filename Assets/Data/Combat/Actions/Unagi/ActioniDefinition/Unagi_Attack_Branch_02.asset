@@ -93,7 +93,7 @@ MonoBehaviour:
       playbackSpeed: 1
     hitboxStates:
     - id: Hitbox_1
-      startFrame: 32
+      startFrame: 25
       endFrame: 36
       priority: 0
       trackName: Hitbox_1
@@ -102,6 +102,8 @@ MonoBehaviour:
       localOffset: {x: 0, y: 1, z: 1}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 3, y: 3, z: 3}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
       payload:
         baseDamage: 10
         hitReactionId: 
@@ -125,16 +127,18 @@ MonoBehaviour:
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 1, z: 1}
+      localOffset: {x: 0, y: 1, z: 1.45}
       localEulerAngles: {x: 0, y: 0, z: 0}
-      size: {x: 3, y: 3, z: 3}
+      size: {x: 4.11, y: 3, z: 4.51}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
       payload:
         baseDamage: 10
         hitReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
-          hitStopFrames: 5
+          hitStopFrames: 3
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
@@ -151,16 +155,18 @@ MonoBehaviour:
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 1, z: 1}
+      localOffset: {x: 0, y: 1, z: 1.45}
       localEulerAngles: {x: 0, y: 0, z: 0}
-      size: {x: 3, y: 3, z: 3}
+      size: {x: 4.11, y: 3, z: 4.51}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
       payload:
         baseDamage: 10
         hitReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
-          hitStopFrames: 5
+          hitStopFrames: 3
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
@@ -177,16 +183,18 @@ MonoBehaviour:
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 1, z: 1}
+      localOffset: {x: 0, y: 1, z: 1.45}
       localEulerAngles: {x: 0, y: 0, z: 0}
-      size: {x: 3, y: 3, z: 3}
+      size: {x: 4.11, y: 3, z: 4.51}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
       payload:
         baseDamage: 10
         hitReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
-          hitStopFrames: 5
+          hitStopFrames: 3
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
@@ -203,16 +211,18 @@ MonoBehaviour:
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 1, z: 1}
+      localOffset: {x: 0, y: 1, z: 1.45}
       localEulerAngles: {x: 0, y: 0, z: 0}
-      size: {x: 3, y: 3, z: 3}
+      size: {x: 4.11, y: 3, z: 4.51}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
       payload:
         baseDamage: 10
         hitReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
-          hitStopFrames: 5
+          hitStopFrames: 3
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
@@ -229,16 +239,18 @@ MonoBehaviour:
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 1, z: 1}
+      localOffset: {x: 0, y: 1, z: 1.45}
       localEulerAngles: {x: 0, y: 0, z: 0}
-      size: {x: 3, y: 3, z: 3}
+      size: {x: 4.11, y: 3, z: 4.51}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
       payload:
         baseDamage: 10
         hitReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
-          hitStopFrames: 5
+          hitStopFrames: 3
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
@@ -255,16 +267,18 @@ MonoBehaviour:
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 1, z: 1}
+      localOffset: {x: 0, y: 1, z: 1.45}
       localEulerAngles: {x: 0, y: 0, z: 0}
-      size: {x: 3, y: 3, z: 3}
+      size: {x: 4.11, y: 3, z: 4.51}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
       payload:
         baseDamage: 10
         hitReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
-          hitStopFrames: 5
+          hitStopFrames: 3
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}

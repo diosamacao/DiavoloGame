@@ -85,6 +85,8 @@ MonoBehaviour:
       localOffset: {x: 0, y: 1, z: 0.91}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 2, y: 2, z: 3}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
       payload:
         baseDamage: 10
         hitReactionId: 

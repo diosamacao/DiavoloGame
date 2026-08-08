@@ -85,6 +85,8 @@ MonoBehaviour:
       localOffset: {x: 0, y: 1, z: 0.85}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 3, y: 3, z: 3}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
       payload:
         baseDamage: 10
         hitReactionId: 
@@ -111,6 +113,8 @@ MonoBehaviour:
       localOffset: {x: 0, y: 1, z: 0.85}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 3, y: 3, z: 3}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
       payload:
         baseDamage: 10
         hitReactionId: 
@@ -137,6 +141,8 @@ MonoBehaviour:
       localOffset: {x: 0, y: 1, z: 0.85}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 3, y: 3, z: 3}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
       payload:
         baseDamage: 10
         hitReactionId: 
@@ -163,6 +169,8 @@ MonoBehaviour:
       localOffset: {x: 0, y: 1, z: 0.85}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 3, y: 3, z: 3}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
       payload:
         baseDamage: 10
         hitReactionId: 
@@ -189,6 +197,8 @@ MonoBehaviour:
       localOffset: {x: 0, y: 1, z: 0.85}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 3, y: 3, z: 3}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
       payload:
         baseDamage: 10
         hitReactionId: 
