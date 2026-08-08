@@ -173,11 +173,12 @@ public static class ActionEditorStyles
         EditorGUIUtility.AddCursorRect(splitterRect, MouseCursor.ResizeHorizontal);
     }
 
-    /// <summary>VFX / SFX / Event 为单帧点事件轨，不可拉时长。</summary>
+    /// <summary>VFX / SFX / Event / MotionCommand 为单帧点事件轨，不可拉时长。</summary>
     public static bool IsPointEventTrack(ActionTimelineTrackKind kind) =>
         kind is ActionTimelineTrackKind.Vfx
             or ActionTimelineTrackKind.Sfx
-            or ActionTimelineTrackKind.Event;
+            or ActionTimelineTrackKind.Event
+            or ActionTimelineTrackKind.MotionCommand;
 
     /// <summary>按轨道类型返回窗口条块颜色。</summary>
     public static Color ColorForTrack(ActionTimelineTrackKind kind) => kind switch
@@ -193,6 +194,8 @@ public static class ActionEditorStyles
         ActionTimelineTrackKind.Phase => new Color(0.55f, 0.55f, 0.6f, 0.85f),
         ActionTimelineTrackKind.Animation => new Color(0.45f, 0.65f, 1f, 0.9f),
         ActionTimelineTrackKind.PerfectDodgeWindow => new Color(1f, 0.85f, 0.25f, 0.9f),
+        ActionTimelineTrackKind.MotionModifier => new Color(0.25f, 0.9f, 0.65f, 0.9f),
+        ActionTimelineTrackKind.MotionCommand => new Color(0.95f, 0.55f, 0.2f, 0.9f),
         _ => new Color(0.6f, 0.6f, 0.65f, 0.85f),
     };
 
@@ -221,6 +224,8 @@ public static class ActionEditorStyles
         ActionTimelineTrackKind.Phase => "Phase",
         ActionTimelineTrackKind.Animation => "Animation",
         ActionTimelineTrackKind.PerfectDodgeWindow => "PerfectDodge",
+        ActionTimelineTrackKind.MotionModifier => "MotionModifier",
+        ActionTimelineTrackKind.MotionCommand => "MotionCommand",
         _ => kind.ToString(),
     };
 }

@@ -60,9 +60,10 @@ public sealed class CharacterActor :
     /// <summary>水平逻辑电机；供 World 软弹开读写。</summary>
     public CharacterMotorSim MotorSim => _motor.Sim;
 
-    /// <summary>死亡时不参与互撞软弹开。</summary>
+    /// <summary>死亡或软体抑制窗内不参与互撞软弹开。</summary>
     public bool ParticipatesInSoftBodySeparation =>
-        CurrentState != CharacterStateType.Death;
+        CurrentState != CharacterStateType.Death
+        && (_motor == null || !_motor.Sim.IsSoftBodySuppressed);
 
     /// <summary>供相机与表现系统跟随的插值锚点。</summary>
     public Transform PresentationRoot => _presentation.PresentationRoot;
@@ -326,6 +327,8 @@ public sealed class CharacterActor :
         _visualMotion?.ApplyLogicLocalPose();
         try
         {
+            // 软体抑制倒计时：须在本帧 ApplyStep 置位之前递减
+            _motor?.Sim.TickSoftBodySuppress();
             _inputManager.IngestFrame(inputFrame);
             _intentProducer.Step();
             _actionDriver.ProcessGameplayInput();

@@ -10,6 +10,11 @@ public sealed class ActionEditorWindow : EditorWindow
     const string PreviewCharacterPrefKey = "ACTGame.ActionEditor.PreviewCharacter";
     const string LeftWidthPrefKey = "ACTGame.ActionEditor.LeftWidth";
     const string RightWidthPrefKey = "ACTGame.ActionEditor.RightWidth";
+    /// <summary>假敌相对预览原点的本地 X（米）。</summary>
+    const string AdhesionEnemyLocalXPrefKey = "ACTGame.ActionEditor.AdhesionEnemyLocalX";
+    /// <summary>假敌相对预览原点的本地 Z（米）。</summary>
+    const string AdhesionEnemyLocalZPrefKey = "ACTGame.ActionEditor.AdhesionEnemyLocalZ";
+    const float DefaultAdhesionEnemyLocalZ = 3f;
 
     readonly ActionListPanel _listPanel = new();
     readonly ActionToolbar _toolbar = new();
@@ -411,6 +416,67 @@ public sealed class ActionEditorWindow : EditorWindow
                 ? new Color(0.35f, 0.75f, 1f, 0.95f)
                 : new Color(0.5f, 0.5f, 0.55f, 0.4f);
             ActionVfxSceneDrawing.DrawVfxMarker(vfxAnchor, vfx, color);
+        }
+
+        // 选中 MotionModifier 时：假敌球 + TargetAdhesion 修正轨迹 / 角色落点预览
+        DrawMotionModifierScenePreview(trajectoryOrigin, trajectoryRotation);
+    }
+
+    /// <summary>
+    /// 选中 MotionModifier 窗口时在 Scene 画假敌；Adhesion 模式叠修正路径并把预览根挪到修正落点。
+    /// </summary>
+    void DrawMotionModifierScenePreview(Vector3 originPosition, Quaternion originRotation)
+    {
+        if (!_selection.HasSelection)
+            return;
+
+        ActionEditorSelection primary = _selection.Primary;
+        if (!primary.IsValid || primary.Kind != ActionTimelineTrackKind.MotionModifier)
+            return;
+
+        MotionModifierNotifyState[] modifiers = _selectedAction.Timeline.MotionModifierStates;
+        if (primary.Index < 0 || primary.Index >= modifiers.Length)
+            return;
+
+        MotionModifierNotifyState window = modifiers[primary.Index];
+        if (window == null)
+            return;
+
+        Vector3 enemyLocal = new(
+            EditorPrefs.GetFloat(AdhesionEnemyLocalXPrefKey, 0f),
+            0f,
+            EditorPrefs.GetFloat(AdhesionEnemyLocalZPrefKey, DefaultAdhesionEnemyLocalZ));
+        Vector3 enemyWorld = originPosition + originRotation * enemyLocal;
+        enemyWorld.y = originPosition.y;
+
+        EditorGUI.BeginChangeCheck();
+        // 可拖拽假敌位置；存本地偏移，随预览原点旋转
+        enemyWorld = Handles.PositionHandle(enemyWorld, Quaternion.identity);
+        if (EditorGUI.EndChangeCheck())
+        {
+            Vector3 local = Quaternion.Inverse(originRotation) * (enemyWorld - originPosition);
+            EditorPrefs.SetFloat(AdhesionEnemyLocalXPrefKey, local.x);
+            EditorPrefs.SetFloat(AdhesionEnemyLocalZPrefKey, local.z);
+            Repaint();
+            SceneView.RepaintAll();
+        }
+
+        ActionMotionAdhesionSceneDrawing.Draw(
+            _selectedAction,
+            window,
+            originPosition,
+            originRotation,
+            enemyWorld,
+            _previewFrame,
+            out Vector3 adhesionActorWorld);
+
+        // TargetAdhesion：预览根叠修正落点（Session 每帧会先贴 Bake，再被此处覆盖）
+        if (window.Mode == MotionModifierMode.TargetAdhesion && _previewCharacter != null)
+        {
+            Vector3 p = _previewCharacter.position;
+            p.x = adhesionActorWorld.x;
+            p.z = adhesionActorWorld.z;
+            _previewCharacter.position = p;
         }
     }
 
