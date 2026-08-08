@@ -7,7 +7,8 @@
 
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
-| 命中受击 Cue（VFX/SFX） | 🟡 代码通道已接、资产待绑 | `HitImpactController` + `HitFeedbackSettings` | Hitbox Feedback 填 Prefab/Clip |
+| 命中受击 Cue（VFX/SFX） | 🟡 代码通道已接、资产待绑 | `HitImpactController` + `HitFeedbackSettings` | 接触点落点 + 随机旋转；Feedback 填 Prefab/Clip |
+| 逻辑 Hurtbox 调试线框 | ✅ 已实现 | `CombatHurtboxDebugSettings` + `CombatHurtboxDebugVisualizer` | F4 开关（F3 HUD 显示状态） |
 | 固定帧模拟宿主 | ✅ L0A 已实现 | `SimulationHost`、`SimulationWorld`、`SimActorId` | 60Hz，无资产 |
 | Wave0 动作审计 / 锚点可视化 / Debug HUD | ✅ 已实现 | `ActionDefinitionAuditUtility`、`CharacterAnchorGizmoDrawer`、`CombatDebugHudController` | 菜单 `ACTGame/Action/Validate Motion Sources`；场景挂 HUD |
 | Wave1 位移止血 / BaseMotionMode / 相机滤左右 | ✅ 已实现 | `ForwardSigned`、`ActionBaseMotionMode`、`CameraManager.lateralFollowFactor` | Attack 需以 ForwardSigned 重烘焙；菜单 Migrate Base Motion Mode |
@@ -567,24 +568,26 @@ SimulationHost 帧末
 
 ### 7.1 命中受击 Cue（A2）
 
-**功能说明：** Confirm 命中后在受击点播特效与音效；挥空不播；完美闪避吞伤不播受击 Cue。
+**功能说明：** Confirm 命中后在逻辑接触点播特效与音效；挥空不播；完美闪避吞伤不播受击 Cue。
 
 **实现方案：**
 
 | 层 | 组件 |
 |----|------|
-| 配置 | `HitFeedbackSettings.hitImpactVfxPrefab` / `hitImpactSfx`（挂在 Hitbox Payload） |
-| 事件 | `AttackHitEvent.AbsorbedByPerfectDodge` |
-| App | `FeedbackController` → `HitImpactController`（世界点 Spawn + OneShot） |
+| 接触点 | `HitboxMath.EstimateContactPointOnHurtbox`（攻击盒中心→受击盒最近点） |
+| 配置 | `HitFeedbackSettings`：VFX/SFX、相对接触点偏移、随机欧拉范围 |
+| 事件 | `AttackHitEvent.HitPoint` / `AbsorbedByPerfectDodge` |
+| App | `HitImpactController`：XZ=接触点，Y=半身高；`LookRotation * Random.Euler` |
+| 调试 | F4 → `CombatHurtboxDebugSettings.ShowHurtboxes` 画逻辑 Hurtbox |
 | 卡肉 | 火花 `VfxPooledInstance.SetSpawnOwner(attacker)`，与刀光同窗暂停 |
 
-**关键参数：** `hitImpactWorldOffset` 默认 `(0,1,0)`；`hitImpactScale` 默认 `1`；SFX Volume `0～1`。
+**关键参数：** `hitImpactWorldOffset` 默认 `0`（相对接触点）；`randomizeImpactRotation` 默认开，Y `0～360`；SFX Volume `0～1`。
 
-**已知限制：** 仍需在 Action Hitbox Feedback 人工绑定 Prefab/Clip；尚无独立「命中火花」美术资产清单。
+**已知限制：** 仍需在 Action Hitbox Feedback 人工绑定 Prefab/Clip；单 Hurtbox/角色，无多部位表。
 
 VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强制 Despawn；池化实例由 `VfxPooledInstance` 按粒子自然时长（含 `playbackSpeed` / 卡肉冻结）自行回池。无 `VFXManager` 时回退 `Destroy(lifetime)`。
 
-SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSfx` 的 `AudioSource`（与脚步声隔离）；`Stop` / `TransitionTo`（含硬打断与 Cancel 切招）经 `OnActionEnded` 由 `ActionSfxFadeDriver` 在 **0.1s（unscaled）** 内将音量淡到 0 再 `Stop`；新 `PlaySfx` 会取消淡出并恢复音量。
+SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSource`（与脚步声隔离）；`OnActionEnded` 对仍在播的声道做 **0.1s（unscaled）** 淡出；连招新 `PlaySfx` 走空闲声道，不 Cancel 正在淡出的旧声道。
 
 编辑器 Scrub 使用 `ActionEditorPreviewSession` 做 Pose/VFX 预览，并与 Runtime 共用无副作用 `ActionFrameQuery` 的段映射、窗口与点事件规则；不执行 `ActionSim.Step`。
 
@@ -798,6 +801,8 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-08 | Action Editor：同类型多选窗口支持右侧属性批量应用 |
 | 2026-08-08 | Action Editor：轨道路面拖拽框选多窗口 |
 | 2026-08-08 | `ActionSfxPlayer`：打断/结束改为 0.1s 音量淡出（`ActionSfxFadeDriver`） |
+| 2026-08-08 | 受击 Cue：接触点=攻击盒中心→Hurtbox 最近点；随机旋转；F4 Hurtbox 线框 |
+| 2026-08-08 | 动作 SFX 多声道淡出（连招不掐断）；受击特效 Y 固定半身高 |
 
 ---
 

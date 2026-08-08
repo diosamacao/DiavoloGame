@@ -22,10 +22,16 @@ public sealed class HitFeedbackSettings
     [Tooltip("受击音效音量。")]
     [Range(0f, 1f)]
     [SerializeField] float hitImpactSfxVolume = 1f;
-    [Tooltip("相对受击目标根的世界偏移（通常抬到胸口/命中高度）。")]
-    [SerializeField] Vector3 hitImpactWorldOffset = new Vector3(0f, 1f, 0f);
+    [Tooltip("相对逻辑接触点的世界偏移。")]
+    [SerializeField] Vector3 hitImpactWorldOffset = Vector3.zero;
     [Tooltip("受击特效世界缩放。")]
     [SerializeField] Vector3 hitImpactScale = Vector3.one;
+    [Tooltip("是否在基准朝向（命中水平方向）上叠加随机欧拉角。")]
+    [SerializeField] bool randomizeImpactRotation = true;
+    [Tooltip("随机欧拉角下限（度），相对基准朝向。")]
+    [SerializeField] Vector3 impactRandomEulerMin = new Vector3(0f, 0f, 0f);
+    [Tooltip("随机欧拉角上限（度），相对基准朝向。默认绕 Y 全周。")]
+    [SerializeField] Vector3 impactRandomEulerMax = new Vector3(0f, 360f, 0f);
 
     /// <summary>镜头震动预设；为空表示不触发震动。</summary>
     public CameraShakeProfile CameraShakeProfile => cameraShakeProfile;
@@ -48,11 +54,20 @@ public sealed class HitFeedbackSettings
     /// <summary>受击音效音量（0～1）。</summary>
     public float HitImpactSfxVolume => Mathf.Clamp01(hitImpactSfxVolume);
 
-    /// <summary>相对受击目标根的世界偏移。</summary>
+    /// <summary>相对逻辑接触点的世界偏移。</summary>
     public Vector3 HitImpactWorldOffset => hitImpactWorldOffset;
 
     /// <summary>受击特效世界缩放（分量下限 0.01）。</summary>
     public Vector3 HitImpactScale => Vector3.Max(hitImpactScale, Vector3.one * 0.01f);
+
+    /// <summary>是否对受击特效叠加随机旋转。</summary>
+    public bool RandomizeImpactRotation => randomizeImpactRotation;
+
+    /// <summary>随机欧拉角下限（度）。</summary>
+    public Vector3 ImpactRandomEulerMin => impactRandomEulerMin;
+
+    /// <summary>随机欧拉角上限（度）。</summary>
+    public Vector3 ImpactRandomEulerMax => impactRandomEulerMax;
 
     /// <summary>是否配置了任一受击 Cue（VFX 或 SFX）。</summary>
     public bool HasHitImpactCue => hitImpactVfxPrefab != null || hitImpactSfx != null;

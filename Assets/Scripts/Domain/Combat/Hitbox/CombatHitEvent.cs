@@ -9,13 +9,15 @@ public readonly struct CombatHitEvent
         ActionHitContext context,
         IHurtboxTarget target,
         IActionSimHitReceiver hitReceiver,
-        Transform targetTransform)
+        Transform targetTransform,
+        Vector3 hitPoint)
     {
         Key = key;
         Context = context;
         Target = target;
         HitReceiver = hitReceiver;
         TargetTransform = targetTransform;
+        HitPoint = hitPoint;
     }
 
     /// <summary>纯模拟稳定排序与去重键。</summary>
@@ -32,4 +34,7 @@ public readonly struct CombatHitEvent
 
     /// <summary>表现层生成命中方向所需的目标根。</summary>
     public Transform TargetTransform { get; }
+
+    /// <summary>表现用接触点（攻击盒中心→受击盒最近点）；不参与伤害权威。</summary>
+    public Vector3 HitPoint { get; }
 }

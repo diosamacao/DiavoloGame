@@ -76,8 +76,12 @@ public static class HitDetector
                 if (hitPairs.Contains(pair))
                     continue;
 
-                if (!HitboxMath.Intersects(attackBox, target.GetLogicalHurtbox()))
+                HitboxOrientedBox hurtbox = target.GetLogicalHurtbox();
+                if (!HitboxMath.Intersects(attackBox, hurtbox))
                     continue;
+
+                // 表现接触点：攻击盒中心投到受击盒（方案 A）；不回写 Sim
+                Vector3 hitPoint = HitboxMath.EstimateContactPointOnHurtbox(in attackBox, in hurtbox);
 
                 hitPairs.Add(pair);
                 var context = new ActionHitContext(
@@ -92,7 +96,8 @@ public static class HitDetector
                     hitboxIndex,
                     target,
                     hitReceiver,
-                    in context);
+                    in context,
+                    hitPoint);
             }
         }
     }

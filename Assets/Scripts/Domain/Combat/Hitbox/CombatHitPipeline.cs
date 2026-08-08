@@ -39,7 +39,8 @@ public sealed class CombatHitPipeline
         int hitboxIndex,
         IHurtboxTarget target,
         IActionSimHitReceiver hitReceiver,
-        in ActionHitContext context)
+        in ActionHitContext context,
+        Vector3 hitPoint)
     {
         if (_collectingFrame < 0
             || !attackerId.IsValid
@@ -60,7 +61,8 @@ public sealed class CombatHitPipeline
             context,
             target,
             hitReceiver,
-            target.TargetTransform));
+            target.TargetTransform,
+            hitPoint));
     }
 
     /// <summary>先结算 Actor Step 收集的命中，使 PostCombat 可读取同帧命中确认。</summary>
@@ -108,6 +110,7 @@ public sealed class CombatHitPipeline
                     context,
                     hit.TargetTransform,
                     ResolveHitDirection(hit.Context.Attacker, hit.TargetTransform),
+                    hit.HitPoint,
                     absorbedByPerfectDodge: true));
                 continue;
             }
@@ -144,7 +147,8 @@ public sealed class CombatHitPipeline
             _resolved.Add(new ResolvedCombatHit(
                 context,
                 hit.TargetTransform,
-                ResolveHitDirection(hit.Context.Attacker, hit.TargetTransform)));
+                ResolveHitDirection(hit.Context.Attacker, hit.TargetTransform),
+                hit.HitPoint));
         }
 
         _pending.Clear();

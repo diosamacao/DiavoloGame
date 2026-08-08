@@ -11,6 +11,7 @@ public sealed class CombatDebugHudController : AppControllerBase
     [SerializeField] PlayerController playerController;
     [SerializeField] bool visible = true;
     [SerializeField] KeyCode toggleKey = KeyCode.F3;
+    [SerializeField] KeyCode hurtboxToggleKey = KeyCode.F4;
 
     CharacterDebugSnapshot _cached;
     readonly StringBuilder _sb = new(512);
@@ -21,12 +22,28 @@ public sealed class CombatDebugHudController : AppControllerBase
     {
         if (playerController == null)
             playerController = FindObjectOfType<PlayerController>();
+
+        EnsureHurtboxVisualizer();
     }
 
     void Update()
     {
         if (UnityEngine.Input.GetKeyDown(toggleKey))
             visible = !visible;
+
+        if (UnityEngine.Input.GetKeyDown(hurtboxToggleKey))
+            CombatHurtboxDebugSettings.ShowHurtboxes = !CombatHurtboxDebugSettings.ShowHurtboxes;
+    }
+
+    /// <summary>确保场景有 Hurtbox 线框绘制器（可挂本物体上）。</summary>
+    void EnsureHurtboxVisualizer()
+    {
+        if (GetComponent<CombatHurtboxDebugVisualizer>() != null)
+            return;
+        if (FindObjectOfType<CombatHurtboxDebugVisualizer>() != null)
+            return;
+
+        gameObject.AddComponent<CombatHurtboxDebugVisualizer>();
     }
 
     void LateUpdate()
@@ -54,7 +71,10 @@ public sealed class CombatDebugHudController : AppControllerBase
 
     static void AppendSnapshot(StringBuilder sb, in CharacterDebugSnapshot s)
     {
-        sb.AppendLine("[Combat Debug]  F3 toggle");
+        sb.AppendLine("[Combat Debug]  F3 HUD | F4 Hurtbox")
+            .Append("Hurtbox Gizmo: ")
+            .Append(CombatHurtboxDebugSettings.ShowHurtboxes ? "ON" : "OFF")
+            .AppendLine();
         sb.Append("State: ").Append(s.State);
         if (s.ActionActive)
         {
