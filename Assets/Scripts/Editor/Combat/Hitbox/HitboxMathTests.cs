@@ -46,4 +46,27 @@ public sealed class HitboxMathTests
         Assert.That(world.x, Is.EqualTo(1f).Within(0.001f));
         Assert.That(world.z, Is.EqualTo(0f).Within(0.001f));
     }
+
+    /// <summary>盒外点应落到受击盒表面最近点。</summary>
+    [Test]
+    public void ClosestPointOnObb_OutsidePoint_ClampsToSurface()
+    {
+        var box = new HitboxOrientedBox(Vector3.zero, new Vector3(0.5f, 1f, 0.5f), Quaternion.identity);
+        Vector3 closest = HitboxMath.ClosestPointOnObb(in box, new Vector3(10f, 0f, 0f));
+        Assert.That(closest.x, Is.EqualTo(0.5f).Within(0.001f));
+        Assert.That(closest.y, Is.EqualTo(0f).Within(0.001f));
+        Assert.That(closest.z, Is.EqualTo(0f).Within(0.001f));
+    }
+
+    /// <summary>方案 A：接触点=攻击盒中心投到受击盒。</summary>
+    [Test]
+    public void EstimateContactPointOnHurtbox_UsesAttackCenterProjection()
+    {
+        var attack = new HitboxOrientedBox(new Vector3(1.2f, 1f, 0f), Vector3.one * 0.25f, Quaternion.identity);
+        var hurt = new HitboxOrientedBox(new Vector3(0f, 1f, 0f), new Vector3(0.5f, 1f, 0.5f), Quaternion.identity);
+        Vector3 point = HitboxMath.EstimateContactPointOnHurtbox(in attack, in hurt);
+        Assert.That(point.x, Is.EqualTo(0.5f).Within(0.001f));
+        Assert.That(point.y, Is.EqualTo(1f).Within(0.001f));
+        Assert.That(point.z, Is.EqualTo(0f).Within(0.001f));
+    }
 }

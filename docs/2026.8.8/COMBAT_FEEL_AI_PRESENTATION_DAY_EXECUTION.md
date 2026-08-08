@@ -188,7 +188,8 @@ Monster_EDF (EnemyDefinition)
 Unagi `Attack_05/06/Branch_01/02`（含 Perfect）Timeline 已改指 `*_SS9`。  
 **仍需人工：** 受击火花挂 Feedback；Scene 确认 `FeedbackController` + `VFXManager`；Play 目视色差。
 
-Action Editor：同类型多选可批量改属性；轨道路面支持拖拽框选多窗口（Ctrl 叠加）。
+Action Editor：同类型多选可批量改属性；轨道路面支持拖拽框选多窗口（Ctrl 叠加）。  
+受击 Cue：落点=攻击盒中心→Hurtbox 最近点；可随机旋转；**F4** 开逻辑 Hurtbox 线框。
 
 ---
 

@@ -92,6 +92,28 @@ public static class HitboxMath
         return BuildFromHurtboxLogical(in pose, hurtbox);
     }
 
+    /// <summary>
+    /// 世界点到 OBB 的最近点（在盒内则返回点本身；在盒外则落在表面）。
+    /// </summary>
+    public static Vector3 ClosestPointOnObb(in HitboxOrientedBox box, Vector3 worldPoint)
+    {
+        Vector3 local = Quaternion.Inverse(box.Rotation) * (worldPoint - box.Center);
+        Vector3 clamped = new(
+            Mathf.Clamp(local.x, -box.HalfExtents.x, box.HalfExtents.x),
+            Mathf.Clamp(local.y, -box.HalfExtents.y, box.HalfExtents.y),
+            Mathf.Clamp(local.z, -box.HalfExtents.z, box.HalfExtents.z));
+        return box.Center + box.Rotation * clamped;
+    }
+
+    /// <summary>
+    /// 表现用接触点（方案 A）：攻击盒中心投影到受击盒上的最近点。
+    /// 不参与伤害权威，仅供受击 Cue 落点。
+    /// </summary>
+    public static Vector3 EstimateContactPointOnHurtbox(
+        in HitboxOrientedBox attackBox,
+        in HitboxOrientedBox hurtbox) =>
+        ClosestPointOnObb(in hurtbox, attackBox.Center);
+
     /// <summary>两 OBB 是否相交（分离轴定理）。</summary>
     public static bool Intersects(HitboxOrientedBox a, HitboxOrientedBox b)
     {

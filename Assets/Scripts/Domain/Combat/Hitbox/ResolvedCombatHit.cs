@@ -8,11 +8,13 @@ public readonly struct ResolvedCombatHit
         ActionHitContext context,
         Transform targetTransform,
         Vector3 hitDirection,
+        Vector3 hitPoint,
         bool absorbedByPerfectDodge = false)
     {
         Context = context;
         TargetTransform = targetTransform;
         HitDirection = hitDirection;
+        HitPoint = hitPoint;
         AbsorbedByPerfectDodge = absorbedByPerfectDodge;
     }
 
@@ -24,6 +26,9 @@ public readonly struct ResolvedCombatHit
 
     /// <summary>攻击者指向受击者的水平表现方向。</summary>
     public Vector3 HitDirection { get; }
+
+    /// <summary>受击 Cue 落点（逻辑接触估计）。</summary>
+    public Vector3 HitPoint { get; }
 
     /// <summary>是否为完美闪避吞伤（无扣血/受击 Reaction，表现侧勿播受击 Cue）。</summary>
     public bool AbsorbedByPerfectDodge { get; }
