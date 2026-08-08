@@ -45,22 +45,97 @@ A5 不阻塞 A1～A4；若下午时间紧，A5 可降级为「骨架 + EditMode 
 
 ### 3.1 A1 — 木桩（先做）
 
-**目标：** 固定站桩验收 Numeric + Reaction + HitStop + 震屏。
+**目标：** 固定站桩验收 Numeric + Reaction + HitStop + 震屏。  
+**形态定案：** 复用敌人装配链（`EnemyDefinition` → `EnemyActorFactory` → `CharacterActor` + Vitality + Hurtbox）；**无追打**，不新建第二套血量。
 
-**Editor 步骤（主路径，无代码也可先验）：**
+#### 3.1.0 你已有资产 vs 缺口（2026-08-08 扫描）
 
-1. 复制现有 `EnemyDefinition` → 如 `EnemyDefinition_Dummy`：`MaxHp` 拉高（如 `99999`）。  
-2. `EnemyBrainProfile`：`aggroRadius = 0`（保持 Idle，永不 Chase/Attack）。  
-3. 确认敌人 `CharacterConfig` / Hurtbox / 受击 Reaction 已绑（否则只有掉血无动作）。  
-4. 测试场景 `EnemySpawnController`（或等价）固定点刷木桩。  
-5. Play：普攻连段 → F3 对 HP / Grant；观察 HitStop、震屏。
+| 资产 | 路径 | 现状 |
+|------|------|------|
+| `Monster_EDF` | `Assets/Data/Enemy/Monster/` | ❌ `characterConfig` / `brainProfile` 空；`maxHp=100` 偏低 |
+| `MonsterConfig` | `Assets/Data/Combat/Actions/Monster/` | ❌ `modelPrefab`、Locomotion Profile、Intent、CombatProfile 均空；Reactions 无规则 |
+| `MonsterAnimationSO` | 同上 | 🟡 仅绑了 1 条 Clip；校验要求 **Idle+Walk+Run** |
+| `MonsterLocomotion` | 同上 | 🟡 参数在；脚步/RM 可后补 |
+| `Monster_Goblin_Ani_Hit_Stay` | `.../ActionDefinition/` | ✅ 可作默认受击 Action |
+| 旧 `EnemyDefinition` | `Assets/Data/Enemy/` | ✅ 已挂 `UnagiConfig` + `maxHp=10000` + Brain `aggroRadius=0` → **可当临时木桩** |
 
-**可选 Agent（仅当 aggro0 语义不够稳）：**
+```text
+木桩最小依赖图
 
-- `EnemyDefinition` 或 Brain：`disableCombatAi` / `aiMode = Dummy`：不 Tick 决策、不写攻击输入。  
-- **禁止**第二套 HP；重置用 Vitality / 重刷。
+Monster_EDF (EnemyDefinition)
+├─ BrainProfile_Dummy          aggroRadius=0
+├─ maxHp ≥ 99999（或 10000）
+├─ teamId = 1
+└─ MonsterConfig (CharacterConfig)
+   ├─ modelPrefab              Goblin 模型 Prefab
+   ├─ MonsterAnimationSO       Idle/Walk/Run（站桩可三键同 Idle Clip）
+   ├─ MonsterLocomotion        CharacterLocomotionProfile
+   ├─ GameplayIntentProfile    可复用敌人/玩家 Intent（工厂会警告缺 Attack，木桩可忽略）
+   ├─ CombatModeProfile        最小 ActionGraph（可无攻击 Entry，但引用不能空）
+   └─ Combat.reactions
+      └─ Hit 默认规则 → Monster_Goblin_Ani_Hit_Stay
+         （Death 可选：超高血不测；或另绑 Die Action）
+```
 
-**验收：** 大纲 §3.2 四条。
+#### 3.1.1 两条路径
+
+| 路径 | 何时用 | 做法 |
+|------|--------|------|
+| **P0 临时验收** | 今天先验打击感 | 场景 `EnemySpawnController` 直接刷现有 `EnemyDefinition`（Unagi 皮 + 高 HP + aggro0） |
+| **P1 正式怪物木桩** | 用你新建的 Monster 线 | 按下方 Editor 清单补齐引用后，刷 `Monster_EDF` |
+
+建议：**P0 先通一遍验收清单**，同时按 P1 填 Monster，避免堵在模型/Graph 上。
+
+#### 3.1.2 Editor 清单（P1 · Monster 木桩）
+
+按顺序做；Agent **不改** `.asset`。
+
+1. **模型**  
+   - 指定 Goblin（或占位）`modelPrefab` → `MonsterConfig.Model Prefab`。  
+   - 调 `controllerHeight/Radius/Center` 与 Hurtbox `size/offset` 贴合体型。
+
+2. **Locomotion 动画**  
+   - `MonsterAnimationSO`：补齐 **Idle / Walk / Run**（木桩可三键拖同一 Idle Clip）。  
+   - `MonsterConfig.Default Locomotion Profile` → `MonsterAnimationSO`；`Locomotion Profile` → `MonsterLocomotion`。
+
+3. **Intent + 出招表（校验必填，木桩可不攻击）**  
+   - `GameplayIntentProfile`：可复用现有敌人/玩家 Profile。  
+   - 新建最小 `ActionGraph`（可无 Attack Entry）+ `PlayerActionSet` + `CombatModeProfile`（Default 条目指向该 Set）。  
+   - `MonsterConfig.Combat Profile` 挂上。
+
+4. **受击**  
+   - `MonsterConfig.Combat.Reactions`：一条 **Hit + IsDefault** → `Monster_Goblin_Ani_Hit_Stay`。  
+   - 确认该 Action 60Hz、有 Clip；Hurtbox 窗口非必须（受击方）。  
+   - Death：首版可不配（靠超高 HP）；若要测死亡再补 Die Action + 默认 Death 规则。
+
+5. **Brain（站桩）**  
+   - 新建或复制 `EnemyBrainProfile` → `BrainProfile_MonsterDummy`：`aggroRadius = 0`（现网 Idle 永不进 Chase）。  
+   - 可选稍后加代码开关（见 3.1.3），首版不依赖。
+
+6. **Definition**  
+   - `Monster_EDF`：`Character Config` → `MonsterConfig`；`Brain Profile` → Dummy；`Max Hp` → `99999`；`Display Name` → `Dummy` / `GoblinDummy`；`Team Id = 1`。
+
+7. **场景**  
+   - `EnemySpawnController` 增加 Entry：`definition = Monster_EDF`，固定出生点。  
+   - Play：普攻连段 → F3 HP/Grant；看受击、HitStop、震屏。
+
+#### 3.1.3 可选代码（P1 填完后仍不稳再做）
+
+| 改动 | 用途 |
+|------|------|
+| `EnemyDefinition.aiMode = Combat / Dummy` 或 `disableCombatAi` | Dummy：Brain.Step 直接 return / 不写移动与攻击（比 `aggroRadius=0` 语义更硬） |
+| 调试「重置 HP」按钮或重刷 | 倒地后快速复测；仍走 Vitality，禁止旁路扣血 |
+
+**禁止：** 第二套 Health；木桩专用 HitDetector；BT 挂在 Dummy 上。
+
+#### 3.1.4 验收
+
+大纲 §3.2；另加：
+
+- [ ] Console 无 `EnemyDefinition` / `CharacterConfig` 校验 Error  
+- [ ] 木桩不追人、不出招  
+- [ ] 受击播 `Hit_Stay`（或至少 defaultHitStun 硬直）  
+- [ ] F3 `MaxHp` 为 Definition 覆盖值（非 Config 默认 100）
 
 ---
 
