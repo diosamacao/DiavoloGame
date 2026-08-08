@@ -1,7 +1,8 @@
 # 战斗表现 / AI / 木桩 — 日计划大纲（2026-08-09）
 
 > 制定：2026-08-08  
-> 用途：明日开工顺序、范围边界与验收清单（**大纲，非完整方案**）  
+> 用途：开工顺序、范围边界与验收清单（**大纲，非完整方案**）  
+> **今日执行方案：** [COMBAT_FEEL_AI_PRESENTATION_DAY_EXECUTION.md](./COMBAT_FEEL_AI_PRESENTATION_DAY_EXECUTION.md)  
 > 前置完成：GAS G0～G5；Wave 3.4 代码路由（`PerfectDodgeAttack` / Pipeline 武装 / Editor 可加 PerfectDodge 轨）  
 > 关联真源：  
 > - AI：[ENEMY_BEHAVIOR_TREE_PLAN.md](../ENEMY_BEHAVIOR_TREE_PLAN.md)、[ENEMY_SYSTEM_INTEGRATION_PLAN.md](../ENEMY_SYSTEM_INTEGRATION_PLAN.md)  
