@@ -559,7 +559,7 @@ SimulationHost 帧末
   → CombatHitPipeline 稳定排序并统一伤害/Reaction/ConfirmHit
   → CharacterActor.ResolvePostCombat
       → Graph 自动衔接排队；自然结束按 TotalFrames 停止
-      → NotifyActionEnded → ActionSfxPlayer.OnActionEnded → 专用 AudioSource.Stop
+      → NotifyActionEnded → ActionSfxPlayer.OnActionEnded → 0.1s 音量淡出后 Stop
   → PublishAttackHitCommand → AttackHitEvent（仅表现）
       → HitImpactController：Feedback 受击 VFX/SFX（完美吞伤跳过）
       → CameraShakeController / HitStopController（既有）
@@ -584,7 +584,7 @@ SimulationHost 帧末
 
 VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强制 Despawn；池化实例由 `VfxPooledInstance` 按粒子自然时长（含 `playbackSpeed` / 卡肉冻结）自行回池。无 `VFXManager` 时回退 `Destroy(lifetime)`。
 
-SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSfx` 的 `AudioSource`（与脚步声隔离）；`Stop` / `TransitionTo`（含硬打断与 Cancel 切招）经 `OnActionEnded` 调用 `AudioSource.Stop`，打断未播完的动作音效。
+SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSfx` 的 `AudioSource`（与脚步声隔离）；`Stop` / `TransitionTo`（含硬打断与 Cancel 切招）经 `OnActionEnded` 由 `ActionSfxFadeDriver` 在 **0.1s（unscaled）** 内将音量淡到 0 再 `Stop`；新 `PlaySfx` 会取消淡出并恢复音量。
 
 编辑器 Scrub 使用 `ActionEditorPreviewSession` 做 Pose/VFX 预览，并与 Runtime 共用无副作用 `ActionFrameQuery` 的段映射、窗口与点事件规则；不执行 `ActionSim.Step`。
 
@@ -609,7 +609,7 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 | ✅ | Hitbox/VFX/Cancel/Movement/Rotation 已收敛到 `ActionTimeline`，删除旧双轨数组 |
 | ✅ | `ActionEditorWindow`：手动加轨、轨头纵向拖拽排序、窗口拖拽；VFX/SFX 为单帧点事件菱形，Phase 为区间窗口；时间轴缩放 |
 | ✅ | Scene 预览按 Scrub 帧显示全部激活 Hitbox / 已触发 VFX（`ActionEditorVfxPreviewExtension` 多实例） |
-| ✅ | `ActionSfxPlayer` 运行时点触发；招式结束/打断时 `Stop`；`CharacterAttachPointResolver` 供 VFX/Hitbox 共用 |
+| ✅ | `ActionSfxPlayer` 运行时点触发；招式结束/打断时 0.1s 淡出；`CharacterAttachPointResolver` 供 VFX/Hitbox 共用 |
 | ⬜ | 伤害结算、Hit 状态、GM 热重载 |
 
 ### 已知限制
@@ -797,6 +797,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-08 | A2：`HitFeedbackSettings` 受击 VFX/SFX；`HitImpactController` 订 `AttackHitEvent`；PD 吞伤跳过 Cue |
 | 2026-08-08 | Action Editor：同类型多选窗口支持右侧属性批量应用 |
 | 2026-08-08 | Action Editor：轨道路面拖拽框选多窗口 |
+| 2026-08-08 | `ActionSfxPlayer`：打断/结束改为 0.1s 音量淡出（`ActionSfxFadeDriver`） |
 
 ---
 
