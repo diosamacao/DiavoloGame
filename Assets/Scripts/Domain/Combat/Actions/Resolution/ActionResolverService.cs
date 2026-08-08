@@ -7,14 +7,14 @@ public sealed class ActionResolverService
 {
     readonly CombatModeService _combatMode;
 
-    /// <summary>创建解析服务；出招表由 CombatModeService.ActiveActionSet 提供。</summary>
+    /// <summary>创建解析服务；出招图由 CombatModeService.ActiveGraph 提供。</summary>
     public ActionResolverService(CombatModeService combatMode)
     {
         _combatMode = combatMode;
     }
 
     /// <summary>当前模式绑定的 ActionGraph。</summary>
-    public ActionGraph ActiveGraph => _combatMode?.ActiveActionSet?.ActionGraph;
+    public ActionGraph ActiveGraph => _combatMode?.ActiveGraph;
 
     /// <summary>
     /// Graph Entry 解析：服务于 Locomotion 起手、Recovery 软重开与 Action 态 PriorityInterrupt。
@@ -58,11 +58,13 @@ public sealed class ActionResolverService
     /// <summary>枚举当前出招图中的全部节点意图，供缓冲清理与 Cancel 候选收集。</summary>
     public IEnumerable<GameplayIntentType> EnumerateActiveIntents()
     {
-        PlayerActionSet actionSet = _combatMode?.ActiveActionSet;
-        if (actionSet == null)
+        ActionGraph graph = ActiveGraph;
+        if (graph == null)
             yield break;
 
-        foreach (GameplayIntentType intent in actionSet.EnumerateIntents())
+        var set = new HashSet<GameplayIntentType>();
+        graph.CollectIntents(set);
+        foreach (GameplayIntentType intent in set)
             yield return intent;
     }
 }

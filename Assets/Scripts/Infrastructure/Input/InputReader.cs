@@ -20,7 +20,7 @@ public sealed class InputReader : ILocalInputSampler
         InitializeActions();
     }
 
-    /// <summary>由 PlayerController 根据 PlayerActionSet.entries 注入，无需在 Prefab 重复配置。</summary>
+    /// <summary>由工厂根据全局 GameplayIntentProfile 注入离散 Action，无需在 Prefab 重复配置。</summary>
     public void ConfigureDiscreteInputs(InputActionReference[] references)
     {
         _discreteInputs = references ?? Array.Empty<InputActionReference>();

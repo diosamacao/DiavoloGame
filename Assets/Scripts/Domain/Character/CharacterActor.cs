@@ -233,7 +233,7 @@ public sealed class CharacterActor :
         if (_numeric != null && _numeric.Flags.HasPerfectDodgeCounter)
             return "Counter";
 
-        ActionGraph graph = _combatMode?.ActiveActionSet?.ActionGraph;
+        ActionGraph graph = _combatMode?.ActiveGraph;
         if (graph == null || _actionSim == null)
             return "-";
 

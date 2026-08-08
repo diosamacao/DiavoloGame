@@ -253,18 +253,20 @@ EnemyDefinition
 
 **验收：** 玩家连招意图 / 缓冲帧与迁前一致；敌人仍能 `PulseAttack`；新建 Config 无需拖 Intent。
 
-### Phase B — 删除 PlayerActionSet（中，玩家+敌人一起切）
+### Phase B — 删除 PlayerActionSet（中，玩家+敌人一起切）✅ 代码 2026-08-08
 
 **代码**
 
-- `CombatModeEntry.actionGraph` 替换 `actionSet`  
-- `ICombatModeService.ActiveActionSet` → `ActiveGraph`（或保留属性但类型改为 Graph）  
-- 删除 `PlayerActionSet.cs` 与 Create 菜单  
-- Editor 迁移菜单：扫描旧 Set，把 Graph 写到 ModeEntry，再提示删 Set 资产  
+- [x] `CombatModeEntry.actionGraph`；`ICombatModeService.ActiveGraph`  
+- [x] 删除 `PlayerActionSet.cs`  
+- [x] Editor：`ACTGame/Combat/Migrate ActionSet To Mode Graph`（打开工程 delayCall 自动跑一次）  
+- [x] `ACTGame/Combat/Delete Orphan PlayerActionSet Assets`  
 
-**资产（人工确认迁移结果）**
+**资产（人工）**
 
-- Unagi / Player / Monster 的 ModeProfile 直挂 Graph  
+- [ ] 打开 Unity 确认 Console 迁移日志；ModeProfile 条目显示 Graph  
+- [ ] 可选：执行 Delete Orphan… 清理空壳 Set  
+- [ ] Play：连招 / Cancel / 敌人攻击  
 
 **验收：** 连招 / Cancel / 模式切换 / 敌人攻击与迁前一致。
 
@@ -334,4 +336,4 @@ EnemyDefinition
 6. Phase D：校验/Inspector 规范
 ```
 
-确认本方案后，建议下一会话实现 **Phase A + A2**（开关与全局 Intent 均可小步合入）；**Phase B** 单独开 PR（资产迁移面大）。
+**已落地代码：** Phase A / A2 / B。打开 Unity 后确认 ModeProfile 迁移成功；下一代码步为 **Phase C**（单模式 Config 直挂 Graph）。
