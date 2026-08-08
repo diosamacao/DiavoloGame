@@ -35,7 +35,7 @@ MonoBehaviour:
   executionPolicy:
     interruptPriority: 0
     useRootMotion: 1
-    baseMotionMode: 0
+    baseMotionMode: 2
   resourceSpec:
     resourceTag: 4
     energyCost: 40
