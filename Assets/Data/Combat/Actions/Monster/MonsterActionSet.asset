@@ -9,11 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fdca7999a300ce0418a668f21a7d0bda, type: 3}
-  m_Name: Monster_EDF
+  m_Script: {fileID: 11500000, guid: ca7d0218503b29548be403a763a47b6e, type: 3}
+  m_Name: MonsterActionSet
   m_EditorClassIdentifier: 
-  displayName: Enemy
-  characterConfig: {fileID: 0}
-  brainProfile: {fileID: 0}
-  maxHp: 100
-  teamId: 1
+  actionGraph: {fileID: 11400000, guid: 425b15927a23af54aad2ceb040be7065, type: 2}

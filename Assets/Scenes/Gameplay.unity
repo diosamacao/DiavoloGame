@@ -11493,7 +11493,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   target: {fileID: 0}
   entries:
-  - definition: {fileID: 11400000, guid: f05b160cf41d7814aab3d0e785bc670e, type: 2}
+  - definition: {fileID: 11400000, guid: 02c902140ab62b5439f0f1793fd33acd, type: 2}
     spawnPoint: {fileID: 1883217394}
     spawnOnStart: 1
     maxAlive: 0
