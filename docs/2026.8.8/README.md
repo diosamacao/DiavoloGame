@@ -2,7 +2,8 @@
 
 | 文档 | 角色 |
 |------|------|
-| **[COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md](./COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md)** | **2026-08-09 日计划大纲**：AI 行为树、战斗表现、打击 VFX/SFX、木桩 |
+| **[COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md](./COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md)** | 日计划大纲：范围 / 非目标 / 验收 |
+| **[COMBAT_FEEL_AI_PRESENTATION_DAY_EXECUTION.md](./COMBAT_FEEL_AI_PRESENTATION_DAY_EXECUTION.md)** | **今日执行方案**：时间盒 / Agent vs Editor / 开工顺序 |
 
 前置：
 
