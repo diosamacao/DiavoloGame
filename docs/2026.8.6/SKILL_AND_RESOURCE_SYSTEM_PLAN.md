@@ -385,7 +385,7 @@ EX/Ult 默认 `grantsEnergyOnHit=false`。
 - [x] 玩家必须消耗资源才能放强化技 / 大招（Gate 生效；资产填 cost 后验收）  
 - [x] 同键 Special/EX 行为符合绝区零心智模型（代码选形就绪；Graph 双 Entry 人工）  
 - [x] 命中回能/喧响仅在 Pipeline ConfirmHit  
-- [x] 闪避有限 + 可完美反击（窗/武装/Intent/清缓冲已接；**Graph Counter Entry 需 Editor**）  
+- [x] 闪避有限 + 可完美反击（窗/武装/Intent/清缓冲 + Graph Counter Entry ✅ 2026-08-08）  
 - [x] 技能差异主要靠 Action 资产与 Tag，而非角色硬编码  
 - [x] Debug HUD 可观测全部资源与当前路由结果（Next Special）  
 
