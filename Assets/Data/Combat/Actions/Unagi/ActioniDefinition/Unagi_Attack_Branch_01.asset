@@ -34,7 +34,6 @@ MonoBehaviour:
   crossFadeDuration: 0.1
   executionPolicy:
     interruptPriority: 0
-    useRootMotion: 1
     baseMotionMode: 2
   resourceSpec:
     resourceTag: 3
@@ -64,7 +63,7 @@ MonoBehaviour:
       endFrame: 24
       priority: 0
       trackName: VFX_1
-      prefab: {fileID: 7611201976539897820, guid: 7cb8e87bb37242ef973478c02595f50e, type: 3}
+      prefab: {fileID: 7611201976539897820, guid: 7266579c32444dc88137c8d5f1696764, type: 3}
       attachPointId: 
       localOffset: {x: -0, y: 0.68, z: 1.32}
       localEulerAngles: {x: 180, y: 0, z: 173.47}
@@ -91,6 +90,11 @@ MonoBehaviour:
           useHitStop: 0
           hitStopFrames: 0
           hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 0}
+          hitImpactSfxVolume: 1
+          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactScale: {x: 0.3, y: 0.3, z: 0.3}
     hurtboxStates: []
     cancelWindowStates:
     - id: Cancel_1

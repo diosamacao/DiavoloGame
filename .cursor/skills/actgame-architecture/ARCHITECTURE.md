@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-08（GAS G5：Numeric 完成态；Resources 仅作者壳）
+> Last audited: 2026-08-08（A2：命中受击 Cue 经 AttackHitEvent → HitImpactController）
 
 ## 项目概述
 
@@ -166,7 +166,8 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 | `CombatActorSystem` / `TargetSystem` / `CombatFeedbackSystem` | 战斗角色注册、目标注册、反馈状态 |
 | `PublishAttackHitCommand` / `GetActiveTargetsQuery` / `AttackHitEvent` | 已结算命中的只读表现通知入口与无副作用目标查询 |
 | `HitboxFrameConsumer` / `HitDetector` / `CombatHitPipeline` / `TargetingResolver` | 动作帧几何检测只 Collect；命中按 `SimHitKey` 排序后帧末统一结算 |
-| `HitPayload` / `HitFeedbackSettings` | 单个 Hitbox 的伤害、HitReactionId、镜头震动与卡肉载荷 |
+| `HitPayload` / `HitFeedbackSettings` | 单个 Hitbox 的伤害、HitReactionId、镜头震动、卡肉与受击 Cue（VFX/SFX）载荷 |
+| `HitImpactController` / `FeedbackController` | 帧末 `AttackHitEvent` 播受击特效/音效；卡肉由同宿主 `HitStopController` 托管 |
 | `CharacterReactionSet` / `CharacterReactionResolver` | 按 HitReactionId 与反应类型生成完整受击/死亡状态请求；默认硬直时长也由规则集持有 |
 | `CharacterReactionService` | 玩家/敌人共用的 Vitality 边沿桥接：副作用 + 解析结果交给 CharacterActor |
 | `CombatModeProfile` | mode → `ActionGraph`（节点按语义 Intent 匹配；无 ActionSet 壳） |

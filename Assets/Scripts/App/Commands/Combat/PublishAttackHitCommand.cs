@@ -15,6 +15,7 @@ public sealed class PublishAttackHitCommand : ArchitectureCommandBase
         this.SendEvent(new AttackHitEvent(
             _hit.Context,
             _hit.TargetTransform,
-            _hit.HitDirection));
+            _hit.HitDirection,
+            _hit.AbsorbedByPerfectDodge));
     }
 }

@@ -15,9 +15,6 @@ MonoBehaviour:
   modelPrefab: {fileID: 919132149155446097, guid: 40e0035ffd452624098b545d63c7eefd, type: 3}
   modelLocalPosition: {x: 0, y: 0, z: 0}
   modelLocalEulerAngles: {x: 0, y: 0, z: 0}
-  defaultLocomotionProfile: {fileID: 11400000, guid: 38bb8422962bc454aa6af616a535d635, type: 2}
-  locomotionProfile: {fileID: 11400000, guid: 04c97d7aa4cbe0f4b97d7ca551d406d8, type: 2}
-  inputActions: {fileID: -944628639613478452, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
   motor:
     walkSpeed: 4
     runSpeed: 7
@@ -27,7 +24,7 @@ MonoBehaviour:
     gravity: -20
     groundedGravity: -2
     controllerHeight: 1.7
-    controllerRadius: 0.28
+    controllerRadius: 1.39
     controllerCenter: {x: 0, y: 0.85, z: 0}
     softBodyMass: 1000
     softBodyImmovable: 0

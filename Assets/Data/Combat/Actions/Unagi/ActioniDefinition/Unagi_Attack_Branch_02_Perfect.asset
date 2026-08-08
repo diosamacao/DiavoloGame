@@ -47,7 +47,7 @@ MonoBehaviour:
       endFrame: 28
       priority: 0
       trackName: VFX_1
-      prefab: {fileID: 6855955652325114174, guid: e6ab044536df47e0ade30b4e41e559f4, type: 3}
+      prefab: {fileID: 6855955652325114174, guid: 9feeffc118524c829dc98322405ce38c, type: 3}
       attachPointId: 
       localOffset: {x: 0, y: 0.64, z: 1.36}
       localEulerAngles: {x: 0, y: 0, z: 0}

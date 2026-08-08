@@ -34,7 +34,6 @@ MonoBehaviour:
   crossFadeDuration: 0.1
   executionPolicy:
     interruptPriority: 0
-    useRootMotion: 1
     baseMotionMode: 2
   resourceSpec:
     resourceTag: 4
@@ -64,7 +63,7 @@ MonoBehaviour:
       endFrame: 46
       priority: 0
       trackName: VFX_1
-      prefab: {fileID: 6855955652325114174, guid: e6ab044536df47e0ade30b4e41e559f4, type: 3}
+      prefab: {fileID: 6855955652325114174, guid: 9feeffc118524c829dc98322405ce38c, type: 3}
       attachPointId: 
       localOffset: {x: 0, y: 0.64, z: 1.61}
       localEulerAngles: {x: 0, y: 0, z: 0}
@@ -103,6 +102,11 @@ MonoBehaviour:
           useHitStop: 0
           hitStopFrames: 0
           hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 0}
+          hitImpactSfx: {fileID: 0}
+          hitImpactSfxVolume: 1
+          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactScale: {x: 1, y: 1, z: 1}
     - id: Hitbox_2
       startFrame: 47
       endFrame: 48
@@ -121,6 +125,11 @@ MonoBehaviour:
           useHitStop: 0
           hitStopFrames: 0
           hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 0}
+          hitImpactSfx: {fileID: 0}
+          hitImpactSfxVolume: 1
+          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactScale: {x: 1, y: 1, z: 1}
     - id: Hitbox_3
       startFrame: 51
       endFrame: 52
@@ -139,6 +148,11 @@ MonoBehaviour:
           useHitStop: 0
           hitStopFrames: 0
           hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 0}
+          hitImpactSfx: {fileID: 0}
+          hitImpactSfxVolume: 1
+          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactScale: {x: 1, y: 1, z: 1}
     - id: Hitbox_4
       startFrame: 55
       endFrame: 56
@@ -157,6 +171,11 @@ MonoBehaviour:
           useHitStop: 0
           hitStopFrames: 0
           hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 0}
+          hitImpactSfx: {fileID: 0}
+          hitImpactSfxVolume: 1
+          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactScale: {x: 1, y: 1, z: 1}
     - id: Hitbox_5
       startFrame: 59
       endFrame: 60
@@ -175,6 +194,11 @@ MonoBehaviour:
           useHitStop: 0
           hitStopFrames: 0
           hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 0}
+          hitImpactSfx: {fileID: 0}
+          hitImpactSfxVolume: 1
+          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactScale: {x: 1, y: 1, z: 1}
     - id: Hitbox_6
       startFrame: 63
       endFrame: 64
@@ -193,6 +217,11 @@ MonoBehaviour:
           useHitStop: 0
           hitStopFrames: 0
           hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 0}
+          hitImpactSfx: {fileID: 0}
+          hitImpactSfxVolume: 1
+          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactScale: {x: 1, y: 1, z: 1}
     - id: Hitbox_7
       startFrame: 67
       endFrame: 68
@@ -211,6 +240,11 @@ MonoBehaviour:
           useHitStop: 0
           hitStopFrames: 0
           hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 0}
+          hitImpactSfxVolume: 1
+          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactScale: {x: 0.3, y: 0.3, z: 0.3}
     hurtboxStates: []
     cancelWindowStates:
     - id: Cancel_1

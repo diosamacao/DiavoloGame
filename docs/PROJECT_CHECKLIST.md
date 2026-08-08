@@ -51,22 +51,22 @@
 | 正式 UI / 血条 | ⬜ | 仅 Debug HUD；目标 MVVM |
 | 吸附 / 绕背 | ⬜ | Wave 4 |
 | 预测回滚 / 联网 | ⬜ | L3 / L5 |
-| 打击感木桩验收台 | 🟡 | Brain `enableCombatActions` 已落地；Editor 关开关 + Hit Default |
+| 打击感木桩验收台 | ✅ | Monster_EDF + 关行动 + Hit_Shake；Play 验收 2026-08-08 |
 | 学习/工程实践轨 | ⬜ | BT 编辑器、A*、AB/Lua、SDK、剧情等（§6.4） |
 
 ---
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项：** A1 木桩 Editor 验收；配置链可按需 Phase C  
-→ 木桩/配置链：[`2026.8.8/CONFIG_CHAIN_AND_DUMMY_AI_PLAN.md`](./2026.8.8/CONFIG_CHAIN_AND_DUMMY_AI_PLAN.md)（A～B3 代码 ✅）  
-→ 日计划：[`2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md`](./2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md)
+**下一项：** 日计划 **A2 — 命中 VFX/SFX**  
+→ 日计划：[`2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md`](./2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md)  
+→ 配置链：[`2026.8.8/CONFIG_CHAIN_AND_DUMMY_AI_PLAN.md`](./2026.8.8/CONFIG_CHAIN_AND_DUMMY_AI_PLAN.md)（A～B3 ✅；Phase C 按需）
 
 | # | 项 | 状态 |
 |---|------|------|
 | A0 | Editor：PerfectDodge 窗 + Counter Entry + Spec 抽查 | ✅ |
-| A1 | 木桩靶（Numeric + Reaction + HitStop/震屏可观测） | ⬜ ← 当前 |
-| A2 | 打击 VFX/SFX + HitFeedback | ⬜ |
+| A1 | 木桩靶（Numeric + Reaction + HitStop/震屏可观测） | ✅ 2026-08-08 |
+| A2 | 打击 VFX/SFX + HitFeedback | ⬜ ← 当前 |
 | A3 | 完美闪避子弹时间（表现，不改吞伤权威） | ⬜ |
 | A4 | 相机轻优化（勿塞完整 Lock-On） | ⬜ |
 | A5 | AI 行为树 Phase-1（只写 InputFrame） | ⬜ |
@@ -135,7 +135,7 @@
 - [ ] Locomotion Phase D：减速曲线、Pivot 位移、落脚编辑工具
 - [ ] Action Editor：SFX 预览、校验强化、GraphView 润色
 - [ ] 敌人 Definition / Graph / 动画资产齐套
-- [ ] A1 木桩 Prefab + 测试场景摆放（人工）
+- [x] A1 木桩 Prefab + 测试场景摆放（人工，✅ 2026-08-08）
 
 ### 6.3 待建设（战斗 / Demo 主线）
 
