@@ -179,7 +179,7 @@ Monster_EDF (EnemyDefinition)
 
 | 源 Prefab | 已输出 ✅ |
 |-----------|----------|
-| `Slash_D_Quintuple` | `Assets/Art/VFX/Prefabs/SwordSlash9/Slash_D_Quintuple_SS9.prefab` |
+| `Slash_D_Quintuple` | `.../SwordSlash9/Slash_D_Quintuple_SS9.prefab`（已对齐 Double：Hovl `Slash1`+`Trail70bcg`） |
 | `Slash_Aoe_A_Dstyle` | `.../SwordSlash9/Slash_Aoe_A_Dstyle_SS9.prefab` |
 | `Slash_B_BlueSlash` | `.../SwordSlash9/Slash_B_BlueSlash_SS9.prefab` |
 | `Slash_Aoe_A_Ball_Blue` | `.../SwordSlash9/Slash_Aoe_A_Ball_Blue_SS9.prefab` |
