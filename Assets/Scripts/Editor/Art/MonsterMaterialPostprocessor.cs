@@ -4,23 +4,23 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Monster.fbx 导入时强制赋材质。
-/// 该 FBX 在 Unity 中会落到 Default-Material（Remap 槽位不生效），故按 Renderer 名绑定。
+/// Monster 目录下全部 FBX（主模型 / Root / Inplace）导入时强制赋材质。
+/// 这些 FBX 在 MaterialDescription 模式下会落到 Default-Material，故用 Legacy + Renderer 名绑定。
 /// </summary>
 public sealed class MonsterMaterialPostprocessor : AssetPostprocessor
 {
-    const string ModelFbxPath = "Assets/Art/Characters/Monster/Monster.fbx";
-    const string BodyMatPath = "Assets/Art/Characters/Monster/Tex/Materials/MAT_Monster_Goblin.mat";
-    const string WeaponMatPath = "Assets/Art/Characters/Monster/Tex/Materials/MAT_Metro_Goblin_Weapon.mat";
+    public const string MonsterRootFolder = "Assets/Art/Characters/Monster";
+    public const string BodyMatPath = "Assets/Art/Characters/Monster/Tex/Materials/MAT_Monster_Goblin.mat";
+    public const string WeaponMatPath = "Assets/Art/Characters/Monster/Tex/Materials/MAT_Metro_Goblin_Weapon.mat";
 
-    /// <summary>仅处理 Monster 主模型，并固定导入材质策略。</summary>
+    /// <summary>Monster 目录下任意 FBX：固定 Legacy 材质导入策略。</summary>
     void OnPreprocessModel()
     {
-        if (!IsMonsterModel(assetPath))
+        if (!IsMonsterFbx(assetPath))
             return;
 
         var importer = (ModelImporter)assetImporter;
-        // OnAssignMaterialModel 仅在 ImportStandard(Legacy) 下回调；MaterialDescription 模式不会进这里
+        // OnAssignMaterialModel 仅在 ImportStandard(Legacy) 下回调
         importer.materialImportMode = ModelImporterMaterialImportMode.ImportStandard;
         importer.materialLocation = ModelImporterMaterialLocation.InPrefab;
         importer.materialName = ModelImporterMaterialName.BasedOnMaterialName;
@@ -28,11 +28,11 @@ public sealed class MonsterMaterialPostprocessor : AssetPostprocessor
     }
 
     /// <summary>
-    /// Legacy 导入赋材质回调：按 Renderer/槽位名替换为外部材质（避免 Default-Material 白模）。
+    /// Legacy 赋材质回调：按 Renderer/槽位名替换为外部材质（避免 Default-Material 白模）。
     /// </summary>
     Material OnAssignMaterialModel(Material material, Renderer renderer)
     {
-        if (!IsMonsterModel(assetPath))
+        if (!IsMonsterFbx(assetPath))
             return null;
 
         Material body = AssetDatabase.LoadAssetAtPath<Material>(BodyMatPath);
@@ -54,18 +54,23 @@ public sealed class MonsterMaterialPostprocessor : AssetPostprocessor
             ContainsIgnoreCase(matName, "Monster"))
             return body;
 
-        // 兜底：未知槽位也给身体材质，避免再落回 Default-Material 白模
         Debug.LogWarning(
-            $"[MonsterMaterialPostprocessor] 未识别槽位，回退身体材质：mat={matName}, renderer={rendererName}");
+            $"[MonsterMaterialPostprocessor] 未识别槽位，回退身体材质：path={assetPath}, mat={matName}, renderer={rendererName}");
         return body;
     }
 
-    static bool IsMonsterModel(string path)
+    /// <summary>是否为 Monster 目录下的 FBX（含 Root / Inplace / 主模型）。</summary>
+    public static bool IsMonsterFbx(string path)
     {
-        return string.Equals(
-            path.Replace('\\', '/'),
-            ModelFbxPath,
-            StringComparison.OrdinalIgnoreCase);
+        if (string.IsNullOrEmpty(path))
+            return false;
+
+        string normalized = path.Replace('\\', '/');
+        if (!normalized.StartsWith(MonsterRootFolder + "/", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(normalized, MonsterRootFolder, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return normalized.EndsWith(".fbx", StringComparison.OrdinalIgnoreCase);
     }
 
     static bool ContainsIgnoreCase(string value, string token)

@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
+  m_Name: Monster_Goblin_Hit_Shake
+  m_EditorClassIdentifier: 
+  animationSegments:
+  - clip: {fileID: -1837773511420484736, guid: d5312259d4a874e47b7747e41d57c297, type: 3}
+    startFrame: 0
+    endFrame: -1
+    hasCrossFadeOverride: 0
+    crossFadeDuration: 0
+  sampleRate: 60
+  totalFrames: 25
+  actionType: 3
+  crossFadeDuration: 0.1
+  executionPolicy:
+    interruptPriority: 100
+    baseMotionMode: 2
+  resourceSpec:
+    resourceTag: 0
+    energyCost: 0
+    energyGrantOnHit: 0
+    decibelGrantOnHit: 0
+    consumeDodgeCharge: 0
+    requiresDecibelFull: 0
+    clearsDecibelOnStart: 0
+  timeline:
+    actionEvents: []
+    playVfxNotifies: []
+    playSfxStates: []
+    hitboxStates: []
+    hurtboxStates: []
+    cancelWindowStates: []
+    phaseStates: []
+    perfectDodgeWindowStates: []
+    movementStates: []
+    rotationStates: []
+    tracks: []
+  bakedMotion:
+    logicHz: 60
+    frameCount: 0
+    planarMode: 0
+    positionDeltaMmX: 
+    positionDeltaMmZ: 
+    yawDeltaMilliDeg: 
+    inplaceContentHash: 
+    rootMotionContentHash: 
+    matchedRootMotionName: 
+    bakeStatus: 0

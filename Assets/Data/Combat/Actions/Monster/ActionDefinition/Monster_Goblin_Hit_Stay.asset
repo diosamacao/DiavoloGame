@@ -10,16 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
-  m_Name: Monster_Goblin_Ani_Hit_Stay
+  m_Name: Monster_Goblin_Hit_Stay
   m_EditorClassIdentifier: 
   animationSegments:
-  - clip: {fileID: -6273987044784805773, guid: 4a3574896845b004f9042be09ef84601, type: 3}
+  - clip: {fileID: -4392580302301866698, guid: 6e10738609fcf0644bf057c46bf20054, type: 3}
     startFrame: 0
     endFrame: -1
     hasCrossFadeOverride: 0
     crossFadeDuration: 0
   sampleRate: 60
-  totalFrames: 91
+  totalFrames: 105
   actionType: 0
   crossFadeDuration: 0.1
   executionPolicy:

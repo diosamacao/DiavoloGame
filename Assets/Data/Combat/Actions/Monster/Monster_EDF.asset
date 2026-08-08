@@ -15,5 +15,5 @@ MonoBehaviour:
   displayName: Enemy
   characterConfig: {fileID: 11400000, guid: 9652ef6899c7880418d27317f6d928d3, type: 2}
   brainProfile: {fileID: 11400000, guid: 8b3d7a69f2a88e3429abf70eb021ac4e, type: 2}
-  maxHp: 100
+  maxHp: 1000000
   teamId: 1

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6d043f51eb824084bb285c2b67ad61d0, type: 3}
   m_Name: MonsterConfig
   m_EditorClassIdentifier: 
-  modelPrefab: {fileID: 919132149155446097, guid: f5255da99f6af944b907e552b710ca49, type: 3}
+  modelPrefab: {fileID: 919132149155446097, guid: 40e0035ffd452624098b545d63c7eefd, type: 3}
   modelLocalPosition: {x: 0, y: 0, z: 0}
   modelLocalEulerAngles: {x: 0, y: 0, z: 0}
   defaultLocomotionProfile: {fileID: 11400000, guid: 38bb8422962bc454aa6af616a535d635, type: 2}
@@ -32,7 +32,7 @@ MonoBehaviour:
     controllerCenter: {x: 0, y: 0.85, z: 0}
     softBodyMass: 100
     softBodyImmovable: 0
-  combatProfile: {fileID: 11400000, guid: ed6f882222ffc584bbda9d5d9e124bae, type: 2}
+  combatProfile: {fileID: 11400000, guid: 51d2736784a3a2742b3b3f3065304820, type: 2}
   combat:
     teamId: 0
     attachPointName: 
@@ -44,7 +44,11 @@ MonoBehaviour:
     maxHealth: 100
     reactions:
       defaultHitStunFrames: 21
-      rules: []
+      rules:
+      - reactionType: 0
+        reactionId: 1
+        defaultRule: 0
+        action: {fileID: 11400000, guid: ef0c9f0264bc33746a2aabfea88f00de, type: 2}
   resources:
     maxEnergy: 120
     energyRegenMilliPerFrame: 200
