@@ -32,7 +32,7 @@ MonoBehaviour:
     baseMotionMode: 2
   resourceSpec:
     resourceTag: 4
-    energyCost: 40
+    energyCost: 10
     energyGrantOnHit: 0
     decibelGrantOnHit: 0
     consumeDodgeCharge: 0
@@ -333,7 +333,35 @@ MonoBehaviour:
       endFrame: 7
       priority: 0
       trackName: Rotation_1
-      smoothTimeOverride: 0
+      smoothTimeOverride: 0.05
+    motionModifierStates:
+    - id: MotionModifier_1
+      startFrame: 0
+      endFrame: 17
+      priority: 0
+      trackName: MotionModifier_1
+      mode: 1
+      targetSource: 0
+      horizontalOffsetMm: 1000
+      lateralOffsetMm: 0
+      maxCorrectionMmPerFrame: 99999
+      maxAcquireDistanceMm: 99999
+      maxAngleMilliDeg: 0
+      stopOnTargetLost: 1
+    - id: MotionModifier_2
+      startFrame: 0
+      endFrame: 42
+      priority: 0
+      trackName: MotionModifier_2
+      mode: 0
+      targetSource: 0
+      horizontalOffsetMm: 1000
+      lateralOffsetMm: 0
+      maxCorrectionMmPerFrame: 250
+      maxAcquireDistanceMm: 4500
+      maxAngleMilliDeg: 0
+      stopOnTargetLost: 1
+    motionCommandNotifies: []
     tracks:
     - trackName: Phase_1
       kind: 8
@@ -352,6 +380,12 @@ MonoBehaviour:
       visible: 1
     - trackName: SFX_1
       kind: 3
+      visible: 1
+    - trackName: MotionModifier_1
+      kind: 11
+      visible: 1
+    - trackName: MotionModifier_2
+      kind: 11
       visible: 1
   bakedMotion:
     logicHz: 60

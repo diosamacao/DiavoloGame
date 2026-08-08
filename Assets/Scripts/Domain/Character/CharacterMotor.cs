@@ -247,6 +247,16 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
             SyncRootFromSim();
     }
 
+    /// <summary>按世界水平毫米 Δ 移动；供 TargetAdhesion 修正使用。</summary>
+    public void MoveWorldMm(int dxMm, int dzMm)
+    {
+        if (dxMm == 0 && dzMm == 0)
+            return;
+
+        if (_sim.TryMoveWorldMm(dxMm, dzMm))
+            SyncRootFromSim();
+    }
+
     /// <summary>绕 Y 叠加偏航（烘焙根旋转）。</summary>
     public void ApplyYawDegrees(float yawDeltaDegrees)
     {

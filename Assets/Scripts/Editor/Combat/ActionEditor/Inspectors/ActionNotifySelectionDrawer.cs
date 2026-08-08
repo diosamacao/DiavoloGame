@@ -109,6 +109,12 @@ public static class ActionNotifySelectionDrawer
                 case ActionTimelineTrackKind.PerfectDodgeWindow:
                     DrawPerfectDodgeWindow();
                     break;
+                case ActionTimelineTrackKind.MotionModifier:
+                    DrawMotionModifier(element, batchSet);
+                    break;
+                case ActionTimelineTrackKind.MotionCommand:
+                    DrawMotionCommand(element, batchSet);
+                    break;
             }
         }
 
@@ -355,6 +361,60 @@ public static class ActionNotifySelectionDrawer
             "玩家 Dodge 上的完美闪避窗。窗内被命中：吞伤、不 Grant，并武装 PerfectDodgeCounter。\n"
             + "与 Phase=Invincible 不同：完美窗优先且会武装反击缓冲。",
             MessageType.Info);
+    }
+
+    /// <summary>位移修正窗：SoftBodySuppress / TargetAdhesion 字段。</summary>
+    static void DrawMotionModifier(SerializedProperty element, ActionEditorSelectionSet batchSet)
+    {
+        DrawMultiProperty(batchSet, element, "mode");
+        SerializedProperty modeProp = element.FindPropertyRelative("mode");
+        bool adhesion = modeProp != null
+            && modeProp.enumValueIndex == (int)MotionModifierMode.TargetAdhesion;
+
+        if (adhesion)
+        {
+            EditorGUILayout.HelpBox(
+                "TargetAdhesion：desired = 敌人 + normalize(敌−我)*horizontalOffset。"
+                + " >0 穿到敌后侧；窗口时长=吸附时长（剩余帧均摊）。\n"
+                + "Scene：选中本窗口后显示红色假敌球（可拖），绿色为吸附修正轨迹；Scrub 预览根跟修正落点。",
+                MessageType.Info);
+            DrawMultiProperty(batchSet, element, "targetSource");
+            DrawMultiProperty(
+                batchSet,
+                element,
+                "horizontalOffsetMm",
+                new GUIContent("Horizontal Offset (mm)", ">0 敌后，=0 敌心，<0 敌前"));
+            DrawMultiProperty(batchSet, element, "lateralOffsetMm");
+            DrawMultiProperty(batchSet, element, "maxCorrectionMmPerFrame");
+            DrawMultiProperty(batchSet, element, "maxAcquireDistanceMm");
+            DrawMultiProperty(batchSet, element, "maxAngleMilliDeg");
+            DrawMultiProperty(batchSet, element, "stopOnTargetLost");
+        }
+        else
+        {
+            EditorGUILayout.HelpBox(
+                "SoftBodySuppress：窗内攻击者不参与角色软体互撞，仍碰静态墙。\n"
+                + "Scene：选中本窗口时仍显示可拖拽假敌球，便于对照叠人距离（无吸附轨迹）。",
+                MessageType.Info);
+        }
+    }
+
+    /// <summary>离散位移点事件字段（本切片运行时未接线，可先配数据）。</summary>
+    static void DrawMotionCommand(SerializedProperty element, ActionEditorSelectionSet batchSet)
+    {
+        EditorGUILayout.HelpBox(
+            "MotionCommand（Relocate 等）为可选补钉；当前运行时未执行，仅数据预留。",
+            MessageType.Warning);
+        DrawMultiProperty(batchSet, element, "commandType");
+        DrawMultiProperty(batchSet, element, "targetSource");
+        DrawMultiProperty(batchSet, element, "behindDistanceMm");
+        DrawMultiProperty(batchSet, element, "localOffsetMm");
+        DrawMultiProperty(batchSet, element, "facingPolicy");
+        DrawMultiProperty(batchSet, element, "collisionPolicy");
+        DrawMultiProperty(batchSet, element, "fallbackPolicy");
+        DrawMultiProperty(batchSet, element, "forwardFallbackMm");
+        DrawMultiProperty(batchSet, element, "softBodySuppressFrames");
+        DrawMultiProperty(batchSet, element, "preserveVertical");
     }
 
     /// <summary>显式播放倍率；可选显示资源估测自然时长（只读，不驱动倍率）。</summary>

@@ -17,6 +17,8 @@ public class ActionTimeline
         Array.Empty<PerfectDodgeWindowNotifyState>();
     [SerializeField] MovementNotifyState[] movementStates = Array.Empty<MovementNotifyState>();
     [SerializeField] RotationNotifyState[] rotationStates = Array.Empty<RotationNotifyState>();
+    [SerializeField] MotionModifierNotifyState[] motionModifierStates = Array.Empty<MotionModifierNotifyState>();
+    [SerializeField] MotionCommandNotify[] motionCommandNotifies = Array.Empty<MotionCommandNotify>();
     [SerializeField] ActionTimelineTrack[] tracks = Array.Empty<ActionTimelineTrack>();
 
     /// <summary>通用点事件列表，用于自定义信号、镜头等非专用事件。</summary>
@@ -67,6 +69,14 @@ public class ActionTimeline
     /// <summary>旋转修正区间列表。</summary>
     public RotationNotifyState[] RotationStates => rotationStates ?? Array.Empty<RotationNotifyState>();
 
+    /// <summary>位移修正区间列表（吸附 / 软体抑制）。</summary>
+    public MotionModifierNotifyState[] MotionModifierStates =>
+        motionModifierStates ?? Array.Empty<MotionModifierNotifyState>();
+
+    /// <summary>离散位移点事件列表。</summary>
+    public MotionCommandNotify[] MotionCommandNotifies =>
+        motionCommandNotifies ?? Array.Empty<MotionCommandNotify>();
+
     /// <summary>手动添加的轨道列表；可为空轨，窗口通过 trackName 归属。</summary>
     public ActionTimelineTrack[] Tracks => tracks ?? Array.Empty<ActionTimelineTrack>();
 
@@ -104,6 +114,12 @@ public class ActionTimeline
         {
             if (sfx != null)
                 yield return sfx;
+        }
+
+        foreach (MotionCommandNotify command in MotionCommandNotifies)
+        {
+            if (command != null)
+                yield return command;
         }
     }
 
@@ -147,6 +163,12 @@ public class ActionTimeline
         }
 
         foreach (RotationNotifyState state in RotationStates)
+        {
+            if (state != null)
+                yield return state;
+        }
+
+        foreach (MotionModifierNotifyState state in MotionModifierStates)
         {
             if (state != null)
                 yield return state;
@@ -249,6 +271,42 @@ public class ActionTimeline
         {
             if (state == null || !state.IsActiveAtFrame(frame))
                 continue;
+
+            if (best == null || state.Priority > best.Priority)
+                best = state;
+        }
+
+        return best;
+    }
+
+    /// <summary>指定帧是否存在 SoftBodySuppress 修正窗。</summary>
+    public bool IsSoftBodySuppressActiveAtFrame(int frame)
+    {
+        foreach (MotionModifierNotifyState state in MotionModifierStates)
+        {
+            if (state != null
+                && state.Mode == MotionModifierMode.SoftBodySuppress
+                && state.IsActiveAtFrame(frame))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>查询指定帧最高优先级的 TargetAdhesion 窗。</summary>
+    public MotionModifierNotifyState GetActiveTargetAdhesionAtFrame(int frame)
+    {
+        MotionModifierNotifyState best = null;
+        foreach (MotionModifierNotifyState state in MotionModifierStates)
+        {
+            if (state == null
+                || state.Mode != MotionModifierMode.TargetAdhesion
+                || !state.IsActiveAtFrame(frame))
+            {
+                continue;
+            }
 
             if (best == null || state.Priority > best.Priority)
                 best = state;

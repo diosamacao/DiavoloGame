@@ -16,6 +16,10 @@ public enum ActionTimelineTrackKind
     Animation = 9,
     /// <summary>完美闪避窗：玩家 Dodge 上窗内被命中时 Pipeline 吞伤并武装反击缓冲。</summary>
     PerfectDodgeWindow = 10,
+    /// <summary>位移修正窗：SoftBodySuppress / TargetAdhesion（Wave 4）。</summary>
+    MotionModifier = 11,
+    /// <summary>离散位移点事件：Relocate 等（Wave 4，可选）。</summary>
+    MotionCommand = 12,
 }
 
 /// <summary>时间轴轨道描述；允许空轨存在，窗口通过 trackName 归属到轨。</summary>

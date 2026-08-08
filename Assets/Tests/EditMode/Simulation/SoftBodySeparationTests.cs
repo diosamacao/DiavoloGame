@@ -110,13 +110,42 @@ public sealed class SoftBodySeparationTests
         Assert.That(b.SoftApplyCount, Is.EqualTo(1));
     }
 
+    /// <summary>抑制参与者不进软体分离，重叠距离保持。</summary>
+    [Test]
+    public void SimulationWorld_Step_SkipsSuppressedParticipant()
+    {
+        var world = new SimulationWorld(new SimulationConfig(60, 8, true, 1000, 4));
+
+        var a = new SoftBodyActor(
+            new CharacterMotorSim(OpenFieldSimCollisionWorld.Instance, 200),
+            participates: false);
+        var b = new SoftBodyActor(new CharacterMotorSim(OpenFieldSimCollisionWorld.Instance, 200));
+        a.MotorSim.TeleportMm(0, 0);
+        b.MotorSim.TeleportMm(50, 0);
+        world.Register(a);
+        world.Register(b);
+
+        world.Step();
+
+        Assert.That(a.MotorSim.PositionMm.X, Is.EqualTo(0));
+        Assert.That(b.MotorSim.PositionMm.X, Is.EqualTo(50));
+        Assert.That(a.SoftApplyCount, Is.EqualTo(0));
+        Assert.That(b.SoftApplyCount, Is.EqualTo(0));
+    }
+
     /// <summary>测试用软弹开参与者。</summary>
     sealed class SoftBodyActor : ISimulationActor, ISimSoftBodyParticipant
     {
-        public SoftBodyActor(CharacterMotorSim motorSim) => MotorSim = motorSim;
+        readonly bool _participates;
+
+        public SoftBodyActor(CharacterMotorSim motorSim, bool participates = true)
+        {
+            MotorSim = motorSim;
+            _participates = participates;
+        }
 
         public CharacterMotorSim MotorSim { get; }
-        public bool ParticipatesInSoftBodySeparation => true;
+        public bool ParticipatesInSoftBodySeparation => _participates;
         public int SoftApplyCount { get; private set; }
 
         public void OnSoftBodySeparationApplied() => SoftApplyCount++;

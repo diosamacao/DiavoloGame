@@ -291,6 +291,15 @@ EX/Ult 的「命中不回能」用 `energyGrantOnHit = 0` 表达，**不**另增
 **入口：** Wave 2 完成；**GAS G5 完成**（数值唯一真源为 NumericSystem）。Ult 镜头可到 Wave 5。  
 **禁止：** Relocate 直接改 Transform；Modifier 读表现骨骼；在旧 ResourceSim API 上堆 Wave 4 依赖。
 
+**实施细则（2026-08-09）：** [WAVE4_GAMEPLAY_MOTION_BRANCH02_PLAN.md](../2026.8.9/WAVE4_GAMEPLAY_MOTION_BRANCH02_PLAN.md) — 以 `Unagi_Attack_Branch_02` 为样板（SoftBody 抑制 + 行程加长 + RelocateBehind）；Lock-On 仍见 Camera 篇。
+
+#### Wave 4 落地状态（2026-08-09）
+
+- [x] 4.2 / 4.4 + SoftBodySuppress：TargetAdhesion 管线已接线（起手 ActionTargetId、Base→Modifier、Editor 轨）；Relocate Command 未接线
+- [ ] 4.1 / 4.3：`ActionMotionResolver` / RelocateBehind 仍为可选补钉（P3）
+- [ ] Branch_02 资产配窗（人工 Editor）与 Play 验收
+- [ ] 4.5～4.6 Lock-On 未开工
+
 ---
 
 ### Wave 5 — 大招演出与后置项

@@ -135,6 +135,8 @@ public static class CharacterActorFactory
         var vfxPlayer = new ActionVfxPlayer(root, attachPoints);
         var sfxPlayer = new ActionSfxPlayer(root);
         var visualMotion = new CharacterVisualMotionBridge(visualMotionRoot);
+        // Wave 4：吸附读 Hurtbox 逻辑 Pose，不读表现骨骼
+        var motionWorldQuery = new ActionMotionWorldQuery(activeTargetsProvider);
         var actionPresentation = new CharacterActionPresentationBridge(
             actionSim,
             root,
@@ -145,7 +147,9 @@ public static class CharacterActorFactory
             motor,
             new ActionTimelineRunner(),
             defaultAttach,
-            visualMotion);
+            visualMotion,
+            targetLock,
+            motionWorldQuery);
         actionPresentation.RegisterFrameConsumer(hitboxFrameConsumer);
         actionPresentation.RegisterNotifyConsumer(vfxPlayer);
         actionPresentation.RegisterNotifyConsumer(sfxPlayer);

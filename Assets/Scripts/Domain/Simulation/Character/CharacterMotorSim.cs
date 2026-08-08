@@ -22,6 +22,7 @@ public sealed class CharacterMotorSim
     int _facingMilliDeg;
     int _verticalVelocityMmPerSec;
     bool _isGrounded;
+    int _softBodySuppressFrames;
 
     /// <summary>使用碰撞世界、水平半径、软弹开与竖直参数创建电机。</summary>
     public CharacterMotorSim(
@@ -66,8 +67,28 @@ public sealed class CharacterMotorSim
     /// <summary>为 true 时软弹开推力全给对方，自身像墙。</summary>
     public bool SoftBodyImmovable => _softBodyImmovable;
 
+    /// <summary>剩余软体抑制逻辑帧；&gt;0 时不参与 SoftBodySeparation。</summary>
+    public int SoftBodySuppressFrames => _softBodySuppressFrames > 0 ? _softBodySuppressFrames : 0;
+
+    /// <summary>当前是否处于软体抑制。</summary>
+    public bool IsSoftBodySuppressed => SoftBodySuppressFrames > 0;
+
     /// <summary>逻辑着地：竖直位置贴地且未向上跃起。</summary>
     public bool IsGrounded => _isGrounded;
+
+    /// <summary>延长或刷新软体抑制（取较大值）。</summary>
+    public void SetSoftBodySuppressFrames(int frames) =>
+        _softBodySuppressFrames = Math.Max(_softBodySuppressFrames, Math.Max(0, frames));
+
+    /// <summary>每逻辑步开头递减抑制计数。</summary>
+    public void TickSoftBodySuppress()
+    {
+        if (_softBodySuppressFrames > 0)
+            _softBodySuppressFrames--;
+    }
+
+    /// <summary>招式结束时清除抑制。</summary>
+    public void ClearSoftBodySuppress() => _softBodySuppressFrames = 0;
 
     /// <summary>竖直速度（毫米/秒）；调试与测试用。</summary>
     public int VerticalVelocityMmPerSec => _verticalVelocityMmPerSec;

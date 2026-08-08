@@ -18,6 +18,8 @@ public static class ActionTimelineCommands
         ActionTimelineTrackKind.Event => "actionEvents",
         ActionTimelineTrackKind.Animation => null,
         ActionTimelineTrackKind.PerfectDodgeWindow => "perfectDodgeWindowStates",
+        ActionTimelineTrackKind.MotionModifier => "motionModifierStates",
+        ActionTimelineTrackKind.MotionCommand => "motionCommandNotifies",
         _ => null,
     };
 
@@ -41,6 +43,8 @@ public static class ActionTimelineCommands
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Rotation);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Event);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.PerfectDodgeWindow);
+        anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.MotionModifier);
+        anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.MotionCommand);
 
         if (!anyAdded)
             return;
@@ -309,6 +313,19 @@ public static class ActionTimelineCommands
             SetIfExists(element, "interruptible", true);
             SetIfExists(element, "allowMovementCancel", true);
             SetIfExists(element, "allowEntryRestart", true);
+        }
+
+        if (kind == ActionTimelineTrackKind.MotionModifier)
+        {
+            // 默认 TargetAdhesion + Branch_02 常用偏移；可在 Inspector 改 SoftBodySuppress
+            SetIfExists(element, "mode", (int)MotionModifierMode.TargetAdhesion);
+            SetIfExists(element, "targetSource", (int)MotionTargetSource.ActionTarget);
+            SetIfExists(element, "horizontalOffsetMm", 1000);
+            SetIfExists(element, "lateralOffsetMm", 0);
+            SetIfExists(element, "maxCorrectionMmPerFrame", 250);
+            SetIfExists(element, "maxAcquireDistanceMm", 4500);
+            SetIfExists(element, "maxAngleMilliDeg", 0);
+            SetIfExists(element, "stopOnTargetLost", true);
         }
 
         so.ApplyModifiedProperties();

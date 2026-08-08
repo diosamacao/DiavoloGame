@@ -32,7 +32,7 @@ MonoBehaviour:
     baseMotionMode: 2
   resourceSpec:
     resourceTag: 4
-    energyCost: 40
+    energyCost: 10
     energyGrantOnHit: 0
     decibelGrantOnHit: 0
     consumeDodgeCharge: 0
@@ -48,10 +48,10 @@ MonoBehaviour:
       trackName: VFX_1
       prefab: {fileID: 6855955652325114174, guid: 9feeffc118524c829dc98322405ce38c, type: 3}
       attachPointId: 
-      localOffset: {x: 0, y: 0.64, z: 1.36}
+      localOffset: {x: 0, y: 0.64, z: -0.36}
       localEulerAngles: {x: 0, y: 0, z: 0}
       localScale: {x: 1, y: 1, z: 1}
-      parentToAttachPoint: 0
+      parentToAttachPoint: 1
       playbackSpeed: 1
     - id: VFX_2
       startFrame: 118
@@ -82,9 +82,9 @@ MonoBehaviour:
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 1, z: 1.45}
+      localOffset: {x: 0, y: 1, z: -0.26}
       localEulerAngles: {x: 0, y: 0, z: 0}
-      size: {x: 4.5, y: 3, z: 4.5}
+      size: {x: 4.5, y: 3, z: 5.03}
       parentToAttachPoint: 1
       parentToAttachPointSchema: 1
       payload:
@@ -110,9 +110,9 @@ MonoBehaviour:
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 1, z: 1.45}
+      localOffset: {x: 0, y: 1, z: -0.26}
       localEulerAngles: {x: 0, y: 0, z: 0}
-      size: {x: 4.5, y: 3, z: 4.5}
+      size: {x: 4.5, y: 3, z: 5.03}
       parentToAttachPoint: 1
       parentToAttachPointSchema: 1
       payload:
@@ -138,9 +138,9 @@ MonoBehaviour:
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 1, z: 1.45}
+      localOffset: {x: 0, y: 1, z: -0.26}
       localEulerAngles: {x: 0, y: 0, z: 0}
-      size: {x: 4.5, y: 3, z: 4.5}
+      size: {x: 4.5, y: 3, z: 5.03}
       parentToAttachPoint: 1
       parentToAttachPointSchema: 1
       payload:
@@ -166,9 +166,9 @@ MonoBehaviour:
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 1, z: 1.45}
+      localOffset: {x: 0, y: 1, z: -0.26}
       localEulerAngles: {x: 0, y: 0, z: 0}
-      size: {x: 4.5, y: 3, z: 4.5}
+      size: {x: 4.5, y: 3, z: 5.03}
       parentToAttachPoint: 1
       parentToAttachPointSchema: 1
       payload:
@@ -194,9 +194,9 @@ MonoBehaviour:
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 1, z: 1.45}
+      localOffset: {x: 0, y: 1, z: -0.26}
       localEulerAngles: {x: 0, y: 0, z: 0}
-      size: {x: 4.5, y: 3, z: 4.5}
+      size: {x: 4.5, y: 3, z: 5.03}
       parentToAttachPoint: 1
       parentToAttachPointSchema: 1
       payload:
@@ -222,9 +222,9 @@ MonoBehaviour:
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 1, z: 1.45}
+      localOffset: {x: 0, y: 1, z: -0.26}
       localEulerAngles: {x: 0, y: 0, z: 0}
-      size: {x: 4.5, y: 3, z: 4.5}
+      size: {x: 4.5, y: 3, z: 5.03}
       parentToAttachPoint: 1
       parentToAttachPointSchema: 1
       payload:
@@ -260,8 +260,8 @@ MonoBehaviour:
         hitReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
-          useHitStop: 1
-          hitStopFrames: 10
+          useHitStop: 0
+          hitStopFrames: 5
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
@@ -298,6 +298,49 @@ MonoBehaviour:
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0
+    motionModifierStates:
+    - id: MotionModifier_1
+      startFrame: 7
+      endFrame: 18
+      priority: 0
+      trackName: MotionModifier_1
+      mode: 1
+      targetSource: 0
+      horizontalOffsetMm: 1000
+      lateralOffsetMm: 0
+      maxCorrectionMmPerFrame: 99999
+      maxAcquireDistanceMm: 99999
+      maxAngleMilliDeg: 0
+      stopOnTargetLost: 1
+    - id: MotionModifier_2
+      startFrame: 7
+      endFrame: 18
+      priority: 0
+      trackName: MotionModifier_2
+      mode: 0
+      targetSource: 0
+      horizontalOffsetMm: 1000
+      lateralOffsetMm: 0
+      maxCorrectionMmPerFrame: 250
+      maxAcquireDistanceMm: 4500
+      maxAngleMilliDeg: 0
+      stopOnTargetLost: 1
+    motionCommandNotifies:
+    - id: MotionCommand_1
+      startFrame: 17
+      endFrame: 17
+      priority: 0
+      trackName: MotionCommand_1
+      commandType: 0
+      targetSource: 0
+      behindDistanceMm: 0
+      localOffsetMm: {x: 0, y: 0, z: 0}
+      facingPolicy: 0
+      collisionPolicy: 0
+      fallbackPolicy: 0
+      forwardFallbackMm: 0
+      softBodySuppressFrames: 0
+      preserveVertical: 0
     tracks:
     - trackName: Cancel_3
       kind: 4
@@ -316,6 +359,12 @@ MonoBehaviour:
       visible: 1
     - trackName: SFX_1
       kind: 3
+      visible: 1
+    - trackName: MotionModifier_1
+      kind: 11
+      visible: 1
+    - trackName: MotionModifier_2
+      kind: 11
       visible: 1
   bakedMotion:
     logicHz: 60

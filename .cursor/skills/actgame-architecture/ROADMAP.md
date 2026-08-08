@@ -79,7 +79,13 @@
 
 **状态**：GAS G0～G5 + Wave 3.4 完整闭环（代码 + Editor 窗/Counter Entry，2026-08-08）  
 
-**下一会话大纲**：`docs/2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md`（A1 木桩 ✅；下一项 **A2 命中音画** → 子弹 / 相机 / AI BT）
+### [P1] Wave 4 玩法位移（吸附）
+
+**真源**：`docs/2026.8.9/WAVE4_GAMEPLAY_MOTION_BRANCH02_PLAN.md`
+
+**已完成（2026-08-09）：** TargetAdhesion + SoftBodySuppress 运行时/Editor/EditMode；起手固化 `ActionTargetId`
+
+**待做：** Branch_02 人工配窗 Play 验收；可选 RelocateBehind（P3）；Lock-On（4.5～4.6）
 
 ### [P1] Lockstep 模拟核迁移
 

@@ -70,6 +70,26 @@ public sealed class CombatTargetLock
         _activeSettings = default;
     }
 
+    /// <summary>
+    /// 动作起手立即按图节点索敌（早于 ActionRotation.Tick），供固化 ActionTargetId。
+    /// </summary>
+    public void AcquireForActionNode(ActionGraph graph, string nodeId)
+    {
+        if (graph == null || !graph.TryGetNode(nodeId, out ActionGraphNode node))
+        {
+            ClearLock();
+            return;
+        }
+
+        TryAcquireForNode(graph, node);
+    }
+
+    /// <summary>当前有效锁的 SimulationId；无效时返回 Invalid。</summary>
+    public SimActorId ResolveLockedSimulationId() =>
+        HasValidLock && LockedTarget != null
+            ? LockedTarget.SimulationId
+            : SimActorId.Invalid;
+
     /// <summary>返回指向当前锁定目标的水平方向；无有效锁时返回 false。</summary>
     public bool TryGetLockDirection(out Vector3 direction)
     {

@@ -58,4 +58,22 @@ public sealed class CharacterMotorSimTests
         Assert.That(wx, Is.EqualTo(1000));
         Assert.That(wz, Is.EqualTo(0));
     }
+
+    /// <summary>软体抑制：Set 后 IsSoftBodySuppressed，Tick 递减，Clear 立即清零。</summary>
+    [Test]
+    public void SoftBodySuppress_TicksAndClears()
+    {
+        var motor = new CharacterMotorSim(OpenFieldSimCollisionWorld.Instance, radiusMm: 280);
+        Assert.That(motor.IsSoftBodySuppressed, Is.False);
+
+        motor.SetSoftBodySuppressFrames(2);
+        Assert.That(motor.IsSoftBodySuppressed, Is.True);
+        Assert.That(motor.SoftBodySuppressFrames, Is.EqualTo(2));
+
+        motor.TickSoftBodySuppress();
+        Assert.That(motor.SoftBodySuppressFrames, Is.EqualTo(1));
+
+        motor.ClearSoftBodySuppress();
+        Assert.That(motor.IsSoftBodySuppressed, Is.False);
+    }
 }

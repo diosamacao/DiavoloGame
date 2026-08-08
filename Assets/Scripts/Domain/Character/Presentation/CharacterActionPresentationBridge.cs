@@ -16,6 +16,8 @@ public sealed class CharacterActionPresentationBridge
     readonly List<IActionNotifyConsumer> _notifyConsumers = new();
     readonly ActionTimelineRunner _timelineRunner;
     readonly CharacterVisualMotionBridge _visualMotion;
+    readonly CombatTargetLock _targetLock;
+    readonly IActionMotionWorldQuery _worldQuery;
     readonly List<ActionSimEvent> _events = new(16);
     Transform _defaultAttachPoint;
     ActionDefinition _animationAction;
@@ -34,7 +36,9 @@ public sealed class CharacterActionPresentationBridge
         IActionStartContext startContext,
         ActionTimelineRunner timelineRunner,
         Transform defaultAttachPoint,
-        CharacterVisualMotionBridge visualMotion = null)
+        CharacterVisualMotionBridge visualMotion = null,
+        CombatTargetLock targetLock = null,
+        IActionMotionWorldQuery worldQuery = null)
     {
         _actionSim = actionSim ?? throw new ArgumentNullException(nameof(actionSim));
         _actorRoot = actorRoot;
@@ -46,6 +50,8 @@ public sealed class CharacterActionPresentationBridge
         _timelineRunner = timelineRunner ?? new ActionTimelineRunner();
         _defaultAttachPoint = defaultAttachPoint != null ? defaultAttachPoint : actorRoot;
         _visualMotion = visualMotion;
+        _targetLock = targetLock;
+        _worldQuery = worldQuery;
     }
 
     /// <summary>注册整数动作帧消费者；同一实例不会重复注册。</summary>
@@ -93,11 +99,15 @@ public sealed class CharacterActionPresentationBridge
 
         if (snapshot.IsActive
             && !snapshot.IsComplete
-            && !snapshot.IsFrozen
             && snapshot.Content is ActionDefinition current)
         {
-            SyncAnimation(current, snapshot.CurrentFrame);
-            ApplyDisplacementForAction(current, snapshot.CurrentFrame, stepDelta);
+            // 卡肉帧仍刷新 SoftBody 抑制，避免叠人窗被 Tick 清掉
+            ApplySoftBodySuppressForFrame(current, snapshot.CurrentFrame);
+            if (!snapshot.IsFrozen)
+            {
+                SyncAnimation(current, snapshot.CurrentFrame);
+                ApplyDisplacementForAction(current, snapshot.CurrentFrame, stepDelta);
+            }
         }
 
         // Wave 2：逻辑帧贴齐视觉残差（冻结时也保持当前帧残差，供挂点对齐）
@@ -151,7 +161,10 @@ public sealed class CharacterActionPresentationBridge
         if (actionEvent.Content is not ActionDefinition action)
             return;
 
-        ExecuteStartBehaviors(actionEvent.Graph as ActionGraph, actionEvent.NodeId);
+        ActionGraph graph = actionEvent.Graph as ActionGraph;
+        ExecuteStartBehaviors(graph, actionEvent.NodeId);
+        // 起手立即固化吸附目标（早于同帧 Rotation.Tick）
+        BindActionTargetAtStart(graph, actionEvent.NodeId);
         // Action 位移仅 Baked/Scripted；禁止 Animator RM → Motor
         _rootMotion?.SetActive(false);
         for (int i = 0; i < _frameConsumers.Count; i++)
@@ -167,11 +180,24 @@ public sealed class CharacterActionPresentationBridge
             _notifyConsumers[i].OnActionEnded();
 
         _rootMotion?.SetActive(false);
+        _motor.Sim.ClearSoftBodySuppress();
         _animationAction = null;
         _animationSegmentIndex = -1;
         SyncHitStopPresentation(frozen: false);
         // 取消/受击/自然结束统一短时回锚，避免模型停在偏移处
         _visualMotion?.EndAction(VisualResidualExitPolicy.BlendToZero);
+    }
+
+    /// <summary>按图节点索敌并写入 ActionSim.ActionTargetId。</summary>
+    void BindActionTargetAtStart(ActionGraph graph, string nodeId)
+    {
+        if (_targetLock != null)
+            _targetLock.AcquireForActionNode(graph, nodeId);
+
+        SimActorId targetId = _targetLock != null
+            ? _targetLock.ResolveLockedSimulationId()
+            : SimActorId.Invalid;
+        _actionSim.BindActionTarget(targetId);
     }
 
     /// <summary>按整数帧派发判定与时间轴；终止哨兵只产生区间 Exit。</summary>
@@ -253,7 +279,7 @@ public sealed class CharacterActionPresentationBridge
         _hitStopPresentationActive = false;
     }
 
-    /// <summary>按 BaseMotionMode 施加唯一基础位移源（Baked / Scripted / None）。</summary>
+    /// <summary>按 BaseMotionMode 施加基础位移，再叠 MotionModifiers（Adhesion）。</summary>
     void ApplyDisplacementForAction(ActionDefinition action, int frame, float fixedDeltaSeconds)
     {
         switch (ResolveDisplacementSource(action))
@@ -265,6 +291,80 @@ public sealed class CharacterActionPresentationBridge
                 ApplyScriptedDisplacement(action, frame, fixedDeltaSeconds);
                 break;
         }
+
+        // Base → Modifier；Command（Relocate）本切片不接线
+        ApplyTargetAdhesionForFrame(action, frame);
+    }
+
+    /// <summary>SoftBodySuppress 窗内刷新抑制计数（仍碰静物墙）。</summary>
+    void ApplySoftBodySuppressForFrame(ActionDefinition action, int frame)
+    {
+        if (action != null && action.Timeline.IsSoftBodySuppressActiveAtFrame(frame))
+            _motor.Sim.SetSoftBodySuppressFrames(1);
+    }
+
+    /// <summary>TargetAdhesion：连线动态 desired + 剩余帧均摊，经 Motor 世界毫米移动。</summary>
+    void ApplyTargetAdhesionForFrame(ActionDefinition action, int frame)
+    {
+        if (action == null || _worldQuery == null)
+            return;
+
+        MotionModifierNotifyState window = action.Timeline.GetActiveTargetAdhesionAtFrame(frame);
+        if (window == null)
+            return;
+
+        SimActorId targetId = ResolveAdhesionTargetId(window);
+        if (!targetId.IsValid)
+            return;
+
+        if (!_worldQuery.TryGetCommittedCombatPose(targetId, out SimCombatPose pose))
+            return;
+
+        SimVec2 actorMm = _motor.Sim.PositionMm;
+        int targetXMm = MotionQuantization.MetersToMm(pose.Position.x);
+        int targetZMm = MotionQuantization.MetersToMm(pose.Position.z);
+        float yaw = MotionQuantization.MilliDegToDegrees(_motor.Sim.FacingMilliDeg);
+        // Notify → Simulation 纯参，避免 Simulation 依赖 Timeline 类型
+        var adhesion = new ActionMotionAdhesionParams(
+            window.StartFrame,
+            window.EndFrame,
+            window.HorizontalOffsetMm,
+            window.LateralOffsetMm,
+            window.MaxCorrectionMmPerFrame,
+            window.MaxAcquireDistanceMm,
+            window.MaxAngleMilliDeg);
+
+        if (!ActionMotionAdhesion.TryComputeCorrectionMm(
+                actorMm.X,
+                actorMm.Z,
+                yaw,
+                targetXMm,
+                targetZMm,
+                in adhesion,
+                frame,
+                out int correctionXMm,
+                out int correctionZMm))
+        {
+            return;
+        }
+
+        _motor.MoveWorldMm(correctionXMm, correctionZMm);
+    }
+
+    /// <summary>按窗口 TargetSource 解析吸附目标 Id。</summary>
+    SimActorId ResolveAdhesionTargetId(MotionModifierNotifyState window)
+    {
+        if (window == null)
+            return SimActorId.Invalid;
+
+        return window.TargetSource switch
+        {
+            MotionTargetSource.ActionTarget => _actionSim.ActionTargetId,
+            MotionTargetSource.CurrentLock => _targetLock != null
+                ? _targetLock.ResolveLockedSimulationId()
+                : SimActorId.Invalid,
+            _ => SimActorId.Invalid,
+        };
     }
 
     /// <summary>解析当前招式位移权威。</summary>

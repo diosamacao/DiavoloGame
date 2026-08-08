@@ -1,12 +1,13 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-08
+> Last updated: 2026-08-09
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
 
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
+| Wave4 TargetAdhesion / SoftBodySuppress | 🟡 代码已接、Branch_02 资产待配 | `ActionMotionAdhesion` + `CharacterActionPresentationBridge` | Action Editor `MotionModifier` 轨；细则 `docs/2026.8.9/WAVE4_…` |
 | 命中受击 Cue（VFX/SFX） | 🟡 代码通道已接、资产待绑 | `HitImpactController` + `HitFeedbackSettings` | 接触点落点 + 随机旋转；Feedback 填 Prefab/Clip |
 | 逻辑 Hurtbox 调试线框 | ✅ 已实现 | `CombatHurtboxDebugSettings` + `CombatHurtboxDebugVisualizer` | F4 开关（F3 HUD 显示状态） |
 | 固定帧模拟宿主 | ✅ L0A 已实现 | `SimulationHost`、`SimulationWorld`、`SimActorId` | 60Hz，无资产 |
@@ -808,6 +809,52 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-08 | 动作 SFX 多声道淡出（连招不掐断） |
 | 2026-08-08 | Action Editor：Scrub 展示烘焙根运动轨迹/位移；右侧 Inspector 纵向滚动 |
 | 2026-08-09 | Hitbox `parentToAttachPoint`：世界空间冻结盒（对齐 VFX）；编辑器预览同步 |
+| 2026-08-09 | Wave 4 P0～P2：TargetAdhesion（连线动态+剩余帧均摊）+ SoftBodySuppress 接线；Editor MotionModifier 轨；Relocate 未接 |
+| 2026-08-09 | Action Editor：选中 MotionModifier 时 Scene 假敌球 + Adhesion 修正轨迹/预览根 |
+| 2026-08-09 | TargetAdhesion 方案 A：只补沿接近轴未到达缺口，过冲不倒拖 |
+
+---
+
+## Wave 4 — TargetAdhesion / SoftBodySuppress
+
+### 功能说明
+
+攻击吸附窗口：每帧沿玩家→敌人连线算 `desired`（`horizontalOffsetMm` 控制敌前/心/后），按剩余帧均摊**朝向前方未到达缺口**（过冲落到身后则不倒拖），并夹每帧上限；SoftBody 抑制窗内不参与角色互撞、仍碰静物墙。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 顺序 | BaseDelta（Baked/Scripted）→ TargetAdhesion → MotorSim → SoftBodySeparation |
+| 纯计算 | `ACTGame.Simulation`：`ActionMotionAdhesion` + `ActionMotionAdhesionParams` |
+| 目标 | 起手 `CombatTargetLock.AcquireForActionNode` → `ActionSim.BindActionTarget` |
+| Pose | `ActionMotionWorldQuery`（Hurtbox 逻辑中心） |
+| SoftBody | 窗内 `SetSoftBodySuppressFrames(1)`；`CharacterActor.ParticipatesInSoftBodySeparation` |
+| 数据 | `MotionModifierNotifyState` + Timeline `motionModifierStates` |
+| Editor | Action Editor 加 `MotionModifier` / `MotionCommand` 轨（Command 运行时未执行） |
+
+### 运行时流程
+
+```
+HandleStarted → Acquire 锁 → BindActionTargetId
+ApplyStep：SoftBodySuppress 刷新（含卡肉帧）
+  → Base 位移 → Adhesion.TryComputeCorrectionMm → Motor.MoveWorldMm
+SimulationWorld 帧末 SoftBodySeparation（抑制者不参与）
+```
+
+### 已知限制
+
+- RelocateBehind / `ActionMotionResolver` 未接进 Bridge（P3 可选）
+- Branch_02 需人工配 SoftBodySuppress + TargetAdhesion 窗后 Play 验收
+- 共线退化（玩家与敌人水平重合）本帧不吸
+
+### 相关文件
+
+- `Assets/Scripts/Domain/Simulation/Motion/ActionMotionAdhesion.cs`
+- `Assets/Scripts/Domain/Character/Presentation/CharacterActionPresentationBridge.cs`
+- `Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/MotionModifierNotifyState.cs`
+- `Assets/Tests/EditMode/Simulation/ActionMotionAdhesionTests.cs`
+- `docs/2026.8.9/WAVE4_GAMEPLAY_MOTION_BRANCH02_PLAN.md`
 
 ---
 
