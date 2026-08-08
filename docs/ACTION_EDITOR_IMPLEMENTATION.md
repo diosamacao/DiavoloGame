@@ -2,7 +2,7 @@
 
 > 最后更新：2026-07-13  
 > 状态：可开工（数据层 `ActionTimeline` / `ActionNotify` 已落地；VFX/SFX 为点事件）  
-> 相关文档：[`ACTION_EDITOR.md`](./ACTION_EDITOR.md)（愿景与调研）、[`ACTION_SYSTEM.md`](./ACTION_SYSTEM.md)（运行时）
+> 相关文档：[`ACTION_EDITOR.md`](./ACTION_EDITOR.md)（愿景与调研）；运行时见 `.cursor/skills/actgame-architecture/TECHNICAL.md` 与 [`ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md`](./ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)
 
 ---
 

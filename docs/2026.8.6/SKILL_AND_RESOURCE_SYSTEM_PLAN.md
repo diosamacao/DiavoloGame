@@ -11,7 +11,7 @@
 > **数值口袋终态：** [GAS_STYLE_COMBAT_REFACTOR_PLAN.md](../2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md)  
 > 关联：[ACTION_DEFINITION_OPTIMIZATION_PLAN.md](./ACTION_DEFINITION_OPTIMIZATION_PLAN.md)、[ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](../ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)、[CAMERA_SYSTEM_PLAN.md](./CAMERA_SYSTEM_PLAN.md)  
 >  
-> **文档分工：** 本文只负责技能槽语义、Graph/Intent 路由、产品裁剪与完美闪避规则；**不**另立 `ActionResourceSpec` 字段表或与 NUMERICS 平行的实施阶段。归档的 `COMBAT_RESOURCE_SYSTEM_PLAN` 勿再实施。
+> **文档分工：** 本文只负责技能槽语义、Graph/Intent 路由、产品裁剪与完美闪避规则；**不**另立 `ActionResourceSpec` 字段表或与 NUMERICS 平行的实施阶段。
 
 ---
 

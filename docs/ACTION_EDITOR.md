@@ -549,7 +549,7 @@ Assets/
         └── ActionPreviewRig.prefab
 ```
 
-> 注：与 `PROJECT_CHECKLIST.md` 中 `Assets/_Game/` 前缀对齐时，以项目实际目录为准；实现阶段统一迁移。
+> 注：资产路径以仓库实际 `Assets/Data` / `Assets/Prefabs` 为准。
 
 ---
 
@@ -690,9 +690,9 @@ transitions:
 
 ### 项目内
 
-- [项目清单](./PROJECT_CHECKLIST.md) — 总体开发与里程碑
 - [第三方资产许可](./THIRD_PARTY_LICENSES.md)
-- `.cursor/skills/actgame-architecture/ROADMAP.md` — ActionState 与 Combat 管线
+- `.cursor/skills/actgame-architecture/ROADMAP.md` — 排期与里程碑
+- [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md) — 跨系统排期真源
 
 ### 外部参考（调研来源）
 

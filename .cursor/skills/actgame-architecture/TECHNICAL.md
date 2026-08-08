@@ -10,7 +10,7 @@
 | 固定帧模拟宿主 | ✅ L0A 已实现 | `SimulationHost`、`SimulationWorld`、`SimActorId` | 60Hz，无资产 |
 | Wave0 动作审计 / 锚点可视化 / Debug HUD | ✅ 已实现 | `ActionDefinitionAuditUtility`、`CharacterAnchorGizmoDrawer`、`CombatDebugHudController` | 菜单 `ACTGame/Action/Validate Motion Sources`；场景挂 HUD |
 | Wave1 位移止血 / BaseMotionMode / 相机滤左右 | ✅ 已实现 | `ForwardSigned`、`ActionBaseMotionMode`、`CameraManager.lateralFollowFactor` | Attack 需以 ForwardSigned 重烘焙；菜单 Migrate Base Motion Mode |
-| Wave2 视觉残差 / VisualMotionRoot | ✅ 核心已实现 | `CharacterVisualMotionBridge`、`TryGetVisualResidualMm` | ForwardSigned：Motor 无横摆，模型在 VisualRoot 摆；2.4/2.5 删 RM 待迁完 |
+| Wave2 视觉残差 / VisualMotionRoot | ✅ 已实现（含 2.5） | `CharacterVisualMotionBridge`、`TryGetVisualResidualMm` | ForwardSigned：Motor 无横摆，模型在 VisualRoot 摆；2026-08-08 已删 Action RM/Legacy/ForwardOnly |
 | Wave3 玩法资源 / 同键 EX | 🟡 资产待绑；运行时已迁 Numeric | `NumericCostGate`、`ActionResourceSpec`、`ActionEnergyFormSelector` | Spec 填表；Graph 双 Entry |
 | GAS-lite 数值重构 | ✅ G0～G5 完成 | `NumericSystem`、`DamageNumericCalculator`、`CharacterVitality` | Effect SO 壳 |
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
@@ -489,7 +489,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 
 ## 7. 动作系统
 
-> 完整说明见 [docs/ACTION_SYSTEM.md](../../docs/ACTION_SYSTEM.md)。
+> 运行时细节以本节与 [ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](../../docs/ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md) 为准；排期见 MASTER。
 
 ### 功能说明
 
@@ -603,7 +603,7 @@ SFX 生命周期：`ActionSfxPlayer` 使用角色根下专用子物体 `ActionSf
 
 - `Assets/Scripts/Domain/Combat/Actions/{Definitions,Resolution,Execution,Frames}/*`
 - `Assets/Scripts/App/Controllers/Gameplay/PlayerController.cs`
-- `docs/ACTION_SYSTEM.md`、`docs/ACTION_EDITOR.md`
+- `docs/ACTION_EDITOR.md`、`docs/ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md`
 
 ---
 

@@ -5,9 +5,7 @@
 > 修订：2026-08-06 — N5 同键 EX 升格必做  
 > 修订：2026-08-07 — N1 ResourceSim / 旧 Health **标为过渡**；终态见 GAS G0～G5  
 > 修订：2026-08-08 — G5：旧口袋已删；本文 §3 对齐完成态  
-> 合并自：  
-> - [COMBAT_ATTRIBUTES_DAMAGE_PLAN.md](./COMBAT_ATTRIBUTES_DAMAGE_PLAN.md)（归档）  
-> - [COMBAT_RESOURCE_SYSTEM_PLAN.md](./COMBAT_RESOURCE_SYSTEM_PLAN.md)（归档）  
+> 修订：2026-08-08 — 文档清理：已删除归档 stub（Attributes/Resource 旧稿）  
 > 关联锁步：[ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](./ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)  
 > 技能槽语义：[2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md](./2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md)  
 > **跨系统排期：** [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md)  
