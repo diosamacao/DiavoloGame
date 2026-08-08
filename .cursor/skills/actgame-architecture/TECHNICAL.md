@@ -577,7 +577,7 @@ SimulationHost 帧末
 | 接触点 | `HitboxMath.EstimateContactPointOnHurtbox`（攻击盒中心→受击盒最近点） |
 | 配置 | `HitFeedbackSettings`：VFX/SFX、相对接触点偏移、随机欧拉范围 |
 | 事件 | `AttackHitEvent.HitPoint` / `AbsorbedByPerfectDodge` |
-| App | `HitImpactController`：XZ=接触点，Y=半身高；`LookRotation * Random.Euler` |
+| App | `HitImpactController`：落点=接触点+Offset；`LookRotation * Random.Euler` |
 | 调试 | F4 → `CombatHurtboxDebugSettings.ShowHurtboxes` 画逻辑 Hurtbox |
 | 卡肉 | 火花 `VfxPooledInstance.SetSpawnOwner(attacker)`，与刀光同窗暂停 |
 
@@ -597,6 +597,8 @@ SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSourc
 - Timeline 顶栏 **Zoom**（1×–16×）+ Ctrl/Cmd+滚轮；放大后横向滚动以精确拖帧
 - Scrub / 播放 / 工具栏改帧时，playhead 超出 Zoom 可视区会**自动平移**时间轴视图
 - Scene Hitbox 线框与 VFX Prefab/粒子按 **Preview Frame** 驱动：拖到对应帧/区间即可预览（Hitbox 仅在窗口激活时可见），无需选中时间轴窗口；选中仅用于 Handles 编辑
+- Scene 烘焙根运动：`ActionMotionTrajectorySceneDrawing` 画 Full/Gameplay/Residual 轨迹 + 当前帧落点；`BaseMotionMode=BakedMotion` 时 `ActionEditorPreviewSession` 按表挪动预览根并写 VisualMotionRoot 残差（离开预览还原）
+- 右侧 Inspector：`ActionNotifySelectionDrawer` 纵向 ScrollView，Hitbox 长表单可滚到底部编辑
 - Create：选角色文件夹（如 Unagi），自动保存到其子目录 `ActionDefinition`（无则创建；已有旧名 `ActioniDefinition` 则复用）；默认名可改；左侧列表按文件夹分组
 - 时间轴多选：Ctrl 点选 / Shift 同轨范围选；Ctrl+C/V 复制粘贴（可跨 Action，按预览帧对齐）；Delete 删多选
 - 同类型多选：右侧改任一字段（含 Hit Payload / VFX Prefab 等）批量写回全部选中窗口；混合类型仅改主选中项
@@ -802,7 +804,8 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-08 | Action Editor：轨道路面拖拽框选多窗口 |
 | 2026-08-08 | `ActionSfxPlayer`：打断/结束改为 0.1s 音量淡出（`ActionSfxFadeDriver`） |
 | 2026-08-08 | 受击 Cue：接触点=攻击盒中心→Hurtbox 最近点；随机旋转；F4 Hurtbox 线框 |
-| 2026-08-08 | 动作 SFX 多声道淡出（连招不掐断）；受击特效 Y 固定半身高 |
+| 2026-08-08 | 动作 SFX 多声道淡出（连招不掐断） |
+| 2026-08-08 | Action Editor：Scrub 展示烘焙根运动轨迹/位移；右侧 Inspector 纵向滚动 |
 
 ---
 

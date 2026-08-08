@@ -4,17 +4,23 @@ using UnityEngine;
 /// <summary>
 /// 右侧选中窗口细节面板；按类型绘制字段，帧数字与轨道双向同步。
 /// 同类型多选时，任一字段修改会批量写回全部选中窗口。
+/// Hitbox 等长表单通过纵向 ScrollView 保证底部字段可编辑。
 /// </summary>
 public static class ActionNotifySelectionDrawer
 {
+    static Vector2 _scroll;
+
     /// <summary>绘制选中窗口；同类型多选支持批量改属性，混合类型仅改主选中项。</summary>
     public static void Draw(Rect rect, SerializedObject so, ActionEditorSelectionSet selectionSet, ActionDefinition action)
     {
         GUILayout.BeginArea(rect);
+        // 右侧面板固定高度，内容超出时必须可纵向滚动（Hitbox Feedback 等字段很长）
+        _scroll = EditorGUILayout.BeginScrollView(_scroll);
 
         if (action == null || so == null)
         {
             EditorGUILayout.HelpBox("选中招式后可编辑细节。", MessageType.Info);
+            EditorGUILayout.EndScrollView();
             GUILayout.EndArea();
             return;
         }
@@ -46,6 +52,7 @@ public static class ActionNotifySelectionDrawer
         if (!selection.IsValid)
         {
             DrawActionBasics(so, action);
+            EditorGUILayout.EndScrollView();
             GUILayout.EndArea();
             return;
         }
@@ -111,6 +118,7 @@ public static class ActionNotifySelectionDrawer
             EditorUtility.SetDirty(so.targetObject);
         }
 
+        EditorGUILayout.EndScrollView();
         GUILayout.EndArea();
     }
 
@@ -259,7 +267,13 @@ public static class ActionNotifySelectionDrawer
         DrawMultiProperty(batchSet, element, "localOffset");
         DrawMultiProperty(batchSet, element, "localEulerAngles");
         DrawMultiProperty(batchSet, element, "localScale");
-        DrawMultiProperty(batchSet, element, "parentToAttachPoint");
+        DrawMultiProperty(
+            batchSet,
+            element,
+            "parentToAttachPoint",
+            new GUIContent(
+                "Parent To Attach Point",
+                "勾选：实例挂到挂点下并跟随；取消：在触发帧按挂点姿态写入世界空间后不再跟随（对齐运行时）。"));
         DrawPlaybackSpeed(element, action, isVfx: true, batchSet);
     }
 

@@ -53,6 +53,8 @@ public sealed class ActionEditorWindow : EditorWindow
         _vfxPreviewExtension = new ActionEditorVfxPreviewExtension();
         _vfxPreviewExtension.Bind(GetVfxArrayProperty);
         _previewSession = new ActionEditorPreviewSession(this);
+        // 世界空间 VFX 在触发帧冻结落点，需 Session 临时采样该帧 Pose
+        _vfxPreviewExtension.BindWorldPoseEvaluator(_previewSession.TryEvaluateAttachWorldPoseAtFrame);
         _previewSession.RegisterExtension(_vfxPreviewExtension);
 
         EditorApplication.update += OnEditorUpdate;
@@ -357,6 +359,22 @@ public sealed class ActionEditorWindow : EditorWindow
     {
         if (_selectedAction == null || _previewCharacter == null)
             return;
+
+        // 烘焙根运动轨迹：相对预览原点绘制（角色已被 Session 挪动后仍对齐）
+        Vector3 trajectoryOrigin = _previewCharacter.position;
+        Quaternion trajectoryRotation = _previewCharacter.rotation;
+        if (_previewSession != null
+            && _previewSession.TryGetBakedPreviewOrigin(out Vector3 originPos, out Quaternion originRot))
+        {
+            trajectoryOrigin = originPos;
+            trajectoryRotation = originRot;
+        }
+
+        ActionMotionTrajectorySceneDrawing.DrawBakedTrajectories(
+            _selectedAction,
+            trajectoryOrigin,
+            trajectoryRotation,
+            _previewFrame);
 
         // Hitbox 与 VFX 一致：仅在窗口覆盖当前预览帧时绘制，区间外不可见。
         ActionFrameQueryResult frameQuery =

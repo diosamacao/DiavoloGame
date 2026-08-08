@@ -50,6 +50,7 @@ public class ActionDefinitionHitboxEditor : Editor
         _vfxPreviewExtension.Bind(GetVfxArrayProperty);
 
         _previewSession = new ActionEditorPreviewSession(this);
+        _vfxPreviewExtension.BindWorldPoseEvaluator(_previewSession.TryEvaluateAttachWorldPoseAtFrame);
         _previewSession.RegisterExtension(_vfxPreviewExtension);
         _previewSession.SetAction((ActionDefinition)target);
 
@@ -404,9 +405,9 @@ public class ActionDefinitionHitboxEditor : Editor
         if (target is not ActionDefinition action)
             return;
 
-        // Wave 0：烘焙累计轨迹（橙=原始 Δ 累计，青=planarMode 生效后）
+        // Wave 0：烘焙累计轨迹（橙=原始 Δ 累计，青=planarMode 生效后）+ 当前预览帧落点
         if (_previewTrajectoryEnabled && _previewCharacter != null)
-            ActionMotionTrajectorySceneDrawing.DrawBakedTrajectories(action, _previewCharacter);
+            ActionMotionTrajectorySceneDrawing.DrawBakedTrajectories(action, _previewCharacter, _previewFrame);
 
         if (_previewCharacter == null)
             return;
