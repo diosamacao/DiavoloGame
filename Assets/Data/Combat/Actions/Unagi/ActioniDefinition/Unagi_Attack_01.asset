@@ -94,9 +94,9 @@ MonoBehaviour:
           hitStopFrames: 4
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
+          hitImpactSfx: {fileID: 8300000, guid: 5c54d017221df344d86030bb0973ed0f, type: 3}
           hitImpactSfxVolume: 1
-          hitImpactWorldOffset: {x: 0, y: 0.5, z: 0}
+          hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
           randomizeImpactRotation: 1
           impactRandomEulerMin: {x: 0, y: 0, z: 0}

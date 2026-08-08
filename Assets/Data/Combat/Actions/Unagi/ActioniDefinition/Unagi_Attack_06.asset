@@ -94,10 +94,13 @@ MonoBehaviour:
           hitStopFrames: 4
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
+          hitImpactSfx: {fileID: 8300000, guid: 65a0a3da7ef06ee4ca2bf946ccfa35a4, type: 3}
           hitImpactSfxVolume: 1
-          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
     - id: Hitbox_2
       startFrame: 16
       endFrame: 21
@@ -117,10 +120,13 @@ MonoBehaviour:
           hitStopFrames: 4
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
+          hitImpactSfx: {fileID: 8300000, guid: 65a0a3da7ef06ee4ca2bf946ccfa35a4, type: 3}
           hitImpactSfxVolume: 1
-          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
     - id: Hitbox_3
       startFrame: 22
       endFrame: 29
@@ -140,10 +146,13 @@ MonoBehaviour:
           hitStopFrames: 4
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
+          hitImpactSfx: {fileID: 8300000, guid: 65a0a3da7ef06ee4ca2bf946ccfa35a4, type: 3}
           hitImpactSfxVolume: 1
-          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
     - id: Hitbox_4
       startFrame: 30
       endFrame: 35
@@ -163,10 +172,13 @@ MonoBehaviour:
           hitStopFrames: 4
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
+          hitImpactSfx: {fileID: 8300000, guid: 65a0a3da7ef06ee4ca2bf946ccfa35a4, type: 3}
           hitImpactSfxVolume: 1
-          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
     - id: Hitbox_5
       startFrame: 36
       endFrame: 41
@@ -186,10 +198,13 @@ MonoBehaviour:
           hitStopFrames: 4
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 0}
+          hitImpactSfx: {fileID: 8300000, guid: 65a0a3da7ef06ee4ca2bf946ccfa35a4, type: 3}
           hitImpactSfxVolume: 1
-          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
     hurtboxStates: []
     cancelWindowStates:
     - id: Attack

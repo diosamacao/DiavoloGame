@@ -41,18 +41,6 @@ MonoBehaviour:
   timeline:
     actionEvents: []
     playVfxNotifies:
-    - id: VFX_1
-      startFrame: 5
-      endFrame: 5
-      priority: 0
-      trackName: VFX_1
-      prefab: {fileID: 7611201976539897820, guid: b8d5608cf850428083ba2d62a1a0b31a, type: 3}
-      attachPointId: 
-      localOffset: {x: -0.46, y: 0.2, z: 0}
-      localEulerAngles: {x: 116.75, y: 85, z: 8.4}
-      localScale: {x: 1.5, y: 1.5, z: 1.6}
-      parentToAttachPoint: 0
-      playbackSpeed: 1
     - id: VFX_2
       startFrame: 152
       endFrame: 152
@@ -65,7 +53,27 @@ MonoBehaviour:
       localScale: {x: 0.2, y: 0.2, z: 0.2}
       parentToAttachPoint: 1
       playbackSpeed: 1
-    playSfxStates: []
+    - id: VFX_1
+      startFrame: 5
+      endFrame: 5
+      priority: 0
+      trackName: VFX_1
+      prefab: {fileID: 1130446560849736, guid: c4d564b5d4682ad46b8621f0fa6f40d9, type: 3}
+      attachPointId: 
+      localOffset: {x: -0.46, y: 0.7, z: 0.08}
+      localEulerAngles: {x: 320.91, y: -78.06, z: 135.3}
+      localScale: {x: 0.8, y: 0.8, z: 0.8}
+      parentToAttachPoint: 1
+      playbackSpeed: 1.2
+    playSfxStates:
+    - id: SFX_1
+      startFrame: 0
+      endFrame: 0
+      priority: 0
+      trackName: SFX_1
+      audioClip: {fileID: 8300000, guid: 36de77c2058f38e4985ef58f57b9fdaa, type: 3}
+      volume: 1
+      playbackSpeed: 1
     hitboxStates:
     - id: Hitbox_1
       startFrame: 4
@@ -90,6 +98,9 @@ MonoBehaviour:
           hitImpactSfxVolume: 1
           hitImpactWorldOffset: {x: 0, y: 1, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
     hurtboxStates: []
     cancelWindowStates:
     - id: Attack
@@ -132,6 +143,9 @@ MonoBehaviour:
       visible: 1
     - trackName: Hitbox_1
       kind: 0
+      visible: 1
+    - trackName: SFX_1
+      kind: 3
       visible: 1
   bakedMotion:
     logicHz: 60
