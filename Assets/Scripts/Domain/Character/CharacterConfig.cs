@@ -2,8 +2,8 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// 角色装配根配置。Clip 映射在 CombatModeProfile；输入/意图为项目全局；
-/// 本资产只保留模型、Locomotion 参数、Motor、战斗身体与资源。
+/// 角色装配根配置。Locomotion（含 Clip）在 CombatMode；输入/意图为项目全局；
+/// 本资产只保留模型、Motor、战斗身体与资源。
 /// </summary>
 [CreateAssetMenu(fileName = "CharacterConfig", menuName = "ACT/Character/Character Config")]
 public class CharacterConfig : ScriptableObject
@@ -13,15 +13,11 @@ public class CharacterConfig : ScriptableObject
     [SerializeField] Vector3 modelLocalPosition = Vector3.zero;
     [SerializeField] Vector3 modelLocalEulerAngles = Vector3.zero;
 
-    [Header("Locomotion")]
-    [Tooltip("相位阈值、落脚标记、脚步与 Stop/Pivot 烘焙轨；必填，禁止运行时 CreateInstance 容错。")]
-    [SerializeField] CharacterLocomotionProfile locomotionProfile = null;
-
     [Header("Movement")]
     [SerializeField] CharacterMotorConfig motor = CharacterMotorConfig.Default;
 
     [Header("Combat")]
-    [Tooltip("mode → ActionGraph + AnimationProfile（Idle/Walk/Run Clip 映射真源）。")]
+    [Tooltip("mode → ActionGraph + LocomotionProfile（内含 AnimationProfile）。")]
     [SerializeField] CombatModeProfile combatProfile = null;
     [SerializeField] CharacterCombatConfig combat = CharacterCombatConfig.Default;
 
@@ -37,9 +33,6 @@ public class CharacterConfig : ScriptableObject
 
     /// <summary>模型实例本地旋转。</summary>
     public Quaternion ModelLocalRotation => Quaternion.Euler(modelLocalEulerAngles);
-
-    /// <summary>Locomotion 相位与落脚配置（必填）。</summary>
-    public CharacterLocomotionProfile LocomotionProfile => locomotionProfile;
 
     /// <summary>移动和 CharacterController 参数。</summary>
     public CharacterMotorConfig Motor => motor;
@@ -81,14 +74,6 @@ public class CharacterConfig : ScriptableObject
         if (modelPrefab == null)
         {
             Debug.LogError("CharacterConfig: ModelPrefab 未配置。", context);
-            valid = false;
-        }
-
-        if (locomotionProfile == null)
-        {
-            Debug.LogError(
-                "CharacterConfig: LocomotionProfile 未配置（相位/落脚参数，必填）。",
-                context);
             valid = false;
         }
 

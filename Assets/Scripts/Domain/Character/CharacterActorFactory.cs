@@ -59,26 +59,23 @@ public static class CharacterActorFactory
             motorSim);
         IAnimationPlayback playback = new PlayableAnimationPlayback(animator);
         if (config.CombatProfile == null
-            || !config.CombatProfile.TryGetAnimationProfile(
+            || !config.CombatProfile.TryGetLocomotionProfile(
                 config.CombatProfile.DefaultMode,
-                out CharacterAnimationProfile animationProfile))
+                out CharacterLocomotionProfile locomotionProfile)
+            || locomotionProfile.AnimationProfile == null)
         {
             throw new InvalidOperationException(
-                "CharacterActorFactory: CombatModeProfile 默认模式缺少 AnimationProfile（Idle/Walk/Run Clip 映射）。");
+                "CharacterActorFactory: CombatModeProfile 默认模式缺少 LocomotionProfile（须含 AnimationProfile）。");
         }
 
-        animation = new CharacterAnimationService(playback, animator, animationProfile);
+        animation = new CharacterAnimationService(
+            playback,
+            animator,
+            locomotionProfile.AnimationProfile);
         var rootMotion = new CharacterRootMotionDriver(motor, animator);
         var combatMode = new CombatModeService(config.CombatProfile, animation);
 
         var context = new CharacterContext(root, animation, controller, motor);
-        CharacterLocomotionProfile locomotionProfile = config.LocomotionProfile;
-        if (locomotionProfile == null)
-        {
-            throw new InvalidOperationException(
-                "CharacterActorFactory: CharacterLocomotionProfile 未配置（禁止运行时默认实例容错）。");
-        }
-
         var footstepPlayer = new LocomotionFootstepPlayer(root, locomotionProfile);
         var locomotionStateMachine = new LocomotionStateMachine(
             root,

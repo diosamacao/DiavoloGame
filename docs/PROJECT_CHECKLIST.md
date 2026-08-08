@@ -59,7 +59,7 @@
 ## 3. 当前焦点（立刻做什么）
 
 **下一项：** A1 木桩 Editor 验收；配置链可按需 Phase C  
-→ 木桩/配置链：[`2026.8.8/CONFIG_CHAIN_AND_DUMMY_AI_PLAN.md`](./2026.8.8/CONFIG_CHAIN_AND_DUMMY_AI_PLAN.md)（A/A2/B/B2 代码 ✅）  
+→ 木桩/配置链：[`2026.8.8/CONFIG_CHAIN_AND_DUMMY_AI_PLAN.md`](./2026.8.8/CONFIG_CHAIN_AND_DUMMY_AI_PLAN.md)（A～B3 代码 ✅）  
 → 日计划：[`2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md`](./2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md)
 
 | # | 项 | 状态 |

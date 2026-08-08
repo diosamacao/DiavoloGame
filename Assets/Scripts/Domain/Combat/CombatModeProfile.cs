@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-/// <summary>战斗模式标识；每种模式绑定一张 ActionGraph 与 Locomotion 动画映射。</summary>
+/// <summary>战斗模式标识；每种模式绑定一张 ActionGraph 与一套 LocomotionProfile。</summary>
 public enum CombatModeType
 {
     Default = 0,
@@ -23,16 +23,16 @@ public enum CombatModeSwitchPolicy
     StopCurrentAction = 2,
 }
 
-/// <summary>单个战斗模式：ActionGraph + 必填 AnimationProfile（Idle/Walk/Run Clip 映射）。</summary>
+/// <summary>单个战斗模式：ActionGraph + 必填 LocomotionProfile（内含 AnimationProfile）。</summary>
 [Serializable]
 public struct CombatModeEntry
 {
     [SerializeField] CombatModeType mode;
     [Tooltip("本模式出招图（Entry×Intent / Cancel）。")]
     [SerializeField] ActionGraph actionGraph;
-    [FormerlySerializedAs("locomotionProfile")]
-    [Tooltip("本模式 Idle/Walk/Run 等 Clip 映射；必填，不再回退 CharacterConfig。")]
-    [SerializeField] CharacterAnimationProfile animationProfile;
+    [FormerlySerializedAs("animationProfile")]
+    [Tooltip("本模式 Locomotion（含 Clip 映射与相位参数）；必填。")]
+    [SerializeField] CharacterLocomotionProfile locomotionProfile;
 
     /// <summary>模式枚举。</summary>
     public CombatModeType Mode => mode;
@@ -40,14 +40,14 @@ public struct CombatModeEntry
     /// <summary>本模式 ActionGraph。</summary>
     public ActionGraph ActionGraph => actionGraph;
 
-    /// <summary>本模式 Locomotion Clip 映射。</summary>
-    public CharacterAnimationProfile AnimationProfile => animationProfile;
+    /// <summary>本模式完整 Locomotion 配置。</summary>
+    public CharacterLocomotionProfile LocomotionProfile => locomotionProfile;
 
-    /// <summary>Graph 与 AnimationProfile 均已绑定。</summary>
-    public bool IsValid => actionGraph != null && animationProfile != null;
+    /// <summary>Graph 与 LocomotionProfile 均已绑定。</summary>
+    public bool IsValid => actionGraph != null && locomotionProfile != null;
 }
 
-/// <summary>战斗模式配置：mode → ActionGraph + AnimationProfile。</summary>
+/// <summary>战斗模式配置：mode → ActionGraph + LocomotionProfile。</summary>
 [CreateAssetMenu(fileName = "CombatModeProfile", menuName = "ACT/Combat/Combat Mode Profile")]
 public class CombatModeProfile : ScriptableObject
 {
@@ -76,8 +76,8 @@ public class CombatModeProfile : ScriptableObject
         return false;
     }
 
-    /// <summary>查找指定模式的 Locomotion Clip 映射（AnimationProfile）。</summary>
-    public bool TryGetAnimationProfile(CombatModeType mode, out CharacterAnimationProfile animationProfile)
+    /// <summary>查找指定模式的 LocomotionProfile。</summary>
+    public bool TryGetLocomotionProfile(CombatModeType mode, out CharacterLocomotionProfile locomotionProfile)
     {
         if (entries != null)
         {
@@ -86,26 +86,27 @@ public class CombatModeProfile : ScriptableObject
                 if (!entry.IsValid || entry.Mode != mode)
                     continue;
 
-                animationProfile = entry.AnimationProfile;
+                locomotionProfile = entry.LocomotionProfile;
                 return true;
             }
         }
 
-        animationProfile = null;
+        locomotionProfile = null;
         return false;
     }
 
-    /// <summary>校验默认模式条目完整（Graph + AnimationProfile）。</summary>
+    /// <summary>校验默认模式：Graph + LocomotionProfile（含 AnimationProfile / Idle·Walk·Run）。</summary>
     public bool Validate(UnityEngine.Object context)
     {
-        if (!TryGetActionGraph(DefaultMode, out _) || !TryGetAnimationProfile(DefaultMode, out CharacterAnimationProfile anim))
+        if (!TryGetActionGraph(DefaultMode, out _)
+            || !TryGetLocomotionProfile(DefaultMode, out CharacterLocomotionProfile loco))
         {
             Debug.LogError(
-                $"CombatModeProfile: defaultMode={DefaultMode} 必须同时配置 ActionGraph 与 AnimationProfile。",
+                $"CombatModeProfile: defaultMode={DefaultMode} 必须同时配置 ActionGraph 与 LocomotionProfile。",
                 context != null ? context : this);
             return false;
         }
 
-        return anim.ValidateClips(context != null ? context : this);
+        return loco.Validate(context != null ? context : this);
     }
 }
