@@ -1,6 +1,7 @@
 # ACTGame 设计方向与重构路线图
 
-> 优先级：P0 阻塞体验 → P1 架构健康 → P2 扩展预备
+> 优先级：P0 阻塞体验 → P1 架构健康 → P2 扩展预备  
+> **一页总清单：** [`docs/PROJECT_CHECKLIST.md`](../../docs/PROJECT_CHECKLIST.md)（进度摘要；细节仍以本文 + MASTER + TECHNICAL 为准）
 
 ## 设计原则（长期）
 
@@ -72,7 +73,7 @@
 
 **字段/产品语义**：`docs/COMBAT_NUMERICS_PLAN.md`  
 **数值口袋改造真源**：`docs/2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md`（G0～G5；Wave 4 前）  
-（归档：`COMBAT_ATTRIBUTES_DAMAGE_PLAN.md`、`COMBAT_RESOURCE_SYSTEM_PLAN.md`）
+（旧 Attributes/Resource 独立稿已删除；字段以本文 + NUMERICS 为准）
 
 **方向**：`CombatHitPipeline` 唯一结算口；数值权威为 Attribute + Effect + Flags（`NumericSystem`）。旧 ResourceSim/Health 已删。
 
@@ -129,9 +130,17 @@
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
 | ActionEditorWindow | P1 | ✅ 基础版 + 菱形/Zoom/Scrub 预览 + 2026-08-04 playhead 跟视口、Create 选文件夹、左侧文件夹分组；后续增强 SFX 预览 |
-| Enemy/ + AI | P2 | 🟡 2026-07-29 代码已实现；EnemyDefinition、Graph、动画资产待配置 |
-| UI/ | P2 | HUD、血条 |
+| Enemy/ + AI | P2 | 🟡 2026-07-29 代码已实现；EnemyDefinition、Graph、动画资产待配置；BT 见下 |
+| UI/（MVVM） | P2 | HUD、血条；View/ViewModel 分层，不直写 Domain 权威 |
 | 事件总线 | P2 | 轻量 C# event；定稿前不引入第三方 |
+| 行为树编辑器 | P2 | 简易节点编辑；运行时 `IBehaviorTree*` 抽象，预留替换 Unity/第三方 BT 插件 |
+| A\* 寻路 | P2 | 学习实现；路径 → AI 移动意图；锁步确定性边界待定 |
+| 性能优化实践 | P2 | 木桩/多敌人基线 + Profiler 对照；见 `docs/PROJECT_CHECKLIST.md` §6.4 |
+| 剧情编辑器 | P3 | 对话/镜头节点或时间轴；与 Gameplay 用事件解耦 |
+| AssetBundle + Lua 热更 | P3 | 学习沙盒；热更不得改 ActionSim/Numeric 权威 |
+| SDK 打包流程 | P3 | 渠道 SDK / 多包体 / 与热更产物衔接演练 |
+
+总清单一页表：[`docs/PROJECT_CHECKLIST.md`](../../docs/PROJECT_CHECKLIST.md) §6.3～§6.4。
 
 ## Tech Debt 观察清单
 

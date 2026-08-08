@@ -318,7 +318,7 @@ CombatModeService 切模式
 
 ### Phase E — 文档与规范
 
-- [x] 更新 `ARCHITECTURE.md` / `TECHNICAL.md` / `CONVENTIONS.md` / `docs/ACTION_SYSTEM.md`
+- [x] 更新 `ARCHITECTURE.md` / `TECHNICAL.md` / `CONVENTIONS.md`
 - [x] `ROADMAP.md` 记「Playable 薄层；Animancer 可替换」
 - [x] 本计划文首状态改为已实施
 
@@ -357,7 +357,7 @@ CombatModeService 切模式
 ### 8.4 文档
 
 - `.cursor/skills/actgame-architecture/*` 动画相关节
-- `docs/ACTION_SYSTEM.md`、`docs/ACTION_EDITOR.md` 中「AC 仅 Locomotion」表述改为「无 Controller，全 Clip + Playable」
+- `docs/ACTION_EDITOR.md` / TECHNICAL 中动画表述改为「无 Controller，全 Clip + Playable」
 
 ---
 
