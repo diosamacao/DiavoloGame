@@ -20,6 +20,7 @@ public class ActionDefinitionHitboxEditor : Editor
 
     ActionEditorPreviewSession _previewSession;
     ActionEditorVfxPreviewExtension _vfxPreviewExtension;
+    readonly ActionEditorHitboxWorldSpacePreview _hitboxWorldPreview = new();
 
     Transform _previewCharacter;
     int _previewFrame;
@@ -75,6 +76,7 @@ public class ActionDefinitionHitboxEditor : Editor
         SavePreviewFrame();
         SavePreviewToggles();
 
+        _hitboxWorldPreview.Clear();
         _previewSession?.Dispose();
         _previewSession = null;
     }
@@ -451,19 +453,23 @@ public class ActionDefinitionHitboxEditor : Editor
     {
         ActionFrameQueryResult frameQuery = ActionFrameQuery.Query(action, _previewFrame);
         HitboxNotifyState[] hitboxes = action.HitboxStates;
+        _hitboxWorldPreview.PruneInactive(hitboxes, _previewFrame);
         for (int i = 0; i < hitboxes.Length; i++)
         {
             HitboxNotifyState hitbox = hitboxes[i];
             if (hitbox == null || !frameQuery.IsStateActive(hitbox))
                 continue;
 
-            Transform anchor = ActionEditorPreviewAttachPoint.Resolve(root, hitbox.AttachPointId);
             bool isSelected = i == _selectedHitboxIndex;
             Color color = isSelected
                 ? new Color(1f, 0.85f, 0.1f, 1f)
                 : new Color(1f, 0.35f, 0.15f, 0.95f);
 
-            HitboxOrientedBox box = HitboxMath.BuildFromHitbox(root, anchor, hitbox);
+            HitboxOrientedBox box = _hitboxWorldPreview.ResolveBox(
+                i,
+                hitbox,
+                root,
+                _previewSession);
             HitboxSceneDrawing.DrawWireOrientedBox(box, color);
         }
     }

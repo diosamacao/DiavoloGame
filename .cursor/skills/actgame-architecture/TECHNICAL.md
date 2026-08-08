@@ -598,6 +598,7 @@ SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSourc
 - Scrub / 播放 / 工具栏改帧时，playhead 超出 Zoom 可视区会**自动平移**时间轴视图
 - Scene Hitbox 线框与 VFX Prefab/粒子按 **Preview Frame** 驱动：拖到对应帧/区间即可预览（Hitbox 仅在窗口激活时可见），无需选中时间轴窗口；选中仅用于 Handles 编辑
 - Scene 烘焙根运动：`ActionMotionTrajectorySceneDrawing` 画 Full/Gameplay/Residual 轨迹 + 当前帧落点；`BaseMotionMode=BakedMotion` 时 `ActionEditorPreviewSession` 按表挪动预览根并写 VisualMotionRoot 残差（离开预览还原）
+- Hitbox / VFX 均支持 `parentToAttachPoint`：勾选跟随挂点；取消则在进入/触发帧冻结世界空间（运行时 `HitboxFrameConsumer` 缓存 OBB）
 - 右侧 Inspector：`ActionNotifySelectionDrawer` 纵向 ScrollView，Hitbox 长表单可滚到底部编辑
 - Create：选角色文件夹（如 Unagi），自动保存到其子目录 `ActionDefinition`（无则创建；已有旧名 `ActioniDefinition` 则复用）；默认名可改；左侧列表按文件夹分组
 - 时间轴多选：Ctrl 点选 / Shift 同轨范围选；Ctrl+C/V 复制粘贴（可跨 Action，按预览帧对齐）；Delete 删多选
@@ -806,6 +807,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-08 | 受击 Cue：接触点=攻击盒中心→Hurtbox 最近点；随机旋转；F4 Hurtbox 线框 |
 | 2026-08-08 | 动作 SFX 多声道淡出（连招不掐断） |
 | 2026-08-08 | Action Editor：Scrub 展示烘焙根运动轨迹/位移；右侧 Inspector 纵向滚动 |
+| 2026-08-09 | Hitbox `parentToAttachPoint`：世界空间冻结盒（对齐 VFX）；编辑器预览同步 |
 
 ---
 

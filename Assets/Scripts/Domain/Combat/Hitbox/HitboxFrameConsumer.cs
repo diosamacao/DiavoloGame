@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>攻击侧 Hitbox 帧消费者：按 MotorSim 逻辑根收集命中。</summary>
+/// <summary>
+/// 攻击侧 Hitbox 帧消费者：按 MotorSim 逻辑根收集命中。
+/// parentToAttachPoint=false 时在窗口进入帧冻结世界 OBB，后续帧不再跟随根移动。
+/// </summary>
 public sealed class HitboxFrameConsumer : ICombatFrameConsumer
 {
     readonly Transform root;
@@ -15,6 +18,9 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
     readonly CombatHitPipeline hitPipeline;
 
     readonly HashSet<(int HitboxIndex, SimActorId TargetId)> _hitPairs = new();
+    /// <summary>世界空间 Hitbox：按 hitboxIndex 缓存进入窗口时的 OBB。</summary>
+    readonly Dictionary<int, HitboxOrientedBox> _frozenWorldBoxes = new();
+    readonly List<int> _staleFrozenKeys = new();
     int _trackedActionInstanceId;
 
     /// <summary>默认挂点；为空时使用角色根。</summary>
@@ -41,11 +47,12 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
         hitPipeline = combatHitPipeline;
     }
 
-    /// <summary>新招式开始：清空命中缓存。</summary>
+    /// <summary>新招式开始：清空命中缓存与世界空间冻结盒。</summary>
     public void OnActionBegan(ActionDefinition action)
     {
         _trackedActionInstanceId = 0;
         _hitPairs.Clear();
+        _frozenWorldBoxes.Clear();
     }
 
     /// <summary>Logic Tick 帧推进：每个 Hitbox 窗口对每个目标最多结算一次。</summary>
@@ -58,26 +65,25 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
         ProcessHitboxesAtFrame(context.Action, context.FrameIndex, context.ActionInstanceId);
     }
 
-    /// <summary>招式结束：清空追踪状态。</summary>
+    /// <summary>招式结束：清空追踪状态与冻结盒。</summary>
     public void OnActionEnded()
     {
         _trackedActionInstanceId = 0;
         _hitPairs.Clear();
+        _frozenWorldBoxes.Clear();
     }
 
     void ProcessHitboxesAtFrame(ActionDefinition action, int frame, int actionInstanceId)
     {
+        PruneFrozenBoxes(action, frame);
+
         IReadOnlyList<IHurtboxTarget> activeTargets = activeTargetsProvider?.Invoke();
-        float heightY = root != null ? root.position.y : 0f;
-        SimCombatPose attackerPose = SimCombatPose.FromMotor(_motorSim, heightY);
 
         HitDetector.ProcessHitboxesAtFrame(
             action,
             frame,
-            attackerPose,
             attackerTeamId,
-            ResolveAttachLocalPosition,
-            ResolveAttachLocalRotation,
+            ResolveAttackBox,
             _hitPairs,
             _actionSim,
             activeTargets,
@@ -85,6 +91,37 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
             actionInstanceId,
             hitPipeline,
             root);
+    }
+
+    /// <summary>
+    /// 解析攻击盒：跟随挂点则每帧重建；世界空间则进入窗口时冻结。
+    /// </summary>
+    HitboxOrientedBox ResolveAttackBox(int hitboxIndex, HitboxNotifyState hitbox)
+    {
+        if (hitbox.ParentToAttachPoint)
+        {
+            _frozenWorldBoxes.Remove(hitboxIndex);
+            return BuildFollowAttachBox(hitbox);
+        }
+
+        if (_frozenWorldBoxes.TryGetValue(hitboxIndex, out HitboxOrientedBox frozen))
+            return frozen;
+
+        HitboxOrientedBox captured = BuildFollowAttachBox(hitbox);
+        _frozenWorldBoxes[hitboxIndex] = captured;
+        return captured;
+    }
+
+    /// <summary>按当前逻辑根 + 挂点局部 TRS 构建跟随盒。</summary>
+    HitboxOrientedBox BuildFollowAttachBox(HitboxNotifyState hitbox)
+    {
+        float heightY = root != null ? root.position.y : 0f;
+        SimCombatPose attackerPose = SimCombatPose.FromMotor(_motorSim, heightY);
+        return HitboxMath.BuildFromHitboxLogical(
+            in attackerPose,
+            ResolveAttachLocalPosition(hitbox),
+            ResolveAttachLocalRotation(hitbox),
+            hitbox);
     }
 
     /// <summary>挂点相对角色根的局部位置；供逻辑根合成世界盒。</summary>
@@ -116,6 +153,32 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
         return attachPoints.Resolve(hitbox != null ? hitbox.AttachPointId : null);
     }
 
+    /// <summary>窗口已退出的世界空间盒丢弃，下次进入重新捕获。</summary>
+    void PruneFrozenBoxes(ActionDefinition action, int frame)
+    {
+        if (_frozenWorldBoxes.Count == 0)
+            return;
+
+        HitboxNotifyState[] hitboxes = action.HitboxStates;
+        _staleFrozenKeys.Clear();
+        foreach (KeyValuePair<int, HitboxOrientedBox> pair in _frozenWorldBoxes)
+        {
+            int index = pair.Key;
+            if (hitboxes == null
+                || index < 0
+                || index >= hitboxes.Length
+                || hitboxes[index] == null
+                || !hitboxes[index].IsActiveAtFrame(frame)
+                || hitboxes[index].ParentToAttachPoint)
+            {
+                _staleFrozenKeys.Add(index);
+            }
+        }
+
+        for (int i = 0; i < _staleFrozenKeys.Count; i++)
+            _frozenWorldBoxes.Remove(_staleFrozenKeys[i]);
+    }
+
     /// <summary>切换稳定动作实例时清空命中缓存，允许同一内容连续播放。</summary>
     void ClearHitCacheIfNeeded(int actionInstanceId)
     {
@@ -124,6 +187,7 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
 
         _trackedActionInstanceId = actionInstanceId;
         _hitPairs.Clear();
+        _frozenWorldBoxes.Clear();
     }
 
     /// <summary>绘制指定招式在某帧的全部生效 Hitbox（Play Mode Gizmo）。</summary>
@@ -133,8 +197,7 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
             return;
 
         HitboxNotifyState[] allHitboxes = action.HitboxStates;
-        float heightY = root != null ? root.position.y : 0f;
-        SimCombatPose pose = SimCombatPose.FromMotor(_motorSim, heightY);
+        PruneFrozenBoxes(action, frame);
 
         for (int i = 0; i < allHitboxes.Length; i++)
         {
@@ -153,11 +216,10 @@ public sealed class HitboxFrameConsumer : ICombatFrameConsumer
             if (!editorPreview && !isActive)
                 continue;
 
-            HitboxOrientedBox box = HitboxMath.BuildFromHitboxLogical(
-                in pose,
-                ResolveAttachLocalPosition(hitbox),
-                ResolveAttachLocalRotation(hitbox),
-                hitbox);
+            // 编辑器预览未进窗口时仍画跟随盒，便于摆位置；世界空间仅在激活后冻结
+            HitboxOrientedBox box = isActive || hitbox.ParentToAttachPoint
+                ? ResolveAttackBox(i, hitbox)
+                : BuildFollowAttachBox(hitbox);
             HitboxGizmoDrawing.DrawWireOrientedBox(box, color);
         }
     }

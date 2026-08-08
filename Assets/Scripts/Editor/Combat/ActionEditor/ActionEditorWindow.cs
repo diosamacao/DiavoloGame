@@ -20,6 +20,7 @@ public sealed class ActionEditorWindow : EditorWindow
     readonly ActionEditorSelectionSet _selection = new();
     ActionEditorPreviewSession _previewSession;
     ActionEditorVfxPreviewExtension _vfxPreviewExtension;
+    readonly ActionEditorHitboxWorldSpacePreview _hitboxWorldPreview = new();
 
     Transform _previewCharacter;
     int _previewFrame;
@@ -305,6 +306,7 @@ public sealed class ActionEditorWindow : EditorWindow
         if (_serializedObject != null)
             ActionTimelineCommands.EnsureTracksFromWindows(_serializedObject);
         _previewFrame = 0;
+        _hitboxWorldPreview.Clear();
         _previewSession?.SetAction(action);
         Repaint();
     }
@@ -376,18 +378,22 @@ public sealed class ActionEditorWindow : EditorWindow
             trajectoryRotation,
             _previewFrame);
 
-        // Hitbox 与 VFX 一致：仅在窗口覆盖当前预览帧时绘制，区间外不可见。
+        // Hitbox：仅在窗口激活时绘制；ParentToAttachPoint=false 时按 StartFrame 冻结世界盒
         ActionFrameQueryResult frameQuery =
             ActionFrameQuery.Query(_selectedAction, _previewFrame);
         HitboxNotifyState[] hitboxes = _selectedAction.HitboxStates;
+        _hitboxWorldPreview.PruneInactive(hitboxes, _previewFrame);
         for (int i = 0; i < hitboxes.Length; i++)
         {
             HitboxNotifyState hitbox = hitboxes[i];
             if (hitbox == null || !frameQuery.IsStateActive(hitbox))
                 continue;
 
-            Transform hitboxAnchor = ActionEditorPreviewAttachPoint.Resolve(_previewCharacter, hitbox.AttachPointId);
-            HitboxOrientedBox box = HitboxMath.BuildFromHitbox(_previewCharacter, hitboxAnchor, hitbox);
+            HitboxOrientedBox box = _hitboxWorldPreview.ResolveBox(
+                i,
+                hitbox,
+                _previewCharacter,
+                _previewSession);
             HitboxSceneDrawing.DrawWireOrientedBox(box, new Color(1f, 0.35f, 0.15f, 0.95f));
         }
 

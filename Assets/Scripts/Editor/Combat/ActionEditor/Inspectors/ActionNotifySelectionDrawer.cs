@@ -241,6 +241,13 @@ public static class ActionNotifySelectionDrawer
         DrawMultiProperty(
             batchSet,
             element,
+            "parentToAttachPoint",
+            new GUIContent(
+                "Parent To Attach Point",
+                "勾选：每帧跟随挂点/角色根；取消：窗口进入帧写入世界空间后不再跟随（对齐 VFX）。"));
+        DrawMultiProperty(
+            batchSet,
+            element,
             "payload",
             new GUIContent("Hit Payload"),
             includeChildren: true);
