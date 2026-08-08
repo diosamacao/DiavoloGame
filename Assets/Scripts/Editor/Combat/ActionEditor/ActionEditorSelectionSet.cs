@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 
-/// <summary>时间轴多选集合；Primary 供右侧 Inspector 编辑。</summary>
+/// <summary>时间轴多选集合；Primary 为右侧 Inspector 主编辑项，同类型多选时变更会批量同步。</summary>
 public sealed class ActionEditorSelectionSet
 {
     readonly List<ActionEditorSelection> _items = new();
 
-    /// <summary>主选中项；多选时 Inspector 编辑此项。</summary>
+    /// <summary>主选中项；同类型多选时作为批量写回的源值。</summary>
     public ActionEditorSelection Primary { get; private set; }
 
     /// <summary>当前选中数量。</summary>

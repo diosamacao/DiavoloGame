@@ -29,7 +29,6 @@ MonoBehaviour:
   crossFadeDuration: 0.1
   executionPolicy:
     interruptPriority: 0
-    useRootMotion: 1
     baseMotionMode: 2
   resourceSpec:
     resourceTag: 0
@@ -62,6 +61,11 @@ MonoBehaviour:
           useHitStop: 0
           hitStopFrames: 0
           hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 0}
+          hitImpactSfxVolume: 1
+          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
     - id: Hitbox_2
       startFrame: 18
       endFrame: 22
@@ -80,6 +84,11 @@ MonoBehaviour:
           useHitStop: 0
           hitStopFrames: 0
           hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 0}
+          hitImpactSfxVolume: 1
+          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
     hurtboxStates: []
     cancelWindowStates:
     - id: NormalCancel

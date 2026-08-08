@@ -95,18 +95,18 @@ MonoBehaviour:
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 3, y: 3, z: 3}
       payload:
-        baseDamage: 0
+        baseDamage: 10
         hitReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 0
           hitStopFrames: 0
           hitStopOncePerAction: 0
-          hitImpactVfxPrefab: {fileID: 0}
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 0}
           hitImpactSfxVolume: 1
           hitImpactWorldOffset: {x: 0, y: 1, z: 0}
-          hitImpactScale: {x: 1, y: 1, z: 1}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
     - id: Hitbox_2
       startFrame: 47
       endFrame: 48
@@ -118,18 +118,18 @@ MonoBehaviour:
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 3, y: 3, z: 3}
       payload:
-        baseDamage: 0
+        baseDamage: 10
         hitReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 0
           hitStopFrames: 0
           hitStopOncePerAction: 0
-          hitImpactVfxPrefab: {fileID: 0}
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 0}
           hitImpactSfxVolume: 1
           hitImpactWorldOffset: {x: 0, y: 1, z: 0}
-          hitImpactScale: {x: 1, y: 1, z: 1}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
     - id: Hitbox_3
       startFrame: 51
       endFrame: 52
@@ -141,18 +141,18 @@ MonoBehaviour:
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 3, y: 3, z: 3}
       payload:
-        baseDamage: 0
+        baseDamage: 10
         hitReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 0
           hitStopFrames: 0
           hitStopOncePerAction: 0
-          hitImpactVfxPrefab: {fileID: 0}
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 0}
           hitImpactSfxVolume: 1
           hitImpactWorldOffset: {x: 0, y: 1, z: 0}
-          hitImpactScale: {x: 1, y: 1, z: 1}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
     - id: Hitbox_4
       startFrame: 55
       endFrame: 56
@@ -164,18 +164,18 @@ MonoBehaviour:
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 3, y: 3, z: 3}
       payload:
-        baseDamage: 0
+        baseDamage: 10
         hitReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 0
           hitStopFrames: 0
           hitStopOncePerAction: 0
-          hitImpactVfxPrefab: {fileID: 0}
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 0}
           hitImpactSfxVolume: 1
           hitImpactWorldOffset: {x: 0, y: 1, z: 0}
-          hitImpactScale: {x: 1, y: 1, z: 1}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
     - id: Hitbox_5
       startFrame: 59
       endFrame: 60
@@ -187,18 +187,18 @@ MonoBehaviour:
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 3, y: 3, z: 3}
       payload:
-        baseDamage: 0
+        baseDamage: 10
         hitReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 0
           hitStopFrames: 0
           hitStopOncePerAction: 0
-          hitImpactVfxPrefab: {fileID: 0}
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 0}
           hitImpactSfxVolume: 1
           hitImpactWorldOffset: {x: 0, y: 1, z: 0}
-          hitImpactScale: {x: 1, y: 1, z: 1}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
     - id: Hitbox_6
       startFrame: 63
       endFrame: 64
@@ -210,18 +210,18 @@ MonoBehaviour:
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 3, y: 3, z: 3}
       payload:
-        baseDamage: 0
+        baseDamage: 10
         hitReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 0
           hitStopFrames: 0
           hitStopOncePerAction: 0
-          hitImpactVfxPrefab: {fileID: 0}
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 0}
           hitImpactSfxVolume: 1
           hitImpactWorldOffset: {x: 0, y: 1, z: 0}
-          hitImpactScale: {x: 1, y: 1, z: 1}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
     - id: Hitbox_7
       startFrame: 67
       endFrame: 68
@@ -244,7 +244,7 @@ MonoBehaviour:
           hitImpactSfx: {fileID: 0}
           hitImpactSfxVolume: 1
           hitImpactWorldOffset: {x: 0, y: 1, z: 0}
-          hitImpactScale: {x: 0.3, y: 0.3, z: 0.3}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
     hurtboxStates: []
     cancelWindowStates:
     - id: Cancel_1

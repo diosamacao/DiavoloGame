@@ -97,7 +97,7 @@ MonoBehaviour:
           hitImpactSfx: {fileID: 0}
           hitImpactSfxVolume: 1
           hitImpactWorldOffset: {x: 0, y: 1, z: 0}
-          hitImpactScale: {x: 0.3, y: 0.3, z: 0.3}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
     hurtboxStates: []
     cancelWindowStates:
     - id: Attack

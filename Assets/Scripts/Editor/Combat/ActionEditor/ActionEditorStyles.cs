@@ -29,6 +29,10 @@ public static class ActionEditorStyles
     public static readonly Color EmptyStateBox = new(0.2f, 0.2f, 0.23f, 1f);
     public static readonly Color Ruler = new(0.28f, 0.28f, 0.32f, 1f);
     public static readonly Color Playhead = new(1f, 0.35f, 0.2f, 1f);
+    /// <summary>时间轴拖拽框选半透明填充。</summary>
+    public static readonly Color MarqueeFill = new(0.35f, 0.6f, 1f, 0.18f);
+    /// <summary>时间轴拖拽框选边框。</summary>
+    public static readonly Color MarqueeBorder = new(0.45f, 0.75f, 1f, 0.95f);
 
     /// <summary>选中时相对原色的加深倍率（&lt; 1 更暗）。</summary>
     const float SelectionDarken = 0.72f;
