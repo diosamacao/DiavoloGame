@@ -119,7 +119,8 @@
 - [x] 2026-08-04 L2：静态碰撞 AABB 烘焙（`StaticCollisionBake` + `SimStaticCollisionWorld`）；空场地回退保留
 - [x] 2026-08-04 L2：重力/着地迁入 `CharacterMotorSim`；逻辑路径删除 `CharacterController.Move`
 - [x] 2026-08-04 L2/M2：`Bake All` / `Bake Dirty Only` + Dirty 指纹黄条 + Validate 菜单
-- [ ] L2 收口：斜坡/网格精确碰撞（当前 AABB 保守）；未烘焙招式 Animator RM 删于 M4
+- [ ] L2 收口：斜坡/网格精确碰撞（当前 AABB 保守）
+- [x] 2026-08-08 Wave 2.5：删除 Action `useRootMotion` / LegacyResolve / ForwardOnly 与 Animator RM→Motor 回退
 - [ ] L3：Snapshot 无损恢复 + 单机预测/回滚雏形（为 L5 完整预测回滚铺路）
 - [ ] L5：权威 FramePacket + 客户端完整预测回滚（已撤销「仅齐帧停等」定案，见锁步方案 5.12）
 

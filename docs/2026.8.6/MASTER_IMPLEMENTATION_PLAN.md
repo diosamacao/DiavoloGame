@@ -196,8 +196,8 @@ Wave 5  大招演出 + 可选失衡；命中盒烘焙后置
 - [x] 2.1 残差由原始表 − Gameplay（planarMode）运行时派生；Scene 画 Full/Gameplay/Residual
 - [x] 2.2 工厂创建 `CharacterVisualMotionRoot` + `CharacterVisualMotionBridge`；结束 BlendToZero
 - [x] 2.3 CameraRoot 仍挂 Presentation（与 Visual 并列）；不跟模型残差
-- [ ] 2.4 正式招全烘焙 / 关 Animator RM（需内容迁移，未在本提交强删）
-- [ ] 2.5 删除 `useRootMotion` / ForwardOnly 运行时（保留至全库迁完）
+- [x] 2.4 正式招全烘焙 / 关 Animator RM（内容已迁；2026-08-08 代码切断 RM→Motor）
+- [x] 2.5 删除 `useRootMotion` / `LegacyResolve` / `ForwardOnly` 运行时与 Action RM 回退（2026-08-08）
 - [x] 2.6 CrossFade 显式 Override（`hasCrossFadeOverride` / `crossFadeDuration`）
 
 **Attack5 验收：** Planar=`ForwardSigned` 重烘焙 → Motor/`ActionLateralPeakMm`≈0，模型在 VisualMotionRoot 上仍左右摆。

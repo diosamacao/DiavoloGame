@@ -227,7 +227,7 @@ public class ActionDefinitionHitboxEditor : Editor
             _motionPlanarMode);
         EditorGUILayout.HelpBox(
             "Wave1：直线连击用 ForwardSigned（丢弃横摆进逻辑根）；侧闪/横移斩用 FullPlanar；"
-            + "ForwardOnly 为旧保模长语义勿再用于新烘焙。只烘焙水平位移；朝向不读运动表 yaw。",
+            + "直线斩用 ForwardSigned；侧闪保留 FullPlanar。只烘焙水平位移；朝向不读运动表 yaw。",
             MessageType.None);
 
         using (new EditorGUILayout.HorizontalScope())

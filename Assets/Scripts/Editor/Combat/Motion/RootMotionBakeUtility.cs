@@ -125,7 +125,7 @@ public static class RootMotionBakeUtility
             float t1 = (frame + 1) / (float)table.logicHz;
             track.TryGetDelta(t0, t1, out Vector3 srcDelta, out _);
             Vector3 srcLocal = new(srcDelta.x, 0f, srcDelta.z);
-            // 与 TryGetDelta 对齐：ForwardSigned/ForwardOnly 都在本地 mm 上投影后再比
+            // 与 TryGetDelta 对齐：按 planarMode 在本地 mm 上投影后再比
             int dxMm = MotionQuantization.MetersToMm(srcLocal.x);
             int dzMm = MotionQuantization.MetersToMm(srcLocal.z);
             ActionBakedMotion.ApplyPlanarMode(table.planarMode, ref dxMm, ref dzMm);

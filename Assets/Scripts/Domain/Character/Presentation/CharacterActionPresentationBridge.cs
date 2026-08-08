@@ -152,9 +152,8 @@ public sealed class CharacterActionPresentationBridge
             return;
 
         ExecuteStartBehaviors(actionEvent.Graph as ActionGraph, actionEvent.NodeId);
-        // 仅解析结果为 AnimatorRootMotion 时开启 OnAnimatorMove，避免与查表双加
-        _rootMotion?.SetActive(
-            ActionMotionRuntimePolicy.ShouldEnableAnimatorRootMotion(ResolveDisplacementSource(action)));
+        // Action 位移仅 Baked/Scripted；禁止 Animator RM → Motor
+        _rootMotion?.SetActive(false);
         for (int i = 0; i < _frameConsumers.Count; i++)
             _frameConsumers[i].OnActionBegan(action);
     }
@@ -221,22 +220,13 @@ public sealed class CharacterActionPresentationBridge
             return;
 
         ActionAnimationSegment segment = query.Segment;
-        bool restoreAnimatorRm = false;
-        if (_rootMotion != null
-            && ActionMotionRuntimePolicy.ShouldEnableAnimatorRootMotion(ResolveDisplacementSource(action)))
-        {
-            // Seek/Evaluate(0) 的姿态跳变不能写进 CharacterController。
-            _rootMotion.SetActive(false);
-            restoreAnimatorRm = true;
-        }
+        // Seek 前确保 RM 关闭，避免姿态跳变写入 Motor
+        _rootMotion?.SetActive(false);
 
         _animation.PlayClip(segment.clip, action.ResolveSegmentCrossFade(segmentIndex));
         _animation.SeekClip(query.SegmentLocalTime);
         _animationAction = action;
         _animationSegmentIndex = segmentIndex;
-
-        if (restoreAnimatorRm)
-            _rootMotion.SetActive(true);
     }
 
     /// <summary>按 Snapshot.FreezeFrames 启停攻击者动画 Speed=0。</summary>
@@ -263,7 +253,7 @@ public sealed class CharacterActionPresentationBridge
         _hitStopPresentationActive = false;
     }
 
-    /// <summary>按 BaseMotionMode / Legacy 策略施加唯一基础位移源。</summary>
+    /// <summary>按 BaseMotionMode 施加唯一基础位移源（Baked / Scripted / None）。</summary>
     void ApplyDisplacementForAction(ActionDefinition action, int frame, float fixedDeltaSeconds)
     {
         switch (ResolveDisplacementSource(action))
@@ -274,8 +264,6 @@ public sealed class CharacterActionPresentationBridge
             case ActionDisplacementSource.ScriptedTimeline:
                 ApplyScriptedDisplacement(action, frame, fixedDeltaSeconds);
                 break;
-            // AnimatorRootMotion：由 CharacterRootMotionDriver / OnAnimatorMove 消费
-            // None：本帧无动作位移
         }
     }
 
@@ -288,7 +276,6 @@ public sealed class CharacterActionPresentationBridge
         ActionExecutionPolicy policy = action.ExecutionPolicy;
         return ActionMotionRuntimePolicy.Resolve(
             policy.BaseMotionMode,
-            policy.UseRootMotion,
             action.BakedMotion.IsReady,
             action.Timeline.HasScriptedMovement);
     }

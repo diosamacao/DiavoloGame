@@ -21,8 +21,8 @@ public sealed class ActionDefinitionAuditEntry
     /// <summary>Timeline 是否存在脚本位移。</summary>
     public bool HasScriptedMovement { get; set; }
 
-    /// <summary>旧 UseRootMotion 开关（只读观测）。</summary>
-    public bool UseRootMotion { get; set; }
+    /// <summary>ExecutionPolicy.BaseMotionMode。</summary>
+    public ActionBaseMotionMode BaseMotionMode { get; set; }
 
     /// <summary>声明 sampleRate。</summary>
     public int SampleRate { get; set; }

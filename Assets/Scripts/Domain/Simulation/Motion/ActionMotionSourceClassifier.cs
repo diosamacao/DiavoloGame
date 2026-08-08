@@ -4,8 +4,8 @@
 public static class ActionMotionSourceClassifier
 {
     /// <summary>
-    /// 三源互斥归类：Baked 与 Scripted 同时成立则为 Conflict；
-    /// UseRootMotion 未烘焙不单独构成 Conflict（记入审计 Warning）。
+    /// 互斥归类：Baked 与 Scripted 同时成立则为 Conflict；
+    /// Animator RM 不再作为 Action 位移源。
     /// </summary>
     public static ActionMotionSourceKind Classify(bool bakedReady, bool hasScriptedMovement)
     {
