@@ -26,10 +26,9 @@
 ## 2. 建议开工顺序（依赖）
 
 ```text
-A0  Editor 扫尾（阻塞手感验收）
-    Dodge 配 PerfectDodge 窗 + Graph Counter Entry
+A0  Editor 扫尾 ✅（2026-08-08）
       ↓
-A1  木桩靶（最早可玩验收台）
+A1  木桩靶（最早可玩验收台）← 下一项
       ↓ 可并行
 A2  打击 VFX/SFX + HitFeedback 调参
 A3  完美闪避子弹时间（表现事件，不改吞伤权威）
@@ -46,11 +45,13 @@ A5  AI 行为树 Phase-1 骨架（只写 InputFrame，复现进战追击+普攻�
 
 ### 3.1 A0 — Editor 扫尾（人工，优先 30～60 分钟）
 
+**状态：✅ 已完成（2026-08-08，人工）**
+
 | 项 | 操作 | 验收 |
 |----|------|------|
-| PerfectDodge 窗 | Dodge Action 加 **PerfectDodge** 轨 + 窗口帧 | 窗内挨打：不掉血、F3 `PDCounter>0`、`Next=Counter` |
-| Counter Graph | Entry：`Intent=PerfectDodgeAttack`，挂反击招 | 缓冲内按攻击出 Counter，起手缓冲清零 |
-| 资源价签（可选当日） | 普攻 Grant / Special·EX cost 抽查 | HUD EX/喧响与起手扣费正确 |
+| PerfectDodge 窗 | Dodge Action 加 **PerfectDodge** 轨 + 窗口帧 | ✅ 窗内挨打：不掉血、F3 `PDCounter>0`、`Next=Counter` |
+| Counter Graph | Entry：`Intent=PerfectDodgeAttack`，挂反击招 | ✅ 缓冲内按攻击出 Counter，起手缓冲清零 |
+| 资源价签（可选当日） | 普攻 Grant / Special·EX cost 抽查 | ✅ HUD EX/喧响与起手扣费正确 |
 
 Agent **不改** `.asset` / Prefab；对齐仓库规则。
 
@@ -200,7 +201,7 @@ Agent **不改** `.asset` / Prefab；对齐仓库规则。
 
 | 时段 | 内容 |
 |------|------|
-| 上午前 | A0 Editor 扫尾 + A1 木桩场景 |
+| 上午前 | ~~A0 Editor 扫尾~~ ✅ → **A1 木桩场景** |
 | 上午后 | A2 命中 VFX/SFX + HitStop/震屏调参 |
 | 下午前 | A3 完美闪避子弹 + 相机轻量优化 |
 | 下午后 | A5 BT Phase-1 骨架与等价替换 |
@@ -211,7 +212,8 @@ Agent **不改** `.asset` / Prefab；对齐仓库规则。
 ## 7. 收工检查清单
 
 - [ ] 木桩场景可复现打击感（伤 / 停 / 震 / 音画）  
-- [ ] 完美闪避：窗 +（可选）子弹 + Counter 路由 Play 通过  
+- [x] 完美闪避：窗 + Counter 路由 Play 通过（A0 ✅）；子弹仍属 A3  
+
 - [ ] 至少一条普攻命中 Cue 完整  
 - [ ] BT：近战敌行为等价或可配置分支；无 Domain 越权  
 - [ ] 无新增双轨血量/资源权威；无表现回写 Sim  
