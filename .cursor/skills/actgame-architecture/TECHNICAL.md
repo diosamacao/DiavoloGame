@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-09（Wave4 位移切片 Editor 验收收口）
+> Last updated: 2026-08-09（Action Editor VFX 预览同步 Animator 采样）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -586,7 +586,7 @@ SimulationHost 帧末
 
 **已知限制：** 单 Hurtbox/角色，无多部位表；新招仍须人工绑 Feedback Prefab/Clip。A2 打击感验收 ✅ 2026-08-09。
 
-VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强制 Despawn；池化实例由 `VfxPooledInstance` 按粒子自然时长（含 `playbackSpeed` / 卡肉冻结）自行回池。无 `VFXManager` 时回退 `Destroy(lifetime)`。
+VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强制 Despawn；池化实例由 `VfxPooledInstance` 按粒子与 Animator clip 的较长自然时长（含 `playbackSpeed` / 卡肉冻结）自行回池。Spawn 时 `Rebind`+从头 `Play` Animator；卡肉同步 `Animator.speed=0`。无 `VFXManager` 时回退 `Destroy(lifetime)`。C1 展示包源资产位于 `Assets/Resources/Effect-C1/EffectPackage/`（Prefab 经 `PlayVfxNotify` 引用，非 `Resources.Load` 硬编码路径）。
 
 SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSource`（与脚步声隔离）；`OnActionEnded` 对仍在播的声道做 **0.1s（unscaled）** 淡出；连招新 `PlaySfx` 走空闲声道，不 Cancel 正在淡出的旧声道。
 
@@ -597,7 +597,7 @@ SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSourc
 - VFX/SFX/Event 点事件在时间轴上绘制为**菱形**（热区按轨高，不随 1 帧条宽缩小）
 - Timeline 顶栏 **Zoom**（1×–16×）+ Ctrl/Cmd+滚轮；放大后横向滚动以精确拖帧
 - Scrub / 播放 / 工具栏改帧时，playhead 超出 Zoom 可视区会**自动平移**时间轴视图
-- Scene Hitbox 线框与 VFX Prefab/粒子按 **Preview Frame** 驱动：拖到对应帧/区间即可预览（Hitbox 仅在窗口激活时可见），无需选中时间轴窗口；选中仅用于 Handles 编辑
+- Scene Hitbox 线框与 VFX Prefab 按 **Preview Frame** 驱动：粒子 `Simulate` + **Animator Clip 同时间采样**（对齐 showcase 的 playOnAwake + Animator）；Hitbox 仅在窗口激活时可见；无需选中时间轴窗口
 - Scene 烘焙根运动：`ActionMotionTrajectorySceneDrawing` 画 Full/Gameplay/Residual 轨迹 + 当前帧落点；`BaseMotionMode=BakedMotion` 时 `ActionEditorPreviewSession` 按表挪动预览根并写 VisualMotionRoot 残差（离开预览还原）
 - Hitbox / VFX 均支持 `parentToAttachPoint`：勾选跟随挂点；取消则在进入/触发帧冻结世界空间（运行时 `HitboxFrameConsumer` 缓存 OBB）
 - 右侧 Inspector：`ActionNotifySelectionDrawer` 纵向 ScrollView，Hitbox 长表单可滚到底部编辑
@@ -817,6 +817,8 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-09 | Wave 4 出口收窄为位移；Wave 5 撤出大招演出；LockOn/SkillShot/Finisher 全归 Camera 篇 |
 | 2026-08-09 | A2 打击感（命中 VFX/SFX）验收；日计划下一项改为 A5 BT |
 | 2026-08-09 | 修复 Action→Idle 模型抖动：`BlendToZero` 期间禁止 `ApplyLogicLocalPose` 回写；回锚结束前后快照一并清零；新动作起手取消未完成 Blend |
+| 2026-08-09 | VFX 池化支持 Animator：Spawn Rebind/从头播、寿命取粒子与 clip 较长者、playbackSpeed/卡肉同步 `Animator.speed`；导入 C1 包至 `Assets/Resources/Effect-C1/` |
+| 2026-08-09 | Action Editor VFX 预览：`SampleAt` 同步粒子 Simulate 与 Animator Clip 采样；`Restart` 对齐 playOnAwake + Animator 从头播 |
 
 ---
 

@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// 订阅统一 ActionNotify 时间轴；在 PlayVfxNotify 触发帧生成实例，并按显式倍率驱动粒子。
+/// 订阅统一 ActionNotify 时间轴；在 PlayVfxNotify 触发帧生成实例，并按显式倍率驱动粒子与 Animator。
 /// 特效生命周期由池化实例自行管理，招式切换时不强制回收。
 /// </summary>
 public sealed class ActionVfxPlayer : IActionNotifyConsumer
@@ -42,7 +42,7 @@ public sealed class ActionVfxPlayer : IActionNotifyConsumer
     /// <summary>招式结束；不强制 Despawn，交由 VfxPooledInstance 按自然生命周期回收。</summary>
     public void OnActionEnded() { }
 
-    /// <summary>无对象池回退路径：按 Prefab 自然时长 / playbackSpeed 延时销毁。</summary>
+    /// <summary>无对象池回退路径：按 Prefab 自然时长（粒子/Animator）/ playbackSpeed 延时销毁。</summary>
     static void ScheduleFallbackDestroy(GameObject instance, PlayVfxNotify vfx)
     {
         float naturalSeconds = ActionVfxPlayback.EstimateNaturalDurationSeconds(vfx.Prefab);
