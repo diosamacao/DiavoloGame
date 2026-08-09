@@ -8,7 +8,7 @@
 
 ## 0. 今日一句话
 
-以**木桩验收台**为中心：先能稳定验伤/停/震，再接通命中音画与完美闪避子弹，相机只调参；午后做 **BT Phase-1 等价替换**（只写 `InputFrame`）。
+A1/A2 打击感已验收；**当前主交付 A5 BT Phase-1**（只写 `InputFrame`）；A3/A4 可选后置。
 
 ---
 
@@ -17,12 +17,12 @@
 | 轨 | 就绪 | Agent（代码） | 你（Editor） |
 |----|------|---------------|--------------|
 | **A1 木桩** | ✅ 验收 2026-08-08 | `enableCombatActions` + Hit_Shake | Monster_EDF 高 HP + 场景 |
-| **A2 命中 Cue** | 代码通道 ✅；资产待绑 | 已做：`HitImpactController` | 普攻 Feedback 绑 VFX/SFX；刀光 Timeline；SS9 色系新 Prefab |
-| **A3 子弹** | 权威齐、表现零 | **必做**：完美吸收只读事件 + 短减速 | 调时长；用现敌测窗 |
-| **A4 相机** | Shake 已接 | 可选：lateral 运行时微调 API | **必做**：Shake / `lateralFollowFactor` 木桩调参 |
-| **A5 BT** | 代码 0 | **必做**：骨架 + 删五态决策双轨 | 挂树资产 / 只追不打变体 |
+| **A2 命中 Cue** | ✅ 验收 2026-08-09 | `HitImpactController` + Feedback | 普攻 Cue / 刀光已验 |
+| **A3 子弹** | 权威齐、表现零 | 可选后置 | 调时长；用现敌测窗 |
+| **A4 相机** | Shake 已接 | 可选后置 | Shake / `lateralFollowFactor` 调参 |
+| **A5 BT** | ⬜ 当前 | **必做**：骨架 + 删五态决策双轨 | 挂树资产 / 只追不打变体 |
 
-**硬约束（全天）：** 不碰 Wave 4 Lock-On；不新增血量/资源口袋；Domain 不直调 Audio/VFX；BT 不 `TryStart` / 不改 Numeric。
+**硬约束：** 完整 LockOn/SkillShot 归 Camera 篇；不新增血量/资源口袋；Domain 不直调 Audio/VFX；BT 不 `TryStart` / 不改 Numeric。
 
 ---
 
@@ -262,14 +262,14 @@ Action Editor：同类型多选可批量改属性；轨道路面支持拖拽框�
 对照大纲 §7，本日最低完成线：
 
 1. **Must：** A1 木桩可复现伤 / 停 / 震 → ✅ 2026-08-08  
-2. **Must：** A2 至少一条普攻命中 Cue（VFX+SFX）完整 ← 代码 ✅，Editor 绑资产中  
+2. **Must：** A2 至少一条普攻命中 Cue（VFX+SFX）完整 → ✅ 2026-08-09  
 
-3. **Should：** A3 子弹可感知 + 恢复正确  
-4. **Should：** A4 木桩镜头手感可接受  
-5. **Should：** A5 一棵近战树可跑；EditMode 有测  
-6. **Must：** 文档勾选本执行单 + 大纲；A3/A5 有定案则回写真源 2～5 行  
+3. **Should：** A3 子弹可感知 + 恢复正确（可选后置）  
+4. **Should：** A4 木桩镜头手感可接受（可选后置）  
+5. **当前：** A5 一棵近战树可跑；EditMode 有测  
+6. **Must：** 文档勾选本执行单 + 大纲；A5 定案回写 BT 方案  
 
-未完成项记入 §6，不塞进 Wave 4。
+A3/A4 不阻塞 A5；镜头大改归 Camera 篇。
 
 ---
 
@@ -277,24 +277,21 @@ Action Editor：同类型多选可批量改属性；轨道路面支持拖拽框�
 
 | 项 | 状态 | 备注 |
 |----|------|------|
-| 打击感位移（Wave 4 Adhesion + SoftBody + Branch_02） | ✅ Editor 验收收口 | 见 `docs/2026.8.9/WAVE4_…`；Relocate 不做 |
-| A2 命中 Cue 资产绑定 | 🟡 | 代码通道已有；按需继续绑 Prefab |
-| A3 完美闪避 SlowMo | ⬜ | 不阻塞位移收口 |
-| A5 BT Phase-1 | ⬜ | 不阻塞位移收口 |
-| Wave 4 Lock-On | ⬜ | 总案 4.5～4.6 |
+| 打击感位移（Wave 4 Adhesion + SoftBody + Branch_02） | ✅ Editor 验收收口 | 见 `docs/2026.8.9/WAVE4_…` |
+| A2 命中 Cue | ✅ 验收 2026-08-09 | 打击感音画收口 |
+| A3 完美闪避 SlowMo | ⬜ | 可选后置 |
+| A5 BT Phase-1 | ⬜ ← **当前** | 见 `ENEMY_BEHAVIOR_TREE_PLAN.md` |
+| LockOn / SkillShot | ⬜ | 归 Camera 篇；不挂 Wave 4/5 |
 
 ---
 
 ## 7. 开工命令（建议顺序）
 
 ```text
-1. 你：A1 Editor 木桩摆好并 Play 通一次
-2. Agent：A2 命中 Cue 通道
-3. 你：普攻 Feedback 资产绑定 → 木桩验收音画
-4. Agent：A3 子弹事件 + Controller
-5. 你：A4 Shake / 滤左右调参；完美窗手感
-6. Agent：A5 BT Phase-1（可与 4～5 交错若你验 A3）
-7. 双方：大纲 §7 + 本文 §5 勾选
+1. ~~A1 / A2~~ ✅
+2. Agent：A5 BT Phase-1（只写 InputFrame；删五态决策双轨）
+3. 你：挂近战树资产 / 真敌 Definition；Play 验追打
+4. 可选后置：A3 SlowMo、A4 轻量相机
 ```
 
-需要 Agent 立刻从某一轨开写时，直接指定：**先 A2** 或 **先 A5**（A1 你可同时做 Editor）。
+需要 Agent 开写时，直接指定：**做 A5**。

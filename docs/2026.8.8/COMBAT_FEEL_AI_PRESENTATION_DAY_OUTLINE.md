@@ -1,6 +1,7 @@
 # 战斗表现 / AI / 木桩 — 日计划大纲（2026-08-09）
 
 > 制定：2026-08-08  
+> 修订：2026-08-09 — A2 打击感验收；下一项 A5 BT；A3/A4 可选后置  
 > 用途：开工顺序、范围边界与验收清单（**大纲，非完整方案**）  
 > **今日执行方案：** [COMBAT_FEEL_AI_PRESENTATION_DAY_EXECUTION.md](./COMBAT_FEEL_AI_PRESENTATION_DAY_EXECUTION.md)  
 > 前置完成：GAS G0～G5；Wave 3.4 代码路由（`PerfectDodgeAttack` / Pipeline 武装 / Editor 可加 PerfectDodge 轨）  
@@ -17,10 +18,10 @@
 
 在**不破坏 60Hz Sim / Numeric 权威**的前提下，并行推进四条线：
 
-1. **AI 行为树**起步（替换或旁路现网五态 `EnemyBrain` 决策）  
-2. **战斗表现优化**：资源可读性、完美闪避子弹时间、相机手感  
-3. **打击 VFX / SFX** 可配可播、跟命中反馈一致  
-4. **打击感木桩**场景靶，稳定验收 HitStop / 震屏 / 音画
+1. **AI 行为树**起步（替换或旁路现网五态 `EnemyBrain` 决策）← **当前**  
+2. **战斗表现优化**：资源可读性、完美闪避子弹时间、相机手感（A3/A4 可选后置）  
+3. **打击 VFX / SFX** ✅（A2 已验收）  
+4. **打击感木桩** ✅（A1 已验收）
 
 ---
 
@@ -31,14 +32,14 @@ A0  Editor 扫尾 ✅（2026-08-08）
       ↓
 A1  木桩靶 ✅（2026-08-08 验收）
       ↓ 可并行
-A2  打击 VFX/SFX + HitFeedback 调参 ← 代码通道已接；Editor 绑资产 / SS9 刀光
-A3  完美闪避子弹时间（表现事件，不改吞伤权威）
-A4  相机优化（跟拍 / 震屏 / 可选轻量 FOV；Lock-On 大改勿塞一天）
-      ↓ 可并行或午后
-A5  AI 行为树 Phase-1 骨架（只写 InputFrame，复现进战追击+普攻）
+A2  打击 VFX/SFX + HitFeedback ✅（2026-08-09 验收）
+A3  完美闪避子弹时间（可选后置）
+A4  相机轻优化（可选后置；完整 Lock-On/SkillShot 归 Camera 篇）
+      ↓
+A5  AI 行为树 Phase-1 ← **当前**（只写 InputFrame，复现进战追击+普攻）
 ```
 
-**原则：** 先有木桩与反馈通道，再谈「打击感」；AI BT 不阻塞木桩验收，但必须遵守锁步时钟（逻辑帧 Tick）。
+**原则：** 木桩与命中音画已齐；下一主交付为 BT Phase-1；A3/A4 不阻塞。
 
 ---
 
@@ -83,13 +84,13 @@ Agent **不改** `.asset` / Prefab；对齐仓库规则。
 
 ### 3.3 A2 — 打击特效 / 打击音效
 
-**目标：** 命中瞬间「看得见、听得见」，配置入口清晰。
+**状态：✅ 已验收（2026-08-09）**
 
 | 层 | 现状锚点 | 当日动作 |
 |----|----------|----------|
-| 招式轨 VFX/SFX | Timeline `PlayVfx` / `PlaySfx` | 刀光换 SS9 色系 Prefab；挂点/PlaybackSpeed |
-| 命中反馈 | `HitPayload.Feedback` → `AttackHitEvent` → `HitImpactController` ✅ | Editor：Feedback 绑受击 Prefab/Clip |
-| HitStop | `ActionSim.freezeFrames` + Owner 暂停粒子 | 木桩调 `hitStopFrames`；禁 unscaled 秒权威 |
+| 招式轨 VFX/SFX | Timeline `PlayVfx` / `PlaySfx` | 刀光等 Timeline 点事件 |
+| 命中反馈 | `HitPayload.Feedback` → `AttackHitEvent` → `HitImpactController` ✅ | Feedback 绑受击 Prefab/Clip |
+| HitStop | `ActionSim.freezeFrames` + Owner 暂停粒子 | 木桩可观测 |
 
 **定案：**
 
@@ -98,9 +99,9 @@ Agent **不改** `.asset` / Prefab；对齐仓库规则。
 
 **验收：**
 
-- [ ] 至少 1～2 段普攻：命中有 VFX + SFX + 可选震屏  
-- [ ] 挥空不播命中 Cue  
-- [ ] 卡肉期间音画不「偷跑」逻辑帧  
+- [x] 至少 1～2 段普攻：命中有 VFX + SFX + 可选震屏  
+- [x] 挥空不播命中 Cue（验收结论）  
+- [x] 卡肉期间音画不「偷跑」逻辑帧（验收结论）  
 
 **禁止：** Domain HitDetector 直调 Audio/VFX；表现回写 Sim。
 
@@ -121,7 +122,7 @@ Agent **不改** `.asset` / Prefab；对齐仓库规则。
 | 项 | 说明 |
 |----|------|
 | 权威 | 仍只在 Pipeline 完美窗：吞伤 + `ArmPerfectDodgeCounter` |
-| 表现 | **新增**子弹时间通道（建议：Confirm 完美吸收后发只读事件 → App 短时 `timeScale` 或独立 Presentation clock） |
+| 表现 | **新增**减速时间通道（建议：Confirm 完美吸收后发只读事件 → App 短时 `timeScale` 或独立 Presentation clock） |
 | 参数 | 时长（逻辑帧或表现毫秒二选一写死）、曲线、是否冻结敌人动画 |
 | 清理 | 超时 / Counter 起手 / 受击抢占时恢复 |
 
@@ -129,14 +130,14 @@ Agent **不改** `.asset` / Prefab；对齐仓库规则。
 
 - [ ] 完美窗命中有可感知减速，结束后恢复  
 - [ ] 不改变扣血/Grant/缓冲帧权威结果  
-- [ ] 与逻辑 HitStop 叠加规则写明（建议：子弹表现可叠，但不双改 `freezeFrames` 语义）
+- [ ] 与逻辑 HitStop 叠加规则写明（建议：减速表现可叠，但不双改 `freezeFrames` 语义）
 
-#### 3.4.3 相机优化（当日轻量）
+#### 3.4.3 相机优化（轻量，可选后置）
 
-对齐 Camera 篇，**当日不做完整 Director / Lock-On Wave 4**。
+对齐 Camera 篇；**完整 LockOn / SkillShot 归 Camera 篇自管，不挂 Wave 4/5**。
 
-| 做 | 不做（留给 Wave 4） |
-|----|---------------------|
+| 做 | 不做 |
+|----|------|
 | 命中 Impulse / Shake 参数表（木桩调） | `CameraDirector` 模式栈大改 |
 | 跟拍抖动、侧移滤左右微调（若仍刺眼） | Target Group Lock-On 全量 |
 | 完美闪避/Counter 短 Impulse（可选） | SkillShot 多段大招镜头 |
@@ -147,9 +148,10 @@ Agent **不改** `.asset` / Prefab；对齐仓库规则。
 
 ### 3.5 A5 — AI 行为树编写
 
+**状态：⬜ 当前主交付**  
 **真源：** [ENEMY_BEHAVIOR_TREE_PLAN.md](../ENEMY_BEHAVIOR_TREE_PLAN.md)（自研轻量 BT；逻辑帧 Tick）。
 
-**Phase-1（明日建议交付）：**
+**Phase-1 交付：**
 
 | 项 | 内容 |
 |----|------|
@@ -184,13 +186,13 @@ Agent **不改** `.asset` / Prefab；对齐仓库规则。
 | 子弹时间 + 相机 Impulse | ✅ | 都走 App 表现；约定事件名 |
 | BT + 木桩 | ✅ | 木桩关闭 AI |
 | BT + 完美闪避 | ⚠ | 需能攻击玩家以测窗；可用现有敌或临时攻击者 |
-| 大改 Lock-On + BT | ❌ 当日勿并行 | Lock-On 留给 Wave 4 |
+| 大改 Lock-On + BT | ❌ 勿并行 | LockOn/SkillShot 归 Camera 篇 |
 
 ---
 
 ## 5. 非目标（明确不做）
 
-- Wave 4 吸附 / 完整 Lock-On Director  
+- 完整 Lock-On / SkillShot / Director（归 Camera 篇）  
 - Effect ScriptableObject 完整作者壳  
 - 正式战斗 UI 美术血条  
 - 联网 / 预测回滚  
@@ -203,33 +205,31 @@ Agent **不改** `.asset` / Prefab；对齐仓库规则。
 
 | 时段 | 内容 |
 |------|------|
-| 上午前 | ~~A0 / A1~~ ✅ → **A2 命中音画** |
-| 上午后 | A2 命中 VFX/SFX + HitStop/震屏调参 |
-| 下午前 | A3 完美闪避子弹 + 相机轻量优化 |
-| 下午后 | A5 BT Phase-1 骨架与等价替换 |
-| 收工前 | 木桩连打录像/清单勾选；记明日债 |
+| — | A0～A2 ✅（含打击感验收 2026-08-09） |
+| 当前 | **A5 BT Phase-1** 骨架与等价替换 |
+| 可选后置 | A3 完美闪避子弹；A4 相机轻量调参 |
 
 ---
 
 ## 7. 收工检查清单
 
-- [x] 木桩场景可复现打击感（伤 / 停 / 震；音画 Cue 属 A2）  
+- [x] 木桩场景可复现打击感（伤 / 停 / 震）  
 - [x] 完美闪避：窗 + Counter 路由 Play 通过（A0 ✅）；子弹仍属 A3  
-
-- [ ] 至少一条普攻命中 Cue 完整（A2）  
-- [ ] BT：近战敌行为等价或可配置分支；无 Domain 越权  
+- [x] 至少一条普攻命中 Cue 完整（A2 ✅ 2026-08-09）  
+- [ ] BT：近战敌行为等价或可配置分支；无 Domain 越权 ← **当前**  
 - [x] 无新增双轨血量/资源权威；无表现回写 Sim（木桩路径）  
-- [x] 文档：A1 勾选已回写  
+- [x] 文档：A1 / A2 勾选已回写  
 
 ---
 
 ## 8. 一句话
 
-木桩验收台已就绪；下一步补齐**命中音画（A2）与完美闪避子弹（A3）**，相机只做轻量反馈；**AI 行为树按既有方案做 Phase-1 等价替换**，严格只输出输入帧、不碰数值权威。
+打击感主线（木桩 + A2 命中音画 + Wave 4 吸附）已验收；**下一项为 AI 行为树 Phase-1**（只写 `InputFrame`）；A3/A4 与完整相机系统可选后置。
 
 ---
 
 ## 9. 后续进度备忘（2026-08-09）
 
-**打击感优化（含 Wave 4 Branch_02 吸附行程）已在 Editor 验收收口**，本日大纲范围内的「手感主线」告一段落。  
-剩余不阻塞项：完美闪避表现（A3）、相机轻量调参（A4）、BT Phase-1（A5）、Wave 4 Relocate/Lock-On。
+**打击感优化（含 Wave 4 Branch_02 吸附行程 + A2 命中 Cue）已验收收口**，手感主线告一段落。  
+**当前：** BT Phase-1（A5）。  
+可选后置：完美闪避表现（A3）、相机轻量调参（A4）；LockOn/SkillShot 归 Camera 篇（不挂 Wave 4/5）。
