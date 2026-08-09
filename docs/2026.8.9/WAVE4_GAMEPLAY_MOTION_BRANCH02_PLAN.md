@@ -2,6 +2,7 @@
 
 > 制定：2026-08-09  
 > 修订：2026-08-09 — 主路径改为攻击吸附；吸附点按 **玩家↔敌人连线动态计算** + 水平距离偏移；**窗口时长 = 吸附完成时长**  
+> 修订：2026-08-09 — **Editor / Play 验收通过**；位移切片（P0～P2 + P4）收口；P3 Relocate / P5 Lock-On 仍可选未做  
 > 角色：**Wave 4 位移切片可执行真源**（类型 / 管线 / 验收 / Editor）  
 > 排期与依赖仍以 [MASTER_IMPLEMENTATION_PLAN.md](../2026.8.6/MASTER_IMPLEMENTATION_PLAN.md) 为准  
 > 设计细节对齐：[ACTION_DEFINITION_OPTIMIZATION_PLAN.md](../2026.8.6/ACTION_DEFINITION_OPTIMIZATION_PLAN.md) §4.2 / Phase A5  
@@ -36,11 +37,12 @@
 | Wave 3 + GAS G5：Numeric 唯一权威 | ✅ | 本切片不扩资源口袋 |
 | 总案 Wave 4 入口 | ✅ | 可开工 4.1～4.4；Lock-On（4.5）可并行不阻塞本切片 |
 
-**现状（代码侧）：**
+**现状（2026-08-09 Editor 验收后）：**
 
-- TargetAdhesion + SoftBodySuppress 已接线；Editor 可配 MotionModifier 轨
-- MotionCommand / RelocateBehind **未接线**（P3 可选）
-- Branch_02 资产仍需人工配 SoftBodySuppress + TargetAdhesion 窗后做 Play 验收
+- ✅ TargetAdhesion + SoftBodySuppress 已接线；Editor MotionModifier 轨 + Scene 假敌预览
+- ✅ Branch_02 人工配窗并完成 Editor 验收；打击感位移切片收口
+- ⬜ MotionCommand / RelocateBehind **未接线**（P3 可选，不阻塞）
+- ⬜ Lock-On（P5 / 总案 4.5～4.6）未开工
 
 ---
 
@@ -289,9 +291,9 @@ softBodySuppress = max(softBodySuppress, command.softBodySuppressFrames)
 ### P1 — SoftBody 抑制窗
 
 - [x] `SoftBodySuppress` 区间窗 + Actor 门闩
-- [ ] Play：叠人不弹、撞墙仍挡
+- [x] Play / Editor：叠人不弹、撞墙仍挡（2026-08-09 验收）
 
-**出口：** 抑制可用（代码已接线；Play 待 Branch_02 配窗验收）。
+**出口：** ✅ 抑制可用。
 
 ### P2 — TargetAdhesion（连线动态 + 窗口均摊）← **主交付**
 
@@ -299,9 +301,9 @@ softBodySuppress = max(softBodySuppress, command.softBodySuppressFrames)
 - [x] `correction = 朝向前方缺口 / remainingFrames`（过冲不倒拖），再夹 `maxCorrectionMmPerFrame`
 - [x] 偏移 `>0 / =0 / <0` 三种 EditMode 用例（穿后 / 敌心 / 敌前）
 - [x] 敌人位移时 desired 跟随；超距不吸；同输入 Hash 一致
-- [ ] Play：Branch_02 窗长≈吸附过程；偏移>0 穿到连线另一侧
+- [x] Play / Editor：Branch_02 吸附手感验收（2026-08-09）
 
-**出口：** **不依赖 Relocate** 即可按敌位加长并在窗末接近 desired（代码+EditMode ✅；Play 待人工配窗）。
+**出口：** ✅ **不依赖 Relocate** 即可按敌位加长；打击感位移主路径收口。
 
 ### P3 — RelocateBehindTarget（可选补钉）
 
@@ -309,9 +311,11 @@ softBodySuppress = max(softBodySuppress, command.softBodySuppressFrames)
 - [ ] 仅当 P2 终点仍飘 / 需要瞬切朝向时启用
 - [ ] EditMode：落点、FaceTarget、Fallback、挡墙
 
-**出口：** 可选；Branch_02 首版验收**不强制**配 Relocate。
+**出口：** 可选；Branch_02 首版验收**不强制**配 Relocate（当前未做）。
 
 ### P4 — Branch_02 资产装配（人工 Editor，Agent 不改 `.asset`）
+
+- [x] Editor 配窗 + 手感验收（2026-08-09）
 
 见 §7。
 
@@ -354,33 +358,35 @@ Perfect：`Unagi_Attack_Branch_02_Perfect.asset`（同结构参数可略放大�
 4. 仅当窗末误差仍大或单帧触顶，再加大 `maxCorrection` 或略缩窗。  
 5. 仍不够再考虑可选 Relocate。  
 
-### 7.3 验收清单（Play）
+### 7.3 验收清单（Play / Editor）
 
-- [ ] 吸附只在窗口内生效；窗外不再追  
-- [ ] 同样距离，窗口加倍 → 过程明显更慢/更顺  
-- [ ] `horizontalOffsetMm > 0` → 穿过敌人到连线另一侧  
-- [ ] 敌人更远（acquire 内）→ 行程自适应加长  
-- [ ] 敌人平移 → 吸附点跟随连线变化  
-- [ ] 可重叠、墙仍挡；无目标仅 Baked  
-- [ ] 不配 Relocate 也能验收穿身落点  
-- [ ] 普攻无 Modifier 无回归
+> 2026-08-09：用户已在 Editor 完成打击感位移验收，下列项按验收结论勾选。
+
+- [x] 吸附只在窗口内生效；窗外不再追  
+- [x] 同样距离，窗口加倍 → 过程明显更慢/更顺  
+- [x] `horizontalOffsetMm > 0` → 穿过敌人到连线另一侧  
+- [x] 敌人更远（acquire 内）→ 行程自适应加长  
+- [x] 敌人平移 → 吸附点跟随连线变化  
+- [x] 可重叠、墙仍挡；无目标仅 Baked  
+- [x] 不配 Relocate 也能验收穿身落点  
+- [x] 普攻无 Modifier 无回归
 
 ---
 
 ## 8. 测试门禁
 
-| 用例 | 类型 | 阶段 |
-|------|------|------|
-| SoftBodySuppress 期间不参与分离 | EditMode | P1 |
-| offset>0 的 desired 在敌人「连线远侧」 | EditMode | P2 |
-| offset=0 / <0 分别为敌心 / 敌前 | EditMode | P2 |
-| 敌人移动后 desired 重算 | EditMode | P2 |
-| 剩余帧均摊：窗末附近误差收敛趋势正确 | EditMode | P2 |
-| 窗外 correction=0 | EditMode | P2 |
-| 超距不吸；触顶不超过 maxCorrection | EditMode | P2 |
-| 同输入 Hash 一致 | EditMode | P2 |
-| Relocate（可选） | EditMode | P3 |
-| Branch_02 Play：窗长=吸附过程，穿到连线另一侧 | Play | P4 |
+| 用例 | 类型 | 阶段 | 状态 |
+|------|------|------|------|
+| SoftBodySuppress 期间不参与分离 | EditMode | P1 | ✅ |
+| offset>0 的 desired 在敌人「连线远侧」 | EditMode | P2 | ✅ |
+| offset=0 / <0 分别为敌心 / 敌前 | EditMode | P2 | ✅ |
+| 敌人移动后 desired 重算 | EditMode | P2 | ✅ |
+| 剩余帧均摊：窗末附近误差收敛趋势正确 | EditMode | P2 | ✅ |
+| 窗外 correction=0 | EditMode | P2 | ✅ |
+| 超距不吸；触顶不超过 maxCorrection | EditMode | P2 | ✅ |
+| 同输入 Hash 一致 | EditMode | P2 | ✅ |
+| Relocate（可选） | EditMode | P3 | ⬜ 未做 |
+| Branch_02 Play / Editor：吸附手感 | Play | P4 | ✅ 2026-08-09 |
 
 ---
 
@@ -433,11 +439,13 @@ P0 Modifier 区间轨 + 偏移字段 + ActionTargetId
 
 ## 12. 成功标准（本切片）
 
-- [ ] 吸附点每帧按玩家↔敌人连线 + `horizontalOffsetMm` 动态计算  
-- [ ] Adhesion 为区间窗；窗外不吸；主节奏由剩余帧均摊决定  
-- [ ] SoftBody 可抑制；静物墙有效  
-- [ ] Branch_02 Play：offset>0 穿到连线另一侧，过程长度≈窗口  
-- [ ] 总案 4.2 可打勾；4.3 Relocate 不阻塞  
+- [x] 吸附点每帧按玩家↔敌人连线 + `horizontalOffsetMm` 动态计算  
+- [x] Adhesion 为区间窗；窗外不吸；主节奏由剩余帧均摊决定（方案 A：过冲不倒拖）  
+- [x] SoftBody 可抑制；静物墙有效  
+- [x] Branch_02 Editor / Play：吸附手感验收（2026-08-09）  
+- [x] 总案 4.2 / 4.4 可打勾；4.3 Relocate 不阻塞（仍可选未做）  
+
+**切片结论：** Wave 4 **位移主路径（吸附 + SoftBody）已收口**；后续仅可选 Relocate 与 Lock-On。
 
 ---
 
