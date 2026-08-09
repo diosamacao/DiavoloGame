@@ -2,6 +2,8 @@
 
 > 制定：2026-08-06  
 > 修订：2026-08-07 — 插入 GAS-lite G0～G5；完美闪避真源改为玩家 Dodge 窗；Wave 4 入口 = G5  
+> 修订：2026-08-09 — Wave 4 位移切片（4.2/4.4 + SoftBody）Editor 验收收口；Relocate/Lock-On 仍待  
+
 > 基准：`develop`  
 > 角色：**跨文档唯一排期与依赖真源**；单篇方案保留设计细节，阶段号与开工顺序以本文为准  
 > 覆盖文档：
@@ -295,10 +297,12 @@ EX/Ult 的「命中不回能」用 `energyGrantOnHit = 0` 表达，**不**另增
 
 #### Wave 4 落地状态（2026-08-09）
 
-- [x] 4.2 / 4.4 + SoftBodySuppress：TargetAdhesion 管线已接线（起手 ActionTargetId、Base→Modifier、Editor 轨）；Relocate Command 未接线
-- [ ] 4.1 / 4.3：`ActionMotionResolver` / RelocateBehind 仍为可选补钉（P3）
-- [ ] Branch_02 资产配窗（人工 Editor）与 Play 验收
+- [x] **4.2 / 4.4 + SoftBodySuppress**：TargetAdhesion 管线 + Branch_02 Editor 验收收口（方案 A 过冲不倒拖；MotionModifier Scene 预览）
+- [x] Branch_02 人工配窗与打击感位移验收（2026-08-09）
+- [ ] 4.1 / 4.3：`ActionMotionResolver` / RelocateBehind 仍为可选补钉（P3，不阻塞）
 - [ ] 4.5～4.6 Lock-On 未开工
+
+**打击感相关：** 木桩 / 命中 Cue / Branch_02 吸附等位移手感优化 **至此告一段落**；后续 Wave 4 剩余为可选 Relocate + Lock-On 相机。
 
 ---
 
