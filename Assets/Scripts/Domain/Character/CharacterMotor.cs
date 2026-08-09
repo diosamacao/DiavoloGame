@@ -160,6 +160,18 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
                     SyncFacingFromRoot();
                 }
                 break;
+            case LocomotionRotationMode.FaceCamera:
+                // 八向：位移可横移，偏航锁相机/假相机水平前向
+                Vector3 cameraForward = ResolveCameraPlanarForward();
+                if (cameraForward.sqrMagnitude > 0.001f)
+                {
+                    _root.rotation = GetSmoothedRotation(
+                        cameraForward,
+                        deltaTime,
+                        command.RotationSmoothTimeOverride);
+                    SyncFacingFromRoot();
+                }
+                break;
             case LocomotionRotationMode.PivotTarget:
                 if (command.PivotTargetDirection.sqrMagnitude > 0.001f)
                 {
@@ -300,6 +312,20 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         right.Normalize();
 
         return (forward * moveIntent.y + right * moveIntent.x).normalized;
+    }
+
+    /// <summary>相机/假相机水平前向；无有效基时返回 zero。</summary>
+    public Vector3 ResolveCameraPlanarForward()
+    {
+        if (_hasCameraPlanarBasis)
+            return _cameraPlanarForward;
+
+        if (_cameraTransform == null)
+            return Vector3.zero;
+
+        Vector3 forward = _cameraTransform.forward;
+        forward.y = 0f;
+        return forward.sqrMagnitude > 0.0001f ? forward.normalized : Vector3.zero;
     }
 
     /// <summary>把 MotorSim 水平坐标写回角色根；软弹开后与位移路径共用。</summary>

@@ -37,16 +37,56 @@ MonoBehaviour:
     actionEvents: []
     playVfxNotifies: []
     playSfxStates: []
-    hitboxStates: []
+    hitboxStates:
+    - id: Hitbox_1
+      startFrame: 60
+      endFrame: 63
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1.5, z: 1.77}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 4.58, y: 3.02, z: 3.75}
+      parentToAttachPoint: 0
+      parentToAttachPointSchema: 1
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 0
+          hitStopFrames: 0
+          hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 0}
+          hitImpactSfx: {fileID: 0}
+          hitImpactSfxVolume: 0
+          hitImpactWorldOffset: {x: 0, y: 0, z: 0}
+          hitImpactScale: {x: 0, y: 0, z: 0}
+          randomizeImpactRotation: 0
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 0, z: 0}
     hurtboxStates: []
     cancelWindowStates: []
     phaseStates: []
     perfectDodgeWindowStates: []
     movementStates: []
-    rotationStates: []
+    rotationStates:
+    - id: Rotation_1
+      startFrame: 0
+      endFrame: 56
+      priority: 0
+      trackName: Rotation_1
+      smoothTimeOverride: 0
     motionModifierStates: []
     motionCommandNotifies: []
-    tracks: []
+    tracks:
+    - trackName: Hitbox_1
+      kind: 0
+      visible: 1
+    - trackName: Rotation_1
+      kind: 6
+      visible: 1
   bakedMotion:
     logicHz: 60
     frameCount: 212

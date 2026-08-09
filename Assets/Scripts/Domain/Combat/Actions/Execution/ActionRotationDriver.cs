@@ -1,6 +1,6 @@
 using UnityEngine;
 
-/// <summary>招式 RotationNotifyState 窗口内转向与索敌；依赖 IMoveIntentResolver 解析移动意图。</summary>
+/// <summary>招式 Rotation 窗口转向：优先索敌锁；无锁时用移动意图。</summary>
 public sealed class ActionRotationDriver
 {
     readonly Transform _actorRoot;
@@ -36,7 +36,7 @@ public sealed class ActionRotationDriver
     /// <summary>离开 Action 时清空旋转阻尼，避免下一招继承旧角速度。</summary>
     public void Reset() => _rotationVelocity = 0f;
 
-    /// <summary>旋转窗口内解析旋转方向：索敌默认，仅反向输入（Dot&lt;0）才改用输入方向。</summary>
+    /// <summary>旋转窗口内解析旋转方向：有索敌锁则始终朝锁；无锁才跟移动输入。</summary>
     void TryApplyActionRotation(float fixedDeltaSeconds)
     {
         if (!TryResolveActionRotationDirection(out Vector3 direction, out float smoothTime))
@@ -71,24 +71,9 @@ public sealed class ActionRotationDriver
 
         if (hasLock)
         {
-            if (!hasInput)
-            {
-                direction = lockDir;
-                smoothTime = lockSmoothTime;
-                return true;
-            }
-
-            Vector3 inputDir = _moveResolver.ResolveWorldMoveDirection(_input.MoveIntent);
-            if (inputDir.sqrMagnitude < 0.001f)
-            {
-                direction = lockDir;
-                smoothTime = lockSmoothTime;
-                return true;
-            }
-
-            bool useInputDirection = Vector3.Dot(inputDir, lockDir) < 0f;
-            direction = useInputDirection ? inputDir : lockDir;
-            smoothTime = useInputDirection ? windowSmoothTime : lockSmoothTime;
+            // 有索敌时始终朝锁；侧移/残留 MoveIntent 不得扭开攻击朝向（AI 对峙污染）
+            direction = lockDir;
+            smoothTime = lockSmoothTime;
             return true;
         }
 

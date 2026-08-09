@@ -26,6 +26,7 @@ public sealed class IdleLocomotionState : LocomotionPhaseState
     /// <summary>保持 Idle 动画与静止 Motor 命令。</summary>
     public override void ExecuteFrame(float deltaTime)
     {
+        Context.Animation.SetSpeed(1f);
         Context.Animation.Play(AnimationKey.Idle);
         Context.Motor.ApplyLocomotion(
             new LocomotionMotorCommand(

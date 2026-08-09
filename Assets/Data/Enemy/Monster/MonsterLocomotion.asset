@@ -21,8 +21,9 @@ MonoBehaviour:
   gaitInputGapGraceSeconds: 0.15
   gaitPolicy:
     maxGait: 1
-    allowPivot: 1
+    allowPivot: 0
     sprintAfterRunSeconds: 3
+  gaitRotationMode: 3
   startToGaitNormalized: 1
   interruptFadeDuration: 0.08
   walkFootPlants: []

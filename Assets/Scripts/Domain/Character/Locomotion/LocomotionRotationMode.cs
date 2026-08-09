@@ -7,4 +7,6 @@ public enum LocomotionRotationMode
     FollowInput = 1,
     /// <summary>转向显式 Pivot 目标；提供 RotationSmoothTimeOverride 时使用平滑旋转。</summary>
     PivotTarget = 2,
+    /// <summary>平滑转向相机/假相机水平前向（八向横移锁面，不跟位移转向）。</summary>
+    FaceCamera = 3,
 }

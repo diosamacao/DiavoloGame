@@ -76,11 +76,21 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
     {
         Context.FootCycle.Unfreeze();
         Context.FootCycle.Tick(Context.Animation.NormalizedTime);
-        Context.Animation.Play(Context.ResolveLocomotionAnimationKey());
+        AnimationKey key = Context.ResolveLocomotionAnimationKey();
+        // 降档用短淡入（非 0）：既避免长时间停在 Run，又比硬切自然
+        if (Context.PendingGaitHardCutPlay)
+        {
+            float fade = Context.Profile != null ? Context.Profile.InterruptFadeDuration : 0.08f;
+            Context.Animation.Play(key, fade);
+            Context.PendingGaitHardCutPlay = false;
+        }
+        else
+            Context.Animation.Play(key);
+
         Context.Motor.ApplyLocomotion(
             new LocomotionMotorCommand(
                 true,
-                LocomotionRotationMode.FollowInput,
+                Context.ResolveGaitRotationMode(),
                 Vector3.zero,
                 Context.Gait),
             deltaTime);
@@ -126,7 +136,14 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
             Context.RunHoldSeconds));
 
         Context.RunHoldSeconds = result.RunHoldSeconds;
-        if (result.NextGait != Context.Gait)
-            Context.SetGait(result.NextGait);
+        if (result.NextGait == Context.Gait)
+            return;
+
+        // Run/Sprint → Walk：标记短淡入（InterruptFade），不用 0 硬切
+        bool downgradeToWalk = result.NextGait == LocomotionGait.Walk
+            && LocomotionContext.IsRunTier(Context.Gait);
+        Context.SetGait(result.NextGait);
+        if (downgradeToWalk)
+            Context.PendingGaitHardCutPlay = true;
     }
 }

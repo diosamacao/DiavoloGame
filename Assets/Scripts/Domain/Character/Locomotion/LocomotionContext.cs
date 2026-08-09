@@ -76,6 +76,9 @@ public sealed class LocomotionContext
     /// <summary>当前急停使用的 AnimationKey（StartEnd / StopL / StopR）。</summary>
     public AnimationKey StopKey { get; set; } = AnimationKey.StopR;
 
+    /// <summary>本次 Start 相位锁定的起步 Key（WalkStartLeft/Right / WalkStart / Start）。</summary>
+    public AnimationKey ActiveStartKey { get; set; } = AnimationKey.Start;
+
     /// <summary>切入 Stop 前是否来自 Start（决定 StartEnd）。</summary>
     public bool StopFromStart { get; set; }
 
@@ -139,6 +142,21 @@ public sealed class LocomotionContext
         LocomotionGaitPolicy policy = Profile != null ? Profile.GaitPolicy : null;
         return policy != null ? policy.ClampGait(gait) : gait;
     }
+
+    /// <summary>按初始步态 + 本地输入解析起步 Clip；结果写入 ActiveStartKey。</summary>
+    public AnimationKey ResolveAndLatchStartKey(float magnitude, Vector2 localMoveIntent)
+    {
+        LocomotionGait gait = ResolveInitialGait(magnitude);
+        ActiveStartKey = DefaultLocomotionAnimResolver.ResolveStartKey(
+            gait,
+            localMoveIntent,
+            Animation);
+        return ActiveStartKey;
+    }
+
+    /// <summary>Start/Gait 移动时的旋转模式（来自 Profile，默认 FollowInput）。</summary>
+    public LocomotionRotationMode ResolveGaitRotationMode() =>
+        Profile != null ? Profile.GaitRotationMode : LocomotionRotationMode.FollowInput;
 
     /// <summary>Run / Sprint 视为跑档急停门槛。</summary>
     public static bool IsRunTier(LocomotionGait gait) =>

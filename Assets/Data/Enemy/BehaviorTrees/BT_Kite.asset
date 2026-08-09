@@ -17,28 +17,31 @@ MonoBehaviour:
   graphLayout:
     nodes:
     - nodeGuid: f1e9e2912e624f059601db160261037c
-      position: {x: 1313.3334, y: 40}
+      position: {x: 613.3333, y: 40}
       collapsed: 0
     - nodeGuid: c80636f589824648ac2bf41e3e018bf5
-      position: {x: 997.3334, y: 190}
+      position: {x: 280, y: 160}
       collapsed: 0
     - nodeGuid: af40d65565184f199e208f000670b63a
-      position: {x: 997.3334, y: 329.33334}
+      position: {x: 280, y: 280}
       collapsed: 0
     - nodeGuid: 78762ef022ea473caca1a975ff5a55aa
-      position: {x: 827.3333, y: 632}
+      position: {x: 36.66667, y: 581.3333}
       collapsed: 0
     - nodeGuid: ed984b39b9834932a082b84c3839bd53
-      position: {x: 1061.3334, y: 616}
+      position: {x: 247.33334, y: 604}
+      collapsed: 0
+    - nodeGuid: a566dc27a94042f2a82ebfc1497b3f05
+      position: {x: 498.6667, y: 584.6667}
       collapsed: 0
     - nodeGuid: 1fd1b7d859974d2798df6a737fc876ca
-      position: {x: 1376.6666, y: 190}
+      position: {x: 680, y: 160}
       collapsed: 0
     - nodeGuid: ee10aaa972624ed9a2d03d8795da9dbb
-      position: {x: 1396, y: 372.66666}
+      position: {x: 680, y: 280}
       collapsed: 0
     - nodeGuid: 0a5c4b03e857414fa3ade6b8b7653c7e
-      position: {x: 1728, y: 176}
+      position: {x: 880, y: 160}
       collapsed: 0
     stickyNotes: []
   references:
@@ -139,3 +142,9 @@ MonoBehaviour:
         children:
         - rid: 1557465029543461059
         - rid: 1557465029543461060
+        - rid: 1557465029543461090
+    - rid: 1557465029543461090
+      type: {class: WaitWhileInActionActionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: WaitWhileInAction
+        nodeGuid: a566dc27a94042f2a82ebfc1497b3f05

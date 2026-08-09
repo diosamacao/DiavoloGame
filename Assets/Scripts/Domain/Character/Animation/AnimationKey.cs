@@ -4,6 +4,7 @@ public enum AnimationKey
     Idle = 0,
     Walk = 1,
     Run = 2,
+    /// <summary>跑档起步（常绑 RunStart）。</summary>
     Start = 3,
     PivotTurn = 4,
     StopL = 5,
@@ -16,4 +17,10 @@ public enum AnimationKey
     WalkLeft = 9,
     /// <summary>对峙/横移：本地右向走。</summary>
     WalkRight = 10,
+    /// <summary>走档正向起步；缺省时回退 Start。</summary>
+    WalkStart = 11,
+    /// <summary>走档左向起步；缺则 WalkStart → Start。</summary>
+    WalkStartLeft = 12,
+    /// <summary>走档右向起步；缺则 WalkStart → Start。</summary>
+    WalkStartRight = 13,
 }

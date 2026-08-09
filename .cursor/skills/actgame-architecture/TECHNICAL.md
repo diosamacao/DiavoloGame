@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-09（L-GP：GaitPolicy + WalkLeft/Right Resolver）
+> Last updated: 2026-08-10（BT：WaitWhileInAction；Run→Walk 硬切）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -30,7 +30,7 @@
 | 动作系统（整数帧 / 选招 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ L1B 已实现（Play Mode 待回归） | `ActionSim` + `CharacterActionPresentationBridge` + `ActionFrameQuery` | 60Hz Action + `ActionGraph` |
 | Action Editor（时间轴编辑） | 🟡 骨架/部分 | `ActionEditorWindow` + `ActionTimeline` 手动加轨/窗口 | Menu：`ACT/Action Editor` |
 | 攻击 / 战斗判定 | ✅ L0C 延迟结算已实现 | `CombatHitPipeline` + `CombatDamageCalculator` + `CharacterReactionService` | SimHitKey；HitPayload；Hit/Death 状态 |
-| 敌人 AI / 行为树 | ✅ BT-E3 GraphView MVP | Runner + GraphEditor + CooldownTable | `ACT/Enemy/Behavior Tree Editor` |
+| 敌人 AI / 行为树 | ✅ BT-E3 + WaitWhileInAction | Runner + GraphEditor；Attack 占树至离 Action | `ACT/Enemy/Behavior Tree Editor` |
 | UI | ⬜ 未实现 | — | `UI/` 占位 |
 
 状态图例：✅ 可玩可用 · 🟡 有类/占位但未接完 · ⬜ 未开始
@@ -319,7 +319,9 @@ SimulationWorld.Step
 | 步态策略 | `LocomotionGaitPolicy`：MaxGait / AllowPivot / SprintAfterRunSeconds |
 | 选片 | `DefaultLocomotionAnimResolver`：gait + `MoveIntent` → `AnimationKey` |
 | 相位 State | `Idle/Start/Gait/PivotTurn/StopLocomotionState` |
-| 逻辑键 | Idle/Walk/WalkLeft/WalkRight/Run/Sprint/Start/StartEnd/PivotTurn/StopL/StopR |
+| 逻辑键 | Idle/Walk/WalkLeft/WalkRight/WalkStart/WalkStartLeft/WalkStartRight/Run/Sprint/Start/StartEnd/PivotTurn/StopL/StopR |
+| 移动朝向 | Profile.`GaitRotationMode`：`FollowInput`（玩家）/ `FaceCamera`（八向敌，锁假相机前向） |
+| 起步选片 | Walk 横向 → `WalkStartLeft/Right`（缺则 `WalkStart`→`Start`）；正向 `WalkStart`；Run → `Start` |
 | 映射 | `CharacterAnimationProfile` → `AnimationClip` |
 | 相位参数 | `CharacterLocomotionProfile`（阈值、落脚、GaitPolicy、脚步音） |
 | 脚步 | `LocomotionFootCycle` 按 `NormalizedTime` 采样标记 |
@@ -651,7 +653,8 @@ SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSourc
 | AI 输入 | Runner 写黑板 → Brain 帧末 `AIInputWriter.Pulse(Attack/Dodge/Heavy/Skill)` |
 | 冷却 | `EnemyCooldownTable`；`basic_attack` 由 Brain 起手确认写入；`CooldownGate` 可写其它 id |
 | 追击 / 对峙 | `MoveToward`（chase 幅度）/ `Strafe`（strafe 幅度）/ `BackOff`；BT 循环见 `LOCOMOTION_GAIT_POLICY_PLAN` |
-| 敌人步态 | 独立 LocomotionProfile + `GaitPolicy.MaxGait=Run`；对峙 WalkLeft/Right |
+| 攻击占用 | `WaitWhileInAction`：Pulse 后 Running 至离 Action，期间清 Move；**勿**被 IsLocomotion/CdReady 包在 Wait 外层 |
+| 敌人步态 | 独立 LocomotionProfile + `GaitPolicy.MaxGait=Run`；对峙 WalkLeft/Right；Run→Walk 硬切 |
 | 木桩 | `enableCombatActions=false` 时不建 Runner；Hit 门闩仍消化 |
 | 伤害与反应 | 同前：`CharacterReactionService` → `NotifyHit` / `NotifyDeath` → Runner.Reset |
 | 生成 | `EnemySpawnController` → `SpawnEnemyCommand` → `EnemyController`；`EnemySpawnSystem` 限制存活数 |

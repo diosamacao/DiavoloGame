@@ -43,10 +43,49 @@ public sealed class EnemyBehaviorTreeTests
         bb.CharacterState = CharacterStateType.Locomotion;
         var runner = CreateRunner(EnemyBehaviorTreeDefFactory.CreateMeleeChaseAttack());
 
-        runner.Tick(bb);
+        BehaviorStatus status = runner.Tick(bb);
 
         Assert.That(bb.AttackPulse, Is.True);
         Assert.That(bb.MoveDesire, Is.EqualTo(Vector2.zero));
+        // Pulse 当帧由 WaitWhileInAction 占用，避免同帧落到 Chase/Strafe
+        Assert.That(status, Is.EqualTo(BehaviorStatus.Running));
+    }
+
+    [Test]
+    public void MeleeTree_WhileInAction_WaitBlocksChaseMove()
+    {
+        var bb = CreateBlackboard(hasTarget: true, distance: 1.5f, aggroed: true, cdReady: true);
+        bb.CharacterState = CharacterStateType.Locomotion;
+        var runner = CreateRunner(EnemyBehaviorTreeDefFactory.CreateMeleeChaseAttack());
+
+        Assert.That(runner.Tick(bb), Is.EqualTo(BehaviorStatus.Running));
+        Assert.That(bb.AttackPulse, Is.True);
+
+        // 模拟进招：Cd 已消耗，状态 Action；树应继续 Running 且无移动
+        bb.ResetFrameOutputs();
+        bb.AttackConfirmPending = false;
+        bb.CharacterState = CharacterStateType.Action;
+        bb.Cooldowns.Set(EnemyCooldownIds.BasicAttack, 60);
+        bb.PlanarDirection = Vector3.forward;
+        bb.PathDirection = Vector3.forward;
+
+        Assert.That(runner.Tick(bb), Is.EqualTo(BehaviorStatus.Running));
+        Assert.That(bb.AttackPulse, Is.False);
+        Assert.That(bb.MoveDesire, Is.EqualTo(Vector2.zero));
+        Assert.That(bb.FaceTargetRequested, Is.True);
+    }
+
+    [Test]
+    public void WaitWhileInAction_ReleasesAfterLeavingAction()
+    {
+        var wait = new WaitWhileInActionAction();
+        var bb = CreateBlackboard(hasTarget: true, distance: 1.5f, aggroed: true, cdReady: true);
+        bb.CharacterState = CharacterStateType.Action;
+
+        Assert.That(wait.Tick(bb), Is.EqualTo(BehaviorStatus.Running));
+
+        bb.CharacterState = CharacterStateType.Locomotion;
+        Assert.That(wait.Tick(bb), Is.EqualTo(BehaviorStatus.Success));
     }
 
     [Test]

@@ -16,7 +16,7 @@ MonoBehaviour:
   modelLocalPosition: {x: 0, y: 0, z: 0}
   modelLocalEulerAngles: {x: 0, y: 0, z: 0}
   motor:
-    walkSpeed: 4
+    walkSpeed: 2
     runSpeed: 7
     sprintSpeed: 9
     runThreshold: 0.6
