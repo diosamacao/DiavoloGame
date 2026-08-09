@@ -20,7 +20,7 @@
 |----|------|
 | 契约 `IEnemyBehaviorTreeAsset` / `IEnemyBehaviorRunner` | ✅ |
 | 宿主 `EnemyBrain`（门闩 + 黑板 + 提交 `AIInputWriter`） | ✅ |
-| 预设 Melee / ChaseOnly + Custom SerializeReference | ✅ |
+| 仅手动 `customRoot`（已删除 Kind/代码预设种树） | ✅ |
 | 调试 NamedNode / Gizmo / 变化日志 | ✅ |
 | Task（叶行动）目录 | ✅ E1：+BackOff / Strafe / PulseDodge·Heavy·Skill |
 | 条件 / 装饰 | ✅ E1：CooldownReady / DistanceGreater / CooldownGate（仍无 Abort） |
@@ -127,7 +127,7 @@ IBehaviorNode
 | E1.2 | Task：Dodge / Strafe / BackOff；WaitFrames 可配 | ✅ Kite 预设 |
 | E1.3 | `CooldownReady` / `DistanceGreater` / `CooldownGate` | ✅ |
 | E1.4 | `EnemyCooldownTable`；删 `_attackCooldownFramesRemaining` 单字段 | ✅ |
-| E1.5 | 预设 Kind=`Kite` + Fill 按钮 + 下方结构说明 | ✅ |
+| E1.5 | Kite 样例结构（现仅 DefFactory/测试；运行时须手动搭） | ✅ → 已去 Kind |
 
 **禁止：** Task 内起招；新增第二套冷却权威。
 
@@ -151,7 +151,7 @@ KiteRoot (Selector)          // 默认阈值 ≤2.5 后退，>4 追击
   Idle:    StopMove
 ```
 
-Editor：`ACT/Enemy/Create Default Behavior Tree Assets` 可创建含 `BT_Kite.asset`；Custom 用 Inspector **Fill ← Kite**。
+Editor：行为树须在 Graph 中手动搭节点并 Save；菜单仅保留 `ACT/Enemy/Validate Enemy Behavior Trees`。
 
 ---
 
@@ -181,7 +181,7 @@ Editor：`ACT/Enemy/Create Default Behavior Tree Assets` 可创建含 `BT_Kite.a
 | E3.3 | Out→In 连线；复合多子/装饰单子；删节点 | ✅ Save 写回 |
 | E3.4 | 右侧 Node Inspector | ✅ 距离/帧/冷却/状态等 |
 | E3.5 | Save / Revert；layout 按 guid | ✅ |
-| E3.6 | Fill Melee / ChaseOnly / Kite | ✅ |
+| E3.6 | Fill 预设按钮 | ❌ 已删除（强制手动配置） |
 | E3.7 | Play 选中敌人高亮 DebugPath | ✅ 可选 |
 
 **出口：** 不用手写 SerializeReference 嵌套，也能编出可运行 Custom 树。

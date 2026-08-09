@@ -1,9 +1,12 @@
 using System.Collections.Generic;
 
-/// <summary>把内置预设展开为可编辑的 SerializeReference 定义树。</summary>
+/// <summary>
+/// EditMode 测试用树构造器（非资产默认类型）。
+/// 运行时资产必须在 Graph 中手动配置 customRoot，不得依赖本工厂种树。
+/// </summary>
 public static class EnemyBehaviorTreeDefFactory
 {
-    /// <summary>近战追打定义树（与 EnemyBehaviorTreePresets.BuildMeleeChaseAttack 同构）。</summary>
+    /// <summary>测试：近战追打定义树。</summary>
     public static EnemyBehaviorNodeDef CreateMeleeChaseAttack()
     {
         var attack = new SequenceNodeDef
@@ -43,7 +46,7 @@ public static class EnemyBehaviorTreeDefFactory
         };
     }
 
-    /// <summary>只追不打定义树。</summary>
+    /// <summary>测试：只追不打定义树。</summary>
     public static EnemyBehaviorNodeDef CreateChaseOnly()
     {
         var chase = new SequenceNodeDef
@@ -68,7 +71,7 @@ public static class EnemyBehaviorTreeDefFactory
         };
     }
 
-    /// <summary>风筝定义树（与 BuildKite 同构；阈值可在 Def 上改）。</summary>
+    /// <summary>测试：风筝定义树。</summary>
     public static EnemyBehaviorNodeDef CreateKite()
     {
         var backOff = new SequenceNodeDef
