@@ -6,12 +6,15 @@ public sealed class EnemyController : AppControllerBase
 {
     [SerializeField] EnemyDefinition enemyDefinition = null;
     [SerializeField] Transform target = null;
+    [SerializeField] bool drawBehaviorDebugGizmos = true;
+    [SerializeField] bool logBehaviorTreeEachStep = false;
 
     EnemyHandle _handle;
     bool _registered;
     bool _despawnRequested;
     SimulationHost _simulationHost;
     SimActorRegistration _simulationRegistration;
+    string _lastLoggedDebugKey;
 
     /// <summary>当前敌人定义。</summary>
     public EnemyDefinition Definition => enemyDefinition;
@@ -22,6 +25,13 @@ public sealed class EnemyController : AppControllerBase
         _handle != null ? _handle.BrainState : EnemyBrainState.Idle;
     /// <summary>敌人是否已经死亡。</summary>
     public bool IsDead => _handle?.IsDead == true;
+
+    /// <summary>行为树调试路径（Graph 编辑器 Play 高亮用）。</summary>
+    public string DebugBehaviorPath =>
+        _handle != null ? _handle.BrainLastDebugPath : string.Empty;
+
+    /// <summary>打开 Brain 路径采集（供 Graph 调试高亮）。</summary>
+    public void EnsureBehaviorDebugEnabled() => _handle?.SetBrainDebugEnabled(true);
 
     /// <summary>供 SpawnEnemyCommand 在 Start 前注入定义、位置与目标。</summary>
     public void Initialize(EnemyDefinition definition, Transform targetTransform)
@@ -108,8 +118,24 @@ public sealed class EnemyController : AppControllerBase
         _registered = true;
         RegisterSimulationActor();
         _handle.Enable();
+        _handle.SetBrainDebugEnabled(drawBehaviorDebugGizmos || logBehaviorTreeEachStep);
         gameObject.name = enemyDefinition.DisplayName;
         return true;
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        if (!drawBehaviorDebugGizmos || _handle == null)
+            return;
+
+#if UNITY_EDITOR
+        string path = _handle.BrainLastDebugPath;
+        if (string.IsNullOrEmpty(path))
+            path = "(no path)";
+        UnityEditor.Handles.Label(
+            transform.position + Vector3.up * 2.2f,
+            $"{BrainState}\n{_handle.BrainLastRunnerStatus}\n{path}");
+#endif
     }
 
     /// <summary>由 SimulationHost 在每个逻辑帧后处理死亡注销与回收副作用。</summary>
@@ -117,6 +143,9 @@ public sealed class EnemyController : AppControllerBase
     {
         if (_handle == null)
             return;
+
+        if (logBehaviorTreeEachStep)
+            TryLogBehaviorDebug();
 
         if (_handle.IsDead)
             UnregisterCombatEntries();
@@ -126,6 +155,16 @@ public sealed class EnemyController : AppControllerBase
 
         _despawnRequested = true;
         SendCommand(new DespawnEnemyCommand(this));
+    }
+
+    /// <summary>状态或路径变化时打一条 BT 调试日志，避免每帧刷屏。</summary>
+    void TryLogBehaviorDebug()
+    {
+        string key = $"{BrainState}|{_handle.BrainLastRunnerStatus}|{_handle.BrainLastDebugPath}";
+        if (key == _lastLoggedDebugKey)
+            return;
+        _lastLoggedDebugKey = key;
+        Debug.Log($"[EnemyBT] {name} {key}", this);
     }
 
     /// <summary>启用后把已装配敌人注册到唯一固定帧 World。</summary>

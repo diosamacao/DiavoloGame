@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-09（Action Editor VFX 预览同步 Animator 采样）
+> Last updated: 2026-08-09（BT-E3 Behavior Tree GraphView）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -30,7 +30,7 @@
 | 动作系统（整数帧 / 选招 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ L1B 已实现（Play Mode 待回归） | `ActionSim` + `CharacterActionPresentationBridge` + `ActionFrameQuery` | 60Hz Action + `ActionGraph` |
 | Action Editor（时间轴编辑） | 🟡 骨架/部分 | `ActionEditorWindow` + `ActionTimeline` 手动加轨/窗口 | Menu：`ACT/Action Editor` |
 | 攻击 / 战斗判定 | ✅ L0C 延迟结算已实现 | `CombatHitPipeline` + `CombatDamageCalculator` + `CharacterReactionService` | SimHitKey；HitPayload；Hit/Death 状态 |
-| 敌人 AI | 🟡 代码已接、资产待绑 | `EnemyController` + `EnemyBrain` + 共享 `CharacterActor` | `EnemyDefinition`、`EnemyBrainProfile`、敌人 CharacterConfig/Graph |
+| 敌人 AI / 行为树 | ✅ BT-E3 GraphView MVP | Runner + GraphEditor + CooldownTable | `ACT/Enemy/Behavior Tree Editor` |
 | UI | ⬜ 未实现 | — | `UI/` 占位 |
 
 状态图例：✅ 可玩可用 · 🟡 有类/占位但未接完 · ⬜ 未开始
@@ -643,21 +643,23 @@ SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSourc
 
 ### 功能说明
 
-敌人复用玩家的 CharacterActor、Locomotion、ActionGraph 与 Hitbox 管线；AI 仅生成输入帧，并通过 Idle / Chase / Attack / Hit / Dead 五态完成追击、攻击、受击和死亡回收。
+敌人复用玩家的 CharacterActor、Locomotion、ActionGraph 与 Hitbox 管线；AI **只写 `InputFrame`**。`EnemyBrain` 为门闩宿主，决策经 `IEnemyBehaviorRunner`；Hit/Death 不进树。BT-E1 起支持多按钮脉冲、风筝 Task 与通用冷却表。
 
 ### 实现方案
 
 | 项 | 方案 |
 |----|------|
-| 配置 | `EnemyDefinition` 只组合 CharacterConfig、BrainProfile、独立 teamId 与 HP；受击/死亡映射在 `CharacterConfig.Combat.Reactions` |
-| AI 输入 | `AIInputWriter` 直接写固定 Attack bit；World 在 Actor Step 前调用 Brain 生成当前逻辑帧 |
-| 追击 | `EnemyBrain` 更新 facing proxy，持续写 `Move=(0, chaseMoveMagnitude)` |
-| 攻击 | Brain 只发一帧 Attack 脉冲；选招仍由 GameplayIntentProducer → CharacterActionDriver → ActionGraph |
-| 伤害与反应 | `HitboxNotifyState.Payload` 持有基础伤害、HitReactionId 与反馈；`CharacterReactionService` 统一玩家/敌人事件桥接，Resolver 产出完整状态请求 |
-| 受击目标 | `CharacterHurtboxTarget` 统一玩家/敌人的 Hurtbox、阵营和生命值；自身整棵 Transform 层级均被排除 |
-| 状态 | `CharacterStateMachine` 正式注册 `HitState` / `DeathState` |
+| 配置 | `EnemyDefinition` 组合 CharacterConfig、BrainProfile、**BehaviorTree**、独立 teamId 与 HP |
+| 可替换契约 | `IEnemyBehaviorTreeAsset.CreateRunner` → `IEnemyBehaviorRunner`；Brain 不持有具体树类型 |
+| 预设树 | `MeleeChaseAttack` / `ChaseOnly` / `Kite`；Custom SerializeReference |
+| Graph 数据 | `graphLayout` + `nodeGuid`；Mapper Flatten/Rebuild；Validator |
+| Graph 编辑器 | `EnemyBehaviorTreeEditorWindow`（GraphView）；Save→Custom；空格调色板 |
+| AI 输入 | Runner 写黑板 → Brain 帧末 `AIInputWriter.Pulse(Attack/Dodge/Heavy/Skill)` |
+| 冷却 | `EnemyCooldownTable`；`basic_attack` 由 Brain 起手确认写入；`CooldownGate` 可写其它 id |
+| 追击 / 风筝 | `MoveToward` / `BackOff` / `Strafe`；条件 `CooldownReady` / `DistanceGreater` |
+| 木桩 | `enableCombatActions=false` 时不建 Runner；Hit 门闩仍消化 |
+| 伤害与反应 | 同前：`CharacterReactionService` → `NotifyHit` / `NotifyDeath` → Runner.Reset |
 | 生成 | `EnemySpawnController` → `SpawnEnemyCommand` → `EnemyController`；`EnemySpawnSystem` 限制存活数 |
-| 回收 | 死亡立即注销 Target/CombatActor，死亡 Action 完成并等待配置延迟后 Destroy |
 
 ### 关键参数
 
@@ -676,38 +678,31 @@ SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSourc
 
 ```
 SimulationWorld.Step
-  → EnemyHandle.ProduceInput → EnemyBrain.Step → AIInputWriter → InputFrameBuffer
+  → EnemyHandle.ProduceInput
+       → EnemyBrain.Step（门闩 / 填黑板 / Runner.Tick / 提交 AIInputWriter）
+       → InputFrameBuffer
   → EnemyHandle.Step → CharacterActor.Step(InputFrame) → Locomotion / Action
 
 CombatHitPipeline（全体 Actor Step 后）
-  → 按 SimHitKey 稳定排序
-  → CharacterHurtboxTarget.OnHit
-  → CharacterHealth.ApplyDamage
-      → CharacterReactionService
-      → CharacterReactionResolver（生成 CharacterReactionRequest）
-      → EnterHit / EnterDeath
-  → IActionHitReceiver.NotifyHit
-  → PostCombat 自动衔接
-  → PublishAttackHitCommand → AttackHitEvent
+  → CharacterReactionService → EnterHit / EnterDeath
+  → EnemyBrain.NotifyHit / NotifyDeath → Runner.Reset
 ```
-
-玩家镜头震动只响应 `Attacker` 根节点带 `PlayerController` 的命中；敌人命中玩家仍触发受击和攻击者卡肉，但不触发玩家进攻震屏。
 
 ### 已知限制
 
-- 代码已编译，仍需在 Unity Editor 人工创建 EnemyDefinition、EnemyBrainProfile、敌人 CharacterConfig 与 ActionGraph 资产。
-- 本次职责重构不保留旧序列化兼容层：现有 Graph 需重填节点 Intent / 索敌 / 自动衔接，Hitbox 需重填 Payload，CharacterConfig 需重填 Reaction Rules。
-- 首版追击是直线趋近，不含 NavMesh、绕障、Strafe 与群体避让。
-- 死亡回收当前使用 Destroy；对象池可在后续替换 DespawnEnemyCommand 内实现。
-- `HurtboxTarget` 静态木桩没有 `SimActorId`，L0C 后不进入权威命中；如需可攻击木桩，应实现并注册正式 Simulation Actor。
+- **真敌**须挂 `EnemyBehaviorTree` SO；开启 Combat Actions 时缺树会工厂失败。
+- 追击直线趋近（`StraightPathQuery`）；寻路见演进计划 E4。
+- 若旧 Custom 树仍引用已删冷却条件类型，请 Fill Melee 重建。
+- Graph Undo 以 Save/Fill 的 `RegisterCompleteObjectUndo` 为主；画布即时删节点未做完整 Undo 栈。
+- 死亡回收当前使用 Destroy；对象池可后续替换。
 
 ### 相关文件
 
-- `Assets/Scripts/Domain/Enemy/*`
-- `Assets/Scripts/App/Controllers/Gameplay/Enemy*.cs`
-- `Assets/Scripts/App/Commands/Enemy/*`
-- `Assets/Scripts/App/Systems/Enemy/EnemySpawnSystem.cs`
-- `Assets/Scripts/Domain/Combat/Damage/*`
+- `Assets/Scripts/Domain/Enemy/*`（含 `BehaviorTree/Serialization/`）
+- `Assets/Scripts/Editor/Enemy/BehaviorTree/*`
+- `Assets/Scripts/Infrastructure/Input/AIInputWriter.cs`
+- `Assets/Tests/Editor/Enemy/EnemyBehaviorTreeTests.cs`
+- `docs/2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md`
 
 ---
 
@@ -816,9 +811,15 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-09 | Wave 4 P3：MotionCommand → ActionMotionResolver 接线（Relocate/SnapFacing） |
 | 2026-08-09 | Wave 4 出口收窄为位移；Wave 5 撤出大招演出；LockOn/SkillShot/Finisher 全归 Camera 篇 |
 | 2026-08-09 | A2 打击感（命中 VFX/SFX）验收；日计划下一项改为 A5 BT |
+| 2026-08-09 | BT-1：`IEnemyBehaviorRunner` + 自研近战树；删 EnemyBrain Idle/Chase/Attack switch |
+| 2026-08-09 | BT-2 调试：NamedNode 路径、EnemyController Gizmo/日志、Create/Validate 菜单 |
+| 2026-08-09 | BT-1 Play 验收；BT-2 Custom SerializeReference 节点定义 + Inspector Fill |
 | 2026-08-09 | 修复 Action→Idle 模型抖动：`BlendToZero` 期间禁止 `ApplyLogicLocalPose` 回写；回锚结束前后快照一并清零；新动作起手取消未完成 Blend |
 | 2026-08-09 | VFX 池化支持 Animator：Spawn Rebind/从头播、寿命取粒子与 clip 较长者、playbackSpeed/卡肉同步 `Animator.speed`；导入 C1 包至 `Assets/Resources/Effect-C1/` |
 | 2026-08-09 | Action Editor VFX 预览：`SampleAt` 同步粒子 Simulate 与 Animator Clip 采样；`Restart` 对齐 playOnAwake + Animator 从头播 |
+| 2026-08-09 | BT-E1：`AIInputWriter` 多按钮脉冲；`CooldownTable`/`CooldownGate`；BackOff/Strafe/PulseDodge；Kite 预设；删单字段攻击 CD 与 `BasicAttackCooldownReady*` |
+| 2026-08-09 | BT-E2：`EnemyBehaviorGraphLayout` + `GraphMapper` Flatten/Rebuild + `Validator`；Custom `Wrap` 始终带 Debug 名 |
+| 2026-08-09 | BT-E3：`EnemyBehaviorTreeEditorWindow` GraphView MVP（调色板/连线/Inspector/Save/模板/Play 高亮） |
 
 ---
 

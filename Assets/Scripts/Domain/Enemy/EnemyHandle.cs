@@ -52,6 +52,12 @@ public sealed class EnemyHandle :
     public CharacterHurtboxTarget Target { get; }
     public EnemyDefinition Definition => _definition;
     public EnemyBrainState BrainState => _brain.State;
+    /// <summary>BT 调试：上一帧 Runner 状态。</summary>
+    public BehaviorStatus BrainLastRunnerStatus => _brain.LastRunnerStatus;
+    /// <summary>BT 调试：NamedNode 路径。</summary>
+    public string BrainLastDebugPath => _brain.LastDebugPath;
+    /// <summary>开关行为树调试采集。</summary>
+    public void SetBrainDebugEnabled(bool enabled) => _brain.SetDebugEnabled(enabled);
     public float CurrentHealth => _actor.Vitality.CurrentHealth;
     public bool IsDead => _actor.Vitality.IsDead;
     public bool IsReadyToDespawn =>

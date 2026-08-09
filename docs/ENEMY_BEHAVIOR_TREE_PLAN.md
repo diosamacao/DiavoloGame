@@ -3,6 +3,7 @@
 > 基准：`develop`（敌人 AI 初版已落地：`EnemyBrain` 五态 FSM + `AIInputWriter`）  
 > 制定日期：2026-07-30  
 > 修订：2026-08-09 — 补充**可替换 BT 后端**抽象（`IEnemyBehaviorTreeAsset` / `IEnemyBehaviorRunner`）；输出对齐 `AIInputWriter`/`InputFrame`  
+> 修订：2026-08-09 — BT-1/BT-2 主体已落地；**后续完善与 GraphView** 见 [2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md](./2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md)  
 > 前置文档：[ENEMY_SYSTEM_INTEGRATION_PLAN.md](./ENEMY_SYSTEM_INTEGRATION_PLAN.md)  
 > 总清单交叉：[PROJECT_CHECKLIST.md](./PROJECT_CHECKLIST.md) §6.4（BT 抽象 + 简易编辑器）  
 > 本次范围：**只做行为树决策层**；NavMesh / A\* 寻路另开迭代，本方案预留接口不实现
@@ -509,29 +510,33 @@ Assets/Data/Enemy/
 
 ### Phase BT-1 — 骨架 + 等价默认树（本迭代主目标）
 
-- [ ] **§3.4 契约**：`IEnemyBehaviorTreeAsset` / `IEnemyBehaviorRunner` / `EnemyBehaviorBuildContext`
-- [ ] `NativeBehaviorTreeRunner` + `BehaviorStatus` / `IBehaviorNode` / `BehaviorTree` / `EnemyBlackboard`
-- [ ] Selector / Sequence / 条件与行动节点（第一节库）
-- [ ] `StraightPathQuery`
-- [ ] `EnemyBehaviorTreeAsset`（实现接口）+ `BT_MeleeChaseAttack`
-- [ ] `EnemyBrain` 只持有 `IEnemyBehaviorRunner`；删除 Idle/Chase/Attack switch
-- [ ] Factory / Definition 接线（`CreateRunner`，不泄漏具体树类型）
-- [ ] Hit/Death 门闩与 `runner.Reset()`
-- [ ] EditMode：可对 Runner 接口 mock（证明 Brain 不依赖自研节点类型）
+- [x] **§3.4 契约**：`IEnemyBehaviorTreeAsset` / `IEnemyBehaviorRunner` / `EnemyBehaviorBuildContext`（2026-08-09）
+- [x] `NativeBehaviorTreeRunner` + `BehaviorStatus` / `IBehaviorNode` / `BehaviorTree` / `EnemyBlackboard`
+- [x] Selector / Sequence / 条件与行动节点（第一节库）
+- [x] `StraightPathQuery`
+- [x] `EnemyBehaviorTreeAsset`（预设 MeleeChaseAttack / ChaseOnly）；**Editor 建 SO 并挂 Definition**（Agent 不改 `.asset`）
+- [x] `EnemyBrain` 只持有 `IEnemyBehaviorRunner`；删除 Idle/Chase/Attack switch
+- [x] Factory / Definition 接线（`CreateRunner`，不泄漏具体树类型）
+- [x] Hit/Death 门闩与 `runner.Reset()`
+- [x] EditMode：`Assets/Tests/Editor/Enemy/EnemyBehaviorTreeTests`（预设树 + Asset→Runner；因 Enemy 在 Assembly-CSharp）
 
 **验收**
 
-1. 进圈追、贴脸停、冷却普攻  
-2. 受击硬直中无移动无攻击  
-3. 死亡后不决策  
-4. 换「只追不打」树资产行为变化  
-5. `EnemyBrain` 源码无具体 `BehaviorTree`/节点类型字段（仅接口 + 黑板）  
+1. 进圈追、贴脸停、冷却普攻 — ✅ Play（用户 2026-08-09：敌人已能行动）  
+2. 受击硬直中无移动无攻击 — 门闩代码齐  
+3. 死亡后不决策 — 门闩代码齐  
+4. 换「只追不打」树资产行为变化 — 预设 `ChaseOnly` / Custom 可配  
+5. `EnemyBrain` 源码无具体 `BehaviorTree`/节点类型字段（仅接口 + 黑板） — ✅  
+
+**BT-1 出口：✅ 关闭（2026-08-09）**
 
 ### Phase BT-2 — 配置体验
 
-- [ ] Inspector 树编辑（增删子节点、多态 SerializeReference）
-- [ ] 运行时调试：当前 Running 节点路径日志 / 可选 Gizmo  
-- [ ] `WaitAttackConfirm` 节点化（可选）
+- [x] 运行时调试：`NamedNode` + 黑板 DebugPath；`EnemyController` 选中 Gizmo / 可选变化日志（2026-08-09）
+- [x] 预设资产 Inspector 说明 + 菜单 `ACT/Enemy/Create Default Behavior Tree Assets` / `Validate…`
+- [x] Inspector 多态编辑：`Kind=Custom` + `[SerializeReference] customRoot` + Fill From 预设（2026-08-09）
+- [ ] GraphView 节点图画布 — 后置（实践轨）
+- [ ] `WaitAttackConfirm` 节点化（可选；冷却观测仍在 Brain）
 
 ### Phase BT-3 — 与寻路汇合
 
@@ -583,6 +588,6 @@ Assets/Data/Enemy/
 
 ## 14. 下一步
 
-按 **Phase BT-1** 实现：先落 §3.4 接口与 `NativeBehaviorTreeRunner`，再默认近战树等价替换，最后 `EnemyDefinition` 挂可切换资产。  
-寻路迭代单独开 `ENEMY_PATHFINDING_PLAN`（或本文件 Phase BT-3）。  
-插件接入不单独立项时可在 Adapter 程序集内完成，**不得**回头改薄 Brain 契约。
+BT-1 / BT-2 / **BT-E1～E3** 已关闭（含 GraphView MVP）。  
+下一步按 [ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md](./2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md)：**E4 寻路**（可选）。  
+插件 Adapter 为 E5；**不得**回头改薄 Brain 契约。

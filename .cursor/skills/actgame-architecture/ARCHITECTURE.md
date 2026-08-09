@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-08（A2：命中受击 Cue 经 AttackHitEvent → HitImpactController）
+> Last audited: 2026-08-09（BT-E3：Behavior Tree GraphView）
 
 ## 项目概述
 
@@ -222,9 +222,9 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 
 | 类 | 职责 |
 |----|------|
-| `EnemyDefinition` / `EnemyBrainProfile` | 组合 CharacterConfig、AI 半径/冷却、HP 与敌人阵营；动作配置只在 CharacterConfig |
+| `EnemyDefinition` / `EnemyBrainProfile` / `EnemyBehaviorTreeAsset` | 身体配置、AI 数值、可替换行为树资产；动作只在 CharacterConfig |
 | `AIInputWriter` | 将 AI 移动与 Attack 脉冲量化为当帧 `InputFrame`，继续走统一语义意图管线 |
-| `EnemyBrain` / `EnemyPerception` | Idle / Chase / Attack / Hit / Dead FSM 与只读感知快照 |
+| `IEnemyBehaviorRunner` / `EnemyBrain` / `EnemyPerception` | Runner 决策；Brain 门闩+黑板+CooldownTable+提交多按钮输入；Perception 只读快照 |
 | `EnemyActorFactory` / `EnemyHandle` | 复用 CharacterActorFactory，聚合 Actor、Brain、Vitality、Hurtbox 生命周期 |
 | `EnemyController` / `EnemySpawnController` | 单敌 Tick 入口与场景刷怪入口 |
 | `EnemySpawnSystem` | 架构级敌人实例注册与同 Definition 存活上限 |
@@ -232,8 +232,8 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 **数据流（敌人）**：
 
 ```
-EnemyDefinition → EnemyActorFactory → CharacterActorFactory
-EnemyBrain → AIInputWriter → InputFrameBuffer → InputManager → GameplayIntentProducer → CharacterActionDriver
+EnemyDefinition → EnemyActorFactory → CreateRunner(IEnemyBehaviorTreeAsset) → EnemyBrain
+EnemyBrain → IEnemyBehaviorRunner.Tick → AIInputWriter → InputFrameBuffer → GameplayIntentProducer → CharacterActionDriver
 玩家 Hitbox → CombatHitPipeline.Collect → 稳定排序/Resolve → CharacterHurtboxTarget → CharacterVitality
               └─ CharacterReactionService → CharacterReactionResolver
                    ├─ 非致命：EnemyBrain.NotifyHit → CharacterActor.EnterHit

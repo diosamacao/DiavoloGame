@@ -56,7 +56,26 @@ public static class EnemyActorFactory
             targetProvider,
             () => actor.CurrentState,
             () => actor.Vitality.IsDead);
-        var brain = new EnemyBrain(definition.BrainProfile, perception, input, facingProxy);
+
+        // 经 IEnemyBehaviorTreeAsset 取 Runner；Brain 不持有具体树类型
+        IEnemyBehaviorRunner behaviorRunner = null;
+        IEnemyPathQuery pathQuery = new StraightPathQuery();
+        EnemyBrainProfile brainProfile = definition.BrainProfile;
+        if (brainProfile != null && brainProfile.EnableCombatActions)
+        {
+            IEnemyBehaviorTreeAsset treeAsset = definition.BehaviorTree;
+            if (treeAsset == null)
+            {
+                throw new InvalidOperationException(
+                    $"EnemyActorFactory: {definition.DisplayName} 开启 Combat Actions 但 BehaviorTree 为空。");
+            }
+
+            var buildContext = new EnemyBehaviorBuildContext(brainProfile, pathQuery);
+            behaviorRunner = treeAsset.CreateRunner(in buildContext);
+        }
+
+        var brain = new EnemyBrain(
+            brainProfile, perception, input, facingProxy, behaviorRunner, pathQuery);
         var reactionService = new CharacterReactionService(
             actor.Vitality,
             actor,

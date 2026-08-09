@@ -1,0 +1,167 @@
+using System.Collections.Generic;
+
+/// <summary>行为树资产 / Custom 根校验结果。</summary>
+public sealed class EnemyBehaviorTreeValidationResult
+{
+    readonly List<string> _errors = new List<string>();
+    readonly List<string> _warnings = new List<string>();
+
+    /// <summary>无 Error 即为通过（Warning 可保留）。</summary>
+    public bool IsValid => _errors.Count == 0;
+
+    /// <summary>错误列表。</summary>
+    public IReadOnlyList<string> Errors => _errors;
+
+    /// <summary>警告列表。</summary>
+    public IReadOnlyList<string> Warnings => _warnings;
+
+    /// <summary>追加错误。</summary>
+    public void AddError(string message)
+    {
+        if (!string.IsNullOrEmpty(message))
+            _errors.Add(message);
+    }
+
+    /// <summary>追加警告。</summary>
+    public void AddWarning(string message)
+    {
+        if (!string.IsNullOrEmpty(message))
+            _warnings.Add(message);
+    }
+}
+
+/// <summary>校验 Custom 树：空根、空 child、环、重复 guid、未知/空节点。</summary>
+public static class EnemyBehaviorTreeValidator
+{
+    /// <summary>校验整份行为树资产。</summary>
+    public static EnemyBehaviorTreeValidationResult Validate(EnemyBehaviorTreeAsset asset)
+    {
+        var result = new EnemyBehaviorTreeValidationResult();
+        if (asset == null)
+        {
+            result.AddError("资产为空。");
+            return result;
+        }
+
+        if (asset.Kind != EnemyBehaviorTreeKind.Custom)
+        {
+            // 预设种树无 SerializeReference 根，仅提示
+            if (asset.CustomRoot != null)
+                result.AddWarning("Kind 非 Custom，customRoot 将被忽略。");
+            return result;
+        }
+
+        if (asset.CustomRoot == null)
+        {
+            result.AddError("Kind=Custom 但 customRoot 为空。");
+            return result;
+        }
+
+        ValidateTree(asset.CustomRoot, result);
+
+        // 布局孤儿仅警告
+        if (asset.GraphLayout != null)
+        {
+            HashSet<string> live = EnemyBehaviorTreeGraphMapper.CollectGuids(asset.CustomRoot);
+            for (int i = 0; i < asset.GraphLayout.Nodes.Count; i++)
+            {
+                EnemyBehaviorGraphNodeLayout layout = asset.GraphLayout.Nodes[i];
+                if (layout == null || string.IsNullOrEmpty(layout.nodeGuid))
+                {
+                    result.AddWarning("GraphLayout 存在空 nodeGuid 条目。");
+                    continue;
+                }
+
+                if (!live.Contains(layout.nodeGuid))
+                    result.AddWarning($"GraphLayout 孤儿 guid：{layout.nodeGuid}");
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>仅校验一棵 Def 树。</summary>
+    public static EnemyBehaviorTreeValidationResult ValidateTree(EnemyBehaviorNodeDef root)
+    {
+        var result = new EnemyBehaviorTreeValidationResult();
+        if (root == null)
+        {
+            result.AddError("根节点为空。");
+            return result;
+        }
+
+        ValidateTree(root, result);
+        return result;
+    }
+
+    static void ValidateTree(EnemyBehaviorNodeDef root, EnemyBehaviorTreeValidationResult result)
+    {
+        var pathStack = new HashSet<EnemyBehaviorNodeDef>();
+        var guids = new HashSet<string>();
+        Walk(root, result, pathStack, guids, "root");
+    }
+
+    static void Walk(
+        EnemyBehaviorNodeDef node,
+        EnemyBehaviorTreeValidationResult result,
+        HashSet<EnemyBehaviorNodeDef> pathStack,
+        HashSet<string> guids,
+        string path)
+    {
+        if (node == null)
+        {
+            result.AddError($"空节点：{path}");
+            return;
+        }
+
+        // 引用环（同一实例再次进入路径）
+        if (!pathStack.Add(node))
+        {
+            result.AddError($"检测到环（同一节点实例重复引用）：{path} / {Describe(node)}");
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(node.NodeGuid) && !guids.Add(node.NodeGuid))
+            result.AddError($"重复 NodeGuid：{node.NodeGuid} @ {path}");
+
+        if (string.IsNullOrEmpty(node.NodeName))
+            result.AddWarning($"缺少 NodeName：{path} / {Describe(node)}");
+
+        if (EnemyBehaviorTreeGraphMapper.TryGetChildren(node, out List<EnemyBehaviorNodeDef> children))
+        {
+            if (children.Count == 0)
+                result.AddWarning($"复合节点无子：{path} / {Describe(node)}");
+
+            for (int i = 0; i < children.Count; i++)
+            {
+                if (children[i] == null)
+                    result.AddError($"空 child[{i}]：{path}/{Describe(node)}");
+                else
+                    Walk(children[i], result, pathStack, guids, $"{path}/{Describe(node)}[{i}]");
+            }
+
+            pathStack.Remove(node);
+            return;
+        }
+
+        if (EnemyBehaviorTreeGraphMapper.TryGetSingleChild(node, out EnemyBehaviorNodeDef child))
+        {
+            if (child == null)
+                result.AddError($"装饰节点 child 为空：{path} / {Describe(node)}");
+            else
+                Walk(child, result, pathStack, guids, $"{path}/{Describe(node)}/child");
+        }
+
+        pathStack.Remove(node);
+    }
+
+    static string Describe(EnemyBehaviorNodeDef node)
+    {
+        if (node == null)
+            return "null";
+        string name = string.IsNullOrEmpty(node.NodeName)
+            ? EnemyBehaviorTreeGraphMapper.DefaultNodeName(node)
+            : node.NodeName;
+        return $"{name}<{node.GetType().Name}>";
+    }
+}
