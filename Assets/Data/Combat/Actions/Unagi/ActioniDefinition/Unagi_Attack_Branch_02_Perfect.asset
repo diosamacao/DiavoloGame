@@ -318,7 +318,7 @@ MonoBehaviour:
       trackName: MotionModifier_1
       mode: 1
       targetSource: 0
-      horizontalOffsetMm: 1500
+      horizontalOffsetMm: 1000
       lateralOffsetMm: 0
       maxCorrectionMmPerFrame: 99999
       maxAcquireDistanceMm: 99999
@@ -326,7 +326,7 @@ MonoBehaviour:
       stopOnTargetLost: 1
     - id: MotionModifier_2
       startFrame: 7
-      endFrame: 32
+      endFrame: 17
       priority: 0
       trackName: MotionModifier_2
       mode: 0
