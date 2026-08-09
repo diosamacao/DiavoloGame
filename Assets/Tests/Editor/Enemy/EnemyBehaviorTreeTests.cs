@@ -112,6 +112,26 @@ public sealed class EnemyBehaviorTreeTests
     }
 
     [Test]
+    public void StrafeAction_UsesStrafeMagnitude_NotChase()
+    {
+        var profile = ScriptableObject.CreateInstance<EnemyBrainProfile>();
+        // 通过 SerializedObject 写入私有序列化字段
+        var so = new UnityEditor.SerializedObject(profile);
+        so.FindProperty("chaseMoveMagnitude").floatValue = 1f;
+        so.FindProperty("strafeMoveMagnitude").floatValue = 0.35f;
+        so.ApplyModifiedPropertiesWithoutUndo();
+
+        var bb = CreateBlackboard(hasTarget: true, distance: 3f, aggroed: true, cdReady: true);
+        bb.Profile = profile;
+        new StrafeAroundTargetAction(1f).Tick(bb);
+
+        Assert.That(bb.MoveDesire.x, Is.EqualTo(0.35f).Within(0.001f));
+        Assert.That(Mathf.Abs(bb.MoveDesire.x), Is.Not.EqualTo(profile.ChaseMoveMagnitude));
+
+        UnityEngine.Object.DestroyImmediate(profile);
+    }
+
+    [Test]
     public void CooldownGate_BlocksThenAllowsAfterTickDown()
     {
         var bb = CreateBlackboard(hasTarget: true, distance: 3f, aggroed: true, cdReady: true);

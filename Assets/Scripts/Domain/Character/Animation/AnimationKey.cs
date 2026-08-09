@@ -12,4 +12,8 @@ public enum AnimationKey
     Sprint = 7,
     /// <summary>起步未完成松手时的收束（资产名 Run_Start_End）。</summary>
     StartEnd = 8,
+    /// <summary>对峙/横移：本地左向走。</summary>
+    WalkLeft = 9,
+    /// <summary>对峙/横移：本地右向走。</summary>
+    WalkRight = 10,
 }

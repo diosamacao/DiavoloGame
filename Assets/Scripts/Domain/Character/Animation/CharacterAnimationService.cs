@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 /// <summary>角色动画播放门面；调用层只依赖本类，后端通过 IAnimationPlayback 可替换为 Animancer。</summary>
-public sealed class CharacterAnimationService : IDisposable
+public sealed class CharacterAnimationService : IDisposable, ILocomotionAnimClipQuery
 {
     CharacterAnimationProfile profile;
     readonly IAnimationPlayback playback;

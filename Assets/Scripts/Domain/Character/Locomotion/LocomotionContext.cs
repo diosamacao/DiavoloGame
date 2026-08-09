@@ -17,7 +17,8 @@ public sealed class LocomotionContext
         CharacterLocomotionProfile profile,
         LocomotionFootCycle footCycle,
         LocomotionFootstepPlayer footstepPlayer,
-        LocomotionRootMotionPlayer rootMotionPlayer)
+        LocomotionRootMotionPlayer rootMotionPlayer,
+        ILocomotionAnimResolver animResolver = null)
     {
         Root = root;
         Motor = motor;
@@ -27,6 +28,7 @@ public sealed class LocomotionContext
         FootCycle = footCycle;
         FootstepPlayer = footstepPlayer;
         RootMotionPlayer = rootMotionPlayer;
+        AnimResolver = animResolver ?? new DefaultLocomotionAnimResolver();
     }
 
     public Transform Root { get; }
@@ -37,6 +39,9 @@ public sealed class LocomotionContext
     public LocomotionFootCycle FootCycle { get; }
     public LocomotionFootstepPlayer FootstepPlayer { get; }
     public LocomotionRootMotionPlayer RootMotionPlayer { get; }
+
+    /// <summary>步态+局部输入 → AnimationKey。</summary>
+    public ILocomotionAnimResolver AnimResolver { get; }
 
     /// <summary>当前稳态步态（Gait 相位内可变）。</summary>
     public LocomotionGait Gait { get; set; } = LocomotionGait.Walk;
@@ -125,34 +130,38 @@ public sealed class LocomotionContext
         return snapshot.HasMoveInput && snapshot.Magnitude >= idleThreshold;
     }
 
-    /// <summary>起步结束时的初始步态：只进 Walk 或 Run。</summary>
-    public LocomotionGait ResolveInitialGait(float magnitude) =>
-        magnitude > Motor.RunThreshold ? LocomotionGait.Run : LocomotionGait.Walk;
+    /// <summary>起步结束时的初始步态：Walk/Run，并受 GaitPolicy.MaxGait 钳制。</summary>
+    public LocomotionGait ResolveInitialGait(float magnitude)
+    {
+        LocomotionGait gait = magnitude > Motor.RunThreshold
+            ? LocomotionGait.Run
+            : LocomotionGait.Walk;
+        LocomotionGaitPolicy policy = Profile != null ? Profile.GaitPolicy : null;
+        return policy != null ? policy.ClampGait(gait) : gait;
+    }
 
     /// <summary>Run / Sprint 视为跑档急停门槛。</summary>
     public static bool IsRunTier(LocomotionGait gait) =>
         gait == LocomotionGait.Run || gait == LocomotionGait.Sprint;
 
-    /// <summary>解析步态对应 AnimationKey；缺 Sprint 时回退 Run。</summary>
-    public AnimationKey ResolveGaitAnimationKey(LocomotionGait gait)
+    /// <summary>经 AnimResolver 解析本帧 Locomotion 动画键（含 WalkLeft/Right）。</summary>
+    public AnimationKey ResolveLocomotionAnimationKey()
     {
-        switch (gait)
-        {
-            case LocomotionGait.Sprint:
-                if (Animation.HasClip(AnimationKey.Sprint))
-                    return AnimationKey.Sprint;
-                if (!LoggedMissingSprint)
-                {
-                    Debug.LogError("LocomotionStateMachine: AnimationProfile 未绑定 Sprint Clip，暂用 Run。");
-                    LoggedMissingSprint = true;
-                }
+        LocomotionGait gait = Gait;
+        Vector2 localMove = FrameSnapshot.MoveIntent;
+        AnimationKey key = AnimResolver.Resolve(gait, localMove, Animation);
 
-                return AnimationKey.Run;
-            case LocomotionGait.Run:
-                return AnimationKey.Run;
-            default:
-                return AnimationKey.Walk;
+        // Sprint 缺 Clip：首次告警后 Resolver 已回退 Run
+        if (gait == LocomotionGait.Sprint
+            && key == AnimationKey.Run
+            && !Animation.HasClip(AnimationKey.Sprint)
+            && !LoggedMissingSprint)
+        {
+            Debug.LogError("LocomotionStateMachine: AnimationProfile 未绑定 Sprint Clip，暂用 Run。");
+            LoggedMissingSprint = true;
         }
+
+        return key;
     }
 
     /// <summary>按当前相位/步态取落脚标记。</summary>
@@ -247,7 +256,8 @@ public sealed class LocomotionContext
         bool hardCutPlay = false,
         Vector3 faceDirection = default)
     {
-        PendingGait = gait;
+        LocomotionGaitPolicy policy = Profile != null ? Profile.GaitPolicy : null;
+        PendingGait = policy != null ? policy.ClampGait(gait) : gait;
         PendingGaitHardCutPlay = hardCutPlay;
         PendingGaitFaceDirection = faceDirection;
         RequestPhase(LocomotionPhase.Gait, force: true);

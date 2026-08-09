@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-09（BT：删除 Kind/预设，仅手动 customRoot）
+> Last updated: 2026-08-09（L-GP：GaitPolicy + WalkLeft/Right Resolver）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -309,40 +309,35 @@ SimulationWorld.Step
 
 ### 功能说明
 
-顶层仍为 `Locomotion` 状态；内部由 `LocomotionStateMachine`（Core `StateMachine<>`）驱动 Idle / Start / Gait(Walk|Run|Sprint) / PivotTurn / Stop。各相位为独立 State；转换默认全开、由各态主动 `RequestPhase`。满跑输入先进 Run，连续约 3s 后进 Sprint；仅 Sprint 可大角度转身。落脚标记驱动脚步声与急停选脚。
+顶层仍为 `Locomotion` 状态；内部由 `LocomotionStateMachine` 驱动 Idle / Start / Gait / PivotTurn / Stop。升档与 Pivot 许可由 **`LocomotionGaitPolicy`**（嵌在 Profile）求值；播片经 **`ILocomotionAnimResolver`**（Walk 横移可解析 `WalkLeft`/`WalkRight`）。敌我差异靠不同 Profile 资产，State 内无身份分支。
 
 ### 实现方案
 
 | 项 | 方案 |
 |----|------|
 | 内层机 | `LocomotionStateMachine` + `LocomotionContext`；Tick = 转换后 `ExecuteFrame` |
-| 相位 State | `Idle/Start/Gait/PivotTurn/StopLocomotionState`（`Locomotion/States/`） |
-| 相位 Id | `LocomotionPhase`：Idle→Start→Gait；Sprint 大角度→PivotTurn；松输入→Stop |
-| 逻辑键 | `AnimationKey`：Idle/Walk/Run/Sprint/Start/StartEnd/PivotTurn/StopL/StopR |
+| 步态策略 | `LocomotionGaitPolicy`：MaxGait / AllowPivot / SprintAfterRunSeconds |
+| 选片 | `DefaultLocomotionAnimResolver`：gait + `MoveIntent` → `AnimationKey` |
+| 相位 State | `Idle/Start/Gait/PivotTurn/StopLocomotionState` |
+| 逻辑键 | Idle/Walk/WalkLeft/WalkRight/Run/Sprint/Start/StartEnd/PivotTurn/StopL/StopR |
 | 映射 | `CharacterAnimationProfile` → `AnimationClip` |
-| 相位参数 | `CharacterLocomotionProfile`（阈值、落脚、脚步音） |
+| 相位参数 | `CharacterLocomotionProfile`（阈值、落脚、GaitPolicy、脚步音） |
 | 脚步 | `LocomotionFootCycle` 按 `NormalizedTime` 采样标记 |
-| 门面 | `CharacterAnimationService.Play` + `NormalizedTime` / `HasFinishedCurrent` |
-| 位移 | `CharacterMotor.ApplyLocomotion`（首版无急停减速/转身专用位移） |
-| Root Motion（Locomotion） | StartEnd/Stop/Pivot 使用 Profile 内烘焙轨；TurnBack 解锁后仅把当前输入相对初始折返输入的方向差叠加到角色根，位移同步重定向 |
+| 门面 | `CharacterAnimationService.Play`（兼 `ILocomotionAnimClipQuery`） |
+| Root Motion | StartEnd/Stop/Pivot 烘焙轨；TurnBack 解锁后输入修正 |
 
 ### 相位规则（摘要）
 
 ```
 Idle + 有输入                         → Start（必经）
-Start 播完                            → Gait(Walk|Run)，不直接 Sprint
-Gait：跑输入持续 sprintAfterRunSeconds → Run→Sprint
-Start 松输入                          → Stop（播 StartEnd / Run_Start_End）
-Pivot 松输入                          → Stop（StopL/R；朝向=转身目标）
-Gait 松输入 + 速度够或 Run/Sprint     → Stop（StopL/R）；否则 Idle
-Gait(Sprint) + |yaw| ≥ pivotAngle    → PivotTurn（Walk/Run 只平滑转）
-PivotTurn 播放 < 0.08s               → 锁定进入朝向
-PivotTurn 播放 ≥ 0.08s               → Clip 保留自身转身；角色根只叠加实时输入相对初始折返输入的方向差
+Start 播完                            → Gait(Walk|Run)，受 MaxGait 钳制
+Gait：Policy.Evaluate（跑输入累计）   → Run→Sprint（仅 MaxGait≥Sprint）
+Gait 播片                             → AnimResolver（Walk+横向 → WalkLeft/Right）
+Start 松输入                          → Stop（StartEnd / StopL/R）
+Pivot：Policy.AllowsPivot(Sprint) + |yaw|≥pivotAngle
 Stop 任意时刻再输入                  → Start
-Dodge Action 退出 + 仍有移动输入      → 直接 Gait(Sprint)，跳过 Start/Run 计时
+Dodge 恢复                            → Gait（PendingGait 经 MaxGait 钳制）
 ```
-
-无落脚记录时急停默认右脚。缺少 StartEnd 时回退 StopL/R；缺少 Start/Pivot/Stop Clip 时 LogError 并跳过对应表现。
 
 ### 关键参数（LocomotionProfile 默认）
 
@@ -350,22 +345,20 @@ Dodge Action 退出 + 仍有移动输入      → 直接 Gait(Sprint)，跳过 S
 |------|------|------|
 | `idleInputThreshold` | 0.01 | 静止判定 |
 | `stopMinSpeedFactor` | 0.5 | Gait→Stop 相对 runSpeed |
-| `pivotAngleDegrees` | 135 | 仅 Sprint；对齐 zzzdemo turnBackAngle |
-| `pivotInputUnlockSeconds` | 0.08s | TurnBack 起手锁根时长；到时后允许实时输入修正 Clip 的目标方向 |
-| `pivotRotationSmoothTime` | 0.5s | 解锁后对输入方向差形成的角色根偏移做 SmoothDamp |
-| `stopUseRootMotion` / `pivotUseRootMotion` | true | 方案 B：烘焙根位移驱动 StartEnd/Stop/Pivot |
-| `rootMotionPositionScale` | 1 | 烘焙位移缩放 |
-| `sprintAfterRunSeconds` | 3 | Run 连续满输入后进 Sprint |
-| `gaitInputGapGraceSeconds` | 0.15 | Gait 松手宽限；超时才 Stop，便于键盘换向 Pivot |
-| `interruptFadeDuration` | 0.08 | 切入 Stop 短淡入 |
-| Motor `sprintSpeed` | 9 | 冲刺水平速度（旧资产为 0 时回退 runSpeed） |
+| `pivotAngleDegrees` | 135 | Pivot 夹角 |
+| `gaitPolicy.maxGait` | Sprint | 玩家 Full；敌人近战建议 Run |
+| `gaitPolicy.allowPivot` | true | 仅 Sprint 可 Pivot |
+| `gaitPolicy.sprintAfterRunSeconds` | 3 | Run→Sprint 累计（真源在 Policy） |
+| `gaitInputGapGraceSeconds` | 0.15 | Gait 松手宽限 |
+| Motor `sprintSpeed` | 9 | 冲刺水平速度 |
 
-### Profile 配置（Katana）
+### Profile 配置（Katana / 敌人）
 
 | AnimationKey | 说明 |
 |--------------|------|
-| Idle / Walk / Run | 原有循环 |
-| Start / StartEnd / PivotTurn / StopL / StopR | 需在 Editor 绑定；StartEnd 对应 Run_Start_End |
+| Idle / Walk / Run | 基础循环 |
+| WalkLeft / WalkRight | 对峙横移（敌人战斗 Profile 必绑） |
+| Start / StartEnd / PivotTurn / StopL / StopR | 玩家相位；StartEnd=Run_Start_End |
 
 资产：`Assets/Data/CharacterLocomotion/`（AnimationProfile）；LocomotionProfile 在 CharacterConfig 上引用（可空，运行时默认阈值）。
 
@@ -657,7 +650,8 @@ SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSourc
 | Graph 编辑器 | 宿主牌连线；Condition/Decorator **叠徽章**（`EnemyBehaviorGraphPresentation` Peel/Wrap）；Save 展开回装饰链 |
 | AI 输入 | Runner 写黑板 → Brain 帧末 `AIInputWriter.Pulse(Attack/Dodge/Heavy/Skill)` |
 | 冷却 | `EnemyCooldownTable`；`basic_attack` 由 Brain 起手确认写入；`CooldownGate` 可写其它 id |
-| 追击 / 风筝 | `MoveToward` / `BackOff` / `Strafe`；条件装饰套在 Task/Sequence 上 |
+| 追击 / 对峙 | `MoveToward`（chase 幅度）/ `Strafe`（strafe 幅度）/ `BackOff`；BT 循环见 `LOCOMOTION_GAIT_POLICY_PLAN` |
+| 敌人步态 | 独立 LocomotionProfile + `GaitPolicy.MaxGait=Run`；对峙 WalkLeft/Right |
 | 木桩 | `enableCombatActions=false` 时不建 Runner；Hit 门闩仍消化 |
 | 伤害与反应 | 同前：`CharacterReactionService` → `NotifyHit` / `NotifyDeath` → Runner.Reset |
 | 生成 | `EnemySpawnController` → `SpawnEnemyCommand` → `EnemyController`；`EnemySpawnSystem` 限制存活数 |
@@ -673,7 +667,9 @@ SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSourc
 | `EnemyDefinition.teamId` | 1 | 敌人阵营；不继承复用 CharacterConfig 的玩家阵营 |
 | `EnemyBrainProfile.aggroRadius / loseAggroRadius` | 10 / 14 | 进战/脱战距离 |
 | `attackRange / stopDistance` | 2 / 1.2 | 攻击与贴身停步距离 |
-| `attackCooldownSeconds` | 1.2 | 成功起手后的攻击冷却 |
+| `chaseMoveMagnitude` | 1 | 追击移动轴幅度 |
+| `strafeMoveMagnitude` | 0.35 | 对峙侧移幅度（宜 &lt; RunThreshold） |
+| `attackCooldownFrames` | 72 | 成功起手后的攻击冷却（逻辑帧） |
 
 ### 运行时流程
 
@@ -826,6 +822,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
 | 2026-08-09 | BT Graph：装饰/条件改为宿主顶部徽章（UE 表现）；运行真源仍为装饰链 |
+| 2026-08-09 | L-GP：`LocomotionGaitPolicy` + `DefaultLocomotionAnimResolver`（WalkLeft/Right）；`strafeMoveMagnitude`；升档/选片无身份 if |
 
 ---
 

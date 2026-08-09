@@ -14,6 +14,8 @@ public sealed class EnemyBrainProfile : ScriptableObject
     [SerializeField] float attackRange = 2f;
     [SerializeField] int attackCooldownFrames = 72;
     [SerializeField, Range(0f, 1f)] float chaseMoveMagnitude = 1f;
+    [Tooltip("对峙侧移写入移动轴的幅度；建议小于 RunThreshold 以保持 Walk + 左右走动画。")]
+    [SerializeField, Range(0f, 1f)] float strafeMoveMagnitude = 0.35f;
     [SerializeField] float stopDistance = 1.2f;
     [SerializeField] int repathIntervalFrames = 6;
     [SerializeField] bool faceTargetWhileChase = true;
@@ -33,6 +35,8 @@ public sealed class EnemyBrainProfile : ScriptableObject
     public int AttackCooldownFrames => Mathf.Max(0, attackCooldownFrames);
     /// <summary>追击时写入移动轴的幅度。</summary>
     public float ChaseMoveMagnitude => Mathf.Clamp01(chaseMoveMagnitude);
+    /// <summary>对峙侧移写入移动轴的幅度。</summary>
+    public float StrafeMoveMagnitude => Mathf.Clamp01(strafeMoveMagnitude);
     /// <summary>贴近目标后停止移动的距离。</summary>
     public float StopDistance => Mathf.Max(0f, stopDistance);
     /// <summary>刷新假相机朝向的最小逻辑帧间隔。</summary>
@@ -53,5 +57,7 @@ public sealed class EnemyBrainProfile : ScriptableObject
         attackCooldownFrames = Mathf.Max(0, attackCooldownFrames);
         repathIntervalFrames = Mathf.Max(0, repathIntervalFrames);
         failedAttackRetryFrames = Mathf.Max(1, failedAttackRetryFrames);
+        chaseMoveMagnitude = Mathf.Clamp01(chaseMoveMagnitude);
+        strafeMoveMagnitude = Mathf.Clamp01(strafeMoveMagnitude);
     }
 }
