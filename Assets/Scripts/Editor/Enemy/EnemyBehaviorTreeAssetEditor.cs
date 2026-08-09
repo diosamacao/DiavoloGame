@@ -1,7 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 
-/// <summary>行为树资产 Inspector：根节点、校验、打开 Graph 编辑器（无 Kind/预设）。</summary>
+/// <summary>行为树资产 Inspector：根节点、校验、打开 Graph 编辑器；隐藏 graphLayout。</summary>
 [CustomEditor(typeof(EnemyBehaviorTreeAsset))]
 public sealed class EnemyBehaviorTreeAssetEditor : Editor
 {
@@ -18,9 +18,6 @@ public sealed class EnemyBehaviorTreeAssetEditor : Editor
             ValidateSelected();
         EditorGUILayout.EndHorizontal();
 
-        EditorGUILayout.Space();
-        EditorGUILayout.PropertyField(serializedObject.FindProperty("graphLayout"), true);
-
         serializedObject.ApplyModifiedProperties();
 
         EditorGUILayout.Space();
@@ -28,7 +25,8 @@ public sealed class EnemyBehaviorTreeAssetEditor : Editor
             EnemyBehaviorTreeEditorWindow.Open((EnemyBehaviorTreeAsset)target);
 
         EditorGUILayout.HelpBox(
-            "运行真源 = customRoot（须手动配置）。graphLayout 仅坐标。\n" +
+            "运行真源 = customRoot（须手动配置）。\n" +
+            "画布坐标由 Graph 编辑器自动维护（Inspector 不展示）。\n" +
             "菜单：ACT/Enemy/Behavior Tree Editor（空格创建节点）。",
             MessageType.None);
     }
