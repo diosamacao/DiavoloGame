@@ -12,7 +12,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 75d4082a12231c54fad59c09f1e2e1eb, type: 3}
   m_Name: MonsterActionGraph
   m_EditorClassIdentifier: 
-  nodes: []
+  nodes:
+  - nodeId: Monster_Goblin_Attack_01
+    action: {fileID: 11400000, guid: 3bb48353692280d45971c3de60791bc3, type: 2}
+    intent: 1
+    isEntry: 1
+    variantResolver: {fileID: 0}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 0
+      lockRange: 8
+      forwardConeAngle: 120
+      policy: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions: []
+    editorPosition: {x: 0, y: 0}
   edges: []
   sharedRoutes: []
   nodeGroups: []

@@ -12,11 +12,76 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a351cc937d87cc14aa5a75d3e0164cb7, type: 3}
   m_Name: BT_ChaseOnly
   m_EditorClassIdentifier: 
-  kind: 1
+  kind: 2
   customRoot:
-    rid: -2
+    rid: 1557465029543460972
+  graphLayout:
+    nodes:
+    - nodeGuid: bce608c2a09a4daba3ee5998b946fce9
+      position: {x: 480, y: -85.33333}
+      collapsed: 0
+    - nodeGuid: f17abe3d4ec54bb78e77e39cf8c19052
+      position: {x: 280, y: 86}
+      collapsed: 0
+    - nodeGuid: 41af9c74e79c4f288cea41715e919535
+      position: {x: 80, y: 280}
+      collapsed: 0
+    - nodeGuid: 264013af268f423d9962c9dfc37ba143
+      position: {x: 280, y: 280}
+      collapsed: 0
+    - nodeGuid: 619ed2d5b9ab47b09ae67da90c317310
+      position: {x: 480, y: 280}
+      collapsed: 0
+    - nodeGuid: add00ce81b9b4858a1417631162fc377
+      position: {x: 772.6667, y: 122}
+      collapsed: 0
+    - nodeGuid: 31fe8bb3a87840fc999fb39291067e6b
+      position: {x: 672, y: 280}
+      collapsed: 0
+    stickyNotes: []
   references:
     version: 2
     RefIds:
-    - rid: -2
-      type: {class: , ns: , asm: }
+    - rid: 1557465029543460972
+      type: {class: SelectorNodeDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: ChaseOnlyRoot
+        nodeGuid: bce608c2a09a4daba3ee5998b946fce9
+        children:
+        - rid: 1557465029543460973
+        - rid: 1557465029543460974
+    - rid: 1557465029543460973
+      type: {class: SequenceNodeDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: Chase
+        nodeGuid: f17abe3d4ec54bb78e77e39cf8c19052
+        children:
+        - rid: 1557465029543460975
+        - rid: 1557465029543460976
+        - rid: 1557465029543460977
+        - rid: 1557465029543460978
+    - rid: 1557465029543460974
+      type: {class: StopMoveActionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: Idle
+        nodeGuid: add00ce81b9b4858a1417631162fc377
+    - rid: 1557465029543460975
+      type: {class: HasTargetConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: HasTarget
+        nodeGuid: 41af9c74e79c4f288cea41715e919535
+    - rid: 1557465029543460976
+      type: {class: InCombatAggroConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: InCombatAggro
+        nodeGuid: 264013af268f423d9962c9dfc37ba143
+    - rid: 1557465029543460977
+      type: {class: MoveTowardTargetActionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: MoveTowardTarget
+        nodeGuid: 619ed2d5b9ab47b09ae67da90c317310
+    - rid: 1557465029543460978
+      type: {class: PulseAttackActionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: PulseAttack
+        nodeGuid: 31fe8bb3a87840fc999fb39291067e6b

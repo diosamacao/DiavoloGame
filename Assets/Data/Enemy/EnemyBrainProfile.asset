@@ -15,10 +15,10 @@ MonoBehaviour:
   enableCombatActions: 1
   aggroRadius: 10
   loseAggroRadius: 14
-  attackRange: 2
+  attackRange: 5
   attackCooldownFrames: 72
   chaseMoveMagnitude: 1
-  stopDistance: 1.2
+  stopDistance: 0
   repathIntervalFrames: 6
   faceTargetWhileChase: 1
   failedAttackRetryFrames: 12

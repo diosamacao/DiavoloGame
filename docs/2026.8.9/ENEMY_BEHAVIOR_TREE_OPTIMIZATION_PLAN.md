@@ -101,7 +101,7 @@ SimulationWorld.ProduceInput
 
 | # | 交付 | 验收 |
 |---|------|------|
-| A1 | 节点类别配色（Composite/Decorator/Condition/Task）+ 可选 USS；Running 边加粗或流光点（数据源 `LastDebugPath` / 选中敌人） | Play 选敌可见活跃支 |
+| A1 | **BD 风格**：深色网格 + 类别色标题条 + 左 Tasks 图例 + Properties；Running 绿框（`LastDebugPath`） | ✅ 2026-08-09 自研近似，不复制 BD 资产 |
 | A2 | 窗口布局：左（或更宽右）Inspector 常驻；工具栏分区（文件 / 排版 / 模板） | 与 Action Graph 窗口操作习惯接近 |
 | A3 | Play 模式只读「黑板快照」面板：距离、仇恨、CD 表、MoveDesire、脉冲旗 | 无需开 Console |
 | A4 | Undo：创建/删节点/连线尽量 `RegisterCompleteObjectUndo`；文档标明边界 | Ctrl+Z 覆盖常见编辑 |
@@ -227,11 +227,10 @@ docs/2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md  // 本文件
 | 2026-08-09 | 优化分 A 编辑器 → B 决策 → C 扩展 | 风险递增 |
 | 2026-08-09 | Parallel 继续不做；Abort 做 Self 子集 | 输入单通道；先补打断刚需 |
 | 2026-08-09 | Boss 模板用 RandomSelector + 输入型 Task | 对齐 Reaper 结构、不对齐 Task 副作用 |
+| 2026-08-09 | 编辑器视觉对齐 BD（深色/类别色/三栏），不引入 BD 包 | 学样式不学运行时 |
 
 ---
 
 ## 10. 下一步（待开工）
 
-建议下一编码切片：**BT-A1**（类别配色 + Running 表现），或跳过外观直接 **BT-B1+B3**（RandomSelector + CombatPool）若更在意可玩性。
-
-确认后按选定切片实施；完成后在本文件对应表格打 ✅ 并回写 `PROJECT_CHECKLIST` 焦点。
+**A1（BD 样式）已落地。** 建议下一刀：**A3 黑板监视** 或 **B1+B3（RandomSelector + CombatPool）**。

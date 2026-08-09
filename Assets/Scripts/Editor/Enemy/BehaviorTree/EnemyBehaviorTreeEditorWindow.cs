@@ -67,30 +67,21 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
         rootVisualElement.Clear();
         _graphView = null;
         _inspector = null;
+        EnemyBehaviorTreeStyle.TryApplyStyleSheet(rootVisualElement);
+        rootVisualElement.style.backgroundColor = EnemyBehaviorTreeStyle.PanelBg;
 
         if (_asset == null)
         {
             rootVisualElement.Add(new Label("选中或打开一个 EnemyBehaviorTree 资产。")
             {
-                style = { marginLeft = 8, marginTop = 8 },
+                style = { marginLeft = 8, marginTop = 8, color = new Color(0.85f, 0.85f, 0.85f) },
             });
             return;
         }
 
-        var toolbar = new VisualElement
-        {
-            style =
-            {
-                flexDirection = FlexDirection.Row,
-                flexShrink = 0,
-                paddingLeft = 4,
-                paddingRight = 4,
-                paddingTop = 2,
-                paddingBottom = 2,
-                backgroundColor = new Color(0.18f, 0.18f, 0.18f),
-            },
-        };
-
+        // —— 顶栏（对齐 BD 深色工具条）——
+        var toolbar = new VisualElement();
+        toolbar.AddToClassList("bt-toolbar");
         toolbar.Add(new Button(Save) { text = "Save" });
         toolbar.Add(new Button(Revert) { text = "Revert" });
         toolbar.Add(new Button(Validate) { text = "Validate" });
@@ -101,7 +92,7 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
         })
         {
             text = "Auto Layout",
-            tooltip = "按父子关系整理为 UE 风格：根在上、子在下、同级从左到右",
+            tooltip = "根在上、子在下、同级从左到右（BD/UE 树形）",
         });
         toolbar.Add(new Button(() => Fill(EnemyBehaviorTreeDefFactory.CreateMeleeChaseAttack()))
         {
@@ -116,15 +107,8 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
             text = "Fill Kite",
         });
 
-        _statusLabel = new Label($"  {_asset.name}")
-        {
-            style =
-            {
-                unityTextAlign = TextAnchor.MiddleLeft,
-                marginLeft = 8,
-                flexGrow = 1,
-            },
-        };
+        _statusLabel = new Label($"  {_asset.name}");
+        _statusLabel.AddToClassList("bt-status");
         toolbar.Add(_statusLabel);
         rootVisualElement.Add(toolbar);
 
@@ -133,34 +117,26 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
             style = { flexDirection = FlexDirection.Row, flexGrow = 1 },
         };
 
+        // —— 左侧 Tasks 图例（对齐 BD 任务分类浏览习惯）——
+        body.Add(BuildTasksSidePanel());
+
         _graphView = new EnemyBehaviorGraphView(_asset, this, RefreshInspector);
         var graphHost = new VisualElement { style = { flexGrow = 1 } };
         graphHost.Add(_graphView);
         body.Add(graphHost);
 
-        var inspectorHost = new VisualElement
-        {
-            style =
-            {
-                width = 280,
-                borderLeftWidth = 1,
-                borderLeftColor = new Color(0.1f, 0.1f, 0.1f),
-                backgroundColor = new Color(0.22f, 0.22f, 0.22f),
-            },
-        };
-        inspectorHost.Add(new Label("Node Inspector")
-        {
-            style =
-            {
-                unityFontStyleAndWeight = FontStyle.Bold,
-                marginLeft = 6,
-                marginTop = 6,
-                marginBottom = 4,
-            },
-        });
+        // —— 右侧 Properties ——
+        var inspectorHost = new VisualElement();
+        inspectorHost.AddToClassList("bt-inspector-panel");
+        inspectorHost.style.paddingLeft = 6;
+        inspectorHost.style.paddingRight = 6;
+        inspectorHost.style.paddingTop = 6;
+        var propsTitle = new Label("Properties");
+        propsTitle.AddToClassList("bt-panel-title");
+        inspectorHost.Add(propsTitle);
         _inspector = new IMGUIContainer(DrawInspector)
         {
-            style = { flexGrow = 1, marginLeft = 4, marginRight = 4 },
+            style = { flexGrow = 1 },
         };
         inspectorHost.Add(_inspector);
         body.Add(inspectorHost);
@@ -170,6 +146,46 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
         SetStatus(_asset.Kind == EnemyBehaviorTreeKind.Custom
             ? "已加载 Custom"
             : $"已展开预设 {_asset.Kind}（Save 后写为 Custom）");
+    }
+
+    /// <summary>左侧分类图例 + 操作提示（BD Task 面板简化版）。</summary>
+    static VisualElement BuildTasksSidePanel()
+    {
+        var panel = new VisualElement();
+        panel.AddToClassList("bt-side-panel");
+
+        var title = new Label("Tasks");
+        title.AddToClassList("bt-panel-title");
+        panel.Add(title);
+
+        AddLegend(panel, "Composite", EnemyBehaviorTreeStyle.Composite);
+        AddLegend(panel, "Decorator", EnemyBehaviorTreeStyle.Decorator);
+        AddLegend(panel, "Conditional", EnemyBehaviorTreeStyle.Condition);
+        AddLegend(panel, "Action", EnemyBehaviorTreeStyle.Task);
+
+        var hint = new Label(
+            "空格 / 右键：Create Node\n" +
+            "拖拽连线：父↓ → 子↑\n" +
+            "Play 选中敌人：Running 绿框\n" +
+            "样式参考 Behavior Designer（自研近似）");
+        hint.AddToClassList("bt-hint");
+        panel.Add(hint);
+        return panel;
+    }
+
+    static void AddLegend(VisualElement parent, string label, Color color)
+    {
+        var row = new VisualElement();
+        row.AddToClassList("bt-legend-row");
+        var swatch = new VisualElement();
+        swatch.AddToClassList("bt-legend-swatch");
+        swatch.style.backgroundColor = color;
+        row.Add(swatch);
+        row.Add(new Label(label)
+        {
+            style = { color = new Color(0.85f, 0.85f, 0.85f), fontSize = 11 },
+        });
+        parent.Add(row);
     }
 
     void Save()
