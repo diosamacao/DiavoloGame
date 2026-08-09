@@ -129,7 +129,7 @@ MonoBehaviour:
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
-          hitStopFrames: 3
+          hitStopFrames: 7
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}

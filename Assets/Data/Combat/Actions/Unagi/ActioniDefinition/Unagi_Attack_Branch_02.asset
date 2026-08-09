@@ -303,7 +303,7 @@ MonoBehaviour:
     hurtboxStates: []
     cancelWindowStates:
     - id: Cancel_1
-      startFrame: 54
+      startFrame: 60
       endFrame: 71
       priority: 0
       trackName: Cancel_1
