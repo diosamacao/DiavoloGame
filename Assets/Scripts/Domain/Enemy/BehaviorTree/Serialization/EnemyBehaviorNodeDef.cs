@@ -127,33 +127,45 @@ public sealed class CooldownGateNodeDef : EnemyBehaviorNodeDef
             child != null ? child.Build() : new StopMoveAction()));
 }
 
-/// <summary>HasTarget 条件定义。</summary>
+/// <summary>条件装饰定义基类（UE 风格：单子 + Abort Self）。</summary>
 [Serializable]
-public sealed class HasTargetConditionDef : EnemyBehaviorNodeDef
+public abstract class EnemyBehaviorConditionNodeDef : EnemyBehaviorNodeDef
 {
-    /// <inheritdoc />
-    public override IBehaviorNode Build() => Wrap(new HasTargetCondition());
+    /// <summary>条件通过后进入的子树。</summary>
+    [SerializeReference] public EnemyBehaviorNodeDef child;
+
+    /// <summary>构建子节点；缺省用 StopMove 占位（Validate 仍会报 child 为空）。</summary>
+    protected IBehaviorNode BuildChild() =>
+        child != null ? child.Build() : new StopMoveAction();
 }
 
-/// <summary>InCombatAggro 条件定义。</summary>
+/// <summary>HasTarget 条件装饰定义。</summary>
 [Serializable]
-public sealed class InCombatAggroConditionDef : EnemyBehaviorNodeDef
+public sealed class HasTargetConditionDef : EnemyBehaviorConditionNodeDef
 {
     /// <inheritdoc />
-    public override IBehaviorNode Build() => Wrap(new InCombatAggroCondition());
+    public override IBehaviorNode Build() => Wrap(new HasTargetCondition(BuildChild()));
 }
 
-/// <summary>InAttackRange 条件定义。</summary>
+/// <summary>InCombatAggro 条件装饰定义。</summary>
 [Serializable]
-public sealed class InAttackRangeConditionDef : EnemyBehaviorNodeDef
+public sealed class InCombatAggroConditionDef : EnemyBehaviorConditionNodeDef
 {
     /// <inheritdoc />
-    public override IBehaviorNode Build() => Wrap(new InAttackRangeCondition());
+    public override IBehaviorNode Build() => Wrap(new InCombatAggroCondition(BuildChild()));
 }
 
-/// <summary>IsCharacterState 条件定义。</summary>
+/// <summary>InAttackRange 条件装饰定义。</summary>
 [Serializable]
-public sealed class IsCharacterStateConditionDef : EnemyBehaviorNodeDef
+public sealed class InAttackRangeConditionDef : EnemyBehaviorConditionNodeDef
+{
+    /// <inheritdoc />
+    public override IBehaviorNode Build() => Wrap(new InAttackRangeCondition(BuildChild()));
+}
+
+/// <summary>IsCharacterState 条件装饰定义。</summary>
+[Serializable]
+public sealed class IsCharacterStateConditionDef : EnemyBehaviorConditionNodeDef
 {
     [SerializeField] CharacterStateType expected = CharacterStateType.Locomotion;
 
@@ -165,12 +177,13 @@ public sealed class IsCharacterStateConditionDef : EnemyBehaviorNodeDef
     }
 
     /// <inheritdoc />
-    public override IBehaviorNode Build() => Wrap(new IsCharacterStateCondition(expected));
+    public override IBehaviorNode Build() =>
+        Wrap(new IsCharacterStateCondition(expected, BuildChild()));
 }
 
-/// <summary>CooldownReady 条件定义。</summary>
+/// <summary>CooldownReady 条件装饰定义。</summary>
 [Serializable]
-public sealed class CooldownReadyConditionDef : EnemyBehaviorNodeDef
+public sealed class CooldownReadyConditionDef : EnemyBehaviorConditionNodeDef
 {
     [SerializeField] string cooldownId = EnemyCooldownIds.BasicAttack;
 
@@ -182,12 +195,13 @@ public sealed class CooldownReadyConditionDef : EnemyBehaviorNodeDef
     }
 
     /// <inheritdoc />
-    public override IBehaviorNode Build() => Wrap(new CooldownReadyCondition(cooldownId));
+    public override IBehaviorNode Build() =>
+        Wrap(new CooldownReadyCondition(cooldownId, BuildChild()));
 }
 
-/// <summary>DistanceLessEqual 条件定义。</summary>
+/// <summary>DistanceLessEqual 条件装饰定义。</summary>
 [Serializable]
-public sealed class DistanceLessEqualConditionDef : EnemyBehaviorNodeDef
+public sealed class DistanceLessEqualConditionDef : EnemyBehaviorConditionNodeDef
 {
     [SerializeField] float distance = 2f;
 
@@ -199,12 +213,13 @@ public sealed class DistanceLessEqualConditionDef : EnemyBehaviorNodeDef
     }
 
     /// <inheritdoc />
-    public override IBehaviorNode Build() => Wrap(new DistanceLessEqualCondition(distance));
+    public override IBehaviorNode Build() =>
+        Wrap(new DistanceLessEqualCondition(distance, BuildChild()));
 }
 
-/// <summary>DistanceGreater 条件定义。</summary>
+/// <summary>DistanceGreater 条件装饰定义。</summary>
 [Serializable]
-public sealed class DistanceGreaterConditionDef : EnemyBehaviorNodeDef
+public sealed class DistanceGreaterConditionDef : EnemyBehaviorConditionNodeDef
 {
     [SerializeField] float distance = 4f;
 
@@ -216,7 +231,8 @@ public sealed class DistanceGreaterConditionDef : EnemyBehaviorNodeDef
     }
 
     /// <inheritdoc />
-    public override IBehaviorNode Build() => Wrap(new DistanceGreaterCondition(distance));
+    public override IBehaviorNode Build() =>
+        Wrap(new DistanceGreaterCondition(distance, BuildChild()));
 }
 
 /// <summary>StopMove 行动定义。</summary>

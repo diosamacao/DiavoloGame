@@ -31,12 +31,13 @@ public sealed class EnemyBehaviorTreeAsset : ScriptableObject, IEnemyBehaviorTre
     public EnemyBehaviorTreeValidationResult ValidateAsset() =>
         EnemyBehaviorTreeValidator.Validate(this);
 
-    /// <summary>为 Graph 编辑准备：补 Guid/节点名并同步布局槽位。</summary>
+    /// <summary>为 Graph 编辑准备：迁移叶子条件、补 Guid/节点名并同步布局。</summary>
     public void PrepareForGraphEditor()
     {
         if (customRoot == null)
             return;
 
+        EnemyBehaviorTreeTopologyNormalizer.Normalize(customRoot);
         EnemyBehaviorTreeGraphMapper.EnsureStableIds(customRoot);
         EnemyBehaviorTreeGraphMapper.SyncLayout(GraphLayout, customRoot);
     }
@@ -59,6 +60,10 @@ public sealed class EnemyBehaviorTreeAsset : ScriptableObject, IEnemyBehaviorTre
         graphLayout ??= new EnemyBehaviorGraphLayout();
         if (customRoot == null)
             return;
+
+        // 旧 Sequence 叶子 Condition → 装饰链（消除 child 为空）
+        if (EnemyBehaviorTreeTopologyNormalizer.Normalize(customRoot))
+            UnityEditor.EditorUtility.SetDirty(this);
 
         EnemyBehaviorTreeValidationResult result = EnemyBehaviorTreeValidator.Validate(this);
         for (int i = 0; i < result.Errors.Count; i++)

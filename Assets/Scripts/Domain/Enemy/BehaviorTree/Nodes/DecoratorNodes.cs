@@ -68,9 +68,17 @@ public sealed class CooldownGateNode : IBehaviorNode
     public BehaviorStatus Tick(EnemyBlackboard blackboard)
     {
         if (blackboard?.Cooldowns == null)
+        {
+            _child.Reset();
             return BehaviorStatus.Failure;
+        }
+
         if (!blackboard.Cooldowns.IsReady(_cooldownId))
+        {
+            // 与条件装饰一致：门未开时 Abort Self
+            _child.Reset();
             return BehaviorStatus.Failure;
+        }
 
         BehaviorStatus status = _child.Tick(blackboard);
         if (status == BehaviorStatus.Success && _cooldownFrames > 0)

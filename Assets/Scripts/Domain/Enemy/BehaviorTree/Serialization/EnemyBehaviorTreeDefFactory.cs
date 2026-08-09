@@ -2,37 +2,35 @@ using System.Collections.Generic;
 
 /// <summary>
 /// EditMode 测试用树构造器（非资产默认类型）。
-/// 运行时资产必须在 Graph 中手动配置 customRoot，不得依赖本工厂种树。
+/// 条件为 UE 风格装饰链：Condition → … → Task/Sequence。
 /// </summary>
 public static class EnemyBehaviorTreeDefFactory
 {
-    /// <summary>测试：近战追打定义树。</summary>
+    /// <summary>测试：近战追打定义树（条件装饰套在分支上）。</summary>
     public static EnemyBehaviorNodeDef CreateMeleeChaseAttack()
     {
-        var attack = new SequenceNodeDef
+        var attackBody = new SequenceNodeDef
         {
-            NodeName = "Attack",
+            NodeName = "AttackBody",
             children = new List<EnemyBehaviorNodeDef>
             {
-                new HasTargetConditionDef(),
-                new InAttackRangeConditionDef(),
-                new IsCharacterStateConditionDef(),
-                new CooldownReadyConditionDef(),
                 new StopMoveActionDef(),
                 new PulseAttackActionDef(),
             },
         };
 
-        var chase = new SequenceNodeDef
-        {
-            NodeName = "Chase",
-            children = new List<EnemyBehaviorNodeDef>
-            {
-                new HasTargetConditionDef(),
-                new InCombatAggroConditionDef(),
-                new MoveTowardTargetActionDef(),
-            },
-        };
+        // 外层 → 内层：HasTarget → InRange → State → Cd → AttackBody
+        EnemyBehaviorNodeDef attack = NestDecorators(
+            attackBody,
+            new HasTargetConditionDef { NodeName = "HasTarget" },
+            new InAttackRangeConditionDef { NodeName = "InAttackRange" },
+            new IsCharacterStateConditionDef { NodeName = "IsLocomotion" },
+            new CooldownReadyConditionDef { NodeName = "CooldownReady" });
+
+        EnemyBehaviorNodeDef chase = NestDecorators(
+            new MoveTowardTargetActionDef { NodeName = "ChaseMove" },
+            new HasTargetConditionDef { NodeName = "HasTarget" },
+            new InCombatAggroConditionDef { NodeName = "InAggro" });
 
         return new SelectorNodeDef
         {
@@ -49,16 +47,10 @@ public static class EnemyBehaviorTreeDefFactory
     /// <summary>测试：只追不打定义树。</summary>
     public static EnemyBehaviorNodeDef CreateChaseOnly()
     {
-        var chase = new SequenceNodeDef
-        {
-            NodeName = "Chase",
-            children = new List<EnemyBehaviorNodeDef>
-            {
-                new HasTargetConditionDef(),
-                new InCombatAggroConditionDef(),
-                new MoveTowardTargetActionDef(),
-            },
-        };
+        EnemyBehaviorNodeDef chase = NestDecorators(
+            new MoveTowardTargetActionDef { NodeName = "ChaseMove" },
+            new HasTargetConditionDef { NodeName = "HasTarget" },
+            new InCombatAggroConditionDef { NodeName = "InAggro" });
 
         return new SelectorNodeDef
         {
@@ -74,41 +66,32 @@ public static class EnemyBehaviorTreeDefFactory
     /// <summary>测试：风筝定义树。</summary>
     public static EnemyBehaviorNodeDef CreateKite()
     {
-        var backOff = new SequenceNodeDef
-        {
-            NodeName = "BackOff",
-            children = new List<EnemyBehaviorNodeDef>
-            {
-                new HasTargetConditionDef(),
-                new InCombatAggroConditionDef(),
-                new DistanceLessEqualConditionDef { Distance = 2.5f },
-                new BackOffFromTargetActionDef(),
-            },
-        };
+        EnemyBehaviorNodeDef backOff = NestDecorators(
+            new BackOffFromTargetActionDef { NodeName = "BackOffMove" },
+            new HasTargetConditionDef { NodeName = "HasTarget" },
+            new InCombatAggroConditionDef { NodeName = "InAggro" },
+            new DistanceLessEqualConditionDef { NodeName = "TooClose", Distance = 2.5f });
 
-        var chase = new SequenceNodeDef
-        {
-            NodeName = "Chase",
-            children = new List<EnemyBehaviorNodeDef>
-            {
-                new HasTargetConditionDef(),
-                new InCombatAggroConditionDef(),
-                new DistanceGreaterConditionDef { Distance = 4f },
-                new MoveTowardTargetActionDef(),
-            },
-        };
+        EnemyBehaviorNodeDef chase = NestDecorators(
+            new MoveTowardTargetActionDef { NodeName = "ChaseMove" },
+            new HasTargetConditionDef { NodeName = "HasTarget" },
+            new InCombatAggroConditionDef { NodeName = "InAggro" },
+            new DistanceGreaterConditionDef { NodeName = "TooFar", Distance = 4f });
 
-        var hold = new SequenceNodeDef
+        var holdBody = new SequenceNodeDef
         {
-            NodeName = "Hold",
+            NodeName = "HoldBody",
             children = new List<EnemyBehaviorNodeDef>
             {
-                new HasTargetConditionDef(),
-                new InCombatAggroConditionDef(),
                 new FaceTargetActionDef(),
                 new StopMoveActionDef(),
             },
         };
+
+        EnemyBehaviorNodeDef hold = NestDecorators(
+            holdBody,
+            new HasTargetConditionDef { NodeName = "HasTarget" },
+            new InCombatAggroConditionDef { NodeName = "InAggro" });
 
         return new SelectorNodeDef
         {
@@ -121,5 +104,25 @@ public static class EnemyBehaviorTreeDefFactory
                 new StopMoveActionDef { NodeName = "Idle" },
             },
         };
+    }
+
+    /// <summary>
+    /// 将条件装饰由外到内套在叶子上：gates[0] 最外层。
+    /// </summary>
+    public static EnemyBehaviorNodeDef NestDecorators(
+        EnemyBehaviorNodeDef inner,
+        params EnemyBehaviorConditionNodeDef[] gatesOuterToInner)
+    {
+        if (gatesOuterToInner == null || gatesOuterToInner.Length == 0)
+            return inner;
+
+        var list = new List<EnemyBehaviorNodeDef>(gatesOuterToInner.Length);
+        for (int i = 0; i < gatesOuterToInner.Length; i++)
+        {
+            if (gatesOuterToInner[i] != null)
+                list.Add(gatesOuterToInner[i]);
+        }
+
+        return EnemyBehaviorTreeTopologyNormalizer.NestDecorators(inner, list);
     }
 }

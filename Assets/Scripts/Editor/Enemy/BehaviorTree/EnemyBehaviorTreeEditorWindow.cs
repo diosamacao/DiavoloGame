@@ -151,9 +151,9 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
 
         var hint = new Label(
             "空格 / 右键：Create Node\n" +
-            "拖拽连线：父↓ → 子↑\n" +
-            "Play 选中敌人：Running 绿框\n" +
-            "样式参考 Behavior Designer（自研近似）");
+            "Condition/Decorator：叠在选中宿主顶\n" +
+            "点击徽章编辑；右键移除\n" +
+            "连线只连 Composite/Task");
         hint.AddToClassList("bt-hint");
         panel.Add(hint);
         return panel;
@@ -225,31 +225,52 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
 
     void DrawInspector()
     {
-        EnemyBehaviorGraphNodeView node = _graphView != null ? _graphView.SelectedNode : null;
-        if (node?.Def == null)
+        EnemyBehaviorGraphNodeView host = _graphView != null
+            ? _graphView.InspectedHost ?? _graphView.SelectedNode
+            : null;
+        EnemyBehaviorNodeDef def = _graphView != null
+            ? _graphView.InspectedDef ?? host?.Def
+            : null;
+
+        if (host == null || def == null)
         {
-            EditorGUILayout.HelpBox("选中一个节点以编辑参数。\n空格 / 右键 Create Node 打开调色板。", MessageType.Info);
+            EditorGUILayout.HelpBox(
+                "选中 Composite / Task 编辑宿主。\n" +
+                "先选中宿主再 Create Condition/Decorator（叠成顶部徽章）。\n" +
+                "点击徽章可编辑装饰参数。",
+                MessageType.Info);
             return;
         }
 
-        EnemyBehaviorNodeDef def = node.Def;
+        bool inspectingDecorator = def != host.Def;
+        if (inspectingDecorator)
+        {
+            EditorGUILayout.HelpBox(
+                $"装饰徽章（叠在 {EnemyBehaviorGraphPresentation.ChipLabel(host.Def)} 上）",
+                MessageType.None);
+        }
+
         EditorGUI.BeginChangeCheck();
         string nodeName = EditorGUILayout.TextField("节点名", def.NodeName ?? string.Empty);
         EditorGUILayout.LabelField("类型", def.GetType().Name);
 
         DrawTypedFields(def);
 
-        // 参数字段在 DrawTypedFields 内已写回 Def；此处同步标题
         def.NodeName = nodeName;
         if (EditorGUI.EndChangeCheck())
         {
-            node.RefreshTitle();
+            host.RefreshTitle();
+            // 徽章文案可能变了：重新选一次触发 chip 刷新
+            if (inspectingDecorator)
+                host.SetInspectedChip(def);
+            else
+                host.SetInspectedChip(null);
             if (_asset != null)
                 EditorUtility.SetDirty(_asset);
         }
-        else
+        else if (!inspectingDecorator)
         {
-            node.RefreshTitle();
+            host.RefreshTitle();
         }
     }
 
