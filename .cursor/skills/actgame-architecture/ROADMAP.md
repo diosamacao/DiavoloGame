@@ -83,11 +83,11 @@
 
 **真源**：`docs/2026.8.9/WAVE4_GAMEPLAY_MOTION_BRANCH02_PLAN.md`
 
-**状态：✅ 位移能力齐套（2026-08-09）**
+**状态：✅ Wave 4 位移出口关闭（2026-08-09）**
 
 - [x] TargetAdhesion + SoftBodySuppress；起手 `ActionTargetId`；Branch_02 验收
 - [x] RelocateBehind / MotionCommand → `ActionMotionResolver` 接线（P3）
-- [ ] Lock-On（4.5～4.6）
+- ~~Lock-On（原 4.5～4.6）~~ → 已撤出 Wave 4；排期见 `docs/2026.8.6/CAMERA_SYSTEM_PLAN.md`
 
 **打击感优化（木桩 / Cue / 吸附行程）至此告一段落；Relocate 按需配资产。**
 

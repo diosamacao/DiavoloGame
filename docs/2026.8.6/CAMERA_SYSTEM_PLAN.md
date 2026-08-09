@@ -7,7 +7,8 @@
 > **排期真源：** [MASTER_IMPLEMENTATION_PLAN.md](./MASTER_IMPLEMENTATION_PLAN.md)  
 > 相关文档：[CHARACTER_MOVEMENT_ANCHOR_OPTIMIZATION_PLAN.md](./CHARACTER_MOVEMENT_ANCHOR_OPTIMIZATION_PLAN.md)、[ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](../ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)、[ENEMY_SYSTEM_INTEGRATION_PLAN.md](../ENEMY_SYSTEM_INTEGRATION_PLAN.md)、[SKILL_AND_RESOURCE_SYSTEM_PLAN.md](./SKILL_AND_RESOURCE_SYSTEM_PLAN.md)  
 > 修订：2026-08-05 — 补强 §5.5 技能演出镜头  
-> 修订：2026-08-06 — 对齐 VisualMotionRoot 层级；滤左右定位为 Wave 1 临时止血
+> 修订：2026-08-06 — 对齐 VisualMotionRoot 层级；滤左右定位为 Wave 1 临时止血  
+> 修订：2026-08-09 — **LockOn / Predict / SkillShot / Finisher 排期全部由本文自管**：不再挂 MASTER Wave 4/5；C1～C4 按本篇 Phase 独立推进
 
 ---
 
@@ -367,7 +368,7 @@ Assets/Scripts/Domain/Combat/Targeting/
 
 **验收：** 侧向攻击位移时镜头明显更稳；前向突进仍跟随；传送仍 Snap。
 
-### Phase C1 — Lock-On 双机位 → **Wave 4**
+### Phase C1 — Lock-On 双机位（**本篇排期，不挂 Wave 4**）
 
 - [ ] 新增 LockOn VCam + TargetGroup  
 - [ ] `CameraDirector`：`Free` / `LockOn` + Brain Blend + Inherit Position  
@@ -377,14 +378,14 @@ Assets/Scripts/Domain/Combat/Targeting/
 
 **验收：** 锁定后可绕敌 strafing 且人、敌基本同框；解锁回 Free 无硬切跳变。
 
-### Phase C2 — Predict + 反馈扩展 → **Wave 4（可选）**
+### Phase C2 — Predict + 反馈扩展（可选，本篇排期）
 
 - [ ] `PredictAnchor` 与疾跑/速度 lead  
 - [ ] 受击 / 弹刀等 Impulse 或 FOV Punch（§5.4）  
 
 **验收：** 疾跑构图略看前方；弹刀有独立镜头反馈且不进逻辑。
 
-### Phase C3 — 多段技能 / 大招 `SkillShot` → **Wave 5**
+### Phase C3 — 多段技能 / 大招 `SkillShot`（**本篇排期，不挂 Wave 5**）
 
 - [ ] `CameraShot` / `CameraShotSequence` 数据 + Action 引用  
 - [ ] `FaceAnchor` / 复用 Chest；Face + Body 两套可租用 VCam  
@@ -396,7 +397,7 @@ Assets/Scripts/Domain/Combat/Targeting/
 
 **验收：** 放大招自动特写，第一段结束后回身；Look 被抑制；招式结束或打断后恢复进入前 Free/LockOn；逻辑命中不依赖镜头。
 
-### Phase C4 — 重度演出 → **Wave 5 后置**
+### Phase C4 — 重度演出（后置）
 
 - [ ] Timeline + CM Track 的 Finisher/过场  
 - [ ] 关卡触发高优先级 VCam  
