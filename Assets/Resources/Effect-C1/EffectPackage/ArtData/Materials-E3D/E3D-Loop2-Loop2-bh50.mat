@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 6
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: E3D-Loop2-Loop2-bh50
+  m_Shader: {fileID: 4800000, guid: 24bd7cce90b92f74f844e0e59a39c4fe, type: 3}
+  m_ShaderKeywords: 
+  m_LightmapFlags: 5
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: 2000
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BaseRGBA:
+        m_Texture: {fileID: 2800000, guid: c90d88b4ad89adf4ab1c64140c7204d0, type: 3}
+        m_Scale: {x: 4, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 2800000, guid: e0ee35a9b83e148419943abc7bccbc88, type: 3}
+        m_Scale: {x: 7, y: -1}
+        m_Offset: {x: 0, y: 0}
+    - _ShapeRGB:
+        m_Texture: {fileID: 2800000, guid: 7c0161658d8dfaf4da1577aa1403d9dd, type: 3}
+        m_Scale: {x: 10, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Floats:
+    - _2uvBase: 0
+    - _2uvShape: 0
+    - _Alpha: 9.91
+    m_Colors:
+    - _BaseColor: {r: 1, g: 0.9051726, b: 0.59558815, a: 1}
+    - _TintColor: {r: 0.22647059, g: 0.32352942, b: 0.11656574, a: 1}

@@ -82,6 +82,18 @@ MonoBehaviour:
       localScale: {x: 0.2, y: 0.2, z: 0.2}
       parentToAttachPoint: 1
       playbackSpeed: 1
+    - id: VFX_4
+      startFrame: 25
+      endFrame: 25
+      priority: 0
+      trackName: VFX_1
+      prefab: {fileID: 111936, guid: ef5210970082c6542852d34a3b8f9f9d, type: 3}
+      attachPointId: 
+      localOffset: {x: 0, y: -0.7, z: -1.15}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      localScale: {x: 1.33, y: 0.97, z: 1.2}
+      parentToAttachPoint: 0
+      playbackSpeed: 1
     playSfxStates:
     - id: SFX_1
       startFrame: 7
@@ -109,12 +121,12 @@ MonoBehaviour:
         hitReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
-          useHitStop: 0
-          hitStopFrames: 5
+          useHitStop: 1
+          hitStopFrames: 3
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
-          hitImpactSfxVolume: 0.3
+          hitImpactSfxVolume: 0.8
           hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
           randomizeImpactRotation: 1
@@ -142,7 +154,7 @@ MonoBehaviour:
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
-          hitImpactSfxVolume: 0.3
+          hitImpactSfxVolume: 0.8
           hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
           randomizeImpactRotation: 1
@@ -170,7 +182,7 @@ MonoBehaviour:
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
-          hitImpactSfxVolume: 0.3
+          hitImpactSfxVolume: 0.8
           hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
           randomizeImpactRotation: 1
@@ -198,7 +210,7 @@ MonoBehaviour:
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
-          hitImpactSfxVolume: 0.3
+          hitImpactSfxVolume: 0.8
           hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
           randomizeImpactRotation: 1
@@ -226,7 +238,7 @@ MonoBehaviour:
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
-          hitImpactSfxVolume: 0.3
+          hitImpactSfxVolume: 0.8
           hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
           randomizeImpactRotation: 1
@@ -254,7 +266,7 @@ MonoBehaviour:
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
-          hitImpactSfxVolume: 0.3
+          hitImpactSfxVolume: 0.8
           hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
           randomizeImpactRotation: 1
@@ -282,7 +294,7 @@ MonoBehaviour:
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
-          hitImpactSfxVolume: 0.3
+          hitImpactSfxVolume: 0.8
           hitImpactWorldOffset: {x: 0, y: 0, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
           randomizeImpactRotation: 1

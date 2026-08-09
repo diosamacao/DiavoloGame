@@ -91,7 +91,7 @@ MonoBehaviour:
         baseDamage: 10
         hitReactionId: 
         feedback:
-          cameraShakeProfile: {fileID: 0}
+          cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
           hitStopFrames: 4
           hitStopOncePerAction: 0
@@ -130,6 +130,8 @@ MonoBehaviour:
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0.05
+    motionModifierStates: []
+    motionCommandNotifies: []
     tracks:
     - trackName: Phase_1
       kind: 8

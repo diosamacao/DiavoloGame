@@ -733,7 +733,8 @@ public sealed class ActionEditorVfxPreviewExtension : IActionEditorPreviewExtens
             float localTime =
                 ActionFrameQuery.GetElapsedSecondsSincePoint(trigger, context.PreviewFrame, sampleRate);
             float speed = speedProp != null ? Mathf.Max(0.0001f, speedProp.floatValue) : 1f;
-            ActionVfxEditorPreview.SimulateAt(slot.Instance, localTime * speed);
+            // 粒子 Simulate + Animator 同时间采样（对齐 showcase：playOnAwake + Animator）。
+            ActionVfxEditorPreview.SampleAt(slot.Instance, localTime * speed);
         }
 
         DestroySlotsNotIn(alive);
@@ -765,7 +766,7 @@ public sealed class ActionEditorVfxPreviewExtension : IActionEditorPreviewExtens
 
         instance.hideFlags = HideFlags.HideInHierarchy | HideFlags.DontSaveInEditor;
         instance.name = $"[VFX Preview {index}] {prefab.name}";
-        ActionVfxEditorPreview.RestartParticleSystems(instance);
+        ActionVfxEditorPreview.Restart(instance);
 
         slot = new PreviewSlot
         {
@@ -888,10 +889,10 @@ public sealed class ActionEditorVfxPreviewExtension : IActionEditorPreviewExtens
         ActionVfxEditorPreview.ResetTiming();
     }
 
-    /// <summary>手动重播当前仍可见的全部 VFX 预览粒子。</summary>
+    /// <summary>手动重播当前仍可见的全部 VFX 预览（粒子 + Animator）。</summary>
     public void Replay()
     {
-        // 强制下一 Tick 重新 SimulateAt（否则同帧会被跳过）。
+        // 强制下一 Tick 重新 SampleAt（否则同帧会被跳过）。
         _lastSimulatedFrame = int.MinValue;
 
         foreach (KeyValuePair<int, PreviewSlot> pair in _slots)
@@ -899,7 +900,7 @@ public sealed class ActionEditorVfxPreviewExtension : IActionEditorPreviewExtens
             if (pair.Value.Instance == null)
                 continue;
 
-            ActionVfxEditorPreview.RestartParticleSystems(pair.Value.Instance);
+            ActionVfxEditorPreview.Restart(pair.Value.Instance);
         }
 
         SceneView.RepaintAll();

@@ -112,7 +112,7 @@ MonoBehaviour:
       playbackSpeed: 1
     hitboxStates:
     - id: Hitbox_1
-      startFrame: 14
+      startFrame: 8
       endFrame: 18
       priority: 0
       trackName: Hitbox_1
@@ -127,9 +127,9 @@ MonoBehaviour:
         baseDamage: 0
         hitReactionId: 
         feedback:
-          cameraShakeProfile: {fileID: 0}
-          useHitStop: 0
-          hitStopFrames: 0
+          cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
+          useHitStop: 1
+          hitStopFrames: 3
           hitStopOncePerAction: 0
           hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
           hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}

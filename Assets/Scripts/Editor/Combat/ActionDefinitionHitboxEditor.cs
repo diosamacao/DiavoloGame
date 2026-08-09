@@ -386,10 +386,10 @@ public class ActionDefinitionHitboxEditor : Editor
             {
                 EditorGUILayout.HelpBox("为选中的 VFX 指定 Prefab 后可用 Handles 调整挂点偏移。", MessageType.Info);
             }
-            else if (ActionVfxEditorPreview.HasParticleSystems(prefab))
+            else if (ActionVfxEditorPreview.HasPreviewableContent(prefab))
             {
                 EditorGUILayout.HelpBox(
-                    "含 ParticleSystem：Scene 需开启 Effects；拖动 Preview Frame 到触发帧及之后即可预览。",
+                    "含 ParticleSystem / Animator：Scene 需开启 Effects；拖 Preview Frame 可同步预览粒子与动画。",
                     MessageType.Info);
 
                 if (GUILayout.Button("Replay VFX Preview"))
