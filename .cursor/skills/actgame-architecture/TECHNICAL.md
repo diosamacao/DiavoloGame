@@ -8,12 +8,12 @@
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
 | Wave4 位移（Adhesion / SoftBody / Relocate） | ✅ 已实现（吸附已验收；Relocate 已接线） | `ActionMotionAdhesion` + `ActionMotionResolver` + Bridge | Branch_02 吸附已配；Relocate 按需加 MotionCommand 轨；相机不在本 Wave |
-| 命中受击 Cue（VFX/SFX） | 🟡 代码通道已接、资产待绑 | `HitImpactController` + `HitFeedbackSettings` | 接触点落点 + 随机旋转；Feedback 填 Prefab/Clip |
+| 命中受击 Cue（VFX/SFX） | ✅ 已实现（A2 打击感验收 2026-08-09） | `HitImpactController` + `HitFeedbackSettings` | 接触点落点 + 随机旋转；普攻 Cue 已验 |
 | 逻辑 Hurtbox 调试线框 | ✅ 已实现 | `CombatHurtboxDebugSettings` + `CombatHurtboxDebugVisualizer` | F4 开关（F3 HUD 显示状态） |
 | 固定帧模拟宿主 | ✅ L0A 已实现 | `SimulationHost`、`SimulationWorld`、`SimActorId` | 60Hz，无资产 |
 | Wave0 动作审计 / 锚点可视化 / Debug HUD | ✅ 已实现 | `ActionDefinitionAuditUtility`、`CharacterAnchorGizmoDrawer`、`CombatDebugHudController` | 菜单 `ACTGame/Action/Validate Motion Sources`；场景挂 HUD |
 | Wave1 位移止血 / BaseMotionMode / 相机滤左右 | ✅ 已实现 | `ForwardSigned`、`ActionBaseMotionMode`、`CameraManager.lateralFollowFactor` | Attack 需以 ForwardSigned 重烘焙；菜单 Migrate Base Motion Mode |
-| Wave2 视觉残差 / VisualMotionRoot | ✅ 已实现（含 2.5） | `CharacterVisualMotionBridge`、`TryGetVisualResidualMm` | ForwardSigned：Motor 无横摆，模型在 VisualRoot 摆；2026-08-08 已删 Action RM/Legacy/ForwardOnly |
+| Wave2 视觉残差 / VisualMotionRoot | ✅ 已实现（含 2.5） | `CharacterVisualMotionBridge`、`TryGetVisualResidualMm` | ForwardSigned：Motor 无横摆，模型在 VisualRoot 摆；BlendToZero 期间跳过逻辑贴帧，避免回 Idle 抖动 |
 | Wave3 玩法资源 / 同键 EX | 🟡 资产待绑；运行时已迁 Numeric | `NumericCostGate`、`ActionResourceSpec`、`ActionEnergyFormSelector` | Spec 填表；Graph 双 Entry |
 | GAS-lite 数值重构 | ✅ G0～G5 完成 | `NumericSystem`、`DamageNumericCalculator`、`CharacterVitality` | Effect SO 壳 |
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
@@ -584,7 +584,7 @@ SimulationHost 帧末
 
 **关键参数：** `hitImpactWorldOffset` 默认 `0`（相对接触点）；`randomizeImpactRotation` 默认开，Y `0～360`；SFX Volume `0～1`。
 
-**已知限制：** 仍需在 Action Hitbox Feedback 人工绑定 Prefab/Clip；单 Hurtbox/角色，无多部位表。
+**已知限制：** 单 Hurtbox/角色，无多部位表；新招仍须人工绑 Feedback Prefab/Clip。A2 打击感验收 ✅ 2026-08-09。
 
 VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强制 Despawn；池化实例由 `VfxPooledInstance` 按粒子自然时长（含 `playbackSpeed` / 卡肉冻结）自行回池。无 `VFXManager` 时回退 `Destroy(lifetime)`。
 
@@ -815,6 +815,8 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-09 | Wave 4 位移切片 + 打击感优化：Branch_02 Editor 验收收口 |
 | 2026-08-09 | Wave 4 P3：MotionCommand → ActionMotionResolver 接线（Relocate/SnapFacing） |
 | 2026-08-09 | Wave 4 出口收窄为位移；Wave 5 撤出大招演出；LockOn/SkillShot/Finisher 全归 Camera 篇 |
+| 2026-08-09 | A2 打击感（命中 VFX/SFX）验收；日计划下一项改为 A5 BT |
+| 2026-08-09 | 修复 Action→Idle 模型抖动：`BlendToZero` 期间禁止 `ApplyLogicLocalPose` 回写；回锚结束前后快照一并清零；新动作起手取消未完成 Blend |
 
 ---
 

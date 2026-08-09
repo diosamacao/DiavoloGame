@@ -20,6 +20,9 @@ public sealed class CharacterVisualMotionBridge
     /// <summary>模型所在的视觉残差根。</summary>
     public Transform VisualRoot => _visualRoot;
 
+    /// <summary>是否正在将残差 Blend 回原点（供调试/测试）。</summary>
+    public bool IsBlendingOut => _blendingOut;
+
     /// <summary>绑定 VisualMotionRoot（PresentationRoot 子节点）。</summary>
     public CharacterVisualMotionBridge(Transform visualMotionRoot)
     {
@@ -29,32 +32,35 @@ public sealed class CharacterVisualMotionBridge
 
     /// <summary>
     /// 逻辑 Step 内：把残差贴到当前动作帧（供挂点/表现与逻辑帧对齐）。
-    /// 卡肉时帧不变，残差保持。
+    /// 卡肉时帧不变，残差保持。回锚期间若新动作起手则取消 Blend 并接管。
     /// </summary>
     public void CaptureSimulationFrame(ActionDefinition action, int actionFrame, bool actionActive)
     {
         if (_visualRoot == null)
             return;
 
-        if (_blendingOut)
-            return;
-
         if (!actionActive || action == null)
         {
-            // 无动作时保持当前残差，由 EndAction 决定退出
+            // 无动作时保持当前残差，由 EndAction 决定退出；回锚中也不采样
             return;
         }
+
+        // 连招/再起手：取消未完成的回锚，避免旧 Blend 盖住新帧残差
+        if (_blendingOut)
+            CancelBlendOut();
 
         ActionBakedMotion baked = action.BakedMotion;
         if (baked == null || !baked.IsReady)
         {
             SetResidualMeters(Vector3.zero);
+            ApplyLogicLocalPose();
             return;
         }
 
         if (!baked.TryGetVisualResidualMm(actionFrame, out int rx, out int rz))
         {
             SetResidualMeters(Vector3.zero);
+            ApplyLogicLocalPose();
             return;
         }
 
@@ -75,14 +81,15 @@ public sealed class CharacterVisualMotionBridge
         {
             case VisualResidualExitPolicy.SnapToZero:
             case VisualResidualExitPolicy.RequireZeroAtEnd:
-                _blendingOut = false;
-                SetResidualMeters(Vector3.zero);
+                CancelBlendOut();
+                SetResidualMetersBoth(Vector3.zero);
                 ApplyLogicLocalPose();
                 break;
             case VisualResidualExitPolicy.BlendToZero:
                 if (_currentResidualMeters.sqrMagnitude < 0.0000001f)
                 {
-                    _blendingOut = false;
+                    CancelBlendOut();
+                    SetResidualMetersBoth(Vector3.zero);
                     ApplyLogicLocalPose();
                     break;
                 }
@@ -112,8 +119,10 @@ public sealed class CharacterVisualMotionBridge
             _visualRoot.localRotation = Quaternion.identity;
             if (t >= 1f)
             {
-                _blendingOut = false;
-                SetResidualMeters(Vector3.zero);
+                // 前后快照一并清零，避免结束后又按 previous→current 插值把残差拽回来
+                CancelBlendOut();
+                SetResidualMetersBoth(Vector3.zero);
+                _visualRoot.localPosition = Vector3.zero;
             }
 
             return;
@@ -130,10 +139,13 @@ public sealed class CharacterVisualMotionBridge
         _visualRoot.localRotation = Quaternion.identity;
     }
 
-    /// <summary>逻辑步开始时贴齐当前残差（无插值），避免挂点读到上一渲染帧。</summary>
+    /// <summary>
+    /// 逻辑步贴齐当前残差（无插值），避免挂点读到上一渲染帧。
+    /// BlendToZero 期间禁止回写，否则会每逻辑帧把模型拽回满残差，与 Render 回锚打架形成抖动。
+    /// </summary>
     public void ApplyLogicLocalPose()
     {
-        if (_visualRoot == null)
+        if (_visualRoot == null || _blendingOut)
             return;
 
         _visualRoot.localPosition = _currentResidualMeters;
@@ -154,12 +166,24 @@ public sealed class CharacterVisualMotionBridge
         _currentResidualMeters = meters;
     }
 
+    /// <summary>前后残差快照同时写入（回锚结束/硬清零，避免插值回拉）。</summary>
+    void SetResidualMetersBoth(Vector3 meters)
+    {
+        _previousResidualMeters = meters;
+        _currentResidualMeters = meters;
+        _hasPose = true;
+    }
+
+    void CancelBlendOut()
+    {
+        _blendingOut = false;
+        _blendElapsed = 0f;
+    }
+
     void SnapLocalZero()
     {
-        _previousResidualMeters = Vector3.zero;
-        _currentResidualMeters = Vector3.zero;
-        _hasPose = true;
-        _blendingOut = false;
+        CancelBlendOut();
+        SetResidualMetersBoth(Vector3.zero);
         if (_visualRoot != null)
         {
             _visualRoot.localPosition = Vector3.zero;

@@ -1,6 +1,6 @@
 # ACTGame 项目总清单
 
-> 更新：2026-08-09 — Wave 4 位移出口关闭；Wave 5 不含镜头；LockOn/SkillShot/Finisher 全归 Camera 篇  
+> 更新：2026-08-09 — A2 打击感（命中 VFX/SFX）验收；下一项 A5 行为树；Wave 4 位移已关；镜头归 Camera 篇  
 
 > 角色：**一页总览**（进度 / 下一步 / 明确不做）  
 > 细节真源勿与本文抢权威：
@@ -53,24 +53,26 @@
 | 吸附 / 绕背 | ✅ | Wave 4 位移出口（2026-08-09） |
 | 预测回滚 / 联网 | ⬜ | L3 / L5 |
 | 打击感木桩验收台 | ✅ | Monster_EDF + 关行动 + Hit_Shake；Play 验收 2026-08-08 |
+| 命中 VFX/SFX（A2） | ✅ | HitFeedback + Cue；打击感验收 2026-08-09 |
 | 学习/工程实践轨 | ⬜ | BT 编辑器、A*、AB/Lua、SDK、剧情等（§6.4） |
 
 ---
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项：** 日计划 **A2 — 命中 VFX/SFX**  
+**下一项：** 日计划 **A5 — AI 行为树 Phase-1**  
+→ 方案：[`ENEMY_BEHAVIOR_TREE_PLAN.md`](./ENEMY_BEHAVIOR_TREE_PLAN.md)  
 → 日计划：[`2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md`](./2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md)  
-→ 配置链：[`2026.8.8/CONFIG_CHAIN_AND_DUMMY_AI_PLAN.md`](./2026.8.8/CONFIG_CHAIN_AND_DUMMY_AI_PLAN.md)（A～B3 ✅；Phase C 按需）
+→ A3 完美闪避 SlowMo / A4 轻量相机：可选后置（不挡 BT）
 
 | # | 项 | 状态 |
 |---|------|------|
 | A0 | Editor：PerfectDodge 窗 + Counter Entry + Spec 抽查 | ✅ |
 | A1 | 木桩靶（Numeric + Reaction + HitStop/震屏可观测） | ✅ 2026-08-08 |
-| A2 | 打击 VFX/SFX + HitFeedback | ⬜ ← 当前 |
-| A3 | 完美闪避子弹时间（表现，不改吞伤权威） | ⬜ |
-| A4 | 相机轻优化（勿塞完整 Lock-On） | ⬜ |
-| A5 | AI 行为树 Phase-1（只写 InputFrame） | ⬜ |
+| A2 | 打击 VFX/SFX + HitFeedback | ✅ 2026-08-09 验收 |
+| A3 | 完美闪避子弹时间（表现，不改吞伤权威） | ⬜ 可选后置 |
+| A4 | 相机轻优化（勿塞完整 Lock-On） | ⬜ 可选后置 |
+| A5 | AI 行为树 Phase-1（只写 InputFrame） | ⬜ ← 当前 |
 
 主排期：**Wave 4 位移 ✅ 已关闭**；Wave 5 仅可选玩法后置（失衡/命中盒烘焙）；相机 LockOn/SkillShot/Finisher 见 [`CAMERA_SYSTEM_PLAN.md`](./2026.8.6/CAMERA_SYSTEM_PLAN.md)。
 
