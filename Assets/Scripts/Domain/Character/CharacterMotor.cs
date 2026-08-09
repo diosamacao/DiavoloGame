@@ -257,6 +257,18 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
             SyncRootFromSim();
     }
 
+    /// <summary>
+    /// MotionCommand 提交后：把 MotorSim 位置与朝向同步到角色根。
+    /// Resolver 已写入 Sim；此处只负责表现根对齐。
+    /// </summary>
+    public void SyncRootPoseFromSim()
+    {
+        SyncRootFromSim();
+        float yaw = MotionQuantization.MilliDegToDegrees(_sim.FacingMilliDeg);
+        _root.rotation = Quaternion.Euler(0f, yaw, 0f);
+        _rotationVelocity = 0f;
+    }
+
     /// <summary>绕 Y 叠加偏航（烘焙根旋转）。</summary>
     public void ApplyYawDegrees(float yawDeltaDegrees)
     {

@@ -16,8 +16,11 @@ public static class ActionMotionFacing
         {
             case MotionFacingPolicy.FaceTarget:
             {
-                float dx = targetPose.Position.x - actorPose.Position.x;
-                float dz = targetPose.Position.z - actorPose.Position.z;
+                // 从重定位落点（或未动时当前位置）看向目标
+                float fromX = MotionQuantization.MmToMeters(resolvedMm.X);
+                float fromZ = MotionQuantization.MmToMeters(resolvedMm.Z);
+                float dx = targetPose.Position.x - fromX;
+                float dz = targetPose.Position.z - fromZ;
                 if (dx * dx + dz * dz < 0.0001f)
                     return actorYawDegrees;
                 return Mathf.Atan2(dx, dz) * Mathf.Rad2Deg;

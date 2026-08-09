@@ -7,7 +7,7 @@
 
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
-| Wave4 TargetAdhesion / SoftBodySuppress | ✅ 已实现（Editor 验收 2026-08-09） | `ActionMotionAdhesion` + `CharacterActionPresentationBridge` | Branch_02 已配窗；Relocate/Lock-On 未做 |
+| Wave4 位移（Adhesion / SoftBody / Relocate） | ✅ 已实现（吸附已验收；Relocate 已接线） | `ActionMotionAdhesion` + `ActionMotionResolver` + Bridge | Branch_02 吸附已配；Relocate 按需加 MotionCommand 轨；Lock-On 未做 |
 | 命中受击 Cue（VFX/SFX） | 🟡 代码通道已接、资产待绑 | `HitImpactController` + `HitFeedbackSettings` | 接触点落点 + 随机旋转；Feedback 填 Prefab/Clip |
 | 逻辑 Hurtbox 调试线框 | ✅ 已实现 | `CombatHurtboxDebugSettings` + `CombatHurtboxDebugVisualizer` | F4 开关（F3 HUD 显示状态） |
 | 固定帧模拟宿主 | ✅ L0A 已实现 | `SimulationHost`、`SimulationWorld`、`SimActorId` | 60Hz，无资产 |
@@ -813,6 +813,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-09 | Action Editor：选中 MotionModifier 时 Scene 假敌球 + Adhesion 修正轨迹/预览根 |
 | 2026-08-09 | TargetAdhesion 方案 A：只补朝向前方缺口，过冲不倒拖 |
 | 2026-08-09 | Wave 4 位移切片 + 打击感优化：Branch_02 Editor 验收收口 |
+| 2026-08-09 | Wave 4 P3：MotionCommand → ActionMotionResolver 接线（Relocate/SnapFacing） |
 
 ---
 
@@ -826,29 +827,30 @@ CombatHitPipeline（全体 Actor Step 后）
 
 | 项 | 方案 |
 |----|------|
-| 顺序 | BaseDelta（Baked/Scripted）→ TargetAdhesion → MotorSim → SoftBodySeparation |
-| 纯计算 | `ACTGame.Simulation`：`ActionMotionAdhesion` + `ActionMotionAdhesionParams` |
+| 顺序 | BaseDelta → TargetAdhesion → MotionCommand（Relocate）→ MotorSim → SoftBodySeparation |
+| 纯计算 | `ActionMotionAdhesion`；Command 经 `ActionMotionResolver` |
 | 目标 | 起手 `CombatTargetLock.AcquireForActionNode` → `ActionSim.BindActionTarget` |
-| Pose | `ActionMotionWorldQuery`（Hurtbox 逻辑中心） |
-| SoftBody | 窗内 `SetSoftBodySuppressFrames(1)`；`CharacterActor.ParticipatesInSoftBodySeparation` |
-| 数据 | `MotionModifierNotifyState` + Timeline `motionModifierStates` |
-| Editor | Action Editor 加 `MotionModifier` / `MotionCommand` 轨（Command 运行时未执行） |
+| Pose | `ActionMotionWorldQuery` → `IHurtboxTarget.GetLogicalCombatPose`（含朝向） |
+| SoftBody | Modifier 窗 / Relocate 落地 `SetSoftBodySuppressFrames` |
+| 数据 | `motionModifierStates` + `motionCommandNotifies` |
+| Editor | MotionModifier / MotionCommand 轨；Adhesion Scene 假敌预览 |
 
 ### 运行时流程
 
 ```
 HandleStarted → Acquire 锁 → BindActionTargetId
 ApplyStep：SoftBodySuppress 刷新（含卡肉帧）
-  → Base 位移 → Adhesion.TryComputeCorrectionMm → Motor.MoveWorldMm
+  → Base → Adhesion → MotionCommand（Resolver.Teleport + Facing）
+  → SyncRootPoseFromSim
 SimulationWorld 帧末 SoftBodySeparation（抑制者不参与）
 ```
 
 ### 已知限制
 
-- RelocateBehind / `ActionMotionResolver` 未接进 Bridge（P3 可选，不阻塞）
 - Lock-On（总案 4.5～4.6）未开工
+- Relocate 挡墙精细候选（FindNearestValid 首版≈ ResolveMove）可后续加强
 - 共线退化（玩家与敌人水平重合）本帧不吸
-- **打击感位移切片已于 2026-08-09 Editor 验收收口**
+- **打击感吸附已验收；Relocate 需在招上配 MotionCommand 点事件后 Play 验**
 
 ### 相关文件
 

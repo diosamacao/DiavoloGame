@@ -70,9 +70,15 @@ public sealed class CharacterHurtboxTarget : ITargetable, IHitAbsorbQuery
     /// <inheritdoc />
     public HitboxOrientedBox GetLogicalHurtbox()
     {
-        float heightY = _root != null ? _root.position.y : 0f;
-        SimCombatPose pose = SimCombatPose.FromMotor(_motorSim, heightY);
+        SimCombatPose pose = GetLogicalCombatPose();
         return HitboxMath.BuildFromHurtboxLogical(in pose, _hurtbox);
+    }
+
+    /// <inheritdoc />
+    public SimCombatPose GetLogicalCombatPose()
+    {
+        float heightY = _root != null ? _root.position.y : 0f;
+        return SimCombatPose.FromMotor(_motorSim, heightY);
     }
 
     /// <summary>按攻防公式结算伤害并写入 Health Attribute。</summary>

@@ -83,14 +83,13 @@
 
 **真源**：`docs/2026.8.9/WAVE4_GAMEPLAY_MOTION_BRANCH02_PLAN.md`
 
-**状态：✅ 位移主路径收口（2026-08-09 Editor 验收）**
+**状态：✅ 位移能力齐套（2026-08-09）**
 
-- [x] TargetAdhesion + SoftBodySuppress 运行时/Editor/EditMode；起手 `ActionTargetId`
-- [x] Branch_02 配窗与打击感位移验收；方案 A 过冲不倒拖
-- [ ] 可选 RelocateBehind（P3）
+- [x] TargetAdhesion + SoftBodySuppress；起手 `ActionTargetId`；Branch_02 验收
+- [x] RelocateBehind / MotionCommand → `ActionMotionResolver` 接线（P3）
 - [ ] Lock-On（4.5～4.6）
 
-**打击感优化（木桩 / Cue / 吸附行程）至此告一段落。**
+**打击感优化（木桩 / Cue / 吸附行程）至此告一段落；Relocate 按需配资产。**
 
 ### [P1] Lockstep 模拟核迁移
 

@@ -49,6 +49,9 @@ public sealed class CharacterMotorSim
         _verticalVelocityMmPerSec = _groundedGravityMmPerSec2;
     }
 
+    /// <summary>静物碰撞世界（重定位与位移共用）。</summary>
+    public ISimCollisionWorld CollisionWorld => _collision;
+
     /// <summary>世界水平位置（毫米）。</summary>
     public SimVec2 PositionMm => new(_xMm, _zMm);
 
