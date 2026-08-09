@@ -62,13 +62,12 @@ public static class ActionMotionResolver
             resolved);
 
         Commit(motor, resolved, facing, command.PreserveVertical);
-
-        int suppress = command.CollisionPolicy == MotionCollisionPolicy.IgnoreCharacters
-            || command.CollisionPolicy == MotionCollisionPolicy.IgnoreAll
-            ? command.SoftBodySuppressFrames
-            : 0;
-
-        return new ActionMotionResolveResult(true, resolved, facing, suppress);
+        // 落地后按命令刷新软体抑制（与 CollisionPolicy 无关）
+        return new ActionMotionResolveResult(
+            true,
+            resolved,
+            facing,
+            command.SoftBodySuppressFrames);
     }
 
     static ActionMotionResolveResult ExecuteSnapFacing(
@@ -97,6 +96,7 @@ public static class ActionMotionResolver
             motor.PositionMm,
             motor.PositionMm);
         motor.SetFacingDegrees(facing);
+        // SnapFacing 只改朝向；表现根由 Bridge SyncRootPoseFromSim 对齐
         return new ActionMotionResolveResult(true, motor.PositionMm, facing, 0);
     }
 

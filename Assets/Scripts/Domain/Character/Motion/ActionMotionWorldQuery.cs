@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 
 /// <summary>
-/// 从当前活跃 Hurtbox 目标表解析逻辑 Pose（中心作位置；朝向暂 0，Adhesion 只用 XZ）。
+/// 从当前活跃 Hurtbox 目标表解析逻辑根 Pose（含朝向，供 RelocateBehind）。
 /// </summary>
 public sealed class ActionMotionWorldQuery : IActionMotionWorldQuery
 {
@@ -32,9 +31,7 @@ public sealed class ActionMotionWorldQuery : IActionMotionWorldQuery
             if (target == null || target.SimulationId != actorId)
                 continue;
 
-            HitboxOrientedBox hurt = target.GetLogicalHurtbox();
-            // Adhesion 仅用水平位置；yaw 对连线公式无影响
-            pose = new SimCombatPose(hurt.Center, 0f);
+            pose = target.GetLogicalCombatPose();
             return true;
         }
 

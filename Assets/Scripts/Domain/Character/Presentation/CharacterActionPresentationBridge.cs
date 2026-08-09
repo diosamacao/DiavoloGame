@@ -279,7 +279,7 @@ public sealed class CharacterActionPresentationBridge
         _hitStopPresentationActive = false;
     }
 
-    /// <summary>按 BaseMotionMode 施加基础位移，再叠 MotionModifiers（Adhesion）。</summary>
+    /// <summary>按 BaseMotionMode 施加基础位移，再叠 Modifier，最后执行 MotionCommand。</summary>
     void ApplyDisplacementForAction(ActionDefinition action, int frame, float fixedDeltaSeconds)
     {
         switch (ResolveDisplacementSource(action))
@@ -292,8 +292,9 @@ public sealed class CharacterActionPresentationBridge
                 break;
         }
 
-        // Base → Modifier；Command（Relocate）本切片不接线
+        // Base → Modifier → Command（唯一组合顺序）
         ApplyTargetAdhesionForFrame(action, frame);
+        ApplyMotionCommandsForFrame(action, frame);
     }
 
     /// <summary>SoftBodySuppress 窗内刷新抑制计数（仍碰静物墙）。</summary>
@@ -357,7 +358,72 @@ public sealed class CharacterActionPresentationBridge
         if (window == null)
             return SimActorId.Invalid;
 
-        return window.TargetSource switch
+        return ResolveMotionTargetId(window.TargetSource);
+    }
+
+    /// <summary>
+    /// 本帧触发的 MotionCommand（previous=frame-1 → current=frame）；
+    /// Relocate / SnapFacing 经 ActionMotionResolver 写入 MotorSim。
+    /// </summary>
+    void ApplyMotionCommandsForFrame(ActionDefinition action, int frame)
+    {
+        if (action == null || _worldQuery == null)
+            return;
+
+        MotionCommandNotify[] commands = action.Timeline.MotionCommandNotifies;
+        if (commands == null || commands.Length == 0)
+            return;
+
+        int previousFrame = frame - 1;
+        float heightY = _actorRoot != null ? _actorRoot.position.y : 0f;
+        SimActorId lockId = _targetLock != null
+            ? _targetLock.ResolveLockedSimulationId()
+            : SimActorId.Invalid;
+
+        // 同帧多 Command：Priority 高者先执行（与 Timeline 点事件一致）
+        var fired = new System.Collections.Generic.List<MotionCommandNotify>(4);
+        for (int i = 0; i < commands.Length; i++)
+        {
+            MotionCommandNotify command = commands[i];
+            if (command != null && command.ShouldFireBetweenFrames(previousFrame, frame))
+                fired.Add(command);
+        }
+
+        if (fired.Count == 0)
+            return;
+
+        fired.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+
+        for (int i = 0; i < fired.Count; i++)
+        {
+            MotionCommandNotify command = fired[i];
+            SimCombatPose actorPose = SimCombatPose.FromMotor(_motor.Sim, heightY);
+            ActionMotionResolveResult result = ActionMotionResolver.ExecuteCommand(
+                command,
+                _motor.Sim,
+                _motor.Sim.CollisionWorld,
+                in actorPose,
+                _actionSim.ActionTargetId,
+                lockId,
+                _worldQuery);
+
+            if (result.Applied)
+            {
+                _motor.SyncRootPoseFromSim();
+                if (result.SoftBodySuppressFrames > 0)
+                    _motor.Sim.SetSoftBodySuppressFrames(result.SoftBodySuppressFrames);
+                continue;
+            }
+
+            // CancelCommand：忽略；CancelAction：结束当前招式
+            if (command.FallbackPolicy == MotionFallbackPolicy.CancelAction)
+                _actionSim.Stop();
+        }
+    }
+
+    /// <summary>按 TargetSource 解析 SimActorId。</summary>
+    SimActorId ResolveMotionTargetId(MotionTargetSource source) =>
+        source switch
         {
             MotionTargetSource.ActionTarget => _actionSim.ActionTargetId,
             MotionTargetSource.CurrentLock => _targetLock != null
@@ -365,7 +431,6 @@ public sealed class CharacterActionPresentationBridge
                 : SimActorId.Invalid,
             _ => SimActorId.Invalid,
         };
-    }
 
     /// <summary>解析当前招式位移权威。</summary>
     static ActionDisplacementSource ResolveDisplacementSource(ActionDefinition action)

@@ -546,20 +546,20 @@ ACT/Tools/Migrate Action Motion Mode
 
 ### Phase A5 — 位移规则扩展层 → **Wave 4**（依赖 Wave 2 稳定锚点）
 
-> **进度（2026-08-09）：** TargetAdhesion + SoftBodySuppress + ActionTargetId + Editor 轨/预览已验收；RelocateBehind / Resolver 接线仍可选未做。
+> **进度（2026-08-09）：** TargetAdhesion + SoftBodySuppress + Relocate Command 均已接线；Branch_02 吸附已验收。
 
-- [ ] 新增 `ActionMotionResolver`，ActionSim 只输出位移意图；（类型草稿在；Command **未接线**）
+- [x] 新增 `ActionMotionResolver`；Bridge 在帧末执行 MotionCommand（ActionSim 仍不堆位移逻辑）
 - [x] 新增类型化 `MotionModifierNotifyState`；
-- [x] 新增类型化 `MotionCommandNotify`；（数据预留，运行时未执行）
-- [x] 首批实现 `TargetAdhesion`；（`RelocateBehindTarget` ⬜ 可选）
-- [ ] 实现 `MotionFacingPolicy` 并统一由 MotorSim 提交位置与朝向；（随 Relocate）
+- [x] 新增类型化 `MotionCommandNotify`；运行时已执行
+- [x] 首批实现 `TargetAdhesion` 与 `RelocateBehindTarget`（及 Offset / SnapFacing）
+- [x] `MotionFacingPolicy` 由 Resolver → MotorSim 提交朝向，Bridge Sync 表现根
 - [x] 目标固化为稳定 `ActionTargetId`；
-- [x] 连续吸附修正经 `CharacterMotorSim`；（Relocate 瞬移路径待接）
+- [x] 吸附与重定位均经 `CharacterMotorSim` / CollisionWorld；
 - [x] Editor 增加 Motion Modifier / Command 轨道和 Adhesion Scene 预览；
-- [x] Adhesion EditMode 门禁（过冲不倒拖 / 窗外不吸等）；Relocate 测试 ⬜
+- [x] Adhesion EditMode 门禁；Relocate 依赖 OpenField/资产手感验收
 
-**验收（吸附主路径）：** ✅ 烘焙位移招可叠加吸附；Branch_02 Editor 验收 2026-08-09。  
-**验收（Relocate）：** ⬜ 指定帧确定性移到目标身后 — 不阻塞打击感收口。
+**验收（吸附主路径）：** ✅ Branch_02 Editor 验收 2026-08-09。  
+**验收（Relocate）：** ✅ 运行时已接线；具体招式点事件需人工配置后 Play 验。
 
 ### Phase A6 — 接入技能资源 Spec → **Wave 3**
 

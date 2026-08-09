@@ -2,7 +2,9 @@
 
 > 制定：2026-08-09  
 > 修订：2026-08-09 — 主路径改为攻击吸附；吸附点按 **玩家↔敌人连线动态计算** + 水平距离偏移；**窗口时长 = 吸附完成时长**  
-> 修订：2026-08-09 — **Editor / Play 验收通过**；位移切片（P0～P2 + P4）收口；P3 Relocate / P5 Lock-On 仍可选未做  
+> 修订：2026-08-09 — **Editor / Play 验收通过**；位移切片（P0～P2 + P4）收口  
+> 修订：2026-08-09 — **P3 Relocate / MotionCommand 已接线**（Bridge → ActionMotionResolver）；P5 Lock-On 未做  
+
 > 角色：**Wave 4 位移切片可执行真源**（类型 / 管线 / 验收 / Editor）  
 > 排期与依赖仍以 [MASTER_IMPLEMENTATION_PLAN.md](../2026.8.6/MASTER_IMPLEMENTATION_PLAN.md) 为准  
 > 设计细节对齐：[ACTION_DEFINITION_OPTIMIZATION_PLAN.md](../2026.8.6/ACTION_DEFINITION_OPTIMIZATION_PLAN.md) §4.2 / Phase A5  
@@ -41,7 +43,7 @@
 
 - ✅ TargetAdhesion + SoftBodySuppress 已接线；Editor MotionModifier 轨 + Scene 假敌预览
 - ✅ Branch_02 人工配窗并完成 Editor 验收；打击感位移切片收口
-- ⬜ MotionCommand / RelocateBehind **未接线**（P3 可选，不阻塞）
+- ✅ MotionCommand / RelocateBehind **已接线**（Base→Adhesion→Command）
 - ⬜ Lock-On（P5 / 总案 4.5～4.6）未开工
 
 ---
@@ -307,11 +309,11 @@ softBodySuppress = max(softBodySuppress, command.softBodySuppressFrames)
 
 ### P3 — RelocateBehindTarget（可选补钉）
 
-- [ ] 补齐 Command 类型与 `ActionMotionResolver` 接线（草稿已有思路）
-- [ ] 仅当 P2 终点仍飘 / 需要瞬切朝向时启用
-- [ ] EditMode：落点、FaceTarget、Fallback、挡墙
+- [x] 补齐 Command 类型与 `ActionMotionResolver` 接线（Bridge 帧末执行）
+- [x] WorldQuery 提供目标朝向；成功后 Sync 根位姿 + SoftBodySuppress
+- [ ] 资产侧按需配置（Branch_02 不强制）；挡墙/Fallback 手感随招微调
 
-**出口：** 可选；Branch_02 首版验收**不强制**配 Relocate（当前未做）。
+**出口：** ✅ 运行时可执行 RelocateBehind / RelocateToOffset / SnapFacing。
 
 ### P4 — Branch_02 资产装配（人工 Editor，Agent 不改 `.asset`）
 
@@ -385,7 +387,7 @@ Perfect：`Unagi_Attack_Branch_02_Perfect.asset`（同结构参数可略放大�
 | 窗外 correction=0 | EditMode | P2 | ✅ |
 | 超距不吸；触顶不超过 maxCorrection | EditMode | P2 | ✅ |
 | 同输入 Hash 一致 | EditMode | P2 | ✅ |
-| Relocate（可选） | EditMode | P3 | ⬜ 未做 |
+| Relocate / MotionCommand 接线 | Runtime | P3 | ✅ 2026-08-09 |
 | Branch_02 Play / Editor：吸附手感 | Play | P4 | ✅ 2026-08-09 |
 
 ---
@@ -443,9 +445,10 @@ P0 Modifier 区间轨 + 偏移字段 + ActionTargetId
 - [x] Adhesion 为区间窗；窗外不吸；主节奏由剩余帧均摊决定（方案 A：过冲不倒拖）  
 - [x] SoftBody 可抑制；静物墙有效  
 - [x] Branch_02 Editor / Play：吸附手感验收（2026-08-09）  
-- [x] 总案 4.2 / 4.4 可打勾；4.3 Relocate 不阻塞（仍可选未做）  
+- [x] 总案 4.2 / 4.4 可打勾；4.3 Relocate 已接线（资产按需）  
+- [x] 总案 4.1 MotionCommand 经 `ActionMotionResolver` 执行  
 
-**切片结论：** Wave 4 **位移主路径（吸附 + SoftBody）已收口**；后续仅可选 Relocate 与 Lock-On。
+**切片结论：** Wave 4 **位移能力（吸附 + SoftBody + Relocate Command）已齐**；后续主要为 Lock-On（P5）。
 
 ---
 

@@ -399,12 +399,13 @@ public static class ActionNotifySelectionDrawer
         }
     }
 
-    /// <summary>离散位移点事件字段（本切片运行时未接线，可先配数据）。</summary>
+    /// <summary>离散位移点事件：Relocate / SnapFacing（运行时经 ActionMotionResolver）。</summary>
     static void DrawMotionCommand(SerializedProperty element, ActionEditorSelectionSet batchSet)
     {
         EditorGUILayout.HelpBox(
-            "MotionCommand（Relocate 等）为可选补钉；当前运行时未执行，仅数据预留。",
-            MessageType.Warning);
+            "MotionCommand：触发帧执行 RelocateBehind / RelocateToOffset / SnapFacing。"
+            + " 落在 Base+Adhesion 之后；需有效 ActionTarget（或 CurrentLock）。",
+            MessageType.Info);
         DrawMultiProperty(batchSet, element, "commandType");
         DrawMultiProperty(batchSet, element, "targetSource");
         DrawMultiProperty(batchSet, element, "behindDistanceMm");
