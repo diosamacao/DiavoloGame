@@ -316,6 +316,14 @@ public sealed class PulseSkillActionDef : EnemyBehaviorNodeDef
     public override IBehaviorNode Build() => Wrap(new PulseSkillAction());
 }
 
+/// <summary>WaitWhileInAction 行动定义：招式占用至离开 Action。</summary>
+[Serializable]
+public sealed class WaitWhileInActionActionDef : EnemyBehaviorNodeDef
+{
+    /// <inheritdoc />
+    public override IBehaviorNode Build() => Wrap(new WaitWhileInActionAction());
+}
+
 /// <summary>WaitFrames 行动定义。</summary>
 [Serializable]
 public sealed class WaitFramesActionDef : EnemyBehaviorNodeDef

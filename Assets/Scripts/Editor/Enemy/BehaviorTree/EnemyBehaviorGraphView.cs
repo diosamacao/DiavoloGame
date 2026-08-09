@@ -44,6 +44,10 @@ public sealed class EnemyBehaviorGraphView : GraphView
         this.AddManipulator(new RectangleSelector());
         Insert(0, new GridBackground());
 
+        // IMGUI 文本框编辑时拦截快捷键（A=FrameAll 等会吃掉节点名里的字母）
+        RegisterCallback<KeyDownEvent>(OnKeyDownWhileEditingText, TrickleDown.TrickleDown);
+        RegisterCallback<KeyUpEvent>(OnKeyUpWhileEditingText, TrickleDown.TrickleDown);
+
         graphViewChanged = OnGraphViewChanged;
         _searchWindow = ScriptableObject.CreateInstance<EnemyBehaviorNodeSearchWindow>();
         _searchWindow.Initialize(this);
@@ -318,11 +322,37 @@ public sealed class EnemyBehaviorGraphView : GraphView
 
     void OnInspectRequest(EnemyBehaviorGraphNodeView host, EnemyBehaviorNodeDef def)
     {
-        ClearSelection();
-        if (host != null)
-            AddToSelection(host);
+        // 多选后点已选宿主：保留选区，才能一起拖；点装饰徽章仍切到单选检视
+        bool preserveMultiSelection = host != null
+            && selection.Contains(host)
+            && selection.OfType<EnemyBehaviorGraphNodeView>().Skip(1).Any()
+            && def == host.Def;
+
+        if (!preserveMultiSelection)
+        {
+            ClearSelection();
+            if (host != null)
+                AddToSelection(host);
+        }
+
         SetInspect(host, def);
         _onSelectionChanged?.Invoke();
+    }
+
+    /// <summary>右侧 Properties 文本编辑时，阻止 GraphView 快捷键吞键。</summary>
+    static void OnKeyDownWhileEditingText(KeyDownEvent evt)
+    {
+        if (!EditorGUIUtility.editingTextField)
+            return;
+        evt.StopImmediatePropagation();
+    }
+
+    /// <summary>与 KeyDown 对称，避免 KeyUp 仍触发画布命令。</summary>
+    static void OnKeyUpWhileEditingText(KeyUpEvent evt)
+    {
+        if (!EditorGUIUtility.editingTextField)
+            return;
+        evt.StopImmediatePropagation();
     }
 
     EnemyBehaviorGraphNodeView AddHostView(

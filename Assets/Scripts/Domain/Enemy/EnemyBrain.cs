@@ -234,7 +234,11 @@ public sealed class EnemyBrain
     /// <summary>帧末把黑板输出提交到 AIInputWriter，并刷新 facing proxy。</summary>
     void CommitOutputs(in EnemyPerceptionSnapshot snapshot)
     {
-        _input.SetMove(_blackboard.MoveDesire);
+        // Action / 起手确认期强制清移动，避免 BT 装饰 Abort Wait 后 Strafe 污染攻击旋转
+        bool freezeMove = snapshot.CharacterState == CharacterStateType.Action
+            || _awaitingAttackConfirm
+            || _blackboard.AttackPulse;
+        _input.SetMove(freezeMove ? Vector2.zero : _blackboard.MoveDesire);
 
         if (_blackboard.AttackPulse)
         {
@@ -253,8 +257,11 @@ public sealed class EnemyBrain
         if (_blackboard.SkillPulse)
             _input.Pulse(InputButton.Skill);
 
-        if (_blackboard.FaceTargetRequested || _blackboard.MoveDesire.sqrMagnitude > 0.0001f)
+        if (_blackboard.FaceTargetRequested
+            || (!freezeMove && _blackboard.MoveDesire.sqrMagnitude > 0.0001f))
+        {
             RefreshFacingProxy(in snapshot);
+        }
     }
 
     /// <summary>由输出与仇恨推导调试状态（非决策真源）。</summary>
@@ -278,9 +285,12 @@ public sealed class EnemyBrain
             return;
         }
 
-        Vector3 dir = _blackboard.PathDirection.sqrMagnitude > 0.0001f
-            ? _blackboard.PathDirection
-            : snapshot.PlanarDirection;
+        // FaceTarget 优先看向目标；PathDirection 仅作无 Planar 时回退（避免 Strafe 残留追击朝向）
+        Vector3 dir = _blackboard.FaceTargetRequested && snapshot.PlanarDirection.sqrMagnitude > 0.0001f
+            ? snapshot.PlanarDirection
+            : (_blackboard.PathDirection.sqrMagnitude > 0.0001f
+                ? _blackboard.PathDirection
+                : snapshot.PlanarDirection);
         if (dir.sqrMagnitude <= 0.0001f)
             return;
 

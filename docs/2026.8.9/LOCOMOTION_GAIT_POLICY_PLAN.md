@@ -368,3 +368,6 @@ L-GP1（Policy）
 | 2026-08-09 | 阶段节改为任务/验收/出口 |
 | 2026-08-09 | **终态定案**：对峙-追击-攻击循环必达；WalkLeft/WalkRight 表现升格为 L-GP3 必达；方案完成=GP1+2+3 |
 | 2026-08-09 | **代码落地**：GaitPolicy / strafe 幅度 / AnimResolver；待 Editor 挂敌人 Profile+BT+左右 Clip 与 Play |
+| 2026-08-10 | **八向锁面**：Profile.`GaitRotationMode=FaceCamera`；起步 `WalkStart`；BT 编辑器打字/多选拖修复 |
+| 2026-08-10 | **Walk 起步左右**：`WalkStartLeft` / `WalkStartRight`（ε 与循环左右一致） |
+| 2026-08-10 | **WaitWhileInAction**：Attack 占树至离 Action；Run→Walk 硬切；防对峙 Move 污染旋转 |

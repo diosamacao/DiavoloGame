@@ -6,26 +6,37 @@ using System.Collections.Generic;
 /// </summary>
 public static class EnemyBehaviorTreeDefFactory
 {
-    /// <summary>测试：近战追打定义树（条件装饰套在分支上）。</summary>
+    /// <summary>
+    /// 测试：近战追打定义树。
+    /// Attack =（门控 Pulse）+ WaitWhileInAction；Wait 必须在 Cd/IsLocomotion 外，避免 Action 中被 Abort。
+    /// </summary>
     public static EnemyBehaviorNodeDef CreateMeleeChaseAttack()
     {
+        // 仅出手段需要 Locomotion + Cd；Wait 挂在门控外由 Sequence 索引保持 Running
+        EnemyBehaviorNodeDef pulse = NestDecorators(
+            new SequenceNodeDef
+            {
+                NodeName = "PulseBody",
+                children = new List<EnemyBehaviorNodeDef>
+                {
+                    new StopMoveActionDef(),
+                    new PulseAttackActionDef(),
+                },
+            },
+            new HasTargetConditionDef { NodeName = "HasTarget" },
+            new InAttackRangeConditionDef { NodeName = "InAttackRange" },
+            new IsCharacterStateConditionDef { NodeName = "IsLocomotion" },
+            new CooldownReadyConditionDef { NodeName = "CooldownReady" });
+
         var attackBody = new SequenceNodeDef
         {
             NodeName = "AttackBody",
             children = new List<EnemyBehaviorNodeDef>
             {
-                new StopMoveActionDef(),
-                new PulseAttackActionDef(),
+                pulse,
+                new WaitWhileInActionActionDef { NodeName = "WaitWhileInAction" },
             },
         };
-
-        // 外层 → 内层：HasTarget → InRange → State → Cd → AttackBody
-        EnemyBehaviorNodeDef attack = NestDecorators(
-            attackBody,
-            new HasTargetConditionDef { NodeName = "HasTarget" },
-            new InAttackRangeConditionDef { NodeName = "InAttackRange" },
-            new IsCharacterStateConditionDef { NodeName = "IsLocomotion" },
-            new CooldownReadyConditionDef { NodeName = "CooldownReady" });
 
         EnemyBehaviorNodeDef chase = NestDecorators(
             new MoveTowardTargetActionDef { NodeName = "ChaseMove" },
@@ -37,7 +48,7 @@ public static class EnemyBehaviorTreeDefFactory
             NodeName = "MeleeRoot",
             children = new List<EnemyBehaviorNodeDef>
             {
-                attack,
+                attackBody,
                 chase,
                 new StopMoveActionDef { NodeName = "Idle" },
             },

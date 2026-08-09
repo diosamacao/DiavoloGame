@@ -27,6 +27,8 @@ public class CharacterLocomotionProfile : ScriptableObject
     [Header("Gait Policy")]
     [Tooltip("步态升档 / Pivot / Sprint 计时；敌我挂不同配置，勿在代码里按身份分支。")]
     [SerializeField] LocomotionGaitPolicy gaitPolicy = new LocomotionGaitPolicy();
+    [Tooltip("Start/Gait 移动时的朝向：玩家 FollowInput；八向对峙敌用 FaceCamera（锁假相机前向）。")]
+    [SerializeField] LocomotionRotationMode gaitRotationMode = LocomotionRotationMode.FollowInput;
     [SerializeField, Range(0f, 1f)] float startToGaitNormalized = 1f;
     [SerializeField] float interruptFadeDuration = 0.08f;
 
@@ -66,6 +68,18 @@ public class CharacterLocomotionProfile : ScriptableObject
 
     /// <summary>步态策略（MaxGait / Pivot / Sprint 秒）；空则回退默认玩家策略。</summary>
     public LocomotionGaitPolicy GaitPolicy => gaitPolicy ??= new LocomotionGaitPolicy();
+
+    /// <summary>Start/Gait 移动朝向模式（Hold/PivotTarget 无效时回退 FollowInput）。</summary>
+    public LocomotionRotationMode GaitRotationMode
+    {
+        get
+        {
+            // 仅允许移动态合法模式，避免误配 Hold 导致永不转面
+            if (gaitRotationMode == LocomotionRotationMode.FaceCamera)
+                return LocomotionRotationMode.FaceCamera;
+            return LocomotionRotationMode.FollowInput;
+        }
+    }
 
     /// <summary>Run→Sprint 秒数（真源在 GaitPolicy）。</summary>
     public float SprintAfterRunSeconds => GaitPolicy.SprintAfterRunSeconds;

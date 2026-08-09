@@ -126,6 +126,8 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
         {
             style = { flexGrow = 1 },
         };
+        // 点 Properties 时让画布失焦，避免 GraphView 快捷键抢走 a/o 等字母
+        inspectorHost.RegisterCallback<PointerDownEvent>(_ => _graphView?.Blur(), TrickleDown.TrickleDown);
         inspectorHost.Add(_inspector);
         body.Add(inspectorHost);
 

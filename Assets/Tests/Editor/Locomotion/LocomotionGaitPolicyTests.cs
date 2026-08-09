@@ -109,17 +109,106 @@ public sealed class LocomotionGaitPolicyTests
             Is.EqualTo(AnimationKey.Run));
     }
 
+    [Test]
+    public void ResolveStartKey_WalkForward_PrefersWalkStart()
+    {
+        var clips = new FakeClips(
+            walkStart: true,
+            walkStartLeft: true,
+            walkStartRight: true,
+            runStart: true);
+        Assert.That(
+            DefaultLocomotionAnimResolver.ResolveStartKey(
+                LocomotionGait.Walk,
+                new Vector2(0f, 1f),
+                clips),
+            Is.EqualTo(AnimationKey.WalkStart));
+    }
+
+    [Test]
+    public void ResolveStartKey_WalkLateral_UsesWalkStartLeftRight()
+    {
+        var clips = new FakeClips(
+            walkStart: true,
+            walkStartLeft: true,
+            walkStartRight: true,
+            runStart: true);
+        Assert.That(
+            DefaultLocomotionAnimResolver.ResolveStartKey(
+                LocomotionGait.Walk,
+                new Vector2(-1f, 0f),
+                clips),
+            Is.EqualTo(AnimationKey.WalkStartLeft));
+        Assert.That(
+            DefaultLocomotionAnimResolver.ResolveStartKey(
+                LocomotionGait.Walk,
+                new Vector2(1f, 0f),
+                clips),
+            Is.EqualTo(AnimationKey.WalkStartRight));
+    }
+
+    [Test]
+    public void ResolveStartKey_WalkLateral_FallsBackWalkStart_WhenNoSideStart()
+    {
+        var clips = new FakeClips(walkStart: true, walkStartLeft: false, walkStartRight: false, runStart: true);
+        Assert.That(
+            DefaultLocomotionAnimResolver.ResolveStartKey(
+                LocomotionGait.Walk,
+                new Vector2(-1f, 0f),
+                clips),
+            Is.EqualTo(AnimationKey.WalkStart));
+    }
+
+    [Test]
+    public void ResolveStartKey_Run_PrefersStart()
+    {
+        var clips = new FakeClips(walkStart: true, walkStartLeft: true, walkStartRight: true, runStart: true);
+        Assert.That(
+            DefaultLocomotionAnimResolver.ResolveStartKey(
+                LocomotionGait.Run,
+                new Vector2(0f, 1f),
+                clips),
+            Is.EqualTo(AnimationKey.Start));
+    }
+
+    [Test]
+    public void ResolveStartKey_Walk_FallsBackToStart()
+    {
+        var clips = new FakeClips(walkStart: false, walkStartLeft: false, walkStartRight: false, runStart: true);
+        Assert.That(
+            DefaultLocomotionAnimResolver.ResolveStartKey(
+                LocomotionGait.Walk,
+                new Vector2(0f, 1f),
+                clips),
+            Is.EqualTo(AnimationKey.Start));
+    }
+
     sealed class FakeClips : ILocomotionAnimClipQuery
     {
         readonly bool _walkLeft;
         readonly bool _walkRight;
         readonly bool _sprint;
+        readonly bool _walkStart;
+        readonly bool _walkStartLeft;
+        readonly bool _walkStartRight;
+        readonly bool _runStart;
 
-        public FakeClips(bool walkLeft, bool walkRight, bool sprint)
+        public FakeClips(
+            bool walkLeft = false,
+            bool walkRight = false,
+            bool sprint = false,
+            bool walkStart = false,
+            bool walkStartLeft = false,
+            bool walkStartRight = false,
+            bool runStart = true)
         {
             _walkLeft = walkLeft;
             _walkRight = walkRight;
             _sprint = sprint;
+            _walkStart = walkStart;
+            _walkStartLeft = walkStartLeft;
+            _walkStartRight = walkStartRight;
+            _runStart = runStart;
         }
 
         public bool HasClip(AnimationKey key) => key switch
@@ -127,6 +216,10 @@ public sealed class LocomotionGaitPolicyTests
             AnimationKey.WalkLeft => _walkLeft,
             AnimationKey.WalkRight => _walkRight,
             AnimationKey.Sprint => _sprint,
+            AnimationKey.WalkStart => _walkStart,
+            AnimationKey.WalkStartLeft => _walkStartLeft,
+            AnimationKey.WalkStartRight => _walkStartRight,
+            AnimationKey.Start => _runStart,
             AnimationKey.Walk => true,
             AnimationKey.Run => true,
             _ => false,

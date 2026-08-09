@@ -103,7 +103,7 @@ flowchart TB
 |----------------------|-------------|
 | Idle | 根 Selector 未命中追击/攻击时的默认（StopMove） |
 | Chase | `Sequence(InAggro, MoveTowardTarget)` |
-| Attack | `Sequence(InAttackRange, CdReady, IsLocomotion, StopMove, PulseAttack)` |
+| Attack | `Sequence( 门控(Stop+Pulse) , WaitWhileInAction )`；Wait **不可**被 IsLocomotion/CdReady 包在外层（否则 Action 中 Abort → 对峙污染朝向） |
 | Hit | **不进树**，门闩 |
 | Dead | **不进树**，门闩 + `Stop()` |
 
