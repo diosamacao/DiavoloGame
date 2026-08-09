@@ -27,6 +27,9 @@ public sealed class EnemyBehaviorGraphView : GraphView
         _hostWindow = hostWindow;
         _onSelectionChanged = onSelectionChanged;
         style.flexGrow = 1;
+        AddToClassList("bt-graph");
+        EnemyBehaviorTreeStyle.TryApplyStyleSheet(this);
+        style.backgroundColor = EnemyBehaviorTreeStyle.CanvasBg;
         SetupZoom(ContentZoomer.DefaultMinScale, ContentZoomer.DefaultMaxScale);
         this.AddManipulator(new ContentDragger());
         this.AddManipulator(new SelectionDragger());

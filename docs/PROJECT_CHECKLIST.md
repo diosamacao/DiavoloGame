@@ -1,6 +1,7 @@
 # ACTGame 项目总清单
 
-> 更新：2026-08-09 — BT 优化方案已出（对照 JL/BD）；下一项 BT-A1 或 B1  
+> 更新：2026-08-09 — BT 编辑器已套 BD 风格；下一项 A3 黑板监视或 B1  
+
 
 
 
@@ -65,7 +66,7 @@
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项：** BT 优化 A1（配色/Running）或 B1+B3（RandomSelector + CombatPool）  
+**下一项：** BT 优化 A3（黑板监视）或 B1+B3（RandomSelector + CombatPool）  
 → BT 优化：[`2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md`](./2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)  
 → BT 演进：[`2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md`](./2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md)  
 → BT 契约：[`ENEMY_BEHAVIOR_TREE_PLAN.md`](./ENEMY_BEHAVIOR_TREE_PLAN.md) §3.4

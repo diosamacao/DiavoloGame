@@ -2,9 +2,11 @@ using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-/// <summary>行为树 Graph 节点视图；上下端口（UE 风格：父上子下）。</summary>
+/// <summary>BD 风格节点：深色本体 + 类别色标题条 + 上下端口。</summary>
 public sealed class EnemyBehaviorGraphNodeView : Node
 {
+    Label _categoryBadge;
+
     /// <summary>对应的节点定义。</summary>
     public EnemyBehaviorNodeDef Def { get; }
 
@@ -24,14 +26,18 @@ public sealed class EnemyBehaviorGraphNodeView : Node
         if (string.IsNullOrEmpty(Def.NodeGuid))
             EnemyBehaviorTreeGraphMapper.EnsureStableIds(Def);
 
-        title = string.IsNullOrEmpty(Def.NodeName)
-            ? EnemyBehaviorTreeGraphMapper.DefaultNodeName(Def)
-            : Def.NodeName;
         viewDataKey = Def.NodeGuid;
-        style.minWidth = 140f;
+        AddToClassList("bt-node");
+        AddToClassList(EnemyBehaviorTreeStyle.CategoryClass(Def));
 
-        ApplyCategoryStyle();
+        style.minWidth = 150f;
+        style.backgroundColor = EnemyBehaviorTreeStyle.NodeBody;
+
+        RefreshTitle();
+        CreateCategoryBadge();
         CreatePorts();
+        ApplyTitleBarColor();
+
         RefreshExpandedState();
         RefreshPorts();
     }
@@ -42,18 +48,54 @@ public sealed class EnemyBehaviorGraphNodeView : Node
         title = string.IsNullOrEmpty(Def.NodeName)
             ? EnemyBehaviorTreeGraphMapper.DefaultNodeName(Def)
             : Def.NodeName;
+        if (_categoryBadge != null)
+            _categoryBadge.text = EnemyBehaviorTreeStyle.CategoryLabel(Def);
     }
 
-    /// <summary>Play 调试高亮开关。</summary>
+    /// <summary>Play 调试高亮（对齐 BD Running 描边）。</summary>
     public void SetDebugHighlight(bool on)
     {
-        style.borderTopWidth = on ? 3 : 0;
-        style.borderTopColor = on ? new Color(1f, 0.85f, 0.2f) : Color.clear;
+        EnableInClassList("bt-running", on);
+        if (on)
+        {
+            style.borderLeftWidth = 0;
+            style.borderTopWidth = 0;
+            style.borderRightWidth = 0;
+            style.borderBottomWidth = 0;
+            // class 负责描边；再加一层保险色
+            style.borderTopWidth = 2;
+            style.borderBottomWidth = 2;
+            style.borderLeftWidth = 2;
+            style.borderRightWidth = 2;
+            style.borderTopColor = EnemyBehaviorTreeStyle.Running;
+            style.borderBottomColor = EnemyBehaviorTreeStyle.Running;
+            style.borderLeftColor = EnemyBehaviorTreeStyle.Running;
+            style.borderRightColor = EnemyBehaviorTreeStyle.Running;
+        }
+        else
+        {
+            style.borderTopWidth = 1;
+            style.borderBottomWidth = 1;
+            style.borderLeftWidth = 1;
+            style.borderRightWidth = 1;
+            var edge = new Color(0.08f, 0.08f, 0.08f, 1f);
+            style.borderTopColor = edge;
+            style.borderBottomColor = edge;
+            style.borderLeftColor = edge;
+            style.borderRightColor = edge;
+        }
+    }
+
+    void CreateCategoryBadge()
+    {
+        _categoryBadge = new Label(EnemyBehaviorTreeStyle.CategoryLabel(Def));
+        _categoryBadge.AddToClassList("bt-category-badge");
+        // 放在标题下方，类似 BD 显示任务类别
+        mainContainer.Insert(1, _categoryBadge);
     }
 
     void CreatePorts()
     {
-        // UE 风格：In 在上、Out 在下（Vertical 端口）
         InputPort = InstantiatePort(
             Orientation.Vertical,
             Direction.Input,
@@ -76,23 +118,16 @@ public sealed class EnemyBehaviorGraphNodeView : Node
             typeof(bool));
         OutputPort.portName = string.Empty;
         OutputPort.style.alignSelf = Align.Center;
-        // extensionContainer 在节点底部；需保持展开才可见
         extensionContainer.Add(OutputPort);
         expanded = true;
     }
 
-    void ApplyCategoryStyle()
+    void ApplyTitleBarColor()
     {
-        Color tint;
-        if (EnemyBehaviorNodeCatalog.IsComposite(Def))
-            tint = new Color(0.25f, 0.45f, 0.7f);
-        else if (EnemyBehaviorNodeCatalog.IsDecorator(Def))
-            tint = new Color(0.55f, 0.35f, 0.65f);
-        else if (Def.GetType().Name.Contains("Condition"))
-            tint = new Color(0.3f, 0.55f, 0.35f);
-        else
-            tint = new Color(0.6f, 0.4f, 0.25f);
-
+        Color tint = EnemyBehaviorTreeStyle.TitleColorFor(Def);
         titleContainer.style.backgroundColor = tint;
+        var titleLabel = titleContainer.Q<Label>("title-label");
+        if (titleLabel != null)
+            titleLabel.style.color = Color.white;
     }
 }
