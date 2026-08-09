@@ -1,6 +1,7 @@
 # ACTGame 项目总清单
 
-> 更新：2026-08-09 — BT-E3 GraphView MVP；下一项可选 E4 寻路 / A3/A4  
+> 更新：2026-08-09 — BT 优化方案已出（对照 JL/BD）；下一项 BT-A1 或 B1  
+
 
 
 
@@ -64,7 +65,8 @@
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项（可选）：** BT-E4 寻路；或 A3/A4；或 Graph 打磨  
+**下一项：** BT 优化 A1（配色/Running）或 B1+B3（RandomSelector + CombatPool）  
+→ BT 优化：[`2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md`](./2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)  
 → BT 演进：[`2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md`](./2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md)  
 → BT 契约：[`ENEMY_BEHAVIOR_TREE_PLAN.md`](./ENEMY_BEHAVIOR_TREE_PLAN.md) §3.4
 
@@ -166,7 +168,7 @@
 |------|--------|------------|
 | **MVVM UI 框架** | P2 | View / ViewModel / Model（或 Binder）分层；首版接血条、资源条、简易菜单；跨系统用现有 Command/Query/Event，UI 不直写 Domain 权威状态 |
 | **性能优化学习测试实践** | P2 | 建立可复现基准：Profiler / Frame Debugger / 内存快照；固定测试场景（木桩连打、多敌人、相机）；记录 CPU/GC/DrawCall 基线与优化前后对比；优先验证 Hitbox、动画、VFX、UI 重建热点 |
-| **简单行为树编辑器** | P2 | ✅ GraphView MVP（2026-08-09）`ACT/Enemy/Behavior Tree Editor`；契约仍见 [`ENEMY_BEHAVIOR_TREE_PLAN.md`](./ENEMY_BEHAVIOR_TREE_PLAN.md) §3.4；后续可打磨 Undo/便签 |
+| **简单行为树编辑器** | P2 | ✅ GraphView MVP；优化见 [`ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md`](./2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)（A 体验 / B 招式池·Abort） |
 | **A\* 寻路** | P2 | 网格或导航点 A\* 学习实现；输出路径供 AI 移动意图；与锁步对齐时路径查询应确定性（或明确「仅表现/非 Hash」边界）；可先单机 Demo，再决定是否进 Sim |
 | **AssetBundle + Lua 热更新** | P3 | AB 打包/加载/依赖与版本清单最小流程；Lua（或等价脚本）热更学习环境：热更 UI/配置/活动逻辑优先，**禁止**热更改写 ActionSim / Numeric 权威；与正式 C# 主循环边界写清 |
 | **SDK 打包流程实践** | P3 | 渠道/平台 SDK 接入演练：登录、支付占位、隐私合规钩子、多渠道打包脚本（CI 或 Editor 菜单）；与热更包产出流水线可衔接 |
