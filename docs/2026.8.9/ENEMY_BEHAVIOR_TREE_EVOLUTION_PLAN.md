@@ -281,4 +281,9 @@ Assets/Scripts/Editor/Enemy/BehaviorTree/
 
 ## 10. 下一步
 
-**BT-E1 / E2 / E3 MVP 已关闭。** 可选下一刀：**E4 寻路**，或打磨 Graph（Abort 不做、便签编辑、更稳 Undo）。
+**BT-E1 / E2 / E3 MVP 已关闭。**  
+
+后续优化（编辑器体验 / RandomSelector / Abort Self / Boss 模板）真源见：  
+→ [**ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md**](./ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)（Phase A → B → C）  
+
+寻路仍可按原 **E4** 与优化方案并行，不阻塞 A/B。
