@@ -165,8 +165,8 @@ public sealed class EnemyBehaviorTreeTests
         Assert.Throws<InvalidOperationException>(() =>
             ((IEnemyBehaviorTreeAsset)asset).CreateRunner(in ctx));
 
-        Object.DestroyImmediate(asset);
-        Object.DestroyImmediate(profile);
+        UnityEngine.Object.DestroyImmediate(asset);
+        UnityEngine.Object.DestroyImmediate(profile);
     }
 
     [Test]
@@ -219,8 +219,8 @@ public sealed class EnemyBehaviorTreeTests
 
         Assert.That(bb.AttackPulse, Is.False);
 
-        Object.DestroyImmediate(asset);
-        Object.DestroyImmediate(profile);
+        UnityEngine.Object.DestroyImmediate(asset);
+        UnityEngine.Object.DestroyImmediate(profile);
     }
 
     [Test]
@@ -322,7 +322,7 @@ public sealed class EnemyBehaviorTreeTests
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Errors[0], Does.Contain("customRoot"));
 
-        Object.DestroyImmediate(asset);
+        UnityEngine.Object.DestroyImmediate(asset);
     }
 
     [Test]
