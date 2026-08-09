@@ -3,7 +3,9 @@
 > 基准：`develop`（敌人 AI 初版已落地：`EnemyBrain` 五态 FSM + `AIInputWriter`）  
 > 制定日期：2026-07-30  
 > 修订：2026-08-09 — 补充**可替换 BT 后端**抽象（`IEnemyBehaviorTreeAsset` / `IEnemyBehaviorRunner`）；输出对齐 `AIInputWriter`/`InputFrame`  
-> 修订：2026-08-09 — BT-1/BT-2 主体已落地；**后续完善与 GraphView** 见 [2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md](./2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md)  
+> 修订：2026-08-09 — BT-1/BT-2 主体已落地；GraphView 见 [ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md](./2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md)  
+> 修订：2026-08-09 — E3 后优化（对照 JL/BD）见 [ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md](./2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)  
+
 > 前置文档：[ENEMY_SYSTEM_INTEGRATION_PLAN.md](./ENEMY_SYSTEM_INTEGRATION_PLAN.md)  
 > 总清单交叉：[PROJECT_CHECKLIST.md](./PROJECT_CHECKLIST.md) §6.4（BT 抽象 + 简易编辑器）  
 > 本次范围：**只做行为树决策层**；NavMesh / A\* 寻路另开迭代，本方案预留接口不实现
@@ -589,5 +591,5 @@ Assets/Data/Enemy/
 ## 14. 下一步
 
 BT-1 / BT-2 / **BT-E1～E3** 已关闭（含 GraphView MVP）。  
-下一步按 [ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md](./2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md)：**E4 寻路**（可选）。  
-插件 Adapter 为 E5；**不得**回头改薄 Brain 契约。
+下一步按 [ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md](./2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)：**A 编辑器 → B 招式池/Abort**；寻路见演进 E4。  
+插件 Adapter 为可选；**不得**回头改薄 Brain 契约。
