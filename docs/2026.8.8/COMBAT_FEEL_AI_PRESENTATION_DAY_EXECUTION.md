@@ -241,7 +241,7 @@ Action Editor：同类型多选可批量改属性；轨道路面支持拖拽框�
 
 **验收：** 大纲 §3.5；无第三方 BT；无 Domain 越权。
 
-**预留（总清单 §6.4，本日不做编辑器）：** 运行时接口形状保持可替换（资产 + Runner），勿把未来插件 API 写进 Actor。
+**预留（BT 方案 §3.4 / 总清单 §6.4）：** BT-1 即落地 `IEnemyBehaviorTreeAsset` + `IEnemyBehaviorRunner`；自研为 `NativeBehaviorTreeRunner`；勿把未来插件 API 写进 `EnemyBrain` / Actor。编辑器仍后置。
 
 ---
 

@@ -1,19 +1,21 @@
 # DiavoloGame 敌人行为树方案
 
-> 基准：`develop`（敌人 AI 初版已落地：`EnemyBrain` 五态 FSM + `AIInputSource`）  
+> 基准：`develop`（敌人 AI 初版已落地：`EnemyBrain` 五态 FSM + `AIInputWriter`）  
 > 制定日期：2026-07-30  
+> 修订：2026-08-09 — 补充**可替换 BT 后端**抽象（`IEnemyBehaviorTreeAsset` / `IEnemyBehaviorRunner`）；输出对齐 `AIInputWriter`/`InputFrame`  
 > 前置文档：[ENEMY_SYSTEM_INTEGRATION_PLAN.md](./ENEMY_SYSTEM_INTEGRATION_PLAN.md)  
+> 总清单交叉：[PROJECT_CHECKLIST.md](./PROJECT_CHECKLIST.md) §6.4（BT 抽象 + 简易编辑器）  
 > 本次范围：**只做行为树决策层**；NavMesh / A\* 寻路另开迭代，本方案预留接口不实现
 
 ---
 
 ## 1. 结论摘要
 
-1. **自研轻量行为树**，不用第三方 BT 插件（避免授权与架构适配债）。
-2. **BT 只写黑板 / `AIInputSource`**，禁止直调 `ActionExecutor` / 强制切招。
+1. **Phase-1 自研轻量行为树**（不引入第三方插件包）；同时 **BT-1 起就预留可替换后端接口**，便于日后功能完善或整包接入现成插件。
+2. **BT 只写黑板输出意图**；Brain 帧末经 `AIInputWriter` 提交 `InputFrame`；禁止直调 `ActionExecutor` / 强制切招。
 3. **Hit / Death 不进树**：由 `CharacterReactionService` 外层抢占；BT 在受控期间不 Tick 或 Tick 前被门闩拦住。
 4. **用 BT 替换 `EnemyBrain` 内 Idle/Chase/Attack 决策**，删除与 BT 并行的五态业务 switch（保留 `EnemyBrainState` 仅作调试快照可选）。
-5. **策略资产化**：`EnemyDefinition` 引用 `EnemyBehaviorTreeAsset`；数值仍读 `EnemyBrainProfile`。
+5. **策略资产化**：`EnemyDefinition` 引用实现 `IEnemyBehaviorTreeAsset` 的资产（首版 `EnemyBehaviorTreeAsset`）；数值仍读 `EnemyBrainProfile`。
 6. **第一版节点库约 12 个**，先复现现有「进战追击 + 冷却普攻」，再扩展巡逻/风筝等策略。
 
 ---
@@ -28,6 +30,7 @@
 | 受击/死亡 | 挨打进 Hit、死亡停 AI，行为与现网一致 |
 | 可配置 | 换一张树资产即可变成「只追不打」或「更远才攻击」，无需改 C# switch |
 | 架构合规 | Domain 纯 C#；出招仍走 Intent → Driver → Graph |
+| 可替换后端 | `EnemyBrain` / Factory **只依赖** §3.4 抽象；零引用自研节点类型之外的具体插件 API |
 
 ### 2.2 非目标（本迭代不做）
 
@@ -35,7 +38,7 @@
 - 完整 GraphView 可视化编辑器（可用嵌套 SO / 列表编辑；Graph 放 Phase 2）
 - GOAP、Utility AI、并行复杂战斗子树
 - BT 内播放受击/死亡 Action
-- 第三方 Behavior Designer / NodeCanvas / Unity Behavior 包
+- **本迭代不安装**第三方 Behavior Designer / NodeCanvas / Unity Behavior 包（**允许**日后以 Adapter 实现同一 Runner 接口接入）
 
 ---
 
@@ -44,16 +47,17 @@
 ### 3.1 改造后数据流
 
 ```text
-EnemyController.Update
-  └─ EnemyHandle.Tick
-       ├─ [若 Dead] 不跑 BT
-       ├─ [若 CharacterState==Hit] ClearAll，不跑 BT（或跑空）
-       ├─ EnemyBrain.Tick
-       │    └─ BehaviorTree.Tick(blackboard, deltaTime)
-       │         ├─ Condition 读 Perception / Profile / Cooldown
-       │         └─ Action 写 AIInputSource / Blackboard
-       └─ CharacterActor.Tick
-            Input → Intent → ActionDriver → SM / Locomotion / Action
+EnemyHandle.ProduceInput / Step（逻辑帧）
+  ├─ [若 Dead] 不跑 Runner
+  ├─ [若 CharacterState==Hit] ClearAll，不跑 Runner（或 Reset）
+  ├─ EnemyBrain.Step
+  │    ├─ Perception → 填 EnemyBlackboard
+  │    ├─ IEnemyBehaviorRunner.Tick(bb)   // 自研或未来插件 Adapter
+  │    │    ├─ Condition 读 Perception / Profile / Cooldown
+  │    │    └─ Action 写 bb.MoveDesire / bb.AttackPulse
+  │    └─ 帧末：AIInputWriter ← Move / PulseAttack
+  └─ CharacterActor.Step(InputFrame)
+       Intent → ActionDriver → SM / Locomotion / Action
 ```
 
 ```mermaid
@@ -64,17 +68,17 @@ flowchart TB
   end
   subgraph brain [EnemyBrain]
     Gate[门闩: Dead/Hit?]
-    BT[BehaviorTree]
+    Runner[IEnemyBehaviorRunner]
     BB[EnemyBlackboard]
   end
   subgraph out [输出]
-    AI[AIInputSource]
+    AI[AIInputWriter / InputFrame]
   end
   Hit --> Gate
   Death --> Gate
-  Gate -->|放行| BT
-  BT --> BB
-  BT --> AI
+  Gate -->|放行| Runner
+  Runner --> BB
+  Runner --> AI
   AI --> Actor[CharacterActor 原管线]
 ```
 
@@ -83,9 +87,10 @@ flowchart TB
 | 模块 | 职责 |
 |------|------|
 | `CharacterReactionService` | 生命值 → EnterHit / EnterDeath；回调 Brain 门闩 |
-| `EnemyBrain` | 持有树实例、黑板、门闩、冷却表；每帧 Tick |
-| `BehaviorTree` + 节点 | 决策逻辑（可配置） |
-| `AIInputSource` | 唯一移动/攻击输出通道 |
+| `EnemyBrain` | 门闩、黑板填装、冷却辅助、**只通过** `IEnemyBehaviorRunner` Tick；帧末提交输入 |
+| `IEnemyBehaviorTreeAsset` / `IEnemyBehaviorRunner` | **可替换后端契约**（§3.4）；首版自研实现 |
+| 自研 `BehaviorTree` + 节点 | Phase-1 默认 Runner 实现（可配置决策） |
+| `AIInputWriter` | 唯一移动/攻击输出通道（量化 `InputFrame`） |
 | `EnemyPerception` | 只读快照，供条件节点读取 |
 | `IEnemyPathQuery` | **预留**：返回追击方向；首版实现 = 直线朝向目标 |
 
@@ -104,6 +109,75 @@ flowchart TB
 - 合入后 **删除** `EnemyBrain` 内 Idle/Chase/Attack 的 switch 业务实现。
 - `EnemyBrainState` 可改为「调试用派生状态」（由黑板/上次成功行动推断），或删除对外依赖后仅保留日志枚举。
 - 不保留「FSM 与 BT 双轨同时决策」。
+- 不保留「自研 Runner 与插件 Runner 双轨同时决策」；切换后端时只换实现，契约不变。
+
+### 3.4 可替换后端契约（实现时必须预留）
+
+> 目标：自研完善与未来接入现成 BT 插件 **共用同一宿主边界**；插件类型不得泄漏进 `EnemyBrain` / `EnemyHandle` / `CharacterActor`。  
+> 与 [PROJECT_CHECKLIST.md](./PROJECT_CHECKLIST.md) §6.4「`IBehaviorTreeAsset` + `IBehaviorTreeRunner`」同义；本仓库敌人侧命名如下（可加 `Enemy` 前缀以免与通用 BT 混淆）。
+
+#### 3.4.1 接口形状（Phase BT-1 即落地）
+
+```text
+/// 树资产契约：Definition / Factory 只认此接口（或 ScriptableObject 实现类）
+IEnemyBehaviorTreeAsset
+  IEnemyBehaviorRunner CreateRunner(in EnemyBehaviorBuildContext ctx)
+
+/// 运行时决策契约：Brain 每逻辑帧只调这些
+IEnemyBehaviorRunner
+  void Reset()                          // Hit/Death 门闩、重进战时
+  BehaviorStatus Tick(EnemyBlackboard bb)  // 只读写黑板；禁止起招/改 Numeric
+
+EnemyBehaviorBuildContext（只读装配袋）
+  EnemyBrainProfile Profile
+  IEnemyPathQuery PathQuery             // 可空 → 直线默认
+  // 禁止塞入 ActionExecutor / CharacterActor 可变写引用
+```
+
+首版实现：
+
+```text
+EnemyBehaviorTreeAsset : ScriptableObject, IEnemyBehaviorTreeAsset
+  → CreateRunner → NativeBehaviorTreeRunner（包装自研 BehaviorTree）
+
+NativeBehaviorTreeRunner : IEnemyBehaviorRunner
+  → 内部持有 BehaviorTree + 节点图
+```
+
+未来插件接入（**本迭代不实现**，只保证接口不被破坏）：
+
+```text
+PluginBehaviorTreeAdapterAsset : ScriptableObject, IEnemyBehaviorTreeAsset
+  → CreateRunner → XxxPluginBehaviorRunner : IEnemyBehaviorRunner
+       内部调插件 API；对外仍只 Tick(EnemyBlackboard) / Reset()
+```
+
+#### 3.4.2 稳定契约（换后端也不能破）
+
+| 规则 | 说明 |
+|------|------|
+| 时钟 | 仅在 World **逻辑帧**由 `EnemyBrain.Step` 调用；禁止 Runner 自挂 `Update` |
+| 输入 | 决策结果只体现为黑板 `MoveDesire` / `AttackPulse`（及只读条件字段）；Brain 帧末写 `AIInputWriter` |
+| 感知 | 目标/距离等由 Brain+Perception **填入黑板**；Runner 不直读 Scene Physics 作权威 |
+| 门闩 | Hit/Death 仍由 Brain 外层处理；进入时 `Runner.Reset()` + `ClearAll` |
+| 冷却 | Profile 秒/帧阈值与「Pulse 后是否进 Action」观测可留 Brain；Runner 可用黑板 CD 旗或 `CooldownReady` |
+| 资产引用 | `EnemyDefinition` 序列化字段类型为 `EnemyBehaviorTreeAsset`（具体 SO）亦可，但 **Factory 构建时经 `IEnemyBehaviorTreeAsset` 取 Runner**；或字段直接 `SerializeReference`/`ScriptableObject` 再 `as IEnemyBehaviorTreeAsset` |
+
+#### 3.4.3 禁止
+
+- `EnemyBrain` / `EnemyActorFactory` / `EnemyHandle` `using` 或字段类型出现第三方插件命名空间  
+- Runner / 节点持有 `IActionExecutor`、直接 `TryStart`、改 Vitality/Numeric  
+- 为「过渡」同时跑 FSM switch + Runner（双轨决策）  
+- 把插件黑板当第二套权威；必须映射进 `EnemyBlackboard` 或由 Adapter 只写我们的 bb 输出槽  
+
+#### 3.4.4 与功能完善的关系
+
+| 阶段 | 做什么 | 是否改 §3.4 契约 |
+|------|--------|------------------|
+| BT-1 | 自研 Runner + 默认近战树 | **建立**契约 |
+| BT-2 | Inspector/调试、更多节点 | 不改契约；可扩黑板只读键（文档化） |
+| BT-3 | `IEnemyPathQuery` 真寻路 | 不改 Runner 契约 |
+| 日后 | 插件 Adapter | 新程序集实现接口；Brain **零改或仅改 Factory 注册** |
 
 ---
 
@@ -179,31 +253,34 @@ BehaviorNodeAsset : ScriptableObject  或  [Serializable] 嵌套 class
 ### 4.4 运行时实例
 
 ```text
-BehaviorTree
-  ├─ 从 Asset Bind 出 BehaviorNode 运行时图（或直接解释 Asset）
-  └─ Tick(EnemyBlackboard bb) -> BehaviorStatus
+IEnemyBehaviorRunner          // §3.4 宿主只认这个
+  └─ NativeBehaviorTreeRunner // 首版
+       └─ BehaviorTree
+            ├─ 从 Asset Bind 出 BehaviorNode 运行时图
+            └─ Tick(EnemyBlackboard bb) -> BehaviorStatus
 
-IBehaviorNode
+IBehaviorNode                 // 自研节点内部接口（插件后端不必实现）
   BehaviorStatus Tick(EnemyBlackboard bb)
-  void Reset()   // 树重置 / 门闩恢复时调用
+  void Reset()
 ```
 
 装配：
 
 ```text
 EnemyActorFactory
-  → new EnemyBrain(profile, perception, input, facingProxy, treeAsset)
-  → brain 内 BehaviorTree.Build(treeAsset)
+  → IEnemyBehaviorTreeAsset asset = definition.BehaviorTree
+  → IEnemyBehaviorRunner runner = asset.CreateRunner(ctx)
+  → new EnemyBrain(profile, perception, input, facingProxy, runner)
+  // Brain 不接收具体 BehaviorTree / 插件类型
 ```
 
 `EnemyDefinition` 增加：
 
 ```text
-behaviorTree : EnemyBehaviorTreeAsset
+behaviorTree : EnemyBehaviorTreeAsset  // 实现 IEnemyBehaviorTreeAsset
 ```
 
 缺省树：提供 `BT_MeleeChaseAttack` 默认资产，行为等价旧 FSM。
-
 ---
 
 ## 5. 节点库（第一版）
@@ -368,7 +445,11 @@ Pulse 后进入「等待起手」辅助（可放 Brain，不必进树）：
 Assets/Scripts/Domain/Enemy/
   BehaviorTree/
     BehaviorStatus.cs
-    IBehaviorNode.cs
+    IEnemyBehaviorTreeAsset.cs   // §3.4 可替换资产契约
+    IEnemyBehaviorRunner.cs      // §3.4 可替换运行时契约
+    EnemyBehaviorBuildContext.cs
+    NativeBehaviorTreeRunner.cs  // 首版 Runner：包装自研 BehaviorTree
+    IBehaviorNode.cs             // 仅自研节点图使用
     BehaviorTree.cs
     EnemyBlackboard.cs
     Nodes/
@@ -379,15 +460,15 @@ Assets/Scripts/Domain/Enemy/
       ActionNodes.cs         // StopMove, MoveTowardTarget, FaceTarget, PulseAttack, Wait
     IEnemyPathQuery.cs       // 预留
     StraightPathQuery.cs     // 首版直线
-  EnemyBehaviorTreeAsset.cs  // SO 树定义（或放 Definitions 子文件夹）
-  EnemyBrain.cs              // 改为 BT 宿主
+  EnemyBehaviorTreeAsset.cs  // SO + IEnemyBehaviorTreeAsset
+  EnemyBrain.cs              // Runner 宿主（不持有具体树类型）
   EnemyDefinition.cs         // + behaviorTree 引用
 
 Assets/Data/Enemy/BehaviorTrees/
   BT_MeleeChaseAttack.asset
 ```
 
-命名：用 `BehaviorTree` / `Node` / `Service`（PathQuery），**不用** `Runtime` 后缀。
+命名：用 `BehaviorTree` / `Node` / `Runner` / `PathQuery`，**不用** `Runtime` 后缀；插件适配器日后可放 `BehaviorTree/Adapters/`（或独立 asmdef），仍只实现 §3.4 接口。
 
 Editor（可第二阶段）：
 
@@ -403,11 +484,11 @@ Assets/Scripts/Editor/Enemy/
 ### 9.1 `EnemyDefinition`
 
 ```text
-+ [SerializeField] EnemyBehaviorTreeAsset behaviorTree;
++ [SerializeField] EnemyBehaviorTreeAsset behaviorTree; // : IEnemyBehaviorTreeAsset
 ```
 
-`Validate`：`behaviorTree != null`（或允许空时回退内置默认树，但按 no-legacy 原则：**强制配置资产**）。
-
+`Validate`：`behaviorTree != null`（按 no-legacy 原则：**强制配置资产**，不提供 FSM 回退）。  
+Factory：`CreateRunner` 经接口取 Runner，不 `new BehaviorTree` 写死在 Brain 构造之外的旁路。
 ### 9.2 `EnemyBrainProfile`
 
 保留半径/冷却/移动幅度等；**不把树结构写进 Profile**。  
@@ -428,13 +509,15 @@ Assets/Data/Enemy/
 
 ### Phase BT-1 — 骨架 + 等价默认树（本迭代主目标）
 
-- [ ] `BehaviorStatus` / `IBehaviorNode` / `BehaviorTree` / `EnemyBlackboard`
+- [ ] **§3.4 契约**：`IEnemyBehaviorTreeAsset` / `IEnemyBehaviorRunner` / `EnemyBehaviorBuildContext`
+- [ ] `NativeBehaviorTreeRunner` + `BehaviorStatus` / `IBehaviorNode` / `BehaviorTree` / `EnemyBlackboard`
 - [ ] Selector / Sequence / 条件与行动节点（第一节库）
 - [ ] `StraightPathQuery`
-- [ ] `EnemyBehaviorTreeAsset` + `BT_MeleeChaseAttack`
-- [ ] `EnemyBrain` 改为 BT 宿主；删除 Idle/Chase/Attack switch
-- [ ] Factory / Definition 接线
-- [ ] Hit/Death 门闩与 `tree.Reset()`
+- [ ] `EnemyBehaviorTreeAsset`（实现接口）+ `BT_MeleeChaseAttack`
+- [ ] `EnemyBrain` 只持有 `IEnemyBehaviorRunner`；删除 Idle/Chase/Attack switch
+- [ ] Factory / Definition 接线（`CreateRunner`，不泄漏具体树类型）
+- [ ] Hit/Death 门闩与 `runner.Reset()`
+- [ ] EditMode：可对 Runner 接口 mock（证明 Brain 不依赖自研节点类型）
 
 **验收**
 
@@ -442,6 +525,7 @@ Assets/Data/Enemy/
 2. 受击硬直中无移动无攻击  
 3. 死亡后不决策  
 4. 换「只追不打」树资产行为变化  
+5. `EnemyBrain` 源码无具体 `BehaviorTree`/节点类型字段（仅接口 + 黑板）  
 
 ### Phase BT-2 — 配置体验
 
@@ -467,6 +551,8 @@ Assets/Data/Enemy/
 | SerializeReference 迁移麻烦 | 第一版节点类型稳定后再扩展；资产小可重建 |
 | 调试困难 | 打日志：每帧根结果 + Running 路径；Debug 开关 |
 | 与旧 `EnemyBrainState` UI 依赖 | Controller 调试改显示「派生状态」或黑板摘要 |
+| 日后换插件时 Brain 被具体类型绑死 | BT-1 起只依赖 §3.4；CR 拒绝插件命名空间进宿主 |
+| 插件 Adapter 直接起招 | Adapter 同样只能写黑板；与自研节点同一 Code Review 红线 |
 
 ---
 
@@ -486,15 +572,17 @@ Assets/Data/Enemy/
 
 | 日期 | 决策 | 理由 |
 |------|------|------|
-| 2026-07-30 | 自研轻量 BT，不上插件 | 与 Intent 管线契合、无授权、节点面可控 |
+| 2026-07-30 | Phase-1 自研轻量 BT，本迭代不安装插件包 | 与 Intent 管线契合、无授权、节点面可控 |
 | 2026-07-30 | Hit/Death 外层门闩，不进树 | 与 ReactionService 单一抢占源一致 |
 | 2026-07-30 | 删除 FSM 业务 switch，不双轨 | 符合 no-legacy；避免双脑 |
 | 2026-07-30 | 寻路仅预留接口 | 用户要求先做 BT；直线查询保等价行为 |
 | 2026-07-30 | 帧末统一提交 Move/Pulse | 防止节点互相覆盖造成抖动输入 |
+| 2026-08-09 | BT-1 起落地 `IEnemyBehaviorTreeAsset` + `IEnemyBehaviorRunner` | 功能完善与未来插件 Adapter 共用宿主边界；禁止 API 泄漏 |
 
 ---
 
 ## 14. 下一步
 
-方案确认后，按 **Phase BT-1** 在 `DiavoloGame` 仓库实现：先默认近战树等价替换，再给 `EnemyDefinition` 挂可切换资产。  
-寻路迭代单独开 `ENEMY_PATHFINDING_PLAN`（或本文件 Phase BT-3）。
+按 **Phase BT-1** 实现：先落 §3.4 接口与 `NativeBehaviorTreeRunner`，再默认近战树等价替换，最后 `EnemyDefinition` 挂可切换资产。  
+寻路迭代单独开 `ENEMY_PATHFINDING_PLAN`（或本文件 Phase BT-3）。  
+插件接入不单独立项时可在 Adapter 程序集内完成，**不得**回头改薄 Brain 契约。

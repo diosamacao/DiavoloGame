@@ -163,7 +163,7 @@
 |------|--------|------------|
 | **MVVM UI 框架** | P2 | View / ViewModel / Model（或 Binder）分层；首版接血条、资源条、简易菜单；跨系统用现有 Command/Query/Event，UI 不直写 Domain 权威状态 |
 | **性能优化学习测试实践** | P2 | 建立可复现基准：Profiler / Frame Debugger / 内存快照；固定测试场景（木桩连打、多敌人、相机）；记录 CPU/GC/DrawCall 基线与优化前后对比；优先验证 Hitbox、动画、VFX、UI 重建热点 |
-| **简单行为树编辑器** | P2 | 自研轻量 Graph/节点编辑（Selector/Sequence/Decorator/Action 够用即可）；运行时经 **抽象接口**驱动（如 `IBehaviorTreeAsset` + `IBehaviorTreeRunner`），**预留可整体替换**为 Unity 行为树插件或第三方包，不把插件 API 泄漏进 `EnemyBrain` / Actor |
+| **简单行为树编辑器** | P2 | 自研轻量 Graph/节点编辑；运行时契约真源见 [`ENEMY_BEHAVIOR_TREE_PLAN.md`](./ENEMY_BEHAVIOR_TREE_PLAN.md) **§3.4**（`IEnemyBehaviorTreeAsset` + `IEnemyBehaviorRunner`），BT-1 即预留，可整体替换为插件 Adapter，不把插件 API 泄漏进 `EnemyBrain` / Actor |
 | **A\* 寻路** | P2 | 网格或导航点 A\* 学习实现；输出路径供 AI 移动意图；与锁步对齐时路径查询应确定性（或明确「仅表现/非 Hash」边界）；可先单机 Demo，再决定是否进 Sim |
 | **AssetBundle + Lua 热更新** | P3 | AB 打包/加载/依赖与版本清单最小流程；Lua（或等价脚本）热更学习环境：热更 UI/配置/活动逻辑优先，**禁止**热更改写 ActionSim / Numeric 权威；与正式 C# 主循环边界写清 |
 | **SDK 打包流程实践** | P3 | 渠道/平台 SDK 接入演练：登录、支付占位、隐私合规钩子、多渠道打包脚本（CI 或 Editor 菜单）；与热更包产出流水线可衔接 |
@@ -184,7 +184,7 @@ MVVM HUD 骨架
 
 - [ ] MVVM UI 框架 + 首屏 HUD
 - [ ] 性能基线场景与优化对照记录
-- [ ] BT 抽象接口 + 简易编辑器（可替换插件）
+- [ ] BT 抽象接口（§3.4，随 BT-1）+ 简易编辑器（可替换插件）
 - [ ] A\* Demo（寻路 → 移动意图）
 - [ ] AssetBundle 加载闭环
 - [ ] Lua（或脚本）热更沙盒（非战斗权威）
