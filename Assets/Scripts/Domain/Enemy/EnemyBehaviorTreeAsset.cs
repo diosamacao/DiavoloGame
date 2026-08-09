@@ -6,6 +6,8 @@ using UnityEngine;
 public sealed class EnemyBehaviorTreeAsset : ScriptableObject, IEnemyBehaviorTreeAsset
 {
     [SerializeReference] EnemyBehaviorNodeDef customRoot;
+    /// <summary>画布坐标缓存；仅 Graph 编辑器读写，Inspector 不展示以免误改 guid。</summary>
+    [HideInInspector]
     [SerializeField] EnemyBehaviorGraphLayout graphLayout = new EnemyBehaviorGraphLayout();
 
     /// <summary>行为树根节点定义（须在 Graph/Inspector 中手动配置）。</summary>
