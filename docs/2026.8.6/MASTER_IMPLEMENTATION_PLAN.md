@@ -2,7 +2,9 @@
 
 > 制定：2026-08-06  
 > 修订：2026-08-07 — 插入 GAS-lite G0～G5；完美闪避真源改为玩家 Dodge 窗；Wave 4 入口 = G5  
-> 修订：2026-08-09 — Wave 4 位移切片（4.2/4.4 + SoftBody）Editor 验收收口；Relocate Command 已接线；Lock-On 仍待  
+> 修订：2026-08-09 — Wave 4 位移切片（4.2/4.4 + SoftBody）Editor 验收收口；Relocate Command 已接线  
+> 修订：2026-08-09 — **Wave 4 不再含相机**：原 4.5～4.6 Lock-On/Predict 撤出本 Wave；LockOn / SkillShot / Director 排期与实施归 [CAMERA_SYSTEM_PLAN.md](./CAMERA_SYSTEM_PLAN.md)  
+> 修订：2026-08-09 — **Wave 5 也不再含大招演出**：原 5.1/5.2/5.5 SkillShot·Camera 轨·Finisher 撤出；一律归 Camera 篇  
 
 
 > 基准：`develop`  
@@ -106,8 +108,9 @@ Wave 1  位移权威止血（ForwardSigned + BaseMotionMode + 相机临时滤左
 Wave 2  稳定锚点闭环（双轨迹 + VisualMotionRoot + 删 RM 权威回退）
 Wave 3  技能资源循环（产品语义；实现口袋即将被 GAS 替换）
 G0～G5  GAS-lite 数值重构（Attribute+Effect；G5 零兼容）← Wave 4 前必做
-Wave 4  玩法位移扩展（吸附 Modifier + 绕背 Command）+ Lock-On 相机
-Wave 5  大招演出 + 可选失衡；命中盒烘焙后置
+Wave 4  玩法位移扩展（吸附 Modifier + 绕背 Command）← ✅ 位移出口
+Wave 5  可选玩法后置（失衡等）+ 命中盒烘焙后置；**不含镜头**
+※ LockOn / Predict / Director / SkillShot / Finisher 全部 → Camera 篇自管（不挂 Wave 4/5）
 ```
 
 | Wave | 主要单篇映射 | 可并行 | 破坏性删除 |
@@ -117,8 +120,8 @@ Wave 5  大招演出 + 可选失衡；命中盒烘焙后置
 | 2 | Anchor M2～M3、Action A2～A3、Camera 跟稳定根 | 代码可并行；资产迁移串行验收 | **删除 Animator RM 权威回退、旧 ForwardOnly 运行时语义** |
 | 3 | Skill S0～S4 ≡ NUMERICS N0～N5 + Action A6 | HUD 与资源逻辑可交错 | 禁止散落 cost 字段 |
 | **G*** | **GAS_STYLE_COMBAT_REFACTOR_PLAN** | G0～G2 少碰资产；G3 单出口切换 | **G5：删除 ResourceSim / 旧 Health·EnemyHealth** |
-| 4 | Action A5、Camera C1～C2 | LockOn 与 Modifier 可并行 | 无 |
-| 5 | Camera C3、Skill S5 可选、Anchor M4 后置 | SkillShot 优先；命中盒烘焙不阻塞 | 无 |
+| 4 | Action A5 | 无相机任务 | 无 |
+| 5 | Skill S5 可选、Anchor M4 后置 | 命中盒烘焙不阻塞；**无镜头任务** | 无 |
 
 ---
 
@@ -278,9 +281,9 @@ EX/Ult 的「命中不回能」用 `energyGrantOnHit = 0` 表达，**不**另增
 
 ---
 
-### Wave 4 — 玩法位移扩展 + Lock-On
+### Wave 4 — 玩法位移扩展
 
-**目标：** 吸附/绕背走确定性管线；锁定相机接通。
+**目标：** 吸附/绕背走确定性管线（**不含相机**）。
 
 | # | 任务 | 细节真源 | 验收 |
 |---|------|----------|------|
@@ -288,38 +291,35 @@ EX/Ult 的「命中不回能」用 `energyGrantOnHit = 0` 表达，**不**另增
 | 4.2 | `TargetAdhesion` Modifier + 限制参数校验 | Action A5 | 超距/超角不生效；Hash 可重放 |
 | 4.3 | `RelocateBehindTarget` + Facing/Collision/Fallback | Action A5 | 挡墙走 Fallback；关闭 Animator 结果不变 |
 | 4.4 | 起手固化 `ActionTargetId` | Action A5 | 吸附不跳人 |
-| 4.5 | LockOn VCam + TargetGroup + Director Free/LockOn | Camera C1 | 与 CombatTargetLock 一致；进出可 Blend |
-| 4.6 | Predict + 受击/弹刀 Feedback（可选） | Camera C2 | 不进逻辑 Hash |
 
-**入口：** Wave 2 完成；**GAS G5 完成**（数值唯一真源为 NumericSystem）。Ult 镜头可到 Wave 5。  
-**禁止：** Relocate 直接改 Transform；Modifier 读表现骨骼；在旧 ResourceSim API 上堆 Wave 4 依赖。
+**已撤出（2026-08-09）：** 原 4.5 LockOn、4.6 Predict/Feedback → 改由 [CAMERA_SYSTEM_PLAN.md](./CAMERA_SYSTEM_PLAN.md)（C1/C2）独立排期，不再作为 Wave 4 出口条件。
 
-**实施细则（2026-08-09）：** [WAVE4_GAMEPLAY_MOTION_BRANCH02_PLAN.md](../2026.8.9/WAVE4_GAMEPLAY_MOTION_BRANCH02_PLAN.md) — 以 `Unagi_Attack_Branch_02` 为样板（SoftBody 抑制 + 行程加长 + RelocateBehind）；Lock-On 仍见 Camera 篇。
+**入口：** Wave 2 完成；**GAS G5 完成**（数值唯一真源为 NumericSystem）。  
+**禁止：** Relocate 直接改 Transform；modifier 读表现骨骼；在旧 ResourceSim API 上堆 Wave 4 依赖。
 
-#### Wave 4 落地状态（2026-08-09）
+**实施细则（2026-08-09）：** [WAVE4_GAMEPLAY_MOTION_BRANCH02_PLAN.md](../2026.8.9/WAVE4_GAMEPLAY_MOTION_BRANCH02_PLAN.md) — 以 `Unagi_Attack_Branch_02` 为样板（SoftBody 抑制 + 行程加长 + RelocateBehind）。
+
+#### Wave 4 落地状态（2026-08-09）— ✅ 出口达成
 
 - [x] **4.2 / 4.4 + SoftBodySuppress**：TargetAdhesion 管线 + Branch_02 Editor 验收收口（方案 A 过冲不倒拖；MotionModifier Scene 预览）
 - [x] Branch_02 人工配窗与打击感位移验收（2026-08-09）
 - [x] **4.1 / 4.3**：`ActionMotionResolver` + RelocateBehind / MotionCommand 已接线（Bridge；资产按需配点事件）
-- [ ] 4.5～4.6 Lock-On 未开工
 
-**打击感相关：** 木桩 / 命中 Cue / Branch_02 吸附等位移手感优化 **至此告一段落**；Wave 4 位移代码齐套，剩余主要为 Lock-On 相机。
+**打击感相关：** 木桩 / 命中 Cue / Branch_02 吸附等位移手感优化 **至此告一段落**；Wave 4 **位移出口已关闭**。相机后续见 Camera 篇。
 
 ---
 
-### Wave 5 — 大招演出与后置项
+### Wave 5 — 可选玩法后置项（不含相机）
 
-**目标：** 绝区零向多段镜头；其余不阻塞主循环。
+**目标：** 不阻塞主循环的玩法/模拟后置项。  
+**已撤出（2026-08-09）：** 原 5.1 SkillShot、5.2 Action Editor Camera 轨、5.5 Timeline Finisher/过场 → 全部改由 [CAMERA_SYSTEM_PLAN.md](./CAMERA_SYSTEM_PLAN.md)（C3/C4）独立排期，**不再作为 Wave 5 出口或产品勾选**。
 
 | # | 任务 | 优先级 | 验收 |
 |---|------|--------|------|
-| 5.1 | `CameraShotSequence` + ShotPlayer；两段测试 Ult | **P0** | 特写→回身；打断后恢复 PreviousGameplay |
-| 5.2 | Action Editor Camera 轨道（可稍后一迭代） | P1 | Shot 重叠/越界校验 |
-| 5.3 | 敌方 Daze + HeavyHit（可选） | P2 | 不阻塞 5.1 |
-| 5.4 | 命中盒挂点烘焙，去掉运行时 Animator 采样 | **后置** | 同输入命中 Hash 一致 |
-| 5.5 | Timeline Finisher / 过场 | P2 | 与 SkillShot 优先级不卡死 |
+| 5.1 | 敌方 Daze + HeavyHit（可选） | P2 | 不阻塞主循环 |
+| 5.2 | 命中盒挂点烘焙，去掉运行时 Animator 采样 | **后置** | 同输入命中 Hash 一致 |
 
-**入口：** Wave 3.5（有 Ult）+ Wave 4.5（有 Director 栈更佳；Director 可在 5.1 最小实现）。
+**入口：** Wave 3 产品语义可用 + Wave 4 位移出口 ✅。镜头能力与 Wave 5 解耦，按需开 Camera 篇即可。
 
 ---
 
@@ -344,8 +344,8 @@ EX/Ult 的「命中不回能」用 `energyGrantOnHit = 0` 表达，**不**另增
 | 1 | ForwardSigned EditMode；侧向攻击镜头 Play 对比 |
 | 2 | 关闭 Animator 位移/命中；残差重建 Full；Motor 哈希重放 |
 | 3 | Gate 单次扣费；Cancel 不够费不切换；ConfirmHit 才 Grant；同键 EX |
-| 4 | 吸附/绕背 EditMode + 双 Actor 同帧重定位；LockOn 切目标 |
-| 5 | 两段 SkillShot；卡肉不提前切镜；Cancel 恢复模式 |
+| 4 | 吸附/绕背 EditMode + 双 Actor 同帧重定位 |
+| 5 | （可选）Daze/HeavyHit 行为正确；命中盒烘焙后同输入 Hash 一致 |
 
 ---
 
@@ -365,11 +365,11 @@ EX/Ult 的「命中不回能」用 `energyGrantOnHit = 0` 表达，**不**另增
 - [ ] 资源字段唯一来自 `ActionResourceSpec`（NUMERICS 表）；同键 EX + 闪避反击 + Ult 闭环  
 - [x] GAS G5：数值唯一真源为 `NumericSystem`；旧 ResourceSim/Health 权威已删（2026-08-08）  
 - [ ] 吸附/瞬移经 MotionResolver + MotorSim，可重放  
-- [ ] Lock-On 与多段 SkillShot 为纯表现，不写回 Sim  
+- [ ] （Camera 篇）Lock-On / SkillShot 等为纯表现，不写回 Sim；不阻塞 Wave 4/5 出口
 - [ ] 全库 Action 校验无 Error；关键路径 EditMode/Play 门禁通过  
 
 ---
 
 ## 11. 一句话
 
-先用校验与 `ForwardSigned` 止血，再用 Gameplay/Residual 稳住锚点并删除 RM 回退，接入唯一资源 Spec 跑通绝区零式循环，再以 **GAS-lite G0～G5** 收敛数值口袋，最后才上吸附瞬移、Lock-On 与大招多段镜头——**顺序不能倒，真源不能分叉。**
+先用校验与 `ForwardSigned` 止血，再用 Gameplay/Residual 稳住锚点并删除 RM 回退，接入唯一资源 Spec 跑通绝区零式循环，再以 **GAS-lite G0～G5** 收敛数值口袋，最后上吸附瞬移；**Lock-On / SkillShot 等相机能力由 Camera 篇独立排期**——位移与数值真源不能分叉。

@@ -7,7 +7,7 @@
 
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
-| Wave4 位移（Adhesion / SoftBody / Relocate） | ✅ 已实现（吸附已验收；Relocate 已接线） | `ActionMotionAdhesion` + `ActionMotionResolver` + Bridge | Branch_02 吸附已配；Relocate 按需加 MotionCommand 轨；Lock-On 未做 |
+| Wave4 位移（Adhesion / SoftBody / Relocate） | ✅ 已实现（吸附已验收；Relocate 已接线） | `ActionMotionAdhesion` + `ActionMotionResolver` + Bridge | Branch_02 吸附已配；Relocate 按需加 MotionCommand 轨；相机不在本 Wave |
 | 命中受击 Cue（VFX/SFX） | 🟡 代码通道已接、资产待绑 | `HitImpactController` + `HitFeedbackSettings` | 接触点落点 + 随机旋转；Feedback 填 Prefab/Clip |
 | 逻辑 Hurtbox 调试线框 | ✅ 已实现 | `CombatHurtboxDebugSettings` + `CombatHurtboxDebugVisualizer` | F4 开关（F3 HUD 显示状态） |
 | 固定帧模拟宿主 | ✅ L0A 已实现 | `SimulationHost`、`SimulationWorld`、`SimActorId` | 60Hz，无资产 |
@@ -814,6 +814,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-09 | TargetAdhesion 方案 A：只补朝向前方缺口，过冲不倒拖 |
 | 2026-08-09 | Wave 4 位移切片 + 打击感优化：Branch_02 Editor 验收收口 |
 | 2026-08-09 | Wave 4 P3：MotionCommand → ActionMotionResolver 接线（Relocate/SnapFacing） |
+| 2026-08-09 | Wave 4 出口收窄为位移；Wave 5 撤出大招演出；LockOn/SkillShot/Finisher 全归 Camera 篇 |
 
 ---
 
@@ -847,7 +848,7 @@ SimulationWorld 帧末 SoftBodySeparation（抑制者不参与）
 
 ### 已知限制
 
-- Lock-On（总案 4.5～4.6）未开工
+- Lock-On / SkillShot 不在 Wave 4/5；排期见 `docs/2026.8.6/CAMERA_SYSTEM_PLAN.md`
 - Relocate 挡墙精细候选（FindNearestValid 首版≈ ResolveMove）可后续加强
 - 共线退化（玩家与敌人水平重合）本帧不吸
 - **打击感吸附已验收；Relocate 需在招上配 MotionCommand 点事件后 Play 验**

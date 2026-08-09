@@ -1,6 +1,7 @@
 # ACTGame 项目总清单
 
-> 更新：2026-08-08  
+> 更新：2026-08-09 — Wave 4 位移出口关闭；Wave 5 不含镜头；LockOn/SkillShot/Finisher 全归 Camera 篇  
+
 > 角色：**一页总览**（进度 / 下一步 / 明确不做）  
 > 细节真源勿与本文抢权威：
 >
@@ -49,7 +50,7 @@
 | 敌人 AI | 🟡 | 五态 Brain 代码在；BT Phase-1 / 资产待做 |
 | 相机 | 🟡 | 跟随 + 滤左右；Lock-On / SkillShot 未做 |
 | 正式 UI / 血条 | ⬜ | 仅 Debug HUD；目标 MVVM |
-| 吸附 / 绕背 | ⬜ | Wave 4 |
+| 吸附 / 绕背 | ✅ | Wave 4 位移出口（2026-08-09） |
 | 预测回滚 / 联网 | ⬜ | L3 / L5 |
 | 打击感木桩验收台 | ✅ | Monster_EDF + 关行动 + Hit_Shake；Play 验收 2026-08-08 |
 | 学习/工程实践轨 | ⬜ | BT 编辑器、A*、AB/Lua、SDK、剧情等（§6.4） |
@@ -71,7 +72,7 @@
 | A4 | 相机轻优化（勿塞完整 Lock-On） | ⬜ |
 | A5 | AI 行为树 Phase-1（只写 InputFrame） | ⬜ |
 
-主排期下一 Wave：**Wave 4**（吸附 Modifier + 绕背 + Lock-On）——入口条件 GAS G5 ✅ 已满足。
+主排期：**Wave 4 位移 ✅ 已关闭**；Wave 5 仅可选玩法后置（失衡/命中盒烘焙）；相机 LockOn/SkillShot/Finisher 见 [`CAMERA_SYSTEM_PLAN.md`](./2026.8.6/CAMERA_SYSTEM_PLAN.md)。
 
 ---
 
@@ -86,16 +87,17 @@
 | Wave 2 锚点闭环 | ✅ | Residual + VisualRoot；**2.5 删 RM 已落地** |
 | Wave 3 资源循环 | 🟡 | 代码 ✅；Ult/EX 等资产持续绑 |
 | GAS G0～G5 | ✅ | 2026-08-08 零兼容完成 |
-| Wave 4 吸附 + Lock-On | ⬜ | 可开工（依赖 G5） |
-| Wave 5 SkillShot / 后置 | ⬜ | Ult 镜头优先；命中盒烘焙后置 |
+| Wave 4 玩法位移 | ✅ | 吸附/SoftBody/Relocate；**不含相机**（2026-08-09） |
+| Wave 5 可选后置（无镜头） | ⬜ | Daze/HeavyHit 可选；命中盒烘焙后置 |
+| 相机系统（独立） | ⬜ | LockOn/Predict/SkillShot/Finisher → Camera 篇 C1～C4 |
 
 **MASTER 整包成功标准（摘录）：**
 
 - [x] Numeric 唯一真源（G5）
 - [ ] 正式 Action 单一位移权威且全库校验无 Error（资产侧持续）
 - [ ] 同键 EX + 闪避反击 + Ult 资产闭环齐
-- [ ] 吸附/绕背可重放
-- [ ] Lock-On + 多段 SkillShot 纯表现
+- [x] 吸附/绕背管线可重放（Wave 4；资产按需配 Relocate）
+- [ ] Lock-On + 多段 SkillShot 纯表现（排期见 Camera 篇，不挂 Wave 4/5）
 
 ---
 
@@ -142,10 +144,10 @@
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
 | AI Behavior Tree 运行时 | P1 | [`ENEMY_BEHAVIOR_TREE_PLAN.md`](./ENEMY_BEHAVIOR_TREE_PLAN.md)；决策只写 `InputFrame` |
-| Lock-On / Director | P1 | Wave 4 / Camera 篇 |
-| TargetAdhesion / RelocateBehind | P1 | Wave 4 / Action 篇 |
+| Lock-On / Director | P1 | Camera 篇 C1（不挂 Wave 4） |
+| TargetAdhesion / RelocateBehind | ✅ | Wave 4 已齐；Relocate 资产按需 |
 | 正式 HUD（血条/资源条） | P2 | 替代 F3；实现走 §6.4 MVVM |
-| SkillShot 多段镜头 | P2 | Wave 5 |
+| SkillShot 多段镜头 | P2 | Camera 篇 C3（不挂 Wave 5） |
 | 对象池 / 伤害数字 | P2 | 表现优化 |
 | 场景胜负流 / Boot 流程 | P2 | Demo 包装 |
 | 斜坡精确碰撞 | P2 | L2 收口 |

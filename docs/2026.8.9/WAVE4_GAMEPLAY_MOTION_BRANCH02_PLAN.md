@@ -3,7 +3,8 @@
 > 制定：2026-08-09  
 > 修订：2026-08-09 — 主路径改为攻击吸附；吸附点按 **玩家↔敌人连线动态计算** + 水平距离偏移；**窗口时长 = 吸附完成时长**  
 > 修订：2026-08-09 — **Editor / Play 验收通过**；位移切片（P0～P2 + P4）收口  
-> 修订：2026-08-09 — **P3 Relocate / MotionCommand 已接线**（Bridge → ActionMotionResolver）；P5 Lock-On 未做  
+> 修订：2026-08-09 — **P3 Relocate / MotionCommand 已接线**（Bridge → ActionMotionResolver）  
+> 修订：2026-08-09 — **删除本切片相机任务**：原 P5 / 总案 4.5～4.6 撤出；LockOn 等归 Camera 篇  
 
 > 角色：**Wave 4 位移切片可执行真源**（类型 / 管线 / 验收 / Editor）  
 > 排期与依赖仍以 [MASTER_IMPLEMENTATION_PLAN.md](../2026.8.6/MASTER_IMPLEMENTATION_PLAN.md) 为准  
@@ -37,14 +38,14 @@
 |------|------|------|
 | Wave 2：Baked/Scripted 唯一基础位移；RM→Motor 已删 | ✅ | `CharacterActionPresentationBridge` |
 | Wave 3 + GAS G5：Numeric 唯一权威 | ✅ | 本切片不扩资源口袋 |
-| 总案 Wave 4 入口 | ✅ | 可开工 4.1～4.4；Lock-On（4.5）可并行不阻塞本切片 |
+| 总案 Wave 4 入口 | ✅ | 4.1～4.4 位移范围；**不含相机** |
 
 **现状（2026-08-09 Editor 验收后）：**
 
 - ✅ TargetAdhesion + SoftBodySuppress 已接线；Editor MotionModifier 轨 + Scene 假敌预览
 - ✅ Branch_02 人工配窗并完成 Editor 验收；打击感位移切片收口
 - ✅ MotionCommand / RelocateBehind **已接线**（Base→Adhesion→Command）
-- ⬜ Lock-On（P5 / 总案 4.5～4.6）未开工
+- ✅ Wave 4 位移出口关闭（相机不再挂本 Wave；见 Camera 篇）
 
 ---
 
@@ -321,10 +322,6 @@ softBodySuppress = max(softBodySuppress, command.softBodySuppressFrames)
 
 见 §7。
 
-### P5 — Lock-On 相机（并行，不阻塞）
-
-总案 4.5～4.6；位移切片验收不依赖 Lock-On。
-
 ---
 
 ## 7. Branch_02 Editor 装配清单（人工）
@@ -400,7 +397,7 @@ Perfect：`Unagi_Attack_Branch_02_Perfect.asset`（同结构参数可略放大�
 | 4.2 TargetAdhesion + 参数校验 | **P2 主交付**（连线动态点 + 窗口均摊） |
 | 4.3 RelocateBehind + Facing/Collision/Fallback | P3 **可选** |
 | 4.4 起手固化 ActionTargetId | P0 |
-| 4.5～4.6 Lock-On / Predict | P5 并行，不阻塞 |
+| ~~4.5～4.6 Lock-On / Predict~~ | **已撤出 Wave 4** → [CAMERA_SYSTEM_PLAN.md](../2026.8.6/CAMERA_SYSTEM_PLAN.md) |
 
 完成后回写：
 
@@ -432,7 +429,6 @@ P0 Modifier 区间轨 + 偏移字段 + ActionTargetId
   → P2 TargetAdhesion（连线动态 + 剩余帧均摊）← 主交付
   → P4 配 Branch_02（窗长=冲刺时长，offset>0）
   → （可选）P3 Relocate
-  → （并行）P5 Lock-On
 ```
 
 **最小可玩切片：** P0+P1+P2 → 不配 Relocate 即可演示「窗内按连线吸穿到敌后侧」。
@@ -448,7 +444,7 @@ P0 Modifier 区间轨 + 偏移字段 + ActionTargetId
 - [x] 总案 4.2 / 4.4 可打勾；4.3 Relocate 已接线（资产按需）  
 - [x] 总案 4.1 MotionCommand 经 `ActionMotionResolver` 执行  
 
-**切片结论：** Wave 4 **位移能力（吸附 + SoftBody + Relocate Command）已齐**；后续主要为 Lock-On（P5）。
+**切片结论：** Wave 4 **位移能力（吸附 + SoftBody + Relocate Command）已齐，本 Wave 出口关闭**。LockOn / SkillShot 等相机能力改由 Camera 篇独立处理。
 
 ---
 
