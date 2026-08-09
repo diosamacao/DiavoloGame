@@ -23,7 +23,7 @@
 | 仅手动 `customRoot`（已删除 Kind/代码预设种树） | ✅ |
 | 调试 NamedNode / Gizmo / 变化日志 | ✅ |
 | Task（叶行动）目录 | ✅ E1：+BackOff / Strafe / PulseDodge·Heavy·Skill |
-| 条件 / 装饰 | ✅ E1：CooldownReady / DistanceGreater / CooldownGate（仍无 Abort） |
+| 条件 / 装饰 | ✅ Condition=单子装饰+Abort Self；CooldownGate 同步 Reset |
 | 冷却 | ✅ `EnemyCooldownTable`（basic_attack 由 Brain 确认写入） |
 | 寻路 | ⬜ `StraightPathQuery` 占位 |
 | Graph 布局 / Flatten / Validate | ✅ BT-E2 |

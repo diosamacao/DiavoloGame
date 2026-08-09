@@ -12,7 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a351cc937d87cc14aa5a75d3e0164cb7, type: 3}
   m_Name: EnemyBehaviorTree
   m_EditorClassIdentifier: 
-  kind: 2
   customRoot:
     rid: 1557465029543460966
   graphLayout:
@@ -53,9 +52,7 @@ MonoBehaviour:
         nodeName: Chase
         nodeGuid: 58fb595843fc4578902ebb4ee7ba80de
         children:
-        - rid: 1557465029543460969
         - rid: 1557465029543460970
-        - rid: 1557465029543460971
     - rid: 1557465029543460968
       type: {class: StopMoveActionDef, ns: , asm: Assembly-CSharp}
       data:
@@ -71,8 +68,12 @@ MonoBehaviour:
       data:
         nodeName: InCombatAggro
         nodeGuid: 69153c41635d4e389751766250c0e5bb
+        child:
+          rid: 1557465029543460971
     - rid: 1557465029543460971
       type: {class: HasTargetConditionDef, ns: , asm: Assembly-CSharp}
       data:
         nodeName: HasTarget
         nodeGuid: a2da0239e0434827b9312eac0bf6a110
+        child:
+          rid: 1557465029543460969

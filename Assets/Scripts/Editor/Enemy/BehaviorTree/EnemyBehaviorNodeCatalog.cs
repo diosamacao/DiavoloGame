@@ -35,6 +35,7 @@ public static class EnemyBehaviorNodeCatalog
         new Entry(Group.Decorator, "Inverter", typeof(InverterNodeDef)),
         new Entry(Group.Decorator, "Succeeder", typeof(SucceederNodeDef)),
         new Entry(Group.Decorator, "CooldownGate", typeof(CooldownGateNodeDef)),
+        // Condition：运行时单子装饰；Graph 上叠到选中宿主顶部徽章
         new Entry(Group.Condition, "HasTarget", typeof(HasTargetConditionDef)),
         new Entry(Group.Condition, "InCombatAggro", typeof(InCombatAggroConditionDef)),
         new Entry(Group.Condition, "InAttackRange", typeof(InAttackRangeConditionDef)),
@@ -72,9 +73,17 @@ public static class EnemyBehaviorNodeCatalog
     public static bool IsComposite(EnemyBehaviorNodeDef def) =>
         def is SelectorNodeDef || def is SequenceNodeDef;
 
-    /// <summary>装饰节点至多一个子。</summary>
-    public static bool IsDecorator(EnemyBehaviorNodeDef def) =>
+    /// <summary>条件装饰（UE 风格，单子 + Abort Self）。</summary>
+    public static bool IsCondition(EnemyBehaviorNodeDef def) =>
+        def is EnemyBehaviorConditionNodeDef;
+
+    /// <summary>结构装饰（Inverter / Succeeder / CooldownGate）。</summary>
+    public static bool IsStructuralDecorator(EnemyBehaviorNodeDef def) =>
         def is InverterNodeDef || def is SucceederNodeDef || def is CooldownGateNodeDef;
+
+    /// <summary>单子装饰拓扑（结构装饰或条件装饰）。</summary>
+    public static bool IsDecorator(EnemyBehaviorNodeDef def) =>
+        IsStructuralDecorator(def) || IsCondition(def);
 
     /// <summary>是否允许输出端口。</summary>
     public static bool HasOutput(EnemyBehaviorNodeDef def) =>

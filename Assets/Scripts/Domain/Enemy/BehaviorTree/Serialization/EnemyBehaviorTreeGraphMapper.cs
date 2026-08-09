@@ -311,6 +311,14 @@ public static class EnemyBehaviorTreeGraphMapper
             gate.child = kids.Count > 0 ? kids[0].node : null;
             if (gate.child != null)
                 WireChildren(gate.child, kids[0].guid, byParent);
+            return;
+        }
+
+        if (node is EnemyBehaviorConditionNodeDef condition)
+        {
+            condition.child = kids.Count > 0 ? kids[0].node : null;
+            if (condition.child != null)
+                WireChildren(condition.child, kids[0].guid, byParent);
         }
     }
 
@@ -363,7 +371,7 @@ public static class EnemyBehaviorTreeGraphMapper
         }
     }
 
-    /// <summary>读取单子装饰节点。</summary>
+    /// <summary>读取单子装饰节点（含 UE 风格条件装饰）。</summary>
     public static bool TryGetSingleChild(EnemyBehaviorNodeDef node, out EnemyBehaviorNodeDef child)
     {
         switch (node)
@@ -376,6 +384,9 @@ public static class EnemyBehaviorTreeGraphMapper
                 return true;
             case CooldownGateNodeDef gate:
                 child = gate.child;
+                return true;
+            case EnemyBehaviorConditionNodeDef condition:
+                child = condition.child;
                 return true;
             default:
                 child = null;

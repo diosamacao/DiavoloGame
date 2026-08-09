@@ -120,7 +120,7 @@ SimulationWorld.ProduceInput
 | B1 | `RandomSelector`（等权或权重列表）+ Def + 调色板 | EditMode：多次 Tick 分布合理 |
 | B2 | 条件：`HealthPercentLessEqual`（Brain 填 `HealthNormalized`）；可选 `DistanceBand` | 低血分支可配 |
 | B3 | Fill 模板 **CombatPool**（示意）：Aggro 下 RandomSelector →（近战 Pulse / BackOff / Strafe+Wait）+ CooldownGate | 真敌可挂模板验收 |
-| B4 | **Abort Self**（装饰条件失败 → Reset 子树并 Failure）；文档后再评估 LowerPriority | 追击 Running 时进攻击距能较快改支 |
+| B4 | **Abort Self**（装饰条件失败 → Reset 子树并 Failure）；文档后再评估 LowerPriority | ✅ 条件装饰已内建 Abort Self（2026-08-09） |
 | B5 | 预设/文档写清：Death/Hit **仍在 Brain 门闩外**（对齐 Reaper 外层门控，但不进树） | 与 Reaction 单源一致 |
 
 **示例拓扑（CombatPool，非必须一字不差）：**

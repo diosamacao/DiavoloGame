@@ -652,11 +652,12 @@ SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSourc
 | 配置 | `EnemyDefinition` 组合 CharacterConfig、BrainProfile、**BehaviorTree**、独立 teamId 与 HP |
 | 可替换契约 | `IEnemyBehaviorTreeAsset.CreateRunner` → `IEnemyBehaviorRunner`；Brain 不持有具体树类型 |
 | 行为树资产 | 仅 `customRoot`（SerializeReference）+ `graphLayout`；无 Kind/代码预设种树 |
+| 条件节点 | UE 风格**单子装饰**（`ConditionalDecoratorNode`）；失败 Abort Self（Reset 子树） |
 | Graph 数据 | `graphLayout` + `nodeGuid`；Mapper Flatten/Rebuild；Validator |
-| Graph 编辑器 | `EnemyBehaviorTreeEditorWindow`（GraphView）；手动 Create Node + Save；空格调色板 |
+| Graph 编辑器 | 宿主牌连线；Condition/Decorator **叠徽章**（`EnemyBehaviorGraphPresentation` Peel/Wrap）；Save 展开回装饰链 |
 | AI 输入 | Runner 写黑板 → Brain 帧末 `AIInputWriter.Pulse(Attack/Dodge/Heavy/Skill)` |
 | 冷却 | `EnemyCooldownTable`；`basic_attack` 由 Brain 起手确认写入；`CooldownGate` 可写其它 id |
-| 追击 / 风筝 | `MoveToward` / `BackOff` / `Strafe`；条件 `CooldownReady` / `DistanceGreater` |
+| 追击 / 风筝 | `MoveToward` / `BackOff` / `Strafe`；条件装饰套在 Task/Sequence 上 |
 | 木桩 | `enableCombatActions=false` 时不建 Runner；Hit 门闩仍消化 |
 | 伤害与反应 | 同前：`CharacterReactionService` → `NotifyHit` / `NotifyDeath` → Runner.Reset |
 | 生成 | `EnemySpawnController` → `SpawnEnemyCommand` → `EnemyController`；`EnemySpawnSystem` 限制存活数 |
@@ -693,6 +694,7 @@ CombatHitPipeline（全体 Actor Step 后）
 - **真敌**须挂已配置 `customRoot` 的 `EnemyBehaviorTree` SO；空根或未挂树在 Combat Actions 开启时会失败。
 - 追击直线趋近（`StraightPathQuery`）；寻路见演进计划 E4。
 - 旧 Kind 预设资产若 `customRoot` 为空，须在 Graph 编辑器中重新搭树并 Save（无 Fill/默认种树）。
+- 旧「Sequence 下挂叶子 Condition」树须改为 Condition→子树装饰链后 Save，否则 Validate 报 child 为空 / 行为不符。
 - Graph Undo 以 Save 的 `RegisterCompleteObjectUndo` 为主；画布即时删节点未做完整 Undo 栈。
 - 死亡回收当前使用 Destroy；对象池可后续替换。
 - EditMode 样例树仅存于 `EnemyBehaviorTreeDefFactory`（测试用），不进运行时资产默认路径。
@@ -822,6 +824,8 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-09 | BT-E2：`EnemyBehaviorGraphLayout` + `GraphMapper` Flatten/Rebuild + `Validator`；Custom `Wrap` 始终带 Debug 名 |
 | 2026-08-09 | BT-E3：`EnemyBehaviorTreeEditorWindow` GraphView MVP（调色板/连线/Inspector/Save/模板/Play 高亮） |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
+| 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
+| 2026-08-09 | BT Graph：装饰/条件改为宿主顶部徽章（UE 表现）；运行真源仍为装饰链 |
 
 ---
 

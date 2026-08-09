@@ -47,10 +47,11 @@ public static class EnemyBehaviorTreeStyle
             return NodeBody;
         if (EnemyBehaviorNodeCatalog.IsComposite(def))
             return Composite;
-        if (EnemyBehaviorNodeCatalog.IsDecorator(def))
-            return Decorator;
-        if (def.GetType().Name.IndexOf("Condition", System.StringComparison.Ordinal) >= 0)
+        // 条件装饰保持绿色，与结构装饰紫色区分
+        if (EnemyBehaviorNodeCatalog.IsCondition(def))
             return Condition;
+        if (EnemyBehaviorNodeCatalog.IsStructuralDecorator(def))
+            return Decorator;
         return Task;
     }
 
@@ -61,10 +62,10 @@ public static class EnemyBehaviorTreeStyle
             return "Node";
         if (EnemyBehaviorNodeCatalog.IsComposite(def))
             return "Composite";
-        if (EnemyBehaviorNodeCatalog.IsDecorator(def))
-            return "Decorator";
-        if (def.GetType().Name.IndexOf("Condition", System.StringComparison.Ordinal) >= 0)
+        if (EnemyBehaviorNodeCatalog.IsCondition(def))
             return "Conditional";
+        if (EnemyBehaviorNodeCatalog.IsStructuralDecorator(def))
+            return "Decorator";
         return "Action";
     }
 
@@ -75,10 +76,10 @@ public static class EnemyBehaviorTreeStyle
             return "bt-task";
         if (EnemyBehaviorNodeCatalog.IsComposite(def))
             return "bt-composite";
-        if (EnemyBehaviorNodeCatalog.IsDecorator(def))
-            return "bt-decorator";
-        if (def.GetType().Name.IndexOf("Condition", System.StringComparison.Ordinal) >= 0)
+        if (EnemyBehaviorNodeCatalog.IsCondition(def))
             return "bt-condition";
+        if (EnemyBehaviorNodeCatalog.IsStructuralDecorator(def))
+            return "bt-decorator";
         return "bt-task";
     }
 

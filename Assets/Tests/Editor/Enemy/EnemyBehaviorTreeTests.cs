@@ -234,8 +234,29 @@ public sealed class EnemyBehaviorTreeTests
 
         runner.Tick(bb);
 
-        Assert.That(bb.DebugPath, Does.Contain("Chase"));
         Assert.That(bb.DebugPath, Does.Contain("MeleeRoot"));
+        Assert.That(bb.DebugPath, Does.Contain("ChaseMove"));
+    }
+
+    [Test]
+    public void ConditionDecorator_AbortSelf_ResetsRunningChild()
+    {
+        var wait = new WaitFramesAction(4);
+        var gate = new HasTargetCondition(wait);
+        var bb = CreateBlackboard(hasTarget: true, distance: 3f, aggroed: true, cdReady: true);
+
+        Assert.That(gate.Tick(bb), Is.EqualTo(BehaviorStatus.Running));
+        Assert.That(gate.Tick(bb), Is.EqualTo(BehaviorStatus.Running));
+
+        bb.HasTarget = false;
+        Assert.That(gate.Tick(bb), Is.EqualTo(BehaviorStatus.Failure));
+
+        // Abort Self 后重新满足条件应从满冷却帧重计，而非接着跑
+        bb.HasTarget = true;
+        Assert.That(gate.Tick(bb), Is.EqualTo(BehaviorStatus.Running));
+        Assert.That(gate.Tick(bb), Is.EqualTo(BehaviorStatus.Running));
+        Assert.That(gate.Tick(bb), Is.EqualTo(BehaviorStatus.Running));
+        Assert.That(gate.Tick(bb), Is.EqualTo(BehaviorStatus.Success));
     }
 
     [Test]
@@ -354,8 +375,71 @@ public sealed class EnemyBehaviorTreeTests
             EnemyBehaviorNodeDef def = EnemyBehaviorNodeCatalog.Create(entry.DefType);
             Assert.That(def, Is.Not.Null, entry.DisplayName);
             Assert.That(def.NodeGuid, Is.Not.Null.And.Not.Empty, entry.DisplayName);
+            // 装饰缺 child 时 Build 仍用 StopMove 占位；Validate 才会报空 child
             Assert.That(def.Build(), Is.Not.Null, entry.DisplayName);
         }
+    }
+
+    [Test]
+    public void TopologyNormalizer_FoldsLeafConditionsOntoFollowingTask()
+    {
+        var hasTarget = new HasTargetConditionDef { NodeName = "HasTarget" };
+        var inAggro = new InCombatAggroConditionDef { NodeName = "InAggro" };
+        var move = new MoveTowardTargetActionDef { NodeName = "ChaseMove" };
+        var chase = new SequenceNodeDef
+        {
+            NodeName = "Chase",
+            children = new List<EnemyBehaviorNodeDef> { hasTarget, inAggro, move },
+        };
+
+        Assert.That(EnemyBehaviorTreeTopologyNormalizer.Normalize(chase), Is.True);
+        Assert.That(chase.children.Count, Is.EqualTo(1));
+        Assert.That(chase.children[0], Is.SameAs(hasTarget));
+        Assert.That(hasTarget.child, Is.SameAs(inAggro));
+        Assert.That(inAggro.child, Is.SameAs(move));
+        Assert.That(EnemyBehaviorTreeValidator.ValidateTree(chase).IsValid, Is.True);
+    }
+
+    [Test]
+    public void TopologyNormalizer_FoldsTrailingLeafConditionOntoPreviousTask()
+    {
+        var move = new MoveTowardTargetActionDef { NodeName = "ChaseMove" };
+        var a = new HasTargetConditionDef { NodeName = "HasTarget" };
+        var b = new InCombatAggroConditionDef { NodeName = "InAggro" };
+        // 与报错形态接近：宿主在前、空 child 条件在后
+        var chase = new SequenceNodeDef
+        {
+            NodeName = "Chase",
+            children = new List<EnemyBehaviorNodeDef> { move, a, b },
+        };
+
+        Assert.That(EnemyBehaviorTreeTopologyNormalizer.Normalize(chase), Is.True);
+        Assert.That(chase.children.Count, Is.EqualTo(1));
+        Assert.That(EnemyBehaviorTreeValidator.ValidateTree(chase).IsValid, Is.True);
+    }
+
+    [Test]
+    public void GraphPresentation_PeelAndWrap_RoundTrip()
+    {
+        var host = new SequenceNodeDef { NodeName = "Body" };
+        var outer = new HasTargetConditionDef { NodeName = "HasTarget" };
+        var inner = new InAttackRangeConditionDef { NodeName = "InRange" };
+        EnemyBehaviorNodeDef wrapped = EnemyBehaviorGraphPresentation.Wrap(
+            host,
+            new EnemyBehaviorNodeDef[] { outer, inner });
+
+        Assert.That(wrapped, Is.SameAs(outer));
+        Assert.That(outer.child, Is.SameAs(inner));
+        Assert.That(inner.child, Is.SameAs(host));
+
+        EnemyBehaviorGraphPresentation.Peel(
+            wrapped,
+            out List<EnemyBehaviorNodeDef> decs,
+            out EnemyBehaviorNodeDef peeledHost);
+        Assert.That(peeledHost, Is.SameAs(host));
+        Assert.That(decs.Count, Is.EqualTo(2));
+        Assert.That(decs[0], Is.SameAs(outer));
+        Assert.That(decs[1], Is.SameAs(inner));
     }
 
     [Test]
@@ -366,14 +450,10 @@ public sealed class EnemyBehaviorTreeTests
         bb.PlanarDirection = Vector3.forward;
         bb.PathDirection = Vector3.forward;
 
-        // 无 NodeName 的叶子也应出现短类型名
-        var root = new SequenceNodeDef
+        // 条件装饰套 Task：无 NodeName 时用类型短名
+        var root = new HasTargetConditionDef
         {
-            children = new List<EnemyBehaviorNodeDef>
-            {
-                new HasTargetConditionDef(),
-                new MoveTowardTargetActionDef(),
-            },
+            child = new MoveTowardTargetActionDef(),
         };
 
         new NativeBehaviorTreeRunner(root.Build()).Tick(bb);
