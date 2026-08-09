@@ -535,8 +535,8 @@ Assets/Data/Enemy/
 ### Phase BT-2 — 配置体验
 
 - [x] 运行时调试：`NamedNode` + 黑板 DebugPath；`EnemyController` 选中 Gizmo / 可选变化日志（2026-08-09）
-- [x] 预设资产 Inspector 说明 + 菜单 `ACT/Enemy/Create Default Behavior Tree Assets` / `Validate…`
-- [x] Inspector 多态编辑：`Kind=Custom` + `[SerializeReference] customRoot` + Fill From 预设（2026-08-09）
+- [x] 菜单 `ACT/Enemy/Validate Enemy Behavior Trees`（已删除 Create Default / Kind / Fill）
+- [x] Inspector + Graph：仅 `[SerializeReference] customRoot` 手动配置（2026-08-09）
 - [ ] GraphView 节点图画布 — 后置（实践轨）
 - [ ] `WaitAttackConfirm` 节点化（可选；冷却观测仍在 Brain）
 

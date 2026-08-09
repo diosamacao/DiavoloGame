@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
@@ -12,7 +13,7 @@ public sealed class EnemyBehaviorTreeTests
     public void MeleeTree_NoTarget_StopMove()
     {
         var bb = CreateBlackboard(hasTarget: false, distance: 0f, aggroed: false, cdReady: true);
-        var runner = new NativeBehaviorTreeRunner(EnemyBehaviorTreePresets.BuildMeleeChaseAttack());
+        var runner = CreateRunner(EnemyBehaviorTreeDefFactory.CreateMeleeChaseAttack());
 
         BehaviorStatus status = runner.Tick(bb);
 
@@ -27,7 +28,7 @@ public sealed class EnemyBehaviorTreeTests
         var bb = CreateBlackboard(hasTarget: true, distance: 5f, aggroed: true, cdReady: true);
         bb.PlanarDirection = Vector3.forward;
         bb.PathDirection = Vector3.forward;
-        var runner = new NativeBehaviorTreeRunner(EnemyBehaviorTreePresets.BuildMeleeChaseAttack());
+        var runner = CreateRunner(EnemyBehaviorTreeDefFactory.CreateMeleeChaseAttack());
 
         runner.Tick(bb);
 
@@ -40,7 +41,7 @@ public sealed class EnemyBehaviorTreeTests
     {
         var bb = CreateBlackboard(hasTarget: true, distance: 1.5f, aggroed: true, cdReady: true);
         bb.CharacterState = CharacterStateType.Locomotion;
-        var runner = new NativeBehaviorTreeRunner(EnemyBehaviorTreePresets.BuildMeleeChaseAttack());
+        var runner = CreateRunner(EnemyBehaviorTreeDefFactory.CreateMeleeChaseAttack());
 
         runner.Tick(bb);
 
@@ -54,7 +55,7 @@ public sealed class EnemyBehaviorTreeTests
         var bb = CreateBlackboard(hasTarget: true, distance: 1.5f, aggroed: true, cdReady: true);
         bb.CharacterState = CharacterStateType.Locomotion;
         bb.AttackConfirmPending = true;
-        var runner = new NativeBehaviorTreeRunner(EnemyBehaviorTreePresets.BuildMeleeChaseAttack());
+        var runner = CreateRunner(EnemyBehaviorTreeDefFactory.CreateMeleeChaseAttack());
 
         runner.Tick(bb);
 
@@ -66,7 +67,7 @@ public sealed class EnemyBehaviorTreeTests
     {
         var bb = CreateBlackboard(hasTarget: true, distance: 1.5f, aggroed: true, cdReady: true);
         bb.CharacterState = CharacterStateType.Locomotion;
-        var runner = new NativeBehaviorTreeRunner(EnemyBehaviorTreePresets.BuildChaseOnly());
+        var runner = CreateRunner(EnemyBehaviorTreeDefFactory.CreateChaseOnly());
 
         runner.Tick(bb);
 
@@ -78,7 +79,7 @@ public sealed class EnemyBehaviorTreeTests
     public void KiteTree_TooClose_BacksOff()
     {
         var bb = CreateBlackboard(hasTarget: true, distance: 2f, aggroed: true, cdReady: true);
-        var runner = new NativeBehaviorTreeRunner(EnemyBehaviorTreePresets.BuildKite());
+        var runner = CreateRunner(EnemyBehaviorTreeDefFactory.CreateKite());
 
         runner.Tick(bb);
 
@@ -92,7 +93,7 @@ public sealed class EnemyBehaviorTreeTests
         var bb = CreateBlackboard(hasTarget: true, distance: 5f, aggroed: true, cdReady: true);
         bb.PlanarDirection = Vector3.forward;
         bb.PathDirection = Vector3.forward;
-        var runner = new NativeBehaviorTreeRunner(EnemyBehaviorTreePresets.BuildKite());
+        var runner = CreateRunner(EnemyBehaviorTreeDefFactory.CreateKite());
 
         runner.Tick(bb);
 
@@ -155,28 +156,25 @@ public sealed class EnemyBehaviorTreeTests
     }
 
     [Test]
-    public void Asset_CreateRunner_ReturnsInterface_NotConcreteTreeField()
+    public void Asset_CreateRunner_EmptyRoot_Throws()
     {
         var asset = ScriptableObject.CreateInstance<EnemyBehaviorTreeAsset>();
         var profile = ScriptableObject.CreateInstance<EnemyBrainProfile>();
         var ctx = new EnemyBehaviorBuildContext(profile, new StraightPathQuery());
 
-        IEnemyBehaviorRunner runner = ((IEnemyBehaviorTreeAsset)asset).CreateRunner(in ctx);
-
-        Assert.That(runner, Is.Not.Null);
-        Assert.That(runner, Is.InstanceOf<IEnemyBehaviorRunner>());
+        Assert.Throws<InvalidOperationException>(() =>
+            ((IEnemyBehaviorTreeAsset)asset).CreateRunner(in ctx));
 
         Object.DestroyImmediate(asset);
         Object.DestroyImmediate(profile);
     }
 
     [Test]
-    public void CustomDef_MeleeFactory_PulsesAttackLikePreset()
+    public void CustomDef_MeleeFactory_PulsesAttack()
     {
         var bb = CreateBlackboard(hasTarget: true, distance: 1.5f, aggroed: true, cdReady: true);
         bb.CharacterState = CharacterStateType.Locomotion;
-        IBehaviorNode root = EnemyBehaviorTreeDefFactory.CreateMeleeChaseAttack().Build();
-        var runner = new NativeBehaviorTreeRunner(root);
+        var runner = CreateRunner(EnemyBehaviorTreeDefFactory.CreateMeleeChaseAttack());
 
         runner.Tick(bb);
 
@@ -188,8 +186,7 @@ public sealed class EnemyBehaviorTreeTests
     {
         var bb = CreateBlackboard(hasTarget: true, distance: 1.5f, aggroed: true, cdReady: true);
         bb.CharacterState = CharacterStateType.Locomotion;
-        IBehaviorNode root = EnemyBehaviorTreeDefFactory.CreateChaseOnly().Build();
-        var runner = new NativeBehaviorTreeRunner(root);
+        var runner = CreateRunner(EnemyBehaviorTreeDefFactory.CreateChaseOnly());
 
         runner.Tick(bb);
 
@@ -200,8 +197,7 @@ public sealed class EnemyBehaviorTreeTests
     public void CustomDef_KiteFactory_BacksOffWhenClose()
     {
         var bb = CreateBlackboard(hasTarget: true, distance: 2f, aggroed: true, cdReady: true);
-        IBehaviorNode root = EnemyBehaviorTreeDefFactory.CreateKite().Build();
-        var runner = new NativeBehaviorTreeRunner(root);
+        var runner = CreateRunner(EnemyBehaviorTreeDefFactory.CreateKite());
 
         runner.Tick(bb);
 
@@ -209,10 +205,9 @@ public sealed class EnemyBehaviorTreeTests
     }
 
     [Test]
-    public void Asset_CustomKind_UsesSerializedRoot()
+    public void Asset_SerializedRoot_UsedByCreateRunner()
     {
         var asset = ScriptableObject.CreateInstance<EnemyBehaviorTreeAsset>();
-        asset.SetKindForEditor(EnemyBehaviorTreeKind.Custom);
         asset.SetCustomRootForEditor(EnemyBehaviorTreeDefFactory.CreateChaseOnly());
         var profile = ScriptableObject.CreateInstance<EnemyBrainProfile>();
         var ctx = new EnemyBehaviorBuildContext(profile, new StraightPathQuery());
@@ -235,7 +230,7 @@ public sealed class EnemyBehaviorTreeTests
         bb.DebugEnabled = true;
         bb.PlanarDirection = Vector3.forward;
         bb.PathDirection = Vector3.forward;
-        var runner = new NativeBehaviorTreeRunner(EnemyBehaviorTreePresets.BuildMeleeChaseAttack());
+        var runner = CreateRunner(EnemyBehaviorTreeDefFactory.CreateMeleeChaseAttack());
 
         runner.Tick(bb);
 
@@ -319,10 +314,9 @@ public sealed class EnemyBehaviorTreeTests
     }
 
     [Test]
-    public void Validator_CustomEmptyRoot_Fails()
+    public void Validator_EmptyRoot_Fails()
     {
         var asset = ScriptableObject.CreateInstance<EnemyBehaviorTreeAsset>();
-        asset.SetKindForEditor(EnemyBehaviorTreeKind.Custom);
 
         EnemyBehaviorTreeValidationResult result = asset.ValidateAsset();
         Assert.That(result.IsValid, Is.False);
@@ -375,7 +369,7 @@ public sealed class EnemyBehaviorTreeTests
         // 无 NodeName 的叶子也应出现短类型名
         var root = new SequenceNodeDef
         {
-            children = new System.Collections.Generic.List<EnemyBehaviorNodeDef>
+            children = new List<EnemyBehaviorNodeDef>
             {
                 new HasTargetConditionDef(),
                 new MoveTowardTargetActionDef(),
@@ -386,6 +380,10 @@ public sealed class EnemyBehaviorTreeTests
         Assert.That(bb.DebugPath, Does.Contain("HasTarget"));
         Assert.That(bb.DebugPath, Does.Contain("MoveTowardTarget"));
     }
+
+    /// <summary>由 Def 工厂构造测试 Runner（非资产默认 Kind）。</summary>
+    static NativeBehaviorTreeRunner CreateRunner(EnemyBehaviorNodeDef root) =>
+        new NativeBehaviorTreeRunner(root.Build());
 
     /// <summary>构造带 Profile 与冷却表的测试黑板。</summary>
     static EnemyBlackboard CreateBlackboard(bool hasTarget, float distance, bool aggroed, bool cdReady)

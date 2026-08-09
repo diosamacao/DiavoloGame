@@ -47,23 +47,21 @@ public sealed class EnemyBehaviorGraphView : GraphView
     public EnemyBehaviorGraphNodeView SelectedNode =>
         selection.OfType<EnemyBehaviorGraphNodeView>().FirstOrDefault();
 
-    /// <summary>从资产加载图；预设 Kind 仅展开到会话，Save 时才写为 Custom。</summary>
+    /// <summary>从资产 customRoot 加载图；空根则空白画布待手动创建。</summary>
     public void LoadFromAsset()
     {
         _isLoading = true;
         DeleteElements(graphElements.ToList());
         _nodes.Clear();
 
-        EnemyBehaviorNodeDef root = ResolveRootForEdit();
+        EnemyBehaviorNodeDef root = _asset != null ? _asset.CustomRoot : null;
         if (root == null)
         {
             _isLoading = false;
             return;
         }
 
-        bool useStoredLayout = _asset.Kind == EnemyBehaviorTreeKind.Custom && _asset.CustomRoot != null;
-        if (useStoredLayout)
-            _asset.PrepareForGraphEditor();
+        _asset.PrepareForGraphEditor();
 
         List<EnemyBehaviorTreeGraphMapper.FlatRecord> flat = EnemyBehaviorTreeGraphMapper.Flatten(root);
         EnemyBehaviorGraphLayout layout = _asset.GraphLayout;
@@ -79,8 +77,7 @@ public sealed class EnemyBehaviorGraphView : GraphView
             Vector2 pos = autoPos.TryGetValue(record.guid, out Vector2 computed)
                 ? computed
                 : new Vector2(80f, 40f + i * 120f);
-            if (useStoredLayout
-                && layout != null
+            if (layout != null
                 && layout.TryGetNode(record.guid, out EnemyBehaviorGraphNodeLayout nodeLayout))
             {
                 pos = nodeLayout.position;
@@ -109,24 +106,7 @@ public sealed class EnemyBehaviorGraphView : GraphView
         _onSelectionChanged?.Invoke();
     }
 
-    /// <summary>解析编辑用根：Custom 用资产根，否则工厂展开（不写资产）。</summary>
-    public EnemyBehaviorNodeDef ResolveRootForEdit()
-    {
-        if (_asset == null)
-            return null;
-
-        if (_asset.Kind == EnemyBehaviorTreeKind.Custom)
-            return _asset.CustomRoot;
-
-        return _asset.Kind switch
-        {
-            EnemyBehaviorTreeKind.ChaseOnly => EnemyBehaviorTreeDefFactory.CreateChaseOnly(),
-            EnemyBehaviorTreeKind.Kite => EnemyBehaviorTreeDefFactory.CreateKite(),
-            _ => EnemyBehaviorTreeDefFactory.CreateMeleeChaseAttack(),
-        };
-    }
-
-    /// <summary>把画布写回资产（Kind=Custom + layout）。</summary>
+    /// <summary>把画布写回资产（customRoot + layout）。</summary>
     public bool PersistToAsset()
     {
         if (_asset == null)
@@ -157,7 +137,6 @@ public sealed class EnemyBehaviorGraphView : GraphView
         }
 
         Undo.RegisterCompleteObjectUndo(_asset, "Save Behavior Tree Graph");
-        _asset.SetKindForEditor(EnemyBehaviorTreeKind.Custom);
         _asset.SetCustomRootForEditor(root);
 
         EnemyBehaviorGraphLayout layout = _asset.GraphLayout;
@@ -182,22 +161,6 @@ public sealed class EnemyBehaviorGraphView : GraphView
         ClearSelection();
         AddToSelection(view);
         _onSelectionChanged?.Invoke();
-    }
-
-    /// <summary>用模板替换画布并写回资产根（需再 Save 落盘）。</summary>
-    public void ApplyTemplate(EnemyBehaviorNodeDef root)
-    {
-        if (root == null || _asset == null)
-            return;
-
-        Undo.RegisterCompleteObjectUndo(_asset, "Fill Behavior Tree Template");
-        _asset.SetKindForEditor(EnemyBehaviorTreeKind.Custom);
-        _asset.SetCustomRootForEditor(root);
-        // 模板强制自上而下排版，清掉旧横向坐标
-        _asset.GraphLayout.Nodes.Clear();
-        EnemyBehaviorTreeGraphMapper.SyncLayout(_asset.GraphLayout, root);
-        EditorUtility.SetDirty(_asset);
-        LoadFromAsset();
     }
 
     /// <summary>按当前连线关系重新自上而下排版（不写盘，需 Save）。</summary>

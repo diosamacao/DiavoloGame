@@ -1,7 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 
-/// <summary>行为树资产 Inspector：Fill 预设、校验、Graph 布局只读预览。</summary>
+/// <summary>行为树资产 Inspector：根节点、校验、打开 Graph 编辑器（无 Kind/预设）。</summary>
 [CustomEditor(typeof(EnemyBehaviorTreeAsset))]
 public sealed class EnemyBehaviorTreeAssetEditor : Editor
 {
@@ -9,35 +9,14 @@ public sealed class EnemyBehaviorTreeAssetEditor : Editor
     {
         serializedObject.Update();
 
-        EditorGUILayout.PropertyField(serializedObject.FindProperty("kind"));
-        var kind = (EnemyBehaviorTreeKind)serializedObject.FindProperty("kind").enumValueIndex;
-
-        if (kind == EnemyBehaviorTreeKind.Custom)
-        {
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("customRoot"), true);
-            EditorGUILayout.Space();
-            EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Fill ← Melee"))
-                FillCustom(EnemyBehaviorTreeDefFactory.CreateMeleeChaseAttack());
-            if (GUILayout.Button("Fill ← ChaseOnly"))
-                FillCustom(EnemyBehaviorTreeDefFactory.CreateChaseOnly());
-            if (GUILayout.Button("Fill ← Kite"))
-                FillCustom(EnemyBehaviorTreeDefFactory.CreateKite());
-            EditorGUILayout.EndHorizontal();
-
-            EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Ensure Ids + Sync Layout"))
-                PrepareGraph();
-            if (GUILayout.Button("Validate"))
-                ValidateSelected();
-            EditorGUILayout.EndHorizontal();
-        }
-        else
-        {
-            EditorGUILayout.HelpBox(
-                "当前使用代码预设种树（Melee / ChaseOnly / Kite）。切换 Kind=Custom 后可编辑节点。",
-                MessageType.Info);
-        }
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("customRoot"), true);
+        EditorGUILayout.Space();
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("Ensure Ids + Sync Layout"))
+            PrepareGraph();
+        if (GUILayout.Button("Validate"))
+            ValidateSelected();
+        EditorGUILayout.EndHorizontal();
 
         EditorGUILayout.Space();
         EditorGUILayout.PropertyField(serializedObject.FindProperty("graphLayout"), true);
@@ -49,19 +28,9 @@ public sealed class EnemyBehaviorTreeAssetEditor : Editor
             EnemyBehaviorTreeEditorWindow.Open((EnemyBehaviorTreeAsset)target);
 
         EditorGUILayout.HelpBox(
-            "运行真源 = customRoot。graphLayout 仅坐标。\n" +
+            "运行真源 = customRoot（须手动配置）。graphLayout 仅坐标。\n" +
             "菜单：ACT/Enemy/Behavior Tree Editor（空格创建节点）。",
             MessageType.None);
-    }
-
-    void FillCustom(EnemyBehaviorNodeDef root)
-    {
-        var asset = (EnemyBehaviorTreeAsset)target;
-        Undo.RecordObject(asset, "Fill Behavior Tree Custom Root");
-        asset.SetKindForEditor(EnemyBehaviorTreeKind.Custom);
-        asset.SetCustomRootForEditor(root);
-        EditorUtility.SetDirty(asset);
-        serializedObject.Update();
     }
 
     void PrepareGraph()

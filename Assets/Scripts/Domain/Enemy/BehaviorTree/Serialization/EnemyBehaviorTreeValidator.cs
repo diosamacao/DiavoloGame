@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-/// <summary>行为树资产 / Custom 根校验结果。</summary>
+/// <summary>行为树资产 / 根校验结果。</summary>
 public sealed class EnemyBehaviorTreeValidationResult
 {
     readonly List<string> _errors = new List<string>();
@@ -30,10 +30,10 @@ public sealed class EnemyBehaviorTreeValidationResult
     }
 }
 
-/// <summary>校验 Custom 树：空根、空 child、环、重复 guid、未知/空节点。</summary>
+/// <summary>校验行为树：空根、空 child、环、重复 guid。</summary>
 public static class EnemyBehaviorTreeValidator
 {
-    /// <summary>校验整份行为树资产。</summary>
+    /// <summary>校验整份行为树资产（必须已配置 customRoot）。</summary>
     public static EnemyBehaviorTreeValidationResult Validate(EnemyBehaviorTreeAsset asset)
     {
         var result = new EnemyBehaviorTreeValidationResult();
@@ -43,23 +43,14 @@ public static class EnemyBehaviorTreeValidator
             return result;
         }
 
-        if (asset.Kind != EnemyBehaviorTreeKind.Custom)
-        {
-            // 预设种树无 SerializeReference 根，仅提示
-            if (asset.CustomRoot != null)
-                result.AddWarning("Kind 非 Custom，customRoot 将被忽略。");
-            return result;
-        }
-
         if (asset.CustomRoot == null)
         {
-            result.AddError("Kind=Custom 但 customRoot 为空。");
+            result.AddError("customRoot 为空：请在 Behavior Tree Editor 中手动配置节点并 Save。");
             return result;
         }
 
         ValidateTree(asset.CustomRoot, result);
 
-        // 布局孤儿仅警告
         if (asset.GraphLayout != null)
         {
             HashSet<string> live = EnemyBehaviorTreeGraphMapper.CollectGuids(asset.CustomRoot);
@@ -114,7 +105,6 @@ public static class EnemyBehaviorTreeValidator
             return;
         }
 
-        // 引用环（同一实例再次进入路径）
         if (!pathStack.Add(node))
         {
             result.AddError($"检测到环（同一节点实例重复引用）：{path} / {Describe(node)}");

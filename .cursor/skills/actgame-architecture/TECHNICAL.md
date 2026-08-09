@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-09（BT-E3 Behavior Tree GraphView）
+> Last updated: 2026-08-09（BT：删除 Kind/预设，仅手动 customRoot）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -651,9 +651,9 @@ SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSourc
 |----|------|
 | 配置 | `EnemyDefinition` 组合 CharacterConfig、BrainProfile、**BehaviorTree**、独立 teamId 与 HP |
 | 可替换契约 | `IEnemyBehaviorTreeAsset.CreateRunner` → `IEnemyBehaviorRunner`；Brain 不持有具体树类型 |
-| 预设树 | `MeleeChaseAttack` / `ChaseOnly` / `Kite`；Custom SerializeReference |
+| 行为树资产 | 仅 `customRoot`（SerializeReference）+ `graphLayout`；无 Kind/代码预设种树 |
 | Graph 数据 | `graphLayout` + `nodeGuid`；Mapper Flatten/Rebuild；Validator |
-| Graph 编辑器 | `EnemyBehaviorTreeEditorWindow`（GraphView）；Save→Custom；空格调色板 |
+| Graph 编辑器 | `EnemyBehaviorTreeEditorWindow`（GraphView）；手动 Create Node + Save；空格调色板 |
 | AI 输入 | Runner 写黑板 → Brain 帧末 `AIInputWriter.Pulse(Attack/Dodge/Heavy/Skill)` |
 | 冷却 | `EnemyCooldownTable`；`basic_attack` 由 Brain 起手确认写入；`CooldownGate` 可写其它 id |
 | 追击 / 风筝 | `MoveToward` / `BackOff` / `Strafe`；条件 `CooldownReady` / `DistanceGreater` |
@@ -690,11 +690,12 @@ CombatHitPipeline（全体 Actor Step 后）
 
 ### 已知限制
 
-- **真敌**须挂 `EnemyBehaviorTree` SO；开启 Combat Actions 时缺树会工厂失败。
+- **真敌**须挂已配置 `customRoot` 的 `EnemyBehaviorTree` SO；空根或未挂树在 Combat Actions 开启时会失败。
 - 追击直线趋近（`StraightPathQuery`）；寻路见演进计划 E4。
-- 若旧 Custom 树仍引用已删冷却条件类型，请 Fill Melee 重建。
-- Graph Undo 以 Save/Fill 的 `RegisterCompleteObjectUndo` 为主；画布即时删节点未做完整 Undo 栈。
+- 旧 Kind 预设资产若 `customRoot` 为空，须在 Graph 编辑器中重新搭树并 Save（无 Fill/默认种树）。
+- Graph Undo 以 Save 的 `RegisterCompleteObjectUndo` 为主；画布即时删节点未做完整 Undo 栈。
 - 死亡回收当前使用 Destroy；对象池可后续替换。
+- EditMode 样例树仅存于 `EnemyBehaviorTreeDefFactory`（测试用），不进运行时资产默认路径。
 
 ### 相关文件
 
@@ -820,6 +821,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-09 | BT-E1：`AIInputWriter` 多按钮脉冲；`CooldownTable`/`CooldownGate`；BackOff/Strafe/PulseDodge；Kite 预设；删单字段攻击 CD 与 `BasicAttackCooldownReady*` |
 | 2026-08-09 | BT-E2：`EnemyBehaviorGraphLayout` + `GraphMapper` Flatten/Rebuild + `Validator`；Custom `Wrap` 始终带 Debug 名 |
 | 2026-08-09 | BT-E3：`EnemyBehaviorTreeEditorWindow` GraphView MVP（调色板/连线/Inspector/Save/模板/Play 高亮） |
+| 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 
 ---
 

@@ -53,7 +53,7 @@
 | Numeric / GAS-lite | ✅ | G0～G5；`NumericSystem` 唯一权威 |
 | 资源循环 Special·EX·闪避·Ult | 🟡 | 代码闭环；Graph/Spec 资产持续填表 |
 | 完美闪避反击 | ✅ | 窗轨 + Counter Entry（2026-08-08） |
-| 敌人 AI | ✅ | BT-1 Play 验收；Runner 契约 + 预设/Custom 树 |
+| 敌人 AI | ✅ | BT Graph 手动配置；Runner 契约 + `customRoot` 真源 |
 | 相机 | 🟡 | 跟随 + 滤左右；Lock-On / SkillShot 未做 |
 | 正式 UI / 血条 | ⬜ | 仅 Debug HUD；目标 MVVM |
 | 吸附 / 绕背 | ✅ | Wave 4 位移出口（2026-08-09） |

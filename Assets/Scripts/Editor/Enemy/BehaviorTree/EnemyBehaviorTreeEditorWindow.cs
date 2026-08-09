@@ -94,18 +94,6 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
             text = "Auto Layout",
             tooltip = "根在上、子在下、同级从左到右（BD/UE 树形）",
         });
-        toolbar.Add(new Button(() => Fill(EnemyBehaviorTreeDefFactory.CreateMeleeChaseAttack()))
-        {
-            text = "Fill Melee",
-        });
-        toolbar.Add(new Button(() => Fill(EnemyBehaviorTreeDefFactory.CreateChaseOnly()))
-        {
-            text = "Fill ChaseOnly",
-        });
-        toolbar.Add(new Button(() => Fill(EnemyBehaviorTreeDefFactory.CreateKite()))
-        {
-            text = "Fill Kite",
-        });
 
         _statusLabel = new Label($"  {_asset.name}");
         _statusLabel.AddToClassList("bt-status");
@@ -143,9 +131,7 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
 
         rootVisualElement.Add(body);
         _graphView.LoadFromAsset();
-        SetStatus(_asset.Kind == EnemyBehaviorTreeKind.Custom
-            ? "已加载 Custom"
-            : $"已展开预设 {_asset.Kind}（Save 后写为 Custom）");
+        SetStatus(_asset.CustomRoot != null ? "已加载" : "空树：请 Create Node 后 Save");
     }
 
     /// <summary>左侧分类图例 + 操作提示（BD Task 面板简化版）。</summary>
@@ -233,14 +219,6 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
 
         for (int i = 0; i < result.Warnings.Count; i++)
             Debug.LogWarning(result.Warnings[i], _asset);
-    }
-
-    void Fill(EnemyBehaviorNodeDef root)
-    {
-        if (_graphView == null)
-            return;
-        _graphView.ApplyTemplate(root);
-        SetStatus("已填充模板（记得 Save）");
     }
 
     void RefreshInspector() => _inspector?.MarkDirtyLayout();
