@@ -16,8 +16,9 @@ MonoBehaviour:
   aggroRadius: 10
   loseAggroRadius: 14
   attackRange: 5
-  attackCooldownFrames: 72
+  attackCooldownFrames: 360
   chaseMoveMagnitude: 1
+  strafeMoveMagnitude: 0.35
   stopDistance: 0
   repathIntervalFrames: 6
   faceTargetWhileChase: 1

@@ -18,8 +18,11 @@ MonoBehaviour:
   pivotAngleDegrees: 135
   pivotInputUnlockSeconds: 0.08
   pivotRotationSmoothTime: 0.5
-  sprintAfterRunSeconds: 3
   gaitInputGapGraceSeconds: 0.15
+  gaitPolicy:
+    maxGait: 1
+    allowPivot: 1
+    sprintAfterRunSeconds: 3
   startToGaitNormalized: 1
   interruptFadeDuration: 0.08
   walkFootPlants: []

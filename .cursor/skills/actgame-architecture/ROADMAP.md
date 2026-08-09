@@ -144,6 +144,7 @@
 | UI/（MVVM） | P2 | HUD、血条；View/ViewModel 分层，不直写 Domain 权威 |
 | 事件总线 | P2 | 轻量 C# event；定稿前不引入第三方 |
 | 行为树编辑器 | P2 | ✅ MVP；下一步见 `ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN` |
+| 敌人对峙循环 + GaitPolicy | P2 | 对峙↔追击↔攻击 + 左右走；见 `docs/2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md`（GP1～GP3 必达） |
 | A\* 寻路 | P2 | 学习实现；路径 → AI 移动意图；锁步确定性边界待定 |
 | 性能优化实践 | P2 | 木桩/多敌人基线 + Profiler 对照；见 `docs/PROJECT_CHECKLIST.md` §6.4 |
 | 剧情编辑器 | P3 | 对话/镜头节点或时间轴；与 Gameplay 用事件解耦 |

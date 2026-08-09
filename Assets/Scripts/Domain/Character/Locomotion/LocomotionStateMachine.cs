@@ -67,7 +67,10 @@ public sealed class LocomotionStateMachine
         if (canResume && resumeRequest.SkipStart)
         {
             // Dodge 恢复：直接进目标步态，不走 Idle→Start→Run 计时。
-            Context.PendingGait = resumeRequest.InitialGait;
+            LocomotionGaitPolicy policy = Context.Profile != null
+                ? Context.Profile.GaitPolicy
+                : new LocomotionGaitPolicy();
+            Context.PendingGait = policy.ClampGait(resumeRequest.InitialGait);
             Context.PendingGaitHardCutPlay = true;
             _machine.Initialize(Context, LocomotionPhase.Gait);
             return;

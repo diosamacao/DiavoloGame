@@ -21,10 +21,12 @@ public class CharacterLocomotionProfile : ScriptableObject
     [SerializeField, Min(0f)] float pivotInputUnlockSeconds = 0.08f;
     [Tooltip("TurnBack 解锁后跟随实时输入方向的 SmoothDamp 时间。")]
     [SerializeField] float pivotRotationSmoothTime = 0.5f;
-    [Tooltip("在 Run 步态下连续保持跑输入达到该秒数后进入 Sprint。")]
-    [SerializeField] float sprintAfterRunSeconds = 3f;
     [Tooltip("Gait 下松手后仍保持当前步态的宽限秒数；用于键盘换向空窗，避免立刻 Stop 导致无法 Pivot。")]
     [SerializeField] float gaitInputGapGraceSeconds = 0.15f;
+
+    [Header("Gait Policy")]
+    [Tooltip("步态升档 / Pivot / Sprint 计时；敌我挂不同配置，勿在代码里按身份分支。")]
+    [SerializeField] LocomotionGaitPolicy gaitPolicy = new LocomotionGaitPolicy();
     [SerializeField, Range(0f, 1f)] float startToGaitNormalized = 1f;
     [SerializeField] float interruptFadeDuration = 0.08f;
 
@@ -61,7 +63,13 @@ public class CharacterLocomotionProfile : ScriptableObject
     /// <summary>TurnBack 起手锁根秒数；到时后实时玩家输入接管朝向。</summary>
     public float PivotInputUnlockSeconds => Mathf.Max(0f, pivotInputUnlockSeconds);
     public float PivotRotationSmoothTime => pivotRotationSmoothTime;
-    public float SprintAfterRunSeconds => sprintAfterRunSeconds;
+
+    /// <summary>步态策略（MaxGait / Pivot / Sprint 秒）；空则回退默认玩家策略。</summary>
+    public LocomotionGaitPolicy GaitPolicy => gaitPolicy ??= new LocomotionGaitPolicy();
+
+    /// <summary>Run→Sprint 秒数（真源在 GaitPolicy）。</summary>
+    public float SprintAfterRunSeconds => GaitPolicy.SprintAfterRunSeconds;
+
     public float GaitInputGapGraceSeconds => gaitInputGapGraceSeconds;
     public float StartToGaitNormalized => startToGaitNormalized;
     public float InterruptFadeDuration => interruptFadeDuration;
@@ -165,8 +173,13 @@ public class CharacterLocomotionProfile : ScriptableObject
             return false;
         }
 
+        gaitPolicy ??= new LocomotionGaitPolicy();
         return animationProfile.ValidateClips(context != null ? context : this);
     }
+
+#if UNITY_EDITOR
+    void OnValidate() => gaitPolicy ??= new LocomotionGaitPolicy();
+#endif
 }
 
 /// <summary>单条落脚标记：相对循环 Clip 一周期的归一化时间。</summary>

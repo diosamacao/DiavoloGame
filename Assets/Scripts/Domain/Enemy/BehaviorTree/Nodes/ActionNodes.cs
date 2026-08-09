@@ -95,9 +95,9 @@ public sealed class StrafeAroundTargetAction : IBehaviorNode
             return BehaviorStatus.Failure;
 
         blackboard.FaceTargetRequested = true;
-        blackboard.MoveDesire = new Vector2(
-            _sideSign * blackboard.Profile.ChaseMoveMagnitude,
-            0f);
+        // 对峙用独立幅度，便于压在 Walk 档并驱动 WalkLeft/Right
+        float magnitude = blackboard.Profile.StrafeMoveMagnitude;
+        blackboard.MoveDesire = new Vector2(_sideSign * magnitude, 0f);
         return BehaviorStatus.Success;
     }
 

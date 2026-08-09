@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// 稳态走跑冲刺：循环 Clip + FootCycle；宽限后松手 Stop/Idle；
-/// Sprint 大角度进 Pivot；内部处理 Walk/Run/Sprint 升档。
+/// Pivot / 升档由 Profile.GaitPolicy 求值；播片经 AnimResolver。
 /// </summary>
 public sealed class GaitLocomotionState : LocomotionPhaseState
 {
@@ -12,7 +12,10 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
     public override void Enter()
     {
         Context.RootMotionPlayer.End();
-        LocomotionGait gait = Context.PendingGait;
+        LocomotionGaitPolicy policy = Context.Profile != null
+            ? Context.Profile.GaitPolicy
+            : new LocomotionGaitPolicy();
+        LocomotionGait gait = policy.ClampGait(Context.PendingGait);
         if (gait != LocomotionGait.Sprint)
             Context.RunHoldSeconds = 0f;
 
@@ -22,7 +25,7 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
         if (Context.PendingGaitHardCutPlay)
         {
             Context.Animation.ResetPlaybackState();
-            Context.Animation.Play(Context.ResolveGaitAnimationKey(Context.Gait), 0f);
+            Context.Animation.Play(Context.ResolveLocomotionAnimationKey(), 0f);
             Context.PendingGaitHardCutPlay = false;
         }
 
@@ -73,7 +76,7 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
     {
         Context.FootCycle.Unfreeze();
         Context.FootCycle.Tick(Context.Animation.NormalizedTime);
-        Context.Animation.Play(Context.ResolveGaitAnimationKey(Context.Gait));
+        Context.Animation.Play(Context.ResolveLocomotionAnimationKey());
         Context.Motor.ApplyLocomotion(
             new LocomotionMotorCommand(
                 true,
@@ -84,10 +87,13 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
         Context.FootstepPlayer.PlayIfPlanted(Context.FootCycle.PlantedThisFrame);
     }
 
-    /// <summary>仅 Sprint 且与输入夹角超过阈值时允许折返。</summary>
+    /// <summary>Policy 允许且与输入夹角超过阈值时进折返。</summary>
     bool CanEnterPivot(in LocomotionInputSnapshot snapshot)
     {
-        if (Context.Gait != LocomotionGait.Sprint)
+        LocomotionGaitPolicy policy = Context.Profile != null
+            ? Context.Profile.GaitPolicy
+            : new LocomotionGaitPolicy();
+        if (!policy.AllowsPivot(Context.Gait))
             return false;
         if (snapshot.WorldMoveDirection.sqrMagnitude < 0.001f)
             return false;
@@ -105,34 +111,22 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
         return yawError > pivotAngle;
     }
 
-    /// <summary>跑输入持续累计；满时长 Run→Sprint；降到走输入则回 Walk。</summary>
+    /// <summary>委托 GaitPolicy.Evaluate 升档。</summary>
     void UpdateGaitWhileMoving(float magnitude, float deltaTime)
     {
-        bool wantRunTier = magnitude > Context.Motor.RunThreshold;
-        if (!wantRunTier)
-        {
-            Context.RunHoldSeconds = 0f;
-            if (Context.Gait != LocomotionGait.Walk)
-                Context.SetGait(LocomotionGait.Walk);
-            return;
-        }
+        LocomotionGaitPolicy policy = Context.Profile != null
+            ? Context.Profile.GaitPolicy
+            : new LocomotionGaitPolicy();
 
-        if (Context.Gait == LocomotionGait.Walk)
-        {
-            Context.RunHoldSeconds = 0f;
-            Context.SetGait(LocomotionGait.Run);
-            return;
-        }
+        GaitPolicyResult result = policy.Evaluate(new GaitPolicyInput(
+            Context.Gait,
+            magnitude,
+            Context.Motor.RunThreshold,
+            deltaTime,
+            Context.RunHoldSeconds));
 
-        if (Context.Gait == LocomotionGait.Run)
-        {
-            Context.RunHoldSeconds += deltaTime;
-            float need = Context.Profile != null ? Context.Profile.SprintAfterRunSeconds : 3f;
-            if (Context.RunHoldSeconds >= need)
-            {
-                Context.RunHoldSeconds = 0f;
-                Context.SetGait(LocomotionGait.Sprint);
-            }
-        }
+        Context.RunHoldSeconds = result.RunHoldSeconds;
+        if (result.NextGait != Context.Gait)
+            Context.SetGait(result.NextGait);
     }
 }

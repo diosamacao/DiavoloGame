@@ -18,6 +18,8 @@ description: Maintains ACTGame Unity project architecture docs, technical featur
 
 **分工**：ARCHITECTURE = 结构；TECHNICAL = 功能与方案；二者重叠时 ARCHITECTURE 保持精简，细节放 TECHNICAL。
 
+**新建技术/优化方案文档**（`docs/**/*_PLAN.md`、分阶段任务/验收）：改用项目 skill [actgame-design-plan](../actgame-design-plan/SKILL.md)，范本为 `LOCOMOTION_GAIT_POLICY_PLAN` / `GAS_STYLE_COMBAT_REFACTOR_PLAN`。本 skill 负责落地后的 ARCHITECTURE/TECHNICAL/ROADMAP 同步，不替代方案起草格式。
+
 ## 工作模式
 
 根据用户意图选择一种模式；未说明时默认 **Audit + Update**。

@@ -1,0 +1,173 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a351cc937d87cc14aa5a75d3e0164cb7, type: 3}
+  m_Name: BT_Monster
+  m_EditorClassIdentifier: 
+  customRoot:
+    rid: 1557465029543461079
+  graphLayout:
+    nodes:
+    - nodeGuid: 977a46624608422b85e3d6082553ff8b
+      position: {x: 228.66666, y: 152}
+      collapsed: 0
+    - nodeGuid: 89c75622075d4d6c884ac93ef9ecf649
+      position: {x: -260, y: 341.33334}
+      collapsed: 0
+    - nodeGuid: a88e4754fe1c4b87835cc3e2103791c3
+      position: {x: -311.3333, y: 601.3333}
+      collapsed: 0
+    - nodeGuid: 6e589ef631db46048ffb17e8464bf4e9
+      position: {x: -100.666664, y: 601.3333}
+      collapsed: 0
+    - nodeGuid: 71ddbedd1fcf4fdca4401528a8a17d6e
+      position: {x: 144, y: 438}
+      collapsed: 0
+    - nodeGuid: 32e9c4d2fb4c4d5da3e6d3fb8ed3493d
+      position: {x: 152, y: 627.3333}
+      collapsed: 0
+    - nodeGuid: 6f46b8c40baa4ca18c9c8c7ddf190e88
+      position: {x: 427.3333, y: 634.6667}
+      collapsed: 0
+    - nodeGuid: 1ce0648d0e5f41a9b0e493526d80c810
+      position: {x: 653.3333, y: 458.66666}
+      collapsed: 0
+    - nodeGuid: 16940f70c2a74e4f9187b105791dd1da
+      position: {x: 381.3333, y: 440.66666}
+      collapsed: 0
+    stickyNotes: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 1557465029543461067
+      type: {class: SequenceNodeDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: Attack
+        nodeGuid: 89c75622075d4d6c884ac93ef9ecf649
+        children:
+        - rid: 1557465029543461070
+        - rid: 1557465029543461071
+    - rid: 1557465029543461068
+      type: {class: InAttackRangeConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: InAttackRange
+        nodeGuid: a15d4f73613f44d38c6ed43d1d6df807
+        child:
+          rid: 1557465029543461069
+    - rid: 1557465029543461069
+      type: {class: HasTargetConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: HasTarget
+        nodeGuid: 3ee4502e57b64899858d40c2a653b9b2
+        child:
+          rid: 1557465029543461067
+    - rid: 1557465029543461070
+      type: {class: StopMoveActionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: StopMove
+        nodeGuid: a88e4754fe1c4b87835cc3e2103791c3
+    - rid: 1557465029543461071
+      type: {class: PulseAttackActionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: PulseAttack
+        nodeGuid: 6e589ef631db46048ffb17e8464bf4e9
+    - rid: 1557465029543461072
+      type: {class: StrafeAroundTargetActionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: StrafeAroundTarget
+        nodeGuid: 6f46b8c40baa4ca18c9c8c7ddf190e88
+        sideSign: 1
+    - rid: 1557465029543461074
+      type: {class: CooldownReadyConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: CooldownReady
+        nodeGuid: f1e76247a5764772aac8df4da643a569
+        child:
+          rid: 1557465029543461068
+        cooldownId: basic_attack
+    - rid: 1557465029543461075
+      type: {class: SequenceNodeDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: Chase
+        nodeGuid: 71ddbedd1fcf4fdca4401528a8a17d6e
+        children:
+        - rid: 1557465029543461077
+    - rid: 1557465029543461077
+      type: {class: MoveTowardTargetActionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: MoveTowardTarget
+        nodeGuid: 32e9c4d2fb4c4d5da3e6d3fb8ed3493d
+    - rid: 1557465029543461079
+      type: {class: SelectorNodeDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: Selector
+        nodeGuid: 977a46624608422b85e3d6082553ff8b
+        children:
+        - rid: 1557465029543461081
+        - rid: 1557465029543461087
+        - rid: 1557465029543461086
+        - rid: 1557465029543461080
+    - rid: 1557465029543461080
+      type: {class: StopMoveActionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: StopMove
+        nodeGuid: 1ce0648d0e5f41a9b0e493526d80c810
+    - rid: 1557465029543461081
+      type: {class: IsCharacterStateConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: IsCharacterState
+        nodeGuid: 39ec238e475d4f4f91b907c60f7d74d8
+        child:
+          rid: 1557465029543461074
+        expected: 10
+    - rid: 1557465029543461082
+      type: {class: InCombatAggroConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: InCombatAggro
+        nodeGuid: b39682b63e474a33ba37133db977b82e
+        child:
+          rid: 1557465029543461083
+    - rid: 1557465029543461083
+      type: {class: HasTargetConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: HasTarget
+        nodeGuid: d5a71e45a55f49b9987d9f2679fbe417
+        child:
+          rid: 1557465029543461075
+    - rid: 1557465029543461084
+      type: {class: HasTargetConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: HasTarget
+        nodeGuid: 188dba6f7e40418caca12b3c32e70fa8
+        child:
+          rid: 1557465029543461085
+    - rid: 1557465029543461085
+      type: {class: SequenceNodeDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: Sequence
+        nodeGuid: 16940f70c2a74e4f9187b105791dd1da
+        children:
+        - rid: 1557465029543461072
+    - rid: 1557465029543461086
+      type: {class: InCombatAggroConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: InCombatAggro
+        nodeGuid: 922a38ac397549698af78b27ef893ae1
+        child:
+          rid: 1557465029543461084
+    - rid: 1557465029543461087
+      type: {class: DistanceGreaterConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: DistanceGreater
+        nodeGuid: a37e52610c7a4f5296753557d7386c6f
+        child:
+          rid: 1557465029543461082
+        distance: 5
