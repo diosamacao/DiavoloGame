@@ -39,6 +39,10 @@ public class HurtboxTarget : AppControllerBase, ITargetable
     public HitboxOrientedBox GetLogicalHurtbox() =>
         HitboxMath.BuildFromHurtbox(transform, hurtbox);
 
+    /// <summary>静态目标逻辑 Pose：根位置 + Yaw（无 MotorSim）。</summary>
+    public SimCombatPose GetLogicalCombatPose() =>
+        new SimCombatPose(transform.position, transform.eulerAngles.y);
+
     /// <summary>命中回调；现阶段仅打印测试信息。</summary>
     public void OnHit(in ActionHitContext context)
     {
