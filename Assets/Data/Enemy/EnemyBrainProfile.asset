@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: EnemyBrainProfile
   m_EditorClassIdentifier: 
   enableCombatActions: 0
-  aggroRadius: 0
+  aggroRadius: 10
   loseAggroRadius: 14
   attackRange: 2
   attackCooldownFrames: 72

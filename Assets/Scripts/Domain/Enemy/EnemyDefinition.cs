@@ -8,6 +8,7 @@ public sealed class EnemyDefinition : ScriptableObject
     [SerializeField] string displayName = "Enemy";
     [SerializeField] CharacterConfig characterConfig = null;
     [SerializeField] EnemyBrainProfile brainProfile = null;
+    [SerializeField] EnemyBehaviorTreeAsset behaviorTree = null;
     [SerializeField] float maxHp = 100f;
     [FormerlySerializedAs("teamIdOverride")]
     [SerializeField] int teamId = 1;
@@ -18,6 +19,8 @@ public sealed class EnemyDefinition : ScriptableObject
     public CharacterConfig CharacterConfig => characterConfig;
     /// <summary>敌人决策参数。</summary>
     public EnemyBrainProfile BrainProfile => brainProfile;
+    /// <summary>行为树资产（实现 IEnemyBehaviorTreeAsset）；木桩关行动时可空。</summary>
+    public EnemyBehaviorTreeAsset BehaviorTree => behaviorTree;
     /// <summary>最大生命值。</summary>
     public float MaxHp => Mathf.Max(1f, maxHp);
     /// <summary>敌人阵营；由 EnemyDefinition 独立持有，避免复用角色身体配置时继承玩家阵营。</summary>
@@ -40,6 +43,13 @@ public sealed class EnemyDefinition : ScriptableObject
         if (brainProfile == null)
         {
             Debug.LogError("EnemyDefinition: BrainProfile 未配置。", context);
+            valid = false;
+        }
+        else if (brainProfile.EnableCombatActions && behaviorTree == null)
+        {
+            Debug.LogError(
+                "EnemyDefinition: 已开启 Combat Actions，但 BehaviorTree 未配置。",
+                context);
             valid = false;
         }
 

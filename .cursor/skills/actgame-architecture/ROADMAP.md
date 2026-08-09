@@ -140,10 +140,10 @@
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
 | ActionEditorWindow | P1 | ✅ 基础版 + 菱形/Zoom/Scrub 预览 + 2026-08-04 playhead 跟视口、Create 选文件夹、左侧文件夹分组；后续增强 SFX 预览 |
-| Enemy/ + AI | P2 | 🟡 2026-07-29 代码已实现；EnemyDefinition、Graph、动画资产待配置；BT 见下 |
+| Enemy/ + AI | P2 | 🟡 BT-E3 Graph MVP（2026-08-09）；可选 E4 寻路 |
 | UI/（MVVM） | P2 | HUD、血条；View/ViewModel 分层，不直写 Domain 权威 |
 | 事件总线 | P2 | 轻量 C# event；定稿前不引入第三方 |
-| 行为树编辑器 | P2 | 简易节点编辑；运行时 `IBehaviorTree*` 抽象，预留替换 Unity/第三方 BT 插件 |
+| 行为树编辑器 | P2 | ✅ GraphView MVP；后续 Abort/便签/Undo 打磨 |
 | A\* 寻路 | P2 | 学习实现；路径 → AI 移动意图；锁步确定性边界待定 |
 | 性能优化实践 | P2 | 木桩/多敌人基线 + Profiler 对照；见 `docs/PROJECT_CHECKLIST.md` §6.4 |
 | 剧情编辑器 | P3 | 对话/镜头节点或时间轴；与 Gameplay 用事件解耦 |

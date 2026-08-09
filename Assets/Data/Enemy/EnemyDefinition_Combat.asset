@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fdca7999a300ce0418a668f21a7d0bda, type: 3}
+  m_Name: EnemyDefinition_Combat
+  m_EditorClassIdentifier: 
+  displayName: EnemyCombat
+  characterConfig: {fileID: 11400000, guid: a21dbce80e5086944bce3b6329980cf1, type: 2}
+  brainProfile: {fileID: 11400000, guid: 4ef65a178583a5a4fb6516c87db2b3ad, type: 2}
+  behaviorTree: {fileID: 11400000, guid: 320541f449008d943be23d92bb3df89e, type: 2}
+  maxHp: 10000
+  teamId: 1

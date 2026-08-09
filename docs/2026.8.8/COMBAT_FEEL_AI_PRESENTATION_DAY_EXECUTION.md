@@ -280,7 +280,7 @@ A3/A4 不阻塞 A5；镜头大改归 Camera 篇。
 | 打击感位移（Wave 4 Adhesion + SoftBody + Branch_02） | ✅ Editor 验收收口 | 见 `docs/2026.8.9/WAVE4_…` |
 | A2 命中 Cue | ✅ 验收 2026-08-09 | 打击感音画收口 |
 | A3 完美闪避 SlowMo | ⬜ | 可选后置 |
-| A5 BT Phase-1 | ⬜ ← **当前** | 见 `ENEMY_BEHAVIOR_TREE_PLAN.md` |
+| A5 BT Phase-1 | 🟡 代码齐 | Editor：建 Behavior Tree SO 挂真敌；Play 验追打 |
 | LockOn / SkillShot | ⬜ | 归 Camera 篇；不挂 Wave 4/5 |
 
 ---

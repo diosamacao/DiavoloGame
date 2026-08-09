@@ -148,7 +148,7 @@ Agent **不改** `.asset` / Prefab；对齐仓库规则。
 
 ### 3.5 A5 — AI 行为树编写
 
-**状态：⬜ 当前主交付**  
+**状态：✅ BT-1 Play 验收（2026-08-09）；BT-2 Custom SerializeReference 已接**  
 **真源：** [ENEMY_BEHAVIOR_TREE_PLAN.md](../ENEMY_BEHAVIOR_TREE_PLAN.md)（自研轻量 BT；逻辑帧 Tick）。
 
 **Phase-1 交付：**
