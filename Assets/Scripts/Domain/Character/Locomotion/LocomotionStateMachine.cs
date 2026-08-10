@@ -24,7 +24,7 @@ public sealed class LocomotionStateMachine
         Transform root,
         CharacterMotor motor,
         CharacterAnimationService animation,
-        InputManager input,
+        IMoveIntentSource moveIntent,
         CharacterLocomotionProfile profile,
         LocomotionFootstepPlayer footstepPlayer)
     {
@@ -34,7 +34,7 @@ public sealed class LocomotionStateMachine
             root,
             motor,
             animation,
-            input,
+            moveIntent,
             profile,
             footCycle,
             footstepPlayer,

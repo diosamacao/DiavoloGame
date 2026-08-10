@@ -8,7 +8,7 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     readonly Transform _root;
     readonly CharacterController _controller;
     readonly CharacterMotorConfig _config;
-    readonly InputManager _input;
+    readonly IMoveIntentSource _moveIntent;
     readonly CharacterMotorSim _sim;
 
     Transform _cameraTransform;
@@ -24,14 +24,14 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         Transform root,
         CharacterController controller,
         CharacterMotorConfig config,
-        InputManager input,
+        IMoveIntentSource moveIntent,
         Transform cameraTransform,
         CharacterMotorSim motorSim = null)
     {
         _root = root;
         _controller = controller;
         _config = config;
-        _input = input;
+        _moveIntent = moveIntent;
         _cameraTransform = cameraTransform;
         _sim = motorSim ?? new CharacterMotorSim(
             OpenFieldSimCollisionWorld.Instance,
@@ -102,9 +102,9 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     /// <summary>按 Locomotion 内层状态命令执行水平位移与旋转（首版无加减速/转身专用位移）。</summary>
     public void ApplyLocomotion(in LocomotionMotorCommand command, float deltaTime)
     {
-        Vector2 moveIntent = _input.MoveIntent;
+        Vector2 moveIntent = _moveIntent.MoveIntent;
         Vector3 moveDirection = ResolveWorldMoveDirection(moveIntent);
-        _moveInputMagnitude = _input.MoveMagnitude;
+        _moveInputMagnitude = _moveIntent.MoveMagnitude;
 
         ApplyRotation(command, moveDirection, deltaTime);
 
@@ -214,9 +214,9 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     /// <summary>读取 Dodge 方向判定输入：优先当前输入，其次缓冲输入。</summary>
     public bool TryGetDodgeIntentDirection(out Vector3 direction)
     {
-        Vector2 moveIntent = _input.HasMoveIntent
-            ? _input.MoveIntent
-            : _input.BufferedMoveIntent;
+        Vector2 moveIntent = _moveIntent.HasMoveIntent
+            ? _moveIntent.MoveIntent
+            : _moveIntent.BufferedMoveIntent;
 
         direction = ResolveWorldMoveDirection(moveIntent);
         return direction.sqrMagnitude >= 0.001f;

@@ -101,10 +101,6 @@ public sealed class CharacterActor :
     /// <summary>Health 边沿（扣血 / Hit / Death 事件）。</summary>
     public CharacterVitality Vitality => _vitality;
 
-    /// <summary>敌人装配：绑定 CombatRequest 缓冲供 Driver 消费。</summary>
-    public void BindCombatRequestBuffer(EnemyCombatRequestBuffer buffer) =>
-        _actionDriver.BindCombatRequestBuffer(buffer);
-
     /// <summary>创建角色实例；所有依赖由工厂一次性注入。</summary>
     public CharacterActor(
         ILocalInputSampler localInput,

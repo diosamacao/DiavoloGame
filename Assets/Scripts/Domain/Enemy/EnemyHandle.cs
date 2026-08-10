@@ -1,6 +1,9 @@
 using UnityEngine;
 
-/// <summary>单敌人纯 C# 生命周期句柄；在 World 输入阶段先决策，再消费同帧量化输入。</summary>
+/// <summary>
+/// 单敌人纯 C# 生命周期句柄；ProduceInput 先 Brain 决策，再写入空 InputFrame
+/// （移动/出招权威为 Desire + CombatRequest，不经假手柄）。
+/// </summary>
 public sealed class EnemyHandle :
     System.IDisposable,
     ISimulationActor,
@@ -13,7 +16,6 @@ public sealed class EnemyHandle :
     readonly EnemyDefinition _definition;
     readonly CharacterActor _actor;
     readonly EnemyBrain _brain;
-    readonly AIInputWriter _input;
     readonly Transform _facingProxy;
     readonly CharacterReactionService _reactionService;
     InputFrameBuffer _inputFrames;
@@ -28,7 +30,6 @@ public sealed class EnemyHandle :
         ActionSim actionSim,
         CharacterAnimationService animation,
         EnemyBrain brain,
-        AIInputWriter input,
         CharacterHurtboxTarget target,
         Transform facingProxy,
         CharacterReactionService reactionService)
@@ -39,7 +40,6 @@ public sealed class EnemyHandle :
         ActionSim = actionSim;
         Animation = animation;
         _brain = brain;
-        _input = input;
         Target = target;
         _facingProxy = facingProxy;
         _reactionService = reactionService;
@@ -67,8 +67,15 @@ public sealed class EnemyHandle :
         && _actor.DeathPresentationComplete
         && _deathReadyElapsed >= _definition.BrainProfile.DeathDespawnDelaySeconds;
 
-    public void Enable() => _input.Enable();
-    public void Disable() => _input.Disable();
+    /// <summary>兼容 Controller 调用；敌人无设备/Writer 输入壳。</summary>
+    public void Enable()
+    {
+    }
+
+    /// <summary>兼容 Controller 调用；敌人无设备/Writer 输入壳。</summary>
+    public void Disable()
+    {
+    }
 
     public void BindSimulationInput(SimActorId actorId, InputFrameBuffer inputFrames)
     {
@@ -77,13 +84,13 @@ public sealed class EnemyHandle :
         _actor.BindSimulationInput(actorId, inputFrames);
     }
 
+    /// <summary>决策写入 Desire/Request；World 输入槽仅放空 Frame（供 IntentProducer 无按钮语义）。</summary>
     public void ProduceInput(long frameIndex)
     {
         if (!IsDead)
             _brain.Step();
 
-        InputFrame input = _input.BuildFrame(frameIndex, _actorId);
-        _inputFrames.Set(in input);
+        _inputFrames.Set(InputFrame.Empty(frameIndex, _actorId));
     }
 
     public void Step(long frameIndex, float fixedDeltaSeconds, in InputFrame inputFrame)
@@ -108,7 +115,6 @@ public sealed class EnemyHandle :
     {
         _reactionService?.Dispose();
         _brain.Stop();
-        _input.Disable();
         _actor.Dispose();
 
         if (_facingProxy != null)

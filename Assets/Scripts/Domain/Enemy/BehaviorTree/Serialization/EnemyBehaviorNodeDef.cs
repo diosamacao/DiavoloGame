@@ -460,30 +460,6 @@ public sealed class RequestCombatActionDef : EnemyBehaviorNodeDef
     public override IBehaviorNode Build() => Wrap(new RequestCombatAction(entryNodeId));
 }
 
-/// <summary>PulseDodge 行动定义。</summary>
-[Serializable]
-public sealed class PulseDodgeActionDef : EnemyBehaviorNodeDef
-{
-    /// <inheritdoc />
-    public override IBehaviorNode Build() => Wrap(new PulseDodgeAction());
-}
-
-/// <summary>PulseHeavyAttack 行动定义。</summary>
-[Serializable]
-public sealed class PulseHeavyAttackActionDef : EnemyBehaviorNodeDef
-{
-    /// <inheritdoc />
-    public override IBehaviorNode Build() => Wrap(new PulseHeavyAttackAction());
-}
-
-/// <summary>PulseSkill 行动定义。</summary>
-[Serializable]
-public sealed class PulseSkillActionDef : EnemyBehaviorNodeDef
-{
-    /// <inheritdoc />
-    public override IBehaviorNode Build() => Wrap(new PulseSkillAction());
-}
-
 /// <summary>WaitWhileInAction 行动定义：招式占用至离开 Action。</summary>
 [Serializable]
 public sealed class WaitWhileInActionActionDef : EnemyBehaviorNodeDef

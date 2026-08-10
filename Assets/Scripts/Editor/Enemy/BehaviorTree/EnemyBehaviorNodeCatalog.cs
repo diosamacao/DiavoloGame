@@ -52,9 +52,6 @@ public static class EnemyBehaviorNodeCatalog
         new Entry(Group.Task, "StrafeAroundTarget", typeof(StrafeAroundTargetActionDef)),
         new Entry(Group.Task, "FaceTarget", typeof(FaceTargetActionDef)),
         new Entry(Group.Task, "RequestCombatAction", typeof(RequestCombatActionDef)),
-        new Entry(Group.Task, "PulseDodge", typeof(PulseDodgeActionDef)),
-        new Entry(Group.Task, "PulseHeavyAttack", typeof(PulseHeavyAttackActionDef)),
-        new Entry(Group.Task, "PulseSkill", typeof(PulseSkillActionDef)),
         new Entry(Group.Task, "WaitWhileInAction", typeof(WaitWhileInActionActionDef)),
         new Entry(Group.Task, "WaitFrames", typeof(WaitFramesActionDef)),
     };

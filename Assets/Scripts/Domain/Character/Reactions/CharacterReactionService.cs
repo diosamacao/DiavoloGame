@@ -9,7 +9,7 @@ public sealed class CharacterReactionService : IDisposable
     readonly Action<ActionHitContext> _hitSideEffect;
     readonly Action<ActionHitContext, float> _deathSideEffect;
 
-    /// <summary>绑定 Vitality 事件；副作用委托仅用于 EnemyBrain 等上层状态同步。</summary>
+    /// <summary>绑定 Vitality 事件；副作用委托仅用于上层控制器状态同步。</summary>
     public CharacterReactionService(
         CharacterVitality vitality,
         CharacterActor actor,

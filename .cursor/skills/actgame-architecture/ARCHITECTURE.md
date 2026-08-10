@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-10（文档：敌人 AI 输出槽终态改为 Desire+Request；代码仍为 InputFrame 过渡）
+> Last audited: 2026-08-11（敌人命令源上提为 Character/Combat 通用契约；下层删除 Enemy 具体类型依赖）
 
 ## 项目概述
 
@@ -89,7 +89,7 @@ flowchart TB
 | `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
 | `CharacterPresentationBridge` | 保留前后权威 Pose，只移动运行时模型锚点，不回写模拟根 |
 | `InputFrame` / `InputFrameBuffer` | 量化轴、稳定按钮 bitset、Actor/Frame 身份与输入历史；本地追帧只延续 Move/Held |
-| `ISimulationInputProducer` | Actor Step 前统一生成当帧输入；敌人现状 Brain → AIInputWriter；终态见 `LocomotionDesire`/`CombatRequest`（8.10 方案） |
+| `ISimulationInputProducer` | Actor Step 前统一生成当帧输入；玩家采样量化输入，敌人 Brain 提交 Desire/Entry Request 并生成空输入帧 |
 | `ISimulationPostCombatActor` | 整批命中结算后处理 OnHitConfirm/OnWhiff 自动衔接与动作自然结束 |
 | `SimHitKey` / `CombatHitPipeline` | Hitbox 只 Collect；按稳定 Actor/会话/窗口身份排序，帧末统一伤害、Reaction 与命中确认 |
 | `SimCombatPose` / `HitboxMath` | 命中 OBB 由 MotorSim 逻辑根构建；挂点仅相对根局部 |
@@ -205,10 +205,10 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 | 类 | 职责 |
 |----|------|
 | `InputFrame` | `frame + SimActorId + sbyte move + Pressed/Held/Released bitset + aimYaw` 固定输入格式 |
-| `InputFrameBuffer` | 玩家渲染采样、AI、回放共用历史；精确读取与本地连续状态展开 |
+| `InputFrameBuffer` | 玩家渲染采样、回放与统一 Actor Step 共用历史；精确读取与本地连续状态展开 |
 | `ILocalInputSampler` / `InputReader` | 玩家设备边界：Input System Action 名映射为稳定 InputButton 并量化下一逻辑帧 |
-| `AIInputWriter` | AI 直接构造同格式 InputFrame，不再实现设备 Capture 接口 |
-| `InputManager` | 摄入量化帧并向现有玩法提供移动反解值与按钮生命周期 |
+| `IMoveIntentSource` | Character 层只读移动契约；玩家由 InputManager 实现，AI 由 LocomotionDesireBuffer 实现 |
+| `InputManager` | 摄入玩家量化帧，提供移动反解值与按钮生命周期；不再含 AI 覆盖分支 |
 | `GameplayIntentProfile` | 物理 InputAction → 语义意图映射；Hold/Buffer 阈值为整数逻辑帧 |
 | `GameplayIntentProducer` / `GameplayIntentBuffer` | 输出语义意图并按整数帧维护长按与 Cancel 缓冲 |
 
@@ -223,25 +223,19 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 | 类 | 职责 |
 |----|------|
 | `EnemyDefinition` / `EnemyBrainProfile` / `EnemyBehaviorTreeAsset` | 身体配置、AI（Profile 终态瘦身）、可替换行为树资产；动作只在 CharacterConfig |
-| `AIInputWriter` | **过渡**：将 AI 移动与按钮脉冲量化为 `InputFrame`；E-MOVE2 后敌人侧删除或仅测试 |
 | `IEnemyBehaviorRunner` / `EnemyBrain` / `EnemyPerception` | Runner 决策；Brain 门闩+黑板+CooldownTable+提交；Perception 只读快照 |
-| Desire / Request Buffer（规划） | **终态**敌人移动/出招命令槽（见 `docs/2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`） |
+| `LocomotionDesireBuffer` / `ActionEntryRequestBuffer` | Character / Combat 通用命令槽；Enemy 仅生产，不向下层泄漏具体类型 |
 | `EnemyActorFactory` / `EnemyHandle` | 复用 CharacterActorFactory，聚合 Actor、Brain、Vitality、Hurtbox 生命周期 |
 | `EnemyController` / `EnemySpawnController` | 单敌 Tick 入口与场景刷怪入口 |
 | `EnemySpawnSystem` | 架构级敌人实例注册与同 Definition 存活上限 |
 
-**数据流（敌人 · 现状过渡）**：
+**数据流（敌人 · 当前终态）**：
 
 ```
-EnemyDefinition → EnemyActorFactory → CreateRunner(IEnemyBehaviorTreeAsset) → EnemyBrain
-EnemyBrain → IEnemyBehaviorRunner.Tick → AIInputWriter → InputFrameBuffer → GameplayIntentProducer → CharacterActionDriver
-```
-
-**数据流（敌人 · 终态目标）**：
-
-```
-EnemyBrain → Runner.Tick → LocomotionDesire + CombatRequest
-CharacterActor（敌人）→ Apply(Desire) + TryStart(Entry)；玩家仍 InputFrame → Intent
+EnemyActorFactory 构造 LocomotionDesireBuffer + ActionEntryRequestBuffer，并通过通用接口注入角色服务图
+EnemyBrain → Runner.Tick → 写 LocomotionDesire + ActionEntryRequest
+CharacterMotor / LocomotionStateMachine 读 IMoveIntentSource；CharacterActionDriver 读 IActionEntryRequestSource
+玩家仍为 InputFrame → InputManager → Intent；CharacterActor 无 Enemy 分支
 玩家 Hitbox → CombatHitPipeline.Collect → 稳定排序/Resolve → CharacterHurtboxTarget → CharacterVitality
               └─ CharacterReactionService → CharacterReactionResolver
                    ├─ 非致命：EnemyBrain.NotifyHit → CharacterActor.EnterHit

@@ -59,7 +59,7 @@
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项：** 敌人 BT **E-MOVE1**（LocomotionDesire）∥ 可选编辑器 OPT Phase A  
+**下一项：** 敌人 BT **E-REQ3**（起手确认 / Validator / 文档收口）
 → 结构真源：[`2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)  
 
 | # | 项 | 状态 |
@@ -74,6 +74,8 @@
 | E-ST1 | 对峙/追击滞回 DistanceBand | ✅ 代码 2026-08-10；资产改 Band 后 Play |
 | E-REQ1 | CombatRequest 通道骨架 | ✅ 代码 2026-08-10；资产填 Entry 后 Play |
 | E-REQ2 | 权重池 + 删除攻击 Pulse | ✅ 代码 2026-08-10；资产搭池后 Play |
+| E-MOVE1 | LocomotionDesire 通道 | ✅ 代码 2026-08-10；Play 手感待验 |
+| E-MOVE2 | 删除敌人输入壳 | ✅ 代码 2026-08-10；Play 待验 |
 
 主排期：**Wave 4 位移 ✅ 已关闭**；Wave 5 仅可选玩法后置（失衡/命中盒烘焙）；相机 LockOn/SkillShot/Finisher 见 [`CAMERA_SYSTEM_PLAN.md`](./2026.8.6/CAMERA_SYSTEM_PLAN.md)。
 

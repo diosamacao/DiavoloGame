@@ -45,20 +45,11 @@ public sealed class EnemyBlackboard
     /// <summary>本帧期望移动（局部前进轴惯例：y&gt;0 前进）。</summary>
     public Vector2 MoveDesire;
 
-    /// <summary>本帧是否有 CombatRequest（显式 Entry）。</summary>
+    /// <summary>本帧是否有 CombatRequest（显式 Entry；闪避/技能等同走 Request）。</summary>
     public bool HasCombatRequest;
 
     /// <summary>CombatRequest 的 Graph Entry NodeId。</summary>
     public string CombatRequestEntryId;
-
-    /// <summary>本帧是否请求闪避脉冲。</summary>
-    public bool DodgePulse;
-
-    /// <summary>本帧是否请求重击脉冲。</summary>
-    public bool HeavyAttackPulse;
-
-    /// <summary>本帧是否请求特殊/技能脉冲。</summary>
-    public bool SkillPulse;
 
     /// <summary>本帧是否请求刷新面向目标。</summary>
     public bool FaceTargetRequested;
@@ -72,9 +63,6 @@ public sealed class EnemyBlackboard
         MoveDesire = Vector2.zero;
         HasCombatRequest = false;
         CombatRequestEntryId = null;
-        DodgePulse = false;
-        HeavyAttackPulse = false;
-        SkillPulse = false;
         FaceTargetRequested = false;
         _debugPath.Length = 0;
     }

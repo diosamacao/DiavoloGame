@@ -13,7 +13,7 @@ public sealed class LocomotionContext
         Transform root,
         CharacterMotor motor,
         CharacterAnimationService animation,
-        InputManager input,
+        IMoveIntentSource moveIntent,
         CharacterLocomotionProfile profile,
         LocomotionFootCycle footCycle,
         LocomotionFootstepPlayer footstepPlayer,
@@ -23,7 +23,7 @@ public sealed class LocomotionContext
         Root = root;
         Motor = motor;
         Animation = animation;
-        Input = input;
+        Input = moveIntent;
         Profile = profile;
         FootCycle = footCycle;
         FootstepPlayer = footstepPlayer;
@@ -34,7 +34,8 @@ public sealed class LocomotionContext
     public Transform Root { get; }
     public CharacterMotor Motor { get; }
     public CharacterAnimationService Animation { get; }
-    public InputManager Input { get; }
+    /// <summary>角色无关移动意图源（玩家 InputManager / AI Desire）。</summary>
+    public IMoveIntentSource Input { get; }
     public CharacterLocomotionProfile Profile { get; }
     public LocomotionFootCycle FootCycle { get; }
     public LocomotionFootstepPlayer FootstepPlayer { get; }

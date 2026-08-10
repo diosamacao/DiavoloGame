@@ -88,12 +88,12 @@ EnemyBrain.Step（门闩不变）
   │    ├─ MoveToward / Strafe / Stop / Wait*
   │    └─ 输出：LocomotionDesire + CombatRequest（+ Face 旗）
   └─ Commit（不再写 AIInputWriter）
-       ├─ EnemyLocomotionCommandBuffer.Set(desire)
-       └─ EnemyCombatRequestBuffer.Set(request)
+       ├─ LocomotionDesireBuffer.Set(desire)
+       └─ ActionEntryRequestBuffer.Set(request)
 
 CharacterActor.Step（敌人）
-  → 消费 LocomotionDesire → LocomotionStateMachine / Motor 命令
-  → 若有 CombatRequest → ActionDriver.TryStartRequested(Entry)
+  → LocomotionStateMachine / Motor 通过 IMoveIntentSource 读 Desire
+  → CharacterActionDriver 通过 IActionEntryRequestSource 消费 Entry
   → 无 Request 时不跑玩家 Intent 选招
   → ActionSim 同前
 
@@ -107,7 +107,7 @@ CharacterActor.Step（玩家）
 
 | 项 | 定案 |
 |----|------|
-| 请求载荷 | `EnemyCombatRequest`：`HasRequest` + `GraphNodeId`（须为当前 `ActiveGraph` 的 Entry） |
+| 请求载荷 | `ActionEntryRequest`：`HasRequest` + `EntryNodeId`（须为当前 `ActiveGraph` 的 Entry） |
 | BT Task | `RequestCombatAction`；常与 `Stop` + `WaitWhileInAction` 组 Sequence；**编辑器** Entry 下拉的 Graph 只读反查：`EnemyDefinition → CombatProfile → Default ActionGraph`（BT 资产不另挂 Graph） |
 | 选招 | `RandomSelector`（权重）或单支固定 Entry |
 | 连段 | Entry 起手后走 Graph Cancel / AutomaticTransition |
@@ -133,13 +133,13 @@ Selector
 
 ### 3.3 需求② — 移动脱离输入（LocomotionDesire）
 
-**定案：敌人移动权威 = `EnemyLocomotionDesire`，不经 `InputFrame`。**
+**定案：敌人移动权威 = `LocomotionDesire`，不经 `InputFrame`。**
 
 | 项 | 定案 |
 |----|------|
-| 载荷 | `EnemyLocomotionDesire`：`MovePlanar`（本地或世界平面意图，方案内 **只留一种**：推荐 **本地轴** 与现 BT 一致：`(x侧移, y前进)`）+ `Magnitude` 已含于向量 + `FaceTarget` + 可选 `RotationMode` 覆盖 |
+| 载荷 | `LocomotionDesire`：本地轴 `(x侧移, y前进)`（已含幅度）+ `FaceTarget` |
 | BT | 现有 Move/Strafe/Stop Task 仍写黑板；Brain Commit 时组装 Desire，**禁止** `AIInputWriter.SetMove` |
-| 消费 | `CharacterActor`（或 `EnemyLocomotionDriver`）在 Step 内把 Desire 喂给 `LocomotionStateMachine` / 既有 `ApplyLocomotion` 入口；**不**走 `GameplayIntentProducer` |
+| 消费 | `EnemyActorFactory` 构造注入 `IMoveIntentSource`；Locomotion / Motor 直接读取，`CharacterActor` 无 Enemy 分支；**不**走 `GameplayIntentProducer` |
 | 量化 | **不做** sbyte 量化；用 float 欲望，由 Motor/步态阈值消化 |
 | Action 中 | 保持现逻辑：Action / Confirm / Request 当帧可强制 Desire=0（对齐现 `freezeMove`） |
 | Facing | `FaceTargetRequested` 并入 Desire 或同帧提交；假相机 proxy 刷新仍由 Brain 间隔执行 |
@@ -147,7 +147,7 @@ Selector
 | 废弃 | 敌人 `InputFrame.moveX/Y` 作为移动权威；敌人 `AIInputWriter` 移动路径 |
 
 ```text
-EnemyLocomotionDesire（示意）
+LocomotionDesire（示意）
   Vector2 localMove        // 已含幅度；Stop = 0
   bool faceTarget
   // 可选：显式世界平面方向（若日后寻路输出世界向，再定转换点；本阶段以本地轴为准）
@@ -301,19 +301,19 @@ EnemyDefinition
 
 **任务**
 
-- [x] `EnemyCombatRequest` + 黑板字段；帧初清空  
-- [x] Task `RequestCombatAction`（Entry Id）  
-- [x] Brain 提交到 `EnemyCombatRequestBuffer`  
-- [x] `CharacterActionDriver`：有 Request 则 `TryStart` 指定 Entry（CostGate 同玩家）  
-- [x] `WaitWhileInAction` 闩住 Request 当帧 / ConfirmPending  
-- [x] EditMode：Request Entry_A ≠ Entry_B；`DebugCombatRequestEntryId` 可显示 Pending  
+- [x] `ActionEntryRequest` + 黑板字段；帧初清空
+- [x] Task `RequestCombatAction`（Entry Id）
+- [x] Brain 提交到 `ActionEntryRequestBuffer`
+- [x] `CharacterActionDriver`：有 Request 则 `TryStart` 指定 Entry（CostGate 同玩家）
+- [x] `WaitWhileInAction` 闩住 Request 当帧 / ConfirmPending
+- [x] EditMode：Request Entry_A ≠ Entry_B；`DebugCombatRequestEntryId` 可显示 Pending
 
 **验收**
 
-- [x] 单测：黑板/缓冲 Entry_A≠B；Wait 闩 Request；空 Entry 失败（不卡死）  
-- [x] 玩家 Intent 路径未改消费序（Request 仅敌人 Bind 后生效）  
-- [x] Driver 无第三方 BT API  
-- [ ] Play：树上 `RequestCombatAction` + 正确 Entry NodeId 可起招（人工）  
+- [x] 单测：黑板/缓冲 Entry_A≠B；Wait 闩 Request；空 Entry 失败（不卡死）
+- [x] 玩家 Intent 路径未改消费序（Entry Request 仅构造注入后生效）
+- [x] Driver 无第三方 BT API
+- [ ] Play：树上 `RequestCombatAction` + 正确 Entry NodeId 可起招（人工）
 
 **出口：** 代码侧 2026-08-10；资产改 Request 后 Play 验收。
 
@@ -323,23 +323,23 @@ EnemyDefinition
 
 **任务**
 
-- [ ] 新增 `EnemyLocomotionDesire` + 提交缓冲（与 CombatRequest 并列）  
-- [ ] Brain `CommitOutputs`：由黑板 `MoveDesire`/`FaceTargetRequested` 组装 Desire；**停止**对敌人调用 `AIInputWriter.SetMove`（可先留 Writer 空转）  
-- [ ] `CharacterActor`（敌人路径）Step 消费 Desire → 驱动 Locomotion（复用现 `ApplyLocomotion` / 输入快照构造点，**单一入口**，禁止再读该 Actor 的 move 轴 InputFrame）  
-- [ ] Action / Confirm / Request 当帧 freeze：Desire 清零（对齐现 `freezeMove`）  
-- [ ] Facing proxy 刷新改读 Desire.faceTarget（或等价旗）  
-- [ ] EditMode：Desire 非零时 Motor/步态有前进；Desire=0 停止  
-- [ ] 玩家路径零改动断言  
+- [x] 新增通用 `LocomotionDesire` + 提交缓冲（与 Entry Request 并列）
+- [x] Brain `CommitOutputs`：由黑板 `MoveDesire`/`FaceTargetRequested` 组装 Desire；**停止**对敌人调用 `AIInputWriter.SetMove`（Writer 仍服务按钮脉冲）
+- [x] Locomotion / Motor 构造注入 `IMoveIntentSource`；删除 CharacterActor 敌人分支与 InputManager Override
+- [x] Action / Confirm / Request 当帧 freeze：Desire 清零（对齐现 `freezeMove`）
+- [x] Facing proxy 刷新改读 Desire.FaceTarget
+- [x] EditMode：空 Frame + Desire 前进 → HasMoveIntent；零 Desire 停止；玩家无 Override
+- [x] 玩家路径默认由 `InputManager` 实现同一 `IMoveIntentSource`
 
 **验收**
 
-- [ ] `rg`：`EnemyBrain.CommitOutputs` 无 `SetMove`  
-- [ ] 单测：敌人 Step 在 InputFrame.move=0 且 Desire 前进时仍移动  
-- [ ] 单测：Action 中 Desire 被清零  
-- [ ] Play：追击/对峙/停步手感不差于迁前  
-- [ ] 玩家移动无回归  
+- [x] `rg`：`EnemyBrain.CommitOutputs` 无 `SetMove`
+- [x] 单测：InputFrame.move=0 + Desire 前进仍有 MoveIntent
+- [x] 单测：零 Desire（freeze）HasMoveIntent=false
+- [ ] Play：追击/对峙/停步手感不差于迁前（人工）
+- [ ] 玩家移动无回归（人工）
 
-**出口：** 敌人移动权威 = LocomotionDesire。→ **未达成**
+**出口：** 代码侧 2026-08-10；Play 手感验收后关闭。
 
 ---
 
@@ -368,21 +368,21 @@ EnemyDefinition
 
 **任务**
 
-- [ ] 敌人 `ProduceInput`：**不再**为移动/攻击构造有意义的 `InputFrame`（可写 Empty，或不再经 Writer 填 move/按钮）  
-- [ ] **删除**敌人装配对 `AIInputWriter.SetMove` / 战斗 Pulse 的依赖；若 Writer 仅服务敌人则 **删除类或降为 EditMode 测试替身**  
-- [ ] 确认 `GameplayIntentProducer` 不对敌人跑攻击选招（木桩/真敌）  
-- [ ] Dodge/Skill 若仍 Pulse：本阶段一并迁 `CombatRequest` 或明确禁止遗留（**只留一种**：迁 Request）  
-- [ ] `rg`：运行时敌人路径无 `AIInputWriter` 移动/攻击提交  
-- [ ] 更新 TECHNICAL / BT PLAN §3.4：敌人输出 = Desire + Request  
+- [x] 敌人 `ProduceInput`：写 `InputFrame.Empty`（无 move/按钮）
+- [x] **删除** `AIInputWriter` 类及敌人装配依赖；删 `PulseDodge` / `PulseHeavy` / `PulseSkill`
+- [x] 空 Frame → IntentProducer 无攻击选招；出招仅 `CombatRequest`
+- [x] Dodge/Skill：**只留** `RequestCombatAction`（无 Pulse 遗留）
+- [x] `rg`：运行时敌人路径无 `AIInputWriter`
+- [x] 更新 TECHNICAL / 清单：敌人输出 = Desire + Request
 
 **验收**
 
-- [ ] `rg`：`EnemyHandle` / `EnemyBrain` 无 `SetMove` / `PulseAttack` / `PulseDodge`（除测试）  
-- [ ] 真敌 Play：移动+多招+对峙无 InputFrame 依赖  
-- [ ] 木桩仍可受击；无 AI 移动  
-- [ ] 玩家输入管线完整  
+- [x] `rg`：`EnemyHandle` / `EnemyBrain` 无 `SetMove` / `PulseAttack` / `PulseDodge`
+- [ ] 真敌 Play：移动+多招+对峙无 InputFrame 依赖（人工）
+- [ ] 木桩仍可受击；无 AI 移动（人工）
+- [ ] 玩家输入管线完整（人工）
 
-**出口：** 敌人侧无假手柄；命令轨为唯一 AI I/O。→ **未达成**
+**出口：** 代码侧 2026-08-10；Play 验收后关闭。
 
 ---
 
@@ -437,10 +437,6 @@ EnemyDefinition
 Assets/Scripts/Domain/Enemy/
   EnemyBrain.cs
   EnemyBrainProfile.cs
-  EnemyLocomotionDesire.cs              // 新
-  EnemyCombatRequest.cs                 // 新
-  EnemyLocomotionCommandBuffer.cs       // 新（或与 Request 同文件缓冲）
-  EnemyCombatRequestBuffer.cs           // 新
   BehaviorTree/
     EnemyBlackboard.cs
     Nodes/CompositeNodes.cs             // + RandomSelector
@@ -449,14 +445,16 @@ Assets/Scripts/Domain/Enemy/
     Serialization/…
 
 Assets/Scripts/Domain/Character/
-  CharacterActor.cs                     // 敌人分支消费 Desire
-  // 或 EnemyLocomotionDriver.cs
+  Commands/
+    IMoveIntentSource.cs
+    LocomotionDesire.cs
+    LocomotionDesireBuffer.cs
 
 Assets/Scripts/Domain/Combat/Actions/Execution/
-  CharacterActionDriver.cs              // 消费 Request
-
-Assets/Scripts/Infrastructure/Input/
-  AIInputWriter.cs                      // E-MOVE2 删除或仅测试
+  IActionEntryRequestSource.cs
+  ActionEntryRequest.cs
+  ActionEntryRequestBuffer.cs
+  CharacterActionDriver.cs              // 通过接口消费 Request
 
 Assets/Tests/Editor/Enemy/
   EnemyCombatRequestTests.cs

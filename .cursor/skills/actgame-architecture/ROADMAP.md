@@ -140,7 +140,7 @@
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
 | ActionEditorWindow | P1 | ✅ 基础版 + 菱形/Zoom/Scrub 预览 + 2026-08-04 playhead 跟视口、Create 选文件夹、左侧文件夹分组；后续增强 SFX 预览 |
-| Enemy/ + AI | P1 | 🟡 Phase-1 BT ✅；下一阶段 Desire+Request / 滞回 / 配置上树 → `docs/2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md` |
+| Enemy/ + AI | P1 | 🟡 Phase-1 BT + 通用 Desire/Entry Request 命令轨 ✅；下一阶段起手确认 / 滞回 / 配置上树 → `docs/2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md` |
 | UI/（MVVM） | P2 | HUD、血条；View/ViewModel 分层，不直写 Domain 权威 |
 | 事件总线 | P2 | 轻量 C# event；定稿前不引入第三方 |
 | 行为树编辑器 | P2 | ✅ MVP；体验打磨见 `ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN`（仅 A） |
@@ -155,7 +155,8 @@
 
 ## Tech Debt 观察清单
 
-- [ ] `CharacterActor` 与 `LocomotionState` 双处感知移动输入
+- [x] 2026-08-11：移动读取收敛为 `IMoveIntentSource`；CharacterActor 删除 Enemy Desire 应用分支，Locomotion / Motor 直接消费注入源
+- [x] 2026-08-11：Combat Entry 请求收敛为 `IActionEntryRequestSource`；删除 CharacterActor/Driver 的 Enemy Buffer Bind 与旧具体类型
 - [x] 2026-06-21：Prefab/运行时堆业务脚本改为 `CharacterConfig` + `PlayerController` + 纯 C# 角色实例（2026-06-23 命名为 `CharacterActor`）
 - [x] 2026-06-23：命名迁移为 `CharacterActor` / `ActionExecutor`，新增 `ACTGameArchitecture`、`TargetSystem`、`CombatActorSystem`
 - [x] 2026-06-23：`TargetSystem` 替代静态目标注册表

@@ -40,8 +40,8 @@
 - **模拟身份**：World Actor 使用会话内单调 `SimActorId` 排序；禁止用 Unity `GetInstanceID()` 作为模拟顺序、命中身份或未来网络身份
 - **启停生命周期**：Controller 在 `OnEnable` 注册 World、`OnDisable/OnDestroy` 对称注销；禁用 GameObject 不得继续被模拟
 - **渲染输入汇聚**：本地设备 Actor 通过 `IRenderFrameSampler` 缓存渲染帧边沿，逻辑 Step 不直接依赖 Unity 渲染帧是否恰好发生
-- **量化输入唯一格式**：玩家、AI、回放与未来网络统一使用 `InputFrame`；Move 为 sbyte、按钮为固定 bitset，禁止恢复 float/string `PlayerInputFrame`
-- **输入阶段先于 Actor**：World 每帧先调用 `ISimulationInputProducer`，再按 Id 消费同帧 `InputFrame`；AI 决策不得在自身 CharacterActor.Step 中旁路写输入
+- **量化输入格式**：玩家设备、回放与未来网络输入使用 `InputFrame`；Move 为 sbyte、按钮为固定 bitset，禁止恢复 float/string `PlayerInputFrame`。AI 控制命令使用 Desire / Entry Request，不伪装设备输入
+- **输入阶段先于 Actor**：World 每帧先调用 `ISimulationInputProducer`，再按 Id 执行 Actor；AI Brain 在该阶段写通用命令槽并为统一时序提交空 `InputFrame`
 - **命中延迟结算**：Hitbox 几何检测只写共享 `CombatHitPipeline`；全体 Actor Step 完成后按 `SimHitKey` 排序，再统一伤害、Reaction 与命中确认
 - **PostCombat 收尾**：依赖本帧命中结果的 OnHitConfirm/OnWhiff 与动作自然结束只在 `ISimulationPostCombatActor` 执行；不得恢复攻击者 Step 内即时目标回调
 - **App 只读结果**：`PublishAttackHitCommand` / `AttackHitEvent` 只发布整帧已结算结果；Event Handler 禁止暂停 `ActionSim`、修改 HP/状态或生成 Sim 输入
@@ -94,8 +94,8 @@ public class MyBehaviour : MonoBehaviour
 ## 输入约定
 
 - 使用 Input System + `.inputactions` 资产；Action Map 命名 `Player`
-- **采集**：玩家设备边界实现 `ILocalInputSampler` 并写下一逻辑帧槽；敌人 AI **过渡期**可用 `AIInputWriter` 构造 `InputFrame`；**终态**提交 `LocomotionDesire` + `CombatRequest`（见 `docs/2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`），玩家路径不变
-- **原始中枢**：`InputManager` 由 `CharacterActor` 持有；摄入量化 Move 与 Pressed/Held/Released bitset，不承担动作缓冲
+- **采集**：玩家设备边界实现 `ILocalInputSampler` 并写下一逻辑帧槽；敌人 Brain 提交 `LocomotionDesire` + `ActionEntryRequest`，玩家路径不变
+- **原始中枢**：`InputManager` 由 `CharacterActor` 持有；只摄入量化 Move 与 Pressed/Held/Released bitset，不承担 AI Move 覆盖或动作缓冲
 - **相机 Look**：渲染帧 Look 不进入玩法 InputFrame，由 `PlayerController.LookInput` 直接提供给 CameraManager
 - **设备映射**：`GameplayIntentProfile` 是 InputActionReference、长按阈值与上下文映射的**项目唯一**配置源，经 `GameplayIntentSettings` 加载；**禁止**再挂到 `CharacterConfig`
 - **语义生产**：`GameplayIntentProducer` 在 `InputManager.IngestFrame` 后输出 `GameplayIntentType`
@@ -117,10 +117,10 @@ public class MyBehaviour : MonoBehaviour
 - **玩家装配**：`InputActionAsset` / `GameplayIntentProfile` 均为项目全局（`GameInputSettings` / `GameplayIntentSettings`）；不在 Prefab / CharacterConfig 重复配置
 - **Locomotion 单一挂点**：`CharacterLocomotionProfile` 内含 `AnimationProfile` + 相位/落脚/烘焙；仅 `CombatModeEntry` 挂 Loco；`CharacterConfig` 不配 Locomotion
 - **敌人木桩**：`EnemyBrainProfile.enableCombatActions = false` 关闭追打，保留受击/死亡；不以空 Graph / aggro=0 定义木桩
-- **AI 命令（终态）**：BT Task 只写黑板；Brain 提交 Desire/Request；Actor/Driver 消费；**禁止**节点 `TryStart` / 改 Numeric；迁完删除敌人假手柄双轨
-- **AI 输入（过渡）**：若仍走 `AIInputWriter`，须写与玩家相同布局的 `InputFrame`；Brain 禁止直接调用 `ActionSim.TryStart/TryInterrupt`
+- **AI 命令**：BT Task 只写黑板；Brain 写通用 `LocomotionDesireBuffer` / `ActionEntryRequestBuffer`；Character / Combat 仅依赖只读接口；**禁止**节点 `TryStart` / 改 Numeric
+- **分层门禁**：`Domain/Character` 与 `Domain/Combat` 禁止引用 `Domain/Enemy` 声明的具体类型；由 `EnemyActorFactory` 在构造阶段注入接口，禁止恢复两阶段 Enemy Bind
 - **输入计时**：Hold、Action Buffer 与 AI 攻击/重试/刷新冷却只使用整数逻辑帧；禁止重新引入秒制输入 TTL
-- **AI 移动（终态）**：`LocomotionDesire`（本地轴意图 + FaceTarget）直接喂 Locomotion；禁止长期依赖敌人 `InputFrame.move` 权威
+- **AI 移动**：`LocomotionDesire`（本地轴意图 + FaceTarget）通过 `IMoveIntentSource` 直接喂 Locomotion；敌人 `InputFrame.move` 必须保持非权威
 
 ## 伤害与受击约定
 

@@ -18,8 +18,7 @@
 
 1. **Phase-1 自研轻量行为树**（不引入第三方插件包）；同时 **BT-1 起就预留可替换后端接口**，便于日后功能完善或整包接入现成插件。
 2. **BT 只写黑板输出槽**；禁止节点直调 `ActionSim` / `MotorSim` / Numeric。  
-   - **Phase-1（已落地，过渡）：** Brain 帧末经 `AIInputWriter` → `InputFrame`。  
-   - **终态（8.10 方案）：** Brain 提交 `LocomotionDesire` + `CombatRequest`；**删除**敌人假手柄（`SetMove` / 攻击 Pulse / 移动 InputFrame 权威）。
+   - **终态（已落地，E-MOVE2）：** Brain 提交 `LocomotionDesire` + `CombatRequest`；`ProduceInput` 写空 `InputFrame`；**已删除** `AIInputWriter` 与战斗 Pulse。
 3. **Hit / Death 不进树**：由 `CharacterReactionService` 外层抢占；BT 在受控期间不 Tick 或 Tick 前被门闩拦住。
 4. **用 BT 替换 `EnemyBrain` 内 Idle/Chase/Attack 决策**，删除与 BT 并行的五态业务 switch（保留 `EnemyBrainState` 仅作调试快照可选）。
 5. **策略资产化**：`EnemyDefinition` 引用实现 `IEnemyBehaviorTreeAsset` 的资产；战斗距离/幅度等调参终态迁到 **节点 Def**（见 8.10 E-CFG），`EnemyBrainProfile` 瘦身为开关/生命周期。
@@ -53,7 +52,7 @@
 
 ### 3.1 数据流
 
-**终态（8.10，目标）：**
+**当前终态（8.11）：**
 
 ```text
 EnemyHandle.ProduceInput / Step（逻辑帧）
@@ -63,18 +62,11 @@ EnemyHandle.ProduceInput / Step（逻辑帧）
   │    ├─ Perception → 填 EnemyBlackboard（客观量）
   │    ├─ IEnemyBehaviorRunner.Tick(bb)
   │    │    ├─ Condition 读黑板 / 节点参数 / Cooldown
-  │    │    └─ Task 写 LocomotionDesire / CombatRequest（及迁移期 MoveDesire）
-  │    └─ Commit：EnemyLocomotionCommandBuffer + EnemyCombatRequestBuffer
+  │    │    └─ Task 写黑板 MoveDesire / CombatRequest
+  │    └─ Commit：LocomotionDesireBuffer + ActionEntryRequestBuffer
   └─ CharacterActor.Step（敌人）
-       Apply(LocomotionDesire) → Locomotion / Motor
-       if CombatRequest → ActionDriver.TryStart(Entry)
-```
-
-**现状（Phase-1～E-MOVE2 前，过渡）：**
-
-```text
-EnemyBrain.Step → Runner.Tick → bb.MoveDesire / AttackPulse
-  → AIInputWriter → InputFrame → CharacterActor（与玩家同款 Intent 管线）
+       Locomotion / Motor → IMoveIntentSource
+       CharacterActionDriver → IActionEntryRequestSource
 ```
 
 ```mermaid
@@ -107,10 +99,10 @@ flowchart TB
 | 模块 | 职责 |
 |------|------|
 | `CharacterReactionService` | 生命值 → EnterHit / EnterDeath；回调 Brain 门闩 |
-| `EnemyBrain` | 门闩、黑板填装、冷却辅助、**只通过** `IEnemyBehaviorRunner` Tick；帧末提交命令（终态 Desire/Request；过渡期仍可写 `AIInputWriter`） |
+| `EnemyBrain` | 门闩、黑板填装、冷却辅助、**只通过** `IEnemyBehaviorRunner` Tick；帧末提交 Desire + CombatRequest |
 | `IEnemyBehaviorTreeAsset` / `IEnemyBehaviorRunner` | **可替换后端契约**（§3.4）；首版自研实现 |
 | 自研 `BehaviorTree` + 节点 | Phase-1 默认 Runner 实现（可配置决策） |
-| `AIInputWriter` | **过渡**：量化 `InputFrame`；**E-MOVE2 后删除或仅测试**（敌人不再假手柄） |
+| ~~`AIInputWriter`~~ | **已删除**（E-MOVE2） |
 | Desire / Request Buffer | **终态**敌人移动/出招唯一提交槽 |
 | `EnemyPerception` | 只读快照，供条件节点读取 |
 | `IEnemyPathQuery` | **预留**：返回追击方向；首版实现 = 直线朝向目标 |
@@ -178,8 +170,7 @@ PluginBehaviorTreeAdapterAsset : ScriptableObject, IEnemyBehaviorTreeAsset
 | 规则 | 说明 |
 |------|------|
 | 时钟 | 仅在 World **逻辑帧**由 `EnemyBrain.Step` 调用；禁止 Runner 自挂 `Update` |
-| 输出槽（**终态**） | 决策结果只体现为黑板 **`LocomotionDesire` + `CombatRequest`**（及只读条件字段）；Brain 提交缓冲，**不经**敌人 `AIInputWriter` / 攻击 Intent |
-| 输出槽（**过渡，代码现状**） | Phase-1：`MoveDesire` / `AttackPulse` → `AIInputWriter` → `InputFrame`；迁完按 8.10 E-REQ2 / E-MOVE2 **删除** |
+| 输出槽（**代码现状**） | 黑板 `MoveDesire` / `HasCombatRequest` → Brain 提交 **`LocomotionDesire` + `CombatRequest`**；不经敌人假手柄 / 攻击 Intent |
 | 感知 | 目标/距离等由 Brain+Perception **填入黑板**；Runner 不直读 Scene Physics 作权威 |
 | 门闩 | Hit/Death 仍由 Brain 外层处理；进入时 `Runner.Reset()` + `ClearAll` |
 | 冷却 | 招式 CD 终态以节点 `CooldownGate` 为主；Brain 可保留起手确认观测；禁止同一 id 双写 |
