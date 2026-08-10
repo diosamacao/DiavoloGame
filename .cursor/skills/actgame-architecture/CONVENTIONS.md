@@ -118,6 +118,8 @@ public class MyBehaviour : MonoBehaviour
 - **Locomotion 单一挂点**：`CharacterLocomotionProfile` 内含 `AnimationProfile` + 相位/落脚/烘焙；仅 `CombatModeEntry` 挂 Loco；`CharacterConfig` 不配 Locomotion
 - **敌人木桩**：`EnemyBrainProfile.enableCombatActions = false` 关闭追打，保留受击/死亡；不以空 Graph / aggro=0 定义木桩
 - **AI 命令**：BT Task 只写黑板；Brain 写通用 `LocomotionDesireBuffer` / `ActionEntryRequestBuffer`；Character / Combat 仅依赖只读接口；**禁止**节点 `TryStart` / 改 Numeric
+- **AI 招式冷却**：`CooldownGate` 持有成功 CD id/frames 并暂存；Brain 只确认/丢弃暂存，失败写独立 `action_entry_retry`；禁止 Brain 与节点写同一成功 CD id
+- **AI 攻击拓扑**：`WaitWhileInAction` 必须放在 `IsCharacterState(Locomotion)` 子树外；禁止用运行时 fallback 掩盖错误树，交由 Validator 阻止保存
 - **分层门禁**：`Domain/Character` 与 `Domain/Combat` 禁止引用 `Domain/Enemy` 声明的具体类型；由 `EnemyActorFactory` 在构造阶段注入接口，禁止恢复两阶段 Enemy Bind
 - **输入计时**：Hold、Action Buffer 与 AI 攻击/重试/刷新冷却只使用整数逻辑帧；禁止重新引入秒制输入 TTL
 - **AI 移动**：`LocomotionDesire`（本地轴意图 + FaceTarget）通过 `IMoveIntentSource` 直接喂 Locomotion；敌人 `InputFrame.move` 必须保持非权威

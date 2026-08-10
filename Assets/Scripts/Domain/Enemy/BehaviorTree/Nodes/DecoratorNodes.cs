@@ -47,7 +47,7 @@ public sealed class SucceederNode : IBehaviorNode
 }
 
 /// <summary>
-/// 冷却门：表未就绪则 Failure；子节点 Success 时按节点 frames 写入冷却（招式 CD 真源）。
+/// 冷却门：表未就绪则 Failure；普通行为成功立即写 CD，CombatRequest 先暂存至起手确认。
 /// basic_attack 另阻塞 AttackConfirmPending，与 CooldownReady 一致。
 /// </summary>
 public sealed class CooldownGateNode : IBehaviorNode
@@ -73,7 +73,7 @@ public sealed class CooldownGateNode : IBehaviorNode
             return BehaviorStatus.Failure;
         }
 
-        if (!blackboard.Cooldowns.IsReady(_cooldownId))
+        if (!EnemyCooldownIds.IsGateReady(blackboard.Cooldowns, _cooldownId))
         {
             // 与条件装饰一致：门未开时 Abort Self
             _child.Reset();
@@ -89,7 +89,13 @@ public sealed class CooldownGateNode : IBehaviorNode
 
         BehaviorStatus status = _child.Tick(blackboard);
         if (status == BehaviorStatus.Success && _cooldownFrames > 0)
-            blackboard.Cooldowns.Set(_cooldownId, _cooldownFrames);
+        {
+            // Request 叶的 Success 仅代表“已提交”，真实起手由下一帧 Brain 观测 Action 后确认。
+            if (blackboard.HasCombatRequest)
+                blackboard.Cooldowns.Stage(_cooldownId, _cooldownFrames);
+            else
+                blackboard.Cooldowns.Set(_cooldownId, _cooldownFrames);
+        }
         return status;
     }
 

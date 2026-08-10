@@ -79,4 +79,94 @@ public sealed class EnemyCombatRequestTests
         Assert.That(def.Build().Tick(bb), Is.EqualTo(BehaviorStatus.Success));
         Assert.That(bb.CombatRequestEntryId, Is.EqualTo("Entry_Leap"));
     }
+
+    /// <summary>真实进入 Action 后确认节点暂存的完整攻击冷却。</summary>
+    [Test]
+    public void EnemyBrain_RequestConfirmed_CommitsGateCooldown()
+    {
+        CharacterStateType state = CharacterStateType.Locomotion;
+        var self = new GameObject("BrainTestSelf");
+        var target = new GameObject("BrainTestTarget");
+        var profile = ScriptableObject.CreateInstance<EnemyBrainProfile>();
+        var requests = new ActionEntryRequestBuffer();
+        var perception = new EnemyPerception(
+            self.transform,
+            () => target.transform,
+            () => state,
+            () => false);
+        var brain = new EnemyBrain(
+            profile,
+            perception,
+            null,
+            new ConfirmableAttackRunner(cooldownFrames: 72),
+            actionEntryRequests: requests);
+
+        brain.Step();
+        Assert.That(requests.HasPending, Is.True);
+        Assert.That(brain.DebugBasicAttackCooldownFrames, Is.EqualTo(0));
+
+        state = CharacterStateType.Action;
+        brain.Step();
+        Assert.That(brain.DebugBasicAttackCooldownFrames, Is.EqualTo(72));
+        Assert.That(brain.DebugActionEntryRetryFrames, Is.EqualTo(0));
+
+        UnityEngine.Object.DestroyImmediate(profile);
+        UnityEngine.Object.DestroyImmediate(target);
+        UnityEngine.Object.DestroyImmediate(self);
+    }
+
+    /// <summary>请求未进入 Action 时丢弃完整 CD，只启用独立短重试槽。</summary>
+    [Test]
+    public void EnemyBrain_RequestFailed_UsesRetryCooldownOnly()
+    {
+        CharacterStateType state = CharacterStateType.Locomotion;
+        var self = new GameObject("BrainTestSelf");
+        var target = new GameObject("BrainTestTarget");
+        var profile = ScriptableObject.CreateInstance<EnemyBrainProfile>();
+        var requests = new ActionEntryRequestBuffer();
+        var perception = new EnemyPerception(
+            self.transform,
+            () => target.transform,
+            () => state,
+            () => false);
+        var brain = new EnemyBrain(
+            profile,
+            perception,
+            null,
+            new ConfirmableAttackRunner(cooldownFrames: 72),
+            actionEntryRequests: requests);
+
+        brain.Step();
+        Assert.That(requests.HasPending, Is.True);
+
+        // Driver 失败时角色仍为 Locomotion；下一 Brain 帧必须走短重试而非完整攻击 CD。
+        brain.Step();
+        Assert.That(brain.DebugBasicAttackCooldownFrames, Is.EqualTo(0));
+        Assert.That(brain.DebugActionEntryRetryFrames, Is.EqualTo(12));
+        Assert.That(requests.HasPending, Is.False);
+
+        UnityEngine.Object.DestroyImmediate(profile);
+        UnityEngine.Object.DestroyImmediate(target);
+        UnityEngine.Object.DestroyImmediate(self);
+    }
+
+    /// <summary>用真实 CooldownGate + Request 复现 Brain 起手确认协议。</summary>
+    sealed class ConfirmableAttackRunner : IEnemyBehaviorRunner
+    {
+        readonly CooldownGateNode _gate;
+
+        public ConfirmableAttackRunner(int cooldownFrames)
+        {
+            _gate = new CooldownGateNode(
+                EnemyCooldownIds.BasicAttack,
+                cooldownFrames,
+                new RequestCombatAction("Entry_Test"));
+        }
+
+        /// <inheritdoc />
+        public BehaviorStatus Tick(EnemyBlackboard blackboard) => _gate.Tick(blackboard);
+
+        /// <inheritdoc />
+        public void Reset() => _gate.Reset();
+    }
 }

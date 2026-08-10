@@ -147,7 +147,7 @@ public sealed class CooldownGateNodeDef : EnemyBehaviorNodeDef
         set => cooldownId = value;
     }
 
-    /// <summary>子节点 Success 后写入的冷却帧数。</summary>
+    /// <summary>子节点 Success 后的冷却帧数；CombatRequest 会先暂存至 Brain 起手确认。</summary>
     public int CooldownFrames
     {
         get => cooldownFrames;

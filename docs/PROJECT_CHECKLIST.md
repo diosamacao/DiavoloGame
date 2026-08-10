@@ -1,6 +1,7 @@
 ﻿# ACTGame 项目总清单
 
-> 更新：2026-08-10 — 敌人 AI 下一阶段以离散出招/命令轨方案为准（E-CFG1 起）  
+> 更新：2026-08-11 — 敌人 BT 离散出招/命令轨方案（8.10）总出口已关闭  
+
 > 角色：**一页总览**（进度 / 下一步 / 明确不做）  
 > 细节真源勿与本文抢权威：
 >
@@ -9,7 +10,7 @@
 > | 设计方向与重构项 | [`.cursor/skills/actgame-architecture/ROADMAP.md`](../.cursor/skills/actgame-architecture/ROADMAP.md) |
 > | 已实现功能与方案 | [`.cursor/skills/actgame-architecture/TECHNICAL.md`](../.cursor/skills/actgame-architecture/TECHNICAL.md) |
 > | Wave / GAS 排期与验收 | [`2026.8.6/MASTER_IMPLEMENTATION_PLAN.md`](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md) |
-> | 敌人 AI 结构（下一阶段） | [`2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md) |
+> | 敌人 AI 结构（✅ 8.10 已关闭） | [`2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md) |
 > | 文档索引 | [`README.md`](./README.md) |
 
 图例：✅ 完成 · 🟡 代码就绪 / 资产或体验未齐 · ⬜ 未开始 · ⏸ 后置
@@ -46,7 +47,7 @@
 | Numeric / GAS-lite | ✅ | G0～G5；`NumericSystem` 唯一权威 |
 | 资源循环 Special·EX·闪避·Ult | 🟡 | 代码闭环；Graph/Spec 资产持续填表 |
 | 完美闪避反击 | ✅ | 窗轨 + Counter Entry（2026-08-08） |
-| 敌人 AI | 🟡 | Phase-1 BT ✅（仍假手柄）；下一阶段 Desire+Request 见 8.10 |
+| 敌人 AI | ✅ | Desire + Entry Request + 真敌树资产 Play 验收（2026-08-11） |
 | 相机 | 🟡 | 跟随 + 滤左右；Lock-On / SkillShot 未做 |
 | 正式 UI / 血条 | ⬜ | 仅 Debug HUD；目标 MVVM |
 | 吸附 / 绕背 | ✅ | Wave 4 位移出口（2026-08-09） |
@@ -59,8 +60,9 @@
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项：** 敌人 BT **E-REQ3**（起手确认 / Validator / 文档收口）
-→ 结构真源：[`2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)  
+**下一项：** Locomotion **GaitPolicy / 对峙循环打磨**（或可选 Lock-On）
+→ 敌人 AI 8.10 方案已关闭：[`2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)  
+
 
 | # | 项 | 状态 |
 |---|------|------|
@@ -70,12 +72,13 @@
 | A3 | 完美闪避子弹时间（表现，不改吞伤权威） | ⬜ 可选 |
 | A4 | 相机轻优化（勿塞完整 Lock-On） | ⬜ 可选 |
 | A5 | AI 行为树 Phase-1（过渡：InputFrame） | ✅ Play 验收 2026-08-09 |
-| E-CFG1 | 配置归属到 BT 节点 | ✅ 代码 2026-08-10；资产人工补参 |
-| E-ST1 | 对峙/追击滞回 DistanceBand | ✅ 代码 2026-08-10；资产改 Band 后 Play |
-| E-REQ1 | CombatRequest 通道骨架 | ✅ 代码 2026-08-10；资产填 Entry 后 Play |
-| E-REQ2 | 权重池 + 删除攻击 Pulse | ✅ 代码 2026-08-10；资产搭池后 Play |
-| E-MOVE1 | LocomotionDesire 通道 | ✅ 代码 2026-08-10；Play 手感待验 |
-| E-MOVE2 | 删除敌人输入壳 | ✅ 代码 2026-08-10；Play 待验 |
+| E-CFG1 | 配置归属到 BT 节点 | ✅ 代码 + 资产/Play 2026-08-11 |
+| E-ST1 | 对峙/追击滞回 DistanceBand | ✅ 代码 + Play 2026-08-11 |
+| E-REQ1 | CombatRequest 通道骨架 | ✅ 代码 + Play 2026-08-11 |
+| E-REQ2 | 权重池 + 删除攻击 Pulse | ✅ 代码 + Play 2026-08-11 |
+| E-MOVE1 | LocomotionDesire 通道 | ✅ 代码 + Play 2026-08-11 |
+| E-MOVE2 | 删除敌人输入壳 | ✅ 代码 + Play 2026-08-11 |
+| E-REQ3 | 起手确认 / Validator / 文档收口 | ✅ 代码 + EditMode/Play 2026-08-11 |
 
 主排期：**Wave 4 位移 ✅ 已关闭**；Wave 5 仅可选玩法后置（失衡/命中盒烘焙）；相机 LockOn/SkillShot/Finisher 见 [`CAMERA_SYSTEM_PLAN.md`](./2026.8.6/CAMERA_SYSTEM_PLAN.md)。
 
@@ -133,7 +136,7 @@
 - [x] `NumericSystem`（Attribute / Effect / Flags）+ `NumericCostGate` + Vitality
 - [x] Action Editor 基础时间轴 / Graph 编辑
 - [x] F3 `CombatDebugHudController`
-- [x] 敌人共享 Actor + BT Runner（Phase-1；资产待齐；命令轨见 8.10）
+- [x] 敌人共享 Actor + BT Runner + Desire/Request（8.10 总出口 2026-08-11）
 
 ### 6.2 进行中 / 资产待绑
 
@@ -148,7 +151,7 @@
 
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
-| AI Behavior Tree 运行时 | P1 | Phase-1 ✅；下一阶段 [`2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)（Desire + Request） |
+| AI Behavior Tree 运行时 | ✅ | 8.10 Desire + Entry Request 总出口关闭（2026-08-11） |
 | Lock-On / Director | P1 | Camera 篇 C1（不挂 Wave 4） |
 | TargetAdhesion / RelocateBehind | ✅ | Wave 4 已齐；Relocate 资产按需 |
 | 正式 HUD（血条/资源条） | P2 | 替代 F3；实现走 §6.4 MVVM |
@@ -187,7 +190,7 @@ MVVM HUD 骨架
 
 - [ ] MVVM UI 框架 + 首屏 HUD
 - [ ] 性能基线场景与优化对照记录
-- [x] BT 抽象接口（§3.4，BT-1 ✅）+ Inspector/GraphView（BT-2/E3 ✅）；结构下一阶段见 8.10
+- [x] BT 抽象接口 + GraphView + 8.10 Desire/Request 总出口（2026-08-11）
 - [ ] A\* Demo（寻路 → 移动意图）
 - [ ] AssetBundle 加载闭环
 - [ ] Lua（或脚本）热更沙盒（非战斗权威）

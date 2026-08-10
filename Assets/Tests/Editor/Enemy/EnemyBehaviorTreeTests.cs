@@ -276,18 +276,17 @@ public sealed class EnemyBehaviorTreeTests
         Assert.That(mid.MoveDesire.y, Is.EqualTo(0f));
     }
 
+    /// <summary>非 CombatRequest 行为成功后立即写入并递减普通冷却。</summary>
     [Test]
-    public void CooldownGate_BlocksThenAllowsAfterTickDown()
+    public void CooldownGate_ImmediateBehavior_BlocksThenAllowsAfterTickDown()
     {
         var bb = CreateBlackboard(hasTarget: true, distance: 3f, aggroed: true, cdReady: true);
         var gate = new CooldownGateNode(
             EnemyCooldownIds.Dodge,
             2,
-            new RequestCombatAction("Entry_Dodge"));
+            new StopMoveAction());
 
         Assert.That(gate.Tick(bb), Is.EqualTo(BehaviorStatus.Success));
-        Assert.That(bb.HasCombatRequest, Is.True);
-        Assert.That(bb.CombatRequestEntryId, Is.EqualTo("Entry_Dodge"));
         bb.ResetFrameOutputs();
         Assert.That(gate.Tick(bb), Is.EqualTo(BehaviorStatus.Failure));
 
@@ -580,6 +579,43 @@ public sealed class EnemyBehaviorTreeTests
         EnemyBehaviorTreeValidationResult result = EnemyBehaviorTreeValidator.ValidateTree(inv);
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Errors[0], Does.Contain("child 为空"));
+    }
+
+    /// <summary>Wait 被 Locomotion 条件包住时会在 Action 态被 Abort，Validator 必须拒绝。</summary>
+    [Test]
+    public void Validator_RejectsWaitInsideLocomotionCondition()
+    {
+        var body = new SequenceNodeDef { NodeName = "InvalidAttackBody" };
+        body.children.Add(new RequestCombatActionDef
+        {
+            NodeName = "Request",
+            EntryNodeId = "Entry_Test",
+        });
+        body.children.Add(new WaitWhileInActionActionDef { NodeName = "WaitAction" });
+        var locomotionOnly = new IsCharacterStateConditionDef
+        {
+            NodeName = "IsLocomotion",
+            Expected = CharacterStateType.Locomotion,
+            child = body,
+        };
+
+        EnemyBehaviorTreeValidationResult result =
+            EnemyBehaviorTreeValidator.ValidateTree(locomotionOnly);
+
+        Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Errors, Has.Some.Contains("WaitWhileInAction"));
+        Assert.That(result.Errors, Has.Some.Contains("Locomotion"));
+    }
+
+    /// <summary>推荐攻击拓扑把 Wait 放在 Locomotion 门控外，应保持合法。</summary>
+    [Test]
+    public void Validator_AllowsFactoryAttackWaitOutsideLocomotionCondition()
+    {
+        EnemyBehaviorNodeDef root = EnemyBehaviorTreeDefFactory.CreateMeleeChaseAttack();
+        EnemyBehaviorTreeValidationResult result =
+            EnemyBehaviorTreeValidator.ValidateTree(root);
+
+        Assert.That(result.IsValid, Is.True, string.Join("\n", result.Errors));
     }
 
     [Test]

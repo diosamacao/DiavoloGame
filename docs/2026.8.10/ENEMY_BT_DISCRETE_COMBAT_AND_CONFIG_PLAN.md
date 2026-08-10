@@ -270,9 +270,9 @@ EnemyDefinition
 - [x] `rg`：条件/Move Task 无 `Profile.AttackRange` / `ChaseMoveMagnitude` / `StrafeMoveMagnitude`  
 - [x] 单测：两节点不同 `range` 同距离真值相反  
 - [x] 木桩 `enableCombatActions=false` 仍早退不跑 Runner（代码路径保留）  
-- [ ] Unity 编译 / EditMode 通过（需 Editor 确认）  
+- [x] Unity 编译 / EditMode 通过（人工确认 2026-08-11）
 
-**出口：** 战斗距离与幅度真源仅在 BT。→ **代码侧 2026-08-10；资产须人工补节点参数 + 根 AggroGate**
+**出口：** 战斗距离与幅度真源仅在 BT。→ **已达成（2026-08-11：资产补参 + Play 验收）**
 
 ---
 
@@ -290,10 +290,10 @@ EnemyDefinition
 
 - [x] 单测：`OscillateBetweenEnterExit_DoesNotFlipEachFrame`  
 - [x] 单测：`BeyondExit_AfterDwell_AllowsLeave`  
-- [ ] Play：对峙外沿横跳不抖 Chase/Strafe 动画（人工）  
-- [x] 无 Locomotion 身份 if  
+- [x] Play：对峙外沿横跳不抖 Chase/Strafe 动画（人工确认 2026-08-11）
+- [x] 无 Locomotion 身份 if
 
-**出口：** 代码侧 2026-08-10；Play 对峙外沿需资产改用 DistanceBand 后验收。
+**出口：** **已达成（2026-08-11）**
 
 ---
 
@@ -313,9 +313,9 @@ EnemyDefinition
 - [x] 单测：黑板/缓冲 Entry_A≠B；Wait 闩 Request；空 Entry 失败（不卡死）
 - [x] 玩家 Intent 路径未改消费序（Entry Request 仅构造注入后生效）
 - [x] Driver 无第三方 BT API
-- [ ] Play：树上 `RequestCombatAction` + 正确 Entry NodeId 可起招（人工）
+- [x] Play：树上 `RequestCombatAction` + 正确 Entry NodeId 可起招（人工确认 2026-08-11）
 
-**出口：** 代码侧 2026-08-10；资产改 Request 后 Play 验收。
+**出口：** **已达成（2026-08-11）**
 
 ---
 
@@ -336,10 +336,10 @@ EnemyDefinition
 - [x] `rg`：`EnemyBrain.CommitOutputs` 无 `SetMove`
 - [x] 单测：InputFrame.move=0 + Desire 前进仍有 MoveIntent
 - [x] 单测：零 Desire（freeze）HasMoveIntent=false
-- [ ] Play：追击/对峙/停步手感不差于迁前（人工）
-- [ ] 玩家移动无回归（人工）
+- [x] Play：追击/对峙/停步手感不差于迁前（人工确认 2026-08-11）
+- [x] 玩家移动无回归（人工确认 2026-08-11）
 
-**出口：** 代码侧 2026-08-10；Play 手感验收后关闭。
+**出口：** **已达成（2026-08-11）**
 
 ---
 
@@ -357,10 +357,10 @@ EnemyDefinition
 
 - [x] `rg`：敌人战斗提交无 `AttackPulse` / `PulseAttack`（`AIInputWriter.PulseAttack` 仅测试/API 残留，Brain 不用）  
 - [x] 固定序列 / 播种权重分布单测  
-- [ ] Play：同敌至少 2 种起手招（资产改 RandomSelector+Entry 后人工）  
-- [ ] Graph 连段边仍可用（人工）  
+- [x] Play：同敌至少 2 种起手招（人工确认 2026-08-11）
+- [x] Graph 连段边仍可用（人工确认 2026-08-11）
 
-**出口：** 代码侧 2026-08-10；资产搭招式池后 Play 验收。
+**出口：** **已达成（2026-08-11）**
 
 ---
 
@@ -378,11 +378,11 @@ EnemyDefinition
 **验收**
 
 - [x] `rg`：`EnemyHandle` / `EnemyBrain` 无 `SetMove` / `PulseAttack` / `PulseDodge`
-- [ ] 真敌 Play：移动+多招+对峙无 InputFrame 依赖（人工）
-- [ ] 木桩仍可受击；无 AI 移动（人工）
-- [ ] 玩家输入管线完整（人工）
+- [x] 真敌 Play：移动+多招+对峙无 InputFrame 依赖（人工确认 2026-08-11）
+- [x] 木桩仍可受击；无 AI 移动（人工确认 2026-08-11）
+- [x] 玩家输入管线完整（人工确认 2026-08-11）
 
-**出口：** 代码侧 2026-08-10；Play 验收后关闭。
+**出口：** **已达成（2026-08-11）**
 
 ---
 
@@ -390,18 +390,19 @@ EnemyDefinition
 
 **任务**
 
-- [ ] Brain 起手确认观测 Request → Action  
-- [ ] 招式 CD：节点 `CooldownGate`；禁止与 Brain 双写同一 id  
-- [ ] Validator：`WaitWhileInAction` 不得被 `IsLocomotion` 包在 Wait 外  
-- [ ] 更新契约表、TECHNICAL、本文件勾选  
+- [x] Brain 起手确认观测 Request → Action
+- [x] 招式 CD：`CooldownGate` 暂存成功 CD，Brain 只确认/丢弃；失败写独立 `action_entry_retry`
+- [x] Validator：`WaitWhileInAction` 不得位于 `IsLocomotion` 子树内
+- [x] 更新契约表、TECHNICAL、本文件勾选
 
 **验收**
 
-- [ ] Request 失败/成功 CD 单测  
-- [ ] Validator 错误拓扑可测  
-- [ ] 文档与实现一致  
+- [x] 新增 Request 失败/成功 CD 单测（人工确认 2026-08-11）
+- [x] 新增 Validator 错误/正确拓扑单测（人工确认 2026-08-11）
+- [x] `rg`：Brain 不直接写 `basic_attack`；文档与实现一致
+- [x] Unity 编译 / EditMode 通过（人工确认 2026-08-11）
 
-**出口：** 契约收口，可开内容填充。→ **未达成**
+**出口：** **已达成（2026-08-11）**
 
 ---
 
@@ -520,13 +521,14 @@ E-CFG1（参数上树）
 
 ## 12. 成功标准（总出口）
 
-同时满足：
+同时满足（**已达成 2026-08-11**）：
 
-1. E-CFG1 / E-ST1 / E-REQ1 / E-MOVE1 / E-REQ2 / E-MOVE2 / E-REQ3 均已达成  
-2. 敌人运行时：**无** `SetMove` / 攻击 Pulse / 移动 InputFrame 权威  
-3. 新怪 AI：主调 BT + Graph Entry；BrainProfile 无战斗距离表  
-4. Play：离散多招 + 对峙不抖 + 追击/侧移正常  
-5. 玩家输入管线无回归  
+1. [x] E-CFG1 / E-ST1 / E-REQ1 / E-MOVE1 / E-REQ2 / E-MOVE2 / E-REQ3 均已达成
+2. [x] 敌人运行时：**无** `SetMove` / 攻击 Pulse / 移动 InputFrame 权威
+3. [x] 新怪 AI：主调 BT + Graph Entry；BrainProfile 无战斗距离表
+4. [x] Play：离散多招 + 对峙不抖 + 追击/侧移正常
+5. [x] 玩家输入管线无回归
+
 
 ---
 
@@ -539,3 +541,4 @@ E-CFG1（参数上树）
 | 2026-08-10 | **E-CFG1 落地**：节点自带距离/幅度；`AggroGate`；薄 Profile；Factory/单测同步 |
 | 2026-08-10 | **E-ST1 落地**：`DistanceBandCondition` + `CreateMeleeStanceLoop`；滞回单测 |
 | 2026-08-10 | **E-REQ1 落地**：CombatRequest 缓冲 + RequestCombatAction + Driver.TryStartRequestedEntry |
+| 2026-08-11 | **总出口关闭**：用户完成真敌树资产配置与 Play / EditMode 验收；E-CFG1～E-REQ3 全部达成 |
