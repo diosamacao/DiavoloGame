@@ -216,7 +216,7 @@ public sealed class WaitWhileInActionAction : IBehaviorNode
     public void Reset() => _latched = false;
 }
 
-/// <summary>行动：跨逻辑帧等待（Running → Success）；durationFrames 可配。</summary>
+/// <summary>行动：跨逻辑帧等待（Running → Success）；由 Def 秒数转帧后构造。</summary>
 public sealed class WaitFramesAction : IBehaviorNode
 {
     readonly int _durationFrames;

@@ -67,16 +67,16 @@ public static class EnemyBehaviorTreeDefFactory
     }
 
     /// <summary>
-    /// 测试/样例：近战对峙循环（E-ST1）。
-    /// Attack 不套 DistanceBand；Chase=OutsideFar；Strafe=InsideBand。
+    /// 测试/样例：近战对峙循环。
+    /// Attack（贴近+CD 就绪）→ Strafe（CD 中对峙）←→ Chase（CD 毕且未贴身）→ Idle。
     /// 推荐拓扑（资产请在 Editor 按此搭，Agent 不改 .asset）：
-    /// AggroGate → Selector( Attack | Chase(Band Far) | Strafe(Band Inside) | Idle )。
+    /// AggroGate → Selector( Attack | Chase(CdReady) | Strafe(CdNotReady) | Idle )。
     /// </summary>
     public static EnemyBehaviorNodeDef CreateMeleeStanceLoop(string entryNodeId = "Entry_Basic")
     {
         var attackBody = CreateGatedRequestAttackBody(entryNodeId);
 
-        // Chase：过远带 enter=3.5 / exit=2.8（exit&lt;enter）+ 最短驻留
+        // CD 结束后追击，直到进入 Attack 距离
         EnemyBehaviorNodeDef chase = NestDecorators(
             new MoveTowardTargetActionDef
             {
@@ -87,16 +87,13 @@ public static class EnemyBehaviorTreeDefFactory
             },
             new HasTargetConditionDef { NodeName = "HasTarget" },
             new InCombatAggroConditionDef { NodeName = "InAggro" },
-            new DistanceBandConditionDef
+            new CooldownReadyConditionDef
             {
-                NodeName = "ChaseBand",
-                Mode = DistanceBandMode.OutsideFar,
-                EnterDistance = 3.5f,
-                ExitDistance = 2.8f,
-                MinDwellFrames = 6,
+                NodeName = "CdReadyChase",
+                CooldownId = EnemyCooldownIds.BasicAttack,
             });
 
-        // Strafe：对峙区间 [2, 3.5]；与 Chase 滞回咬合，避免外沿每帧翻面
+        // CD 期间对峙左右走，不追击
         EnemyBehaviorNodeDef strafe = NestDecorators(
             new StrafeAroundTargetActionDef
             {
@@ -106,13 +103,10 @@ public static class EnemyBehaviorTreeDefFactory
             },
             new HasTargetConditionDef { NodeName = "HasTarget" },
             new InCombatAggroConditionDef { NodeName = "InAggro" },
-            new DistanceBandConditionDef
+            new CooldownNotReadyConditionDef
             {
-                NodeName = "StrafeBand",
-                Mode = DistanceBandMode.InsideBand,
-                EnterDistance = 2f,
-                ExitDistance = 3.5f,
-                MinDwellFrames = 6,
+                NodeName = "CdBusyStance",
+                CooldownId = EnemyCooldownIds.BasicAttack,
             });
 
         var selector = new SelectorNodeDef
@@ -165,7 +159,7 @@ public static class EnemyBehaviorTreeDefFactory
         {
             NodeName = "BasicAttackGate",
             CooldownId = EnemyCooldownIds.BasicAttack,
-            CooldownFrames = 72,
+            CooldownSeconds = 1.2f,
             child = requestBody,
         };
 
@@ -309,7 +303,7 @@ public static class EnemyBehaviorTreeDefFactory
         {
             NodeName = "BasicAttackGate",
             CooldownId = EnemyCooldownIds.BasicAttack,
-            CooldownFrames = 72,
+            CooldownSeconds = 1.2f,
             child = requestBody,
         };
 

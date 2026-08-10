@@ -132,12 +132,12 @@ public sealed class SucceederNodeDef : EnemyBehaviorNodeDef
         Wrap(new SucceederNode(child != null ? child.Build() : new StopMoveAction()));
 }
 
-/// <summary>CooldownGate 定义；子节点 Success 时写入冷却。</summary>
+/// <summary>CooldownGate 定义；子节点 Success 时写入冷却（作者填秒，Build 转帧）。</summary>
 [Serializable]
 public sealed class CooldownGateNodeDef : EnemyBehaviorNodeDef
 {
     [SerializeField] string cooldownId = EnemyCooldownIds.Dodge;
-    [SerializeField] int cooldownFrames = 60;
+    [SerializeField] float cooldownSeconds = 1f;
     [SerializeReference] public EnemyBehaviorNodeDef child;
 
     /// <summary>冷却 id（Graph Inspector 可编）。</summary>
@@ -147,18 +147,18 @@ public sealed class CooldownGateNodeDef : EnemyBehaviorNodeDef
         set => cooldownId = value;
     }
 
-    /// <summary>子节点 Success 后的冷却帧数；CombatRequest 会先暂存至 Brain 起手确认。</summary>
-    public int CooldownFrames
+    /// <summary>子节点 Success 后的冷却秒数；CombatRequest 会先暂存至 Brain 起手确认。</summary>
+    public float CooldownSeconds
     {
-        get => cooldownFrames;
-        set => cooldownFrames = Mathf.Max(0, value);
+        get => cooldownSeconds;
+        set => cooldownSeconds = Mathf.Max(0f, value);
     }
 
     /// <inheritdoc />
     public override IBehaviorNode Build() =>
         Wrap(new CooldownGateNode(
             cooldownId,
-            cooldownFrames,
+            EnemyBehaviorTime.SecondsToFrames(cooldownSeconds),
             child != null ? child.Build() : new StopMoveAction()));
 }
 
@@ -273,6 +273,24 @@ public sealed class CooldownReadyConditionDef : EnemyBehaviorConditionNodeDef
         Wrap(new CooldownReadyCondition(cooldownId, BuildChild()));
 }
 
+/// <summary>CooldownNotReady：冷却或失败重试占用中时放行（对峙支）。</summary>
+[Serializable]
+public sealed class CooldownNotReadyConditionDef : EnemyBehaviorConditionNodeDef
+{
+    [SerializeField] string cooldownId = EnemyCooldownIds.BasicAttack;
+
+    /// <summary>冷却 id。</summary>
+    public string CooldownId
+    {
+        get => cooldownId;
+        set => cooldownId = value;
+    }
+
+    /// <inheritdoc />
+    public override IBehaviorNode Build() =>
+        Wrap(new CooldownNotReadyCondition(cooldownId, BuildChild()));
+}
+
 /// <summary>DistanceLessEqual 条件装饰定义。</summary>
 [Serializable]
 public sealed class DistanceLessEqualConditionDef : EnemyBehaviorConditionNodeDef
@@ -316,7 +334,7 @@ public sealed class DistanceBandConditionDef : EnemyBehaviorConditionNodeDef
     [SerializeField] DistanceBandMode mode = DistanceBandMode.OutsideFar;
     [SerializeField] float enterDistance = 4f;
     [SerializeField] float exitDistance = 3f;
-    [SerializeField] int minDwellFrames = 6;
+    [SerializeField] float minDwellSeconds = 0.1f;
 
     /// <summary>滞回带模式。</summary>
     public DistanceBandMode Mode
@@ -339,16 +357,21 @@ public sealed class DistanceBandConditionDef : EnemyBehaviorConditionNodeDef
         set => exitDistance = Mathf.Max(0f, value);
     }
 
-    /// <summary>最短驻留逻辑帧；满后才允许因距离翻面失败。</summary>
-    public int MinDwellFrames
+    /// <summary>最短驻留秒数；满后才允许因距离翻面失败。</summary>
+    public float MinDwellSeconds
     {
-        get => minDwellFrames;
-        set => minDwellFrames = Mathf.Max(0, value);
+        get => minDwellSeconds;
+        set => minDwellSeconds = Mathf.Max(0f, value);
     }
 
     /// <inheritdoc />
     public override IBehaviorNode Build() =>
-        Wrap(new DistanceBandCondition(mode, enterDistance, exitDistance, minDwellFrames, BuildChild()));
+        Wrap(new DistanceBandCondition(
+            mode,
+            enterDistance,
+            exitDistance,
+            EnemyBehaviorTime.SecondsToFrames(minDwellSeconds),
+            BuildChild()));
 }
 
 /// <summary>StopMove 行动定义。</summary>
@@ -468,19 +491,20 @@ public sealed class WaitWhileInActionActionDef : EnemyBehaviorNodeDef
     public override IBehaviorNode Build() => Wrap(new WaitWhileInActionAction());
 }
 
-/// <summary>WaitFrames 行动定义。</summary>
+/// <summary>Wait 行动定义；作者填秒，Build 转逻辑帧。</summary>
 [Serializable]
 public sealed class WaitFramesActionDef : EnemyBehaviorNodeDef
 {
-    [SerializeField] int durationFrames = 30;
+    [SerializeField] float durationSeconds = 0.5f;
 
-    /// <summary>等待逻辑帧数。</summary>
-    public int DurationFrames
+    /// <summary>等待秒数（至少转成 1 逻辑帧）。</summary>
+    public float DurationSeconds
     {
-        get => durationFrames;
-        set => durationFrames = Mathf.Max(1, value);
+        get => durationSeconds;
+        set => durationSeconds = Mathf.Max(0f, value);
     }
 
     /// <inheritdoc />
-    public override IBehaviorNode Build() => Wrap(new WaitFramesAction(durationFrames));
+    public override IBehaviorNode Build() =>
+        Wrap(new WaitFramesAction(EnemyBehaviorTime.SecondsToWaitFrames(durationSeconds)));
 }
