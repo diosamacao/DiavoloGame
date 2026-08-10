@@ -314,6 +314,14 @@ public static class EnemyBehaviorTreeGraphMapper
             return;
         }
 
+        if (node is AggroGateNodeDef aggro)
+        {
+            aggro.child = kids.Count > 0 ? kids[0].node : null;
+            if (aggro.child != null)
+                WireChildren(aggro.child, kids[0].guid, byParent);
+            return;
+        }
+
         if (node is EnemyBehaviorConditionNodeDef condition)
         {
             condition.child = kids.Count > 0 ? kids[0].node : null;
@@ -384,6 +392,9 @@ public static class EnemyBehaviorTreeGraphMapper
                 return true;
             case CooldownGateNodeDef gate:
                 child = gate.child;
+                return true;
+            case AggroGateNodeDef aggro:
+                child = aggro.child;
                 return true;
             case EnemyBehaviorConditionNodeDef condition:
                 child = condition.child;

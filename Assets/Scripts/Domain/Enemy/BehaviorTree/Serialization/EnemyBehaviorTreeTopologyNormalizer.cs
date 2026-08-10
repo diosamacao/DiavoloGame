@@ -172,7 +172,8 @@ public static class EnemyBehaviorTreeTopologyNormalizer
         node is EnemyBehaviorConditionNodeDef
         || node is InverterNodeDef
         || node is SucceederNodeDef
-        || node is CooldownGateNodeDef;
+        || node is CooldownGateNodeDef
+        || node is AggroGateNodeDef;
 
     /// <summary>外→内套装饰；会写入各装饰 child。</summary>
     public static EnemyBehaviorNodeDef NestDecorators(
@@ -210,6 +211,9 @@ public static class EnemyBehaviorTreeTopologyNormalizer
                 break;
             case CooldownGateNodeDef gate:
                 gate.child = child;
+                break;
+            case AggroGateNodeDef aggro:
+                aggro.child = child;
                 break;
         }
     }

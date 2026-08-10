@@ -94,7 +94,7 @@ public class MyBehaviour : MonoBehaviour
 ## 输入约定
 
 - 使用 Input System + `.inputactions` 资产；Action Map 命名 `Player`
-- **采集**：玩家设备边界实现 `ILocalInputSampler` 并写下一逻辑帧槽；AI 使用 `AIInputWriter` 在 World Input Produce 阶段直接构造 `InputFrame`
+- **采集**：玩家设备边界实现 `ILocalInputSampler` 并写下一逻辑帧槽；敌人 AI **过渡期**可用 `AIInputWriter` 构造 `InputFrame`；**终态**提交 `LocomotionDesire` + `CombatRequest`（见 `docs/2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`），玩家路径不变
 - **原始中枢**：`InputManager` 由 `CharacterActor` 持有；摄入量化 Move 与 Pressed/Held/Released bitset，不承担动作缓冲
 - **相机 Look**：渲染帧 Look 不进入玩法 InputFrame，由 `PlayerController.LookInput` 直接提供给 CameraManager
 - **设备映射**：`GameplayIntentProfile` 是 InputActionReference、长按阈值与上下文映射的**项目唯一**配置源，经 `GameplayIntentSettings` 加载；**禁止**再挂到 `CharacterConfig`
@@ -117,9 +117,10 @@ public class MyBehaviour : MonoBehaviour
 - **玩家装配**：`InputActionAsset` / `GameplayIntentProfile` 均为项目全局（`GameInputSettings` / `GameplayIntentSettings`）；不在 Prefab / CharacterConfig 重复配置
 - **Locomotion 单一挂点**：`CharacterLocomotionProfile` 内含 `AnimationProfile` + 相位/落脚/烘焙；仅 `CombatModeEntry` 挂 Loco；`CharacterConfig` 不配 Locomotion
 - **敌人木桩**：`EnemyBrainProfile.enableCombatActions = false` 关闭追打，保留受击/死亡；不以空 Graph / aggro=0 定义木桩
-- **AI 输入**：`AIInputWriter` 必须写与玩家相同布局的 `InputFrame`；Brain 禁止直接调用 `ActionSim.TryStart/TryInterrupt`
+- **AI 命令（终态）**：BT Task 只写黑板；Brain 提交 Desire/Request；Actor/Driver 消费；**禁止**节点 `TryStart` / 改 Numeric；迁完删除敌人假手柄双轨
+- **AI 输入（过渡）**：若仍走 `AIInputWriter`，须写与玩家相同布局的 `InputFrame`；Brain 禁止直接调用 `ActionSim.TryStart/TryInterrupt`
 - **输入计时**：Hold、Action Buffer 与 AI 攻击/重试/刷新冷却只使用整数逻辑帧；禁止重新引入秒制输入 TTL
-- **AI 移动**：相机相对 Motor 通过 facing proxy + `Move=(0, magnitude)` 复用，禁止另建敌人移动栈
+- **AI 移动（终态）**：`LocomotionDesire`（本地轴意图 + FaceTarget）直接喂 Locomotion；禁止长期依赖敌人 `InputFrame.move` 权威
 
 ## 伤害与受击约定
 

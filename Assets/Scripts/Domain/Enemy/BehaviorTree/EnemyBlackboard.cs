@@ -6,9 +6,6 @@ public sealed class EnemyBlackboard
 {
     readonly StringBuilder _debugPath = new StringBuilder(128);
 
-    /// <summary>数值配置（只读使用）。</summary>
-    public EnemyBrainProfile Profile;
-
     /// <summary>为 true 时 NamedNode 记录本帧路径。</summary>
     public bool DebugEnabled;
 
@@ -36,7 +33,7 @@ public sealed class EnemyBlackboard
     /// <summary>是否已死亡。</summary>
     public bool IsDead;
 
-    /// <summary>仇恨滞回：进 AggroRadius 置真，出 LoseAggroRadius 置假。</summary>
+    /// <summary>仇恨滞回旗（由 AggroGate 节点维护）。</summary>
     public bool IsAggroed;
 
     /// <summary>Brain：攻击脉冲后等待进入 Action 的确认期（阻塞 basic_attack 就绪）。</summary>

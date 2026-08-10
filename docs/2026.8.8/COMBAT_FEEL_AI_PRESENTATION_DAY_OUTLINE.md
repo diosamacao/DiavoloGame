@@ -2,11 +2,13 @@
 
 > 制定：2026-08-08  
 > 修订：2026-08-09 — A2 打击感验收；下一项 A5 BT；A3/A4 可选后置  
+> **历史日计划：** A5 Phase-1（InputFrame）已验收。敌人 AI **下一阶段**见 [../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md](../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)。  
 > 用途：开工顺序、范围边界与验收清单（**大纲，非完整方案**）  
 > **今日执行方案：** [COMBAT_FEEL_AI_PRESENTATION_DAY_EXECUTION.md](./COMBAT_FEEL_AI_PRESENTATION_DAY_EXECUTION.md)  
 > 前置完成：GAS G0～G5；Wave 3.4 代码路由（`PerfectDodgeAttack` / Pipeline 武装 / Editor 可加 PerfectDodge 轨）  
 > 关联真源：  
-> - AI：[ENEMY_BEHAVIOR_TREE_PLAN.md](../ENEMY_BEHAVIOR_TREE_PLAN.md)、[ENEMY_SYSTEM_INTEGRATION_PLAN.md](../ENEMY_SYSTEM_INTEGRATION_PLAN.md)  
+> - AI（现行结构）：[../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md](../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)  
+> - AI（契约/历史）：[ENEMY_BEHAVIOR_TREE_PLAN.md](../ENEMY_BEHAVIOR_TREE_PLAN.md)、[ENEMY_SYSTEM_INTEGRATION_PLAN.md](../ENEMY_SYSTEM_INTEGRATION_PLAN.md)  
 > - 相机：[CAMERA_SYSTEM_PLAN.md](../2026.8.6/CAMERA_SYSTEM_PLAN.md)  
 > - 完美闪避产品：[SKILL_AND_RESOURCE_SYSTEM_PLAN.md](../2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md) §5.6  
 > - 数值 / 资源：[GAS_STYLE_COMBAT_REFACTOR_PLAN.md](../2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md)、[COMBAT_NUMERICS_PLAN.md](../COMBAT_NUMERICS_PLAN.md)  
@@ -216,7 +218,7 @@ Agent **不改** `.asset` / Prefab；对齐仓库规则。
 - [x] 木桩场景可复现打击感（伤 / 停 / 震）  
 - [x] 完美闪避：窗 + Counter 路由 Play 通过（A0 ✅）；子弹仍属 A3  
 - [x] 至少一条普攻命中 Cue 完整（A2 ✅ 2026-08-09）  
-- [ ] BT：近战敌行为等价或可配置分支；无 Domain 越权 ← **当前**  
+- [x] BT Phase-1：近战敌可配置分支；无 Domain 越权（A5 ✅ 2026-08-09）  
 - [x] 无新增双轨血量/资源权威；无表现回写 Sim（木桩路径）  
 - [x] 文档：A1 / A2 勾选已回写  
 
@@ -224,12 +226,12 @@ Agent **不改** `.asset` / Prefab；对齐仓库规则。
 
 ## 8. 一句话
 
-打击感主线（木桩 + A2 命中音画 + Wave 4 吸附）已验收；**下一项为 AI 行为树 Phase-1**（只写 `InputFrame`）；A3/A4 与完整相机系统可选后置。
+打击感主线与 BT Phase-1 已验收；**敌人 AI 下一阶段**见 [../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md](../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)（E-CFG1 起）。
 
 ---
 
-## 9. 后续进度备忘（2026-08-09）
+## 9. 后续进度备忘
 
-**打击感优化（含 Wave 4 Branch_02 吸附行程 + A2 命中 Cue）已验收收口**，手感主线告一段落。  
-**当前：** BT Phase-1（A5）。  
-可选后置：完美闪避表现（A3）、相机轻量调参（A4）；LockOn/SkillShot 归 Camera 篇（不挂 Wave 4/5）。
+**打击感优化（含 Wave 4 Branch_02 吸附行程 + A2 命中 Cue）已验收收口**；**A5 BT Phase-1** 已关闭。  
+**当前结构主线：** 8.10 Desire + Request / 滞回 / 配置归属。  
+可选后置：完美闪避表现（A3）、相机轻量调参（A4）；LockOn/SkillShot 归 Camera 篇。

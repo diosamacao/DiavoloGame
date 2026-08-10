@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-10（BT：WaitWhileInAction；Run→Walk 硬切）
+> Last updated: 2026-08-10（文档：敌人 AI 终态 Desire+Request；代码仍 AIInputWriter 过渡）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -30,7 +30,7 @@
 | 动作系统（整数帧 / 选招 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ L1B 已实现（Play Mode 待回归） | `ActionSim` + `CharacterActionPresentationBridge` + `ActionFrameQuery` | 60Hz Action + `ActionGraph` |
 | Action Editor（时间轴编辑） | 🟡 骨架/部分 | `ActionEditorWindow` + `ActionTimeline` 手动加轨/窗口 | Menu：`ACT/Action Editor` |
 | 攻击 / 战斗判定 | ✅ L0C 延迟结算已实现 | `CombatHitPipeline` + `CombatDamageCalculator` + `CharacterReactionService` | SimHitKey；HitPayload；Hit/Death 状态 |
-| 敌人 AI / 行为树 | ✅ BT-E3 + WaitWhileInAction | Runner + GraphEditor；Attack 占树至离 Action | `ACT/Enemy/Behavior Tree Editor` |
+| 敌人 AI / 行为树 | 🟡 BT-E3 ✅；命令轨终态未迁 | Runner + GraphEditor；现状仍 AIInputWriter；真源 8.10 Desire+Request | `docs/2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md` |
 | UI | ⬜ 未实现 | — | `UI/` 占位 |
 
 状态图例：✅ 可玩可用 · 🟡 有类/占位但未接完 · ⬜ 未开始
@@ -638,22 +638,25 @@ SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSourc
 
 ### 功能说明
 
-敌人复用玩家的 CharacterActor、Locomotion、ActionGraph 与 Hitbox 管线；AI **只写 `InputFrame`**。`EnemyBrain` 为门闩宿主，决策经 `IEnemyBehaviorRunner`；Hit/Death 不进树。BT-E1 起支持多按钮脉冲、风筝 Task 与通用冷却表。
+敌人复用玩家的 CharacterActor、Locomotion、ActionGraph 与 Hitbox 管线。`EnemyBrain` 为门闩宿主，决策经 `IEnemyBehaviorRunner`；Hit/Death 不进树。  
+**现状（过渡）：** AI 经 `AIInputWriter` 写 `InputFrame`（多按钮脉冲、风筝 Task、冷却表）。  
+**终态（未落地）：** `LocomotionDesire` + `CombatRequest`，废除敌人假手柄；见 `docs/2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`。
 
 ### 实现方案
 
 | 项 | 方案 |
 |----|------|
-| 配置 | `EnemyDefinition` 组合 CharacterConfig、BrainProfile、**BehaviorTree**、独立 teamId 与 HP |
-| 可替换契约 | `IEnemyBehaviorTreeAsset.CreateRunner` → `IEnemyBehaviorRunner`；Brain 不持有具体树类型 |
+| 配置 | `EnemyDefinition` 组合 CharacterConfig、BrainProfile、**BehaviorTree**、独立 teamId 与 HP；战斗半径/幅度终态迁节点（E-CFG） |
+| 可替换契约 | `IEnemyBehaviorTreeAsset.CreateRunner` → `IEnemyBehaviorRunner`；Brain 不持有具体树类型；输出槽终态见 BT PLAN §3.4.2 |
 | 行为树资产 | 仅 `customRoot`（SerializeReference）+ `graphLayout`；无 Kind/代码预设种树 |
 | 条件节点 | UE 风格**单子装饰**（`ConditionalDecoratorNode`）；失败 Abort Self（Reset 子树） |
 | Graph 数据 | `graphLayout` + `nodeGuid`；Mapper Flatten/Rebuild；Validator |
-| Graph 编辑器 | 宿主牌连线；Condition/Decorator **叠徽章**（`EnemyBehaviorGraphPresentation` Peel/Wrap）；Save 展开回装饰链 |
-| AI 输入 | Runner 写黑板 → Brain 帧末 `AIInputWriter.Pulse(Attack/Dodge/Heavy/Skill)` |
+| Graph 编辑器 | 宿主牌连线；Condition/Decorator **叠徽章**；Save 展开回装饰链；体验优化见 OPT Phase A |
+| AI 输出（现状） | Runner 写黑板 → Brain 帧末 `AIInputWriter.Pulse(Attack/Dodge/Heavy/Skill)` + SetMove |
+| AI 输出（终态） | `LocomotionDesire` + `CombatRequest(GraphNodeId)`；Driver `TryStart` 指定 Entry；删敌人 InputFrame 权威 |
 | 冷却 | `EnemyCooldownTable`；`basic_attack` 由 Brain 起手确认写入；`CooldownGate` 可写其它 id |
-| 追击 / 对峙 | `MoveToward`（chase 幅度）/ `Strafe`（strafe 幅度）/ `BackOff`；BT 循环见 `LOCOMOTION_GAIT_POLICY_PLAN` |
-| 攻击占用 | `WaitWhileInAction`：Pulse 后 Running 至离 Action，期间清 Move；**勿**被 IsLocomotion/CdReady 包在 Wait 外层 |
+| 追击 / 对峙 | `MoveToward` / `Strafe` / `BackOff`；循环见 `LOCOMOTION_GAIT_POLICY_PLAN`；滞回见 8.10 E-ST |
+| 攻击占用 | `WaitWhileInAction`：起手后 Running 至离 Action，期间清 Move；**勿**被 IsLocomotion/CdReady 包在 Wait 外层 |
 | 敌人步态 | 独立 LocomotionProfile + `GaitPolicy.MaxGait=Run`；对峙 WalkLeft/Right；Run→Walk 硬切 |
 | 木桩 | `enableCombatActions=false` 时不建 Runner；Hit 门闩仍消化 |
 | 伤害与反应 | 同前：`CharacterReactionService` → `NotifyHit` / `NotifyDeath` → Runner.Reset |
@@ -668,20 +671,27 @@ SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSourc
 | `CharacterCombatConfig.reactions` | 空规则集，默认硬直 0.35s | Resolver 按反应类型与 HitReactionId 选择表现 Action；无动作时使用规则集硬直时长 |
 | `HurtboxDefinition.localOffset` | (0, 0.9, 0) | 标准人形受击框中心，角色根位于脚底 |
 | `EnemyDefinition.teamId` | 1 | 敌人阵营；不继承复用 CharacterConfig 的玩家阵营 |
-| `EnemyBrainProfile.aggroRadius / loseAggroRadius` | 10 / 14 | 进战/脱战距离 |
-| `attackRange / stopDistance` | 2 / 1.2 | 攻击与贴身停步距离 |
-| `chaseMoveMagnitude` | 1 | 追击移动轴幅度 |
-| `strafeMoveMagnitude` | 0.35 | 对峙侧移幅度（宜 &lt; RunThreshold） |
-| `attackCooldownFrames` | 72 | 成功起手后的攻击冷却（逻辑帧） |
+| `EnemyBrainProfile.enableCombatActions` | true | 木桩关行动 |
+| `EnemyBrainProfile.deathDespawnDelaySeconds` | 0.5 | 死亡回收等待 |
+| BT `AggroGate.enter/exit` | 10 / 14（样例） | 仇恨滞回（原 Profile 半径） |
+| BT `InAttackRange.distance` / Move `stopDistance` | 2 / 1.2（样例） | 攻击与贴身停步 |
+| BT Move/Strafe/BackOff `magnitude` | 1 / 0.35 / 1（样例） | 移动幅度 |
+| BT `CooldownGate` basic_attack frames | 72（样例） | 普攻冷却 |
+| BT `DistanceBand` Chase OutsideFar | enter 3.5 / exit 2.8 / dwell 6（样例） | 追击滞回；Attack 勿套 |
+| BT `DistanceBand` Strafe InsideBand | enter 2 / exit 3.5 / dwell 6（样例） | 对峙区间 |
 
 ### 运行时流程
 
 ```
-SimulationWorld.Step
+SimulationWorld.Step（现状）
   → EnemyHandle.ProduceInput
        → EnemyBrain.Step（门闩 / 填黑板 / Runner.Tick / 提交 AIInputWriter）
        → InputFrameBuffer
   → EnemyHandle.Step → CharacterActor.Step(InputFrame) → Locomotion / Action
+
+终态（8.10，未落地）
+  → EnemyBrain 提交 Desire + Request
+  → CharacterActor（敌人）Apply Desire；有 Request 则 TryStart(Entry)
 
 CombatHitPipeline（全体 Actor Step 后）
   → CharacterReactionService → EnterHit / EnterDeath
@@ -691,6 +701,8 @@ CombatHitPipeline（全体 Actor Step 后）
 ### 已知限制
 
 - **真敌**须挂已配置 `customRoot` 的 `EnemyBehaviorTree` SO；空根或未挂树在 Combat Actions 开启时会失败。
+- 仍走假手柄：离散多招 / Desire 命令轨尚未落地（8.10 E-REQ / E-MOVE）。
+- **E-CFG1：** 战斗距离/幅度在节点；旧树资产须人工补 `AggroGate` + 节点参数，否则仇恨/幅度可能用默认或不进仇。
 - 追击直线趋近（`StraightPathQuery`）；寻路见演进计划 E4。
 - 旧 Kind 预设资产若 `customRoot` 为空，须在 Graph 编辑器中重新搭树并 Save（无 Fill/默认种树）。
 - 旧「Sequence 下挂叶子 Condition」树须改为 Condition→子树装饰链后 Save，否则 Validate 报 child 为空 / 行为不符。
@@ -704,6 +716,8 @@ CombatHitPipeline（全体 Actor Step 后）
 - `Assets/Scripts/Editor/Enemy/BehaviorTree/*`
 - `Assets/Scripts/Infrastructure/Input/AIInputWriter.cs`
 - `Assets/Tests/Editor/Enemy/EnemyBehaviorTreeTests.cs`
+- `docs/2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`
+- `docs/ENEMY_BEHAVIOR_TREE_PLAN.md`
 - `docs/2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md`
 
 ---
@@ -822,6 +836,9 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-09 | BT-E1：`AIInputWriter` 多按钮脉冲；`CooldownTable`/`CooldownGate`；BackOff/Strafe/PulseDodge；Kite 预设；删单字段攻击 CD 与 `BasicAttackCooldownReady*` |
 | 2026-08-09 | BT-E2：`EnemyBehaviorGraphLayout` + `GraphMapper` Flatten/Rebuild + `Validator`；Custom `Wrap` 始终带 Debug 名 |
 | 2026-08-09 | BT-E3：`EnemyBehaviorTreeEditorWindow` GraphView MVP（调色板/连线/Inspector/Save/模板/Play 高亮） |
+| 2026-08-10 | 文档：敌人 AI 输出槽终态改为 Desire+Request；OPT B1/B3 并入 8.10；代码仍为 AIInputWriter 过渡 |
+| 2026-08-10 | E-CFG1：BT 节点自带距离/幅度；AggroGate；薄 BrainProfile；删黑板 Profile 读参 |
+| 2026-08-10 | E-ST1：DistanceBand 滞回条件 + CreateMeleeStanceLoop 样例 |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
 | 2026-08-09 | BT Graph：装饰/条件改为宿主顶部徽章（UE 表现）；运行真源仍为装饰链 |

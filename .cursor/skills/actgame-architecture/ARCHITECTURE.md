@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-09（BT-E3：Behavior Tree GraphView）
+> Last audited: 2026-08-10（文档：敌人 AI 输出槽终态改为 Desire+Request；代码仍为 InputFrame 过渡）
 
 ## 项目概述
 
@@ -89,7 +89,7 @@ flowchart TB
 | `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
 | `CharacterPresentationBridge` | 保留前后权威 Pose，只移动运行时模型锚点，不回写模拟根 |
 | `InputFrame` / `InputFrameBuffer` | 量化轴、稳定按钮 bitset、Actor/Frame 身份与输入历史；本地追帧只延续 Move/Held |
-| `ISimulationInputProducer` | Actor Step 前统一生成当帧输入；当前由敌人句柄驱动 Brain → AIInputWriter |
+| `ISimulationInputProducer` | Actor Step 前统一生成当帧输入；敌人现状 Brain → AIInputWriter；终态见 `LocomotionDesire`/`CombatRequest`（8.10 方案） |
 | `ISimulationPostCombatActor` | 整批命中结算后处理 OnHitConfirm/OnWhiff 自动衔接与动作自然结束 |
 | `SimHitKey` / `CombatHitPipeline` | Hitbox 只 Collect；按稳定 Actor/会话/窗口身份排序，帧末统一伤害、Reaction 与命中确认 |
 | `SimCombatPose` / `HitboxMath` | 命中 OBB 由 MotorSim 逻辑根构建；挂点仅相对根局部 |
@@ -222,18 +222,26 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 
 | 类 | 职责 |
 |----|------|
-| `EnemyDefinition` / `EnemyBrainProfile` / `EnemyBehaviorTreeAsset` | 身体配置、AI 数值、可替换行为树资产；动作只在 CharacterConfig |
-| `AIInputWriter` | 将 AI 移动与 Attack 脉冲量化为当帧 `InputFrame`，继续走统一语义意图管线 |
-| `IEnemyBehaviorRunner` / `EnemyBrain` / `EnemyPerception` | Runner 决策；Brain 门闩+黑板+CooldownTable+提交多按钮输入；Perception 只读快照 |
+| `EnemyDefinition` / `EnemyBrainProfile` / `EnemyBehaviorTreeAsset` | 身体配置、AI（Profile 终态瘦身）、可替换行为树资产；动作只在 CharacterConfig |
+| `AIInputWriter` | **过渡**：将 AI 移动与按钮脉冲量化为 `InputFrame`；E-MOVE2 后敌人侧删除或仅测试 |
+| `IEnemyBehaviorRunner` / `EnemyBrain` / `EnemyPerception` | Runner 决策；Brain 门闩+黑板+CooldownTable+提交；Perception 只读快照 |
+| Desire / Request Buffer（规划） | **终态**敌人移动/出招命令槽（见 `docs/2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`） |
 | `EnemyActorFactory` / `EnemyHandle` | 复用 CharacterActorFactory，聚合 Actor、Brain、Vitality、Hurtbox 生命周期 |
 | `EnemyController` / `EnemySpawnController` | 单敌 Tick 入口与场景刷怪入口 |
 | `EnemySpawnSystem` | 架构级敌人实例注册与同 Definition 存活上限 |
 
-**数据流（敌人）**：
+**数据流（敌人 · 现状过渡）**：
 
 ```
 EnemyDefinition → EnemyActorFactory → CreateRunner(IEnemyBehaviorTreeAsset) → EnemyBrain
 EnemyBrain → IEnemyBehaviorRunner.Tick → AIInputWriter → InputFrameBuffer → GameplayIntentProducer → CharacterActionDriver
+```
+
+**数据流（敌人 · 终态目标）**：
+
+```
+EnemyBrain → Runner.Tick → LocomotionDesire + CombatRequest
+CharacterActor（敌人）→ Apply(Desire) + TryStart(Entry)；玩家仍 InputFrame → Intent
 玩家 Hitbox → CombatHitPipeline.Collect → 稳定排序/Resolve → CharacterHurtboxTarget → CharacterVitality
               └─ CharacterReactionService → CharacterReactionResolver
                    ├─ 非致命：EnemyBrain.NotifyHit → CharacterActor.EnterHit

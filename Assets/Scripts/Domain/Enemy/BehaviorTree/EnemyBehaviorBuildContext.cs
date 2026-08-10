@@ -8,7 +8,7 @@ public readonly struct EnemyBehaviorBuildContext
         PathQuery = pathQuery;
     }
 
-    /// <summary>半径/冷却等数值真源。</summary>
+    /// <summary>薄 Brain 开关/生命周期；战斗距离与幅度在节点 Def。</summary>
     public EnemyBrainProfile Profile { get; }
 
     /// <summary>追击方向查询；可空时 Runner 内回退直线。</summary>

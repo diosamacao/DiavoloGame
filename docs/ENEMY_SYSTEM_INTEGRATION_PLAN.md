@@ -1,10 +1,10 @@
-# DiavoloGame 敌人系统接入方案
+# ACTGame 敌人系统接入方案
 
 > 基准：`develop`（约 `7c0e8fb` 及后续）  
 > 制定日期：2026-07-28  
+> **历史文档：** AI I/O 曾定「只替换输入源 / InputFrame」。**终态**以 [2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md) 为准（Desire + Request）；本文保留生成/装配等仍有效叙述。  
 > 目标：在现有 `CharacterActor` / Action / Locomotion 管线上接入敌人配置、生成与 AI（追击、攻击、受击）  
-> 相关架构：[actgame-architecture ROADMAP](https://github.com/diosamacao/DiavoloGame/blob/develop/.cursor/skills/actgame-architecture/ROADMAP.md)（Enemy/AI 为 P2，复用 `CharacterActionDriver` + `ActionExecutor`）
-> 实施状态（2026-07-29）：运行时代码已落地并通过 C# 编译；EnemyDefinition、BrainProfile、敌人 CharacterConfig/ActionGraph 与动画资源仍需在 Unity Editor 人工创建和绑定。
+> 实施状态（2026-07-29）：运行时代码已落地；后续 BT Phase-1 已替换五态决策 switch。
 
 ---
 
