@@ -292,7 +292,7 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
                 band.Mode = (DistanceBandMode)EditorGUILayout.EnumPopup("Mode", band.Mode);
                 band.EnterDistance = EditorGUILayout.FloatField("Enter Distance", band.EnterDistance);
                 band.ExitDistance = EditorGUILayout.FloatField("Exit Distance", band.ExitDistance);
-                band.MinDwellFrames = EditorGUILayout.IntField("Min Dwell Frames", band.MinDwellFrames);
+                band.MinDwellSeconds = EditorGUILayout.FloatField("Min Dwell Seconds", band.MinDwellSeconds);
                 break;
             case InAttackRangeConditionDef inRange:
                 inRange.Distance = EditorGUILayout.FloatField("Attack Range", inRange.Distance);
@@ -303,9 +303,12 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
             case CooldownReadyConditionDef ready:
                 ready.CooldownId = EditorGUILayout.TextField("Cooldown Id", ready.CooldownId);
                 break;
+            case CooldownNotReadyConditionDef notReady:
+                notReady.CooldownId = EditorGUILayout.TextField("Cooldown Id", notReady.CooldownId);
+                break;
             case CooldownGateNodeDef gate:
                 gate.CooldownId = EditorGUILayout.TextField("Cooldown Id", gate.CooldownId);
-                gate.CooldownFrames = EditorGUILayout.IntField("Cooldown Frames", gate.CooldownFrames);
+                gate.CooldownSeconds = EditorGUILayout.FloatField("Cooldown Seconds", gate.CooldownSeconds);
                 break;
             case AggroGateNodeDef aggro:
                 aggro.EnterRadius = EditorGUILayout.FloatField("Enter Radius", aggro.EnterRadius);
@@ -344,7 +347,7 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
 
                 break;
             case WaitFramesActionDef wait:
-                wait.DurationFrames = EditorGUILayout.IntField("Duration Frames", wait.DurationFrames);
+                wait.DurationSeconds = EditorGUILayout.FloatField("Duration Seconds", wait.DurationSeconds);
                 break;
             default:
                 EditorGUILayout.LabelField("（无额外参数）");

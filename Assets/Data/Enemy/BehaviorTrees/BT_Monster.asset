@@ -26,16 +26,22 @@ MonoBehaviour:
       position: {x: -436.66666, y: 768.6667}
       collapsed: 0
     - nodeGuid: 34cf6215f59f4b0cb152bb79daa55fa4
-      position: {x: -575.3334, y: 998}
+      position: {x: -637.3334, y: 1041.3334}
+      collapsed: 0
+    - nodeGuid: dcf528b879544f5b8e50a7d828203917
+      position: {x: -288.66666, y: 1032}
       collapsed: 0
     - nodeGuid: 5c6b9bfe86f24b1f928933d872da5fc5
-      position: {x: -446, y: 1172.6666}
+      position: {x: -382, y: 1163.3334}
+      collapsed: 0
+    - nodeGuid: fd3316f2b56a4ee88cbcf09405ab0d9e
+      position: {x: -156, y: 1163.3334}
       collapsed: 0
     - nodeGuid: f86f377b84bf49dfbf2cb84326929685
       position: {x: -110.66667, y: 816}
       collapsed: 0
     - nodeGuid: ed7497c11fc442c8802e0976420c8163
-      position: {x: 93.33334, y: 626}
+      position: {x: 93.33334, y: 619.3333}
       collapsed: 0
     - nodeGuid: 13251d99483b47dfa4b03331e283278e
       position: {x: 147.33334, y: 837.3333}
@@ -48,12 +54,6 @@ MonoBehaviour:
       collapsed: 0
     - nodeGuid: eb066ac4801b437c941f860e9c42e0e4
       position: {x: 640, y: 700}
-      collapsed: 0
-    - nodeGuid: dcf528b879544f5b8e50a7d828203917
-      position: {x: -289.33334, y: 998}
-      collapsed: 0
-    - nodeGuid: fd3316f2b56a4ee88cbcf09405ab0d9e
-      position: {x: -156, y: 1163.3334}
       collapsed: 0
     stickyNotes: []
   references:
@@ -74,48 +74,15 @@ MonoBehaviour:
         nodeName: Root
         nodeGuid: c1f959da116e4b0fafc3268d0cda91e4
         children:
-        - rid: 1557465057809137676
-        - rid: 1557465057809137677
-        - rid: 1557465057809137678
+        - rid: 1557465057809137683
+        - rid: 1557465057809137699
+        - rid: 1557465057809137700
         - rid: 1557465057809137679
-    - rid: 1557465057809137676
-      type: {class: InAttackRangeConditionDef, ns: , asm: Assembly-CSharp}
-      data:
-        nodeName: InAttackRange
-        nodeGuid: d71f13d0f54c40faa353b7771e13ed7c
-        child:
-          rid: 1557465057809137680
-        distance: 5
-    - rid: 1557465057809137677
-      type: {class: DistanceBandConditionDef, ns: , asm: Assembly-CSharp}
-      data:
-        nodeName: DistanceBand
-        nodeGuid: 76ae9505a45e4d769abc1293a04bed23
-        child:
-          rid: 1557465057809137681
-        mode: 0
-        enterDistance: 5.5
-        exitDistance: 4.5
-        minDwellFrames: 30
-    - rid: 1557465057809137678
-      type: {class: HasTargetConditionDef, ns: , asm: Assembly-CSharp}
-      data:
-        nodeName: HasTarget
-        nodeGuid: 5e9d6dd68abd4c70800db8168f2e6fd7
-        child:
-          rid: 1557465057809137682
     - rid: 1557465057809137679
       type: {class: StopMoveActionDef, ns: , asm: Assembly-CSharp}
       data:
         nodeName: Idle
         nodeGuid: eb066ac4801b437c941f860e9c42e0e4
-    - rid: 1557465057809137680
-      type: {class: HasTargetConditionDef, ns: , asm: Assembly-CSharp}
-      data:
-        nodeName: HasTarget
-        nodeGuid: 27f4e71d14334cd1947b84adbb163903
-        child:
-          rid: 1557465057809137683
     - rid: 1557465057809137681
       type: {class: InCombatAggroConditionDef, ns: , asm: Assembly-CSharp}
       data:
@@ -136,7 +103,7 @@ MonoBehaviour:
         nodeName: Attack
         nodeGuid: 4c6d871be3f6459495b688187416aaac
         children:
-        - rid: 1557465057809137686
+        - rid: 1557465057809137697
         - rid: 1557465057809137687
     - rid: 1557465057809137684
       type: {class: SequenceNodeDef, ns: , asm: Assembly-CSharp}
@@ -158,7 +125,7 @@ MonoBehaviour:
         nodeName: CooldownGate
         nodeGuid: 2a39b679f17a43f4bca573232fcb51fe
         cooldownId: basic_attack
-        cooldownFrames: 720
+        cooldownSeconds: 10
         child:
           rid: 1557465057809137690
     - rid: 1557465057809137687
@@ -225,3 +192,48 @@ MonoBehaviour:
         weights:
         - 1
         - 1
+    - rid: 1557465057809137697
+      type: {class: HasTargetConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: HasTarget
+        nodeGuid: 1e413843ac1a476ba92586fcee6a748b
+        child:
+          rid: 1557465057809137698
+    - rid: 1557465057809137698
+      type: {class: InAttackRangeConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: InAttackRange
+        nodeGuid: 47bcbff3feaf46d0a358b93d1a6cd44a
+        child:
+          rid: 1557465057809137686
+        distance: 5
+    - rid: 1557465057809137699
+      type: {class: HasTargetConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: HasTarget
+        nodeGuid: e724584cfca84ea082243a1293487b71
+        child:
+          rid: 1557465057809137701
+    - rid: 1557465057809137700
+      type: {class: HasTargetConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: HasTarget
+        nodeGuid: 10a9c3b00fab4c97983dbcff43ccd4b4
+        child:
+          rid: 1557465057809137702
+    - rid: 1557465057809137701
+      type: {class: CooldownReadyConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: CooldownReady
+        nodeGuid: 35131996bd6f4954931518d511bcd692
+        child:
+          rid: 1557465057809137681
+        cooldownId: basic_attack
+    - rid: 1557465057809137702
+      type: {class: CooldownNotReadyConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: CooldownNotReady
+        nodeGuid: 1d45b1b194d245c29664c5acc2f46687
+        child:
+          rid: 1557465057809137682
+        cooldownId: basic_attack

@@ -60,8 +60,9 @@
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项：** Locomotion **GaitPolicy / 对峙循环打磨**（或可选 Lock-On）
-→ 敌人 AI 8.10 方案已关闭：[`2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)  
+**下一项：** 真敌树资产按 **CD 对峙循环 + 秒制节点** 重配并 Play 验收（或可选 Lock-On / WalkL-R）
+→ 拓扑见 [`2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md`](./2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md) §3.1  
+
 
 
 | # | 项 | 状态 |

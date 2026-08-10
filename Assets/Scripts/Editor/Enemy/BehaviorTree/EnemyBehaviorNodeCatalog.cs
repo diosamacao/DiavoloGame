@@ -43,6 +43,7 @@ public static class EnemyBehaviorNodeCatalog
         new Entry(Group.Condition, "InAttackRange", typeof(InAttackRangeConditionDef)),
         new Entry(Group.Condition, "IsCharacterState", typeof(IsCharacterStateConditionDef)),
         new Entry(Group.Condition, "CooldownReady", typeof(CooldownReadyConditionDef)),
+        new Entry(Group.Condition, "CooldownNotReady", typeof(CooldownNotReadyConditionDef)),
         new Entry(Group.Condition, "DistanceLessEqual", typeof(DistanceLessEqualConditionDef)),
         new Entry(Group.Condition, "DistanceGreater", typeof(DistanceGreaterConditionDef)),
         new Entry(Group.Condition, "DistanceBand", typeof(DistanceBandConditionDef)),
@@ -53,7 +54,7 @@ public static class EnemyBehaviorNodeCatalog
         new Entry(Group.Task, "FaceTarget", typeof(FaceTargetActionDef)),
         new Entry(Group.Task, "RequestCombatAction", typeof(RequestCombatActionDef)),
         new Entry(Group.Task, "WaitWhileInAction", typeof(WaitWhileInActionActionDef)),
-        new Entry(Group.Task, "WaitFrames", typeof(WaitFramesActionDef)),
+        new Entry(Group.Task, "WaitSeconds", typeof(WaitFramesActionDef)),
     };
 
     /// <summary>全部调色板条目。</summary>

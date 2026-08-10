@@ -256,24 +256,57 @@ public sealed class EnemyBehaviorTreeTests
     }
 
     [Test]
-    public void StanceLoop_Far_Chases_Mid_Strafes()
+    public void StanceLoop_CdReady_Chases_CdBusy_Strafes()
     {
         var runner = CreateRunner(EnemyBehaviorTreeDefFactory.CreateMeleeStanceLoop());
 
-        var far = CreateBlackboard(hasTarget: true, distance: 5f, aggroed: true, cdReady: true);
-        far.PlanarDirection = Vector3.forward;
-        far.PathDirection = Vector3.forward;
-        runner.Tick(far);
-        Assert.That(far.MoveDesire.y, Is.GreaterThan(0f));
-        Assert.That(far.HasCombatRequest, Is.False);
+        var farReady = CreateBlackboard(hasTarget: true, distance: 5f, aggroed: true, cdReady: true);
+        farReady.PlanarDirection = Vector3.forward;
+        farReady.PathDirection = Vector3.forward;
+        runner.Tick(farReady);
+        Assert.That(farReady.MoveDesire.y, Is.GreaterThan(0f));
+        Assert.That(farReady.HasCombatRequest, Is.False);
 
         runner.Reset();
-        var mid = CreateBlackboard(hasTarget: true, distance: 2.5f, aggroed: true, cdReady: false);
-        mid.IsAggroed = true;
-        runner.Tick(mid);
-        // AggroGate 会按距离刷新仇恨；2.5 在 Strafe InsideBand [2,3.5]
-        Assert.That(mid.MoveDesire.x, Is.GreaterThan(0f));
-        Assert.That(mid.MoveDesire.y, Is.EqualTo(0f));
+        // CD 占用：中距也只对峙，不追击
+        var midBusy = CreateBlackboard(hasTarget: true, distance: 2.5f, aggroed: true, cdReady: false);
+        midBusy.IsAggroed = true;
+        runner.Tick(midBusy);
+        Assert.That(midBusy.MoveDesire.x, Is.GreaterThan(0f));
+        Assert.That(midBusy.MoveDesire.y, Is.EqualTo(0f));
+
+        runner.Reset();
+        // CD 就绪但未贴身：追击，不对峙
+        var midReady = CreateBlackboard(hasTarget: true, distance: 2.5f, aggroed: true, cdReady: true);
+        midReady.IsAggroed = true;
+        midReady.PlanarDirection = Vector3.forward;
+        midReady.PathDirection = Vector3.forward;
+        runner.Tick(midReady);
+        Assert.That(midReady.MoveDesire.y, Is.GreaterThan(0f));
+        Assert.That(midReady.HasCombatRequest, Is.False);
+    }
+
+    [Test]
+    public void NodeDefs_AuthorSeconds_BuildToLogicFrames()
+    {
+        Assert.That(EnemyBehaviorTime.SecondsToFrames(1.2f), Is.EqualTo(72));
+        Assert.That(EnemyBehaviorTime.SecondsToWaitFrames(0.5f), Is.EqualTo(30));
+
+        var gate = new CooldownGateNodeDef
+        {
+            CooldownId = EnemyCooldownIds.BasicAttack,
+            CooldownSeconds = 1.2f,
+            child = new RequestCombatActionDef { EntryNodeId = "Entry_A" },
+        };
+        var bb = CreateBlackboard(hasTarget: true, distance: 1.5f, aggroed: true, cdReady: true);
+        Assert.That(gate.Build().Tick(bb), Is.EqualTo(BehaviorStatus.Success));
+        Assert.That(bb.Cooldowns.HasPending(EnemyCooldownIds.BasicAttack), Is.True);
+        bb.Cooldowns.ConfirmPending();
+        Assert.That(bb.Cooldowns.GetRemaining(EnemyCooldownIds.BasicAttack), Is.EqualTo(72));
+
+        var wait = new WaitFramesActionDef { DurationSeconds = 0.05f };
+        var waitBb = new EnemyBlackboard();
+        Assert.That(wait.Build().Tick(waitBb), Is.EqualTo(BehaviorStatus.Running));
     }
 
     /// <summary>非 CombatRequest 行为成功后立即写入并递减普通冷却。</summary>

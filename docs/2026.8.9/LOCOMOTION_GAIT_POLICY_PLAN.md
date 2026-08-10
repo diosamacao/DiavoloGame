@@ -78,22 +78,24 @@ EnemyBrain → BT → MoveDesire / PulseAttack → InputFrame   // 过渡
 ```text
 Root (Selector)  —— 每帧重选，高优先在上
   ├─ Attack     条件：有目标 ∧ 仇恨 ∧ InAttackRange ∧ CdReady ∧ Locomotion
-  │               → StopMove → RequestCombatAction(Entry)   // 终态；过渡期曾为 PulseAttack
-  ├─ Chase      条件：有目标 ∧ 仇恨 ∧ 距离 > 对峙外沿（TooFar；终态用滞回带）
-  │               → MoveTowardTarget（chaseMoveMagnitude）
-  ├─ Strafe     条件：有目标 ∧ 仇恨 ∧ 距离带内（对峙带）∧（可选 CD 未好）
-  │               → StrafeAroundTarget(±side)（strafeMoveMagnitude，Walk 档）
-  │               → WaitFrames（持续对峙）/ 或左右支路轮换
+  │               → StopMove → RequestCombatAction(Entry) → WaitWhileInAction
+  │               （CooldownGate 填秒；起手确认后生效）
+  ├─ Chase      条件：CdReady ∧ 有目标 ∧ 仇恨（冷却毕且未贴身 → 追击）
+  │               → MoveTowardTarget
+  ├─ Strafe     条件：CdNotReady ∧ 有目标 ∧ 仇恨（冷却期 → 对峙）
+  │               → StrafeAroundTarget(±side)
   └─ Idle       → StopMove
 ```
+
+> 拓扑修订 2026-08-11：冷却期只对峙、冷却毕追击；节点时间作者填**秒**（`CooldownSeconds` / `MinDwellSeconds` / `DurationSeconds`），Build 转 60Hz 逻辑帧。DistanceBand 可按需叠加，不再作为样例主门控。
 
 循环语义：
 
 | 局面 | 选中支路 |
 |------|----------|
-| 进攻击距且 CD 好 | Attack → 成功后 CD → 下一帧落到 Strafe/Chase |
-| 过远 | Chase |
-| 中距/贴脸对峙带 | Strafe（左右走动画） |
+| 进攻击距且 CD 好 | Attack → 成功后进入 CD |
+| CD 中 | Strafe（对峙左右走） |
+| CD 毕且未贴身 | Chase |
 | 无目标 | Idle |
 
 左右方向：同一 Strafe 宿主上配置 `SideSign`，或 Selector 下 Left/Right 两支（可用距离/冷却/简单交替——实现阶段定一种，**禁止双套并行语义**）。

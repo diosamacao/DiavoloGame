@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-11（8.10 敌人 BT 总出口关闭：资产 + Play 验收）
+> Last updated: 2026-08-11（对峙循环 CD 门控 + BT 节点时间改秒）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -30,7 +30,7 @@
 | 动作系统（整数帧 / 选招 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ L1B 已实现（Play Mode 待回归） | `ActionSim` + `CharacterActionPresentationBridge` + `ActionFrameQuery` | 60Hz Action + `ActionGraph` |
 | Action Editor（时间轴编辑） | 🟡 骨架/部分 | `ActionEditorWindow` + `ActionTimeline` 手动加轨/窗口 | Menu：`ACT/Action Editor` |
 | 攻击 / 战斗判定 | ✅ L0C 延迟结算已实现 | `CombatHitPipeline` + `CombatDamageCalculator` + `CharacterReactionService` | SimHitKey；HitPayload；Hit/Death 状态 |
-| 敌人 AI / 行为树 | ✅ BT-E3 + 8.10 总出口 | Runner + GraphEditor；Desire + Entry Request；真敌树 Play 验收 | `docs/2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md` |
+| 敌人 AI / 行为树 | ✅ 8.10 + 对峙 CD 循环 | Runner + GraphEditor；Desire/Request；节点时间填秒 | `docs/2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md` |
 | UI | ⬜ 未实现 | — | `UI/` 占位 |
 
 状态图例：✅ 可玩可用 · 🟡 有类/占位但未接完 · ⬜ 未开始
@@ -655,9 +655,9 @@ SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSourc
 | AI 输出 | Runner → Brain：`LocomotionDesireBuffer` + `ActionEntryRequestBuffer`；无 `AIInputWriter` |
 | 分层边界 | Character / Combat 仅依赖 `IMoveIntentSource` / `IActionEntryRequestSource`；EnemyActorFactory 构造注入，Actor 无 Enemy Bind/分支 |
 | 招式池 | `RandomSelector`（权重；RNG 可注入/`blackboard.Rng`）；样例 `CreateCombatPool`；**无** `PulseAttack`/`AttackPulse` |
-| 冷却 | `CooldownGate` 暂存节点 id/frames；Brain 观测进入 Action 后确认，失败丢弃并写独立 `action_entry_retry=12`，不双写成功 CD id |
-| 追击 / 对峙 | `MoveToward` / `Strafe` / `BackOff`；循环见 `LOCOMOTION_GAIT_POLICY_PLAN`；滞回见 8.10 E-ST |
-| 攻击占用 | `WaitWhileInAction`：起手后 Running 至离 Action，期间清 Move；必须位于 `IsLocomotion` 子树外，Validator 会拒绝错误拓扑 |
+| 冷却 | `CooldownGate` 填秒并暂存；Brain 确认后生效；失败写 `action_entry_retry`；对峙用 `CooldownNotReady` |
+| 追击 / 对峙 | Attack→CD→Strafe(CdNotReady)→Chase(CdReady)；节点时间填秒；可选 DistanceBand |
+| 攻击占用 | `WaitWhileInAction`：起手后 Running 至离 Action，期间清 Move；**勿**被 IsLocomotion/CdReady 包在 Wait 外层 |
 | 敌人步态 | 独立 LocomotionProfile + `GaitPolicy.MaxGait=Run`；对峙 WalkLeft/Right；Run→Walk 硬切 |
 | 木桩 | `enableCombatActions=false` 时不建 Runner；Hit 门闩仍消化 |
 | 伤害与反应 | 同前：`CharacterReactionService` → `NotifyHit` / `NotifyDeath` → Runner.Reset |
@@ -677,10 +677,10 @@ SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSourc
 | BT `AggroGate.enter/exit` | 10 / 14（样例） | 仇恨滞回（原 Profile 半径） |
 | BT `InAttackRange.distance` / Move `stopDistance` | 2 / 1.2（样例） | 攻击与贴身停步 |
 | BT Move/Strafe/BackOff `magnitude` | 1 / 0.35 / 1（样例） | 移动幅度 |
-| BT `CooldownGate` basic_attack frames | 72（样例） | 普攻冷却 |
-| `EnemyBrain.FailedAttackRetryFrames` | 12 | Entry 请求未进入 Action 时的全局短重试槽 |
-| BT `DistanceBand` Chase OutsideFar | enter 3.5 / exit 2.8 / dwell 6（样例） | 追击滞回；Attack 勿套 |
-| BT `DistanceBand` Strafe InsideBand | enter 2 / exit 3.5 / dwell 6（样例） | 对峙区间 |
+| BT `CooldownGate` basic_attack | 1.2s（样例→72 帧） | 普攻冷却；节点填秒 |
+| BT `CooldownReady` / `CooldownNotReady` | basic_attack | CD 毕追击 / CD 中对峙 |
+| BT `DistanceBand` min dwell | 0.1s（样例） | 可选滞回驻留；节点填秒 |
+| BT `WaitSeconds` | 0.5s 默认 | 等待 Task；节点填秒 |
 
 ### 运行时流程
 
@@ -692,9 +692,6 @@ SimulationWorld.Step
   → EnemyHandle.Step → CharacterActor.Step(InputFrame)
        → Locomotion/CharacterMotor 读 IMoveIntentSource
        → CharacterActionDriver 消费 IActionEntryRequestSource
-  → 下一 Brain 帧观测 CharacterState
-       → Action：确认 CooldownGate 暂存成功 CD
-       → Locomotion：丢弃成功 CD，启用 action_entry_retry
 
 CombatHitPipeline（全体 Actor Step 后）
   → CharacterReactionService → EnterHit / EnterDeath
@@ -705,7 +702,6 @@ CombatHitPipeline（全体 Actor Step 后）
 
 - **真敌**须挂已配置 `customRoot` 的 `EnemyBehaviorTree` SO；空根或未挂树在 Combat Actions 开启时会失败。
 - Desire + Request 命令轨已落地（E-MOVE2）；闪避/技能须用 `RequestCombatAction` 指 Entry。
-- E-REQ3 与 8.10 总出口已关闭（2026-08-11：资产配置 + Play / EditMode 人工确认）。
 - **E-CFG1：** 战斗距离/幅度在节点；旧树资产须人工补 `AggroGate` + 节点参数，否则仇恨/幅度可能用默认或不进仇。
 - 追击直线趋近（`StraightPathQuery`）；寻路见演进计划 E4。
 - 旧 Kind 预设资产若 `customRoot` 为空，须在 Graph 编辑器中重新搭树并 Save（无 Fill/默认种树）。
@@ -850,8 +846,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-10 | E-MOVE1：EnemyLocomotionDesire + Buffer；Brain 停 SetMove；Actor 覆盖 MoveIntent |
 | 2026-08-10 | E-MOVE2：删除 AIInputWriter 与 PulseDodge/Heavy/Skill；ProduceInput=Empty |
 | 2026-08-11 | 命令源分层：LocomotionDesire / ActionEntryRequest 上提为通用契约；CharacterActor 删除 Enemy Buffer 与 InputManager 覆盖路径 |
-| 2026-08-11 | E-REQ3：CooldownGate 暂存成功 CD、Brain 确认/失败重试分槽；Validator 拒绝 Wait 位于 Locomotion 门控内 |
-| 2026-08-11 | 8.10 总出口关闭：用户完成真敌树配置与 Play / EditMode 验收 |
+| 2026-08-11 | 对峙循环：CdReady Chase / CdNotReady Strafe；CooldownGate/Dwell/Wait 节点改秒制 |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
 | 2026-08-09 | BT Graph：装饰/条件改为宿主顶部徽章（UE 表现）；运行真源仍为装饰链 |
