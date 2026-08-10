@@ -19,7 +19,7 @@ public sealed class EnemyBehaviorTreeTests
 
         Assert.That(status, Is.EqualTo(BehaviorStatus.Success));
         Assert.That(bb.MoveDesire, Is.EqualTo(Vector2.zero));
-        Assert.That(bb.AttackPulse, Is.False);
+        Assert.That(bb.HasCombatRequest, Is.False);
     }
 
     [Test]
@@ -32,12 +32,12 @@ public sealed class EnemyBehaviorTreeTests
 
         runner.Tick(bb);
 
-        Assert.That(bb.AttackPulse, Is.False);
+        Assert.That(bb.HasCombatRequest, Is.False);
         Assert.That(bb.MoveDesire.y, Is.GreaterThan(0f));
     }
 
     [Test]
-    public void MeleeTree_InAttackRange_Locomotion_CdReady_PulsesAttack()
+    public void MeleeTree_InAttackRange_Locomotion_CdReady_RequestsCombat()
     {
         var bb = CreateBlackboard(hasTarget: true, distance: 1.5f, aggroed: true, cdReady: true);
         bb.CharacterState = CharacterStateType.Locomotion;
@@ -45,9 +45,10 @@ public sealed class EnemyBehaviorTreeTests
 
         BehaviorStatus status = runner.Tick(bb);
 
-        Assert.That(bb.AttackPulse, Is.True);
+        Assert.That(bb.HasCombatRequest, Is.True);
+        Assert.That(bb.CombatRequestEntryId, Is.EqualTo("Entry_Basic"));
         Assert.That(bb.MoveDesire, Is.EqualTo(Vector2.zero));
-        // Pulse 当帧由 WaitWhileInAction 占用，避免同帧落到 Chase/Strafe
+        // Request 当帧由 WaitWhileInAction 占用，避免同帧落到 Chase/Strafe
         Assert.That(status, Is.EqualTo(BehaviorStatus.Running));
     }
 
@@ -59,7 +60,7 @@ public sealed class EnemyBehaviorTreeTests
         var runner = CreateRunner(EnemyBehaviorTreeDefFactory.CreateMeleeChaseAttack());
 
         Assert.That(runner.Tick(bb), Is.EqualTo(BehaviorStatus.Running));
-        Assert.That(bb.AttackPulse, Is.True);
+        Assert.That(bb.HasCombatRequest, Is.True);
 
         // 模拟进招：Cd 已消耗，状态 Action；树应继续 Running 且无移动
         bb.ResetFrameOutputs();
@@ -70,7 +71,7 @@ public sealed class EnemyBehaviorTreeTests
         bb.PathDirection = Vector3.forward;
 
         Assert.That(runner.Tick(bb), Is.EqualTo(BehaviorStatus.Running));
-        Assert.That(bb.AttackPulse, Is.False);
+        Assert.That(bb.HasCombatRequest, Is.False);
         Assert.That(bb.MoveDesire, Is.EqualTo(Vector2.zero));
         Assert.That(bb.FaceTargetRequested, Is.True);
     }
@@ -89,7 +90,7 @@ public sealed class EnemyBehaviorTreeTests
     }
 
     [Test]
-    public void MeleeTree_AttackConfirmPending_BlocksPulse()
+    public void MeleeTree_AttackConfirmPending_BlocksRequest()
     {
         var bb = CreateBlackboard(hasTarget: true, distance: 1.5f, aggroed: true, cdReady: true);
         bb.CharacterState = CharacterStateType.Locomotion;
@@ -98,11 +99,11 @@ public sealed class EnemyBehaviorTreeTests
 
         runner.Tick(bb);
 
-        Assert.That(bb.AttackPulse, Is.False);
+        Assert.That(bb.HasCombatRequest, Is.False);
     }
 
     [Test]
-    public void ChaseOnlyTree_NeverPulsesAttack()
+    public void ChaseOnlyTree_NeverRequestsCombat()
     {
         var bb = CreateBlackboard(hasTarget: true, distance: 1.5f, aggroed: true, cdReady: true);
         bb.CharacterState = CharacterStateType.Locomotion;
@@ -110,7 +111,7 @@ public sealed class EnemyBehaviorTreeTests
 
         runner.Tick(bb);
 
-        Assert.That(bb.AttackPulse, Is.False);
+        Assert.That(bb.HasCombatRequest, Is.False);
         Assert.That(bb.MoveDesire.y, Is.GreaterThan(0f));
     }
 
@@ -264,7 +265,7 @@ public sealed class EnemyBehaviorTreeTests
         far.PathDirection = Vector3.forward;
         runner.Tick(far);
         Assert.That(far.MoveDesire.y, Is.GreaterThan(0f));
-        Assert.That(far.AttackPulse, Is.False);
+        Assert.That(far.HasCombatRequest, Is.False);
 
         runner.Reset();
         var mid = CreateBlackboard(hasTarget: true, distance: 2.5f, aggroed: true, cdReady: false);
@@ -334,7 +335,7 @@ public sealed class EnemyBehaviorTreeTests
     }
 
     [Test]
-    public void CustomDef_MeleeFactory_PulsesAttack()
+    public void CustomDef_MeleeFactory_RequestsCombat()
     {
         var bb = CreateBlackboard(hasTarget: true, distance: 1.5f, aggroed: true, cdReady: true);
         bb.CharacterState = CharacterStateType.Locomotion;
@@ -342,11 +343,12 @@ public sealed class EnemyBehaviorTreeTests
 
         runner.Tick(bb);
 
-        Assert.That(bb.AttackPulse, Is.True);
+        Assert.That(bb.HasCombatRequest, Is.True);
+        Assert.That(bb.CombatRequestEntryId, Is.EqualTo("Entry_Basic"));
     }
 
     [Test]
-    public void CustomDef_ChaseOnlyFactory_NeverPulses()
+    public void CustomDef_ChaseOnlyFactory_NeverRequests()
     {
         var bb = CreateBlackboard(hasTarget: true, distance: 1.5f, aggroed: true, cdReady: true);
         bb.CharacterState = CharacterStateType.Locomotion;
@@ -354,7 +356,7 @@ public sealed class EnemyBehaviorTreeTests
 
         runner.Tick(bb);
 
-        Assert.That(bb.AttackPulse, Is.False);
+        Assert.That(bb.HasCombatRequest, Is.False);
     }
 
     [Test]
@@ -381,7 +383,7 @@ public sealed class EnemyBehaviorTreeTests
         IEnemyBehaviorRunner runner = asset.CreateRunner(in ctx);
         runner.Tick(bb);
 
-        Assert.That(bb.AttackPulse, Is.False);
+        Assert.That(bb.HasCombatRequest, Is.False);
 
         UnityEngine.Object.DestroyImmediate(asset);
         UnityEngine.Object.DestroyImmediate(profile);
@@ -439,7 +441,7 @@ public sealed class EnemyBehaviorTreeTests
     }
 
     [Test]
-    public void GraphMapper_FlattenRebuild_PreservesMeleePulse()
+    public void GraphMapper_FlattenRebuild_PreservesMeleeRequest()
     {
         EnemyBehaviorNodeDef root = EnemyBehaviorTreeDefFactory.CreateMeleeChaseAttack();
         var flat = EnemyBehaviorTreeGraphMapper.Flatten(root);
@@ -452,7 +454,81 @@ public sealed class EnemyBehaviorTreeTests
         var bb = CreateBlackboard(hasTarget: true, distance: 1.5f, aggroed: true, cdReady: true);
         bb.CharacterState = CharacterStateType.Locomotion;
         new NativeBehaviorTreeRunner(rebuilt.Build()).Tick(bb);
-        Assert.That(bb.AttackPulse, Is.True);
+        Assert.That(bb.HasCombatRequest, Is.True);
+        Assert.That(bb.CombatRequestEntryId, Is.EqualTo("Entry_Basic"));
+    }
+
+    [Test]
+    public void RandomSelector_FixedSequence_PicksByWeightBuckets()
+    {
+        // 权重 3:2:1 → 桶 [0,3) / [3,5) / [5,6)；NextUnit*total
+        var a = new RequestCombatAction("Entry_A");
+        var b = new RequestCombatAction("Entry_B");
+        var c = new RequestCombatAction("Entry_C");
+        var rng = new SequenceEnemyBehaviorRandom(0f, 0.5f, 0.9f);
+        var node = new RandomSelectorNode(
+            new IBehaviorNode[] { a, b, c },
+            new[] { 3f, 2f, 1f },
+            rng);
+
+        var bb = new EnemyBlackboard();
+        bb.ResetFrameOutputs();
+        Assert.That(node.Tick(bb), Is.EqualTo(BehaviorStatus.Success));
+        Assert.That(bb.CombatRequestEntryId, Is.EqualTo("Entry_A"));
+
+        bb.ResetFrameOutputs();
+        Assert.That(node.Tick(bb), Is.EqualTo(BehaviorStatus.Success));
+        Assert.That(bb.CombatRequestEntryId, Is.EqualTo("Entry_B"));
+
+        bb.ResetFrameOutputs();
+        Assert.That(node.Tick(bb), Is.EqualTo(BehaviorStatus.Success));
+        Assert.That(bb.CombatRequestEntryId, Is.EqualTo("Entry_C"));
+    }
+
+    [Test]
+    public void RandomSelector_Seeded_DistributionBiasedToHeavierWeight()
+    {
+        var counts = new int[3];
+        var rng = new SystemEnemyBehaviorRandom(42);
+        var node = new RandomSelectorNode(
+            new IBehaviorNode[]
+            {
+                new RequestCombatAction("Entry_A"),
+                new RequestCombatAction("Entry_B"),
+                new RequestCombatAction("Entry_C"),
+            },
+            new[] { 3f, 2f, 1f },
+            rng);
+
+        for (int i = 0; i < 600; i++)
+        {
+            var bb = new EnemyBlackboard();
+            bb.ResetFrameOutputs();
+            node.Tick(bb);
+            if (bb.CombatRequestEntryId == "Entry_A")
+                counts[0]++;
+            else if (bb.CombatRequestEntryId == "Entry_B")
+                counts[1]++;
+            else if (bb.CombatRequestEntryId == "Entry_C")
+                counts[2]++;
+        }
+
+        Assert.That(counts[0], Is.GreaterThan(counts[1]));
+        Assert.That(counts[1], Is.GreaterThan(counts[2]));
+        Assert.That(counts[0] + counts[1] + counts[2], Is.EqualTo(600));
+    }
+
+    [Test]
+    public void CombatPoolFactory_InRange_RequestsOneOfPoolEntries()
+    {
+        var bb = CreateBlackboard(hasTarget: true, distance: 1.5f, aggroed: true, cdReady: true);
+        bb.CharacterState = CharacterStateType.Locomotion;
+        bb.Rng = new SequenceEnemyBehaviorRandom(0f);
+        var runner = CreateRunner(EnemyBehaviorTreeDefFactory.CreateCombatPool());
+
+        Assert.That(runner.Tick(bb), Is.EqualTo(BehaviorStatus.Running));
+        Assert.That(bb.HasCombatRequest, Is.True);
+        Assert.That(bb.CombatRequestEntryId, Is.EqualTo("Entry_A"));
     }
 
     [Test]

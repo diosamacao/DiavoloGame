@@ -56,6 +56,8 @@ public sealed class EnemyHandle :
     public BehaviorStatus BrainLastRunnerStatus => _brain.LastRunnerStatus;
     /// <summary>BT 调试：NamedNode 路径。</summary>
     public string BrainLastDebugPath => _brain.LastDebugPath;
+    /// <summary>BT 调试：上一帧 CombatRequest Entry。</summary>
+    public string BrainLastCombatRequestEntryId => _brain.DebugCombatRequestEntryId;
     /// <summary>开关行为树调试采集。</summary>
     public void SetBrainDebugEnabled(bool enabled) => _brain.SetDebugEnabled(enabled);
     public float CurrentHealth => _actor.Vitality.CurrentHealth;

@@ -32,6 +32,7 @@ public static class EnemyBehaviorNodeCatalog
     {
         new Entry(Group.Composite, "Selector", typeof(SelectorNodeDef)),
         new Entry(Group.Composite, "Sequence", typeof(SequenceNodeDef)),
+        new Entry(Group.Composite, "RandomSelector", typeof(RandomSelectorNodeDef)),
         new Entry(Group.Decorator, "Inverter", typeof(InverterNodeDef)),
         new Entry(Group.Decorator, "Succeeder", typeof(SucceederNodeDef)),
         new Entry(Group.Decorator, "CooldownGate", typeof(CooldownGateNodeDef)),
@@ -50,7 +51,7 @@ public static class EnemyBehaviorNodeCatalog
         new Entry(Group.Task, "BackOffFromTarget", typeof(BackOffFromTargetActionDef)),
         new Entry(Group.Task, "StrafeAroundTarget", typeof(StrafeAroundTargetActionDef)),
         new Entry(Group.Task, "FaceTarget", typeof(FaceTargetActionDef)),
-        new Entry(Group.Task, "PulseAttack", typeof(PulseAttackActionDef)),
+        new Entry(Group.Task, "RequestCombatAction", typeof(RequestCombatActionDef)),
         new Entry(Group.Task, "PulseDodge", typeof(PulseDodgeActionDef)),
         new Entry(Group.Task, "PulseHeavyAttack", typeof(PulseHeavyAttackActionDef)),
         new Entry(Group.Task, "PulseSkill", typeof(PulseSkillActionDef)),
@@ -74,7 +75,7 @@ public static class EnemyBehaviorNodeCatalog
 
     /// <summary>复合节点可挂多个子。</summary>
     public static bool IsComposite(EnemyBehaviorNodeDef def) =>
-        def is SelectorNodeDef || def is SequenceNodeDef;
+        def is SelectorNodeDef || def is SequenceNodeDef || def is RandomSelectorNodeDef;
 
     /// <summary>条件装饰（UE 风格，单子 + Abort Self）。</summary>
     public static bool IsCondition(EnemyBehaviorNodeDef def) =>

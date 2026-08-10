@@ -207,6 +207,7 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
             return;
 
         EnemyBehaviorTreeValidationResult result = _asset.ValidateAsset();
+        EnemyBehaviorTreeCombatEntryPicker.AppendEntryWarnings(_asset, result);
         if (result.IsValid)
         {
             SetStatus($"Validate 通过（警告 {result.Warnings.Count}）");
@@ -256,7 +257,7 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
         string nodeName = EditorGUILayout.TextField("节点名", def.NodeName ?? string.Empty);
         EditorGUILayout.LabelField("类型", def.GetType().Name);
 
-        DrawTypedFields(def);
+        DrawTypedFields(def, _asset);
 
         def.NodeName = nodeName;
         if (EditorGUI.EndChangeCheck())
@@ -276,7 +277,8 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
         }
     }
 
-    static void DrawTypedFields(EnemyBehaviorNodeDef def)
+    /// <summary>按 Def 类型绘制参数；RequestCombat 需资产以解析 ActionGraph。</summary>
+    static void DrawTypedFields(EnemyBehaviorNodeDef def, EnemyBehaviorTreeAsset tree)
     {
         switch (def)
         {
@@ -320,6 +322,26 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
             case StrafeAroundTargetActionDef strafe:
                 strafe.SideSign = EditorGUILayout.FloatField("Side Sign", strafe.SideSign);
                 strafe.Magnitude = EditorGUILayout.Slider("Magnitude", strafe.Magnitude, 0f, 1f);
+                break;
+            case RequestCombatActionDef request:
+                EnemyBehaviorTreeCombatEntryPicker.DrawRequestCombatFields(request, tree);
+                break;
+            case RandomSelectorNodeDef random:
+                random.SyncWeightCount();
+                EditorGUILayout.LabelField("Weights（与子节点下标对齐）");
+                if (random.children != null)
+                {
+                    for (int i = 0; i < random.children.Count; i++)
+                    {
+                        string childName = random.children[i] != null
+                            ? (string.IsNullOrEmpty(random.children[i].NodeName)
+                                ? EnemyBehaviorTreeGraphMapper.DefaultNodeName(random.children[i])
+                                : random.children[i].NodeName)
+                            : "(null)";
+                        random.weights[i] = EditorGUILayout.FloatField($"[{i}] {childName}", random.weights[i]);
+                    }
+                }
+
                 break;
             case WaitFramesActionDef wait:
                 wait.DurationFrames = EditorGUILayout.IntField("Duration Frames", wait.DurationFrames);

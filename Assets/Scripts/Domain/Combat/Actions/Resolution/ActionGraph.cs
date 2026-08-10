@@ -79,6 +79,28 @@ public class ActionGraph : ScriptableObject, IActionSimGraph
         return TryFinalizeFromCandidates(candidates, in request, in context, out result);
     }
 
+    /// <summary>
+    /// AI 离散起手：按 Entry NodeId 解析（须 IsEntry）；VariantResolver 仍可用。
+    /// Intent 为空时用 Attack 作为变体解析占位，不改变图游标。
+    /// </summary>
+    public bool TryResolveEntry(
+        string entryNodeId,
+        in ActionResolveContext context,
+        out ActionResolveResult result)
+    {
+        result = default;
+        if (string.IsNullOrEmpty(entryNodeId) || !TryGetNode(entryNodeId, out ActionGraphNode node))
+            return false;
+        if (!node.IsEntry || node.Action == null)
+            return false;
+
+        GameplayIntentType intent = node.Intent != GameplayIntentType.None
+            ? node.Intent
+            : GameplayIntentType.Attack;
+        var request = new ActionRequest(intent);
+        return FinalizeNodeResolve(node, in request, in context, out result);
+    }
+
     /// <summary>Cancel：按当前节点与窗口类型找出边，再按目标节点 Intent 匹配请求。</summary>
     public bool TryResolveCancel(
         in ActionRequest request,

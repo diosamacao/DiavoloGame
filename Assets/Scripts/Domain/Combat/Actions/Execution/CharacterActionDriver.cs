@@ -16,6 +16,8 @@ public sealed class CharacterActionDriver
     readonly Transform _actorRoot;
     /// <summary>招式解析上下文（闪避意图、朝向修正）。</summary>
     readonly IActionStartContext _startContext;
+    /// <summary>敌人 CombatRequest 帧槽；玩家为 null。</summary>
+    EnemyCombatRequestBuffer _combatRequests;
     bool _wasInAction;
 
     /// <summary>创建纯 C# 招式意图路由；物理输入映射由 GameplayIntentProducer 持有。</summary>
@@ -41,6 +43,10 @@ public sealed class CharacterActionDriver
         _startContext = startContext;
     }
 
+    /// <summary>敌人装配：绑定 CombatRequest 缓冲；玩家勿调用。</summary>
+    public void BindCombatRequestBuffer(EnemyCombatRequestBuffer buffer) =>
+        _combatRequests = buffer;
+
     /// <summary>每帧在 GameplayIntentProducer 之后调用，负责起手、动作缓冲和移动取消。</summary>
     public void ProcessGameplayInput()
     {
@@ -56,6 +62,9 @@ public sealed class CharacterActionDriver
         if (inAction)
             TryCancelActionByMovement();
 
+        // 敌人离散 Entry 优先于同帧 Intent（骨架期可与 Pulse 并存）
+        TryConsumeCombatRequest();
+
         // 语义意图在 Producer 内已完成物理输入与上下文判定；Driver 只按当前顶层状态路由。
         if (_intentBuffer != null)
         {
@@ -64,6 +73,44 @@ public sealed class CharacterActionDriver
         }
 
         _wasInAction = _stateMachine.CurrentStateId == CharacterStateType.Action;
+    }
+
+    /// <summary>消费敌人 CombatRequest；非 Locomotion / 解析失败 / 费用失败均不卡死。</summary>
+    void TryConsumeCombatRequest()
+    {
+        if (_combatRequests == null || !_combatRequests.TryConsume(out EnemyCombatRequest request))
+            return;
+
+        if (_stateMachine.CurrentStateId != CharacterStateType.Locomotion)
+            return;
+
+        TryStartRequestedEntry(request.EntryNodeId);
+    }
+
+    /// <summary>按 Graph Entry NodeId 起手（CostGate 同玩家 Intent 路径）。</summary>
+    public bool TryStartRequestedEntry(string entryNodeId)
+    {
+        if (_resolverService == null || _actionSim == null || string.IsNullOrEmpty(entryNodeId))
+            return false;
+        if (_stateMachine.CurrentStateId != CharacterStateType.Locomotion)
+            return false;
+
+        var context = new ActionResolveContext(
+            ActionResolveOrigin.LocomotionStart,
+            null,
+            _actorRoot,
+            _startContext,
+            canAfford: content => _actionSim.CanAffordContent(content));
+
+        if (!_resolverService.TryResolveEntry(entryNodeId, in context, out ActionResolveResult resolveResult))
+            return false;
+
+        ActionSimResolveResult simResult = resolveResult.ToSimResult();
+        if (!_actionSim.TryStart(in simResult))
+            return false;
+
+        _stateMachine.TryChangeState(CharacterStateType.Action);
+        return true;
     }
 
     /// <summary>进入受控或死亡状态时清空动作缓冲与索敌锁定。</summary>

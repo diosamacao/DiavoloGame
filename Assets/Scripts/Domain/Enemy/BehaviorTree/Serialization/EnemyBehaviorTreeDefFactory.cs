@@ -3,48 +3,17 @@ using System.Collections.Generic;
 /// <summary>
 /// EditMode 测试用树构造器（非资产默认类型）。
 /// 条件为 UE 风格装饰链：Condition → … → Task/Sequence；根外套 AggroGate。
+/// 出招叶为 RequestCombatAction / RandomSelector（E-REQ2，无 AttackPulse）。
 /// </summary>
 public static class EnemyBehaviorTreeDefFactory
 {
     /// <summary>
     /// 测试：近战追打定义树。
-    /// Attack = CooldownGate(Pulse) + WaitWhileInAction；Wait 必须在门控外。
+    /// Attack = CooldownGate(Request) + WaitWhileInAction；Wait 必须在门控外。
     /// </summary>
-    public static EnemyBehaviorNodeDef CreateMeleeChaseAttack()
+    public static EnemyBehaviorNodeDef CreateMeleeChaseAttack(string entryNodeId = "Entry_Basic")
     {
-        var pulseBody = new SequenceNodeDef
-        {
-            NodeName = "PulseBody",
-            children = new List<EnemyBehaviorNodeDef>
-            {
-                new StopMoveActionDef(),
-                new PulseAttackActionDef(),
-            },
-        };
-
-        var gatedPulse = new CooldownGateNodeDef
-        {
-            NodeName = "BasicAttackGate",
-            CooldownId = EnemyCooldownIds.BasicAttack,
-            CooldownFrames = 72,
-            child = pulseBody,
-        };
-
-        EnemyBehaviorNodeDef pulse = NestDecorators(
-            gatedPulse,
-            new HasTargetConditionDef { NodeName = "HasTarget" },
-            new InAttackRangeConditionDef { NodeName = "InAttackRange", Distance = 2f },
-            new IsCharacterStateConditionDef { NodeName = "IsLocomotion" });
-
-        var attackBody = new SequenceNodeDef
-        {
-            NodeName = "AttackBody",
-            children = new List<EnemyBehaviorNodeDef>
-            {
-                pulse,
-                new WaitWhileInActionActionDef { NodeName = "WaitWhileInAction" },
-            },
-        };
+        var attackBody = CreateGatedRequestAttackBody(entryNodeId);
 
         EnemyBehaviorNodeDef chase = NestDecorators(
             new MoveTowardTargetActionDef
@@ -103,42 +72,9 @@ public static class EnemyBehaviorTreeDefFactory
     /// 推荐拓扑（资产请在 Editor 按此搭，Agent 不改 .asset）：
     /// AggroGate → Selector( Attack | Chase(Band Far) | Strafe(Band Inside) | Idle )。
     /// </summary>
-    public static EnemyBehaviorNodeDef CreateMeleeStanceLoop()
+    public static EnemyBehaviorNodeDef CreateMeleeStanceLoop(string entryNodeId = "Entry_Basic")
     {
-        var pulseBody = new SequenceNodeDef
-        {
-            NodeName = "PulseBody",
-            children = new List<EnemyBehaviorNodeDef>
-            {
-                new StopMoveActionDef(),
-                new PulseAttackActionDef(),
-            },
-        };
-
-        var gatedPulse = new CooldownGateNodeDef
-        {
-            NodeName = "BasicAttackGate",
-            CooldownId = EnemyCooldownIds.BasicAttack,
-            CooldownFrames = 72,
-            child = pulseBody,
-        };
-
-        // Attack 高优先：只靠 InAttackRange，不套滞回 dwell
-        EnemyBehaviorNodeDef pulse = NestDecorators(
-            gatedPulse,
-            new HasTargetConditionDef { NodeName = "HasTarget" },
-            new InAttackRangeConditionDef { NodeName = "InAttackRange", Distance = 2f },
-            new IsCharacterStateConditionDef { NodeName = "IsLocomotion" });
-
-        var attackBody = new SequenceNodeDef
-        {
-            NodeName = "AttackBody",
-            children = new List<EnemyBehaviorNodeDef>
-            {
-                pulse,
-                new WaitWhileInActionActionDef { NodeName = "WaitWhileInAction" },
-            },
-        };
+        var attackBody = CreateGatedRequestAttackBody(entryNodeId);
 
         // Chase：过远带 enter=3.5 / exit=2.8（exit&lt;enter）+ 最短驻留
         EnemyBehaviorNodeDef chase = NestDecorators(
@@ -187,6 +123,86 @@ public static class EnemyBehaviorTreeDefFactory
                 attackBody,
                 chase,
                 strafe,
+                new StopMoveActionDef { NodeName = "Idle" },
+            },
+        };
+
+        return WrapAggroGate(selector);
+    }
+
+    /// <summary>
+    /// E-REQ2 样例：权重招式池（Request 叶，非 Pulse）。
+    /// 默认权重 3:2:1 → Entry_A / Entry_B / Entry_C。
+    /// </summary>
+    public static EnemyBehaviorNodeDef CreateCombatPool(
+        string entryA = "Entry_A",
+        string entryB = "Entry_B",
+        string entryC = "Entry_C")
+    {
+        var pool = new RandomSelectorNodeDef
+        {
+            NodeName = "CombatPool",
+            children = new List<EnemyBehaviorNodeDef>
+            {
+                new RequestCombatActionDef { NodeName = "ReqA", EntryNodeId = entryA },
+                new RequestCombatActionDef { NodeName = "ReqB", EntryNodeId = entryB },
+                new RequestCombatActionDef { NodeName = "ReqC", EntryNodeId = entryC },
+            },
+            weights = new List<float> { 3f, 2f, 1f },
+        };
+
+        var requestBody = new SequenceNodeDef
+        {
+            NodeName = "RequestBody",
+            children = new List<EnemyBehaviorNodeDef>
+            {
+                new StopMoveActionDef { NodeName = "StopBeforeRequest" },
+                pool,
+            },
+        };
+
+        var gated = new CooldownGateNodeDef
+        {
+            NodeName = "BasicAttackGate",
+            CooldownId = EnemyCooldownIds.BasicAttack,
+            CooldownFrames = 72,
+            child = requestBody,
+        };
+
+        EnemyBehaviorNodeDef gatedRequest = NestDecorators(
+            gated,
+            new HasTargetConditionDef { NodeName = "HasTarget" },
+            new InAttackRangeConditionDef { NodeName = "InAttackRange", Distance = 2f },
+            new IsCharacterStateConditionDef { NodeName = "IsLocomotion" });
+
+        var attackBody = new SequenceNodeDef
+        {
+            NodeName = "AttackBody",
+            children = new List<EnemyBehaviorNodeDef>
+            {
+                gatedRequest,
+                new WaitWhileInActionActionDef { NodeName = "WaitWhileInAction" },
+            },
+        };
+
+        EnemyBehaviorNodeDef chase = NestDecorators(
+            new MoveTowardTargetActionDef
+            {
+                NodeName = "ChaseMove",
+                Magnitude = 1f,
+                StopDistance = 1.2f,
+                FaceTarget = true,
+            },
+            new HasTargetConditionDef { NodeName = "HasTarget" },
+            new InCombatAggroConditionDef { NodeName = "InAggro" });
+
+        var selector = new SelectorNodeDef
+        {
+            NodeName = "CombatPoolRoot",
+            children = new List<EnemyBehaviorNodeDef>
+            {
+                attackBody,
+                chase,
                 new StopMoveActionDef { NodeName = "Idle" },
             },
         };
@@ -270,5 +286,47 @@ public static class EnemyBehaviorTreeDefFactory
         }
 
         return EnemyBehaviorTreeTopologyNormalizer.NestDecorators(inner, list);
+    }
+
+    /// <summary>CooldownGate(Stop+Request) + WaitWhileInAction 攻击支。</summary>
+    static EnemyBehaviorNodeDef CreateGatedRequestAttackBody(string entryNodeId)
+    {
+        var requestBody = new SequenceNodeDef
+        {
+            NodeName = "RequestBody",
+            children = new List<EnemyBehaviorNodeDef>
+            {
+                new StopMoveActionDef { NodeName = "StopBeforeRequest" },
+                new RequestCombatActionDef
+                {
+                    NodeName = "RequestCombat",
+                    EntryNodeId = entryNodeId,
+                },
+            },
+        };
+
+        var gatedRequest = new CooldownGateNodeDef
+        {
+            NodeName = "BasicAttackGate",
+            CooldownId = EnemyCooldownIds.BasicAttack,
+            CooldownFrames = 72,
+            child = requestBody,
+        };
+
+        EnemyBehaviorNodeDef request = NestDecorators(
+            gatedRequest,
+            new HasTargetConditionDef { NodeName = "HasTarget" },
+            new InAttackRangeConditionDef { NodeName = "InAttackRange", Distance = 2f },
+            new IsCharacterStateConditionDef { NodeName = "IsLocomotion" });
+
+        return new SequenceNodeDef
+        {
+            NodeName = "AttackBody",
+            children = new List<EnemyBehaviorNodeDef>
+            {
+                request,
+                new WaitWhileInActionActionDef { NodeName = "WaitWhileInAction" },
+            },
+        };
     }
 }

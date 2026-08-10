@@ -50,6 +50,7 @@ public static class EnemyBehaviorTreeValidator
         }
 
         ValidateTree(asset.CustomRoot, result);
+        // Entry↔ActionGraph 可起手校验在 Editor 侧按 EnemyDefinition 配置链反查（见 CombatEntryPicker）
 
         if (asset.GraphLayout != null)
         {
@@ -117,6 +118,9 @@ public static class EnemyBehaviorTreeValidator
         if (string.IsNullOrEmpty(node.NodeName))
             result.AddWarning($"缺少 NodeName：{path} / {Describe(node)}");
 
+        if (node is RequestCombatActionDef request && string.IsNullOrEmpty(request.EntryNodeId))
+            result.AddWarning($"RequestCombatAction Entry 为空：{path} / {Describe(node)}");
+
         if (EnemyBehaviorTreeGraphMapper.TryGetChildren(node, out List<EnemyBehaviorNodeDef> children))
         {
             if (children.Count == 0)
@@ -143,6 +147,53 @@ public static class EnemyBehaviorTreeValidator
         }
 
         pathStack.Remove(node);
+    }
+
+    /// <summary>
+    /// 按给定 ActionGraph 校验 RequestCombatAction 的 Entry 可起手。
+    /// Graph 由 Editor 从 EnemyDefinition → CombatProfile 反查后传入。
+    /// </summary>
+    public static void ValidateRequestCombatEntries(
+        EnemyBehaviorNodeDef root,
+        ActionGraph actionGraph,
+        EnemyBehaviorTreeValidationResult result)
+    {
+        if (root == null || actionGraph == null || result == null)
+            return;
+
+        WalkRequestEntries(root, actionGraph, result, "root");
+    }
+
+    static void WalkRequestEntries(
+        EnemyBehaviorNodeDef node,
+        ActionGraph graph,
+        EnemyBehaviorTreeValidationResult result,
+        string path)
+    {
+        if (node == null)
+            return;
+
+        if (node is RequestCombatActionDef request
+            && !string.IsNullOrEmpty(request.EntryNodeId))
+        {
+            if (!graph.TryGetNode(request.EntryNodeId, out ActionGraphNode graphNode)
+                || !graphNode.IsEntry
+                || graphNode.Action == null)
+            {
+                result.AddWarning(
+                    $"RequestCombatAction Entry「{request.EntryNodeId}」在 ActionGraph「{graph.name}」上不可起手：{path}/{Describe(node)}");
+            }
+        }
+
+        if (EnemyBehaviorTreeGraphMapper.TryGetChildren(node, out List<EnemyBehaviorNodeDef> children))
+        {
+            for (int i = 0; i < children.Count; i++)
+                WalkRequestEntries(children[i], graph, result, $"{path}/{Describe(node)}[{i}]");
+            return;
+        }
+
+        if (EnemyBehaviorTreeGraphMapper.TryGetSingleChild(node, out EnemyBehaviorNodeDef child))
+            WalkRequestEntries(child, graph, result, $"{path}/{Describe(node)}/child");
     }
 
     static string Describe(EnemyBehaviorNodeDef node)

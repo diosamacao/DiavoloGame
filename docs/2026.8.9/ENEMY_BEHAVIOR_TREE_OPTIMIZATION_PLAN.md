@@ -120,9 +120,9 @@ SimulationWorld.ProduceInput
 
 | # | 原交付 | 新归属 |
 |---|--------|--------|
-| B1 | `RandomSelector` | **8.10 E-REQ2** |
+| B1 | `RandomSelector` | **8.10 E-REQ2** ✅ 代码 2026-08-10 |
 | B2 | `HealthPercent` / DistanceBand | **8.10**（客观量 Brain 填；阈值/滞回在节点） |
-| B3 | CombatPool 模板 | **8.10 E-REQ2**（叶 = `RequestCombatAction`，**禁止 PulseAttack 版**） |
+| B3 | CombatPool 模板 | **8.10 E-REQ2** ✅ `CreateCombatPool`（叶 = `RequestCombatAction`） |
 | B4 | Abort Self | ✅ 已完成（条件装饰） |
 | B5 | Death/Hit 门外 | 文档约定仍有效 |
 
@@ -179,7 +179,8 @@ Assets/Scripts/Editor/Enemy/BehaviorTree/
 docs/2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md  // 本文件
 ```
 
-RandomSelector / Request 节点目录增量见 **8.10 §7**。
+RandomSelector / Request 节点目录增量见 **8.10 §7**。  
+**编辑体验（2026-08-10）：** `RequestCombatAction` Entry 下拉；ActionGraph 唯一真源 = `EnemyDefinition → CombatProfile`（只读反查，BT 不重复绑 Graph）。
 
 ---
 
