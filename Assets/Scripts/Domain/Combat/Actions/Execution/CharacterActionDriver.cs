@@ -4,7 +4,7 @@ using UnityEngine;
 public sealed class CharacterActionDriver
 {
     readonly CombatTargetLock targetLock;
-    readonly InputManager _input;
+    readonly IMoveIntentSource _moveIntent;
     readonly GameplayIntentBuffer _intentBuffer;
     readonly CharacterStateMachine _stateMachine;
     readonly ActionSim _actionSim;
@@ -16,13 +16,13 @@ public sealed class CharacterActionDriver
     readonly Transform _actorRoot;
     /// <summary>招式解析上下文（闪避意图、朝向修正）。</summary>
     readonly IActionStartContext _startContext;
-    /// <summary>敌人 CombatRequest 帧槽；玩家为 null。</summary>
-    EnemyCombatRequestBuffer _combatRequests;
+    /// <summary>可选离散 Entry 请求源；玩家通常为空，AI/脚本控制可注入。</summary>
+    readonly IActionEntryRequestSource _entryRequests;
     bool _wasInAction;
 
     /// <summary>创建纯 C# 招式意图路由；物理输入映射由 GameplayIntentProducer 持有。</summary>
     public CharacterActionDriver(
-        InputManager input,
+        IMoveIntentSource moveIntent,
         GameplayIntentBuffer intentBuffer,
         CharacterStateMachine stateMachine,
         ActionSim actionSim,
@@ -30,9 +30,10 @@ public sealed class CharacterActionDriver
         CombatTargetLock lockState,
         ActionResolverService resolverService,
         Transform actorRoot,
-        IActionStartContext startContext)
+        IActionStartContext startContext,
+        IActionEntryRequestSource entryRequests = null)
     {
-        _input = input;
+        _moveIntent = moveIntent;
         _intentBuffer = intentBuffer;
         _stateMachine = stateMachine;
         _actionSim = actionSim;
@@ -41,11 +42,8 @@ public sealed class CharacterActionDriver
         _resolverService = resolverService;
         _actorRoot = actorRoot;
         _startContext = startContext;
+        _entryRequests = entryRequests;
     }
-
-    /// <summary>敌人装配：绑定 CombatRequest 缓冲；玩家勿调用。</summary>
-    public void BindCombatRequestBuffer(EnemyCombatRequestBuffer buffer) =>
-        _combatRequests = buffer;
 
     /// <summary>每帧在 GameplayIntentProducer 之后调用，负责起手、动作缓冲和移动取消。</summary>
     public void ProcessGameplayInput()
@@ -62,8 +60,8 @@ public sealed class CharacterActionDriver
         if (inAction)
             TryCancelActionByMovement();
 
-        // 敌人离散 Entry 优先于同帧 Intent（骨架期可与 Pulse 并存）
-        TryConsumeCombatRequest();
+        // 外部离散 Entry 优先于同帧 Intent；空 InputFrame 的 AI 不产生玩家意图
+        TryConsumeEntryRequest();
 
         // 语义意图在 Producer 内已完成物理输入与上下文判定；Driver 只按当前顶层状态路由。
         if (_intentBuffer != null)
@@ -75,10 +73,10 @@ public sealed class CharacterActionDriver
         _wasInAction = _stateMachine.CurrentStateId == CharacterStateType.Action;
     }
 
-    /// <summary>消费敌人 CombatRequest；非 Locomotion / 解析失败 / 费用失败均不卡死。</summary>
-    void TryConsumeCombatRequest()
+    /// <summary>消费离散 Entry 请求；非 Locomotion / 解析失败 / 费用失败均不卡死。</summary>
+    void TryConsumeEntryRequest()
     {
-        if (_combatRequests == null || !_combatRequests.TryConsume(out EnemyCombatRequest request))
+        if (_entryRequests == null || !_entryRequests.TryConsume(out ActionEntryRequest request))
             return;
 
         if (_stateMachine.CurrentStateId != CharacterStateType.Locomotion)
@@ -147,7 +145,7 @@ public sealed class CharacterActionDriver
     /// <summary>移动取消：在 CancelWindow(Movement) 内退回 Locomotion。</summary>
     void TryCancelActionByMovement()
     {
-        if (!_input.HasMoveIntent)
+        if (!_moveIntent.HasMoveIntent)
             return;
 
         if (_actionSim == null || !_actionSim.CanCancelByMovement)

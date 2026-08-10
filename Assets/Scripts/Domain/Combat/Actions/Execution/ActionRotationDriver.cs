@@ -4,7 +4,7 @@ using UnityEngine;
 public sealed class ActionRotationDriver
 {
     readonly Transform _actorRoot;
-    readonly InputManager _input;
+    readonly IMoveIntentSource _moveIntent;
     readonly IMoveIntentResolver _moveResolver;
     readonly ActionSim _actionSim;
     readonly CombatTargetLock targetLock;
@@ -13,13 +13,13 @@ public sealed class ActionRotationDriver
     /// <summary>创建动作旋转服务；由 ActionState 在动作状态中调用。</summary>
     public ActionRotationDriver(
         Transform actorRoot,
-        InputManager inputManager,
+        IMoveIntentSource moveIntent,
         IMoveIntentResolver moveResolver,
         ActionSim actionSim,
         CombatTargetLock lockState)
     {
         _actorRoot = actorRoot;
-        _input = inputManager;
+        _moveIntent = moveIntent;
         _moveResolver = moveResolver;
         _actionSim = actionSim;
         targetLock = lockState;
@@ -67,7 +67,7 @@ public sealed class ActionRotationDriver
         float lockSmoothTime = targetLock.ResolveLockSmoothTime(windowSmoothTime);
 
         bool hasLock = targetLock.TryGetLockDirection(out Vector3 lockDir);
-        bool hasInput = _input.HasMoveIntent;
+        bool hasInput = _moveIntent.HasMoveIntent;
 
         if (hasLock)
         {
@@ -80,7 +80,7 @@ public sealed class ActionRotationDriver
         if (!hasInput)
             return false;
 
-        direction = _moveResolver.ResolveWorldMoveDirection(_input.MoveIntent);
+        direction = _moveResolver.ResolveWorldMoveDirection(_moveIntent.MoveIntent);
         smoothTime = windowSmoothTime;
         return direction.sqrMagnitude > 0.001f;
     }

@@ -1,7 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// 敌人 AI 宿主：门闩 + 黑板填装 + IEnemyBehaviorRunner Tick + 帧末写 AIInputWriter。
+/// 敌人 AI 宿主：门闩 + 黑板填装 + IEnemyBehaviorRunner Tick；
+/// 帧末只提交通用 LocomotionDesire + ActionEntryRequest（无假手柄 / InputFrame 战斗提交）。
 /// 战斗半径/幅度/仇恨滞回由 BT 节点负责；本类不读 Profile 战斗表。
 /// </summary>
 public sealed class EnemyBrain
@@ -14,10 +15,10 @@ public sealed class EnemyBrain
 
     readonly EnemyBrainProfile _profile;
     readonly EnemyPerception _perception;
-    readonly AIInputWriter _input;
     readonly Transform _facingProxy;
     readonly IEnemyBehaviorRunner _runner;
-    readonly EnemyCombatRequestBuffer _combatRequests;
+    readonly ActionEntryRequestBuffer _actionEntryRequests;
+    readonly LocomotionDesireBuffer _locomotionDesires;
     readonly EnemyBlackboard _blackboard = new EnemyBlackboard();
 
     int _repathFramesRemaining;
@@ -27,23 +28,24 @@ public sealed class EnemyBrain
     BehaviorStatus _lastRunnerStatus;
     string _lastDebugPath = string.Empty;
     string _lastCombatRequestEntryId = string.Empty;
+    LocomotionDesire _lastLocomotionDesire;
 
     /// <summary>创建 BT 宿主；combat 关闭（木桩）时 runner 可为 null。</summary>
     public EnemyBrain(
         EnemyBrainProfile profile,
         EnemyPerception perception,
-        AIInputWriter input,
         Transform facingProxy,
         IEnemyBehaviorRunner runner,
         IEnemyPathQuery pathQuery = null,
-        EnemyCombatRequestBuffer combatRequests = null)
+        ActionEntryRequestBuffer actionEntryRequests = null,
+        LocomotionDesireBuffer locomotionDesires = null)
     {
         _profile = profile;
         _perception = perception;
-        _input = input;
         _facingProxy = facingProxy;
         _runner = runner;
-        _combatRequests = combatRequests;
+        _actionEntryRequests = actionEntryRequests;
+        _locomotionDesires = locomotionDesires;
         _blackboard.PathQuery = pathQuery ?? new StraightPathQuery();
         State = EnemyBrainState.Idle;
     }
@@ -63,8 +65,8 @@ public sealed class EnemyBrain
     /// <summary>黑板仇恨滞回（调试；由 AggroGate 维护）。</summary>
     public bool DebugIsAggroed => _blackboard.IsAggroed;
 
-    /// <summary>上一帧提交的移动欲望（调试）。</summary>
-    public Vector2 DebugMoveDesire => _blackboard.MoveDesire;
+    /// <summary>上一帧提交的 LocomotionDesire 本地轴（调试）。</summary>
+    public Vector2 DebugMoveDesire => _lastLocomotionDesire.LocalMove;
 
     /// <summary>上一帧提交的 CombatRequest Entry（调试/HUD）。</summary>
     public string DebugCombatRequestEntryId => _lastCombatRequestEntryId;
@@ -76,7 +78,7 @@ public sealed class EnemyBrain
         _blackboard.DebugEnabled = enabled;
     }
 
-    /// <summary>基于上一帧已提交状态推进一次 AI 决策并准备当前帧输入。</summary>
+    /// <summary>基于上一帧已提交状态推进一次 AI 决策并提交 Desire/Request。</summary>
     public void Step()
     {
         if (!_running || _profile == null || _perception == null)
@@ -101,8 +103,7 @@ public sealed class EnemyBrain
                 return;
             }
 
-            _input.ClearAll();
-            _combatRequests?.Clear();
+            ClearCommandBuffers();
             State = EnemyBrainState.Idle;
             return;
         }
@@ -115,7 +116,7 @@ public sealed class EnemyBrain
 
         if (_runner == null)
         {
-            _input.ClearAll();
+            ClearCommandBuffers();
             State = EnemyBrainState.Idle;
             return;
         }
@@ -136,8 +137,7 @@ public sealed class EnemyBrain
         if (!_running || State == EnemyBrainState.Dead)
             return;
 
-        _input.ClearAll();
-        _combatRequests?.Clear();
+        ClearCommandBuffers();
         State = EnemyBrainState.Hit;
         _awaitingAttackConfirm = false;
         _blackboard.AttackConfirmPending = false;
@@ -148,8 +148,7 @@ public sealed class EnemyBrain
     /// <summary>生命值归零时进入最高优先级死亡终态。</summary>
     public void NotifyDeath()
     {
-        _input.ClearAll();
-        _combatRequests?.Clear();
+        ClearCommandBuffers();
         State = EnemyBrainState.Dead;
         _running = false;
         _awaitingAttackConfirm = false;
@@ -158,20 +157,18 @@ public sealed class EnemyBrain
         _runner?.Reset();
     }
 
-    /// <summary>回收前停止决策并清空输入。</summary>
+    /// <summary>回收前停止决策并清空命令槽。</summary>
     public void Stop()
     {
         _running = false;
-        _input.ClearAll();
-        _combatRequests?.Clear();
+        ClearCommandBuffers();
         _runner?.Reset();
     }
 
-    /// <summary>Hit 期间保持空输入，直到正式 Character Hit 状态结束。</summary>
+    /// <summary>Hit 期间保持空命令，直到正式 Character Hit 状态结束。</summary>
     void TickHitGate(in EnemyPerceptionSnapshot snapshot)
     {
-        _input.ClearAll();
-        _combatRequests?.Clear();
+        ClearCommandBuffers();
         if (snapshot.CharacterState == CharacterStateType.Hit)
             return;
 
@@ -229,40 +226,33 @@ public sealed class EnemyBrain
         _blackboard.PathDirection = path;
     }
 
-    /// <summary>帧末提交 CombatRequest + AIInputWriter，并刷新 facing proxy。</summary>
+    /// <summary>帧末提交 Desire + CombatRequest，并刷新 facing proxy。</summary>
     void CommitOutputs(in EnemyPerceptionSnapshot snapshot)
     {
         // Action / 起手确认期强制清移动，避免 BT 装饰 Abort Wait 后 Strafe 污染攻击旋转
         bool freezeMove = snapshot.CharacterState == CharacterStateType.Action
             || _awaitingAttackConfirm
             || _blackboard.HasCombatRequest;
-        _input.SetMove(freezeMove ? Vector2.zero : _blackboard.MoveDesire);
+
+        Vector2 localMove = freezeMove ? Vector2.zero : _blackboard.MoveDesire;
+        bool faceTarget = _blackboard.FaceTargetRequested
+            || (!freezeMove && _blackboard.MoveDesire.sqrMagnitude > 0.0001f);
+        _lastLocomotionDesire = new LocomotionDesire(localMove, faceTarget);
+        if (_locomotionDesires != null)
+            _locomotionDesires.Set(in _lastLocomotionDesire);
 
         _lastCombatRequestEntryId = string.Empty;
         if (_blackboard.HasCombatRequest && !string.IsNullOrEmpty(_blackboard.CombatRequestEntryId))
         {
-            _combatRequests?.Set(new EnemyCombatRequest(_blackboard.CombatRequestEntryId));
+            _actionEntryRequests?.Set(new ActionEntryRequest(_blackboard.CombatRequestEntryId));
             _lastCombatRequestEntryId = _blackboard.CombatRequestEntryId;
-            // 提交后进入确认期，失败由 ResolveAttackConfirm 短 CD
             _awaitingAttackConfirm = true;
         }
         else
-            _combatRequests?.Clear();
+            _actionEntryRequests?.Clear();
 
-        if (_blackboard.DodgePulse)
-            _input.PulseDodge();
-
-        if (_blackboard.HeavyAttackPulse)
-            _input.Pulse(InputButton.HeavyAttack);
-
-        if (_blackboard.SkillPulse)
-            _input.Pulse(InputButton.Skill);
-
-        if (_blackboard.FaceTargetRequested
-            || (!freezeMove && _blackboard.MoveDesire.sqrMagnitude > 0.0001f))
-        {
+        if (_lastLocomotionDesire.FaceTarget)
             RefreshFacingProxy(in snapshot);
-        }
     }
 
     /// <summary>由输出与仇恨推导调试状态（非决策真源）。</summary>
@@ -274,6 +264,14 @@ public sealed class EnemyBrain
             State = EnemyBrainState.Chase;
         else
             State = EnemyBrainState.Idle;
+    }
+
+    /// <summary>门闩/停机时清空 Desire 与 CombatRequest。</summary>
+    void ClearCommandBuffers()
+    {
+        _lastLocomotionDesire = LocomotionDesire.None;
+        _locomotionDesires?.Clear();
+        _actionEntryRequests?.Clear();
     }
 
     /// <summary>按表现默认间隔刷新假相机水平朝向。</summary>

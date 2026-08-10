@@ -17,7 +17,9 @@ public static class CharacterActorFactory
         CombatHitPipeline combatHitPipeline,
         out ActionSim actionSim,
         out CharacterAnimationService animation,
-        ISimCollisionWorld collisionWorld = null)
+        ISimCollisionWorld collisionWorld = null,
+        IMoveIntentSource moveIntentSource = null,
+        IActionEntryRequestSource actionEntryRequests = null)
     {
         CharacterActor actor = null;
         CharacterMotorConfig motorConfig = config.Motor;
@@ -35,6 +37,8 @@ public static class CharacterActorFactory
         controller.enabled = false;
 
         var sharedInput = new InputManager();
+        // 玩家默认读 InputFrame；AI/脚本控制可在构造时注入独立移动命令源
+        IMoveIntentSource effectiveMoveIntent = moveIntentSource ?? sharedInput;
         GameplayIntentProfile intentProfile = GameplayIntentSettings.Active;
         if (intentProfile == null)
             throw new InvalidOperationException(
@@ -54,7 +58,7 @@ public static class CharacterActorFactory
             root,
             controller,
             motorConfig,
-            sharedInput,
+            effectiveMoveIntent,
             cameraTransform,
             motorSim);
         IAnimationPlayback playback = new PlayableAnimationPlayback(animator);
@@ -81,7 +85,7 @@ public static class CharacterActorFactory
             root,
             motor,
             animation,
-            sharedInput,
+            effectiveMoveIntent,
             locomotionProfile,
             footstepPlayer);
         context.LocomotionStateMachine = locomotionStateMachine;
@@ -155,7 +159,7 @@ public static class CharacterActorFactory
         actionPresentation.RegisterNotifyConsumer(sfxPlayer);
 
         var actionDriver = new CharacterActionDriver(
-            sharedInput,
+            effectiveMoveIntent,
             intentBuffer,
             stateMachine,
             actionSim,
@@ -163,7 +167,8 @@ public static class CharacterActorFactory
             targetLock,
             resolverService,
             root,
-            motor);
+            motor,
+            actionEntryRequests);
 
         actor = new CharacterActor(
             localInput,
@@ -186,7 +191,7 @@ public static class CharacterActorFactory
 
         var rotationDriver = new ActionRotationDriver(
             root,
-            sharedInput,
+            effectiveMoveIntent,
             motor,
             actionSim,
             targetLock);

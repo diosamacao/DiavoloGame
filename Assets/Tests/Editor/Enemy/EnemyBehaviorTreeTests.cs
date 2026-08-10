@@ -283,41 +283,17 @@ public sealed class EnemyBehaviorTreeTests
         var gate = new CooldownGateNode(
             EnemyCooldownIds.Dodge,
             2,
-            new PulseDodgeAction());
+            new RequestCombatAction("Entry_Dodge"));
 
         Assert.That(gate.Tick(bb), Is.EqualTo(BehaviorStatus.Success));
-        Assert.That(bb.DodgePulse, Is.True);
+        Assert.That(bb.HasCombatRequest, Is.True);
+        Assert.That(bb.CombatRequestEntryId, Is.EqualTo("Entry_Dodge"));
         bb.ResetFrameOutputs();
         Assert.That(gate.Tick(bb), Is.EqualTo(BehaviorStatus.Failure));
 
         bb.Cooldowns.TickDown();
         bb.Cooldowns.TickDown();
         Assert.That(gate.Tick(bb), Is.EqualTo(BehaviorStatus.Success));
-    }
-
-    [Test]
-    public void AIInputWriter_PulseDodge_WritesButtonBit()
-    {
-        var writer = AIInputWriter.CreateForEditorTests(InputButton.Attack, InputButton.Dodge);
-        writer.Enable();
-        Assert.That(writer.PulseDodge(), Is.True);
-
-        InputFrame frame = writer.BuildFrame(1, default);
-        Assert.That(frame.WasPressed(InputButton.Dodge), Is.True);
-
-        InputFrame release = writer.BuildFrame(2, default);
-        Assert.That(release.WasReleased(InputButton.Dodge), Is.True);
-    }
-
-    [Test]
-    public void AIInputWriter_PulseAttack_WritesButtonBit()
-    {
-        var writer = AIInputWriter.CreateForEditorTests(InputButton.Attack);
-        writer.Enable();
-        Assert.That(writer.PulseAttack(), Is.True);
-
-        InputFrame frame = writer.BuildFrame(1, default);
-        Assert.That(frame.WasPressed(InputButton.Attack), Is.True);
     }
 
     [Test]

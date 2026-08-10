@@ -1,7 +1,7 @@
 using NUnit.Framework;
 using UnityEngine;
 
-/// <summary>E-REQ1：CombatRequest 黑板 / 缓冲 / Wait 闩 EditMode 覆盖。</summary>
+/// <summary>Entry Request 黑板 / 通用缓冲 / Wait 闩 EditMode 覆盖。</summary>
 public sealed class EnemyCombatRequestTests
 {
     [Test]
@@ -31,15 +31,15 @@ public sealed class EnemyCombatRequestTests
     [Test]
     public void CombatRequestBuffer_SetPeekConsume()
     {
-        var buffer = new EnemyCombatRequestBuffer();
-        buffer.Set(new EnemyCombatRequest("Entry_Swipe"));
+        var buffer = new ActionEntryRequestBuffer();
+        buffer.Set(new ActionEntryRequest("Entry_Swipe"));
 
         Assert.That(buffer.HasPending, Is.True);
-        Assert.That(buffer.TryPeek(out EnemyCombatRequest peek), Is.True);
+        Assert.That(buffer.TryPeek(out ActionEntryRequest peek), Is.True);
         Assert.That(peek.EntryNodeId, Is.EqualTo("Entry_Swipe"));
         Assert.That(buffer.HasPending, Is.True);
 
-        Assert.That(buffer.TryConsume(out EnemyCombatRequest consumed), Is.True);
+        Assert.That(buffer.TryConsume(out ActionEntryRequest consumed), Is.True);
         Assert.That(consumed.EntryNodeId, Is.EqualTo("Entry_Swipe"));
         Assert.That(buffer.HasPending, Is.False);
         Assert.That(buffer.TryConsume(out _), Is.False);

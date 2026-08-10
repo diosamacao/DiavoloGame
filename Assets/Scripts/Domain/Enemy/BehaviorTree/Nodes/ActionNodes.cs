@@ -173,60 +173,6 @@ public sealed class RequestCombatAction : IBehaviorNode
     }
 }
 
-/// <summary>行动：请求本帧闪避脉冲。</summary>
-public sealed class PulseDodgeAction : IBehaviorNode
-{
-    /// <inheritdoc />
-    public BehaviorStatus Tick(EnemyBlackboard blackboard)
-    {
-        if (blackboard == null)
-            return BehaviorStatus.Failure;
-        blackboard.DodgePulse = true;
-        return BehaviorStatus.Success;
-    }
-
-    /// <inheritdoc />
-    public void Reset()
-    {
-    }
-}
-
-/// <summary>行动：请求本帧重击脉冲。</summary>
-public sealed class PulseHeavyAttackAction : IBehaviorNode
-{
-    /// <inheritdoc />
-    public BehaviorStatus Tick(EnemyBlackboard blackboard)
-    {
-        if (blackboard == null)
-            return BehaviorStatus.Failure;
-        blackboard.HeavyAttackPulse = true;
-        return BehaviorStatus.Success;
-    }
-
-    /// <inheritdoc />
-    public void Reset()
-    {
-    }
-}
-
-/// <summary>行动：请求本帧特殊/技能脉冲。</summary>
-public sealed class PulseSkillAction : IBehaviorNode
-{
-    /// <inheritdoc />
-    public BehaviorStatus Tick(EnemyBlackboard blackboard)
-    {
-        if (blackboard == null)
-            return BehaviorStatus.Failure;
-        blackboard.SkillPulse = true;
-        return BehaviorStatus.Success;
-    }
-
-    /// <inheritdoc />
-    public void Reset()
-    {
-    }
-}
-
 /// <summary>
 /// 行动：占用 BT 直至离开 Action（含 CombatRequest 当帧与 AttackConfirmPending）。
 /// 等待期间清空 MoveDesire，避免对峙侧移污染攻击旋转。

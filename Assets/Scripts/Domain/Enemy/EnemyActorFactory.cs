@@ -17,13 +17,12 @@ public static class EnemyActorFactory
         ISimCollisionWorld collisionWorld = null)
     {
         CharacterConfig config = definition.CharacterConfig;
-        GameplayIntentProfile intentProfile = GameplayIntentSettings.Active;
-        if (intentProfile == null)
+        var actionEntryRequests = new ActionEntryRequestBuffer();
+        var locomotionDesires = new LocomotionDesireBuffer();
+        // CharacterActor 装配仍依赖全局 Intent Profile（玩家同管线）；敌人出招不经 Intent
+        if (GameplayIntentSettings.Active == null)
             throw new InvalidOperationException(
                 "EnemyActorFactory: 全局 GameplayIntentProfile 未就绪。");
-
-        // 轻/闪避等仍可走 Writer；攻击起手经 CombatRequest，不再依赖 Attack Intent 映射
-        var input = new AIInputWriter(intentProfile);
 
         var facingProxyObject = new GameObject($"{definition.DisplayName}_FacingProxy");
         Transform facingProxy = facingProxyObject.transform;
@@ -41,7 +40,9 @@ public static class EnemyActorFactory
             combatHitPipeline,
             out ActionSim actionSim,
             out CharacterAnimationService animation,
-            collisionWorld);
+            collisionWorld,
+            locomotionDesires,
+            actionEntryRequests);
 
         // 敌人 MaxHp 以 Definition 为准，覆盖 Config 默认
         actor.Vitality.ResetMaxHealthPoints(Mathf.RoundToInt(definition.MaxHp));
@@ -69,17 +70,14 @@ public static class EnemyActorFactory
             behaviorRunner = treeAsset.CreateRunner(in buildContext);
         }
 
-        var combatRequests = new EnemyCombatRequestBuffer();
-        actor.BindCombatRequestBuffer(combatRequests);
-
         var brain = new EnemyBrain(
             brainProfile,
             perception,
-            input,
             facingProxy,
             behaviorRunner,
             pathQuery,
-            combatRequests);
+            actionEntryRequests,
+            locomotionDesires);
         var reactionService = new CharacterReactionService(
             actor.Vitality,
             actor,
@@ -103,7 +101,6 @@ public static class EnemyActorFactory
             actionSim,
             animation,
             brain,
-            input,
             target,
             facingProxy,
             reactionService);
