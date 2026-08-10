@@ -140,7 +140,7 @@
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
 | ActionEditorWindow | P1 | ✅ 基础版 + 菱形/Zoom/Scrub 预览 + 2026-08-04 playhead 跟视口、Create 选文件夹、左侧文件夹分组；后续增强 SFX 预览 |
-| Enemy/ + AI | P1 | 🟡 Phase-1 BT + 通用 Desire/Entry Request 命令轨 ✅；下一阶段起手确认 / 滞回 / 配置上树 → `docs/2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md` |
+| Enemy/ + AI | P1 | ✅ 8.10 Desire/Entry Request 总出口关闭（2026-08-11）；演进见 GaitPolicy / A* / OPT A |
 | UI/（MVVM） | P2 | HUD、血条；View/ViewModel 分层，不直写 Domain 权威 |
 | 事件总线 | P2 | 轻量 C# event；定稿前不引入第三方 |
 | 行为树编辑器 | P2 | ✅ MVP；体验打磨见 `ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN`（仅 A） |

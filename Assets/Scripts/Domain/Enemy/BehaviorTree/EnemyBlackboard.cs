@@ -12,7 +12,7 @@ public sealed class EnemyBlackboard
     /// <summary>路径方向查询；可空则用 PlanarDirection。</summary>
     public IEnemyPathQuery PathQuery;
 
-    /// <summary>通用冷却表（Brain TickDown；条件/装饰只读或 Gate 写入）。</summary>
+    /// <summary>通用冷却表（Brain TickDown/确认；条件读取，CooldownGate 暂存成功 CD）。</summary>
     public EnemyCooldownTable Cooldowns { get; } = new EnemyCooldownTable();
 
     /// <summary>可注入 RNG（RandomSelector）；空则用节点共享回退。</summary>
@@ -39,7 +39,7 @@ public sealed class EnemyBlackboard
     /// <summary>仇恨滞回旗（由 AggroGate 节点维护）。</summary>
     public bool IsAggroed;
 
-    /// <summary>Brain：攻击脉冲后等待进入 Action 的确认期（阻塞 basic_attack 就绪）。</summary>
+    /// <summary>Brain：提交 Action Entry 后等待进入 Action 的确认期。</summary>
     public bool AttackConfirmPending;
 
     /// <summary>本帧期望移动（局部前进轴惯例：y&gt;0 前进）。</summary>

@@ -71,6 +71,14 @@ public sealed class EnemyBrain
     /// <summary>上一帧提交的 CombatRequest Entry（调试/HUD）。</summary>
     public string DebugCombatRequestEntryId => _lastCombatRequestEntryId;
 
+    /// <summary>基础攻击成功冷却剩余帧（调试/测试）。</summary>
+    public int DebugBasicAttackCooldownFrames =>
+        _blackboard.Cooldowns.GetRemaining(EnemyCooldownIds.BasicAttack);
+
+    /// <summary>Action Entry 请求失败重试冷却剩余帧（调试/测试）。</summary>
+    public int DebugActionEntryRetryFrames =>
+        _blackboard.Cooldowns.GetRemaining(EnemyCooldownIds.ActionEntryRetry);
+
     /// <summary>开关行为树路径采集（Gizmo/日志用）。</summary>
     public void SetDebugEnabled(bool enabled)
     {
@@ -183,7 +191,7 @@ public sealed class EnemyBrain
         State = EnemyBrainState.Idle;
     }
 
-    /// <summary>观测 CombatRequest 后是否真正进入 Action；失败写入短防抖，成功 CD 由 CooldownGate 负责。</summary>
+    /// <summary>观测 CombatRequest 后是否真正进入 Action；确认/丢弃节点暂存 CD，失败另写重试槽。</summary>
     void ResolveAttackConfirm(in EnemyPerceptionSnapshot snapshot)
     {
         if (!_awaitingAttackConfirm)
@@ -191,14 +199,18 @@ public sealed class EnemyBrain
 
         if (snapshot.CharacterState == CharacterStateType.Action)
         {
+            _blackboard.Cooldowns.ConfirmPending();
             _awaitingAttackConfirm = false;
             return;
         }
 
         if (snapshot.CharacterState == CharacterStateType.Locomotion)
         {
+            _blackboard.Cooldowns.DiscardPending();
+            _blackboard.Cooldowns.Set(
+                EnemyCooldownIds.ActionEntryRetry,
+                FailedAttackRetryFrames);
             _awaitingAttackConfirm = false;
-            _blackboard.Cooldowns.Set(EnemyCooldownIds.BasicAttack, FailedAttackRetryFrames);
         }
     }
 
@@ -229,10 +241,19 @@ public sealed class EnemyBrain
     /// <summary>帧末提交 Desire + CombatRequest，并刷新 facing proxy。</summary>
     void CommitOutputs(in EnemyPerceptionSnapshot snapshot)
     {
+        bool canSubmitRequest = _blackboard.HasCombatRequest
+            && !string.IsNullOrEmpty(_blackboard.CombatRequestEntryId)
+            && snapshot.CharacterState == CharacterStateType.Locomotion
+            && _blackboard.Cooldowns.IsReady(EnemyCooldownIds.ActionEntryRetry);
+        if (_blackboard.HasCombatRequest && !canSubmitRequest)
+        {
+            // 非 Locomotion 时 Driver 必然拒绝请求；同步丢弃节点暂存，禁止误认当前 Action 为本次起手。
+            _blackboard.Cooldowns.DiscardPending();
+        }
         // Action / 起手确认期强制清移动，避免 BT 装饰 Abort Wait 后 Strafe 污染攻击旋转
         bool freezeMove = snapshot.CharacterState == CharacterStateType.Action
             || _awaitingAttackConfirm
-            || _blackboard.HasCombatRequest;
+            || canSubmitRequest;
 
         Vector2 localMove = freezeMove ? Vector2.zero : _blackboard.MoveDesire;
         bool faceTarget = _blackboard.FaceTargetRequested
@@ -242,7 +263,7 @@ public sealed class EnemyBrain
             _locomotionDesires.Set(in _lastLocomotionDesire);
 
         _lastCombatRequestEntryId = string.Empty;
-        if (_blackboard.HasCombatRequest && !string.IsNullOrEmpty(_blackboard.CombatRequestEntryId))
+        if (canSubmitRequest)
         {
             _actionEntryRequests?.Set(new ActionEntryRequest(_blackboard.CombatRequestEntryId));
             _lastCombatRequestEntryId = _blackboard.CombatRequestEntryId;
@@ -272,6 +293,7 @@ public sealed class EnemyBrain
         _lastLocomotionDesire = LocomotionDesire.None;
         _locomotionDesires?.Clear();
         _actionEntryRequests?.Clear();
+        _blackboard.Cooldowns.DiscardPending();
     }
 
     /// <summary>按表现默认间隔刷新假相机水平朝向。</summary>

@@ -30,7 +30,7 @@ public sealed class EnemyBehaviorTreeValidationResult
     }
 }
 
-/// <summary>校验行为树：空根、空 child、环、重复 guid。</summary>
+/// <summary>校验行为树结构、Guid 与会破坏动作等待闩的装饰拓扑。</summary>
 public static class EnemyBehaviorTreeValidator
 {
     /// <summary>校验整份行为树资产（必须已配置 customRoot）。</summary>
@@ -86,19 +86,22 @@ public static class EnemyBehaviorTreeValidator
         return result;
     }
 
+    /// <summary>初始化单次遍历状态并从根开始结构校验。</summary>
     static void ValidateTree(EnemyBehaviorNodeDef root, EnemyBehaviorTreeValidationResult result)
     {
         var pathStack = new HashSet<EnemyBehaviorNodeDef>();
         var guids = new HashSet<string>();
-        Walk(root, result, pathStack, guids, "root");
+        Walk(root, result, pathStack, guids, "root", underLocomotionCondition: false);
     }
 
+    /// <summary>深度遍历节点，同时传播 Locomotion 条件祖先标记用于 Wait 拓扑门禁。</summary>
     static void Walk(
         EnemyBehaviorNodeDef node,
         EnemyBehaviorTreeValidationResult result,
         HashSet<EnemyBehaviorNodeDef> pathStack,
         HashSet<string> guids,
-        string path)
+        string path,
+        bool underLocomotionCondition)
     {
         if (node == null)
         {
@@ -121,6 +124,17 @@ public static class EnemyBehaviorTreeValidator
         if (node is RequestCombatActionDef request && string.IsNullOrEmpty(request.EntryNodeId))
             result.AddWarning($"RequestCombatAction Entry 为空：{path} / {Describe(node)}");
 
+        if (node is WaitWhileInActionActionDef && underLocomotionCondition)
+        {
+            result.AddError(
+                $"WaitWhileInAction 不得位于 IsCharacterState(Locomotion) 子树内：{path}/{Describe(node)}；"
+                + "请把 Wait 移到 Locomotion 门控外层。");
+        }
+
+        bool childUnderLocomotionCondition = underLocomotionCondition
+            || node is IsCharacterStateConditionDef stateCondition
+            && stateCondition.Expected == CharacterStateType.Locomotion;
+
         if (EnemyBehaviorTreeGraphMapper.TryGetChildren(node, out List<EnemyBehaviorNodeDef> children))
         {
             if (children.Count == 0)
@@ -131,7 +145,15 @@ public static class EnemyBehaviorTreeValidator
                 if (children[i] == null)
                     result.AddError($"空 child[{i}]：{path}/{Describe(node)}");
                 else
-                    Walk(children[i], result, pathStack, guids, $"{path}/{Describe(node)}[{i}]");
+                {
+                    Walk(
+                        children[i],
+                        result,
+                        pathStack,
+                        guids,
+                        $"{path}/{Describe(node)}[{i}]",
+                        childUnderLocomotionCondition);
+                }
             }
 
             pathStack.Remove(node);
@@ -143,7 +165,15 @@ public static class EnemyBehaviorTreeValidator
             if (child == null)
                 result.AddError($"装饰节点 child 为空：{path} / {Describe(node)}");
             else
-                Walk(child, result, pathStack, guids, $"{path}/{Describe(node)}/child");
+            {
+                Walk(
+                    child,
+                    result,
+                    pathStack,
+                    guids,
+                    $"{path}/{Describe(node)}/child",
+                    childUnderLocomotionCondition);
+            }
         }
 
         pathStack.Remove(node);

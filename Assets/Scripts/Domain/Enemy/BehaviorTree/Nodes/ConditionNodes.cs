@@ -233,7 +233,7 @@ public sealed class CooldownReadyCondition : ConditionalDecoratorNode
     {
         if (blackboard?.Cooldowns == null)
             return false;
-        if (!blackboard.Cooldowns.IsReady(_cooldownId))
+        if (!EnemyCooldownIds.IsGateReady(blackboard.Cooldowns, _cooldownId))
             return false;
 
         // 攻击确认期内禁止再次判定 basic_attack 就绪，避免每帧 Pulse

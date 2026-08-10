@@ -15,7 +15,7 @@ MonoBehaviour:
   nodes:
   - nodeId: Monster_Goblin_Attack_01
     action: {fileID: 11400000, guid: 3bb48353692280d45971c3de60791bc3, type: 2}
-    intent: 1
+    intent: 0
     isEntry: 1
     variantResolver: {fileID: 0}
     startBehaviors: 
@@ -29,6 +29,22 @@ MonoBehaviour:
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
     editorPosition: {x: 0, y: 0}
+  - nodeId: Monster_Goblin_Attack_02
+    action: {fileID: 11400000, guid: e464aebf8355d5240938ca442d289572, type: 2}
+    intent: 0
+    isEntry: 1
+    variantResolver: {fileID: 0}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 1
+      lockRange: 8
+      forwardConeAngle: 120
+      policy: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions: []
+    editorPosition: {x: 450, y: 0}
   edges: []
   sharedRoutes: []
   nodeGroups: []
