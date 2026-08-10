@@ -286,6 +286,15 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
             case DistanceGreaterConditionDef greater:
                 greater.Distance = EditorGUILayout.FloatField("Distance >", greater.Distance);
                 break;
+            case DistanceBandConditionDef band:
+                band.Mode = (DistanceBandMode)EditorGUILayout.EnumPopup("Mode", band.Mode);
+                band.EnterDistance = EditorGUILayout.FloatField("Enter Distance", band.EnterDistance);
+                band.ExitDistance = EditorGUILayout.FloatField("Exit Distance", band.ExitDistance);
+                band.MinDwellFrames = EditorGUILayout.IntField("Min Dwell Frames", band.MinDwellFrames);
+                break;
+            case InAttackRangeConditionDef inRange:
+                inRange.Distance = EditorGUILayout.FloatField("Attack Range", inRange.Distance);
+                break;
             case IsCharacterStateConditionDef state:
                 state.Expected = (CharacterStateType)EditorGUILayout.EnumPopup("Expected", state.Expected);
                 break;
@@ -296,8 +305,21 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
                 gate.CooldownId = EditorGUILayout.TextField("Cooldown Id", gate.CooldownId);
                 gate.CooldownFrames = EditorGUILayout.IntField("Cooldown Frames", gate.CooldownFrames);
                 break;
+            case AggroGateNodeDef aggro:
+                aggro.EnterRadius = EditorGUILayout.FloatField("Enter Radius", aggro.EnterRadius);
+                aggro.ExitRadius = EditorGUILayout.FloatField("Exit Radius", aggro.ExitRadius);
+                break;
+            case MoveTowardTargetActionDef move:
+                move.Magnitude = EditorGUILayout.Slider("Magnitude", move.Magnitude, 0f, 1f);
+                move.StopDistance = EditorGUILayout.FloatField("Stop Distance", move.StopDistance);
+                move.FaceTarget = EditorGUILayout.Toggle("Face Target", move.FaceTarget);
+                break;
+            case BackOffFromTargetActionDef backOff:
+                backOff.Magnitude = EditorGUILayout.Slider("Magnitude", backOff.Magnitude, 0f, 1f);
+                break;
             case StrafeAroundTargetActionDef strafe:
                 strafe.SideSign = EditorGUILayout.FloatField("Side Sign", strafe.SideSign);
+                strafe.Magnitude = EditorGUILayout.Slider("Magnitude", strafe.Magnitude, 0f, 1f);
                 break;
             case WaitFramesActionDef wait:
                 wait.DurationFrames = EditorGUILayout.IntField("Duration Frames", wait.DurationFrames);

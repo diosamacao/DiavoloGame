@@ -3,14 +3,16 @@
 > 制定：2026-08-09  
 > 角色：**BT-1 之后的演进真源**（节点库 / 调试 / GraphView / 与插件边界）  
 > 前置已关闭：BT-1 运行时 + Play 验收；BT-2 调试 + Custom SerializeReference Inspector  
-> 基础契约仍以 [ENEMY_BEHAVIOR_TREE_PLAN.md](../ENEMY_BEHAVIOR_TREE_PLAN.md) §3.4 为准  
-> 总清单交叉：[PROJECT_CHECKLIST.md](../PROJECT_CHECKLIST.md) §6.4
+> 基础契约仍以 [ENEMY_BEHAVIOR_TREE_PLAN.md](../ENEMY_BEHAVIOR_TREE_PLAN.md) §3.4 为准（**输出槽终态**见该文 3.4.2 / [8.10 结构方案](../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)）  
+> 总清单交叉：[PROJECT_CHECKLIST.md](../PROJECT_CHECKLIST.md) §6.4  
+> 修订：2026-08-10 — E1～E3 已关闭；结构下一阶段改指 8.10 方案；本文作历史演进记录
 
 ---
 
 ## 0. 一句话
 
-在**不破坏锁步输入轨**的前提下，把自研 BT 从「近战追打够用」扩成「可配 Task 目录 + 可调试 + **GraphView 可视化编辑**」；插件只作可选 Adapter，永不泄漏进 `EnemyBrain`。
+在**不破坏锁步边界**的前提下，把自研 BT 从「近战追打够用」扩成「可配 Task 目录 + 可调试 + **GraphView 可视化编辑**」；插件只作可选 Adapter，永不泄漏进 `EnemyBrain`。  
+（Phase-1 输出曾对齐 InputFrame；**终态命令轨**见 8.10，不在本文实现。）
 
 ---
 
@@ -29,14 +31,16 @@
 | Graph 布局 / Flatten / Validate | ✅ BT-E2 |
 | GraphView 可视化编辑器 | ✅ BT-E3 MVP |
 
-**数据流（不变）：**
+**数据流（E1～E3 落地时的现状；终态见 8.10）：**
 
 ```text
 SimulationWorld.ProduceInput
   → EnemyBrain.Step
        → Runner.Tick(EnemyBlackboard)
-       → AIInputWriter → InputFrame
+       → AIInputWriter → InputFrame          // 过渡；E-MOVE2 后删除
   → CharacterActor.Step（Intent → Graph）
+
+终态：Runner → LocomotionDesire + CombatRequest → Actor 直接消费
 ```
 
 ---
@@ -283,7 +287,8 @@ Assets/Scripts/Editor/Enemy/BehaviorTree/
 
 **BT-E1 / E2 / E3 MVP 已关闭。**  
 
-后续优化（编辑器体验 / RandomSelector / Abort Self / Boss 模板）真源见：  
-→ [**ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md**](./ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)（Phase A → B → C）  
-
-寻路仍可按原 **E4** 与优化方案并行，不阻塞 A/B。
+| 主题 | 真源 |
+|------|------|
+| 结构（离散出招 / Desire / 滞回 / 配置） | [**ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md**](../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md) |
+| 编辑器体验（A3 等） | [ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md](./ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)（**仅 Phase A**） |
+| 寻路 | 原 **E4**，可与上两项并行 |

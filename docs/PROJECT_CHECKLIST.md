@@ -1,13 +1,6 @@
-# ACTGame 项目总清单
+﻿# ACTGame 项目总清单
 
-> 更新：2026-08-09 — BT 编辑器已套 BD 风格；下一项 A3 黑板监视或 B1  
-
-
-
-
-
-
-
+> 更新：2026-08-10 — 敌人 AI 下一阶段以离散出招/命令轨方案为准（E-CFG1 起）  
 > 角色：**一页总览**（进度 / 下一步 / 明确不做）  
 > 细节真源勿与本文抢权威：
 >
@@ -16,7 +9,7 @@
 > | 设计方向与重构项 | [`.cursor/skills/actgame-architecture/ROADMAP.md`](../.cursor/skills/actgame-architecture/ROADMAP.md) |
 > | 已实现功能与方案 | [`.cursor/skills/actgame-architecture/TECHNICAL.md`](../.cursor/skills/actgame-architecture/TECHNICAL.md) |
 > | Wave / GAS 排期与验收 | [`2026.8.6/MASTER_IMPLEMENTATION_PLAN.md`](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md) |
-> | 下一会话短清单 | [`2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md`](./2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md) |
+> | 敌人 AI 结构（下一阶段） | [`2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md) |
 > | 文档索引 | [`README.md`](./README.md) |
 
 图例：✅ 完成 · 🟡 代码就绪 / 资产或体验未齐 · ⬜ 未开始 · ⏸ 后置
@@ -53,7 +46,7 @@
 | Numeric / GAS-lite | ✅ | G0～G5；`NumericSystem` 唯一权威 |
 | 资源循环 Special·EX·闪避·Ult | 🟡 | 代码闭环；Graph/Spec 资产持续填表 |
 | 完美闪避反击 | ✅ | 窗轨 + Counter Entry（2026-08-08） |
-| 敌人 AI | ✅ | BT Graph 手动配置；Runner 契约 + `customRoot` 真源 |
+| 敌人 AI | 🟡 | Phase-1 BT ✅（仍假手柄）；下一阶段 Desire+Request 见 8.10 |
 | 相机 | 🟡 | 跟随 + 滤左右；Lock-On / SkillShot 未做 |
 | 正式 UI / 血条 | ⬜ | 仅 Debug HUD；目标 MVVM |
 | 吸附 / 绕背 | ✅ | Wave 4 位移出口（2026-08-09） |
@@ -66,19 +59,20 @@
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项：** BT 优化 A3（黑板监视）或 B1+B3（RandomSelector + CombatPool）  
-→ BT 优化：[`2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md`](./2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)  
-→ BT 演进：[`2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md`](./2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md)  
-→ BT 契约：[`ENEMY_BEHAVIOR_TREE_PLAN.md`](./ENEMY_BEHAVIOR_TREE_PLAN.md) §3.4
+**下一项：** 敌人 BT **E-REQ1**（CombatRequest 骨架）∥ 可选 **E-MOVE1**；资产把 Chase/Strafe 换成 `DistanceBand`  
+→ 结构真源：[`2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)  
 
 | # | 项 | 状态 |
 |---|------|------|
 | A0 | Editor：PerfectDodge 窗 + Counter Entry + Spec 抽查 | ✅ |
 | A1 | 木桩靶（Numeric + Reaction + HitStop/震屏可观测） | ✅ 2026-08-08 |
 | A2 | 打击 VFX/SFX + HitFeedback | ✅ 2026-08-09 验收 |
-| A3 | 完美闪避子弹时间（表现，不改吞伤权威） | ⬜ ← 可选当前 |
+| A3 | 完美闪避子弹时间（表现，不改吞伤权威） | ⬜ 可选 |
 | A4 | 相机轻优化（勿塞完整 Lock-On） | ⬜ 可选 |
-| A5 | AI 行为树 Phase-1（只写 InputFrame） | ✅ Play 验收 2026-08-09 |
+| A5 | AI 行为树 Phase-1（过渡：InputFrame） | ✅ Play 验收 2026-08-09 |
+| E-CFG1 | 配置归属到 BT 节点 | ✅ 代码 2026-08-10；资产人工补参 |
+| E-ST1 | 对峙/追击滞回 DistanceBand | ✅ 代码 2026-08-10；资产改 Band 后 Play |
+| E-REQ1 | CombatRequest 通道骨架 | ⬜ ← **当前** |
 
 主排期：**Wave 4 位移 ✅ 已关闭**；Wave 5 仅可选玩法后置（失衡/命中盒烘焙）；相机 LockOn/SkillShot/Finisher 见 [`CAMERA_SYSTEM_PLAN.md`](./2026.8.6/CAMERA_SYSTEM_PLAN.md)。
 
@@ -136,7 +130,7 @@
 - [x] `NumericSystem`（Attribute / Effect / Flags）+ `NumericCostGate` + Vitality
 - [x] Action Editor 基础时间轴 / Graph 编辑
 - [x] F3 `CombatDebugHudController`
-- [x] 敌人共享 Actor + 五态 Brain（资产待齐）
+- [x] 敌人共享 Actor + BT Runner（Phase-1；资产待齐；命令轨见 8.10）
 
 ### 6.2 进行中 / 资产待绑
 
@@ -151,7 +145,7 @@
 
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
-| AI Behavior Tree 运行时 | P1 | [`ENEMY_BEHAVIOR_TREE_PLAN.md`](./ENEMY_BEHAVIOR_TREE_PLAN.md)；决策只写 `InputFrame` |
+| AI Behavior Tree 运行时 | P1 | Phase-1 ✅；下一阶段 [`2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)（Desire + Request） |
 | Lock-On / Director | P1 | Camera 篇 C1（不挂 Wave 4） |
 | TargetAdhesion / RelocateBehind | ✅ | Wave 4 已齐；Relocate 资产按需 |
 | 正式 HUD（血条/资源条） | P2 | 替代 F3；实现走 §6.4 MVVM |
@@ -169,7 +163,7 @@
 |------|--------|------------|
 | **MVVM UI 框架** | P2 | View / ViewModel / Model（或 Binder）分层；首版接血条、资源条、简易菜单；跨系统用现有 Command/Query/Event，UI 不直写 Domain 权威状态 |
 | **性能优化学习测试实践** | P2 | 建立可复现基准：Profiler / Frame Debugger / 内存快照；固定测试场景（木桩连打、多敌人、相机）；记录 CPU/GC/DrawCall 基线与优化前后对比；优先验证 Hitbox、动画、VFX、UI 重建热点 |
-| **简单行为树编辑器** | P2 | ✅ GraphView MVP；优化见 [`ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md`](./2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)（A 体验 / B 招式池·Abort） |
+| **简单行为树编辑器** | P2 | ✅ GraphView MVP；体验优化见 [`ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md`](./2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)（**仅 A**）；招式池见 8.10 E-REQ |
 | **A\* 寻路** | P2 | 网格或导航点 A\* 学习实现；输出路径供 AI 移动意图；与锁步对齐时路径查询应确定性（或明确「仅表现/非 Hash」边界）；可先单机 Demo，再决定是否进 Sim |
 | **AssetBundle + Lua 热更新** | P3 | AB 打包/加载/依赖与版本清单最小流程；Lua（或等价脚本）热更学习环境：热更 UI/配置/活动逻辑优先，**禁止**热更改写 ActionSim / Numeric 权威；与正式 C# 主循环边界写清 |
 | **SDK 打包流程实践** | P3 | 渠道/平台 SDK 接入演练：登录、支付占位、隐私合规钩子、多渠道打包脚本（CI 或 Editor 菜单）；与热更包产出流水线可衔接 |
@@ -190,7 +184,7 @@ MVVM HUD 骨架
 
 - [ ] MVVM UI 框架 + 首屏 HUD
 - [ ] 性能基线场景与优化对照记录
-- [x] BT 抽象接口（§3.4，BT-1 ✅）+ Inspector Custom 编辑（BT-2；GraphView 后置）
+- [x] BT 抽象接口（§3.4，BT-1 ✅）+ Inspector/GraphView（BT-2/E3 ✅）；结构下一阶段见 8.10
 - [ ] A\* Demo（寻路 → 移动意图）
 - [ ] AssetBundle 加载闭环
 - [ ] Lua（或脚本）热更沙盒（非战斗权威）

@@ -2,13 +2,14 @@
 
 > 依据：[COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md](./COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md)  
 > 角色：**可开工任务单**（谁做、做到哪、怎么验收）；大纲仍管范围与非目标  
-> 前置：A0 ✅；GAS G5 ✅；Wave 3.4 ✅；Wave 2.5 删 RM ✅
+> 前置：A0 ✅；GAS G5 ✅；Wave 3.4 ✅；Wave 2.5 删 RM ✅  
+> **历史任务单：** A5 Phase-1 已验收。敌人 AI 下一阶段见 [../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md](../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)。
 
 ---
 
 ## 0. 今日一句话
 
-A1/A2 打击感已验收；**当前主交付 A5 BT Phase-1**（只写 `InputFrame`）；A3/A4 可选后置。
+A1/A2/A5（BT Phase-1）已验收；本文不再作为当前开工入口。
 
 ---
 

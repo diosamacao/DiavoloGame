@@ -1,6 +1,7 @@
 # 配置链简化 + 木桩 AI 开关 — 方案
 
 > 制定：2026-08-08  
+> **备注（2026-08-10）：** 木桩开关 `enableCombatActions` 仍有效；「行动 = SetMove/PulseAttack」为 Phase-1 表述。敌人行动终态见 [../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md](../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)（Desire + Request）。  
 > 取代/收束：[`DUMMY_HIT_AND_CONFIG_SIMPLIFICATION_PLAN.md`](./DUMMY_HIT_AND_CONFIG_SIMPLIFICATION_PLAN.md) 中「靠校验放松当木桩」的主路径  
 > 用户定案：
 >

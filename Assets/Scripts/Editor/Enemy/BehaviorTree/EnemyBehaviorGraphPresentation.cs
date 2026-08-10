@@ -71,6 +71,9 @@ public static class EnemyBehaviorGraphPresentation
             case CooldownGateNodeDef gate:
                 gate.child = child;
                 break;
+            case AggroGateNodeDef aggro:
+                aggro.child = child;
+                break;
         }
     }
 

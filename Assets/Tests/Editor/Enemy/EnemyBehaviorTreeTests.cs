@@ -151,23 +151,128 @@ public sealed class EnemyBehaviorTreeTests
     }
 
     [Test]
-    public void StrafeAction_UsesStrafeMagnitude_NotChase()
+    public void StrafeAction_UsesNodeMagnitude()
     {
-        var profile = ScriptableObject.CreateInstance<EnemyBrainProfile>();
-        // 通过 SerializedObject 写入私有序列化字段
-        var so = new UnityEditor.SerializedObject(profile);
-        so.FindProperty("chaseMoveMagnitude").floatValue = 1f;
-        so.FindProperty("strafeMoveMagnitude").floatValue = 0.35f;
-        so.ApplyModifiedPropertiesWithoutUndo();
-
         var bb = CreateBlackboard(hasTarget: true, distance: 3f, aggroed: true, cdReady: true);
-        bb.Profile = profile;
-        new StrafeAroundTargetAction(1f).Tick(bb);
+        new StrafeAroundTargetAction(1f, magnitude: 0.35f).Tick(bb);
 
         Assert.That(bb.MoveDesire.x, Is.EqualTo(0.35f).Within(0.001f));
-        Assert.That(Mathf.Abs(bb.MoveDesire.x), Is.Not.EqualTo(profile.ChaseMoveMagnitude));
+        Assert.That(bb.MoveDesire.y, Is.EqualTo(0f));
+    }
 
-        UnityEngine.Object.DestroyImmediate(profile);
+    [Test]
+    public void InAttackRange_DifferentDistances_SamePlanar_OppositeResults()
+    {
+        var bb = CreateBlackboard(hasTarget: true, distance: 2.5f, aggroed: true, cdReady: true);
+        var near = new InAttackRangeCondition(2f, new StopMoveAction());
+        var far = new InAttackRangeCondition(3f, new StopMoveAction());
+
+        Assert.That(near.Tick(bb), Is.EqualTo(BehaviorStatus.Failure));
+        Assert.That(far.Tick(bb), Is.EqualTo(BehaviorStatus.Success));
+    }
+
+    [Test]
+    public void AggroGate_EnterAndExitHysteresis()
+    {
+        var bb = CreateBlackboard(hasTarget: true, distance: 9f, aggroed: false, cdReady: true);
+        var gate = new AggroGateNode(enterRadius: 10f, exitRadius: 14f, new StopMoveAction());
+
+        gate.Tick(bb);
+        Assert.That(bb.IsAggroed, Is.True);
+
+        bb.PlanarDistance = 12f;
+        gate.Tick(bb);
+        Assert.That(bb.IsAggroed, Is.True);
+
+        bb.PlanarDistance = 15f;
+        gate.Tick(bb);
+        Assert.That(bb.IsAggroed, Is.False);
+    }
+
+    [Test]
+    public void OscillateBetweenEnterExit_DoesNotFlipEachFrame()
+    {
+        // OutsideFar：enter=4 / exit=3；在 (3,4] 滞回区内振荡不应每帧进出
+        var band = new DistanceBandCondition(
+            DistanceBandMode.OutsideFar,
+            enterDistance: 4f,
+            exitDistance: 3f,
+            minDwellFrames: 3,
+            new StopMoveAction());
+        var bb = CreateBlackboard(hasTarget: true, distance: 5f, aggroed: true, cdReady: true);
+
+        Assert.That(band.Tick(bb), Is.EqualTo(BehaviorStatus.Success));
+        Assert.That(band.IsLatched, Is.True);
+
+        float[] oscillate = { 3.5f, 3.8f, 3.2f, 3.6f, 3.4f };
+        for (int i = 0; i < oscillate.Length; i++)
+        {
+            bb.PlanarDistance = oscillate[i];
+            Assert.That(band.Tick(bb), Is.EqualTo(BehaviorStatus.Success), $"frame {i} d={oscillate[i]}");
+            Assert.That(band.IsLatched, Is.True, $"frame {i} should stay latched");
+        }
+    }
+
+    [Test]
+    public void BeyondExit_AfterDwell_AllowsLeave()
+    {
+        var band = new DistanceBandCondition(
+            DistanceBandMode.OutsideFar,
+            enterDistance: 4f,
+            exitDistance: 3f,
+            minDwellFrames: 3,
+            new StopMoveAction());
+        var bb = CreateBlackboard(hasTarget: true, distance: 5f, aggroed: true, cdReady: true);
+
+        Assert.That(band.Tick(bb), Is.EqualTo(BehaviorStatus.Success));
+
+        // 越过 exit 后需攒满 dwell 才离开
+        bb.PlanarDistance = 2.5f;
+        Assert.That(band.Tick(bb), Is.EqualTo(BehaviorStatus.Success));
+        Assert.That(band.IsLatched, Is.True);
+        Assert.That(band.Tick(bb), Is.EqualTo(BehaviorStatus.Success));
+        Assert.That(band.IsLatched, Is.True);
+        Assert.That(band.Tick(bb), Is.EqualTo(BehaviorStatus.Failure));
+        Assert.That(band.IsLatched, Is.False);
+    }
+
+    [Test]
+    public void DistanceBand_Reset_ClearsLatchAndDwell()
+    {
+        var band = new DistanceBandCondition(
+            DistanceBandMode.OutsideFar,
+            4f,
+            3f,
+            6,
+            new StopMoveAction());
+        var bb = CreateBlackboard(hasTarget: true, distance: 5f, aggroed: true, cdReady: true);
+        band.Tick(bb);
+        Assert.That(band.IsLatched, Is.True);
+
+        band.Reset();
+        Assert.That(band.IsLatched, Is.False);
+        Assert.That(band.DwellFrames, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void StanceLoop_Far_Chases_Mid_Strafes()
+    {
+        var runner = CreateRunner(EnemyBehaviorTreeDefFactory.CreateMeleeStanceLoop());
+
+        var far = CreateBlackboard(hasTarget: true, distance: 5f, aggroed: true, cdReady: true);
+        far.PlanarDirection = Vector3.forward;
+        far.PathDirection = Vector3.forward;
+        runner.Tick(far);
+        Assert.That(far.MoveDesire.y, Is.GreaterThan(0f));
+        Assert.That(far.AttackPulse, Is.False);
+
+        runner.Reset();
+        var mid = CreateBlackboard(hasTarget: true, distance: 2.5f, aggroed: true, cdReady: false);
+        mid.IsAggroed = true;
+        runner.Tick(mid);
+        // AggroGate 会按距离刷新仇恨；2.5 在 Strafe InsideBand [2,3.5]
+        Assert.That(mid.MoveDesire.x, Is.GreaterThan(0f));
+        Assert.That(mid.MoveDesire.y, Is.EqualTo(0f));
     }
 
     [Test]
@@ -524,13 +629,11 @@ public sealed class EnemyBehaviorTreeTests
     static NativeBehaviorTreeRunner CreateRunner(EnemyBehaviorNodeDef root) =>
         new NativeBehaviorTreeRunner(root.Build());
 
-    /// <summary>构造带 Profile 与冷却表的测试黑板。</summary>
+    /// <summary>构造带冷却表的测试黑板（战斗参数在节点上）。</summary>
     static EnemyBlackboard CreateBlackboard(bool hasTarget, float distance, bool aggroed, bool cdReady)
     {
-        var profile = ScriptableObject.CreateInstance<EnemyBrainProfile>();
         var bb = new EnemyBlackboard
         {
-            Profile = profile,
             PathQuery = new StraightPathQuery(),
             HasTarget = hasTarget,
             PlanarDistance = distance,

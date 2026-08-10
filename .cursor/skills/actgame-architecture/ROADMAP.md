@@ -140,11 +140,11 @@
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
 | ActionEditorWindow | P1 | ✅ 基础版 + 菱形/Zoom/Scrub 预览 + 2026-08-04 playhead 跟视口、Create 选文件夹、左侧文件夹分组；后续增强 SFX 预览 |
-| Enemy/ + AI | P2 | 🟡 Graph MVP；优化方案 A/B（对照 JL/BD，2026-08-09） |
+| Enemy/ + AI | P1 | 🟡 Phase-1 BT ✅；下一阶段 Desire+Request / 滞回 / 配置上树 → `docs/2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md` |
 | UI/（MVVM） | P2 | HUD、血条；View/ViewModel 分层，不直写 Domain 权威 |
 | 事件总线 | P2 | 轻量 C# event；定稿前不引入第三方 |
-| 行为树编辑器 | P2 | ✅ MVP；下一步见 `ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN` |
-| 敌人对峙循环 + GaitPolicy | P2 | 对峙↔追击↔攻击 + 左右走；见 `docs/2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md`（GP1～GP3 必达） |
+| 行为树编辑器 | P2 | ✅ MVP；体验打磨见 `ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN`（仅 A） |
+| 敌人对峙循环 + GaitPolicy | P2 | 对峙↔追击↔攻击 + 左右走；见 `docs/2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md`；移动轨对齐 8.10 Desire |
 | A\* 寻路 | P2 | 学习实现；路径 → AI 移动意图；锁步确定性边界待定 |
 | 性能优化实践 | P2 | 木桩/多敌人基线 + Profiler 对照；见 `docs/PROJECT_CHECKLIST.md` §6.4 |
 | 剧情编辑器 | P3 | 对话/镜头节点或时间轴；与 Gameplay 用事件解耦 |

@@ -127,6 +127,36 @@ public sealed class CooldownGateNodeDef : EnemyBehaviorNodeDef
             child != null ? child.Build() : new StopMoveAction()));
 }
 
+/// <summary>AggroGate 定义：维护 IsAggroed 滞回后 Tick 子树。</summary>
+[Serializable]
+public sealed class AggroGateNodeDef : EnemyBehaviorNodeDef
+{
+    [SerializeField] float enterRadius = 10f;
+    [SerializeField] float exitRadius = 14f;
+    [SerializeReference] public EnemyBehaviorNodeDef child;
+
+    /// <summary>进入仇恨的水平距离。</summary>
+    public float EnterRadius
+    {
+        get => enterRadius;
+        set => enterRadius = Mathf.Max(0f, value);
+    }
+
+    /// <summary>脱离仇恨的水平距离（至少等于 enter）。</summary>
+    public float ExitRadius
+    {
+        get => exitRadius;
+        set => exitRadius = Mathf.Max(0f, value);
+    }
+
+    /// <inheritdoc />
+    public override IBehaviorNode Build() =>
+        Wrap(new AggroGateNode(
+            enterRadius,
+            exitRadius,
+            child != null ? child.Build() : new StopMoveAction()));
+}
+
 /// <summary>条件装饰定义基类（UE 风格：单子 + Abort Self）。</summary>
 [Serializable]
 public abstract class EnemyBehaviorConditionNodeDef : EnemyBehaviorNodeDef
@@ -155,12 +185,21 @@ public sealed class InCombatAggroConditionDef : EnemyBehaviorConditionNodeDef
     public override IBehaviorNode Build() => Wrap(new InCombatAggroCondition(BuildChild()));
 }
 
-/// <summary>InAttackRange 条件装饰定义。</summary>
+/// <summary>InAttackRange 条件装饰定义；距离在节点上，不读 Profile。</summary>
 [Serializable]
 public sealed class InAttackRangeConditionDef : EnemyBehaviorConditionNodeDef
 {
+    [SerializeField] float distance = 2f;
+
+    /// <summary>攻击距离上限（米）。</summary>
+    public float Distance
+    {
+        get => distance;
+        set => distance = Mathf.Max(0f, value);
+    }
+
     /// <inheritdoc />
-    public override IBehaviorNode Build() => Wrap(new InAttackRangeCondition(BuildChild()));
+    public override IBehaviorNode Build() => Wrap(new InAttackRangeCondition(distance, BuildChild()));
 }
 
 /// <summary>IsCharacterState 条件装饰定义。</summary>
@@ -235,6 +274,48 @@ public sealed class DistanceGreaterConditionDef : EnemyBehaviorConditionNodeDef
         Wrap(new DistanceGreaterCondition(distance, BuildChild()));
 }
 
+/// <summary>DistanceBand 滞回条件装饰定义；Chase/Strafe 带，Attack 勿套。</summary>
+[Serializable]
+public sealed class DistanceBandConditionDef : EnemyBehaviorConditionNodeDef
+{
+    [SerializeField] DistanceBandMode mode = DistanceBandMode.OutsideFar;
+    [SerializeField] float enterDistance = 4f;
+    [SerializeField] float exitDistance = 3f;
+    [SerializeField] int minDwellFrames = 6;
+
+    /// <summary>滞回带模式。</summary>
+    public DistanceBandMode Mode
+    {
+        get => mode;
+        set => mode = value;
+    }
+
+    /// <summary>进入本支的距离阈值（米）。</summary>
+    public float EnterDistance
+    {
+        get => enterDistance;
+        set => enterDistance = Mathf.Max(0f, value);
+    }
+
+    /// <summary>离开本支的距离阈值（米）；Chase/OutsideFar 宜 &lt; enter。</summary>
+    public float ExitDistance
+    {
+        get => exitDistance;
+        set => exitDistance = Mathf.Max(0f, value);
+    }
+
+    /// <summary>最短驻留逻辑帧；满后才允许因距离翻面失败。</summary>
+    public int MinDwellFrames
+    {
+        get => minDwellFrames;
+        set => minDwellFrames = Mathf.Max(0, value);
+    }
+
+    /// <inheritdoc />
+    public override IBehaviorNode Build() =>
+        Wrap(new DistanceBandCondition(mode, enterDistance, exitDistance, minDwellFrames, BuildChild()));
+}
+
 /// <summary>StopMove 行动定义。</summary>
 [Serializable]
 public sealed class StopMoveActionDef : EnemyBehaviorNodeDef
@@ -243,20 +324,55 @@ public sealed class StopMoveActionDef : EnemyBehaviorNodeDef
     public override IBehaviorNode Build() => Wrap(new StopMoveAction());
 }
 
-/// <summary>MoveTowardTarget 行动定义。</summary>
+/// <summary>MoveTowardTarget 行动定义；幅度/停步在节点上。</summary>
 [Serializable]
 public sealed class MoveTowardTargetActionDef : EnemyBehaviorNodeDef
 {
+    [SerializeField, Range(0f, 1f)] float magnitude = 1f;
+    [SerializeField] float stopDistance = 1.2f;
+    [SerializeField] bool faceTarget = true;
+
+    /// <summary>本地前进轴幅度。</summary>
+    public float Magnitude
+    {
+        get => magnitude;
+        set => magnitude = Mathf.Clamp01(value);
+    }
+
+    /// <summary>贴身停步距离（米）。</summary>
+    public float StopDistance
+    {
+        get => stopDistance;
+        set => stopDistance = Mathf.Max(0f, value);
+    }
+
+    /// <summary>追击时是否请求面向目标。</summary>
+    public bool FaceTarget
+    {
+        get => faceTarget;
+        set => faceTarget = value;
+    }
+
     /// <inheritdoc />
-    public override IBehaviorNode Build() => Wrap(new MoveTowardTargetAction());
+    public override IBehaviorNode Build() =>
+        Wrap(new MoveTowardTargetAction(magnitude, stopDistance, faceTarget));
 }
 
 /// <summary>BackOffFromTarget 行动定义。</summary>
 [Serializable]
 public sealed class BackOffFromTargetActionDef : EnemyBehaviorNodeDef
 {
+    [SerializeField, Range(0f, 1f)] float magnitude = 1f;
+
+    /// <summary>后退幅度。</summary>
+    public float Magnitude
+    {
+        get => magnitude;
+        set => magnitude = Mathf.Clamp01(value);
+    }
+
     /// <inheritdoc />
-    public override IBehaviorNode Build() => Wrap(new BackOffFromTargetAction());
+    public override IBehaviorNode Build() => Wrap(new BackOffFromTargetAction(magnitude));
 }
 
 /// <summary>StrafeAroundTarget 行动定义。</summary>
@@ -264,6 +380,7 @@ public sealed class BackOffFromTargetActionDef : EnemyBehaviorNodeDef
 public sealed class StrafeAroundTargetActionDef : EnemyBehaviorNodeDef
 {
     [SerializeField] float sideSign = 1f;
+    [SerializeField, Range(0f, 1f)] float magnitude = 0.35f;
 
     /// <summary>侧移符号：&gt;0 右，&lt;0 左。</summary>
     public float SideSign
@@ -272,8 +389,15 @@ public sealed class StrafeAroundTargetActionDef : EnemyBehaviorNodeDef
         set => sideSign = value >= 0f ? 1f : -1f;
     }
 
+    /// <summary>侧移幅度（宜小于 RunThreshold）。</summary>
+    public float Magnitude
+    {
+        get => magnitude;
+        set => magnitude = Mathf.Clamp01(value);
+    }
+
     /// <inheritdoc />
-    public override IBehaviorNode Build() => Wrap(new StrafeAroundTargetAction(sideSign));
+    public override IBehaviorNode Build() => Wrap(new StrafeAroundTargetAction(sideSign, magnitude));
 }
 
 /// <summary>FaceTarget 行动定义。</summary>

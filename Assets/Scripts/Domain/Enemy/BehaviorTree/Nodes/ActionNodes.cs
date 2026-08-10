@@ -17,13 +17,25 @@ public sealed class StopMoveAction : IBehaviorNode
     }
 }
 
-/// <summary>行动：朝目标前进（贴近 StopDistance 时停步仍 Success）。</summary>
+/// <summary>行动：朝目标前进（贴近 stopDistance 时停步仍 Success）；幅度/停步/朝向由节点参数决定。</summary>
 public sealed class MoveTowardTargetAction : IBehaviorNode
 {
+    readonly float _magnitude;
+    readonly float _stopDistance;
+    readonly bool _faceTarget;
+
+    /// <summary>创建追击移动；magnitude 为本地前进轴幅度。</summary>
+    public MoveTowardTargetAction(float magnitude = 1f, float stopDistance = 1.2f, bool faceTarget = true)
+    {
+        _magnitude = Mathf.Clamp01(magnitude);
+        _stopDistance = Mathf.Max(0f, stopDistance);
+        _faceTarget = faceTarget;
+    }
+
     /// <inheritdoc />
     public BehaviorStatus Tick(EnemyBlackboard blackboard)
     {
-        if (blackboard?.Profile == null || !blackboard.HasTarget)
+        if (blackboard == null || !blackboard.HasTarget)
             return BehaviorStatus.Failure;
 
         Vector3 steer = blackboard.PathDirection.sqrMagnitude > 0.0001f
@@ -38,16 +50,16 @@ public sealed class MoveTowardTargetAction : IBehaviorNode
         }
 
         blackboard.PathDirection = steer;
-        blackboard.FaceTargetRequested = blackboard.Profile.FaceTargetWhileChase;
+        blackboard.FaceTargetRequested = _faceTarget;
 
-        if (blackboard.PlanarDistance <= blackboard.Profile.StopDistance)
+        if (blackboard.PlanarDistance <= _stopDistance)
         {
             blackboard.MoveDesire = Vector2.zero;
             return BehaviorStatus.Success;
         }
 
-        // 与旧 FSM 一致：假相机朝向目标后，本地前进轴写 (0, magnitude)
-        blackboard.MoveDesire = Vector2.up * blackboard.Profile.ChaseMoveMagnitude;
+        // 假相机朝向目标后，本地前进轴写 (0, magnitude)
+        blackboard.MoveDesire = Vector2.up * _magnitude;
         return BehaviorStatus.Success;
     }
 
@@ -60,14 +72,22 @@ public sealed class MoveTowardTargetAction : IBehaviorNode
 /// <summary>行动：背离目标后退（面向目标后本地 y&lt;0）。</summary>
 public sealed class BackOffFromTargetAction : IBehaviorNode
 {
+    readonly float _magnitude;
+
+    /// <summary>创建后退行动。</summary>
+    public BackOffFromTargetAction(float magnitude = 1f)
+    {
+        _magnitude = Mathf.Clamp01(magnitude);
+    }
+
     /// <inheritdoc />
     public BehaviorStatus Tick(EnemyBlackboard blackboard)
     {
-        if (blackboard?.Profile == null || !blackboard.HasTarget)
+        if (blackboard == null || !blackboard.HasTarget)
             return BehaviorStatus.Failure;
 
         blackboard.FaceTargetRequested = true;
-        blackboard.MoveDesire = Vector2.down * blackboard.Profile.ChaseMoveMagnitude;
+        blackboard.MoveDesire = Vector2.down * _magnitude;
         return BehaviorStatus.Success;
     }
 
@@ -81,23 +101,23 @@ public sealed class BackOffFromTargetAction : IBehaviorNode
 public sealed class StrafeAroundTargetAction : IBehaviorNode
 {
     readonly float _sideSign;
+    readonly float _magnitude;
 
-    /// <summary>创建侧移行动；sideSign 符号决定左右。</summary>
-    public StrafeAroundTargetAction(float sideSign = 1f)
+    /// <summary>创建侧移行动；magnitude 宜小于 RunThreshold 以保 Walk 档。</summary>
+    public StrafeAroundTargetAction(float sideSign = 1f, float magnitude = 0.35f)
     {
         _sideSign = sideSign >= 0f ? 1f : -1f;
+        _magnitude = Mathf.Clamp01(magnitude);
     }
 
     /// <inheritdoc />
     public BehaviorStatus Tick(EnemyBlackboard blackboard)
     {
-        if (blackboard?.Profile == null || !blackboard.HasTarget)
+        if (blackboard == null || !blackboard.HasTarget)
             return BehaviorStatus.Failure;
 
         blackboard.FaceTargetRequested = true;
-        // 对峙用独立幅度，便于压在 Walk 档并驱动 WalkLeft/Right
-        float magnitude = blackboard.Profile.StrafeMoveMagnitude;
-        blackboard.MoveDesire = new Vector2(_sideSign * magnitude, 0f);
+        blackboard.MoveDesire = new Vector2(_sideSign * _magnitude, 0f);
         return BehaviorStatus.Success;
     }
 

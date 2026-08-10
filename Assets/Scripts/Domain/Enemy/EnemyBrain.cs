@@ -2,10 +2,16 @@ using UnityEngine;
 
 /// <summary>
 /// 敌人 AI 宿主：门闩 + 黑板填装 + IEnemyBehaviorRunner Tick + 帧末写 AIInputWriter。
-/// 决策本身不在此类内 switch，便于替换 Runner 后端。
+/// 战斗半径/幅度/仇恨滞回由 BT 节点负责；本类不读 Profile 战斗表。
 /// </summary>
 public sealed class EnemyBrain
 {
+    /// <summary>起手失败后的防抖逻辑帧（薄 Brain 辅助，非 Profile 真源）。</summary>
+    const int FailedAttackRetryFrames = 12;
+
+    /// <summary>刷新假相机朝向的最小逻辑帧间隔（表现默认）。</summary>
+    const int FacingRepathIntervalFrames = 6;
+
     readonly EnemyBrainProfile _profile;
     readonly EnemyPerception _perception;
     readonly AIInputWriter _input;
@@ -34,7 +40,6 @@ public sealed class EnemyBrain
         _input = input;
         _facingProxy = facingProxy;
         _runner = runner;
-        _blackboard.Profile = profile;
         _blackboard.PathQuery = pathQuery ?? new StraightPathQuery();
         State = EnemyBrainState.Idle;
     }
@@ -51,7 +56,7 @@ public sealed class EnemyBrain
     /// <summary>上一帧 NamedNode 调试路径。</summary>
     public string LastDebugPath => _lastDebugPath;
 
-    /// <summary>黑板仇恨滞回（调试）。</summary>
+    /// <summary>黑板仇恨滞回（调试；由 AggroGate 维护）。</summary>
     public bool DebugIsAggroed => _blackboard.IsAggroed;
 
     /// <summary>上一帧提交的移动欲望（调试）。</summary>
@@ -166,11 +171,11 @@ public sealed class EnemyBrain
             return;
         }
 
-        UpdateAggro(in snapshot);
-        State = _blackboard.IsAggroed ? EnemyBrainState.Chase : EnemyBrainState.Idle;
+        // 仇恨由下次 Runner（AggroGate）刷新；出 Hit 后先回 Idle 调试态
+        State = EnemyBrainState.Idle;
     }
 
-    /// <summary>观测 Pulse 后是否真正进入 Action，以维护 basic_attack 冷却。</summary>
+    /// <summary>观测 Pulse 后是否真正进入 Action；失败写入短防抖，成功 CD 由 CooldownGate 负责。</summary>
     void ResolveAttackConfirm(in EnemyPerceptionSnapshot snapshot)
     {
         if (!_awaitingAttackConfirm)
@@ -179,28 +184,25 @@ public sealed class EnemyBrain
         if (snapshot.CharacterState == CharacterStateType.Action)
         {
             _awaitingAttackConfirm = false;
-            _blackboard.Cooldowns.Set(EnemyCooldownIds.BasicAttack, _profile.AttackCooldownFrames);
             return;
         }
 
         if (snapshot.CharacterState == CharacterStateType.Locomotion)
         {
             _awaitingAttackConfirm = false;
-            _blackboard.Cooldowns.Set(EnemyCooldownIds.BasicAttack, _profile.FailedAttackRetryFrames);
+            _blackboard.Cooldowns.Set(EnemyCooldownIds.BasicAttack, FailedAttackRetryFrames);
         }
     }
 
     /// <summary>把感知与确认旗位写入黑板（Runner 只读这些条件）。</summary>
     void FillBlackboard(in EnemyPerceptionSnapshot snapshot)
     {
-        _blackboard.Profile = _profile;
         _blackboard.HasTarget = snapshot.HasTarget;
         _blackboard.PlanarDistance = snapshot.PlanarDistance;
         _blackboard.PlanarDirection = snapshot.PlanarDirection;
         _blackboard.CharacterState = snapshot.CharacterState;
         _blackboard.IsDead = snapshot.IsDead;
         _blackboard.AttackConfirmPending = _awaitingAttackConfirm;
-        UpdateAggro(in snapshot);
 
         Vector3 path = snapshot.PlanarDirection;
         if (_blackboard.PathQuery != null && snapshot.HasTarget)
@@ -214,21 +216,6 @@ public sealed class EnemyBrain
         }
 
         _blackboard.PathDirection = path;
-    }
-
-    /// <summary>维护进战/脱战滞回旗位。</summary>
-    void UpdateAggro(in EnemyPerceptionSnapshot snapshot)
-    {
-        if (!snapshot.HasTarget)
-        {
-            _blackboard.IsAggroed = false;
-            return;
-        }
-
-        if (!_blackboard.IsAggroed && snapshot.PlanarDistance <= _profile.AggroRadius)
-            _blackboard.IsAggroed = true;
-        else if (_blackboard.IsAggroed && snapshot.PlanarDistance > _profile.LoseAggroRadius)
-            _blackboard.IsAggroed = false;
     }
 
     /// <summary>帧末把黑板输出提交到 AIInputWriter，并刷新 facing proxy。</summary>
@@ -245,7 +232,7 @@ public sealed class EnemyBrain
             if (_input.PulseAttack())
                 _awaitingAttackConfirm = true;
             else
-                _blackboard.Cooldowns.Set(EnemyCooldownIds.BasicAttack, _profile.FailedAttackRetryFrames);
+                _blackboard.Cooldowns.Set(EnemyCooldownIds.BasicAttack, FailedAttackRetryFrames);
         }
 
         if (_blackboard.DodgePulse)
@@ -275,17 +262,13 @@ public sealed class EnemyBrain
             State = EnemyBrainState.Idle;
     }
 
-    /// <summary>按配置间隔刷新假相机水平朝向。</summary>
+    /// <summary>按表现默认间隔刷新假相机水平朝向。</summary>
     void RefreshFacingProxy(in EnemyPerceptionSnapshot snapshot)
     {
-        if (!_profile.FaceTargetWhileChase
-            || _facingProxy == null
-            || _repathFramesRemaining > 0)
-        {
+        if (_facingProxy == null || _repathFramesRemaining > 0)
             return;
-        }
 
-        // FaceTarget 优先看向目标；PathDirection 仅作无 Planar 时回退（避免 Strafe 残留追击朝向）
+        // FaceTarget 优先看向目标；PathDirection 仅作无 Planar 时回退
         Vector3 dir = _blackboard.FaceTargetRequested && snapshot.PlanarDirection.sqrMagnitude > 0.0001f
             ? snapshot.PlanarDirection
             : (_blackboard.PathDirection.sqrMagnitude > 0.0001f
@@ -295,6 +278,6 @@ public sealed class EnemyBrain
             return;
 
         _facingProxy.rotation = Quaternion.LookRotation(dir, Vector3.up);
-        _repathFramesRemaining = _profile.RepathIntervalFrames;
+        _repathFramesRemaining = FacingRepathIntervalFrames;
     }
 }

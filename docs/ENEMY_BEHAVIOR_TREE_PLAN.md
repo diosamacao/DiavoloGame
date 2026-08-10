@@ -1,25 +1,29 @@
-# DiavoloGame 敌人行为树方案
+# ACTGame 敌人行为树方案
 
 > 基准：`develop`（敌人 AI 初版已落地：`EnemyBrain` 五态 FSM + `AIInputWriter`）  
 > 制定日期：2026-07-30  
-> 修订：2026-08-09 — 补充**可替换 BT 后端**抽象（`IEnemyBehaviorTreeAsset` / `IEnemyBehaviorRunner`）；输出对齐 `AIInputWriter`/`InputFrame`  
+> 修订：2026-08-09 — 补充**可替换 BT 后端**抽象（`IEnemyBehaviorTreeAsset` / `IEnemyBehaviorRunner`）；Phase-1 输出对齐 `AIInputWriter`/`InputFrame`  
 > 修订：2026-08-09 — BT-1/BT-2 主体已落地；GraphView 见 [ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md](./2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md)  
-> 修订：2026-08-09 — E3 后优化（对照 JL/BD）见 [ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md](./2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)  
+> 修订：2026-08-09 — E3 后**编辑器**优化见 [ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md](./2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)  
+> 修订：2026-08-10 — **§3.4 输出槽终态**改为 `LocomotionDesire` + `CombatRequest`；结构真源见 [ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)
 
 > 前置文档：[ENEMY_SYSTEM_INTEGRATION_PLAN.md](./ENEMY_SYSTEM_INTEGRATION_PLAN.md)  
 > 总清单交叉：[PROJECT_CHECKLIST.md](./PROJECT_CHECKLIST.md) §6.4（BT 抽象 + 简易编辑器）  
-> 本次范围：**只做行为树决策层**；NavMesh / A\* 寻路另开迭代，本方案预留接口不实现
+> 本次范围：**只做行为树决策层**；NavMesh / A\* 寻路另开迭代，本方案预留接口不实现  
+> **下一阶段结构真源：** [2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)（命令轨 / 滞回 / 配置归属）
 
 ---
 
 ## 1. 结论摘要
 
 1. **Phase-1 自研轻量行为树**（不引入第三方插件包）；同时 **BT-1 起就预留可替换后端接口**，便于日后功能完善或整包接入现成插件。
-2. **BT 只写黑板输出意图**；Brain 帧末经 `AIInputWriter` 提交 `InputFrame`；禁止直调 `ActionExecutor` / 强制切招。
+2. **BT 只写黑板输出槽**；禁止节点直调 `ActionSim` / `MotorSim` / Numeric。  
+   - **Phase-1（已落地，过渡）：** Brain 帧末经 `AIInputWriter` → `InputFrame`。  
+   - **终态（8.10 方案）：** Brain 提交 `LocomotionDesire` + `CombatRequest`；**删除**敌人假手柄（`SetMove` / 攻击 Pulse / 移动 InputFrame 权威）。
 3. **Hit / Death 不进树**：由 `CharacterReactionService` 外层抢占；BT 在受控期间不 Tick 或 Tick 前被门闩拦住。
 4. **用 BT 替换 `EnemyBrain` 内 Idle/Chase/Attack 决策**，删除与 BT 并行的五态业务 switch（保留 `EnemyBrainState` 仅作调试快照可选）。
-5. **策略资产化**：`EnemyDefinition` 引用实现 `IEnemyBehaviorTreeAsset` 的资产（首版 `EnemyBehaviorTreeAsset`）；数值仍读 `EnemyBrainProfile`。
-6. **第一版节点库约 12 个**，先复现现有「进战追击 + 冷却普攻」，再扩展巡逻/风筝等策略。
+5. **策略资产化**：`EnemyDefinition` 引用实现 `IEnemyBehaviorTreeAsset` 的资产；战斗距离/幅度等调参终态迁到 **节点 Def**（见 8.10 E-CFG），`EnemyBrainProfile` 瘦身为开关/生命周期。
+6. **第一版节点库约 12 个**已复现「进战追击 + 冷却普攻」；离散多招 / 滞回见 8.10 E-REQ / E-ST。
 
 ---
 
@@ -29,10 +33,10 @@
 
 | 项 | 验收 |
 |----|------|
-| 等价替换 | 现有近战怪：进 `aggro` 追击、进 `attackRange` 且冷却好时 `PulseAttack`、脱战停步 |
+| 等价替换（Phase-1） | 近战怪：进 `aggro` 追击、进 `attackRange` 且冷却好时起手、脱战停步（当时经 `PulseAttack`） |
 | 受击/死亡 | 挨打进 Hit、死亡停 AI，行为与现网一致 |
 | 可配置 | 换一张树资产即可变成「只追不打」或「更远才攻击」，无需改 C# switch |
-| 架构合规 | Domain 纯 C#；出招仍走 Intent → Driver → Graph |
+| 架构合规 | Domain 纯 C#；**玩家**出招走 Intent → Driver → Graph；**敌人终态**走 `CombatRequest` → Driver Entry（见 8.10） |
 | 可替换后端 | `EnemyBrain` / Factory **只依赖** §3.4 抽象；零引用自研节点类型之外的具体插件 API |
 
 ### 2.2 非目标（本迭代不做）
@@ -47,20 +51,30 @@
 
 ## 3. 架构位置
 
-### 3.1 改造后数据流
+### 3.1 数据流
+
+**终态（8.10，目标）：**
 
 ```text
 EnemyHandle.ProduceInput / Step（逻辑帧）
   ├─ [若 Dead] 不跑 Runner
   ├─ [若 CharacterState==Hit] ClearAll，不跑 Runner（或 Reset）
   ├─ EnemyBrain.Step
-  │    ├─ Perception → 填 EnemyBlackboard
-  │    ├─ IEnemyBehaviorRunner.Tick(bb)   // 自研或未来插件 Adapter
-  │    │    ├─ Condition 读 Perception / Profile / Cooldown
-  │    │    └─ Action 写 bb.MoveDesire / bb.AttackPulse
-  │    └─ 帧末：AIInputWriter ← Move / PulseAttack
-  └─ CharacterActor.Step(InputFrame)
-       Intent → ActionDriver → SM / Locomotion / Action
+  │    ├─ Perception → 填 EnemyBlackboard（客观量）
+  │    ├─ IEnemyBehaviorRunner.Tick(bb)
+  │    │    ├─ Condition 读黑板 / 节点参数 / Cooldown
+  │    │    └─ Task 写 LocomotionDesire / CombatRequest（及迁移期 MoveDesire）
+  │    └─ Commit：EnemyLocomotionCommandBuffer + EnemyCombatRequestBuffer
+  └─ CharacterActor.Step（敌人）
+       Apply(LocomotionDesire) → Locomotion / Motor
+       if CombatRequest → ActionDriver.TryStart(Entry)
+```
+
+**现状（Phase-1～E-MOVE2 前，过渡）：**
+
+```text
+EnemyBrain.Step → Runner.Tick → bb.MoveDesire / AttackPulse
+  → AIInputWriter → InputFrame → CharacterActor（与玩家同款 Intent 管线）
 ```
 
 ```mermaid
@@ -74,15 +88,18 @@ flowchart TB
     Runner[IEnemyBehaviorRunner]
     BB[EnemyBlackboard]
   end
-  subgraph out [输出]
-    AI[AIInputWriter / InputFrame]
+  subgraph out [输出终态]
+    Desire[LocomotionDesire]
+    Req[CombatRequest]
   end
   Hit --> Gate
   Death --> Gate
   Gate -->|放行| Runner
   Runner --> BB
-  Runner --> AI
-  AI --> Actor[CharacterActor 原管线]
+  Runner --> Desire
+  Runner --> Req
+  Desire --> Actor[CharacterActor 敌人路径]
+  Req --> Actor
 ```
 
 ### 3.2 职责划分
@@ -90,10 +107,11 @@ flowchart TB
 | 模块 | 职责 |
 |------|------|
 | `CharacterReactionService` | 生命值 → EnterHit / EnterDeath；回调 Brain 门闩 |
-| `EnemyBrain` | 门闩、黑板填装、冷却辅助、**只通过** `IEnemyBehaviorRunner` Tick；帧末提交输入 |
+| `EnemyBrain` | 门闩、黑板填装、冷却辅助、**只通过** `IEnemyBehaviorRunner` Tick；帧末提交命令（终态 Desire/Request；过渡期仍可写 `AIInputWriter`） |
 | `IEnemyBehaviorTreeAsset` / `IEnemyBehaviorRunner` | **可替换后端契约**（§3.4）；首版自研实现 |
 | 自研 `BehaviorTree` + 节点 | Phase-1 默认 Runner 实现（可配置决策） |
-| `AIInputWriter` | 唯一移动/攻击输出通道（量化 `InputFrame`） |
+| `AIInputWriter` | **过渡**：量化 `InputFrame`；**E-MOVE2 后删除或仅测试**（敌人不再假手柄） |
+| Desire / Request Buffer | **终态**敌人移动/出招唯一提交槽 |
 | `EnemyPerception` | 只读快照，供条件节点读取 |
 | `IEnemyPathQuery` | **预留**：返回追击方向；首版实现 = 直线朝向目标 |
 
@@ -160,27 +178,33 @@ PluginBehaviorTreeAdapterAsset : ScriptableObject, IEnemyBehaviorTreeAsset
 | 规则 | 说明 |
 |------|------|
 | 时钟 | 仅在 World **逻辑帧**由 `EnemyBrain.Step` 调用；禁止 Runner 自挂 `Update` |
-| 输入 | 决策结果只体现为黑板 `MoveDesire` / `AttackPulse`（及只读条件字段）；Brain 帧末写 `AIInputWriter` |
+| 输出槽（**终态**） | 决策结果只体现为黑板 **`LocomotionDesire` + `CombatRequest`**（及只读条件字段）；Brain 提交缓冲，**不经**敌人 `AIInputWriter` / 攻击 Intent |
+| 输出槽（**过渡，代码现状**） | Phase-1：`MoveDesire` / `AttackPulse` → `AIInputWriter` → `InputFrame`；迁完按 8.10 E-REQ2 / E-MOVE2 **删除** |
 | 感知 | 目标/距离等由 Brain+Perception **填入黑板**；Runner 不直读 Scene Physics 作权威 |
 | 门闩 | Hit/Death 仍由 Brain 外层处理；进入时 `Runner.Reset()` + `ClearAll` |
-| 冷却 | Profile 秒/帧阈值与「Pulse 后是否进 Action」观测可留 Brain；Runner 可用黑板 CD 旗或 `CooldownReady` |
+| 冷却 | 招式 CD 终态以节点 `CooldownGate` 为主；Brain 可保留起手确认观测；禁止同一 id 双写 |
 | 资产引用 | `EnemyDefinition` 序列化字段类型为 `EnemyBehaviorTreeAsset`（具体 SO）亦可，但 **Factory 构建时经 `IEnemyBehaviorTreeAsset` 取 Runner**；或字段直接 `SerializeReference`/`ScriptableObject` 再 `as IEnemyBehaviorTreeAsset` |
+
+细节阶段与验收见 [ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)。
 
 #### 3.4.3 禁止
 
 - `EnemyBrain` / `EnemyActorFactory` / `EnemyHandle` `using` 或字段类型出现第三方插件命名空间  
-- Runner / 节点持有 `IActionExecutor`、直接 `TryStart`、改 Vitality/Numeric  
+- Runner / 节点持有 `IActionExecutor`、直接 `TryStart`、改 Vitality/Numeric（起招由 Actor/Driver **消费** Request，节点只写黑板）  
 - 为「过渡」同时跑 FSM switch + Runner（双轨决策）  
+- 长期保留「假手柄 + Desire/Request」双轨（迁完必须删 `AIInputWriter` 敌人战斗/移动用途）  
 - 把插件黑板当第二套权威；必须映射进 `EnemyBlackboard` 或由 Adapter 只写我们的 bb 输出槽  
 
 #### 3.4.4 与功能完善的关系
 
 | 阶段 | 做什么 | 是否改 §3.4 契约 |
 |------|--------|------------------|
-| BT-1 | 自研 Runner + 默认近战树 | **建立**契约 |
-| BT-2 | Inspector/调试、更多节点 | 不改契约；可扩黑板只读键（文档化） |
-| BT-3 | `IEnemyPathQuery` 真寻路 | 不改 Runner 契约 |
-| 日后 | 插件 Adapter | 新程序集实现接口；Brain **零改或仅改 Factory 注册** |
+| BT-1 | 自研 Runner + 默认近战树 | **建立** Runner 接口；输出当时为 InputFrame |
+| BT-2 | Inspector/调试、更多节点 | 不改 Runner 接口；可扩黑板只读键 |
+| BT-E1～E3 | Task 目录 / Graph 数据 / GraphView | 不改 Runner 接口 |
+| **8.10 E-*** | Desire + Request、滞回、配置上树 | **修订输出槽**（本文 3.4.2）；Runner 接口形状不变 |
+| BT-3 / E4 | `IEnemyPathQuery` 真寻路 | 不改 Runner 接口；方向写入 Desire |
+| 日后 | 插件 Adapter | 新程序集实现接口；仍只写黑板输出槽 |
 
 ---
 
@@ -583,13 +607,19 @@ Assets/Data/Enemy/
 | 2026-07-30 | Hit/Death 外层门闩，不进树 | 与 ReactionService 单一抢占源一致 |
 | 2026-07-30 | 删除 FSM 业务 switch，不双轨 | 符合 no-legacy；避免双脑 |
 | 2026-07-30 | 寻路仅预留接口 | 用户要求先做 BT；直线查询保等价行为 |
-| 2026-07-30 | 帧末统一提交 Move/Pulse | 防止节点互相覆盖造成抖动输入 |
+| 2026-07-30 | 帧末统一提交 Move/Pulse | 防止节点互相覆盖造成抖动输入（Phase-1） |
 | 2026-08-09 | BT-1 起落地 `IEnemyBehaviorTreeAsset` + `IEnemyBehaviorRunner` | 功能完善与未来插件 Adapter 共用宿主边界；禁止 API 泄漏 |
+| 2026-08-10 | 输出槽终态改为 Desire + Request；废除敌人假手柄 | 离散多招与移动不对称；见 8.10 方案 |
 
 ---
 
 ## 14. 下一步
 
 BT-1 / BT-2 / **BT-E1～E3** 已关闭（含 GraphView MVP）。  
-下一步按 [ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md](./2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)：**A 编辑器 → B 招式池/Abort**；寻路见演进 E4。  
-插件 Adapter 为可选；**不得**回头改薄 Brain 契约。
+
+**结构下一阶段真源：** [ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)  
+推荐顺序：**E-CFG1 → E-ST1 → E-REQ1 ∥ E-MOVE1 → E-REQ2 → E-MOVE2 → E-REQ3**。  
+
+**编辑器体验（可选并行）：** [ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md](./2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md) Phase A（A3 黑板监视等）。**禁止**再按旧 OPT B3 落地 Pulse 版 CombatPool（已并入 8.10 E-REQ2）。  
+
+寻路见演进 E4。插件 Adapter 为可选；Runner 接口形状保持，输出槽以 §3.4.2 终态为准。

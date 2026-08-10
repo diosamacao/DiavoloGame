@@ -3,10 +3,12 @@
 > 制定：2026-08-09  
 > 修订：2026-08-09 — **终态定案**：对峙→追击→攻击→对峙循环 + 左右走动画为必达出口  
 > 角色：**敌人近战循环玩法**与 **Locomotion 步态/横步表现** 的结构真源（先文档，后实现）  
+> 修订：2026-08-10 — AI 移动权威终态对齐 [`ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`](../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)（`LocomotionDesire`）；拓扑仍成立  
 > 相关：  
 > - 既有 Locomotion 相位：[`docs/LOCOMOTION_OPTIMIZATION_PLAN.md`](../LOCOMOTION_OPTIMIZATION_PLAN.md)  
-> - 敌人 AI / BT：[`ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md`](./ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)  
-> - 装配链：`CombatMode → CharacterLocomotionProfile → LocomotionStateMachine`；AI：`EnemyBrain → BT → InputFrame`
+> - 敌人 AI 结构：[`../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`](../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)  
+> - BT 编辑器：[`ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md`](./ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)（仅 A）  
+> - 装配链：`CombatMode → CharacterLocomotionProfile → LocomotionStateMachine`；AI 终态：`EnemyBrain → BT → LocomotionDesire`（现状过渡仍可经 InputFrame）
 
 ---
 
@@ -25,7 +27,8 @@ CombatModeProfile
   → CharacterLocomotionProfile
        → GaitLocomotionState：Walk → Run →（约 3s）Sprint（硬编码）
 
-EnemyBrain → BT → MoveDesire / PulseAttack → InputFrame
+EnemyBrain → BT → MoveDesire / PulseAttack → InputFrame   // 过渡
+  （终态：LocomotionDesire + CombatRequest，见 8.10）
   StrafeAroundTarget 已写横向 MoveDesire + FaceTarget
   AnimationKey 仅 Idle/Walk/Run/Sprint → 横移仍播 Walk/Run
 ```
@@ -33,8 +36,8 @@ EnemyBrain → BT → MoveDesire / PulseAttack → InputFrame
 | 点 | 现状 |
 |----|------|
 | 升档 | 写死在 `GaitLocomotionState`；敌人易进 Sprint 态 |
-| 循环 | 常见只有 Chase/Attack；对峙支路未成为稳定循环 |
-| 横移输入 | BT Task 已有；幅度与追击共用 `chaseMoveMagnitude` |
+| 循环 | 常见只有 Chase/Attack；对峙支路未成为稳定循环；距离滞回见 8.10 E-ST |
+| 横移输入 | BT Task 已有；幅度终态在 Task 节点（8.10 E-CFG），非长期读 Profile |
 | 横移动画 | **无** WalkL/R Key；表现不等于 walk_Left / walk_Right |
 
 ### 1.2 痛点
@@ -61,8 +64,8 @@ EnemyBrain → BT → MoveDesire / PulseAttack → InputFrame
 1. **身份不进 State**：禁止 `isEnemy` / `teamId` 出现在 Locomotion 相位。  
 2. **差异在资产**：敌人独立 LocomotionProfile（Policy + AnimationProfile 含左右走）。  
 3. **单一升档入口**：`Policy.Evaluate`；迁完删除 State 硬编码 Sprint 分支。  
-4. **AI / 步态 / 表现正交**：BT 写输入 → Policy 定档 → Resolver 选片。  
-5. **锁步边界不变**：只经 `InputFrame`；不直驱 Animator 旁路。  
+4. **AI / 步态 / 表现正交**：BT 写移动命令（终态 `LocomotionDesire`）→ Policy 定档 → Resolver 选片。  
+5. **锁步边界不变**：敌人移动经逻辑帧命令槽；不直驱 Animator 旁路。玩家仍走 `InputFrame`。  
 6. **零长期兼容**：无 Legacy 升档路径；横步 Resolver 为唯一选片入口（默认实现可等价旧逻辑，但调用点不双轨）。  
 7. **终态含表现**：L-GP3 为方案必达阶段，不是「有美术再另开」的可选附录。
 
@@ -75,8 +78,8 @@ EnemyBrain → BT → MoveDesire / PulseAttack → InputFrame
 ```text
 Root (Selector)  —— 每帧重选，高优先在上
   ├─ Attack     条件：有目标 ∧ 仇恨 ∧ InAttackRange ∧ CdReady ∧ Locomotion
-  │               → StopMove → PulseAttack
-  ├─ Chase      条件：有目标 ∧ 仇恨 ∧ 距离 > 对峙外沿（TooFar）
+  │               → StopMove → RequestCombatAction(Entry)   // 终态；过渡期曾为 PulseAttack
+  ├─ Chase      条件：有目标 ∧ 仇恨 ∧ 距离 > 对峙外沿（TooFar；终态用滞回带）
   │               → MoveTowardTarget（chaseMoveMagnitude）
   ├─ Strafe     条件：有目标 ∧ 仇恨 ∧ 距离带内（对峙带）∧（可选 CD 未好）
   │               → StrafeAroundTarget(±side)（strafeMoveMagnitude，Walk 档）
@@ -146,10 +149,10 @@ AllowsPivot(gait) → bool
 
 | 层 | 职责 | 不负责 |
 |----|------|--------|
-| BT | 选 Attack/Chase/Strafe、写 MoveDesire/脉冲 | AnimationKey、Sprint |
-| BrainProfile | chase / strafe 幅度、距离参数 | 升档 |
+| BT | 选 Attack/Chase/Strafe；终态写 Desire/Request（过渡可写 MoveDesire/脉冲） | AnimationKey、Sprint |
+| 节点参数 / 树资产 | chase / strafe 幅度、距离（终态；见 8.10 E-CFG） | 升档 |
 | GaitPolicy | MaxGait、Sprint 计时、Pivot 许可 | 读仇恨 |
-| AnimResolver | gait+局部输入 → AnimationKey | 改 InputFrame |
+| AnimResolver | gait+局部输入 → AnimationKey | 改玩家 InputFrame / 旁路 Desire |
 
 ---
 

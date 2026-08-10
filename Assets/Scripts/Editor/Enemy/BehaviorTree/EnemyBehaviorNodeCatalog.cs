@@ -35,6 +35,7 @@ public static class EnemyBehaviorNodeCatalog
         new Entry(Group.Decorator, "Inverter", typeof(InverterNodeDef)),
         new Entry(Group.Decorator, "Succeeder", typeof(SucceederNodeDef)),
         new Entry(Group.Decorator, "CooldownGate", typeof(CooldownGateNodeDef)),
+        new Entry(Group.Decorator, "AggroGate", typeof(AggroGateNodeDef)),
         // Condition：运行时单子装饰；Graph 上叠到选中宿主顶部徽章
         new Entry(Group.Condition, "HasTarget", typeof(HasTargetConditionDef)),
         new Entry(Group.Condition, "InCombatAggro", typeof(InCombatAggroConditionDef)),
@@ -43,6 +44,7 @@ public static class EnemyBehaviorNodeCatalog
         new Entry(Group.Condition, "CooldownReady", typeof(CooldownReadyConditionDef)),
         new Entry(Group.Condition, "DistanceLessEqual", typeof(DistanceLessEqualConditionDef)),
         new Entry(Group.Condition, "DistanceGreater", typeof(DistanceGreaterConditionDef)),
+        new Entry(Group.Condition, "DistanceBand", typeof(DistanceBandConditionDef)),
         new Entry(Group.Task, "StopMove", typeof(StopMoveActionDef)),
         new Entry(Group.Task, "MoveTowardTarget", typeof(MoveTowardTargetActionDef)),
         new Entry(Group.Task, "BackOffFromTarget", typeof(BackOffFromTargetActionDef)),
@@ -78,9 +80,12 @@ public static class EnemyBehaviorNodeCatalog
     public static bool IsCondition(EnemyBehaviorNodeDef def) =>
         def is EnemyBehaviorConditionNodeDef;
 
-    /// <summary>结构装饰（Inverter / Succeeder / CooldownGate）。</summary>
+    /// <summary>结构装饰（Inverter / Succeeder / CooldownGate / AggroGate）。</summary>
     public static bool IsStructuralDecorator(EnemyBehaviorNodeDef def) =>
-        def is InverterNodeDef || def is SucceederNodeDef || def is CooldownGateNodeDef;
+        def is InverterNodeDef
+        || def is SucceederNodeDef
+        || def is CooldownGateNodeDef
+        || def is AggroGateNodeDef;
 
     /// <summary>单子装饰拓扑（结构装饰或条件装饰）。</summary>
     public static bool IsDecorator(EnemyBehaviorNodeDef def) =>
