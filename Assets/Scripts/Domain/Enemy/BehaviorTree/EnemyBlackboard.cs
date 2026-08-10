@@ -15,6 +15,9 @@ public sealed class EnemyBlackboard
     /// <summary>通用冷却表（Brain TickDown；条件/装饰只读或 Gate 写入）。</summary>
     public EnemyCooldownTable Cooldowns { get; } = new EnemyCooldownTable();
 
+    /// <summary>可注入 RNG（RandomSelector）；空则用节点共享回退。</summary>
+    public IEnemyBehaviorRandom Rng;
+
     /// <summary>是否有有效目标。</summary>
     public bool HasTarget;
 
@@ -42,8 +45,11 @@ public sealed class EnemyBlackboard
     /// <summary>本帧期望移动（局部前进轴惯例：y&gt;0 前进）。</summary>
     public Vector2 MoveDesire;
 
-    /// <summary>本帧是否请求攻击脉冲。</summary>
-    public bool AttackPulse;
+    /// <summary>本帧是否有 CombatRequest（显式 Entry）。</summary>
+    public bool HasCombatRequest;
+
+    /// <summary>CombatRequest 的 Graph Entry NodeId。</summary>
+    public string CombatRequestEntryId;
 
     /// <summary>本帧是否请求闪避脉冲。</summary>
     public bool DodgePulse;
@@ -64,7 +70,8 @@ public sealed class EnemyBlackboard
     public void ResetFrameOutputs()
     {
         MoveDesire = Vector2.zero;
-        AttackPulse = false;
+        HasCombatRequest = false;
+        CombatRequestEntryId = null;
         DodgePulse = false;
         HeavyAttackPulse = false;
         SkillPulse = false;

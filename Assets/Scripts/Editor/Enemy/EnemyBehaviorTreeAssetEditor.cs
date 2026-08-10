@@ -26,8 +26,9 @@ public sealed class EnemyBehaviorTreeAssetEditor : Editor
 
         EditorGUILayout.HelpBox(
             "运行真源 = customRoot（须手动配置）。\n" +
-            "画布坐标由 Graph 编辑器自动维护（Inspector 不展示）。\n" +
-            "菜单：ACT/Enemy/Behavior Tree Editor（空格创建节点）。",
+            "RequestCombatAction Entry 下拉的 ActionGraph 来自：\n" +
+            "EnemyDefinition → CharacterConfig → CombatProfile（Default 模式）。\n" +
+            "菜单：ACT/Enemy/Behavior Tree Editor。",
             MessageType.None);
     }
 
@@ -45,6 +46,7 @@ public sealed class EnemyBehaviorTreeAssetEditor : Editor
     {
         var asset = (EnemyBehaviorTreeAsset)target;
         EnemyBehaviorTreeValidationResult result = asset.ValidateAsset();
+        EnemyBehaviorTreeCombatEntryPicker.AppendEntryWarnings(asset, result);
         if (result.IsValid)
             Debug.Log(
                 $"[{asset.name}] Validate 通过（警告 {result.Warnings.Count}）。",

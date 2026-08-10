@@ -22,13 +22,8 @@ public static class EnemyActorFactory
             throw new InvalidOperationException(
                 "EnemyActorFactory: 全局 GameplayIntentProfile 未就绪。");
 
+        // 轻/闪避等仍可走 Writer；攻击起手经 CombatRequest，不再依赖 Attack Intent 映射
         var input = new AIInputWriter(intentProfile);
-        if (!input.CanPulseAttack)
-        {
-            Debug.LogWarning(
-                "EnemyActorFactory: 全局 GameplayIntentProfile 缺少 Always + Pressed → Attack 映射，敌人只能追击。",
-                owner);
-        }
 
         var facingProxyObject = new GameObject($"{definition.DisplayName}_FacingProxy");
         Transform facingProxy = facingProxyObject.transform;
@@ -74,8 +69,17 @@ public static class EnemyActorFactory
             behaviorRunner = treeAsset.CreateRunner(in buildContext);
         }
 
+        var combatRequests = new EnemyCombatRequestBuffer();
+        actor.BindCombatRequestBuffer(combatRequests);
+
         var brain = new EnemyBrain(
-            brainProfile, perception, input, facingProxy, behaviorRunner, pathQuery);
+            brainProfile,
+            perception,
+            input,
+            facingProxy,
+            behaviorRunner,
+            pathQuery,
+            combatRequests);
         var reactionService = new CharacterReactionService(
             actor.Vitality,
             actor,

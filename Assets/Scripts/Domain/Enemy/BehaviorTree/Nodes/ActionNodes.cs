@@ -145,15 +145,25 @@ public sealed class FaceTargetAction : IBehaviorNode
     }
 }
 
-/// <summary>行动：请求本帧攻击脉冲（由 Brain 提交到 AIInputWriter）。</summary>
-public sealed class PulseAttackAction : IBehaviorNode
+/// <summary>行动：请求按 Graph Entry NodeId 起手（Brain → CombatRequestBuffer → Driver）。</summary>
+public sealed class RequestCombatAction : IBehaviorNode
 {
+    readonly string _entryNodeId;
+
+    /// <summary>创建 Entry 起手请求；entryNodeId 不可空。</summary>
+    public RequestCombatAction(string entryNodeId)
+    {
+        _entryNodeId = entryNodeId ?? string.Empty;
+    }
+
     /// <inheritdoc />
     public BehaviorStatus Tick(EnemyBlackboard blackboard)
     {
-        if (blackboard == null)
+        if (blackboard == null || string.IsNullOrEmpty(_entryNodeId))
             return BehaviorStatus.Failure;
-        blackboard.AttackPulse = true;
+
+        blackboard.HasCombatRequest = true;
+        blackboard.CombatRequestEntryId = _entryNodeId;
         return BehaviorStatus.Success;
     }
 
@@ -218,7 +228,7 @@ public sealed class PulseSkillAction : IBehaviorNode
 }
 
 /// <summary>
-/// 行动：占用 BT 直至离开 Action（含 Pulse 当帧与 AttackConfirmPending）。
+/// 行动：占用 BT 直至离开 Action（含 CombatRequest 当帧与 AttackConfirmPending）。
 /// 等待期间清空 MoveDesire，避免对峙侧移污染攻击旋转。
 /// </summary>
 public sealed class WaitWhileInActionAction : IBehaviorNode
@@ -231,8 +241,8 @@ public sealed class WaitWhileInActionAction : IBehaviorNode
         if (blackboard == null)
             return BehaviorStatus.Failure;
 
-        // Pulse 当帧尚未进 Action：靠 AttackPulse / ConfirmPending 闩住
-        bool busy = blackboard.AttackPulse
+        // 起手当帧尚未进 Action：靠 CombatRequest / ConfirmPending 闩住
+        bool busy = blackboard.HasCombatRequest
             || blackboard.AttackConfirmPending
             || blackboard.CharacterState == CharacterStateType.Action;
 

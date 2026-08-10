@@ -108,7 +108,7 @@ CharacterActor.Step（玩家）
 | 项 | 定案 |
 |----|------|
 | 请求载荷 | `EnemyCombatRequest`：`HasRequest` + `GraphNodeId`（须为当前 `ActiveGraph` 的 Entry） |
-| BT Task | `RequestCombatAction`；常与 `Stop` + `WaitWhileInAction` 组 Sequence |
+| BT Task | `RequestCombatAction`；常与 `Stop` + `WaitWhileInAction` 组 Sequence；**编辑器** Entry 下拉的 Graph 只读反查：`EnemyDefinition → CombatProfile → Default ActionGraph`（BT 资产不另挂 Graph） |
 | 选招 | `RandomSelector`（权重）或单支固定 Entry |
 | 连段 | Entry 起手后走 Graph Cancel / AutomaticTransition |
 | 废弃 | `AttackPulse` → Intent `Attack`；Dodge/Skill 默认一并迁 Request（或同阶段清 Pulse） |
@@ -301,20 +301,21 @@ EnemyDefinition
 
 **任务**
 
-- [ ] `EnemyCombatRequest` + 黑板字段；帧初清空  
-- [ ] Task `RequestCombatAction`（Entry Id）  
-- [ ] Brain 提交到 `EnemyCombatRequestBuffer`  
-- [ ] `CharacterActionDriver`：有 Request 则 `TryStart` 指定 Entry（CostGate 同玩家）  
-- [ ] `WaitWhileInAction` 闩住 Request 当帧 / ConfirmPending  
-- [ ] EditMode：Request Entry_A ≠ Entry_B；HUD/快照可显示 Pending  
+- [x] `EnemyCombatRequest` + 黑板字段；帧初清空  
+- [x] Task `RequestCombatAction`（Entry Id）  
+- [x] Brain 提交到 `EnemyCombatRequestBuffer`  
+- [x] `CharacterActionDriver`：有 Request 则 `TryStart` 指定 Entry（CostGate 同玩家）  
+- [x] `WaitWhileInAction` 闩住 Request 当帧 / ConfirmPending  
+- [x] EditMode：Request Entry_A ≠ Entry_B；`DebugCombatRequestEntryId` 可显示 Pending  
 
 **验收**
 
-- [ ] 单测：指定 Entry 起手正确；Cost 失败不卡死  
-- [ ] 玩家 Intent 路径无回归  
-- [ ] Driver 无第三方 BT API  
+- [x] 单测：黑板/缓冲 Entry_A≠B；Wait 闩 Request；空 Entry 失败（不卡死）  
+- [x] 玩家 Intent 路径未改消费序（Request 仅敌人 Bind 后生效）  
+- [x] Driver 无第三方 BT API  
+- [ ] Play：树上 `RequestCombatAction` + 正确 Entry NodeId 可起招（人工）  
 
-**出口：** AI 可不经 Attack Intent 起指定招。→ **未达成**
+**出口：** 代码侧 2026-08-10；资产改 Request 后 Play 验收。
 
 ---
 
@@ -346,20 +347,20 @@ EnemyDefinition
 
 **任务**
 
-- [ ] `RandomSelector` + Def + 调色板；可注入 RNG  
-- [ ] `CreateCombatPool()` 样例  
-- [ ] **删除**敌人 `PulseAttack` / `AttackPulse` → Intent Attack 路径  
-- [ ] Factory Melee 树改为 Request + Wait  
-- [ ] 文档 / OPT B1/B3 croplink 本阶段  
+- [x] `RandomSelector` + Def + 调色板；可注入 RNG（构造 / 黑板 `Rng`）  
+- [x] `CreateCombatPool()` 样例（权重 3:2:1 → Request 叶）  
+- [x] **删除**敌人 `PulseAttack` / `AttackPulse` → Intent Attack 路径  
+- [x] Factory Melee 树改为 Request + Wait  
+- [x] 文档 / OPT B1/B3 croplink 本阶段  
 
 **验收**
 
-- [ ] `rg`：敌人战斗提交无 `AttackPulse` / `PulseAttack`  
-- [ ] 固定种子权重分布单测  
-- [ ] Play：同敌至少 2 种起手招  
-- [ ] Graph 连段边仍可用  
+- [x] `rg`：敌人战斗提交无 `AttackPulse` / `PulseAttack`（`AIInputWriter.PulseAttack` 仅测试/API 残留，Brain 不用）  
+- [x] 固定序列 / 播种权重分布单测  
+- [ ] Play：同敌至少 2 种起手招（资产改 RandomSelector+Entry 后人工）  
+- [ ] Graph 连段边仍可用（人工）  
 
-**出口：** 离散招式池可玩。→ **未达成**
+**出口：** 代码侧 2026-08-10；资产搭招式池后 Play 验收。
 
 ---
 
@@ -539,3 +540,4 @@ E-CFG1（参数上树）
 | 2026-08-10 | **终态修订**：移动亦脱离输入；新增 `LocomotionDesire` 与阶段 E-MOVE1/2；删除「移动仍走输入轨」过渡表述 |
 | 2026-08-10 | **E-CFG1 落地**：节点自带距离/幅度；`AggroGate`；薄 Profile；Factory/单测同步 |
 | 2026-08-10 | **E-ST1 落地**：`DistanceBandCondition` + `CreateMeleeStanceLoop`；滞回单测 |
+| 2026-08-10 | **E-REQ1 落地**：CombatRequest 缓冲 + RequestCombatAction + Driver.TryStartRequestedEntry |

@@ -59,7 +59,7 @@
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项：** 敌人 BT **E-REQ1**（CombatRequest 骨架）∥ 可选 **E-MOVE1**；资产把 Chase/Strafe 换成 `DistanceBand`  
+**下一项：** 敌人 BT **E-MOVE1**（LocomotionDesire）∥ 可选编辑器 OPT Phase A  
 → 结构真源：[`2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)  
 
 | # | 项 | 状态 |
@@ -72,7 +72,8 @@
 | A5 | AI 行为树 Phase-1（过渡：InputFrame） | ✅ Play 验收 2026-08-09 |
 | E-CFG1 | 配置归属到 BT 节点 | ✅ 代码 2026-08-10；资产人工补参 |
 | E-ST1 | 对峙/追击滞回 DistanceBand | ✅ 代码 2026-08-10；资产改 Band 后 Play |
-| E-REQ1 | CombatRequest 通道骨架 | ⬜ ← **当前** |
+| E-REQ1 | CombatRequest 通道骨架 | ✅ 代码 2026-08-10；资产填 Entry 后 Play |
+| E-REQ2 | 权重池 + 删除攻击 Pulse | ✅ 代码 2026-08-10；资产搭池后 Play |
 
 主排期：**Wave 4 位移 ✅ 已关闭**；Wave 5 仅可选玩法后置（失衡/命中盒烘焙）；相机 LockOn/SkillShot/Finisher 见 [`CAMERA_SYSTEM_PLAN.md`](./2026.8.6/CAMERA_SYSTEM_PLAN.md)。
 

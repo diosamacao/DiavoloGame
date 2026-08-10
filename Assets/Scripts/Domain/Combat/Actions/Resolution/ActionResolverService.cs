@@ -37,6 +37,22 @@ public sealed class ActionResolverService
         return graph.TryResolveStart(in request, in context, out result);
     }
 
+    /// <summary>按 Entry NodeId 起手解析（敌人 CombatRequest）；Origin 须为 LocomotionStart。</summary>
+    public bool TryResolveEntry(
+        string entryNodeId,
+        in ActionResolveContext context,
+        out ActionResolveResult result)
+    {
+        result = default;
+        ActionGraph graph = ActiveGraph;
+        if (graph == null || string.IsNullOrEmpty(entryNodeId))
+            return false;
+        if (context.Origin != ActionResolveOrigin.LocomotionStart)
+            return false;
+
+        return graph.TryResolveEntry(entryNodeId, in context, out result);
+    }
+
     /// <summary>Cancel 下一招：使用 CurrentNodeId + CancelWindowType 在 ActiveGraph 上解析。</summary>
     public bool TryResolveNext(
         in ActionRequest request,

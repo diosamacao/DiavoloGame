@@ -290,6 +290,15 @@ public static class EnemyBehaviorTreeGraphMapper
             return;
         }
 
+        if (node is RandomSelectorNodeDef random)
+        {
+            random.children = ToDefList(kids);
+            random.SyncWeightCount();
+            for (int i = 0; i < kids.Count; i++)
+                WireChildren(kids[i].node, kids[i].guid, byParent);
+            return;
+        }
+
         if (node is InverterNodeDef inverter)
         {
             inverter.child = kids.Count > 0 ? kids[0].node : null;
@@ -372,6 +381,9 @@ public static class EnemyBehaviorTreeGraphMapper
                 return true;
             case SequenceNodeDef sequence:
                 children = sequence.children ??= new List<EnemyBehaviorNodeDef>();
+                return true;
+            case RandomSelectorNodeDef random:
+                children = random.children ??= new List<EnemyBehaviorNodeDef>();
                 return true;
             default:
                 children = null;

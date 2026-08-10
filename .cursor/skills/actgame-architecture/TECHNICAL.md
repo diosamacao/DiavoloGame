@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-10（文档：敌人 AI 终态 Desire+Request；代码仍 AIInputWriter 过渡）
+> Last updated: 2026-08-10（E-REQ2：RandomSelector + 删攻击 Pulse；移动仍 AIInputWriter）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -639,8 +639,8 @@ SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSourc
 ### 功能说明
 
 敌人复用玩家的 CharacterActor、Locomotion、ActionGraph 与 Hitbox 管线。`EnemyBrain` 为门闩宿主，决策经 `IEnemyBehaviorRunner`；Hit/Death 不进树。  
-**现状（过渡）：** AI 经 `AIInputWriter` 写 `InputFrame`（多按钮脉冲、风筝 Task、冷却表）。  
-**终态（未落地）：** `LocomotionDesire` + `CombatRequest`，废除敌人假手柄；见 `docs/2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`。
+**现状（过渡）：** 出招走 `CombatRequest` → Driver `TryStartRequestedEntry`；移动仍经 `AIInputWriter.SetMove`；闪避/重击/技能脉冲仍可写 Writer。  
+**终态（未落地）：** `LocomotionDesire` + `CombatRequest`，废除敌人假手柄（E-MOVE）；见 `docs/2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`。
 
 ### 实现方案
 
@@ -652,8 +652,9 @@ SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSourc
 | 条件节点 | UE 风格**单子装饰**（`ConditionalDecoratorNode`）；失败 Abort Self（Reset 子树） |
 | Graph 数据 | `graphLayout` + `nodeGuid`；Mapper Flatten/Rebuild；Validator |
 | Graph 编辑器 | 宿主牌连线；Condition/Decorator **叠徽章**；Save 展开回装饰链；体验优化见 OPT Phase A |
-| AI 输出（现状） | Runner 写黑板 → Brain 帧末 `AIInputWriter.Pulse(Attack/Dodge/Heavy/Skill)` + SetMove |
-| AI 输出（终态） | `LocomotionDesire` + `CombatRequest(GraphNodeId)`；Driver `TryStart` 指定 Entry；删敌人 InputFrame 权威 |
+| AI 输出（现状） | Runner：`RequestCombatAction` / `RandomSelector` → Brain：`CombatRequestBuffer`；移动/非攻脉冲仍写 `AIInputWriter` |
+| AI 输出（终态） | `LocomotionDesire` + `CombatRequest`；删敌人假手柄（E-MOVE2） |
+| 招式池 | `RandomSelector`（权重；RNG 可注入/`blackboard.Rng`）；样例 `CreateCombatPool`；**无** `PulseAttack`/`AttackPulse` |
 | 冷却 | `EnemyCooldownTable`；`basic_attack` 由 Brain 起手确认写入；`CooldownGate` 可写其它 id |
 | 追击 / 对峙 | `MoveToward` / `Strafe` / `BackOff`；循环见 `LOCOMOTION_GAIT_POLICY_PLAN`；滞回见 8.10 E-ST |
 | 攻击占用 | `WaitWhileInAction`：起手后 Running 至离 Action，期间清 Move；**勿**被 IsLocomotion/CdReady 包在 Wait 外层 |
@@ -701,7 +702,7 @@ CombatHitPipeline（全体 Actor Step 后）
 ### 已知限制
 
 - **真敌**须挂已配置 `customRoot` 的 `EnemyBehaviorTree` SO；空根或未挂树在 Combat Actions 开启时会失败。
-- 仍走假手柄：离散多招 / Desire 命令轨尚未落地（8.10 E-REQ / E-MOVE）。
+- 离散出招（E-REQ2）已落地；移动仍走假手柄 SetMove（E-MOVE1/2 未落地）。
 - **E-CFG1：** 战斗距离/幅度在节点；旧树资产须人工补 `AggroGate` + 节点参数，否则仇恨/幅度可能用默认或不进仇。
 - 追击直线趋近（`StraightPathQuery`）；寻路见演进计划 E4。
 - 旧 Kind 预设资产若 `customRoot` 为空，须在 Graph 编辑器中重新搭树并 Save（无 Fill/默认种树）。
@@ -839,6 +840,9 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-10 | 文档：敌人 AI 输出槽终态改为 Desire+Request；OPT B1/B3 并入 8.10；代码仍为 AIInputWriter 过渡 |
 | 2026-08-10 | E-CFG1：BT 节点自带距离/幅度；AggroGate；薄 BrainProfile；删黑板 Profile 读参 |
 | 2026-08-10 | E-ST1：DistanceBand 滞回条件 + CreateMeleeStanceLoop 样例 |
+| 2026-08-10 | E-REQ1：EnemyCombatRequest + RequestCombatAction + Driver 按 Entry 起手 |
+| 2026-08-10 | E-REQ2：RandomSelector + CreateCombatPool；删除敌人 PulseAttack/AttackPulse 路径 |
+| 2026-08-10 | BT Editor：RequestCombatAction Entry 下拉；Graph 只读反查 EnemyDefinition→CombatProfile（删 EditorActionGraph / Action 反查） |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
 | 2026-08-09 | BT Graph：装饰/条件改为宿主顶部徽章（UE 表现）；运行真源仍为装饰链 |

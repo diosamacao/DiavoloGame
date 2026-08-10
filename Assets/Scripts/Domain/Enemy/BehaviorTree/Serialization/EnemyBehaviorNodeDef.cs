@@ -75,6 +75,41 @@ public sealed class SequenceNodeDef : EnemyBehaviorNodeDef
     }
 }
 
+/// <summary>RandomSelector 定义；weights 与 children 按下标对齐，缺省权重 1。</summary>
+[Serializable]
+public sealed class RandomSelectorNodeDef : EnemyBehaviorNodeDef
+{
+    [SerializeReference] public List<EnemyBehaviorNodeDef> children = new List<EnemyBehaviorNodeDef>();
+
+    [SerializeField] public List<float> weights = new List<float>();
+
+    /// <inheritdoc />
+    public override IBehaviorNode Build()
+    {
+        int count = children != null ? children.Count : 0;
+        var built = new IBehaviorNode[count];
+        var w = new float[count];
+        for (int i = 0; i < count; i++)
+        {
+            built[i] = children[i] != null ? children[i].Build() : new StopMoveAction();
+            w[i] = weights != null && i < weights.Count ? weights[i] : 1f;
+        }
+
+        return Wrap(new RandomSelectorNode(built, w));
+    }
+
+    /// <summary>保证 weights.Count ≥ children.Count（新增子缺省 1）。</summary>
+    public void SyncWeightCount()
+    {
+        weights ??= new List<float>();
+        int count = children != null ? children.Count : 0;
+        while (weights.Count < count)
+            weights.Add(1f);
+        while (weights.Count > count)
+            weights.RemoveAt(weights.Count - 1);
+    }
+}
+
 /// <summary>Inverter 定义。</summary>
 [Serializable]
 public sealed class InverterNodeDef : EnemyBehaviorNodeDef
@@ -408,12 +443,21 @@ public sealed class FaceTargetActionDef : EnemyBehaviorNodeDef
     public override IBehaviorNode Build() => Wrap(new FaceTargetAction());
 }
 
-/// <summary>PulseAttack 行动定义。</summary>
+/// <summary>RequestCombatAction 行动定义；Entry NodeId 须为 ActiveGraph Entry。</summary>
 [Serializable]
-public sealed class PulseAttackActionDef : EnemyBehaviorNodeDef
+public sealed class RequestCombatActionDef : EnemyBehaviorNodeDef
 {
+    [SerializeField] string entryNodeId = string.Empty;
+
+    /// <summary>ActionGraph Entry 的 NodeId。</summary>
+    public string EntryNodeId
+    {
+        get => entryNodeId;
+        set => entryNodeId = value ?? string.Empty;
+    }
+
     /// <inheritdoc />
-    public override IBehaviorNode Build() => Wrap(new PulseAttackAction());
+    public override IBehaviorNode Build() => Wrap(new RequestCombatAction(entryNodeId));
 }
 
 /// <summary>PulseDodge 行动定义。</summary>

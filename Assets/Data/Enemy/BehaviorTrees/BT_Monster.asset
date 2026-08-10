@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: BT_Monster
   m_EditorClassIdentifier: 
   customRoot:
-    rid: 1557465057478049794
+    rid: 1557465057809137674
   graphLayout:
     nodes:
     - nodeGuid: c1f959da116e4b0fafc3268d0cda91e4
@@ -23,13 +23,13 @@ MonoBehaviour:
       position: {x: -195.33333, y: 594}
       collapsed: 0
     - nodeGuid: 37fab6f63cbe4867bec848fbc01768da
-      position: {x: -408.6667, y: 769.3333}
+      position: {x: -436.66666, y: 768.6667}
       collapsed: 0
     - nodeGuid: 34cf6215f59f4b0cb152bb79daa55fa4
       position: {x: -504.66666, y: 996}
       collapsed: 0
-    - nodeGuid: 8668f532a48a40d7ad7054ee16fa55eb
-      position: {x: -280.66666, y: 996}
+    - nodeGuid: 5c6b9bfe86f24b1f928933d872da5fc5
+      position: {x: -229.33333, y: 985.3334}
       collapsed: 0
     - nodeGuid: f86f377b84bf49dfbf2cb84326929685
       position: {x: -110.66667, y: 816}
@@ -53,25 +53,7 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 1557465057478049792
-      type: {class: SelectorNodeDef, ns: , asm: Assembly-CSharp}
-      data:
-        nodeName: Root
-        nodeGuid: c1f959da116e4b0fafc3268d0cda91e4
-        children:
-        - rid: 1557465057809137664
-        - rid: 1557465057809137672
-        - rid: 1557465057809137669
-        - rid: 1557465057809137671
-    - rid: 1557465057478049793
-      type: {class: SequenceNodeDef, ns: , asm: Assembly-CSharp}
-      data:
-        nodeName: Sequence
-        nodeGuid: 37fab6f63cbe4867bec848fbc01768da
-        children:
-        - rid: 1557465057478049795
-        - rid: 1557465057478049796
-    - rid: 1557465057478049794
+    - rid: 1557465057809137674
       type: {class: AggroGateNodeDef, ns: , asm: Assembly-CSharp}
       data:
         nodeName: AggroGate
@@ -79,83 +61,92 @@ MonoBehaviour:
         enterRadius: 10
         exitRadius: 14
         child:
-          rid: 1557465057478049792
-    - rid: 1557465057478049795
-      type: {class: StopMoveActionDef, ns: , asm: Assembly-CSharp}
+          rid: 1557465057809137675
+    - rid: 1557465057809137675
+      type: {class: SelectorNodeDef, ns: , asm: Assembly-CSharp}
       data:
-        nodeName: StopMove
-        nodeGuid: 34cf6215f59f4b0cb152bb79daa55fa4
-    - rid: 1557465057478049796
-      type: {class: PulseAttackActionDef, ns: , asm: Assembly-CSharp}
-      data:
-        nodeName: PulseAttack
-        nodeGuid: 8668f532a48a40d7ad7054ee16fa55eb
-    - rid: 1557465057478049797
-      type: {class: SequenceNodeDef, ns: , asm: Assembly-CSharp}
-      data:
-        nodeName: Attack
-        nodeGuid: 4c6d871be3f6459495b688187416aaac
+        nodeName: Root
+        nodeGuid: c1f959da116e4b0fafc3268d0cda91e4
         children:
-        - rid: 1557465057809137666
-        - rid: 1557465057478049798
-    - rid: 1557465057478049798
-      type: {class: WaitWhileInActionActionDef, ns: , asm: Assembly-CSharp}
-      data:
-        nodeName: WaitWhileInAction
-        nodeGuid: f86f377b84bf49dfbf2cb84326929685
-    - rid: 1557465057478049800
-      type: {class: SequenceNodeDef, ns: , asm: Assembly-CSharp}
-      data:
-        nodeName: ChaseTarget
-        nodeGuid: ed7497c11fc442c8802e0976420c8163
-        children:
-        - rid: 1557465057478049810
-    - rid: 1557465057478049805
-      type: {class: IsCharacterStateConditionDef, ns: , asm: Assembly-CSharp}
-      data:
-        nodeName: IsCharacterState
-        nodeGuid: 5afe83302d2149e2b72bf059c9e978dc
-        child:
-          rid: 1557465057478049793
-        expected: 10
-    - rid: 1557465057478049808
-      type: {class: InCombatAggroConditionDef, ns: , asm: Assembly-CSharp}
-      data:
-        nodeName: InCombatAggro
-        nodeGuid: 15d39eee0c6e4fd1a17f6417d9f27c27
-        child:
-          rid: 1557465057478049800
-    - rid: 1557465057478049810
-      type: {class: MoveTowardTargetActionDef, ns: , asm: Assembly-CSharp}
-      data:
-        nodeName: MoveTowardTarget
-        nodeGuid: 13251d99483b47dfa4b03331e283278e
-        magnitude: 1
-        stopDistance: 2
-        faceTarget: 1
-    - rid: 1557465057478049812
-      type: {class: StrafeAroundTargetActionDef, ns: , asm: Assembly-CSharp}
-      data:
-        nodeName: StrafeAroundTarget
-        nodeGuid: ab0b61d9d79f4922b5845d0d64a85598
-        sideSign: 1
-        magnitude: 0.35
-    - rid: 1557465057809137664
+        - rid: 1557465057809137676
+        - rid: 1557465057809137677
+        - rid: 1557465057809137678
+        - rid: 1557465057809137679
+    - rid: 1557465057809137676
       type: {class: InAttackRangeConditionDef, ns: , asm: Assembly-CSharp}
       data:
         nodeName: InAttackRange
         nodeGuid: d71f13d0f54c40faa353b7771e13ed7c
         child:
-          rid: 1557465057809137665
+          rid: 1557465057809137680
         distance: 5
-    - rid: 1557465057809137665
+    - rid: 1557465057809137677
+      type: {class: DistanceBandConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: DistanceBand
+        nodeGuid: 76ae9505a45e4d769abc1293a04bed23
+        child:
+          rid: 1557465057809137681
+        mode: 0
+        enterDistance: 5.5
+        exitDistance: 4.5
+        minDwellFrames: 6
+    - rid: 1557465057809137678
+      type: {class: HasTargetConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: HasTarget
+        nodeGuid: 5e9d6dd68abd4c70800db8168f2e6fd7
+        child:
+          rid: 1557465057809137682
+    - rid: 1557465057809137679
+      type: {class: StopMoveActionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: Idle
+        nodeGuid: eb066ac4801b437c941f860e9c42e0e4
+    - rid: 1557465057809137680
       type: {class: HasTargetConditionDef, ns: , asm: Assembly-CSharp}
       data:
         nodeName: HasTarget
         nodeGuid: 27f4e71d14334cd1947b84adbb163903
         child:
-          rid: 1557465057478049797
-    - rid: 1557465057809137666
+          rid: 1557465057809137683
+    - rid: 1557465057809137681
+      type: {class: InCombatAggroConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: InCombatAggro
+        nodeGuid: 15d39eee0c6e4fd1a17f6417d9f27c27
+        child:
+          rid: 1557465057809137684
+    - rid: 1557465057809137682
+      type: {class: InCombatAggroConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: InCombatAggro
+        nodeGuid: 5a5d2768703b4c5d8dabea870b2c5619
+        child:
+          rid: 1557465057809137685
+    - rid: 1557465057809137683
+      type: {class: SequenceNodeDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: Attack
+        nodeGuid: 4c6d871be3f6459495b688187416aaac
+        children:
+        - rid: 1557465057809137686
+        - rid: 1557465057809137687
+    - rid: 1557465057809137684
+      type: {class: SequenceNodeDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: ChaseTarget
+        nodeGuid: ed7497c11fc442c8802e0976420c8163
+        children:
+        - rid: 1557465057809137688
+    - rid: 1557465057809137685
+      type: {class: SequenceNodeDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: Sequence
+        nodeGuid: 1694660ed9a14f15a288e96d18d43680
+        children:
+        - rid: 1557465057809137689
+    - rid: 1557465057809137686
       type: {class: CooldownGateNodeDef, ns: , asm: Assembly-CSharp}
       data:
         nodeName: CooldownGate
@@ -163,41 +154,51 @@ MonoBehaviour:
         cooldownId: basic_attack
         cooldownFrames: 360
         child:
-          rid: 1557465057478049805
-    - rid: 1557465057809137667
+          rid: 1557465057809137690
+    - rid: 1557465057809137687
+      type: {class: WaitWhileInActionActionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: WaitWhileInAction
+        nodeGuid: f86f377b84bf49dfbf2cb84326929685
+    - rid: 1557465057809137688
+      type: {class: MoveTowardTargetActionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: MoveTowardTarget
+        nodeGuid: 13251d99483b47dfa4b03331e283278e
+        magnitude: 1
+        stopDistance: 2
+        faceTarget: 1
+    - rid: 1557465057809137689
+      type: {class: StrafeAroundTargetActionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: StrafeAroundTarget
+        nodeGuid: ab0b61d9d79f4922b5845d0d64a85598
+        sideSign: 1
+        magnitude: 0.35
+    - rid: 1557465057809137690
+      type: {class: IsCharacterStateConditionDef, ns: , asm: Assembly-CSharp}
+      data:
+        nodeName: IsCharacterState
+        nodeGuid: 5afe83302d2149e2b72bf059c9e978dc
+        child:
+          rid: 1557465057809137691
+        expected: 10
+    - rid: 1557465057809137691
       type: {class: SequenceNodeDef, ns: , asm: Assembly-CSharp}
       data:
         nodeName: Sequence
-        nodeGuid: 1694660ed9a14f15a288e96d18d43680
+        nodeGuid: 37fab6f63cbe4867bec848fbc01768da
         children:
-        - rid: 1557465057478049812
-    - rid: 1557465057809137669
-      type: {class: HasTargetConditionDef, ns: , asm: Assembly-CSharp}
-      data:
-        nodeName: HasTarget
-        nodeGuid: 5e9d6dd68abd4c70800db8168f2e6fd7
-        child:
-          rid: 1557465057809137670
-    - rid: 1557465057809137670
-      type: {class: InCombatAggroConditionDef, ns: , asm: Assembly-CSharp}
-      data:
-        nodeName: InCombatAggro
-        nodeGuid: 5a5d2768703b4c5d8dabea870b2c5619
-        child:
-          rid: 1557465057809137667
-    - rid: 1557465057809137671
+        - rid: 1557465057809137692
+        - rid: 1557465057809137693
+    - rid: 1557465057809137692
       type: {class: StopMoveActionDef, ns: , asm: Assembly-CSharp}
       data:
-        nodeName: Idle
-        nodeGuid: eb066ac4801b437c941f860e9c42e0e4
-    - rid: 1557465057809137672
-      type: {class: DistanceBandConditionDef, ns: , asm: Assembly-CSharp}
+        nodeName: StopMove
+        nodeGuid: 34cf6215f59f4b0cb152bb79daa55fa4
+    - rid: 1557465057809137693
+      type: {class: RequestCombatActionDef, ns: , asm: Assembly-CSharp}
       data:
-        nodeName: DistanceBand
-        nodeGuid: 76ae9505a45e4d769abc1293a04bed23
-        child:
-          rid: 1557465057478049808
-        mode: 0
-        enterDistance: 5.5
-        exitDistance: 4.5
-        minDwellFrames: 6
+        nodeName: RequestCombat
+        nodeGuid: 5c6b9bfe86f24b1f928933d872da5fc5
+        entryNodeId: Monster_Goblin_Attack_01
