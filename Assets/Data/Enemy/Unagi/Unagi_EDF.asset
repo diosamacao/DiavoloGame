@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fdca7999a300ce0418a668f21a7d0bda, type: 3}
-  m_Name: EnemyDefinition
+  m_Name: Unagi_EDF
   m_EditorClassIdentifier: 
   displayName: Enemy
-  characterConfig: {fileID: 11400000, guid: a21dbce80e5086944bce3b6329980cf1, type: 2}
+  characterConfig: {fileID: 11400000, guid: 898161139843aad4bbf29be92ce5254c, type: 2}
   brainProfile: {fileID: 11400000, guid: 8b3d7a69f2a88e3429abf70eb021ac4e, type: 2}
-  behaviorTree: {fileID: 11400000, guid: 320541f449008d943be23d92bb3df89e, type: 2}
+  behaviorTree: {fileID: 11400000, guid: ebfa7e7deef6de8408f152c86e0f8d55, type: 2}
   maxHp: 10000
   teamId: 1
