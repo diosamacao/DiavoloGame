@@ -32,6 +32,10 @@ public class CharacterLocomotionProfile : ScriptableObject
     [SerializeField, Range(0f, 1f)] float startToGaitNormalized = 1f;
     [SerializeField] float interruptFadeDuration = 0.08f;
 
+    [Header("Sprint Lean (L-DIR4)")]
+    [Tooltip("疾跑转弯视觉倾身；敌人对峙建议 MaxLeanDeg=0。")]
+    [SerializeField] SprintLeanSettings sprintLean = new SprintLeanSettings();
+
     [Header("Foot Plants")]
     [SerializeField] FootPlantMarker[] walkFootPlants = Array.Empty<FootPlantMarker>();
     [SerializeField] FootPlantMarker[] runFootPlants = Array.Empty<FootPlantMarker>();
@@ -88,6 +92,9 @@ public class CharacterLocomotionProfile : ScriptableObject
     public float StartToGaitNormalized => startToGaitNormalized;
     public float InterruptFadeDuration => interruptFadeDuration;
     public float FootstepVolume => footstepVolume;
+
+    /// <summary>Sprint 倾身设置；空则回退默认（启用小倾角）。</summary>
+    public SprintLeanSettings SprintLean => sprintLean ??= new SprintLeanSettings();
 
     public FootPlantMarker[] WalkFootPlants => walkFootPlants ?? Array.Empty<FootPlantMarker>();
     public FootPlantMarker[] RunFootPlants => runFootPlants ?? Array.Empty<FootPlantMarker>();
@@ -192,7 +199,11 @@ public class CharacterLocomotionProfile : ScriptableObject
     }
 
 #if UNITY_EDITOR
-    void OnValidate() => gaitPolicy ??= new LocomotionGaitPolicy();
+    void OnValidate()
+    {
+        gaitPolicy ??= new LocomotionGaitPolicy();
+        sprintLean ??= new SprintLeanSettings();
+    }
 #endif
 }
 

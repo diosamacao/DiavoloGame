@@ -1,6 +1,6 @@
 using UnityEngine;
 
-/// <summary>起步相位：按步态与横向播 WalkStartLeft/Right/WalkStart/Start；播完进 Gait。</summary>
+/// <summary>起步相位：按步态与 Cardinal 播 WalkStartLeft/Right/WalkStart/Start；朝向经 FacingMode。</summary>
 public sealed class StartLocomotionState : LocomotionPhaseState
 {
     public override LocomotionPhase Id => LocomotionPhase.Start;

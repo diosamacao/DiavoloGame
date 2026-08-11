@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-11（对峙循环 CD 门控 + BT 节点时间改秒）
+> Last updated: 2026-08-11（L-DIR4 Sprint 倾身 + L-DIR5 相机跟朝向绕圈）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -26,7 +26,8 @@
 | 架构通信框架 | ✅ 已实现 | `ACTGameArchitecture`、`ArchitectureSystemBase`、`AppControllerBase`、Command / Query / Event | — |
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionStateMachine` + `LocomotionState` | AnimationProfile + `CharacterLocomotionProfile` |
 | Locomotion 起步/急停/转身 | 🟡 代码已接、资产待绑 | 内层 `LocomotionPhase` 纯状态机 | Start/Stop/Pivot Clip + 落脚标记 |
-| 第三人称相机 | ✅ 已实现 | `CameraManager` | 场景内 CameraManager 对象 |
+| Sprint 倾身 / 相机跟朝向 | 🟡 代码已接、待 Play | `SprintLeanModel` + `CameraManager` Follow Facing | `docs/2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md` L-DIR4/5 |
+| 第三人称相机 | ✅ 已实现（含 L-DIR5 跟朝向） | `CameraManager` | 场景内 CameraManager 对象 |
 | 动作系统（整数帧 / 选招 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ L1B 已实现（Play Mode 待回归） | `ActionSim` + `CharacterActionPresentationBridge` + `ActionFrameQuery` | 60Hz Action + `ActionGraph` |
 | Action Editor（时间轴编辑） | 🟡 骨架/部分 | `ActionEditorWindow` + `ActionTimeline` 手动加轨/窗口 | Menu：`ACT/Action Editor` |
 | 攻击 / 战斗判定 | ✅ L0C 延迟结算已实现 | `CombatHitPipeline` + `CombatDamageCalculator` + `CharacterReactionService` | SimHitKey；HitPayload；Hit/Death 状态 |
@@ -321,6 +322,7 @@ SimulationWorld.Step
 | 相位 State | `Idle/Start/Gait/PivotTurn/StopLocomotionState` |
 | 逻辑键 | Idle/Walk/WalkLeft/WalkRight/WalkStart/WalkStartLeft/WalkStartRight/Run/Sprint/Start/StartEnd/PivotTurn/StopL/StopR |
 | 移动朝向 | Profile.`GaitRotationMode`：`FollowInput`（玩家）/ `FaceCamera`（八向敌，锁假相机前向） |
+| FollowInput 位移 | 沿**当前朝向**；朝向以 `CharacterConfig.RotationSmoothTime` 追 wish（单参控制 W→WD 转向时长） |
 | 起步选片 | Walk 横向 → `WalkStartLeft/Right`（缺则 `WalkStart`→`Start`）；正向 `WalkStart`；Run → `Start` |
 | 映射 | `CharacterAnimationProfile` → `AnimationClip` |
 | 相位参数 | `CharacterLocomotionProfile`（阈值、落脚、GaitPolicy、脚步音） |
@@ -353,6 +355,10 @@ Dodge 恢复                            → Gait（PendingGait 经 MaxGait 钳�
 | `gaitPolicy.sprintAfterRunSeconds` | 3 | Run→Sprint 累计（真源在 Policy） |
 | `gaitInputGapGraceSeconds` | 0.15 | Gait 松手宽限 |
 | Motor `sprintSpeed` | 9 | 冲刺水平速度 |
+| `sprintLean.maxLeanDeg` | 8 | L-DIR4 Visual 倾身；FaceCamera 路径不启用 |
+| `sprintLean.leanEngageSmoothTime` | 0.22 | 切入满倾平滑（秒） |
+| `sprintLean.leanRecoverSmoothTime` | 0.28 | 回正到 0 平滑（秒） |
+| Camera `cameraFollowFacingSmoothTime` | 0.35 | L-DIR5 绕圈；越大弯越缓 |
 
 ### Profile 配置（Katana / 敌人）
 
@@ -386,7 +392,7 @@ Dodge 恢复                            → Gait（PendingGait 经 MaxGait 钳�
 
 ### 功能说明
 
-Cinemachine 第三人称跟随；鼠标控制 yaw/pitch；碰撞遮挡；启动时锁定光标。Orbit 锚点对 `CameraRoot` 做 SmoothDamp，减轻攻击多段位移时的镜头顿挫。
+Cinemachine 第三人称跟随；鼠标控制 yaw/pitch；碰撞遮挡；启动时锁定光标。Orbit 锚点对 `CameraRoot` 做 SmoothDamp。**L-DIR5**：移动中 Orbit yaw 插值跟随角色朝向，反哺 `SetCameraPlanarBasis` 以支持 WD/D 绕圈；Look 输入抢权暂停跟随；有 TargetLock 时关闭。
 
 ### 实现方案
 
@@ -411,14 +417,15 @@ CameraManager (场景对象)
 
 **跟随平滑**
 
-- `LateUpdate`：`orbitPivot` 对 `cameraRoot` 做 `SmoothDamp`（`followSmoothTime`）
+- `LateUpdate`：先 `ApplyFollowFacingYaw`（可选），再 `orbitPivot` 对 `cameraRoot` 做位置 `SmoothDamp`，再 `PushPlanarBasisToPlayer`
 - 首帧、`followSmoothTime <= 0`、或距离超过 `SnapDistance`(3) 时直接吸附
 - 对外提供 `SnapFollowToTarget()` 供传送等硬重置
 
-**输入**
+**输入 / 跟朝向**
 
 - `CameraManager` 引用玩家 `PlayerController`，通过 `PlayerController.LookInput` 获取非权威视角输入
-- Update 累加 yaw/pitch；LateUpdate 平滑同步 Pivot 变换
+- Update 累加 yaw/pitch；有 Look 时启动 `lookOverrideResumeDelay` 暂停跟朝向
+- 移动中且无抢权：`SmoothDampAngle(yaw → presentation/facing yaw)`；**禁止**写 Motor 朝向
 
 **初始化**
 
@@ -847,6 +854,8 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-10 | E-MOVE2：删除 AIInputWriter 与 PulseDodge/Heavy/Skill；ProduceInput=Empty |
 | 2026-08-11 | 命令源分层：LocomotionDesire / ActionEntryRequest 上提为通用契约；CharacterActor 删除 Enemy Buffer 与 InputManager 覆盖路径 |
 | 2026-08-11 | 对峙循环：CdReady Chase / CdNotReady Strafe；CooldownGate/Dwell/Wait 节点改秒制 |
+| 2026-08-11 | L-DIR4：`SprintLeanModel`→`VisualMotionRoot` Roll；L-DIR5：`CameraManager` yaw 跟朝向绕圈 |
+| 2026-08-11 | FollowInput：水平位移沿当前朝向；与 `RotationSmoothTime` 单参决定 W→WD 转向时长 |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
 | 2026-08-09 | BT Graph：装饰/条件改为宿主顶部徽章（UE 表现）；运行真源仍为装饰链 |

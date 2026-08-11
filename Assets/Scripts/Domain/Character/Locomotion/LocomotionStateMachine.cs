@@ -61,6 +61,7 @@ public sealed class LocomotionStateMachine
         Context.RootMotionPlayer.End();
         Context.FootCycle.Unfreeze();
         Context.FootCycle.SetMarkers(System.Array.Empty<FootPlantMarker>());
+        Context.SprintLean.Reset();
 
         bool canResume = resumeRequest.IsValid
             && (!resumeRequest.RequireMoveIntent || Context.Input.HasMoveIntent);
@@ -87,9 +88,10 @@ public sealed class LocomotionStateMachine
         Context.RunHoldSeconds = 0f;
         Context.GaitInputGapSeconds = 0f;
         Context.PivotMoveLatched = false;
+        Context.SprintLean.Reset();
     }
 
-    /// <summary>推进转换，再执行当前相位的位移/动画/脚步。</summary>
+    /// <summary>推进转换，再执行当前相位的位移/动画/脚步，并刷新 Sprint 倾身。</summary>
     public void Tick(float deltaTime)
     {
         Context.DeltaTime = Mathf.Max(0f, deltaTime);
@@ -97,6 +99,26 @@ public sealed class LocomotionStateMachine
         _machine.Tick(Context.DeltaTime);
         if (_phases.TryGetValue(_machine.CurrentStateId, out LocomotionPhaseState phase))
             phase.ExecuteFrame(Context.DeltaTime);
+        UpdateSprintLean(Context.DeltaTime);
+    }
+
+    /// <summary>
+    /// L-DIR4：仅 Gait+Sprint+FollowInput 时按 facing↔wish 产 lean；其余相位强制 0。
+    /// </summary>
+    void UpdateSprintLean(float deltaTime)
+    {
+        SprintLeanSettings settings = Context.Profile != null
+            ? Context.Profile.SprintLean
+            : null;
+
+        bool allowLean = Phase == LocomotionPhase.Gait
+            && Context.Gait == LocomotionGait.Sprint
+            && Context.ResolveGaitRotationMode() == LocomotionRotationMode.FollowInput
+            && Context.HasMeaningfulMove(Context.FrameSnapshot);
+
+        Vector3 facing = Context.Root.forward;
+        Vector3 wish = Context.FrameSnapshot.WorldMoveDirection;
+        Context.SprintLean.Tick(settings, facing, wish, allowLean, deltaTime);
     }
 
     /// <summary>供 Context / 各态请求相位切换。</summary>

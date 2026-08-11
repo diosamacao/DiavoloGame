@@ -110,6 +110,7 @@ public struct CharacterMotorConfig
     [SerializeField] float runSpeed;
     [SerializeField] float sprintSpeed;
     [SerializeField] float runThreshold;
+    [Tooltip("FollowInput 转向平滑时间（秒，越大越慢）。同时决定朝向追 wish 与水平位移沿朝向拐弯的时长；W→WD 只调这一项。")]
     [SerializeField] float rotationSmoothTime;
     [SerializeField] float gravity;
     [SerializeField] float groundedGravity;
@@ -128,7 +129,8 @@ public struct CharacterMotorConfig
         runSpeed = 7f,
         sprintSpeed = 9f,
         runThreshold = 0.6f,
-        rotationSmoothTime = 0.12f,
+        // 略加大：配合 L-DIR4 倾身窗口；已序列化资产仍用各自 Inspector 值
+        rotationSmoothTime = 0.2f,
         gravity = -20f,
         groundedGravity = -2f,
         controllerHeight = 1.7f,
@@ -150,7 +152,7 @@ public struct CharacterMotorConfig
     /// <summary>输入幅度超过该值视为跑（尚未满 Sprint 计时）。</summary>
     public float RunThreshold => runThreshold;
 
-    /// <summary>移动转向平滑时间。</summary>
+    /// <summary>FollowInput 转向/沿朝向位移共用的平滑时间（秒）。</summary>
     public float RotationSmoothTime => rotationSmoothTime;
 
     /// <summary>空中重力加速度（m/s²）；量化进 MotorSim，不再经 CC.Move。</summary>

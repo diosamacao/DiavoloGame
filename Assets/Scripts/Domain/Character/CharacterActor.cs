@@ -287,6 +287,7 @@ public sealed class CharacterActor :
         ClearControlledInput();
         // 受击打断时模型短时回锚（若动作 Stop 事件未到也兜底）
         _visualMotion?.EndAction(VisualResidualExitPolicy.BlendToZero);
+        _visualMotion?.SetLeanRollDegrees(0f);
         _stateMachine.EnterHit(in request);
     }
 
@@ -295,6 +296,7 @@ public sealed class CharacterActor :
     {
         ClearControlledInput();
         SnapVisualResidual();
+        _visualMotion?.SetLeanRollDegrees(0f);
         _stateMachine.EnterDeath(in request);
     }
 
@@ -337,6 +339,8 @@ public sealed class CharacterActor :
             _actionPresentation?.ApplyStep(fixedDeltaSeconds);
             _motor.TickGravity(fixedDeltaSeconds);
             _stateMachine.Tick(fixedDeltaSeconds);
+            // L-DIR4：倾身只写 VisualMotionRoot，不改 Motor/Sim 权威朝向
+            _visualMotion?.SetLeanRollDegrees(_stateMachine.SprintLeanRollDegrees);
             // Manual Playable：同帧末推进时间与 CrossFade。
             // 未烘焙招式仍可能由此 Evaluate 产生 Native RM delta；已烘焙招式 RM 在 ApplyStep 已关闭。
             _animation.Tick(fixedDeltaSeconds);

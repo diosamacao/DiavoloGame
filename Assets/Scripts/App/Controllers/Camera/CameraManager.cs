@@ -1,7 +1,9 @@
 using Cinemachine;
 using UnityEngine;
 
-/// <summary>场景相机控制器：创建第三人称虚拟相机并驱动 look 输入与平滑跟随锚点。</summary>
+/// <summary>
+/// 场景相机：第三人称 VCam、Look 输入、锚点平滑；L-DIR5 移动时 yaw 跟随角色朝向（不写 Motor）。
+/// </summary>
 public class CameraManager : AppControllerBase
 {
     const string CameraRootName = "CameraRoot";
@@ -35,6 +37,16 @@ public class CameraManager : AppControllerBase
     [Tooltip("Orbit 锚点追 CameraRoot 的 SmoothDamp 时间；越大越稳，攻击多段位移越不易抖。")]
     [SerializeField] float followSmoothTime = 0.1f;
 
+    [Header("Follow Facing (L-DIR5)")]
+    [Tooltip("移动时 Orbit yaw 插值跟随角色朝向，反哺镜头相对 wish 以绕圈。")]
+    [SerializeField] bool followFacingWhileMoving = true;
+    [Tooltip("相机 yaw 追角色朝向的 SmoothDamp 时间；须明显大于 0，避免贴死自旋。")]
+    [SerializeField, Min(0.01f)] float cameraFollowFacingSmoothTime = 0.35f;
+    [Tooltip("有 Look 输入后暂停跟随的恢复延迟（秒）。")]
+    [SerializeField, Min(0f)] float lookOverrideResumeDelay = 0.25f;
+    [Tooltip("判定 Look 抢权的输入死区。")]
+    [SerializeField, Min(0f)] float lookOverrideThreshold = 0.01f;
+
     [Header("Wave1 Lateral Follow")]
     [Tooltip("吸收 CameraRoot 相对 Follow 状态的左右分量；0=忽略左右（Wave1 止血），1=完整跟随。")]
     [Range(0f, 1f)]
@@ -59,6 +71,8 @@ public class CameraManager : AppControllerBase
     bool orbitPositionInitialized;
     Vector3 followAnchorPosition;
     CameraDebugAnchorVisualizer _debugAnchorVisualizer;
+    float _yawFollowVelocity;
+    float _lookOverrideRemaining;
 
     public Transform FollowTarget => cameraRoot != null ? cameraRoot : followTarget;
 
@@ -152,6 +166,8 @@ public class CameraManager : AppControllerBase
 
     void LateUpdate()
     {
+        // 先跟朝向改 yaw，再写 Orbit / PlanarBasis，供下一逻辑帧 wish 使用
+        ApplyFollowFacingYaw();
         SyncOrbitPivots();
         PushPlanarBasisToPlayer();
         SyncDebugAnchorVisualizer();
@@ -354,9 +370,58 @@ public class CameraManager : AppControllerBase
         Vector2 lookInput = playerController.LookInput;
         float verticalInput = invertY ? -lookInput.y : lookInput.y;
 
+        // Look 抢权：有视角输入时暂停自动跟朝向，松手后延迟恢复
+        if (Mathf.Abs(lookInput.x) > lookOverrideThreshold
+            || Mathf.Abs(lookInput.y) > lookOverrideThreshold)
+        {
+            _lookOverrideRemaining = lookOverrideResumeDelay;
+            _yawFollowVelocity = 0f;
+        }
+
         yaw += lookInput.x * horizontalSensitivity;
         pitch += verticalInput * verticalSensitivity;
         pitch = Mathf.Clamp(pitch, bottomClamp, topClamp);
+    }
+
+    /// <summary>
+    /// L-DIR5：有移动且无 Look 抢权时，Orbit yaw 平滑追角色移动朝向；只读 facing，不写 Motor。
+    /// </summary>
+    void ApplyFollowFacingYaw()
+    {
+        if (_lookOverrideRemaining > 0f)
+            _lookOverrideRemaining = Mathf.Max(0f, _lookOverrideRemaining - Time.deltaTime);
+
+        if (!followFacingWhileMoving || cameraFollowFacingSmoothTime <= 0f)
+            return;
+
+        if (_lookOverrideRemaining > 0f)
+            return;
+
+        if (playerController == null)
+            ResolvePlayerController();
+        if (playerController?.Input == null || !playerController.Input.HasMoveIntent)
+        {
+            _yawFollowVelocity = 0f;
+            return;
+        }
+
+        // 锁定索敌时不跟朝向，避免与 FaceTarget / 未来 LockOn 抢 yaw
+        if (playerController.Actor?.TargetLock != null
+            && playerController.Actor.TargetLock.HasValidLock)
+        {
+            _yawFollowVelocity = 0f;
+            return;
+        }
+
+        Transform facingSource = followTarget != null
+            ? followTarget
+            : playerController.transform;
+        float targetYaw = facingSource.eulerAngles.y;
+        yaw = Mathf.SmoothDampAngle(
+            yaw,
+            targetYaw,
+            ref _yawFollowVelocity,
+            cameraFollowFacingSmoothTime);
     }
 
     /// <summary>
