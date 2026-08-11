@@ -7,7 +7,8 @@
 > 相关：  
 > - 既有 Locomotion 相位：[`docs/LOCOMOTION_OPTIMIZATION_PLAN.md`](../LOCOMOTION_OPTIMIZATION_PLAN.md)  
 > - 敌人 AI 结构：[`../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`](../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)  
-> - BT 编辑器：[`ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md`](./ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)（仅 A）  
+> - BT 待优化：[`../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md`](../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md)  
+
 > - 装配链：`CombatMode → CharacterLocomotionProfile → LocomotionStateMachine`；AI 终态：`EnemyBrain → BT → LocomotionDesire`（现状过渡仍可经 InputFrame）
 
 ---
