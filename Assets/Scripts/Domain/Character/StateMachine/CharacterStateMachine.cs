@@ -10,6 +10,20 @@ public sealed class CharacterStateMachine : ICharacterStateMachine
 
     public CharacterStateType CurrentStateId => _machine.CurrentStateId;
 
+    /// <summary>
+    /// L-DIR4：仅顶层 Locomotion 时取内层 Sprint 倾身 Roll；其它状态为 0。
+    /// </summary>
+    public float SprintLeanRollDegrees
+    {
+        get
+        {
+            if (CurrentStateId != CharacterStateType.Locomotion)
+                return 0f;
+            LocomotionStateMachine locomotion = Context.LocomotionStateMachine;
+            return locomotion != null ? locomotion.Context.SprintLeanRollDegrees : 0f;
+        }
+    }
+
     /// <summary>创建角色状态机并注册 Locomotion、Action、Hit 与 Death 状态。</summary>
     public CharacterStateMachine(CharacterContext context)
     {

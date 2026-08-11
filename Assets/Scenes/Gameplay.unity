@@ -12033,15 +12033,19 @@ MonoBehaviour:
   playerTag: Player
   cameraRootHeight: 1.4
   playerController: {fileID: 0}
-  horizontalSensitivity: 0.15
-  verticalSensitivity: 0.15
+  horizontalSensitivity: 0.5
+  verticalSensitivity: 0.5
   invertY: 1
   topClamp: 70
   bottomClamp: -60
   lockCursorOnStart: 1
   followDistance: 4
   initialPitch: 15
-  followSmoothTime: 0.1
+  followSmoothTime: 0
+  followFacingWhileMoving: 1
+  cameraFollowFacingSmoothTime: 0.35
+  lookOverrideResumeDelay: 0.25
+  lookOverrideThreshold: 0.01
   lateralFollowFactor: 0.1
   drawCameraDebugGizmos: 1
   debugAnchorRadius: 0.07
@@ -12092,11 +12096,11 @@ MonoBehaviour:
   entries:
   - definition: {fileID: 11400000, guid: 02c902140ab62b5439f0f1793fd33acd, type: 2}
     spawnPoint: {fileID: 1883217394}
-    spawnOnStart: 0
+    spawnOnStart: 1
     maxAlive: 0
   - definition: {fileID: 11400000, guid: f05b160cf41d7814aab3d0e785bc670e, type: 2}
     spawnPoint: {fileID: 1883217394}
-    spawnOnStart: 1
+    spawnOnStart: 0
     maxAlive: 0
 --- !u!4 &2008984657
 Transform:

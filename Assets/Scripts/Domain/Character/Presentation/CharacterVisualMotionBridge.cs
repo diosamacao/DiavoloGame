@@ -16,9 +16,13 @@ public sealed class CharacterVisualMotionBridge
     float _blendElapsed;
     float _blendDuration = DefaultBlendSeconds;
     Vector3 _blendFromMeters;
+    float _leanRollDegrees;
 
     /// <summary>模型所在的视觉残差根。</summary>
     public Transform VisualRoot => _visualRoot;
+
+    /// <summary>当前视觉倾身 Roll（度）；仅改 VisualMotionRoot，不改权威根。</summary>
+    public float LeanRollDegrees => _leanRollDegrees;
 
     /// <summary>是否正在将残差 Blend 回原点（供调试/测试）。</summary>
     public bool IsBlendingOut => _blendingOut;
@@ -28,6 +32,19 @@ public sealed class CharacterVisualMotionBridge
     {
         _visualRoot = visualMotionRoot;
         SnapLocalZero();
+    }
+
+    /// <summary>
+    /// L-DIR4：写入视觉倾身 Roll。残差位移仍走 localPosition；与残差旋转互斥（残差不写旋转）。
+    /// </summary>
+    public void SetLeanRollDegrees(float rollDegrees)
+    {
+        _leanRollDegrees = rollDegrees;
+        if (_visualRoot == null || _blendingOut)
+            return;
+
+        // 逻辑步可立即贴倾身，避免等 Render 才看到
+        _visualRoot.localRotation = Quaternion.Euler(0f, 0f, _leanRollDegrees);
     }
 
     /// <summary>
@@ -116,13 +133,15 @@ public sealed class CharacterVisualMotionBridge
             float s = t * t * (3f - 2f * t);
             Vector3 local = Vector3.Lerp(_blendFromMeters, Vector3.zero, s);
             _visualRoot.localPosition = local;
-            _visualRoot.localRotation = Quaternion.identity;
+            // 回锚期间仍保留倾身，避免动作结束瞬间直立闪一下
+            _visualRoot.localRotation = Quaternion.Euler(0f, 0f, _leanRollDegrees);
             if (t >= 1f)
             {
                 // 前后快照一并清零，避免结束后又按 previous→current 插值把残差拽回来
                 CancelBlendOut();
                 SetResidualMetersBoth(Vector3.zero);
                 _visualRoot.localPosition = Vector3.zero;
+                _visualRoot.localRotation = Quaternion.Euler(0f, 0f, _leanRollDegrees);
             }
 
             return;
@@ -136,7 +155,7 @@ public sealed class CharacterVisualMotionBridge
 
         float alpha = Mathf.Clamp01(interpolationAlpha);
         _visualRoot.localPosition = Vector3.Lerp(_previousResidualMeters, _currentResidualMeters, alpha);
-        _visualRoot.localRotation = Quaternion.identity;
+        _visualRoot.localRotation = Quaternion.Euler(0f, 0f, _leanRollDegrees);
     }
 
     /// <summary>
@@ -149,7 +168,7 @@ public sealed class CharacterVisualMotionBridge
             return;
 
         _visualRoot.localPosition = _currentResidualMeters;
-        _visualRoot.localRotation = Quaternion.identity;
+        _visualRoot.localRotation = Quaternion.Euler(0f, 0f, _leanRollDegrees);
     }
 
     void SetResidualMeters(Vector3 meters)
@@ -184,6 +203,7 @@ public sealed class CharacterVisualMotionBridge
     {
         CancelBlendOut();
         SetResidualMetersBoth(Vector3.zero);
+        _leanRollDegrees = 0f;
         if (_visualRoot != null)
         {
             _visualRoot.localPosition = Vector3.zero;

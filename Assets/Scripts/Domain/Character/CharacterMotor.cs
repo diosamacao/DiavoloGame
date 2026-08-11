@@ -99,15 +99,21 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         _sim.SetFacingDegrees(_root.eulerAngles.y);
     }
 
-    /// <summary>按 Locomotion 内层状态命令执行水平位移与旋转（首版无加减速/转身专用位移）。</summary>
+    /// <summary>
+    /// 按 Locomotion 命令执行水平位移与旋转。
+    /// FollowInput：朝向以 RotationSmoothTime 追 wish，位移沿更新后的朝向——只调一个平滑时间即可拉长 W→WD 转向。
+    /// FaceCamera 等仍位移沿 wish（对峙 strafing）。
+    /// </summary>
     public void ApplyLocomotion(in LocomotionMotorCommand command, float deltaTime)
     {
         Vector2 moveIntent = _moveIntent.MoveIntent;
-        Vector3 moveDirection = ResolveWorldMoveDirection(moveIntent);
+        Vector3 wishDirection = ResolveWorldMoveDirection(moveIntent);
         _moveInputMagnitude = _moveIntent.MoveMagnitude;
 
-        ApplyRotation(command, moveDirection, deltaTime);
+        // 先转朝向，再取 forward 作为 FollowInput 位移，使同帧平滑生效
+        ApplyRotation(command, wishDirection, deltaTime);
 
+        Vector3 moveDirection = ResolveLocomotionMoveDirection(command.RotationMode, wishDirection);
         if (!command.ApplyHorizontalMove || moveDirection.sqrMagnitude <= 0.001f)
         {
             // 本帧快照已在 Apply 前采样上一帧速度；此处清零供后续帧使用。
@@ -120,6 +126,24 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         _planarSpeedEstimate = planarSpeed;
         Vector3 worldDelta = moveDirection * (planarSpeed * deltaTime);
         MovePlanar(worldDelta, deltaTime);
+    }
+
+    /// <summary>
+    /// FollowInput 位移锁当前朝向（与转向共用 RotationSmoothTime）；其余模式位移锁 wish。
+    /// </summary>
+    Vector3 ResolveLocomotionMoveDirection(LocomotionRotationMode rotationMode, Vector3 wishDirection)
+    {
+        if (wishDirection.sqrMagnitude <= 0.001f)
+            return Vector3.zero;
+
+        if (rotationMode != LocomotionRotationMode.FollowInput)
+            return wishDirection;
+
+        Vector3 facing = _root.forward;
+        facing.y = 0f;
+        if (facing.sqrMagnitude < 0.0001f)
+            return wishDirection;
+        return facing.normalized;
     }
 
     float ResolveSpeed(LocomotionGait gait)

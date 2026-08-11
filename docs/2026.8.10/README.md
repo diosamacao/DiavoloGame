@@ -3,7 +3,7 @@
 | 文档 | 角色 | 状态 |
 |------|------|------|
 | [ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md](./ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md) | 敌人 AI **结构真源**：离散出招 / LocomotionDesire / 滞回 / 配置归属 | ✅ 总出口关闭（2026-08-11） |
-| [LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md](./LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md) | 定向步态 AnimSet | 见文内阶段 |
+| [LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md](./LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md) | Locomotion 真源：AnimSet / 倾身 L-DIR4 / **相机跟朝向绕圈 L-DIR5**（§1.4） | ⬜ L-DIR1～5 待开工 |
 
 排期真源仍为 [../2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](../2026.8.6/MASTER_IMPLEMENTATION_PLAN.md)。  
 BT **待优化**（编辑器 A2～A5 / 可选运行时 C）见 [../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md](../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md)。  

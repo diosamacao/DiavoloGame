@@ -40,7 +40,7 @@
 | 核心框架 / 架构 IOC | ✅ | `ACTGameArchitecture`、Command/Query/Event |
 | 60Hz SimulationHost | ✅ | L0A～L1B 代码；Play 回归仍待 |
 | 输入 → GameplayIntent | ✅ | 量化 `InputFrame` + Intent Profile |
-| Locomotion | 🟡 | 相位机已接；Phase D 减速/Pivot 位移未做 |
+| Locomotion | 🟡 | 相位机已接；下一阶段见 [`2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md`](./2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md)（含 Sprint 倾身 L-DIR4）；Phase D 减速等另册 |
 | ActionSim + Graph + Timeline | ✅ | 整数帧权威；Editor 基础可用 |
 | 位移权威 / VisualResidual | ✅ | Wave 0～2.5（含删 RM/Legacy/ForwardOnly） |
 | 战斗判定 / Reaction | ✅ | Pipeline 帧末结算；资产受击/死亡待齐 |
@@ -60,9 +60,10 @@
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项：** BT 编辑器 **BT-A3 Play 黑板快照**（或可选 Lock-On / WalkL-R）
-→ 待优化真源 [`2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md`](./2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md)  
-→ 对峙表现已验收（拓扑见 [`2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md`](./2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md) §3.1）  
+**下一项：** Play 验收 **L-DIR5 绕圈** + **L-DIR4 Sprint 倾身**（或可选 Lock-On）  
+→ [`2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md`](./2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md)  
+→ BT 待优化见 [`2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md`](./2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md)  
+
 
 
 

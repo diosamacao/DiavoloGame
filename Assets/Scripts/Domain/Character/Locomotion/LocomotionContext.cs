@@ -29,6 +29,7 @@ public sealed class LocomotionContext
         FootstepPlayer = footstepPlayer;
         RootMotionPlayer = rootMotionPlayer;
         AnimResolver = animResolver ?? new DefaultLocomotionAnimResolver();
+        SprintLean = new SprintLeanModel();
     }
 
     public Transform Root { get; }
@@ -43,6 +44,15 @@ public sealed class LocomotionContext
 
     /// <summary>步态+局部输入 → AnimationKey。</summary>
     public ILocomotionAnimResolver AnimResolver { get; }
+
+    /// <summary>L-DIR4 Sprint 倾身状态；Visual 只读 Roll。</summary>
+    public SprintLeanModel SprintLean { get; }
+
+    /// <summary>当前视觉倾身 Roll（度）；权威根不受影响。</summary>
+    public float SprintLeanRollDegrees =>
+        SprintLeanModel.ToRollDegrees(
+            SprintLean.Lean01,
+            Profile != null ? Profile.SprintLean : null);
 
     /// <summary>当前稳态步态（Gait 相位内可变）。</summary>
     public LocomotionGait Gait { get; set; } = LocomotionGait.Walk;

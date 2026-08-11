@@ -20,7 +20,7 @@ MonoBehaviour:
     runSpeed: 7
     sprintSpeed: 9
     runThreshold: 0.6
-    rotationSmoothTime: 0.12
+    rotationSmoothTime: 2
     gravity: -20
     groundedGravity: -2
     controllerHeight: 1.7

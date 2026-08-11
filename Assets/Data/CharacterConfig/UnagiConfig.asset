@@ -15,21 +15,19 @@ MonoBehaviour:
   modelPrefab: {fileID: 5361816246272938306, guid: f8ed252aedf246b4fb68766bac974942, type: 3}
   modelLocalPosition: {x: 0, y: 0, z: 0}
   modelLocalEulerAngles: {x: 0, y: 0, z: 0}
-  defaultLocomotionProfile: {fileID: 11400000, guid: 5c1b5a8bfed658e4ba2834fc0c7814b4, type: 2}
-  locomotionProfile: {fileID: 11400000, guid: 4fabcefb4e3a82a40b0b5b23dc253981, type: 2}
-  inputActions: {fileID: -944628639613478452, guid: f1e2d3c4b5a6970812345678abcdef01, type: 3}
-  gameplayIntentProfile: {fileID: 11400000, guid: d78d19ca2af65a14a9606513161fb045, type: 2}
   motor:
     walkSpeed: 4
     runSpeed: 7
     sprintSpeed: 9
     runThreshold: 0.6
-    rotationSmoothTime: 0.12
+    rotationSmoothTime: 0.3
     gravity: -20
     groundedGravity: -2
     controllerHeight: 1.7
     controllerRadius: 0.28
     controllerCenter: {x: 0, y: 0.85, z: 0}
+    softBodyMass: 100
+    softBodyImmovable: 0
   combatProfile: {fileID: 11400000, guid: ed6f882222ffc584bbda9d5d9e124bae, type: 2}
   combat:
     teamId: 0
@@ -41,9 +39,16 @@ MonoBehaviour:
       size: {x: 0.8, y: 1.8, z: 0.8}
     maxHealth: 10000000
     reactions:
-      defaultHitStunSeconds: 0.05
+      defaultHitStunFrames: 21
       rules:
       - reactionType: 0
         reactionId: 
         defaultRule: 1
         action: {fileID: 11400000, guid: 6a3af5227e89b3f46876462f3c5131d4, type: 2}
+  resources:
+    maxEnergy: 120
+    energyRegenMilliPerFrame: 200
+    maxDecibel: 3000
+    maxDodgeCharges: 2
+    dodgeRechargeFrames: 60
+    combatHoldFrames: 180

@@ -8,7 +8,8 @@
 > 相关文档：[CHARACTER_MOVEMENT_ANCHOR_OPTIMIZATION_PLAN.md](./CHARACTER_MOVEMENT_ANCHOR_OPTIMIZATION_PLAN.md)、[ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](../ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)、[ENEMY_SYSTEM_INTEGRATION_PLAN.md](../ENEMY_SYSTEM_INTEGRATION_PLAN.md)、[SKILL_AND_RESOURCE_SYSTEM_PLAN.md](./SKILL_AND_RESOURCE_SYSTEM_PLAN.md)  
 > 修订：2026-08-05 — 补强 §5.5 技能演出镜头  
 > 修订：2026-08-06 — 对齐 VisualMotionRoot 层级；滤左右定位为 Wave 1 临时止血  
-> 修订：2026-08-09 — **LockOn / Predict / SkillShot / Finisher 排期全部由本文自管**：不再挂 MASTER Wave 4/5；C1～C4 按本篇 Phase 独立推进
+> 修订：2026-08-09 — **LockOn / Predict / SkillShot / Finisher 排期全部由本文自管**：不再挂 MASTER Wave 4/5；C1～C4 按本篇 Phase 独立推进  
+> 修订：2026-08-11 — 铁律 #6：自由移动 Orbit yaw 可跟随角色朝向（交叉 Locomotion L-DIR5）；禁止反写 Motor
 
 ---
 
@@ -137,7 +138,8 @@ LockGroup（CinemachineTargetGroup，锁定时）
 2. **Motor 相机相对移动**改为读 `CameraDirector.PlanarForward`（Orbit Yaw 投影），不读挤墙后的 `Camera.main.forward`。  
 3. Look、FOV、Impulse、Blend **可抖、可丢**；不进 `InputFrame` / Sim Hash。  
 4. 锁定**目标选择**以 `CombatTargetLock` 为唯一真源；相机不得维护第二套「当前敌人」。  
-5. 不在逻辑 `Step` 内驱动相机；仅 `LateUpdate`（且晚于 `World.Render`）。
+5. 不在逻辑 `Step` 内驱动相机；仅 `LateUpdate`（且晚于 `World.Render`）。  
+6. **Orbit yaw 可只读跟随角色移动朝向**（自由移动绕圈，见 [`../2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md`](../2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md) **L-DIR5**）：相机平滑改自己的 yaw 并继续发布 PlanarBasis；**禁止**反写 Motor/Sim 朝向；Look 输入优先于自动跟随；LockOn/FaceTarget 下关闭。
 
 ---
 

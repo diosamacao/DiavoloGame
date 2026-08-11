@@ -17,11 +17,19 @@ MonoBehaviour:
   stopMinSpeedFactor: 0.5
   pivotAngleDegrees: 135
   pivotInputUnlockSeconds: 0.08
-  pivotRotationSmoothTime: 0.5
-  sprintAfterRunSeconds: 3
+  pivotRotationSmoothTime: 1
   gaitInputGapGraceSeconds: 0.15
+  gaitPolicy:
+    maxGait: 2
+    allowPivot: 1
+    sprintAfterRunSeconds: 3
+  gaitRotationMode: 1
   startToGaitNormalized: 1
   interruptFadeDuration: 0.08
+  sprintLean:
+    maxLeanDeg: 15
+    deadZoneDeg: 15
+    maxEngageYawDeg: 30
   walkFootPlants: []
   runFootPlants: []
   sprintFootPlants: []
