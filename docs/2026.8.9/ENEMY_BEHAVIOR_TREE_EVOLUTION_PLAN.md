@@ -290,5 +290,5 @@ Assets/Scripts/Editor/Enemy/BehaviorTree/
 | 主题 | 真源 |
 |------|------|
 | 结构（离散出招 / Desire / 滞回 / 配置） | [**ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md**](../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md) |
-| 编辑器体验（A3 等） | [ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md](./ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)（**仅 Phase A**） |
+| 编辑器 / 可选扩展待办 | [../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md](../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md) |
 | 寻路 | 原 **E4**，可与上两项并行 |

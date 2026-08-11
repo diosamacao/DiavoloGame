@@ -6,7 +6,8 @@
 > 相关：  
 > - 契约锁：[`../ENEMY_BEHAVIOR_TREE_PLAN.md`](../ENEMY_BEHAVIOR_TREE_PLAN.md) §3.4（`IEnemyBehaviorRunner` / 输出槽；**目标** = Desire + Request）  
 > - 演进已关：[../2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md](../2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md)（E1～E3）  
-> - 编辑器续篇：[../2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md](../2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)（**仅 Phase A**；B1/B3 并入本文 E-REQ，禁止再落地 Pulse CombatPool）  
+> - 编辑器 / 可选扩展待办：[../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md](../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md)（A2～A5 / C1～C4；历史 A1 见 8.9 OPT）  
+
 > - 对峙循环：[../2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md](../2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md)  
 > - 格式 skill：`.cursor/skills/actgame-design-plan`  
 > 装配链：`EnemyDefinition → BehaviorTree → Runner → Blackboard → Brain 提交 Desire/Request → CharacterActor`

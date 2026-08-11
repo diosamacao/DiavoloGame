@@ -236,7 +236,7 @@ MonoBehaviour:
       policy: 0
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
-    editorPosition: {x: 380.66666, y: -266.6667}
+    editorPosition: {x: -16.666666, y: -134}
   - nodeId: Unagi_ChargeAttack_01
     action: {fileID: 11400000, guid: 7d8cee984a26d1b488757963d558c447, type: 2}
     intent: 5

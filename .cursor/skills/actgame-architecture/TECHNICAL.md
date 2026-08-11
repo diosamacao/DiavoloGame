@@ -30,7 +30,7 @@
 | 动作系统（整数帧 / 选招 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ L1B 已实现（Play Mode 待回归） | `ActionSim` + `CharacterActionPresentationBridge` + `ActionFrameQuery` | 60Hz Action + `ActionGraph` |
 | Action Editor（时间轴编辑） | 🟡 骨架/部分 | `ActionEditorWindow` + `ActionTimeline` 手动加轨/窗口 | Menu：`ACT/Action Editor` |
 | 攻击 / 战斗判定 | ✅ L0C 延迟结算已实现 | `CombatHitPipeline` + `CombatDamageCalculator` + `CharacterReactionService` | SimHitKey；HitPayload；Hit/Death 状态 |
-| 敌人 AI / 行为树 | ✅ 8.10 + 对峙 CD 循环 | Runner + GraphEditor；Desire/Request；节点时间填秒 | `docs/2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md` |
+| 敌人 AI / 行为树 | ✅ 8.10 + 对峙已验收 | Runner + GraphEditor；Desire/Request；节点时间填秒 | 待优化：`docs/2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md` |
 | UI | ⬜ 未实现 | — | `UI/` 占位 |
 
 状态图例：✅ 可玩可用 · 🟡 有类/占位但未接完 · ⬜ 未开始
@@ -651,7 +651,7 @@ SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSourc
 | 行为树资产 | 仅 `customRoot`（SerializeReference）+ `graphLayout`；无 Kind/代码预设种树 |
 | 条件节点 | UE 风格**单子装饰**（`ConditionalDecoratorNode`）；失败 Abort Self（Reset 子树） |
 | Graph 数据 | `graphLayout` + `nodeGuid`；Mapper Flatten/Rebuild；Validator |
-| Graph 编辑器 | 宿主牌连线；Condition/Decorator **叠徽章**；Save 展开回装饰链；体验优化见 OPT Phase A |
+| Graph 编辑器 | 宿主牌连线；Condition/Decorator **叠徽章**；Save 展开回装饰链；A1 已落地；待优化见 `docs/2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md` |
 | AI 输出 | Runner → Brain：`LocomotionDesireBuffer` + `ActionEntryRequestBuffer`；无 `AIInputWriter` |
 | 分层边界 | Character / Combat 仅依赖 `IMoveIntentSource` / `IActionEntryRequestSource`；EnemyActorFactory 构造注入，Actor 无 Enemy Bind/分支 |
 | 招式池 | `RandomSelector`（权重；RNG 可注入/`blackboard.Rng`）；样例 `CreateCombatPool`；**无** `PulseAttack`/`AttackPulse` |

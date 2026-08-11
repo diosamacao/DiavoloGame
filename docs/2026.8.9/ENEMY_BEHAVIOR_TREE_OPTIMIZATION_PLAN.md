@@ -2,7 +2,9 @@
 
 > 制定：2026-08-09  
 > 修订：2026-08-10 — **降级角色**：本文仅保留 **Phase A 编辑器体验**；招式池 / 命令轨 / 滞回 / 配置归属以 [ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md](../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md) 为准  
-> 角色：**GraphView 编辑器体验真源**（不再充当 AI 结构下一阶段真源）  
+> 修订：2026-08-11 — **再降级为历史记录**：未完成的 A2～A5 / Phase C 已迁至 [../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md](../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md)；本文仅保留 A1 完成记录与 JL/BD 对照  
+> 角色：**历史对照**（编辑器待办真源见 2026.8.11 Backlog）  
+
 > 参考项目（只读对照，**不引入为运行时依赖**）：  
 > - `D:\Projects\jlbehavior-tree`（JLBehaviourTree：自制 GraphView）  
 > - `D:\Projects\BehaviorTreeDemoReaper`（Behavior Designer 1.6.6 + Reaper Boss）  
@@ -107,12 +109,9 @@ SimulationWorld.ProduceInput
 | # | 交付 | 验收 |
 |---|------|------|
 | A1 | **BD 风格**：深色网格 + 类别色标题条 + 左 Tasks 图例 + Properties；Running 绿框（`LastDebugPath`） | ✅ 2026-08-09 自研近似，不复制 BD 资产 |
-| A2 | 窗口布局：左（或更宽右）Inspector 常驻；工具栏分区（文件 / 排版 / 模板） | 与 Action Graph 窗口操作习惯接近 |
-| A3 | Play 模式只读「黑板快照」面板：距离、仇恨、CD、Desire/Request（迁前可先显示 MoveDesire/脉冲） | 无需开 Console |
-| A4 | Undo：创建/删节点/连线尽量 `RegisterCompleteObjectUndo`；文档标明边界 | Ctrl+Z 覆盖常见编辑 |
-| A5 | 根节点视觉标记 + Validate 文案；便签 StickyNote 可在图画（可选） | 单根规则仍强制 Save |
+| A2～A5 | **已迁出** → [`../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md`](../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md) BT-A2～A5 | 见新文档 |
 
-**出口：** 策划/自己不靠猜色也能读树；调试不必只看 Gizmo 字串。
+**出口（本文）：** A1 已达成。后续编辑器出口以 8.11 Backlog 为准。
 
 ---
 
@@ -130,14 +129,9 @@ SimulationWorld.ProduceInput
 
 ---
 
-### Phase BT-C — 运行时扩展（按需；不阻塞 8.10）
+### Phase BT-C — 运行时扩展（**已迁出**）
 
-| # | 交付 | 说明 |
-|---|------|------|
-| C1 | 可配置只读黑板键（float/bool 表） | 输出槽仍收敛；避免 SharedVariable 全家桶 |
-| C2 | Subtree：引用另一 `EnemyBehaviorTreeAsset` 根 | Save 时展开或运行时挂载二选一（定案时写清） |
-| C3 | Abort LowerPriority（Selector 内） | 依赖已完成的 Abort Self；单测覆盖打断序 |
-| C4 | 与 E4 寻路汇合 | `MoveAlongPath` 只写方向欲望（终态进 Desire） |
+全部迁至 [`../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md`](../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md) **BT-C1～C4**。本文不再更新勾选。
 
 ---
 
@@ -155,16 +149,12 @@ SimulationWorld.ProduceInput
 
 ## 5. 推荐开工顺序
 
+结构主线与对峙表现已关闭。后续见：
+
 ```text
-结构主线（真源 8.10）：
-  E-CFG1 → E-ST1 → E-REQ1 ∥ E-MOVE1 → E-REQ2 → E-MOVE2 → E-REQ3
-
-编辑器（本文，可并行）：
-  A3 黑板监视 → A2/A4 布局与 Undo → A5 可选
+→ docs/2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md
+   BT-A3 → A2/A4 → A5 →（按需）C1～C4
 ```
-
-**最小可感（编辑器）：** A3。  
-**最小可感（玩法结构）：** 见 8.10「E-CFG1 + E-ST1」。
 
 ---
 
@@ -197,10 +187,10 @@ RandomSelector / Request 节点目录增量见 **8.10 §7**。
 ## 8. 成功标准（本文范围）
 
 - [x] Graph 类别一眼可辨；Play 能看见活跃支（A1）  
-- [ ] Play 能看见关键黑板字段，无需扒日志（A3）  
 - [x] Abort Self 已有运行语义（条件装饰）  
 - [x] 仍无第三方 BT 运行时；Brain 无具体节点类型  
-- [ ] 招式池 / 命令轨 — **改由 8.10 成功标准验收**，不在本文勾选  
+- [x] A2～A5 / C\* 待办已迁至 8.11 Backlog（2026-08-11）  
+- [x] 招式池 / 命令轨 — 由 8.10 总出口关闭  
 
 ---
 
@@ -213,11 +203,10 @@ RandomSelector / Request 节点目录增量见 **8.10 §7**。
 | 2026-08-09 | Parallel 继续不做；Abort 做 Self 子集 | 先补打断刚需 |
 | 2026-08-09 | 编辑器视觉对齐 BD，不引入 BD 包 | 学样式不学运行时 |
 | 2026-08-10 | 本文降级为编辑器真源；B1/B3 → 8.10 E-REQ | 离散出招 + 废除假手柄 |
+| 2026-08-11 | A2～A5 / C 迁至 8.11 Backlog；本文仅 A1 历史 | 对峙表现已验收，待办另册 |
 
 ---
 
 ## 10. 下一步（待开工）
 
-**结构主线**以 [ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md](../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md) 为准（建议 **E-CFG1**）。  
-
-**本文可选下一刀：** **A3 黑板监视**（显示字段需预留 Desire/Request，迁前可先 MoveDesire/脉冲）。
+**待优化真源：** [../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md](../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md)（建议 **BT-A3 黑板监视**）。
