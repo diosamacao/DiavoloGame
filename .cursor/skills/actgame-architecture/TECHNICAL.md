@@ -26,7 +26,7 @@
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
 | 架构通信框架 | ✅ 已实现 | `ACTGameArchitecture`、`ArchitectureSystemBase`、`AppControllerBase`、Command / Query / Event | — |
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionStateMachine` + `LocomotionState` | AnimationProfile + `CharacterLocomotionProfile` |
-| Locomotion 起步/急停/转身 | 🟡 代码已接、资产待绑 | 内层 `LocomotionPhase` 纯状态机 | Start/Stop/Pivot Clip + 落脚标记 |
+| Locomotion 起步/急停/转身 | ✅ Play 2026-08-12 | 内层相位 + L-DIR1～5 + Pivot 两段式 | 旧 Phase D 减速曲线不做 |
 | Sprint 倾身 / 相机跟朝向 | 🟡 代码已接、待 Play | `SprintLeanModel` + `CameraManager` Follow Facing | `docs/2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md` L-DIR4/5 |
 | 第三人称相机 | ✅ 已实现（含 L-DIR5 跟朝向） | `CameraManager` | 场景内 CameraManager 对象 |
 | 动作系统（整数帧 / 选招 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ L1B 已实现（Play Mode 待回归） | `ActionSim` + `CharacterActionPresentationBridge` + `ActionFrameQuery` | 60Hz Action + `ActionGraph` |
@@ -381,7 +381,7 @@ Dodge 恢复                            → Gait（PendingGait 经 MaxGait 钳�
 
 ### 已知限制
 
-- 未实现急停减速曲线与 Pivot 专用位移（计划 Phase D）
+- 急停减速曲线等旧 Phase D：**明确不做**（2026-08-12）；Stop/Pivot 靠烘焙根位移
 - Start/Stop/Pivot Clip 与落脚标记需人工配置
 
 ### 相关文件
@@ -865,6 +865,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-12 | L-DIR1：`FacingMode` + `LocomotionAnimSet` + `DirectionModel`；循环选片不再硬编码 WalkLeft/Right |
 | 2026-08-12 | L-DIR2：AnimSet Start 表；`ActiveStartGait`；Gait `cardinalMinDwellFrames` 滞回 |
 | 2026-08-12 | L-DIR3：FaceTarget 旋转+软锁；本地 cardinal；锁定禁 Pivot；相机跟朝向关闭 |
+| 2026-08-12 | Locomotion Play 验收关闭（L-DIR1～5 + Pivot）；旧案 Phase D 减速曲线不做 |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
 | 2026-08-09 | BT Graph：装饰/条件改为宿主顶部徽章（UE 表现）；运行真源仍为装饰链 |

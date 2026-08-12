@@ -411,12 +411,12 @@ Walk↔Run 升档/降档逻辑留在相位 + GaitPolicy；**不再**以 `Animati
 **验收**
 
 - [x] Gait 循环播片经 AnimSet；State 不直写 WalkLeft/Right 分支
-- [ ] 敌人对峙：表绑 Left/Right 后表现与迁前一致（Play 待确认）
+- [x] 敌人对峙：表绑 Left/Right 后表现可用（Play 2026-08-12）
 - [x] 缺片回退 Fwd（单测覆盖）
 - [x] State 内无 `isEnemy` / `lockOn` 身份分支
-- [ ] Unity 编译 / EditMode 在 Editor 确认通过
+- [x] Unity 编译 / EditMode / Play 已确认
 
-**出口：** 选片真源 = AnimSet；方向参数化起步。→ **代码已达成（2026-08-12）**；Play/编译待确认
+**出口：** 选片真源 = AnimSet；方向参数化起步。→ **已达成（2026-08-12）**
 
 ---
 
@@ -436,9 +436,9 @@ Walk↔Run 升档/降档逻辑留在相位 + GaitPolicy；**不再**以 `Animati
 - [x] 零新相位类 / 零新 State 文件  
 - [x] Start 闩 cardinal；升档看 `ActiveStartGait`  
 - [x] TECHNICAL：起步选片改为 AnimSet  
-- [ ] Unity 编译 / Play 待 Editor 确认  
+- [x] Unity 编译 / Play 已确认（2026-08-12）  
 
-**出口：** 相位类不再含方向 Key 特例。→ **代码已达成（2026-08-12）**
+**出口：** 相位类不再含方向 Key 特例。→ **已达成（2026-08-12）**
 
 ---
 
@@ -456,12 +456,12 @@ Walk↔Run 升档/降档逻辑留在相位 + GaitPolicy；**不再**以 `Animati
 
 **验收**
 
-- [ ] Play：软锁半径内面朝敌人，前后左右 Walk 循环可辨（待 Editor）  
-- [x] 离软锁/无目标：有效模式回 FollowMove（代码）  
+- [x] Play：锁定/软锁面朝目标 strafing 可辨（2026-08-12）  
+- [x] 离软锁/无目标：有效模式回 FollowMove  
 - [x] 无新增方向相位类  
 - [x] 选片共用 DirectionModel + AnimSet  
 
-**出口：** 锁定 strafing 工程就绪。→ **代码已达成（2026-08-12）**；Play 待确认
+**出口：** 锁定 strafing 可玩且工程扩展 O(1)。→ **已达成（2026-08-12）**
 
 ---
 
@@ -475,10 +475,10 @@ Walk↔Run 升档/降档逻辑留在相位 + GaitPolicy；**不再**以 `Animati
 
 **验收**
 
-- [ ] Play（§1.4 A）：Sprint 按住 W 转视角 → 倾身；对齐镜头前向时 lean=0  
-- [ ] 离开 Sprint / Hit 无残留；权威位移不变；无 Lean 相位类  
+- [x] Play（§1.4 A）：Sprint 按住 W 转视角 → 倾身；对齐镜头前向时 lean=0  
+- [x] 离开 Sprint / Hit 无残留；权威位移不变；无 Lean 相位类  
 
-**出口：** 代码已落地，待 Play（2026-08-11）。→ **未达成（待验收）**
+**出口：** Sprint Lean Visual-only，对齐⇒0。→ **已达成（2026-08-12）**
 
 ---
 
@@ -492,11 +492,11 @@ Walk↔Run 升档/降档逻辑留在相位 + GaitPolicy；**不再**以 `Animati
 
 **验收**
 
-- [ ] Play：不拖视角按住 WD/D 可转圈  
-- [ ] Play：Look 可抢权；松手后恢复跟随；无贴死自旋  
+- [x] Play：不拖视角按住 WD/D 可转圈  
+- [x] Play：Look 可抢权；松手后恢复跟随；无贴死自旋  
 - [x] 架构：相机只读 facing → Orbit yaw → PlanarBasis  
 
-**出口：** 代码已落地，待 Play（2026-08-11）。→ **未达成（待验收）**
+**出口：** 绕圈闭环可用。→ **已达成（2026-08-12）**
 
 ---
 
@@ -656,13 +656,15 @@ docs/2026.8.6/CAMERA_SYSTEM_PLAN.md    // 交叉：Orbit yaw follow facing
 
 同时满足：
 
-1. L-DIR1～L-DIR5 出口均为已达成。  
-2. 新增方向 / 倾身 / 相机跟随 **均不** 新增行为相位类。  
-3. 玩家锁定 strafing Play 可辨；解锁无残留；锁定下无探索向跟随冲突。  
-4. §1.4 A：倾身对齐 wish 时 lean=0；Lean Visual-only。  
-5. §1.4 B：不拖视角按住 WD/D 可绕圈；Look 可抢权；相机不写 Motor。  
-6. 无身份 if；无 Key/AnimSet 双真源；WalkLeft/Right 业务路径已删。  
-7. 与 `LocomotionDesire` 消费路径一致。
+1. [x] L-DIR1～L-DIR5 出口均为已达成。  
+2. [x] 新增方向 / 倾身 / 相机跟随 **均不** 新增行为相位类。  
+3. [x] 玩家锁定 strafing Play 可辨；解锁无残留；锁定下无探索向跟随冲突。  
+4. [x] §1.4 A：倾身对齐 wish 时 lean=0；Lean Visual-only。  
+5. [x] §1.4 B：不拖视角按住 WD/D 可绕圈；Look 可抢权；相机不写 Motor。  
+6. [x] 无身份 if；无 Key/AnimSet 双真源；WalkLeft/Right 业务路径已删。  
+7. [x] 与 `LocomotionDesire` 消费路径一致。  
+
+**总出口：** 方案完成。→ **已达成（Play 验收 2026-08-12）**
 
 ---
 
@@ -680,3 +682,4 @@ docs/2026.8.6/CAMERA_SYSTEM_PLAN.md    // 交叉：Orbit yaw follow facing
 | 2026-08-12 | **L-DIR2 代码落地**：AnimSet Start 表；Start 去 Key 族；Gait cardinal 滞回 |
 | 2026-08-12 | **L-DIR3 代码落地**：FaceTarget Motor；软锁+动作锁源；本地 cardinal；禁 Pivot |
 | 2026-08-11 | SprintLean：`leanEngageSmoothTime` / `leanRecoverSmoothTime` SmoothDamp，避免 0↔满倾硬切 |
+| 2026-08-12 | **Play 验收通过**；L-DIR1～5 总出口关闭；旧案 Phase D 减速曲线明确不做 |

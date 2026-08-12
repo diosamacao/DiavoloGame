@@ -76,9 +76,9 @@ Enter → Begin(bake) @ PivotEnterFacing
 
 - [x] `rg ResolvePivotSteeringRootDirection` 无业务引用
 - [x] Play：Sprint 大角度转身前半跟 bake，后半黄箭（wish）可拉转向与日常跑一致
-- [ ] Unity Editor 编译与手测（待本地确认）
+- [x] Unity Editor 编译与手测（2026-08-12）
 
-**出口：** 两段式为唯一运行路径。→ **已达成（2026-08-12）**（手测待确认）
+**出口：** 两段式为唯一运行路径。→ **已达成（2026-08-12）**
 
 ### P-PIV2 — 清旧字段与模式
 
@@ -142,3 +142,4 @@ P-PIV1 状态机 + ApplyBakedRootMotion → P-PIV2 删旧符号 → 文档勾选
 | 2026-08-12 | 定案两段式；文档落地 |
 | 2026-08-12 | **P-PIV1 / P-PIV2 代码落地**：AnimAuth→InputAuth；删除 PivotTarget 偏移双轨 |
 | 2026-08-12 | Pivot→Sprint **不再** `faceDirection=wish` 硬切；接轨靠 InputAuth 当前朝向 |
+| 2026-08-12 | **Play 验收通过**；P-PIV1/P-PIV2 关闭 |
