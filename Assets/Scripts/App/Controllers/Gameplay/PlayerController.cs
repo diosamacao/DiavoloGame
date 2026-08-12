@@ -9,11 +9,16 @@ public class PlayerController : AppControllerBase
     [SerializeField] CharacterConfig characterConfig = null;
     [SerializeField] Transform cameraTransform;
 
+    [Header("Debug")]
+    [Tooltip("Play 时在脚底画 wish（黄）与模型朝向（品红）实心箭头。")]
+    [SerializeField] bool drawFacingDebugArrows = true;
+
     CharacterActor actor;
     CharacterHurtboxTarget hurtboxTarget;
     CharacterReactionService reactionService;
     SimulationHost simulationHost;
     SimActorRegistration simulationRegistration;
+    CharacterFacingDebugVisualizer _facingDebugVisualizer;
 
     /// <summary>运行时角色 Actor；供 Debug HUD / Scene Gizmo 只读访问。</summary>
     public CharacterActor Actor => actor;
@@ -92,6 +97,7 @@ public class PlayerController : AppControllerBase
 
         GetSystem<CombatActorSystem>()?.Register(transform, actor, animation);
         GetSystem<TargetSystem>()?.Register(hurtboxTarget);
+        EnsureFacingDebugVisualizer();
     }
 
     void OnEnable()
@@ -102,6 +108,27 @@ public class PlayerController : AppControllerBase
             simulationRegistration = simulationHost.RegisterPlayer(actor);
             simulationHost.RegisterNumeric(actor.SimulationId, actor.Numeric);
         }
+
+        EnsureFacingDebugVisualizer();
+    }
+
+    void LateUpdate()
+    {
+        if (_facingDebugVisualizer != null)
+            _facingDebugVisualizer.SetDrawEnabled(drawFacingDebugArrows);
+    }
+
+    /// <summary>开发构建下挂载脚底朝向调试箭头（wish / 模型）。</summary>
+    void EnsureFacingDebugVisualizer()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (_facingDebugVisualizer == null)
+            _facingDebugVisualizer = GetComponent<CharacterFacingDebugVisualizer>();
+        if (_facingDebugVisualizer == null)
+            _facingDebugVisualizer = gameObject.AddComponent<CharacterFacingDebugVisualizer>();
+        _facingDebugVisualizer.Bind(this);
+        _facingDebugVisualizer.SetDrawEnabled(drawFacingDebugArrows);
+#endif
     }
 
     void OnDisable()

@@ -18,6 +18,8 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     float _rotationVelocity;
     float _moveInputMagnitude;
     float _planarSpeedEstimate;
+    /// <summary>逻辑帧采样的 wish（供调试箭头）；避免 LateUpdate 跟相机基重算导致抖动。</summary>
+    Vector3 _debugWishWorldDirection;
 
     /// <summary>创建角色移动服务；由状态机决定何时调用 Locomotion 移动。</summary>
     public CharacterMotor(
@@ -67,6 +69,9 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
 
     public float DefaultRotationSmoothTime => _config.RotationSmoothTime;
 
+    /// <summary>最近一次逻辑帧解析的世界 wish；调试可视化专用，渲染帧勿重算。</summary>
+    public Vector3 DebugWishWorldDirection => _debugWishWorldDirection;
+
     /// <summary>
     /// Wave 1：写入 Orbit Yaw 投影的前向/右向，避免挤墙后 Camera.main.forward 扭曲走位。
     /// </summary>
@@ -108,6 +113,7 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     {
         Vector2 moveIntent = _moveIntent.MoveIntent;
         Vector3 wishDirection = ResolveWorldMoveDirection(moveIntent);
+        CaptureDebugWishWorldDirection(wishDirection);
         _moveInputMagnitude = _moveIntent.MoveMagnitude;
 
         // 先转朝向，再取 forward 作为 FollowInput 位移，使同帧平滑生效
@@ -336,6 +342,15 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         right.Normalize();
 
         return (forward * moveIntent.y + right * moveIntent.x).normalized;
+    }
+
+    /// <summary>写入逻辑帧 wish 快照；Locomotion 快照与 ApplyLocomotion 共用。</summary>
+    public void CaptureDebugWishWorldDirection(Vector3 wishWorld)
+    {
+        wishWorld.y = 0f;
+        _debugWishWorldDirection = wishWorld.sqrMagnitude > 0.0001f
+            ? wishWorld.normalized
+            : Vector3.zero;
     }
 
     /// <summary>相机/假相机水平前向；无有效基时返回 zero。</summary>

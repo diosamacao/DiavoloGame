@@ -128,6 +128,8 @@ public sealed class LocomotionContext
         float magnitude = Input.MoveMagnitude;
         bool hasMove = Input.HasMoveIntent;
         Vector3 worldDir = Motor.ResolveWorldMoveDirection(moveIntent);
+        // 与玩法同帧采样 wish，供脚底调试箭头在渲染帧稳定显示
+        Motor.CaptureDebugWishWorldDirection(hasMove ? worldDir : Vector3.zero);
         return new LocomotionInputSnapshot(
             moveIntent,
             magnitude,
