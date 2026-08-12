@@ -40,7 +40,7 @@
 | 核心框架 / 架构 IOC | ✅ | `ACTGameArchitecture`、Command/Query/Event |
 | 60Hz SimulationHost | ✅ | L0A～L1B 代码；Play 回归仍待 |
 | 输入 → GameplayIntent | ✅ | 量化 `InputFrame` + Intent Profile |
-| Locomotion | 🟡 | 相位机已接；下一阶段见 [`2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md`](./2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md)（含 Sprint 倾身 L-DIR4）；Phase D 减速等另册 |
+| Locomotion | ✅ | 相位 + L-DIR1～5 + Pivot 两段式 Play 验收 2026-08-12；旧案 Phase D 减速曲线**不做** |
 | ActionSim + Graph + Timeline | ✅ | 整数帧权威；Editor 基础可用 |
 | 位移权威 / VisualResidual | ✅ | Wave 0～2.5（含删 RM/Legacy/ForwardOnly） |
 | 战斗判定 / Reaction | ✅ | Pipeline 帧末结算；资产受击/死亡待齐 |
@@ -60,8 +60,8 @@
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项：** Play 验收 **L-DIR5 绕圈** + **L-DIR4 Sprint 倾身**（或可选 Lock-On）  
-→ [`2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md`](./2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md)  
+**下一项：** 相机 Lock-On / Director，或 BT Backlog  
+→ [`2026.8.6/CAMERA_SYSTEM_PLAN.md`](./2026.8.6/CAMERA_SYSTEM_PLAN.md)  
 → BT 待优化见 [`2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md`](./2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md)  
 
 
@@ -146,7 +146,8 @@
 
 - [ ] 玩家/敌人受击与死亡 Action 全量配置
 - [ ] Special / EX / Ultimate Graph + `ActionResourceSpec` 填表验收
-- [ ] Locomotion Phase D：减速曲线、Pivot 位移、落脚编辑工具
+- [x] Locomotion 方向/倾身/绕圈/Pivot 两段式（L-DIR1～5 + P-PIV）Play 验收 2026-08-12
+- [x] ~~Locomotion Phase D：急停减速曲线~~ — **不做**（2026-08-12）
 - [ ] Action Editor：SFX 预览、校验强化、GraphView 润色
 - [ ] 敌人 Definition / Graph / 动画资产齐套
 - [x] A1 木桩 Prefab + 测试场景摆放（人工，✅ 2026-08-08）

@@ -30,10 +30,9 @@
 - `LocomotionStateMachine` 内层纯状态机：Idle → Start → Gait(Walk/Run/Sprint) →（Sprint 大角度）PivotTurn / Stop
 - Run 持续 `sprintAfterRunSeconds`（默认 3s）后进 Sprint；仅 Sprint 可 Pivot
 - `LocomotionFootCycle` + SO 落脚标记；急停默认右脚；Stop 全程可取消回 Start；Pivot→Stop 用转身目标朝向；Start 急停播 StartEnd
-- 首版不做急停减速 / 转身专用位移（见 `docs/LOCOMOTION_OPTIMIZATION_PLAN.md` Phase D）
+- 急停减速曲线等 Phase D **明确不做**（2026-08-12；见 `docs/LOCOMOTION_OPTIMIZATION_PLAN.md`）
 - [x] 2026-07-22：删除手写 `LocomotionService` Phase 袋，改为 Core `StateMachine` 嵌套机
-
-**待做（Phase D）**：减速曲线、Pivot 位移手感、敲定 Profile 挂载与落脚编辑器工具
+- [x] 2026-08-12：L-DIR1～5 + Pivot 两段式 Play 验收关闭
 
 ### [P1] ActionEditor 准备 — 动作系统职责收敛 ✅ 2026-06-21
 
@@ -145,8 +144,8 @@
 | 事件总线 | P2 | 轻量 C# event；定稿前不引入第三方 |
 | 行为树编辑器 | P2 | ✅ MVP（A1）；待打磨见 `docs/2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md`（建议 A3） |
 | 敌人对峙循环 + GaitPolicy | P2 | ✅ 拓扑/秒制落地；对峙表现已验收；见 `docs/2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md` |
-| Locomotion AnimSet / 倾身 / 绕圈 | P1 | 🟡 L-DIR1～5 代码已落；待 Play 验收 · `docs/2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md` |
-| PivotTurn 两段式朝向 | P1 | ✅ `docs/2026.8.12/PIVOT_TURN_TWO_PHASE_FACING_PLAN.md`（P-PIV1/P-PIV2：AnimAuth→InputAuth） |
+| Locomotion AnimSet / 倾身 / 绕圈 | P1 | ✅ Play 验收 2026-08-12 · `docs/2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md` |
+| PivotTurn 两段式朝向 | P1 | ✅ Play 验收 2026-08-12 · `docs/2026.8.12/PIVOT_TURN_TWO_PHASE_FACING_PLAN.md` |
 | A\* 寻路 | P2 | 学习实现；路径 → AI 移动意图；锁步确定性边界待定 |
 | 性能优化实践 | P2 | 木桩/多敌人基线 + Profiler 对照；见 `docs/PROJECT_CHECKLIST.md` §6.4 |
 | 剧情编辑器 | P3 | 对话/镜头节点或时间轴；与 Gameplay 用事件解耦 |

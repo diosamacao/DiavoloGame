@@ -1,8 +1,8 @@
 # Locomotion 扩展方案 — Phase / FootCycle
 
-> 状态：**已实施（Phase A–C 代码）** — 2026-07-18（决议已锁定 §7#1–9；Phase D Motor 抛光未做）  
-> 资产待办：AnimationProfile 绑定 Start / StartEnd / PivotTurn / StopL / StopR；创建并配置 `CharacterLocomotionProfile`（落脚时间与脚步音）后挂到 CharacterConfig。  
-> 目标：在不破坏 `Locomotion` ↔ `Action` 顶层边界的前提下，支持起步、脚步相位、急停分脚、**Run（即冲刺）**大角度转身，以及过渡相位被松手时立刻接急停。  
+> 状态：**已验收关闭** — Phase A–C + Stop/Pivot 烘焙根位移已落地；**Phase D（急停减速曲线等 Motor 抛光）明确不做**（2026-08-12）  
+> 后续方向真源：[`2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md`](./2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md)、[`2026.8.12/PIVOT_TURN_TWO_PHASE_FACING_PLAN.md`](./2026.8.12/PIVOT_TURN_TWO_PHASE_FACING_PLAN.md)  
+> 目标：在不破坏 `Locomotion` ↔ `Action` 顶层边界的前提下，支持起步、脚步相位、急停分脚、大角度转身，以及过渡相位被松手时立刻接急停。  
 > 相关：[`ANIMATION_PLAYABLE_MIGRATION_PLAN.md`](./ANIMATION_PLAYABLE_MIGRATION_PLAN.md)、架构文档 `LocomotionState` / `CharacterMotor`
 
 ---
@@ -348,11 +348,11 @@ Assets/Scripts/Domain/Character/Locomotion/
 
 **验证**：Run 大角度先转身再跑；转身中松手急停；Walk 大角度无转身动画。
 
-### Phase D — Motor / 数据抛光（P2）
+### Phase D — Motor / 数据抛光（P2）— **取消**
 
-- [x] 2026-07-18：Stop/Pivot **方案 B** 烘焙根位移（`LocomotionRootMotionTrack` + Editor 烘焙按钮）
-- 敲定 #10/#11；编辑器写回落脚时间
-- 脚步材质等
+- [x] 2026-07-18：Stop/Pivot **方案 B** 烘焙根位移（`LocomotionRootMotionTrack` + Editor 烘焙按钮）— 已做，归入本阶段已交付部分
+- [x] ~~急停减速曲线 / 额外 Motor 抛光~~ — **不做**（产品确认 2026-08-12）
+- [x] ~~脚步材质 / 落脚编辑器专项~~ — **不做**（可另开需求）
 
 ---
 
@@ -361,33 +361,36 @@ Assets/Scripts/Domain/Character/Locomotion/
 | 风险 | 缓解 |
 |------|------|
 | 必经 Start 使挪步变沉 | 缩短 Start Clip / CrossFade；不因此跳过 Start |
-| 无减速时 Stop/Pivot 滑步违和 | 验收标为已知限制；Phase D 再做 |
-| Run 易误触 Pivot | 调 `pivotAngleDegrees`；日志打印 gait/yaw |
+| 无减速时 Stop/Pivot 滑步违和 | **接受为已知限制**；Phase D 已取消，靠烘焙根位移缓解 |
+| Run/Sprint 易误触 Pivot | 调 `pivotAngleDegrees`；仅 Sprint 可 Pivot |
 | 落脚双触发 | 周期+marker 去重；进 Stop 停采样 |
 
 ---
 
 ## 10. 验收清单
 
-- [ ] 所有移动经 Start；Start 中可跟输入转向
-- [ ] 起步中松手立刻急停；无落脚时默认右脚 Stop
-- [ ] 跑动左右脚出声
-- [ ] 急停分脚；Stop 取消后回 Start
-- [ ] **仅 Run** 大角度播转身；Walk 只平滑转
-- [ ] 转身中松手接急停
-- [ ] 首版无独立 Sprint；无 Root Motion；无减速/转身位移专用逻辑
-- [ ] 无 Legacy 双轨；文档实施后同步
+> 验收日期：2026-08-12（用户确认；Phase D 不做）
+
+- [x] 所有移动经 Start；Start 中可跟输入转向
+- [x] 起步中松手立刻急停；无落脚时默认右脚 Stop
+- [x] 跑动左右脚出声（有配置时）
+- [x] 急停分脚；Stop 取消后回 Start
+- [x] 大角度转身（现为 Sprint + Pivot；Walk 平滑转）
+- [x] 转身中松手接急停
+- [x] Stop/Pivot 可用烘焙根位移；**无**独立急停减速曲线（明确不做）
+- [x] 无 Legacy 双轨；文档已同步关闭
 
 ---
 
-## 11. 文档同步（实施时）
+## 11. 文档同步
 
-更新 `ARCHITECTURE.md` / `TECHNICAL.md` / `ROADMAP.md`，本文件标为已实施。
+`ARCHITECTURE` / `TECHNICAL` / `ROADMAP` / `PROJECT_CHECKLIST` 已随 L-DIR / Pivot 更新；本文 **已验收关闭**。
 
 ---
 
-## 12. 开工顺序
+## 12. 变更日志
 
-1. §7#1–9 已锁定；#10/#11 实施 Phase A 时按暂定落地即可。  
-2. **Phase A → B → C**；Motor 抛光进 Phase D。  
-3. 可以开始 Phase A 代码。
+| 日期 | 说明 |
+|------|------|
+| 2026-07-18 | Phase A–C 代码落地 |
+| 2026-08-12 | **验收关闭**；Phase D（减速曲线等）明确不做 |
