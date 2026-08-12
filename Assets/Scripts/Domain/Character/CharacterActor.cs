@@ -68,8 +68,25 @@ public sealed class CharacterActor :
     /// <summary>供相机与表现系统跟随的插值锚点。</summary>
     public Transform PresentationRoot => _presentation.PresentationRoot;
 
+    /// <summary>模型所在视觉根（含倾身等）；调试箭头用模型朝向时优先取此。</summary>
+    public Transform VisualMotionRoot => _visualMotion?.VisualRoot;
+
     /// <summary>当前渲染帧插值后的位置。</summary>
     public Vector3 RenderedPosition => _presentation.RenderedPosition;
+
+    /// <summary>
+    /// 调试：逻辑帧缓存的镜头相对 wish（与 Motor/Locomotion 采样一致）。
+    /// 勿在渲染帧重算，否则相机会跟朝向每帧改 PlanarBasis 导致黄箭抖动。
+    /// </summary>
+    public Vector3 DebugMoveWishWorldDirection
+    {
+        get
+        {
+            if (_motor == null || _inputManager == null || !_inputManager.HasMoveIntent)
+                return Vector3.zero;
+            return _motor.DebugWishWorldDirection;
+        }
+    }
 
     /// <summary>当前移动输入幅度。</summary>
     public float MoveInputMagnitude => _motor.MoveInputMagnitude;
