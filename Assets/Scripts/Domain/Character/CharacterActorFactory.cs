@@ -127,6 +127,14 @@ public static class CharacterActorFactory
         Transform aimOrigin = ResolveModelPoint(config.Combat.AimOriginName, modelRoot, root);
         var attachPoints = new CharacterAttachPointResolver(modelRoot, defaultAttach);
         var targetLock = new CombatTargetLock(root, teamId, aimOrigin, activeTargetsProvider);
+        // L-DIR3：Locomotion FaceTarget 单一朝向源（动作锁 + 软锁）
+        locomotionStateMachine.Context.BindFacingTargetSource(
+            new LocomotionFacingTargetSource(
+                root,
+                teamId,
+                targetLock,
+                activeTargetsProvider,
+                () => locomotionProfile != null ? locomotionProfile.SoftFocusRadiusMeters : 0f));
         var hitboxFrameConsumer = new HitboxFrameConsumer(
             root,
             motorSim,

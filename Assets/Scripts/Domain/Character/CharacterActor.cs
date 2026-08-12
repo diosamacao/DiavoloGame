@@ -112,6 +112,9 @@ public sealed class CharacterActor :
     /// <summary>索敌锁定状态（只读观测 / Debug HUD）。</summary>
     public CombatTargetLock TargetLock => _targetLock;
 
+    /// <summary>L-DIR3：Locomotion 是否处于 FaceTarget（软锁/动作锁）；相机跟朝向应关闭。</summary>
+    public bool IsLocomotionFaceTargetActive => _stateMachine.IsLocomotionFaceTargetActive;
+
     /// <summary>数值中枢（Attribute + Effect + Flags）。</summary>
     public NumericSystem Numeric => _numeric;
 

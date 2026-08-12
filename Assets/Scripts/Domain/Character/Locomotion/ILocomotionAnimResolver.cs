@@ -1,9 +1,9 @@
 using UnityEngine;
 
-/// <summary>由步态 + 局部移动意图解析 AnimationKey（横步 WalkLeft/Right 在此处理）。</summary>
+/// <summary>由步态 + 局部移动意图解析 AnimationKey（经 AnimSet / DirectionModel）。</summary>
 public interface ILocomotionAnimResolver
 {
-    /// <summary>解析本帧应播放的 Locomotion 动画键。</summary>
+    /// <summary>解析本帧应播放的 Locomotion 循环动画键。</summary>
     AnimationKey Resolve(
         LocomotionGait gait,
         Vector2 localMoveIntent,

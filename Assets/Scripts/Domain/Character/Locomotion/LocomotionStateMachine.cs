@@ -95,6 +95,8 @@ public sealed class LocomotionStateMachine
     {
         Context.DeltaTime = Mathf.Max(0f, deltaTime);
         Context.FrameSnapshot = Context.BuildSnapshot();
+        // FaceTarget 朝向须在 ApplyLocomotion 前写入 Motor
+        Context.PublishFacingTargetToMotor();
         _machine.Tick(Context.DeltaTime);
         if (_phases.TryGetValue(_machine.CurrentStateId, out LocomotionPhaseState phase))
             phase.ExecuteFrame(Context.DeltaTime);
@@ -112,7 +114,7 @@ public sealed class LocomotionStateMachine
 
         bool allowLean = Phase == LocomotionPhase.Gait
             && Context.Gait == LocomotionGait.Sprint
-            && Context.ResolveGaitRotationMode() == LocomotionRotationMode.FollowInput
+            && Context.ResolveFacingMode() == LocomotionFacingMode.FollowMove
             && Context.HasMeaningfulMove(Context.FrameSnapshot);
 
         Vector3 facing = Context.Root.forward;

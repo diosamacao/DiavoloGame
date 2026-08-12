@@ -8,4 +8,6 @@ public enum LocomotionRotationMode
     // 原 PivotTarget=2 已删除（P-PIV2）；FaceCamera 保持 3 以免序列化资产错位
     /// <summary>平滑转向相机/假相机水平前向（八向横移锁面，不跟位移转向）。</summary>
     FaceCamera = 3,
+    /// <summary>平滑转向锁定/软锁目标水平方向；位移仍沿 wish（L-DIR3 strafing）。</summary>
+    FaceTarget = 4,
 }

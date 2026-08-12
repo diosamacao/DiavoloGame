@@ -15,6 +15,8 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     Vector3 _cameraPlanarForward;
     Vector3 _cameraPlanarRight;
     bool _hasCameraPlanarBasis;
+    Vector3 _faceTargetForward;
+    bool _hasFaceTargetForward;
     float _rotationVelocity;
     float _moveInputMagnitude;
     float _planarSpeedEstimate;
@@ -96,6 +98,23 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         _cameraTransform = cameraTransform;
     }
 
+    /// <summary>写入 FaceTarget 水平朝向；由 Locomotion 每逻辑帧发布。</summary>
+    public void SetFaceTargetWorldDirection(Vector3 planarForward)
+    {
+        planarForward.y = 0f;
+        if (planarForward.sqrMagnitude < 0.0001f)
+        {
+            _hasFaceTargetForward = false;
+            return;
+        }
+
+        _faceTargetForward = planarForward.normalized;
+        _hasFaceTargetForward = true;
+    }
+
+    /// <summary>清除 FaceTarget 朝向。</summary>
+    public void ClearFaceTargetWorldDirection() => _hasFaceTargetForward = false;
+
     /// <summary>从当前 Unity 根对齐逻辑位姿（生成/传送后调用）。</summary>
     public void CapturePoseFromRoot()
     {
@@ -107,7 +126,7 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     /// <summary>
     /// 按 Locomotion 命令执行水平位移与旋转。
     /// FollowInput：朝向以 RotationSmoothTime 追 wish，位移沿更新后的朝向——只调一个平滑时间即可拉长 W→WD 转向。
-    /// FaceCamera 等仍位移沿 wish（对峙 strafing）。
+    /// FaceCamera / FaceTarget 位移沿 wish（strafing）。
     /// </summary>
     public void ApplyLocomotion(in LocomotionMotorCommand command, float deltaTime)
     {
@@ -197,6 +216,17 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
                 {
                     _root.rotation = GetSmoothedRotation(
                         cameraForward,
+                        deltaTime,
+                        command.RotationSmoothTimeOverride);
+                    SyncFacingFromRoot();
+                }
+                break;
+            case LocomotionRotationMode.FaceTarget:
+                // 锁定 strafing：偏航锁目标，位移沿 wish
+                if (_hasFaceTargetForward)
+                {
+                    _root.rotation = GetSmoothedRotation(
+                        _faceTargetForward,
                         deltaTime,
                         command.RotationSmoothTimeOverride);
                     SyncFacingFromRoot();
