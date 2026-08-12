@@ -7,6 +7,7 @@ using UnityEngine;
 public sealed class LocomotionContext
 {
     LocomotionStateMachine _machine;
+    ILocomotionFacingTargetSource _facingTargetSource;
 
     /// <summary>创建上下文并注入运行时依赖。</summary>
     public LocomotionContext(
@@ -28,7 +29,10 @@ public sealed class LocomotionContext
         FootCycle = footCycle;
         FootstepPlayer = footstepPlayer;
         RootMotionPlayer = rootMotionPlayer;
-        AnimResolver = animResolver ?? new DefaultLocomotionAnimResolver();
+        AnimResolver = animResolver
+            ?? new DefaultLocomotionAnimResolver(
+                profile != null ? profile.AnimSet : null,
+                profile != null ? profile.CardinalEpsilon : LocomotionDirectionModel.DefaultEpsilon);
         SprintLean = new SprintLeanModel();
     }
 
@@ -81,8 +85,20 @@ public sealed class LocomotionContext
     /// <summary>当前急停使用的 AnimationKey（StartEnd / StopL / StopR）。</summary>
     public AnimationKey StopKey { get; set; } = AnimationKey.StopR;
 
-    /// <summary>本次 Start 相位锁定的起步 Key（WalkStartLeft/Right / WalkStart / Start）。</summary>
+    /// <summary>本次 Start 相位锁定的起步 Key（由 AnimSet.ResolveStart 写入）。</summary>
     public AnimationKey ActiveStartKey { get; set; } = AnimationKey.Start;
+
+    /// <summary>闩定起步时的步态档（Walk/Run）；升档/降档判断用，禁止 State 认 Key 族。</summary>
+    public LocomotionGait ActiveStartGait { get; set; } = LocomotionGait.Walk;
+
+    /// <summary>Start 进入时闩定的 cardinal；微抖不换片。</summary>
+    public MoveCardinal ActiveStartCardinal { get; set; } = MoveCardinal.Forward;
+
+    /// <summary>Gait 循环当前滞回 cardinal。</summary>
+    public MoveCardinal GaitCardinal { get; set; } = MoveCardinal.None;
+
+    /// <summary>当前 GaitCardinal 已连续驻留的逻辑帧数。</summary>
+    public int GaitCardinalDwellFrames { get; set; }
 
     /// <summary>切入 Stop 前是否来自 Start（决定 StartEnd）。</summary>
     public bool StopFromStart { get; set; }
@@ -150,33 +166,131 @@ public sealed class LocomotionContext
         return policy != null ? policy.ClampGait(gait) : gait;
     }
 
-    /// <summary>按初始步态 + 本地输入解析起步 Clip；结果写入 ActiveStartKey。</summary>
+    /// <summary>按初始步态 + DirectionModel 闩定起步槽；写入 Key/Gait/Cardinal。</summary>
     public AnimationKey ResolveAndLatchStartKey(float magnitude, Vector2 localMoveIntent)
     {
         LocomotionGait gait = ResolveInitialGait(magnitude);
-        ActiveStartKey = DefaultLocomotionAnimResolver.ResolveStartKey(
-            gait,
-            localMoveIntent,
-            Animation);
+        float eps = Profile != null ? Profile.CardinalEpsilon : LocomotionDirectionModel.DefaultEpsilon;
+        // Start 闩定时 FrameSnapshot 可能尚未刷新：用入参意图；FaceTarget 下仍以摇杆本地闩（进 Gait 后转世界本地）
+        MoveCardinal cardinal = LocomotionDirectionModel.Resolve(localMoveIntent, eps);
+        if (cardinal == MoveCardinal.None)
+            cardinal = MoveCardinal.Forward;
+
+        ActiveStartGait = gait;
+        ActiveStartCardinal = cardinal;
+        LocomotionAnimSet set = Profile != null ? Profile.AnimSet : LocomotionAnimSet.CreateDefault();
+        ActiveStartKey = set.ResolveStart(gait, cardinal, Animation);
         return ActiveStartKey;
     }
 
-    /// <summary>Start/Gait 移动时的旋转模式（来自 Profile，默认 FollowInput）。</summary>
+    /// <summary>重置 Gait cardinal 滞回（进 Gait / 硬切步态时）。</summary>
+    public void ResetGaitCardinal()
+    {
+        GaitCardinal = MoveCardinal.None;
+        GaitCardinalDwellFrames = 0;
+    }
+
+    /// <summary>提案 cardinal 经最短驻留后采纳；委托 <see cref="LocomotionCardinalHysteresis"/>。</summary>
+    public MoveCardinal ResolveGaitCardinalWithHysteresis(MoveCardinal proposed, int minDwellFrames)
+    {
+        MoveCardinal current = GaitCardinal;
+        int dwell = GaitCardinalDwellFrames;
+        MoveCardinal resolved = LocomotionCardinalHysteresis.Resolve(
+            ref current,
+            ref dwell,
+            proposed,
+            minDwellFrames);
+        GaitCardinal = current;
+        GaitCardinalDwellFrames = dwell;
+        return resolved;
+    }
+
+    /// <summary>绑定 FaceTarget 朝向源（工厂在 TargetLock 创建后调用）。</summary>
+    public void BindFacingTargetSource(ILocomotionFacingTargetSource source) =>
+        _facingTargetSource = source;
+
+    /// <summary>
+    /// 运行时有效朝向：FaceCamera 保持配置；有目标时 FollowMove/FaceTarget→FaceTarget；无目标 FaceTarget→FollowMove。
+    /// </summary>
+    public LocomotionFacingMode ResolveFacingMode()
+    {
+        LocomotionFacingMode configured = Profile != null
+            ? Profile.FacingMode
+            : LocomotionFacingMode.FollowMove;
+
+        if (configured == LocomotionFacingMode.FaceCamera)
+            return LocomotionFacingMode.FaceCamera;
+
+        bool hasTarget = _facingTargetSource != null
+            && _facingTargetSource.TryGetFacingWorldDirection(out _);
+
+        if (configured == LocomotionFacingMode.FaceTarget)
+            return hasTarget ? LocomotionFacingMode.FaceTarget : LocomotionFacingMode.FollowMove;
+
+        // FollowMove：索敌锁或软锁命中时升格 FaceTarget，解锁自动回退
+        return hasTarget ? LocomotionFacingMode.FaceTarget : LocomotionFacingMode.FollowMove;
+    }
+
+    /// <summary>Start/Gait/Pivot InputAuth 的 Motor 旋转模式（由有效 FacingMode 映射）。</summary>
     public LocomotionRotationMode ResolveGaitRotationMode() =>
-        Profile != null ? Profile.GaitRotationMode : LocomotionRotationMode.FollowInput;
+        CharacterLocomotionProfile.ToMotorRotationMode(ResolveFacingMode());
+
+    /// <summary>每逻辑帧把 FaceTarget 方向推给 Motor；非 FaceTarget 时清除。</summary>
+    public void PublishFacingTargetToMotor()
+    {
+        if (ResolveFacingMode() != LocomotionFacingMode.FaceTarget
+            || _facingTargetSource == null
+            || !_facingTargetSource.TryGetFacingWorldDirection(out Vector3 dir))
+        {
+            Motor.ClearFaceTargetWorldDirection();
+            return;
+        }
+
+        Motor.SetFaceTargetWorldDirection(dir);
+    }
+
+    /// <summary>
+    /// 选片用本地意图：FaceTarget/FaceCamera 用世界 wish→角色本地；FollowMove 用摇杆本地。
+    /// </summary>
+    public Vector2 ResolveCardinalLocalMove()
+    {
+        LocomotionFacingMode mode = ResolveFacingMode();
+        if (mode == LocomotionFacingMode.FollowMove)
+            return FrameSnapshot.MoveIntent;
+
+        Vector3 worldWish = FrameSnapshot.WorldMoveDirection;
+        if (worldWish.sqrMagnitude < 0.0001f)
+            return Vector2.zero;
+
+        Vector3 facing = Root.forward;
+        // FaceTarget：优先用锁定方向作本地前向基，避免朝向尚未跟上时 cardinal 抖
+        if (mode == LocomotionFacingMode.FaceTarget
+            && _facingTargetSource != null
+            && _facingTargetSource.TryGetFacingWorldDirection(out Vector3 lockFwd))
+        {
+            facing = lockFwd;
+        }
+
+        return LocomotionDirectionModel.ToLocalMoveIntent(worldWish, facing);
+    }
 
     /// <summary>Run / Sprint 视为跑档急停门槛。</summary>
     public static bool IsRunTier(LocomotionGait gait) =>
         gait == LocomotionGait.Run || gait == LocomotionGait.Sprint;
 
-    /// <summary>经 AnimResolver 解析本帧 Locomotion 动画键（含 WalkLeft/Right）。</summary>
+    /// <summary>经 AnimSet + Cardinal 滞回解析本帧循环键。</summary>
     public AnimationKey ResolveLocomotionAnimationKey()
     {
         LocomotionGait gait = Gait;
-        Vector2 localMove = FrameSnapshot.MoveIntent;
-        AnimationKey key = AnimResolver.Resolve(gait, localMove, Animation);
+        float eps = Profile != null ? Profile.CardinalEpsilon : LocomotionDirectionModel.DefaultEpsilon;
+        int dwell = Profile != null ? Profile.CardinalMinDwellFrames : 3;
+        MoveCardinal proposed = LocomotionDirectionModel.Resolve(ResolveCardinalLocalMove(), eps);
+        MoveCardinal cardinal = ResolveGaitCardinalWithHysteresis(proposed, dwell);
 
-        // Sprint 缺 Clip：首次告警后 Resolver 已回退 Run
+        LocomotionAnimSet set = Profile != null ? Profile.AnimSet : LocomotionAnimSet.CreateDefault();
+        AnimationKey key = set.ResolveLoop(gait, cardinal, Animation);
+
+        // Sprint 缺 Clip：首次告警后 AnimSet 已回退 Run
         if (gait == LocomotionGait.Sprint
             && key == AnimationKey.Run
             && !Animation.HasClip(AnimationKey.Sprint)
@@ -187,6 +301,13 @@ public sealed class LocomotionContext
         }
 
         return key;
+    }
+
+    /// <summary>Profile AnimSet 是否有任一起步 Clip。</summary>
+    public bool HasAnyStartClip()
+    {
+        LocomotionAnimSet set = Profile != null ? Profile.AnimSet : LocomotionAnimSet.CreateDefault();
+        return set.HasAnyStartClip(Animation);
     }
 
     /// <summary>按当前相位/步态取落脚标记。</summary>

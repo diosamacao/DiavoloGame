@@ -24,6 +24,19 @@ public sealed class CharacterStateMachine : ICharacterStateMachine
         }
     }
 
+    /// <summary>L-DIR3：Locomotion 有效朝向为 FaceTarget（软锁/索敌）；供相机关闭跟朝向。</summary>
+    public bool IsLocomotionFaceTargetActive
+    {
+        get
+        {
+            if (CurrentStateId != CharacterStateType.Locomotion)
+                return false;
+            LocomotionStateMachine locomotion = Context.LocomotionStateMachine;
+            return locomotion != null
+                && locomotion.Context.ResolveFacingMode() == LocomotionFacingMode.FaceTarget;
+        }
+    }
+
     /// <summary>创建角色状态机并注册 Locomotion、Action、Hit 与 Death 状态。</summary>
     public CharacterStateMachine(CharacterContext context)
     {

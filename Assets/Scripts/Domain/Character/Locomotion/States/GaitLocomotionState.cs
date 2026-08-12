@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// 稳态走跑冲刺：循环 Clip + FootCycle；宽限后松手 Stop/Idle；
-/// Pivot / 升档由 Profile.GaitPolicy 求值；播片经 AnimResolver。
+/// Pivot / 升档由 Profile.GaitPolicy 求值；播片经 AnimSet + Cardinal 滞回。
 /// </summary>
 public sealed class GaitLocomotionState : LocomotionPhaseState
 {
@@ -20,6 +20,7 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
             Context.RunHoldSeconds = 0f;
 
         Context.SetGait(gait);
+        Context.ResetGaitCardinal();
         Context.FootCycle.Unfreeze();
 
         if (Context.PendingGaitHardCutPlay)
@@ -99,6 +100,10 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
     /// <summary>Policy 允许且与输入夹角超过阈值时进折返。</summary>
     bool CanEnterPivot(in LocomotionInputSnapshot snapshot)
     {
+        // L-DIR3：锁定 strafing 关闭 Pivot，避免与面朝目标冲突
+        if (Context.ResolveFacingMode() == LocomotionFacingMode.FaceTarget)
+            return false;
+
         LocomotionGaitPolicy policy = Context.Profile != null
             ? Context.Profile.GaitPolicy
             : new LocomotionGaitPolicy();

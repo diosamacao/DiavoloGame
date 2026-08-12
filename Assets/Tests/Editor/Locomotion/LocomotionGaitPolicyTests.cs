@@ -110,76 +110,63 @@ public sealed class LocomotionGaitPolicyTests
     }
 
     [Test]
-    public void ResolveStartKey_WalkForward_PrefersWalkStart()
+    public void ResolveStart_WalkForward_PrefersWalkStart()
     {
+        var set = LocomotionAnimSet.CreateDefault();
         var clips = new FakeClips(
             walkStart: true,
             walkStartLeft: true,
             walkStartRight: true,
             runStart: true);
         Assert.That(
-            DefaultLocomotionAnimResolver.ResolveStartKey(
-                LocomotionGait.Walk,
-                new Vector2(0f, 1f),
-                clips),
+            set.ResolveStart(LocomotionGait.Walk, MoveCardinal.Forward, clips),
             Is.EqualTo(AnimationKey.WalkStart));
     }
 
     [Test]
-    public void ResolveStartKey_WalkLateral_UsesWalkStartLeftRight()
+    public void ResolveStart_WalkLateral_UsesWalkStartLeftRight()
     {
+        var set = LocomotionAnimSet.CreateDefault();
         var clips = new FakeClips(
             walkStart: true,
             walkStartLeft: true,
             walkStartRight: true,
             runStart: true);
         Assert.That(
-            DefaultLocomotionAnimResolver.ResolveStartKey(
-                LocomotionGait.Walk,
-                new Vector2(-1f, 0f),
-                clips),
+            set.ResolveStart(LocomotionGait.Walk, MoveCardinal.Left, clips),
             Is.EqualTo(AnimationKey.WalkStartLeft));
         Assert.That(
-            DefaultLocomotionAnimResolver.ResolveStartKey(
-                LocomotionGait.Walk,
-                new Vector2(1f, 0f),
-                clips),
+            set.ResolveStart(LocomotionGait.Walk, MoveCardinal.Right, clips),
             Is.EqualTo(AnimationKey.WalkStartRight));
     }
 
     [Test]
-    public void ResolveStartKey_WalkLateral_FallsBackWalkStart_WhenNoSideStart()
+    public void ResolveStart_WalkLateral_FallsBackWalkStart_WhenNoSideStart()
     {
+        var set = LocomotionAnimSet.CreateDefault();
         var clips = new FakeClips(walkStart: true, walkStartLeft: false, walkStartRight: false, runStart: true);
         Assert.That(
-            DefaultLocomotionAnimResolver.ResolveStartKey(
-                LocomotionGait.Walk,
-                new Vector2(-1f, 0f),
-                clips),
+            set.ResolveStart(LocomotionGait.Walk, MoveCardinal.Left, clips),
             Is.EqualTo(AnimationKey.WalkStart));
     }
 
     [Test]
-    public void ResolveStartKey_Run_PrefersStart()
+    public void ResolveStart_Run_PrefersStart()
     {
+        var set = LocomotionAnimSet.CreateDefault();
         var clips = new FakeClips(walkStart: true, walkStartLeft: true, walkStartRight: true, runStart: true);
         Assert.That(
-            DefaultLocomotionAnimResolver.ResolveStartKey(
-                LocomotionGait.Run,
-                new Vector2(0f, 1f),
-                clips),
+            set.ResolveStart(LocomotionGait.Run, MoveCardinal.Forward, clips),
             Is.EqualTo(AnimationKey.Start));
     }
 
     [Test]
-    public void ResolveStartKey_Walk_FallsBackToStart()
+    public void ResolveStart_Walk_FallsBackToStart()
     {
+        var set = LocomotionAnimSet.CreateDefault();
         var clips = new FakeClips(walkStart: false, walkStartLeft: false, walkStartRight: false, runStart: true);
         Assert.That(
-            DefaultLocomotionAnimResolver.ResolveStartKey(
-                LocomotionGait.Walk,
-                new Vector2(0f, 1f),
-                clips),
+            set.ResolveStart(LocomotionGait.Walk, MoveCardinal.Forward, clips),
             Is.EqualTo(AnimationKey.Start));
     }
 

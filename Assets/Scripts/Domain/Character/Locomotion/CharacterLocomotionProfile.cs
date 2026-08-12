@@ -1,8 +1,9 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 /// <summary>
-/// 一套 Locomotion 完整配置：Clip 映射（AnimationProfile）+ 相位/落脚/脚步/烘焙轨。
+/// 一套 Locomotion 完整配置：Clip 映射（AnimationProfile）+ AnimSet + 相位/落脚/脚步/烘焙轨。
 /// 由 CombatMode 挂载；不再在 CharacterConfig 上单独配置。
 /// </summary>
 [CreateAssetMenu(fileName = "CharacterLocomotionProfile", menuName = "ACT/Character/Locomotion Profile")]
@@ -11,6 +12,8 @@ public class CharacterLocomotionProfile : ScriptableObject
     [Header("Animation")]
     [Tooltip("Idle/Walk/Run 等 Clip 映射；必填。")]
     [SerializeField] CharacterAnimationProfile animationProfile = null;
+    [Tooltip("选片表（gait×cardinal→Key）；默认左右槽=WalkLeft/Right，沿用现有 AnimationProfile。")]
+    [SerializeField] LocomotionAnimSet animSet = new LocomotionAnimSet();
 
     [Header("Thresholds")]
     [SerializeField] float idleInputThreshold = 0.01f;
@@ -21,12 +24,19 @@ public class CharacterLocomotionProfile : ScriptableObject
     [SerializeField, Range(0f, 1f)] float pivotAnimAuthNormalized = 0.5f;
     [Tooltip("Gait 下松手后仍保持当前步态的宽限秒数；用于键盘换向空窗，避免立刻 Stop 导致无法 Pivot。")]
     [SerializeField] float gaitInputGapGraceSeconds = 0.15f;
+    [Tooltip("Cardinal 死区；与 DirectionModel 共用。")]
+    [SerializeField, Min(0.01f)] float cardinalEpsilon = LocomotionDirectionModel.DefaultEpsilon;
+    [Tooltip("Gait 循环 Cardinal 最短驻留逻辑帧；防对角线微抖换片。")]
+    [SerializeField, Min(0)] int cardinalMinDwellFrames = 3;
+    [Tooltip("L-DIR3 软锁半径（米）；>0 时 FollowMove 靠近敌人可升格 FaceTarget。0=仅动作索敌锁。")]
+    [SerializeField, Min(0f)] float softFocusRadiusMeters = 12f;
 
     [Header("Gait Policy")]
     [Tooltip("步态升档 / Pivot / Sprint 计时；敌我挂不同配置，勿在代码里按身份分支。")]
     [SerializeField] LocomotionGaitPolicy gaitPolicy = new LocomotionGaitPolicy();
-    [Tooltip("Start/Gait 移动时的朝向：玩家 FollowInput；八向对峙敌用 FaceCamera（锁假相机前向）。")]
-    [SerializeField] LocomotionRotationMode gaitRotationMode = LocomotionRotationMode.FollowInput;
+    [Tooltip("朝向策略：玩家 FollowMove；对峙敌 FaceCamera。值对齐旧 GaitRotationMode 以迁移资产。")]
+    [FormerlySerializedAs("gaitRotationMode")]
+    [SerializeField] LocomotionFacingMode facingMode = LocomotionFacingMode.FollowMove;
     [SerializeField, Range(0f, 1f)] float startToGaitNormalized = 1f;
     [SerializeField] float interruptFadeDuration = 0.08f;
 
@@ -59,6 +69,9 @@ public class CharacterLocomotionProfile : ScriptableObject
     /// <summary>本套 Locomotion 的 Clip 映射。</summary>
     public CharacterAnimationProfile AnimationProfile => animationProfile;
 
+    /// <summary>选片真源；空则默认表。</summary>
+    public LocomotionAnimSet AnimSet => animSet ??= LocomotionAnimSet.CreateDefault();
+
     public float IdleInputThreshold => idleInputThreshold;
     public float StopMinSpeedFactor => stopMinSpeedFactor;
     public float PivotAngleDegrees => pivotAngleDegrees;
@@ -66,18 +79,42 @@ public class CharacterLocomotionProfile : ScriptableObject
     /// <summary>PivotTurn 前半 AnimAuth 归一化门槛；之后 InputAuth。</summary>
     public float PivotAnimAuthNormalized => Mathf.Clamp01(pivotAnimAuthNormalized);
 
+    /// <summary>Cardinal 死区。</summary>
+    public float CardinalEpsilon => Mathf.Max(0.01f, cardinalEpsilon);
+
+    /// <summary>Gait Cardinal 滞回最短驻留帧。</summary>
+    public int CardinalMinDwellFrames => Mathf.Max(0, cardinalMinDwellFrames);
+
+    /// <summary>软锁最近敌对半径；≤0 关闭软锁。</summary>
+    public float SoftFocusRadiusMeters => Mathf.Max(0f, softFocusRadiusMeters);
+
     /// <summary>步态策略（MaxGait / Pivot / Sprint 秒）；空则回退默认玩家策略。</summary>
     public LocomotionGaitPolicy GaitPolicy => gaitPolicy ??= new LocomotionGaitPolicy();
 
-    /// <summary>Start/Gait/Pivot InputAuth 移动朝向模式（仅 FollowInput / FaceCamera）。</summary>
-    public LocomotionRotationMode GaitRotationMode
+    /// <summary>配置朝向策略（L-DIR1）；运行时有效模式见 Context.ResolveFacingMode。</summary>
+    public LocomotionFacingMode FacingMode
     {
         get
         {
-            // 仅允许移动态合法模式，避免误配 Hold 导致永不转面
-            if (gaitRotationMode == LocomotionRotationMode.FaceCamera)
+            if (facingMode == LocomotionFacingMode.FaceCamera)
+                return LocomotionFacingMode.FaceCamera;
+            if (facingMode == LocomotionFacingMode.FaceTarget)
+                return LocomotionFacingMode.FaceTarget;
+            return LocomotionFacingMode.FollowMove;
+        }
+    }
+
+    /// <summary>将有效 FacingMode 映射为 Motor 旋转模式。</summary>
+    public static LocomotionRotationMode ToMotorRotationMode(LocomotionFacingMode mode)
+    {
+        switch (mode)
+        {
+            case LocomotionFacingMode.FaceCamera:
                 return LocomotionRotationMode.FaceCamera;
-            return LocomotionRotationMode.FollowInput;
+            case LocomotionFacingMode.FaceTarget:
+                return LocomotionRotationMode.FaceTarget;
+            default:
+                return LocomotionRotationMode.FollowInput;
         }
     }
 
@@ -198,6 +235,7 @@ public class CharacterLocomotionProfile : ScriptableObject
     {
         gaitPolicy ??= new LocomotionGaitPolicy();
         sprintLean ??= new SprintLeanSettings();
+        animSet ??= LocomotionAnimSet.CreateDefault();
     }
 #endif
 }

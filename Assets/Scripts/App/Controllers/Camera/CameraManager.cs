@@ -405,9 +405,11 @@ public class CameraManager : AppControllerBase
             return;
         }
 
-        // 锁定索敌时不跟朝向，避免与 FaceTarget / 未来 LockOn 抢 yaw
-        if (playerController.Actor?.TargetLock != null
-            && playerController.Actor.TargetLock.HasValidLock)
+        // FaceTarget（软锁/动作索敌）时不跟朝向，避免与 strafing 锁面抢 yaw
+        if (playerController.Actor != null
+            && (playerController.Actor.IsLocomotionFaceTargetActive
+                || (playerController.Actor.TargetLock != null
+                    && playerController.Actor.TargetLock.HasValidLock)))
         {
             _yawFollowVelocity = 0f;
             return;

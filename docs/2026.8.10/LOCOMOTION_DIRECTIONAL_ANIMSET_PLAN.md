@@ -399,24 +399,24 @@ Walk↔Run 升档/降档逻辑留在相位 + GaitPolicy；**不再**以 `Animati
 
 **任务**
 
-- [ ] 新增 `LocomotionFacingMode`（FollowMove / FaceTarget / FaceCamera）；Profile 挂载；Motor 旋转从该模式解析  
-- [ ] **吸收** 现 `GaitRotationMode`；迁完删除旧名业务路径  
-- [ ] 新增 `MoveCardinal` + `LocomotionDirectionModel`（含 ε 死区）  
-- [ ] 新增 `LocomotionAnimSet`（或 Profile 内嵌表）：Walk Loop 四槽 + Shared  
-- [ ] `ILocomotionAnimResolver` 改为查 AnimSet；WalkLeft/Right **迁入** Left/Right 槽  
-- [ ] **删除** Resolver 内横向硬编码与 `ResolveGaitAnimationKey` 残留双轨（若仍有）  
-- [ ] EditMode：方向矩阵 → Cardinal → 期望槽；缺片回退 Fwd  
-- [ ] TECHNICAL / 本文件勾选  
+- [x] 新增 `LocomotionFacingMode`（FollowMove / FaceTarget / FaceCamera）；Profile 挂载；Motor 旋转从该模式解析
+- [x] **吸收** 现 `GaitRotationMode`（`FormerlySerializedAs` → `facingMode`）；删除 `GaitRotationMode` 属性
+- [x] 新增 `MoveCardinal` + `LocomotionDirectionModel`（含 ε 死区）
+- [x] 新增 `LocomotionAnimSet`（Profile 内嵌）：Walk Loop 四槽 + Shared
+- [x] `ILocomotionAnimResolver` 改为查 AnimSet；WalkLeft/Right **迁入** Left/Right 槽（默认 Key 别名）
+- [x] **删除** Resolver 循环选片横向硬编码（`TryResolveLateralKey`）
+- [x] EditMode：`LocomotionDirectionModelTests` / `LocomotionAnimSetTests`
+- [x] TECHNICAL / 本文件勾选
 
 **验收**
 
-- [ ] `rg`：Gait/Start 播片不直写 `AnimationKey.WalkLeft/Right` 业务分支  
-- [ ] 敌人对峙：表绑 Left/Right 后表现与迁前一致（或更好）  
-- [ ] 玩家未绑 Back/Left/Right 时回退 Fwd，不炸  
-- [ ] State 内无 `isEnemy` / `lockOn` 身份分支  
-- [ ] Unity 编译 / EditMode 在 Editor 确认通过  
+- [x] Gait 循环播片经 AnimSet；State 不直写 WalkLeft/Right 分支
+- [ ] 敌人对峙：表绑 Left/Right 后表现与迁前一致（Play 待确认）
+- [x] 缺片回退 Fwd（单测覆盖）
+- [x] State 内无 `isEnemy` / `lockOn` 身份分支
+- [ ] Unity 编译 / EditMode 在 Editor 确认通过
 
-**出口：** 选片真源 = AnimSet；方向参数化起步。→ **未达成**
+**出口：** 选片真源 = AnimSet；方向参数化起步。→ **代码已达成（2026-08-12）**；Play/编译待确认
 
 ---
 
@@ -424,20 +424,21 @@ Walk↔Run 升档/降档逻辑留在相位 + GaitPolicy；**不再**以 `Animati
 
 **任务**
 
-- [ ] AnimSet 增加 Walk/Run `Start[cardinal]`；缺省回退链写死在 AnimSet（非 State）  
-- [ ] `StartLocomotionState`：**删除** `WalkStartLeft/Right/WalkStart` Key 族判断；改为 AnimSet + gait 槽位元数据  
-- [ ] Start 进入闩 cardinal；升跑/降走仍可打断，但选片只调 AnimSet  
-- [ ] Cardinal 切换滞回（Gait 循环）：`minDwellFrames` 可配  
-- [ ] **删除**（或废弃）`AnimationKey.WalkStart*` / `WalkLeft` / `WalkRight` 的业务依赖  
-- [ ] EditMode：Start 闩定、Gait 滞回、缺片回退  
+- [x] AnimSet 增加 Walk/Run `Start[cardinal]`；缺省回退链写死在 AnimSet（非 State）  
+- [x] `StartLocomotionState`：**删除** `WalkStart*` Key 族判断；改为 `ActiveStartGait` + AnimSet  
+- [x] Start 进入闩 cardinal；升跑/降走仍可打断，选片只调 AnimSet  
+- [x] Cardinal 切换滞回（Gait）：`cardinalMinDwellFrames`（默认 3）  
+- [x] State/Resolver **无** WalkStart*/WalkLeft 业务分支（Key 仅作 AnimSet 默认别名槽）  
+- [x] EditMode：Start 回退、`LocomotionCardinalHysteresisTests`  
 
 **验收**
 
-- [ ] 新增一个方向槽 **零** 新相位类、**零** 新 State 文件  
-- [ ] Start 中微抖不换片；松手仍→Stop  
-- [ ] TECHNICAL：起步选片一行改为 AnimSet  
+- [x] 零新相位类 / 零新 State 文件  
+- [x] Start 闩 cardinal；升档看 `ActiveStartGait`  
+- [x] TECHNICAL：起步选片改为 AnimSet  
+- [ ] Unity 编译 / Play 待 Editor 确认  
 
-**出口：** 相位类不再含方向 Key 特例。→ **未达成**
+**出口：** 相位类不再含方向 Key 特例。→ **代码已达成（2026-08-12）**
 
 ---
 
@@ -445,24 +446,22 @@ Walk↔Run 升档/降档逻辑留在相位 + GaitPolicy；**不再**以 `Animati
 
 **任务**
 
-- [ ] 玩家锁定：`FacingMode=FaceTarget` 接线（CombatMode / 锁定服务单一入口）  
-- [ ] wish 转角色本地；DirectionModel 在锁定下稳定出 cardinal  
-- [ ] 任选其一落地（**只留一种**为完成态，实施前锁）：  
-  - **A（默认）**：Cardinal4 + 完整 Walk Start/Loop 表（对角线吸附）  
-  - **B**：Gait Loop 改 2D BlendSpace（Start 仍表驱动）  
-- [ ] Run strafing：按需扩 AnimSet（可先 Walk-only 锁定）  
-- [ ] Pivot：锁定时 Policy `AllowPivot=false`（或等价）  
-- [ ] Play 清单 + EditMode  
-- [ ] 文档：与 E-MOVE `LocomotionDesire` croplink  
+- [x] 玩家锁定：`ILocomotionFacingTargetSource` 单一入口（动作索敌锁 + 软锁）；有效模式 `ResolveFacingMode`  
+- [x] wish→角色本地；FaceTarget/FaceCamera 下 DirectionModel 用本地 cardinal  
+- [x] **定案 A**：Cardinal4 + AnimSet Walk Start/Loop（对角线吸附）；不做 BlendSpace  
+- [x] Run strafing：首版 Walk 表即可（Run 仍 Fwd）  
+- [x] Pivot：`FaceTarget` 时 `CanEnterPivot=false`  
+- [x] EditMode：`LocomotionFaceTargetTests`；相机 FaceTarget 时关 L-DIR5  
+- [x] 与 Desire：敌人仍 `FaceCamera`+假相机；玩家软锁与动作锁共用 AnimSet/DirectionModel  
 
 **验收**
 
-- [ ] Play：锁定下面朝目标，前后左右移动播对应循环（斜向可吸附）  
-- [ ] 解锁回 FollowMove：不残留 FaceTarget  
-- [ ] 无新增方向相位类；无 Intent/Input 枚举为方向服务  
-- [ ] 敌人 Desire 路径与玩家锁定路径共用 DirectionModel + AnimSet  
+- [ ] Play：软锁半径内面朝敌人，前后左右 Walk 循环可辨（待 Editor）  
+- [x] 离软锁/无目标：有效模式回 FollowMove（代码）  
+- [x] 无新增方向相位类  
+- [x] 选片共用 DirectionModel + AnimSet  
 
-**出口：** 锁定 strafing 可玩且工程扩展 O(1)。→ **未达成**
+**出口：** 锁定 strafing 工程就绪。→ **代码已达成（2026-08-12）**；Play 待确认
 
 ---
 
@@ -677,4 +676,7 @@ docs/2026.8.6/CAMERA_SYSTEM_PLAN.md    // 交叉：Orbit yaw follow facing
 | 2026-08-11 | **改定案**：绕圈 = Orbit yaw 插值跟随角色朝向；废弃「人手 Look 为绕圈主路径」；L-DIR5 / §1.4 / 层边界重写 |
 | 2026-08-11 | **代码落地** L-DIR4（SprintLean→VisualMotionRoot）+ L-DIR5（CameraManager 跟朝向）；待 Play 验收 |
 | 2026-08-11 | FollowInput：位移改为沿朝向，与 `RotationSmoothTime` 单参共用转向时长（W→WD） |
+| 2026-08-12 | **L-DIR1 代码落地**：FacingMode + DirectionModel + AnimSet；GaitRotationMode 迁 facingMode |
+| 2026-08-12 | **L-DIR2 代码落地**：AnimSet Start 表；Start 去 Key 族；Gait cardinal 滞回 |
+| 2026-08-12 | **L-DIR3 代码落地**：FaceTarget Motor；软锁+动作锁源；本地 cardinal；禁 Pivot |
 | 2026-08-11 | SprintLean：`leanEngageSmoothTime` / `leanRecoverSmoothTime` SmoothDamp，避免 0↔满倾硬切 |

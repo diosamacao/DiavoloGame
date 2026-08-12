@@ -322,7 +322,10 @@ SimulationWorld.Step
 | 选片 | `DefaultLocomotionAnimResolver`：gait + `MoveIntent` → `AnimationKey` |
 | 相位 State | `Idle/Start/Gait/PivotTurn/StopLocomotionState` |
 | 逻辑键 | Idle/Walk/WalkLeft/WalkRight/WalkStart/WalkStartLeft/WalkStartRight/Run/Sprint/Start/StartEnd/PivotTurn/StopL/StopR |
-| 移动朝向 | Profile.`GaitRotationMode`：`FollowInput`（玩家）/ `FaceCamera`（八向敌，锁假相机前向） |
+| 移动朝向 | Profile.`FacingMode`：`FollowMove`（玩家）/ `FaceCamera`（八向敌）；经 `ResolveMotorRotationMode` |
+| 选片 | `LocomotionAnimSet`（Loop/Start×cardinal→Key）+ `DirectionModel` + Gait cardinal 滞回；Clip 在 AnimationProfile |
+| 起步 | Start 闩 `ActiveStartGait`/`ActiveStartCardinal`；升档/降档不认 WalkStart* Key 族 |
+| FaceTarget | `LocomotionFacingTargetSource`（动作锁+软锁）；Motor `FaceTarget`；选片 wish→本地；Pivot 关 |
 | FollowInput 位移 | 沿**当前朝向**；朝向以 `CharacterConfig.RotationSmoothTime` 追 wish（单参控制 W→WD 转向时长） |
 | 起步选片 | Walk 横向 → `WalkStartLeft/Right`（缺则 `WalkStart`→`Start`）；正向 `WalkStart`；Run → `Start` |
 | 映射 | `CharacterAnimationProfile` → `AnimationClip` |
@@ -859,6 +862,9 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-11 | L-DIR4：`SprintLeanModel`→`VisualMotionRoot` Roll；L-DIR5：`CameraManager` yaw 跟朝向绕圈 |
 | 2026-08-11 | FollowInput：水平位移沿当前朝向；与 `RotationSmoothTime` 单参决定 W→WD 转向时长 |
 | 2026-08-12 | PivotTurn 两段式：AnimAuth（bake pos+yaw）→ InputAuth（FollowInput）；删 PivotTarget/偏移转向 |
+| 2026-08-12 | L-DIR1：`FacingMode` + `LocomotionAnimSet` + `DirectionModel`；循环选片不再硬编码 WalkLeft/Right |
+| 2026-08-12 | L-DIR2：AnimSet Start 表；`ActiveStartGait`；Gait `cardinalMinDwellFrames` 滞回 |
+| 2026-08-12 | L-DIR3：FaceTarget 旋转+软锁；本地 cardinal；锁定禁 Pivot；相机跟朝向关闭 |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
 | 2026-08-09 | BT Graph：装饰/条件改为宿主顶部徽章（UE 表现）；运行真源仍为装饰链 |
