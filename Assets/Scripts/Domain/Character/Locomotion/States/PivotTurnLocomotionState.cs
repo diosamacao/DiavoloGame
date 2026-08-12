@@ -1,19 +1,21 @@
 using UnityEngine;
 
 /// <summary>
-/// 折返相位：烘焙根位移 + 短锁根；解锁后叠加输入相对初始折返方向的偏移；
+/// 折返相位两段式：AnimAuth（烘焙根位移+偏航）→ InputAuth（与 Gait 相同的 FollowInput/FaceCamera）。
 /// 松手进 Stop；播完直入 Sprint 或急停。
 /// </summary>
 public sealed class PivotTurnLocomotionState : LocomotionPhaseState
 {
+    /// <summary>已切入输入接管段；Enter 时清零。</summary>
+    bool _inputAuth;
+
     public override LocomotionPhase Id => LocomotionPhase.PivotTurn;
 
-    /// <summary>锁进入朝向、硬切 PivotTurn、开始烘焙根位移会话。</summary>
+    /// <summary>锁进入朝向为烘焙基、硬切 PivotTurn、开始根位移会话。</summary>
     public override void Enter()
     {
-        Context.PivotElapsedSeconds = 0f;
+        _inputAuth = false;
         Context.PivotMoveLatched = true;
-        Context.PivotInitialTargetDirection = Context.PivotTargetDirection;
 
         Vector3 enterFacing = Context.Root.forward;
         enterFacing.y = 0f;
@@ -33,6 +35,10 @@ public sealed class PivotTurnLocomotionState : LocomotionPhaseState
         Context.RootMotionPlayer.Begin(
             AnimationKey.PivotTurn,
             Quaternion.LookRotation(Context.PivotEnterFacing));
+
+        // 无有效烘焙轨时整段走 InputAuth，避免卡在无位移 AnimAuth
+        if (!Context.RootMotionPlayer.IsActive)
+            EnterInputAuth();
     }
 
     /// <summary>刷新目标；松手 Stop；播完 Finish→Sprint/Stop。</summary>
@@ -59,65 +65,71 @@ public sealed class PivotTurnLocomotionState : LocomotionPhaseState
             FinishPivotTurn(snapshot, hasMove);
     }
 
-    /// <summary>推进锁根计时；烘焙位移；解锁后 PivotTarget 旋转。</summary>
+    /// <summary>AnimAuth 吃烘焙；过 handoff 后 End 根运动并 FollowInput 推移。</summary>
     public override void ExecuteFrame(float deltaTime)
     {
-        Context.PivotElapsedSeconds += deltaTime;
         Context.FootCycle.Freeze();
         Context.Animation.Play(AnimationKey.PivotTurn);
 
-        LocomotionMotorCommand command = BuildPivotMotorCommand();
-        if (Context.RootMotionPlayer.IsActive)
-            Context.ApplyBakedRootMotion(LocomotionPhase.PivotTurn, in command, deltaTime);
-        else
-            Context.Motor.ApplyLocomotion(command, deltaTime);
+        if (!_inputAuth)
+        {
+            float handoff = Context.Profile != null
+                ? Context.Profile.PivotAnimAuthNormalized
+                : 0.5f;
+            // 用动画归一化时间切段（方案定案）；位移仍由 RootMotionPlayer 逻辑帧消费
+            if (Context.Animation.NormalizedTime >= handoff)
+                EnterInputAuth();
+        }
+
+        if (!_inputAuth)
+        {
+            Context.ApplyBakedRootMotion(LocomotionPhase.PivotTurn, deltaTime);
+            return;
+        }
+
+        // InputAuth：与稳态 Gait 同一 ApplyLocomotion 语义（朝向追 wish、位移沿朝向）
+        Context.Motor.ApplyLocomotion(
+            new LocomotionMotorCommand(
+                true,
+                Context.ResolveGaitRotationMode(),
+                LocomotionGait.Sprint),
+            deltaTime);
+    }
+
+    /// <summary>一次性切入输入段：结束烘焙会话，平滑阻尼从当前朝向重新积分。</summary>
+    void EnterInputAuth()
+    {
+        if (_inputAuth)
+            return;
+
+        _inputAuth = true;
+        Context.RootMotionPlayer.End();
+        // 清零 SmoothDamp 速度，避免 AnimAuth 期间残留角速度在交接后过冲
+        Context.Motor.ResetRotationDamping();
     }
 
     /// <summary>
-    /// 转身结束：先硬切 Sprint/Stop，再对齐朝向，避免末帧本地 180° 与新根朝向叠闪。
+    /// 转身结束：硬切 Sprint Clip，但朝向不硬对齐 wish——保留 InputAuth 已追到的朝向，
+    /// 避免 FaceWorldDirection(wish) 后 L-DIR5 相机基座再把 wish 拉开。
     /// </summary>
     void FinishPivotTurn(in LocomotionInputSnapshot snapshot, bool hasMove)
     {
-        Vector3 faceDir = snapshot.WorldMoveDirection.sqrMagnitude > 0.001f
+        Vector3 stopFacing = snapshot.WorldMoveDirection.sqrMagnitude > 0.001f
             ? snapshot.WorldMoveDirection
             : Context.PivotTargetDirection;
 
         bool resumeSprint = Context.PivotMoveLatched || hasMove;
         Context.PivotMoveLatched = false;
         Context.RootMotionPlayer.End();
+        _inputAuth = false;
 
         if (resumeSprint)
         {
-            Context.GoGait(LocomotionGait.Sprint, hardCutPlay: true, faceDirection: faceDir);
+            // 不传 faceDirection：Gait.Enter 不再 FaceWorldDirection(wish)
+            Context.GoGait(LocomotionGait.Sprint, hardCutPlay: true);
             return;
         }
 
-        Context.GoStop(fromStart: false, preferredFacing: faceDir, hardCut: true);
-    }
-
-    /// <summary>
-    /// Pivot 位移由烘焙根运动负责时关闭输入推移。
-    /// 起手锁根；解锁后叠加相对初始折返输入的方向差。
-    /// </summary>
-    LocomotionMotorCommand BuildPivotMotorCommand()
-    {
-        float unlockSeconds = Context.Profile != null ? Context.Profile.PivotInputUnlockSeconds : 0.08f;
-        float pivotSmooth = Context.Profile != null ? Context.Profile.PivotRotationSmoothTime : 0.5f;
-        if (Context.PivotElapsedSeconds < unlockSeconds)
-        {
-            Context.Motor.FaceWorldDirection(Context.PivotEnterFacing);
-            return new LocomotionMotorCommand(
-                false,
-                LocomotionRotationMode.Hold,
-                Context.PivotEnterFacing,
-                LocomotionGait.Sprint);
-        }
-
-        return new LocomotionMotorCommand(
-            false,
-            LocomotionRotationMode.PivotTarget,
-            Context.ResolvePivotSteeringRootDirection(),
-            LocomotionGait.Sprint,
-            pivotSmooth);
+        Context.GoStop(fromStart: false, preferredFacing: stopFacing, hardCut: true);
     }
 }

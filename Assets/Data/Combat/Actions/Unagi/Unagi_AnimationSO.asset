@@ -26,7 +26,7 @@ MonoBehaviour:
   - Key: 5
     Clip: {fileID: -7489994829168811264, guid: 39615fc18966d904eb024131210f2c60, type: 3}
   - Key: 4
-    Clip: {fileID: 2532879371419110160, guid: 1872ec27cf58dcc47b1693ac7a16380c, type: 3}
+    Clip: {fileID: -2186437156815441090, guid: af0f7dbd34dee384b9da54e324807cd6, type: 3}
   - Key: 7
     Clip: {fileID: -700270024888318473, guid: 4b8bb84a23d045c468598fb439bedc97, type: 3}
   - Key: 8

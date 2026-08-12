@@ -52,11 +52,10 @@ public sealed class StopLocomotionState : LocomotionPhaseState
         var command = new LocomotionMotorCommand(
             false,
             LocomotionRotationMode.Hold,
-            Context.StopEnterFacing,
             LocomotionGait.Walk);
 
         if (Context.RootMotionPlayer.IsActive)
-            Context.ApplyBakedRootMotion(LocomotionPhase.Stop, in command, deltaTime);
+            Context.ApplyBakedRootMotion(LocomotionPhase.Stop, deltaTime);
         else
             Context.Motor.ApplyLocomotion(command, deltaTime);
     }
