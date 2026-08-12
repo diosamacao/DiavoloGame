@@ -5,8 +5,7 @@ public enum LocomotionRotationMode
     Hold = 0,
     /// <summary>平滑转向当前移动输入方向（可用 RotationSmoothTimeOverride）。</summary>
     FollowInput = 1,
-    /// <summary>转向显式 Pivot 目标；提供 RotationSmoothTimeOverride 时使用平滑旋转。</summary>
-    PivotTarget = 2,
+    // 原 PivotTarget=2 已删除（P-PIV2）；FaceCamera 保持 3 以免序列化资产错位
     /// <summary>平滑转向相机/假相机水平前向（八向横移锁面，不跟位移转向）。</summary>
     FaceCamera = 3,
 }

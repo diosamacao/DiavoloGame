@@ -32,7 +32,6 @@ public sealed class IdleLocomotionState : LocomotionPhaseState
             new LocomotionMotorCommand(
                 false,
                 LocomotionRotationMode.Hold,
-                Vector3.zero,
                 LocomotionGait.Walk),
             deltaTime);
     }

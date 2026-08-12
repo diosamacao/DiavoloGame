@@ -17,10 +17,8 @@ public class CharacterLocomotionProfile : ScriptableObject
     [SerializeField] float stopMinSpeedFactor = 0.5f;
     [Tooltip("Sprint 下与输入方向夹角达到该值触发转身（度）；对齐 zzzdemo turnBackAngle。")]
     [SerializeField] float pivotAngleDegrees = 135f;
-    [Tooltip("TurnBack 起手锁定角色根朝向的秒数；到时后由实时玩家输入接管朝向。")]
-    [SerializeField, Min(0f)] float pivotInputUnlockSeconds = 0.08f;
-    [Tooltip("TurnBack 解锁后跟随实时输入方向的 SmoothDamp 时间。")]
-    [SerializeField] float pivotRotationSmoothTime = 0.5f;
+    [Tooltip("PivotTurn AnimAuth 占比：NormalizedTime 达此值后切 InputAuth（FollowInput）。")]
+    [SerializeField, Range(0f, 1f)] float pivotAnimAuthNormalized = 0.5f;
     [Tooltip("Gait 下松手后仍保持当前步态的宽限秒数；用于键盘换向空窗，避免立刻 Stop 导致无法 Pivot。")]
     [SerializeField] float gaitInputGapGraceSeconds = 0.15f;
 
@@ -50,10 +48,8 @@ public class CharacterLocomotionProfile : ScriptableObject
     [Header("Root Motion Bake (Stop / Pivot)")]
     [Tooltip("急停（含 StartEnd）是否使用烘焙根位移。")]
     [SerializeField] bool stopUseRootMotion = true;
-    [Tooltip("转身是否使用烘焙根位移。")]
+    [Tooltip("转身是否使用烘焙根位移（AnimAuth 段强制吃烘焙偏航）。")]
     [SerializeField] bool pivotUseRootMotion = true;
-    [Tooltip("转身是否应用烘焙偏航；Clip 已含骨骼转向时保持 false。")]
-    [SerializeField] bool pivotApplyRootYaw = false;
     [SerializeField] float rootMotionPositionScale = 1f;
     [SerializeField] LocomotionRootMotionTrack startEndRootMotion;
     [SerializeField] LocomotionRootMotionTrack stopLRootMotion;
@@ -66,14 +62,14 @@ public class CharacterLocomotionProfile : ScriptableObject
     public float IdleInputThreshold => idleInputThreshold;
     public float StopMinSpeedFactor => stopMinSpeedFactor;
     public float PivotAngleDegrees => pivotAngleDegrees;
-    /// <summary>TurnBack 起手锁根秒数；到时后实时玩家输入接管朝向。</summary>
-    public float PivotInputUnlockSeconds => Mathf.Max(0f, pivotInputUnlockSeconds);
-    public float PivotRotationSmoothTime => pivotRotationSmoothTime;
+
+    /// <summary>PivotTurn 前半 AnimAuth 归一化门槛；之后 InputAuth。</summary>
+    public float PivotAnimAuthNormalized => Mathf.Clamp01(pivotAnimAuthNormalized);
 
     /// <summary>步态策略（MaxGait / Pivot / Sprint 秒）；空则回退默认玩家策略。</summary>
     public LocomotionGaitPolicy GaitPolicy => gaitPolicy ??= new LocomotionGaitPolicy();
 
-    /// <summary>Start/Gait 移动朝向模式（Hold/PivotTarget 无效时回退 FollowInput）。</summary>
+    /// <summary>Start/Gait/Pivot InputAuth 移动朝向模式（仅 FollowInput / FaceCamera）。</summary>
     public LocomotionRotationMode GaitRotationMode
     {
         get
@@ -106,7 +102,6 @@ public class CharacterLocomotionProfile : ScriptableObject
 
     public bool StopUseRootMotion => stopUseRootMotion;
     public bool PivotUseRootMotion => pivotUseRootMotion;
-    public bool PivotApplyRootYaw => pivotApplyRootYaw;
     public float RootMotionPositionScale => rootMotionPositionScale;
 
     /// <summary>按 AnimationKey 取烘焙根位移轨。</summary>

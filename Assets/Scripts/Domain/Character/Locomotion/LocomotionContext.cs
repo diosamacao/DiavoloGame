@@ -66,17 +66,11 @@ public sealed class LocomotionContext
     /// <summary>Gait.Enter 后可选对齐的朝向；零向量表示跳过。</summary>
     public Vector3 PendingGaitFaceDirection { get; set; }
 
-    /// <summary>进入 TurnBack 时的输入目标；解锁后用相对偏移修正角色根。</summary>
-    public Vector3 PivotInitialTargetDirection { get; set; } = Vector3.forward;
-
-    /// <summary>Pivot 期间持续刷新的输入目标朝向。</summary>
+    /// <summary>Pivot 期间持续刷新的输入目标朝向（结束接 Sprint/Stop 用）。</summary>
     public Vector3 PivotTargetDirection { get; set; } = Vector3.forward;
 
-    /// <summary>进入 Pivot 瞬间的根朝向；锁根与烘焙位移基。</summary>
+    /// <summary>进入 Pivot 瞬间的根朝向；烘焙局部位移→世界的旋转基。</summary>
     public Vector3 PivotEnterFacing { get; set; } = Vector3.forward;
-
-    /// <summary>TurnBack 已持续秒数；达解锁时间后允许输入偏移。</summary>
-    public float PivotElapsedSeconds { get; set; }
 
     /// <summary>本次 Pivot 是否出现过移动输入；结束时用于直入 Sprint。</summary>
     public bool PivotMoveLatched { get; set; }
@@ -316,72 +310,25 @@ public sealed class LocomotionContext
     }
 
     /// <summary>
-    /// Stop/Pivot 烘焙位移；TurnBack 解锁后把输入变化作为动画转身附加偏移，
-    /// 并把后续局部位移转到修正后的角色根朝向。
+    /// Stop/Pivot AnimAuth 烘焙位移。
+    /// Pivot：强制吃烘焙偏航；Stop：锁进入朝向且不吃偏航。
+    /// 位移权威为逻辑帧索引，禁止再读 Animation.NormalizedTime。
     /// </summary>
-    public void ApplyBakedRootMotion(
-        LocomotionPhase phase,
-        in LocomotionMotorCommand command,
-        float deltaTime)
+    public void ApplyBakedRootMotion(LocomotionPhase phase, float deltaTime)
     {
-        bool inputOwnsPivotRotation = phase == LocomotionPhase.PivotTurn
-            && command.RotationMode == LocomotionRotationMode.PivotTarget;
-        bool applyYaw = phase == LocomotionPhase.PivotTurn
-            && Profile != null
-            && Profile.PivotApplyRootYaw
-            && !inputOwnsPivotRotation;
-
-        if (inputOwnsPivotRotation)
-            Motor.ApplyLocomotion(command, deltaTime);
-        else if (phase == LocomotionPhase.PivotTurn && !applyYaw)
-            Motor.FaceWorldDirection(PivotEnterFacing);
-        else if (phase == LocomotionPhase.Stop)
+        bool applyYaw = phase == LocomotionPhase.PivotTurn;
+        if (phase == LocomotionPhase.Stop)
             Motor.FaceWorldDirection(StopEnterFacing);
 
-        // 位移权威为逻辑帧索引，禁止再读 Animation.NormalizedTime
         if (!RootMotionPlayer.TryConsume(
                 applyYaw,
                 out Vector3 worldDelta,
                 out float yawDelta))
             return;
 
-        if (inputOwnsPivotRotation)
-            worldDelta = ReorientPivotDeltaToCurrentFacing(worldDelta);
-
         Motor.MovePlanar(worldDelta, deltaTime);
         if (applyYaw)
             Motor.ApplyYawDegrees(yawDelta);
-    }
-
-    /// <summary>把以 Pivot 进入朝向烘焙的世界位移转到当前角色根朝向。</summary>
-    public Vector3 ReorientPivotDeltaToCurrentFacing(Vector3 worldDelta)
-    {
-        Vector3 currentFacing = Root.forward;
-        currentFacing.y = 0f;
-        if (currentFacing.sqrMagnitude < 0.0001f || PivotEnterFacing.sqrMagnitude < 0.0001f)
-            return worldDelta;
-
-        Quaternion enterRotation = Quaternion.LookRotation(PivotEnterFacing.normalized);
-        Quaternion currentRotation = Quaternion.LookRotation(currentFacing.normalized);
-        return currentRotation * Quaternion.Inverse(enterRotation) * worldDelta;
-    }
-
-    /// <summary>
-    /// Clip 已负责从进入朝向转到初始折返方向；代码只叠加玩家后来修改的输入偏移。
-    /// </summary>
-    public Vector3 ResolvePivotSteeringRootDirection()
-    {
-        Vector3 initialTarget = PivotInitialTargetDirection;
-        Vector3 currentTarget = PivotTargetDirection;
-        initialTarget.y = 0f;
-        currentTarget.y = 0f;
-        if (initialTarget.sqrMagnitude < 0.0001f || currentTarget.sqrMagnitude < 0.0001f)
-            return PivotEnterFacing;
-
-        Quaternion initialRotation = Quaternion.LookRotation(initialTarget.normalized);
-        Quaternion currentRotation = Quaternion.LookRotation(currentTarget.normalized);
-        Quaternion inputOffset = currentRotation * Quaternion.Inverse(initialRotation);
-        return inputOffset * PivotEnterFacing;
     }
 
     /// <summary>当前相位 Clip 是否播完。</summary>

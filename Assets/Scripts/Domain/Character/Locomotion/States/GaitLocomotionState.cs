@@ -91,7 +91,6 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
             new LocomotionMotorCommand(
                 true,
                 Context.ResolveGaitRotationMode(),
-                Vector3.zero,
                 Context.Gait),
             deltaTime);
         Context.FootstepPlayer.PlayIfPlanted(Context.FootCycle.PlantedThisFrame);

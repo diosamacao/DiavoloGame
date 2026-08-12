@@ -54,7 +54,6 @@ public sealed class LocomotionStateMachine
         Context.RunHoldSeconds = 0f;
         Context.GaitInputGapSeconds = 0f;
         Context.PivotMoveLatched = false;
-        Context.PivotElapsedSeconds = 0f;
         Context.PendingGaitHardCutPlay = false;
         Context.PendingGaitFaceDirection = Vector3.zero;
         Context.StopPlayHardCut = false;

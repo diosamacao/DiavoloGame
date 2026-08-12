@@ -6,13 +6,11 @@ public readonly struct LocomotionMotorCommand
     public LocomotionMotorCommand(
         bool applyHorizontalMove,
         LocomotionRotationMode rotationMode,
-        Vector3 pivotTargetDirection,
         LocomotionGait gait,
         float? rotationSmoothTimeOverride = null)
     {
         ApplyHorizontalMove = applyHorizontalMove;
         RotationMode = rotationMode;
-        PivotTargetDirection = pivotTargetDirection;
         Gait = gait;
         RotationSmoothTimeOverride = rotationSmoothTimeOverride;
     }
@@ -21,9 +19,6 @@ public readonly struct LocomotionMotorCommand
     public bool ApplyHorizontalMove { get; }
 
     public LocomotionRotationMode RotationMode { get; }
-
-    /// <summary>PivotTarget 模式下的世界朝向；其余模式可忽略。</summary>
-    public Vector3 PivotTargetDirection { get; }
 
     /// <summary>用于选取 walk/run/sprint 速度。</summary>
     public LocomotionGait Gait { get; }

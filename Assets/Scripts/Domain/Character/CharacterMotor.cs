@@ -172,7 +172,7 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         _planarSpeedEstimate = 0f;
     }
 
-    /// <summary>按命令选择输入跟随或显式 Pivot 目标，并共用同一套平滑旋转状态。</summary>
+    /// <summary>按命令选择 FollowInput / FaceCamera / Hold，并共用同一套平滑旋转状态。</summary>
     void ApplyRotation(
         in LocomotionMotorCommand command,
         Vector3 moveDirection,
@@ -200,23 +200,6 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
                         deltaTime,
                         command.RotationSmoothTimeOverride);
                     SyncFacingFromRoot();
-                }
-                break;
-            case LocomotionRotationMode.PivotTarget:
-                if (command.PivotTargetDirection.sqrMagnitude > 0.001f)
-                {
-                    if (command.RotationSmoothTimeOverride.HasValue)
-                    {
-                        _root.rotation = GetSmoothedRotation(
-                            command.PivotTargetDirection,
-                            deltaTime,
-                            command.RotationSmoothTimeOverride);
-                        SyncFacingFromRoot();
-                    }
-                    else
-                    {
-                        FaceWorldDirection(command.PivotTargetDirection);
-                    }
                 }
                 break;
             default:

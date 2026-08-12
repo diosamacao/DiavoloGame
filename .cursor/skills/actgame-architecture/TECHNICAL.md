@@ -329,7 +329,8 @@ SimulationWorld.Step
 | 相位参数 | `CharacterLocomotionProfile`（阈值、落脚、GaitPolicy、脚步音） |
 | 脚步 | `LocomotionFootCycle` 按 `NormalizedTime` 采样标记 |
 | 门面 | `CharacterAnimationService.Play`（兼 `ILocomotionAnimClipQuery`） |
-| Root Motion | StartEnd/Stop/Pivot 烘焙轨；TurnBack 解锁后输入修正 |
+| Root Motion | StartEnd/Stop/Pivot 烘焙轨；Pivot：**AnimAuth**（bake pos+yaw）→ **InputAuth**（FollowInput，同 Gait） |
+| Pivot handoff | `CharacterLocomotionProfile.pivotAnimAuthNormalized`（默认 0.5） |
 
 ### 相位规则（摘要）
 
@@ -857,6 +858,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-11 | 对峙循环：CdReady Chase / CdNotReady Strafe；CooldownGate/Dwell/Wait 节点改秒制 |
 | 2026-08-11 | L-DIR4：`SprintLeanModel`→`VisualMotionRoot` Roll；L-DIR5：`CameraManager` yaw 跟朝向绕圈 |
 | 2026-08-11 | FollowInput：水平位移沿当前朝向；与 `RotationSmoothTime` 单参决定 W→WD 转向时长 |
+| 2026-08-12 | PivotTurn 两段式：AnimAuth（bake pos+yaw）→ InputAuth（FollowInput）；删 PivotTarget/偏移转向 |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
 | 2026-08-09 | BT Graph：装饰/条件改为宿主顶部徽章（UE 表现）；运行真源仍为装饰链 |
