@@ -87,7 +87,7 @@ public class MyBehaviour : MonoBehaviour
 - 需要独占时 `SetLocked(true)`；卡肉用 `SetSpeed(0)`，禁止业务直写 `Animator.speed`
 - Locomotion：`applyRootMotion = false`，水平位移经 `CharacterMotor` → `CharacterMotorSim`；Transform/CC 跟随 XZ
 - 角色互撞（定案）：逻辑圆盘软弹开，按 `softBodyMass` 分配推力；大体型勾 `softBodyImmovable`；禁止 Unity Physics/CC 互撞权威；静态障碍烘焙硬挡
-- 联网（定案）：权威输入 FramePacket + 客户端完整预测回滚；禁止以齐帧停等作为最终本地手感模型
+- 联网（定案，2026-08-13）：组队 PVE 为 Host/DS 权威状态同步；上行量化 `InputFrame`，下行 `ActorReplicationSnapshot`；命中只在权威 `CombatHitPipeline`。禁止全端同构输入广播作为产品主路径，禁止客户端上报伤害结果，禁止以齐帧停等作为手感模型。锁步 L0～L2 模拟核仍适用。真源：`docs/2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md`
 - Action：烘焙表就绪时查表写 MotorSim；未烘焙且 `UseRootMotion` 时由 `CharacterRootMotionDriver` 经 Motor 写入；否则可用 `MovementNotifyState` 脚本位移
 - 同 key 不重复 Play（门面 `_currentKey` 去重）；无 Animator Controller 业务依赖
 - 角色销毁时 `CharacterActor.Dispose()` 释放 PlayableGraph

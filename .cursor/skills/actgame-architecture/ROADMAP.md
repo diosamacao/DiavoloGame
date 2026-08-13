@@ -100,6 +100,14 @@
 
 **状态：🟡 C-AT0～C-AT3 代码重构完成（2026-08-13）**；已删除旧权威路径并补确定性 Resolver 测试。待 Editor 绑定 TargetSwitch/CameraLock、Unity 编译/Test Runner/Play 回归后关闭出口，再进入 Camera C1 Director / LockOn VCam。
 
+### [P1] 组队 PVE · 永劫式状态同步
+
+**方案**：`docs/2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md`
+
+**目标**：Listen Host / 日后 Dedicated 独跑现有 `SimulationWorld`；客户端上行 `InputFrame`、下行角色快照；本地预测移动与出招表现；命中只在权威逻辑盒结算。取代锁步 L5「全员输入广播 + 完整回滚」作为产品联网。
+
+**状态：⬜ 仅文档（2026-08-13）**；未开工代码。顺序 NS0 身份 → NS1 Snapshot/Loopback → NS2 Ghost → NS3 预测位移 → NS4 权威命中 → NS5 两人进关。
+
 ### [P1] Lockstep 模拟核迁移
 
 **方案**：`docs/ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md`
@@ -141,8 +149,8 @@
 - [x] 2026-08-04 L2/M2：`Bake All` / `Bake Dirty Only` + Dirty 指纹黄条 + Validate 菜单
 - [ ] L2 收口：斜坡/网格精确碰撞（当前 AABB 保守）
 - [x] 2026-08-08 Wave 2.5：删除 Action `useRootMotion` / LegacyResolve / ForwardOnly 与 Animator RM→Motor 回退
-- [ ] L3：Snapshot 无损恢复 + 单机预测/回滚雏形（为 L5 完整预测回滚铺路）
-- [ ] L5：权威 FramePacket + 客户端完整预测回滚（已撤销「仅齐帧停等」定案，见锁步方案 5.12）
+- [ ] L3：降级为可导出 `ActorReplicationSnapshot`（组队 PVE 纠偏/重连）；不再为 GGPO 整世界回滚铺路
+- [ ] ~~L5：权威 FramePacket + 客户端完整预测回滚~~ → **2026-08-13 取消为产品主路径**；改 [`TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md`](../../docs/2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md)
 
 ## 待建设模块
 
