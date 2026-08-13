@@ -5,6 +5,7 @@
 > 最近实施：2026-08-01（L0A/L0B/L0C/L1A 代码完成；第 2 节保留重构前基线诊断）
 > 目标：以**帧同步（Lockstep）多人 PVE**为未来方向，重构动作与角色模拟核；保留现有选招/窗口/意图语义  
 > **网络定案（2026-08-02）**：权威仍为输入 `FramePacket` + 同构 Sim；客户端做**完整预测与回滚**；角色互撞为逻辑圆盘**软弹开**（非 Unity 物理、非硬分离）  
+> **联网修订（2026-08-13）**：组队 PVE 产品联网改走 Host 权威状态同步，真源见 [`2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md`](./2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md)。本文 L0～L2 仍是模拟核真源；L5 全员输入广播 + 完整回滚不再作为实施主路径。  
 
 > 相关文档：[ENEMY_SYSTEM_INTEGRATION_PLAN.md](./ENEMY_SYSTEM_INTEGRATION_PLAN.md)、[ENEMY_BEHAVIOR_TREE_PLAN.md](./ENEMY_BEHAVIOR_TREE_PLAN.md)
 

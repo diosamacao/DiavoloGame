@@ -115,7 +115,8 @@
 
 ## 5. 锁步与模拟剩余
 
-真源：[`ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md`](./ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)
+模拟核真源：[`ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md`](./ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)  
+联网真源：[`2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md`](./2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md)
 
 | 项 | 状态 |
 |----|------|
@@ -123,8 +124,9 @@
 | L1B Play Mode 回归 + `ActionSim*` 测试 | ⬜ |
 | L2 核心（表位移、HitStop、MotorSim、软分离、静态 AABB） | ✅ |
 | L2 收口：斜坡/网格精确碰撞 | ⬜ |
-| L3 Snapshot + 单机预测雏形 | ⬜ |
-| L5 完整预测回滚 | ⬜ |
+| L3 可导出复制快照（纠偏用，非 GGPO） | ⬜ |
+| 组队 PVE 状态同步 NS0～NS5 | ⬜ 仅方案 |
+| L5 全员输入广播 + 完整回滚 | ❌ 2026-08-13 取消产品主路径 |
 
 ---
 
