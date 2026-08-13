@@ -73,6 +73,7 @@ public class CameraManager : AppControllerBase
     CameraDebugAnchorVisualizer _debugAnchorVisualizer;
     float _yawFollowVelocity;
     float _lookOverrideRemaining;
+    bool _cameraLockEnabled;
 
     public Transform FollowTarget => cameraRoot != null ? cameraRoot : followTarget;
 
@@ -131,6 +132,9 @@ public class CameraManager : AppControllerBase
     /// <summary>运行时创建或绑定的第三人称 Virtual Camera。</summary>
     public CinemachineVirtualCamera VirtualCamera => virtualCamera;
 
+    /// <summary>纯表现 Camera Lock 开关；不进入 InputFrame 或角色逻辑状态。</summary>
+    public bool CameraLockEnabled => _cameraLockEnabled;
+
     void Awake()
     {
         pitch = initialPitch;
@@ -162,14 +166,15 @@ public class CameraManager : AppControllerBase
     void Update()
     {
         ApplyLookInput();
+        UpdateCameraLock();
     }
 
     void LateUpdate()
     {
-        // 先跟朝向改 yaw，再写 Orbit / PlanarBasis，供下一逻辑帧 wish 使用
+        // 先跟朝向改 yaw，再把最终 Orbit yaw 暂存给下一逻辑输入帧。
         ApplyFollowFacingYaw();
         SyncOrbitPivots();
-        PushPlanarBasisToPlayer();
+        StageMoveReferenceYaw();
         SyncDebugAnchorVisualizer();
     }
 
@@ -198,12 +203,12 @@ public class CameraManager : AppControllerBase
 #endif
     }
 
-    /// <summary>每帧把 Orbit 水平基交给玩家 Motor。</summary>
-    void PushPlanarBasisToPlayer()
+    /// <summary>把最终 Orbit yaw 暂存到设备输入边界，不直接写 Motor。</summary>
+    void StageMoveReferenceYaw()
     {
         if (playerController == null)
             ResolvePlayerController();
-        playerController?.SetCameraPlanarBasis(PlanarForward, PlanarRight);
+        playerController?.StageMoveReferenceYaw(yaw);
     }
 
     void EnsureBrain()
@@ -394,6 +399,12 @@ public class CameraManager : AppControllerBase
         if (!followFacingWhileMoving || cameraFollowFacingSmoothTime <= 0f)
             return;
 
+        if (_cameraLockEnabled)
+        {
+            _yawFollowVelocity = 0f;
+            return;
+        }
+
         if (_lookOverrideRemaining > 0f)
             return;
 
@@ -405,11 +416,9 @@ public class CameraManager : AppControllerBase
             return;
         }
 
-        // FaceTarget（软锁/动作索敌）时不跟朝向，避免与 strafing 锁面抢 yaw
+        // FaceTarget 时不跟朝向，避免与 strafing 锁面抢 yaw
         if (playerController.Actor != null
-            && (playerController.Actor.IsLocomotionFaceTargetActive
-                || (playerController.Actor.TargetLock != null
-                    && playerController.Actor.TargetLock.HasValidLock)))
+            && playerController.Actor.IsLocomotionFaceTargetActive)
         {
             _yawFollowVelocity = 0f;
             return;
@@ -424,6 +433,26 @@ public class CameraManager : AppControllerBase
             targetYaw,
             ref _yawFollowVelocity,
             cameraFollowFacingSmoothTime);
+    }
+
+    /// <summary>读取本地锁定键；有 SelectedTarget 才能开启，无目标时自动退出。</summary>
+    void UpdateCameraLock()
+    {
+        if (playerController == null)
+            ResolvePlayerController();
+
+        ILocalCameraTargetSource targetSource = playerController?.Actor;
+        bool hasTarget = targetSource != null && targetSource.TargetingSnapshot.HasSelectedTarget;
+        if (_cameraLockEnabled && !hasTarget)
+            _cameraLockEnabled = false;
+
+        if (playerController == null || !playerController.CameraLockPressedThisFrame)
+            return;
+
+        if (_cameraLockEnabled)
+            _cameraLockEnabled = false;
+        else if (hasTarget)
+            _cameraLockEnabled = true;
     }
 
     /// <summary>

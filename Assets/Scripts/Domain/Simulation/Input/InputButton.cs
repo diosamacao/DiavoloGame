@@ -6,5 +6,7 @@ public enum InputButton : byte
     SwitchMode = 2,
     HeavyAttack = 3,
     Evade = 4,
-    Skill = 5
+    Skill = 5,
+    TargetSwitchLeft = 6,
+    TargetSwitchRight = 7
 }

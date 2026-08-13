@@ -24,8 +24,8 @@ public readonly struct InputFrame : IEquatable<InputFrame>
     /// <summary>本逻辑帧松开边沿 bitset。</summary>
     public ulong ButtonsReleased { get; }
 
-    /// <summary>可选量化瞄准偏航；当前单位为 0.1 度。</summary>
-    public short AimYawQuantized { get; }
+    /// <summary>把本地移动轴旋转到世界平面的参考偏航，单位 0.1 度，范围 [0,3599]。</summary>
+    public ushort MoveReferenceYawQuantized { get; }
 
     /// <summary>构造完整量化输入帧。</summary>
     public InputFrame(
@@ -36,7 +36,7 @@ public readonly struct InputFrame : IEquatable<InputFrame>
         ulong buttonsPressed,
         ulong buttonsHeld,
         ulong buttonsReleased,
-        short aimYawQuantized = 0)
+        ushort moveReferenceYawQuantized = 0)
     {
         Frame = frame;
         ActorId = actorId;
@@ -45,7 +45,7 @@ public readonly struct InputFrame : IEquatable<InputFrame>
         ButtonsPressed = buttonsPressed;
         ButtonsHeld = buttonsHeld;
         ButtonsReleased = buttonsReleased;
-        AimYawQuantized = aimYawQuantized;
+        MoveReferenceYawQuantized = moveReferenceYawQuantized;
     }
 
     /// <summary>创建指定 Actor 与逻辑帧的空输入。</summary>
@@ -74,7 +74,7 @@ public readonly struct InputFrame : IEquatable<InputFrame>
             0ul,
             ButtonsHeld,
             0ul,
-            AimYawQuantized);
+            MoveReferenceYawQuantized);
 
     /// <summary>合并同一目标逻辑帧的多次渲染采样；边沿 OR，连续状态取最后样本。</summary>
     public InputFrame MergeSample(in InputFrame latest)
@@ -90,7 +90,7 @@ public readonly struct InputFrame : IEquatable<InputFrame>
             ButtonsPressed | latest.ButtonsPressed,
             latest.ButtonsHeld,
             ButtonsReleased | latest.ButtonsReleased,
-            latest.AimYawQuantized);
+            latest.MoveReferenceYawQuantized);
     }
 
     /// <summary>比较所有序列化字段是否一致。</summary>
@@ -102,7 +102,7 @@ public readonly struct InputFrame : IEquatable<InputFrame>
         && ButtonsPressed == other.ButtonsPressed
         && ButtonsHeld == other.ButtonsHeld
         && ButtonsReleased == other.ButtonsReleased
-        && AimYawQuantized == other.AimYawQuantized;
+        && MoveReferenceYawQuantized == other.MoveReferenceYawQuantized;
 
     /// <summary>比较对象是否为相同输入帧。</summary>
     public override bool Equals(object obj) => obj is InputFrame other && Equals(other);
@@ -119,7 +119,7 @@ public readonly struct InputFrame : IEquatable<InputFrame>
             hash = (hash * 397) ^ ButtonsPressed.GetHashCode();
             hash = (hash * 397) ^ ButtonsHeld.GetHashCode();
             hash = (hash * 397) ^ ButtonsReleased.GetHashCode();
-            hash = (hash * 397) ^ AimYawQuantized;
+            hash = (hash * 397) ^ MoveReferenceYawQuantized;
             return hash;
         }
     }

@@ -16,7 +16,7 @@ public sealed class CharacterActionPresentationBridge
     readonly List<IActionNotifyConsumer> _notifyConsumers = new();
     readonly ActionTimelineRunner _timelineRunner;
     readonly CharacterVisualMotionBridge _visualMotion;
-    readonly CombatTargetLock _targetLock;
+    readonly CharacterTargetingState _targetingState;
     readonly IActionMotionWorldQuery _worldQuery;
     readonly List<ActionSimEvent> _events = new(16);
     Transform _defaultAttachPoint;
@@ -37,7 +37,7 @@ public sealed class CharacterActionPresentationBridge
         ActionTimelineRunner timelineRunner,
         Transform defaultAttachPoint,
         CharacterVisualMotionBridge visualMotion = null,
-        CombatTargetLock targetLock = null,
+        CharacterTargetingState targetingState = null,
         IActionMotionWorldQuery worldQuery = null)
     {
         _actionSim = actionSim ?? throw new ArgumentNullException(nameof(actionSim));
@@ -50,7 +50,7 @@ public sealed class CharacterActionPresentationBridge
         _timelineRunner = timelineRunner ?? new ActionTimelineRunner();
         _defaultAttachPoint = defaultAttachPoint != null ? defaultAttachPoint : actorRoot;
         _visualMotion = visualMotion;
-        _targetLock = targetLock;
+        _targetingState = targetingState;
         _worldQuery = worldQuery;
     }
 
@@ -163,8 +163,6 @@ public sealed class CharacterActionPresentationBridge
 
         ActionGraph graph = actionEvent.Graph as ActionGraph;
         ExecuteStartBehaviors(graph, actionEvent.NodeId);
-        // 起手立即固化吸附目标（早于同帧 Rotation.Tick）
-        BindActionTargetAtStart(graph, actionEvent.NodeId);
         // Action 位移仅 Baked/Scripted；禁止 Animator RM → Motor
         _rootMotion?.SetActive(false);
         for (int i = 0; i < _frameConsumers.Count; i++)
@@ -186,18 +184,6 @@ public sealed class CharacterActionPresentationBridge
         SyncHitStopPresentation(frozen: false);
         // 取消/受击/自然结束统一短时回锚，避免模型停在偏移处
         _visualMotion?.EndAction(VisualResidualExitPolicy.BlendToZero);
-    }
-
-    /// <summary>按图节点索敌并写入 ActionSim.ActionTargetId。</summary>
-    void BindActionTargetAtStart(ActionGraph graph, string nodeId)
-    {
-        if (_targetLock != null)
-            _targetLock.AcquireForActionNode(graph, nodeId);
-
-        SimActorId targetId = _targetLock != null
-            ? _targetLock.ResolveLockedSimulationId()
-            : SimActorId.Invalid;
-        _actionSim.BindActionTarget(targetId);
     }
 
     /// <summary>按整数帧派发判定与时间轴；终止哨兵只产生区间 Exit。</summary>
@@ -376,8 +362,8 @@ public sealed class CharacterActionPresentationBridge
 
         int previousFrame = frame - 1;
         float heightY = _actorRoot != null ? _actorRoot.position.y : 0f;
-        SimActorId lockId = _targetLock != null
-            ? _targetLock.ResolveLockedSimulationId()
+        SimActorId selectedTargetId = _targetingState != null
+            ? _targetingState.Snapshot.SelectedTargetId
             : SimActorId.Invalid;
 
         // 同帧多 Command：Priority 高者先执行（与 Timeline 点事件一致）
@@ -403,8 +389,7 @@ public sealed class CharacterActionPresentationBridge
                 _motor.Sim,
                 _motor.Sim.CollisionWorld,
                 in actorPose,
-                _actionSim.ActionTargetId,
-                lockId,
+                selectedTargetId,
                 _worldQuery);
 
             if (result.Applied)
@@ -423,14 +408,9 @@ public sealed class CharacterActionPresentationBridge
 
     /// <summary>按 TargetSource 解析 SimActorId。</summary>
     SimActorId ResolveMotionTargetId(MotionTargetSource source) =>
-        source switch
-        {
-            MotionTargetSource.ActionTarget => _actionSim.ActionTargetId,
-            MotionTargetSource.CurrentLock => _targetLock != null
-                ? _targetLock.ResolveLockedSimulationId()
-                : SimActorId.Invalid,
-            _ => SimActorId.Invalid,
-        };
+        source == MotionTargetSource.SelectedTarget && _targetingState != null
+            ? _targetingState.Snapshot.SelectedTargetId
+            : SimActorId.Invalid;
 
     /// <summary>解析当前招式位移权威。</summary>
     static ActionDisplacementSource ResolveDisplacementSource(ActionDefinition action)

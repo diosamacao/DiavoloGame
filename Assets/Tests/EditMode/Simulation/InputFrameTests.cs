@@ -16,8 +16,10 @@ public sealed class InputFrameTests
     [Test]
     public void QuantizeYaw_WrapsEquivalentAngles()
     {
-        Assert.That(InputQuantizer.QuantizeYaw(190f), Is.EqualTo((short)-1700));
-        Assert.That(InputQuantizer.QuantizeYaw(-170f), Is.EqualTo((short)-1700));
+        Assert.That(InputQuantizer.QuantizeYaw(190f), Is.EqualTo((ushort)1900));
+        Assert.That(InputQuantizer.QuantizeYaw(-170f), Is.EqualTo((ushort)1900));
+        Assert.That(InputQuantizer.QuantizeYaw(360f), Is.Zero);
+        Assert.That(InputQuantizer.DequantizeYaw(3599), Is.EqualTo(359.9f).Within(0.001f));
     }
 
     /// <summary>按钮查询必须严格读取各自生命周期 bitset。</summary>
@@ -48,8 +50,8 @@ public sealed class InputFrameTests
         var id = new SimActorId(1);
         ulong attack = InputButtonMask.Of(InputButton.Attack);
         ulong dodge = InputButtonMask.Of(InputButton.Dodge);
-        var first = new InputFrame(0, id, 10, 20, attack, attack, 0ul);
-        var latest = new InputFrame(0, id, 30, 40, dodge, dodge, attack);
+        var first = new InputFrame(0, id, 10, 20, attack, attack, 0ul, 100);
+        var latest = new InputFrame(0, id, 30, 40, dodge, dodge, attack, 900);
 
         InputFrame merged = first.MergeSample(in latest);
 
@@ -58,5 +60,6 @@ public sealed class InputFrameTests
         Assert.That(merged.ButtonsPressed, Is.EqualTo(attack | dodge));
         Assert.That(merged.ButtonsHeld, Is.EqualTo(dodge));
         Assert.That(merged.ButtonsReleased, Is.EqualTo(attack));
+        Assert.That(merged.MoveReferenceYawQuantized, Is.EqualTo((ushort)900));
     }
 }

@@ -6,7 +6,7 @@ using UnityEngine;
 public class MotionCommandNotify : ActionNotify
 {
     [SerializeField] MotionCommandType commandType = MotionCommandType.RelocateBehindTarget;
-    [SerializeField] MotionTargetSource targetSource = MotionTargetSource.ActionTarget;
+    [SerializeField] MotionTargetSource targetSource = MotionTargetSource.SelectedTarget;
     [SerializeField] int behindDistanceMm = 1000;
     [SerializeField] Vector3 localOffsetMm = Vector3.zero;
     [SerializeField] MotionFacingPolicy facingPolicy = MotionFacingPolicy.FaceTarget;

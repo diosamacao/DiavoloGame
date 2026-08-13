@@ -24,7 +24,7 @@ public sealed class CharacterStateMachine : ICharacterStateMachine
         }
     }
 
-    /// <summary>L-DIR3：Locomotion 有效朝向为 FaceTarget（软锁/索敌）；供相机关闭跟朝向。</summary>
+    /// <summary>L-DIR3：Locomotion 有效朝向为 FaceTarget（Profile 声明且有 SelectedTarget）；供相机关闭跟朝向。</summary>
     public bool IsLocomotionFaceTargetActive
     {
         get

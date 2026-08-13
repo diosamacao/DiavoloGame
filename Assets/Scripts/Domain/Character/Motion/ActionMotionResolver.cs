@@ -12,8 +12,7 @@ public static class ActionMotionResolver
         CharacterMotorSim motor,
         ISimCollisionWorld collision,
         in SimCombatPose actorPose,
-        SimActorId actionTargetId,
-        SimActorId currentLockId,
+        SimActorId selectedTargetId,
         IActionMotionWorldQuery worldQuery)
     {
         if (command == null || motor == null || collision == null || worldQuery == null)
@@ -24,14 +23,12 @@ public static class ActionMotionResolver
                 command,
                 motor,
                 in actorPose,
-                actionTargetId,
-                currentLockId,
+                selectedTargetId,
                 worldQuery);
 
         if (!TryResolveTargetPose(
                 command.TargetSource,
-                actionTargetId,
-                currentLockId,
+                selectedTargetId,
                 worldQuery,
                 out SimCombatPose targetPose))
         {
@@ -74,14 +71,12 @@ public static class ActionMotionResolver
         MotionCommandNotify command,
         CharacterMotorSim motor,
         in SimCombatPose actorPose,
-        SimActorId actionTargetId,
-        SimActorId currentLockId,
+        SimActorId selectedTargetId,
         IActionMotionWorldQuery worldQuery)
     {
         if (!TryResolveTargetPose(
                 command.TargetSource,
-                actionTargetId,
-                currentLockId,
+                selectedTargetId,
                 worldQuery,
                 out SimCombatPose targetPose))
         {
@@ -201,23 +196,14 @@ public static class ActionMotionResolver
 
     static bool TryResolveTargetPose(
         MotionTargetSource source,
-        SimActorId actionTargetId,
-        SimActorId currentLockId,
+        SimActorId selectedTargetId,
         IActionMotionWorldQuery worldQuery,
         out SimCombatPose pose)
     {
         pose = default;
-        SimActorId id = source == MotionTargetSource.CurrentLock ? currentLockId : actionTargetId;
-        if (!id.IsValid)
-        {
-            // ActionTarget 无效时回退 CurrentLock，便于未固化也能试招
-            if (source == MotionTargetSource.ActionTarget && currentLockId.IsValid)
-                id = currentLockId;
-            else
-                return false;
-        }
-
-        return worldQuery.TryGetCommittedCombatPose(id, out pose);
+        if (source != MotionTargetSource.SelectedTarget || !selectedTargetId.IsValid)
+            return false;
+        return worldQuery.TryGetCommittedCombatPose(selectedTargetId, out pose);
     }
 
     static void Commit(

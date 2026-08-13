@@ -25,6 +25,9 @@ public sealed class LocomotionDesireBuffer : IMoveIntentSource
     /// <inheritdoc />
     public Vector2 BufferedMoveIntent => _bufferedMoveIntent;
 
+    /// <inheritdoc />
+    public ushort MoveReferenceYawQuantized => _pending.MoveReferenceYawQuantized;
+
     /// <summary>提交本帧欲望；非零方向同时更新最近有效方向。</summary>
     public void Set(in LocomotionDesire desire)
     {

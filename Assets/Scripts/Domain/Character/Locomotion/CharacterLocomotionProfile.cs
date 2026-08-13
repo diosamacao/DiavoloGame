@@ -28,9 +28,6 @@ public class CharacterLocomotionProfile : ScriptableObject
     [SerializeField, Min(0.01f)] float cardinalEpsilon = LocomotionDirectionModel.DefaultEpsilon;
     [Tooltip("Gait 循环 Cardinal 最短驻留逻辑帧；防对角线微抖换片。")]
     [SerializeField, Min(0)] int cardinalMinDwellFrames = 3;
-    [Tooltip("L-DIR3 软锁半径（米）；>0 时 FollowMove 靠近敌人可升格 FaceTarget。0=仅动作索敌锁。")]
-    [SerializeField, Min(0f)] float softFocusRadiusMeters = 12f;
-
     [Header("Gait Policy")]
     [Tooltip("步态升档 / Pivot / Sprint 计时；敌我挂不同配置，勿在代码里按身份分支。")]
     [SerializeField] LocomotionGaitPolicy gaitPolicy = new LocomotionGaitPolicy();
@@ -84,9 +81,6 @@ public class CharacterLocomotionProfile : ScriptableObject
 
     /// <summary>Gait Cardinal 滞回最短驻留帧。</summary>
     public int CardinalMinDwellFrames => Mathf.Max(0, cardinalMinDwellFrames);
-
-    /// <summary>软锁最近敌对半径；≤0 关闭软锁。</summary>
-    public float SoftFocusRadiusMeters => Mathf.Max(0f, softFocusRadiusMeters);
 
     /// <summary>步态策略（MaxGait / Pivot / Sprint 秒）；空则回退默认玩家策略。</summary>
     public LocomotionGaitPolicy GaitPolicy => gaitPolicy ??= new LocomotionGaitPolicy();

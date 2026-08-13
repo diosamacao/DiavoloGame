@@ -16,15 +16,18 @@ public static class InputQuantizer
     /// <summary>把量化轴还原为玩法侧使用的 [-1, 1] 浮点值；该值不作为传输权威。</summary>
     public static float DequantizeAxis(sbyte value) => value / (float)AxisScale;
 
-    /// <summary>把偏航包裹到 [-180, 180) 后按 0.1 度量化。</summary>
-    public static short QuantizeYaw(float degrees)
+    /// <summary>把偏航包裹到 [0, 360) 后按 0.1 度量化。</summary>
+    public static ushort QuantizeYaw(float degrees)
     {
         double wrapped = degrees % 360d;
-        if (wrapped >= 180d)
-            wrapped -= 360d;
-        else if (wrapped < -180d)
+        if (wrapped < 0d)
             wrapped += 360d;
 
-        return (short)Math.Round(wrapped * YawScale, MidpointRounding.AwayFromZero);
+        int quantized = (int)Math.Round(wrapped * YawScale, MidpointRounding.AwayFromZero);
+        return (ushort)(quantized >= 360 * YawScale ? 0 : quantized);
     }
+
+    /// <summary>把 [0,3599] 的 0.1 度偏航还原为角度。</summary>
+    public static float DequantizeYaw(ushort quantized) =>
+        (quantized % (360 * YawScale)) / (float)YawScale;
 }

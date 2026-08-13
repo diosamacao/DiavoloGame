@@ -5,6 +5,7 @@
 > 修订：2026-08-09 — **Editor / Play 验收通过**；位移切片（P0～P2 + P4）收口  
 > 修订：2026-08-09 — **P3 Relocate / MotionCommand 已接线**（Bridge → ActionMotionResolver）  
 > 修订：2026-08-09 — **删除本切片相机任务**：原 P5 / 总案 4.5～4.6 撤出；LockOn 等归 Camera 篇  
+> 修订：2026-08-13 — 目标来源迁为角色唯一 `SelectedTargetId`；动作期间切敌后后续 Adhesion/Command 立即改读新目标，旧 ActionTargetId 已删除。
 
 > 角色：**Wave 4 位移切片可执行真源**（类型 / 管线 / 验收 / Editor）  
 > 排期与依赖仍以 [MASTER_IMPLEMENTATION_PLAN.md](../2026.8.6/MASTER_IMPLEMENTATION_PLAN.md) 为准  
@@ -52,7 +53,7 @@
 ## 2. 产品目标（Branch_02）
 
 ```text
-起手固化 ActionTargetId
+每逻辑帧读取 SelectedTargetId
   → SoftBodySuppress 窗（可叠人，仍碰墙）
   → TargetAdhesion 窗（与冲刺重叠）：
        每帧动态算 desired（玩家↔敌人连线 + 水平偏移）
@@ -131,7 +132,7 @@ finalDelta = baseDelta + correction
 | 窗口越长 | 同样距离吸得越「肉」、越跟得上动画 |
 | 窗口越短 | 同样距离吸得越猛；触顶 `maxCorrection` 时可能窗末吸不完 |
 | 窗末 | 不保证数学上误差=0（有墙/夹逼/目标移动）；不在窗外继续吸 |
-| Enter | 可缓存 `ActionTargetId`（已在起手固化则复用） |
+| 每帧 | 读取最新 `SelectedTargetId`；切敌后未执行的修正改用新目标 |
 | Exit / 目标丢失 | 停止修正；不补瞬移（除非另配 Relocate） |
 
 `maxCorrectionMmPerFrame`：防单帧爆炸的安全阀；**主节奏由窗口长度决定**，不是只靠这个常量慢慢磨。
@@ -154,8 +155,8 @@ finalDelta = baseDelta + correction
 
 | 项 | 定案 |
 |----|------|
-| 目标固化 | 动作起手写 `ActionTargetId`（优先当前 Lock；无效则 Command/Adhesion 不生效） |
-| `MotionTargetSource` | Branch_02 用 `ActionTarget`；禁止中途跳人 |
+| 目标来源 | 角色唯一 `SelectedTargetId`；无效则 Command/Adhesion 不生效 |
+| `MotionTargetSource` | Branch_02 用 `SelectedTarget`；允许 TargetSwitch 后改读新目标 |
 | Pose 来源 | 仅 `SimActorId` + `SimCombatPose`（World Query） |
 | Relocate 朝向 | `FaceTarget`（绕背后面对敌人） |
 | Fallback | 默认 `FindNearestValid` → 仍失败则 `CancelCommand`（动作继续） |
@@ -251,7 +252,7 @@ softBodySuppress = max(softBodySuppress, command.softBodySuppressFrames)
 
 | 字段 | 位置 | 说明 |
 |------|------|------|
-| `ActionTargetId` | ActionSim 或 Action 会话 | 起手固化，Cancel/结束清空 |
+| `SelectedTargetId` | CharacterTargetingState | 每逻辑帧维护；不随 Action 起止复制或清空 |
 | `SoftBodySuppressFrames` | CharacterActor / Motor 会话 | 每逻辑帧递减；>0 时不参与软体 |
 
 ---
@@ -285,7 +286,7 @@ softBodySuppress = max(softBodySuppress, command.softBodySuppressFrames)
 
 - [x] 补齐 `MotionModifierNotifyState`（`horizontalOffsetMm` / `lateralOffsetMm` / 窗口帧）及枚举
 - [x] Timeline 增加 **Modifier 区间轨**；Command 可预留
-- [x] `IActionMotionWorldQuery` + 起手固化 `ActionTargetId`
+- [x] `IActionMotionWorldQuery` + 角色唯一 `SelectedTargetId`
 - [x] 帧管线：`BaseDelta → ApplyActiveModifiers → MotorSim`
 - [x] Action Editor：可拖拽 Adhesion **窗口**起止帧，编辑偏移毫米
 
@@ -396,7 +397,7 @@ Perfect：`Unagi_Attack_Branch_02_Perfect.asset`（同结构参数可略放大�
 | 4.1 ActionMotionResolver；Sim 只出意图 | P0（Modifier 管线）；Command Resolver 可随 P3 |
 | 4.2 TargetAdhesion + 参数校验 | **P2 主交付**（连线动态点 + 窗口均摊） |
 | 4.3 RelocateBehind + Facing/Collision/Fallback | P3 **可选** |
-| 4.4 起手固化 ActionTargetId | P0 |
+| 4.4 目标来源 | 2026-08-13 迁为 CharacterTargetingState.SelectedTargetId |
 | ~~4.5～4.6 Lock-On / Predict~~ | **已撤出 Wave 4** → [CAMERA_SYSTEM_PLAN.md](../2026.8.6/CAMERA_SYSTEM_PLAN.md) |
 
 完成后回写：
@@ -424,7 +425,7 @@ Perfect：`Unagi_Attack_Branch_02_Perfect.asset`（同结构参数可略放大�
 ## 11. 建议开工顺序
 
 ```text
-P0 Modifier 区间轨 + 偏移字段 + ActionTargetId
+P0 Modifier 区间轨 + 偏移字段 + SelectedTargetId
   → P1 SoftBodySuppress
   → P2 TargetAdhesion（连线动态 + 剩余帧均摊）← 主交付
   → P4 配 Branch_02（窗长=冲刺时长，offset>0）

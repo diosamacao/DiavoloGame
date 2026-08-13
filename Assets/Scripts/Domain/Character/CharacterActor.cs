@@ -10,7 +10,8 @@ public sealed class CharacterActor :
     IRenderFrameSampler,
     ISimulationRenderable,
     ISimulationPostCombatActor,
-    ISimSoftBodyParticipant
+    ISimSoftBodyParticipant,
+    ILocalCameraTargetSource
 {
     readonly ILocalInputSampler _localInput;
     readonly InputManager _inputManager;
@@ -27,7 +28,7 @@ public sealed class CharacterActor :
     readonly NumericSystem _numeric;
     readonly CharacterVitality _vitality;
     readonly GameplayIntentBuffer _intentBuffer;
-    readonly CombatTargetLock _targetLock;
+    readonly CharacterTargetingState _targetingState;
     readonly Transform _simulationRoot;
     InputFrameBuffer _inputFrames;
     SimActorId _actorId;
@@ -50,6 +51,10 @@ public sealed class CharacterActor :
 
     /// <summary>本地相机使用的渲染帧 Look；AI 与回放 Actor 返回零。</summary>
     public Vector2 LookInput => _localInput?.LookInput ?? Vector2.zero;
+
+    /// <summary>本渲染帧是否按下纯表现 CameraLock。</summary>
+    public bool CameraLockPressedThisFrame =>
+        _localInput != null && _localInput.CameraLockPressedThisFrame;
 
     /// <summary>动画门面；供注册系统与卡肉使用。</summary>
     public CharacterAnimationService Animation => _animation;
@@ -109,10 +114,14 @@ public sealed class CharacterActor :
     /// <summary>玩法意图缓冲（只读观测 / Debug HUD）。</summary>
     public GameplayIntentBuffer IntentBuffer => _intentBuffer;
 
-    /// <summary>索敌锁定状态（只读观测 / Debug HUD）。</summary>
-    public CombatTargetLock TargetLock => _targetLock;
+    /// <summary>唯一 SelectedTarget 的只读快照。</summary>
+    public CharacterTargetingSnapshot TargetingSnapshot => _targetingState.Snapshot;
 
-    /// <summary>L-DIR3：Locomotion 是否处于 FaceTarget（软锁/动作锁）；相机跟朝向应关闭。</summary>
+    /// <summary>为 Camera/UI 把 SelectedTargetId 映射到只读表现目标。</summary>
+    public bool TryGetSelectedTarget(out ITargetable target) =>
+        _targetingState.TryGetSelectedTarget(out target);
+
+    /// <summary>L-DIR3：Locomotion 是否处于 FaceTarget（仅 Profile 声明）；相机跟朝向应关闭。</summary>
     public bool IsLocomotionFaceTargetActive => _stateMachine.IsLocomotionFaceTargetActive;
 
     /// <summary>数值中枢（Attribute + Effect + Flags）。</summary>
@@ -138,7 +147,7 @@ public sealed class CharacterActor :
         NumericSystem numeric,
         CharacterVitality vitality,
         GameplayIntentBuffer intentBuffer,
-        CombatTargetLock targetLock,
+        CharacterTargetingState targetingState,
         Transform simulationRoot)
     {
         _localInput = localInput;
@@ -156,7 +165,7 @@ public sealed class CharacterActor :
         _numeric = numeric;
         _vitality = vitality;
         _intentBuffer = intentBuffer;
-        _targetLock = targetLock;
+        _targetingState = targetingState ?? throw new ArgumentNullException(nameof(targetingState));
         _simulationRoot = simulationRoot;
     }
 
@@ -192,15 +201,15 @@ public sealed class CharacterActor :
             }
         }
 
-        bool hasLock = _targetLock != null && _targetLock.HasValidLock;
-        string lockName = string.Empty;
-        float lockDist = 0f;
-        if (hasLock && _targetLock.LockedTarget?.AimTransform != null && _simulationRoot != null)
+        bool hasSelectedTarget = _targetingState.TryGetSelectedTarget(out ITargetable selectedTarget);
+        string selectedTargetName = string.Empty;
+        float selectedTargetDistance = 0f;
+        if (hasSelectedTarget && selectedTarget?.AimTransform != null && _simulationRoot != null)
         {
-            lockName = _targetLock.LockedTarget.AimTransform.name;
-            Vector3 delta = _targetLock.LockedTarget.AimTransform.position - _simulationRoot.position;
+            selectedTargetName = selectedTarget.AimTransform.name;
+            Vector3 delta = selectedTarget.AimTransform.position - _simulationRoot.position;
             delta.y = 0f;
-            lockDist = delta.magnitude;
+            selectedTargetDistance = delta.magnitude;
         }
 
         CharacterMotorSim motor = _motor.Sim;
@@ -234,9 +243,9 @@ public sealed class CharacterActor :
             numericSnap.IncomingDamageMultMilli,
             numericSnap.Effects,
             ResolveNextSpecialFormLabel(),
-            hasLock,
-            lockName,
-            lockDist,
+            hasSelectedTarget,
+            selectedTargetName,
+            selectedTargetDistance,
             motor.PositionMm.X,
             motor.PositionMm.Z,
             motor.YMm,
@@ -286,17 +295,9 @@ public sealed class CharacterActor :
     /// <summary>禁用本地设备采样；AI Actor 无设备源时为空操作。</summary>
     public void Disable() => _localInput?.Disable();
 
-    /// <summary>更新相机 Transform，用于相机相对移动（无 Orbit 基时的回退）。</summary>
-    public void SetCameraTransform(Transform cameraTransform)
-    {
-        _motor.SetCameraTransform(cameraTransform);
-    }
-
-    /// <summary>写入相机水平前向/右向（Orbit Yaw），供移动相对镜头。</summary>
-    public void SetCameraPlanarBasis(Vector3 planarForward, Vector3 planarRight)
-    {
-        _motor.SetCameraPlanarBasis(planarForward, planarRight);
-    }
+    /// <summary>暂存本地 Orbit yaw；下一次渲染采样将其固化进 InputFrame。</summary>
+    public void StageMoveReferenceYaw(float yawDegrees) =>
+        _localInput?.StageMoveReferenceYaw(yawDegrees);
 
     /// <summary>执行上层已解析的受击请求并进入整数帧硬直；Actor 不负责选招。</summary>
     public void EnterHit(in CharacterReactionRequest request)
@@ -352,6 +353,8 @@ public sealed class CharacterActor :
             // 软体抑制倒计时：须在本帧 ApplyStep 置位之前递减
             _motor?.Sim.TickSoftBodySuppress();
             _inputManager.IngestFrame(inputFrame);
+            // Targeting 必须先于 Action 路由/推进，使同帧切敌立即作用于尚未解析的动作逻辑。
+            _targetingState.Step(_actorId, _motor.Sim, in inputFrame);
             _intentProducer.Step();
             _actionDriver.ProcessGameplayInput();
             // ActionSim 是唯一动作推进路径；表现桥只消费本步产生的只读事件。

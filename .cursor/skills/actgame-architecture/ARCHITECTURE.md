@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-11（敌人命令源上提为 Character/Combat 通用契约；下层删除 Enemy 具体类型依赖）
+> Last audited: 2026-08-13（Camera C1 前置：MoveReferenceYaw 输入闭包 + 唯一 SelectedTarget 权威）
 
 ## 项目概述
 
@@ -88,7 +88,8 @@ flowchart TB
 | `IRenderFrameSampler` | 可选渲染帧输入汇聚契约，避免高 FPS 无逻辑 Step 时丢 Pressed/Released |
 | `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
 | `CharacterPresentationBridge` | 保留前后权威 Pose，只移动运行时模型锚点，不回写模拟根 |
-| `InputFrame` / `InputFrameBuffer` | 量化轴、稳定按钮 bitset、Actor/Frame 身份与输入历史；本地追帧只延续 Move/Held |
+| `InputFrame` / `InputFrameBuffer` | 量化轴、MoveReferenceYaw、稳定按钮 bitset、Actor/Frame 身份与输入历史；本地追帧延续 Move/Held/Yaw |
+| `DeterministicTargetResolver` | 基于整数逻辑 Pose、阵营、存活与 SimActorId 稳定维护/切换唯一目标；无 Transform/Physics 依赖 |
 | `ISimulationInputProducer` | Actor Step 前统一生成当帧输入；玩家采样量化输入，敌人 Brain 提交 Desire/Entry Request 并生成空输入帧 |
 | `ISimulationPostCombatActor` | 整批命中结算后处理 OnHitConfirm/OnWhiff 自动衔接与动作自然结束 |
 | `SimHitKey` / `CombatHitPipeline` | Hitbox 只 Collect；按稳定 Actor/会话/窗口身份排序，帧末统一伤害、Reaction 与命中确认 |
@@ -122,6 +123,7 @@ flowchart TB
 | `CharacterConfig` | 角色装配根配置：模型、输入、动画、LocomotionProfile、移动、战斗 |
 | `CharacterMotor` | 移动执行：水平/竖直写 `CharacterMotorSim` 并同步 Transform；CC 仅表现代理不 Move |
 | `CharacterActor` | 单角色纯 C# Actor：输入、Motor、状态机、动作、旋转与非权威表现插值 |
+| `CharacterTargetingState` | 每逻辑帧在 Action 前维护唯一 `SelectedTargetId`；自动最近、滞回保持、动作中左右切敌 |
 | `CharacterActorFactory` | 通过 `CharacterConfig` + `ILocalInputSampler` + 共享 `CombatHitPipeline` 创建角色实例 |
 
 **数据流（玩家）**：
@@ -131,7 +133,9 @@ CharacterConfig → PlayerController（Empty 根创建玩家输入源）
                     ↓
 CombatWorldController → SimulationHost.Update → SampleRenderFrame + 60Hz SimulationWorld.Step
                     ↓（SimActorId 稳定顺序）
-CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / GameplayIntentBuffer（整数帧）
+CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（SelectedTarget）
+                    ↓
+              GameplayIntentProducer / GameplayIntentBuffer（整数帧）
                     ↓
               CharacterActionDriver（语义意图起手 / 缓冲 / 移动取消）
                     ↓
@@ -155,7 +159,7 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 | `ActionSimSnapshot` / `ActionSimEvent` | 模拟到角色表现边界；不携带 Unity 类型，表现与 Timeline 不可反写 Sim |
 | `CharacterActionPresentationBridge` | 根据 Snapshot/Event 播放并 Seek 动画，派发 Timeline；L2 前暂留 RootMotion、脚本位移与 Transform Hitbox |
 | `ActionFrameQuery` | Runtime 与 Action Editor 共用的无副作用段映射、窗口和点事件查询 |
-| `ActionGraph` / `ActionGraphNode` | 完整选招与流程真源：节点 Intent、Entry、索敌、起手行为、自动衔接；Normal / Perfect 边与 SharedRoute |
+| `ActionGraph` / `ActionGraphNode` | 完整选招与流程真源：节点 Intent、Entry、是否消费 SelectedTarget、起手行为、自动衔接；Normal / Perfect 边与 SharedRoute |
 | `ActionResolverService` | 调当前模式 Graph 的起手/Cancel 解析 |
 | `CharacterActionDriver` | 角色无关：消费语义意图、起手切状态、动作缓冲与移动取消 |
 | `ActionRotationDriver` | `RotationNotifyState` + 索敌转向 |
@@ -204,7 +208,7 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 
 | 类 | 职责 |
 |----|------|
-| `InputFrame` | `frame + SimActorId + sbyte move + Pressed/Held/Released bitset + aimYaw` 固定输入格式 |
+| `InputFrame` | `frame + SimActorId + sbyte move + Pressed/Held/Released bitset + MoveReferenceYaw` 固定输入格式 |
 | `InputFrameBuffer` | 玩家渲染采样、回放与统一 Actor Step 共用历史；精确读取与本地连续状态展开 |
 | `ILocalInputSampler` / `InputReader` | 玩家设备边界：Input System Action 名映射为稳定 InputButton 并量化下一逻辑帧 |
 | `IMoveIntentSource` | Character 层只读移动契约；玩家由 InputManager 实现，AI 由 LocomotionDesireBuffer 实现 |
@@ -216,7 +220,7 @@ CharacterActor.Step(InputFrame) → InputManager → GameplayIntentProducer / Ga
 
 | 类 | 职责 |
 |----|------|
-| `CameraManager` | Cinemachine 第三人称 |
+| `CameraManager` | Cinemachine 第三人称；Orbit yaw 只 staged 到 InputFrame，本地 CameraLock 只读 SelectedTarget |
 
 ### 9. 敌人（Enemy）
 

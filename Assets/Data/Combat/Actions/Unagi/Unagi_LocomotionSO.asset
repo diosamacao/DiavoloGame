@@ -13,16 +13,36 @@ MonoBehaviour:
   m_Name: Unagi_LocomotionSO
   m_EditorClassIdentifier: 
   animationProfile: {fileID: 11400000, guid: 5c1b5a8bfed658e4ba2834fc0c7814b4, type: 2}
+  animSet:
+    walkLoopForward: 1
+    walkLoopBack: 1
+    walkLoopLeft: 9
+    walkLoopRight: 10
+    walkStartForward: 11
+    walkStartBack: 11
+    walkStartLeft: 12
+    walkStartRight: 13
+    runLoopForward: 2
+    sprintLoopForward: 7
+    runStartForward: 3
+    idle: 0
+    pivotTurn: 4
+    stopL: 5
+    stopR: 6
+    startEnd: 8
   idleInputThreshold: 0.01
   stopMinSpeedFactor: 0.5
   pivotAngleDegrees: 135
   pivotAnimAuthNormalized: 0.5
   gaitInputGapGraceSeconds: 0.15
+  cardinalEpsilon: 0.2
+  cardinalMinDwellFrames: 3
+  softFocusRadiusMeters: 0
   gaitPolicy:
     maxGait: 2
     allowPivot: 1
     sprintAfterRunSeconds: 3
-  gaitRotationMode: 1
+  facingMode: 1
   startToGaitNormalized: 1
   interruptFadeDuration: 0.08
   sprintLean:

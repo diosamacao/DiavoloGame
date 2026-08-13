@@ -41,6 +41,7 @@
 - **启停生命周期**：Controller 在 `OnEnable` 注册 World、`OnDisable/OnDestroy` 对称注销；禁用 GameObject 不得继续被模拟
 - **渲染输入汇聚**：本地设备 Actor 通过 `IRenderFrameSampler` 缓存渲染帧边沿，逻辑 Step 不直接依赖 Unity 渲染帧是否恰好发生
 - **量化输入格式**：玩家设备、回放与未来网络输入使用 `InputFrame`；Move 为 sbyte、按钮为固定 bitset，禁止恢复 float/string `PlayerInputFrame`。AI 控制命令使用 Desire / Entry Request，不伪装设备输入
+- **移动参考闭包**：相机相对移动只消费 `InputFrame.MoveReferenceYawQuantized`；CameraManager 只能 staged yaw，禁止把 PlanarBasis/Camera Transform 直接写入 Motor
 - **输入阶段先于 Actor**：World 每帧先调用 `ISimulationInputProducer`，再按 Id 执行 Actor；AI Brain 在该阶段写通用命令槽并为统一时序提交空 `InputFrame`
 - **命中延迟结算**：Hitbox 几何检测只写共享 `CombatHitPipeline`；全体 Actor Step 完成后按 `SimHitKey` 排序，再统一伤害、Reaction 与命中确认
 - **PostCombat 收尾**：依赖本帧命中结果的 OnHitConfirm/OnWhiff 与动作自然结束只在 `ISimulationPostCombatActor` 执行；不得恢复攻击者 Step 内即时目标回调
@@ -97,13 +98,14 @@ public class MyBehaviour : MonoBehaviour
 - **采集**：玩家设备边界实现 `ILocalInputSampler` 并写下一逻辑帧槽；敌人 Brain 提交 `LocomotionDesire` + `ActionEntryRequest`，玩家路径不变
 - **原始中枢**：`InputManager` 由 `CharacterActor` 持有；只摄入量化 Move 与 Pressed/Held/Released bitset，不承担 AI Move 覆盖或动作缓冲
 - **相机 Look**：渲染帧 Look 不进入玩法 InputFrame，由 `PlayerController.LookInput` 直接提供给 CameraManager
+- **切敌与镜头锁分离**：TargetSwitch 是 InputFrame gameplay 边沿；CameraLock 是本地表现输入。锁定键禁止选择目标或写 Character/ActionSim
 - **设备映射**：`GameplayIntentProfile` 是 InputActionReference、长按阈值与上下文映射的**项目唯一**配置源，经 `GameplayIntentSettings` 加载；**禁止**再挂到 `CharacterConfig`
 - **语义生产**：`GameplayIntentProducer` 在 `InputManager.IngestFrame` 后输出 `GameplayIntentType`
 - **上下文意图**：SprintAttack / DodgeAttack 由 `GameplayIntentProfile` 条件映射产生；闪避攻击使用 `IsDodging + Attack Pressed`，禁止在 Driver 中按键名特判
 - **选招层**：`ActionResolverService` → 当前模式 `ActionGraph`（多 Entry × Intent 起手 + Cancel 边）；`DirectionalActionResolver` 可作为节点 `VariantResolver`
 - **节点 Intent**：`GameplayIntentType` 只保存在 `ActionGraphNode.Intent`；`ActionDefinition` 禁止声明输入或选招字段
 - **连招图**：一张 `ActionGraph` 可同时含攻击/闪避等多个 Entry；边按 `CancelWindowType.Normal / Perfect` 解析，重复的「同来源 Intent + 同类型 + 同意图」使用 `ActionGraphSharedRoute`
-- **流程唯一真源**：自动衔接、索敌和起手副作用都在 `ActionGraphNode`；禁止在 `ActionDefinition` 重新引入 Transition、TargetLock 或 StartBehavior
+- **流程唯一真源**：自动衔接、是否消费 SelectedTarget 和起手副作用在 `ActionGraphNode`；目标选择唯一归 `CharacterTargetingState`，禁止节点/ActionSim/Presentation 复制目标生命周期
 - **Graph 策略编辑**：普通节点与顺序组子节点都在 Graph 节点内部展开策略编辑；新增节点必须显式清空数组槽继承的旧策略
 - **顺序组**：组内 Action 按行顺序自动生成 Normal Cancel 链；每行保留独立 In；组级 Normal / Perfect 出口分别展开到配置对应窗口的全部子节点
 - **变体节点**：Directional 等 Resolver 只改变实际播放 Action，不改变逻辑 Graph 节点；同语义六向变体禁止复制节点和出边
@@ -147,6 +149,7 @@ public class MyBehaviour : MonoBehaviour
 - 运行时由 CameraManager 搭建层级（CameraRoot → Orbit → Pitch）
 - Orbit 用 SmoothDamp 追 CameraRoot；VCam Follow/LookAt 走平滑 Orbit（非直接硬锁角色 Transform）
 - 灵敏度、Clamp 等 tunable 值 SerializeField 暴露
+- `CameraLockEnabled` 只属于本地表现；通过 `ILocalCameraTargetSource` 只读 SelectedTarget，范围内无目标时不得开启
 
 ## 注释与语言
 

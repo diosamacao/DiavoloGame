@@ -11,10 +11,6 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     readonly IMoveIntentSource _moveIntent;
     readonly CharacterMotorSim _sim;
 
-    Transform _cameraTransform;
-    Vector3 _cameraPlanarForward;
-    Vector3 _cameraPlanarRight;
-    bool _hasCameraPlanarBasis;
     Vector3 _faceTargetForward;
     bool _hasFaceTargetForward;
     float _rotationVelocity;
@@ -29,14 +25,12 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         CharacterController controller,
         CharacterMotorConfig config,
         IMoveIntentSource moveIntent,
-        Transform cameraTransform,
         CharacterMotorSim motorSim = null)
     {
         _root = root;
         _controller = controller;
         _config = config;
         _moveIntent = moveIntent;
-        _cameraTransform = cameraTransform;
         _sim = motorSim ?? new CharacterMotorSim(
             OpenFieldSimCollisionWorld.Instance,
             MotionQuantization.MetersToMm(config.ControllerRadius),
@@ -73,30 +67,6 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
 
     /// <summary>最近一次逻辑帧解析的世界 wish；调试可视化专用，渲染帧勿重算。</summary>
     public Vector3 DebugWishWorldDirection => _debugWishWorldDirection;
-
-    /// <summary>
-    /// Wave 1：写入 Orbit Yaw 投影的前向/右向，避免挤墙后 Camera.main.forward 扭曲走位。
-    /// </summary>
-    public void SetCameraPlanarBasis(Vector3 planarForward, Vector3 planarRight)
-    {
-        planarForward.y = 0f;
-        planarRight.y = 0f;
-        if (planarForward.sqrMagnitude < 0.0001f || planarRight.sqrMagnitude < 0.0001f)
-        {
-            _hasCameraPlanarBasis = false;
-            return;
-        }
-
-        _cameraPlanarForward = planarForward.normalized;
-        _cameraPlanarRight = planarRight.normalized;
-        _hasCameraPlanarBasis = true;
-    }
-
-    /// <summary>更新相机 Transform；无 Orbit 基时作为移动朝向回退。</summary>
-    public void SetCameraTransform(Transform cameraTransform)
-    {
-        _cameraTransform = cameraTransform;
-    }
 
     /// <summary>写入 FaceTarget 水平朝向；由 Locomotion 每逻辑帧发布。</summary>
     public void SetFaceTargetWorldDirection(Vector3 planarForward)
@@ -211,7 +181,7 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
                 break;
             case LocomotionRotationMode.FaceCamera:
                 // 八向：位移可横移，偏航锁相机/假相机水平前向
-                Vector3 cameraForward = ResolveCameraPlanarForward();
+                Vector3 cameraForward = ResolveMoveReferencePlanarForward();
                 if (cameraForward.sqrMagnitude > 0.001f)
                 {
                     _root.rotation = GetSmoothedRotation(
@@ -335,25 +305,16 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         SyncFacingFromRoot();
     }
 
+    /// <summary>按量化 MoveReferenceYaw 把本地移动轴解析为世界水平 wish。</summary>
     public Vector3 ResolveWorldMoveDirection(Vector2 moveIntent)
     {
         if (moveIntent.sqrMagnitude < 0.01f)
             return Vector3.zero;
 
-        if (_hasCameraPlanarBasis)
-            return (_cameraPlanarForward * moveIntent.y + _cameraPlanarRight * moveIntent.x).normalized;
-
-        if (_cameraTransform == null)
-            return new Vector3(moveIntent.x, 0f, moveIntent.y).normalized;
-
-        // 回退：无 Orbit 基时仍 flatten Camera Transform（可能含 Collider 偏转）
-        Vector3 forward = _cameraTransform.forward;
-        Vector3 right = _cameraTransform.right;
-        forward.y = 0f;
-        right.y = 0f;
-        forward.Normalize();
-        right.Normalize();
-
+        float yaw = InputQuantizer.DequantizeYaw(_moveIntent.MoveReferenceYawQuantized);
+        Quaternion rotation = Quaternion.Euler(0f, yaw, 0f);
+        Vector3 forward = rotation * Vector3.forward;
+        Vector3 right = rotation * Vector3.right;
         return (forward * moveIntent.y + right * moveIntent.x).normalized;
     }
 
@@ -366,18 +327,11 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
             : Vector3.zero;
     }
 
-    /// <summary>相机/假相机水平前向；无有效基时返回 zero。</summary>
-    public Vector3 ResolveCameraPlanarForward()
+    /// <summary>返回 InputFrame/AI Desire 固化的世界移动参考前向。</summary>
+    public Vector3 ResolveMoveReferencePlanarForward()
     {
-        if (_hasCameraPlanarBasis)
-            return _cameraPlanarForward;
-
-        if (_cameraTransform == null)
-            return Vector3.zero;
-
-        Vector3 forward = _cameraTransform.forward;
-        forward.y = 0f;
-        return forward.sqrMagnitude > 0.0001f ? forward.normalized : Vector3.zero;
+        float yaw = InputQuantizer.DequantizeYaw(_moveIntent.MoveReferenceYawQuantized);
+        return Quaternion.Euler(0f, yaw, 0f) * Vector3.forward;
     }
 
     /// <summary>把 MotorSim 水平坐标写回角色根；软弹开后与位移路径共用。</summary>

@@ -84,11 +84,21 @@
 
 **状态：✅ Wave 4 位移出口关闭（2026-08-09）**
 
-- [x] TargetAdhesion + SoftBodySuppress；起手 `ActionTargetId`；Branch_02 验收
+- [x] TargetAdhesion + SoftBodySuppress；Branch_02 验收（目标已于 2026-08-13 迁为逐帧 SelectedTarget）
 - [x] RelocateBehind / MotionCommand → `ActionMotionResolver` 接线（P3）
 - ~~Lock-On（原 4.5～4.6）~~ → 已撤出 Wave 4；排期见 `docs/2026.8.6/CAMERA_SYSTEM_PLAN.md`
 
 **打击感优化（木桩 / Cue / 吸附行程）至此告一段落；Relocate 按需配资产。**
+
+### [P1] Camera C1 前置 — 移动输入与目标权威收口
+
+**方案**：`docs/2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md`
+
+**原风险（已删除）**：Orbit Yaw 经 PlanarBasis 渲染态进入 Motor；动作私有目标绑定与 Presentation late-bind 破坏回滚边界。
+
+**目标**：MoveReferenceYaw 固化进 `InputFrame`；角色只保存一个自动维护且 Action 中可切换的 `SelectedTargetId`，Action/Motion/Camera 共用；`CameraLockEnabled` 仅为本地表现；删除 PlanarBasis Motor 旁路、`ActionTargetId`、Transform 索敌与 Presentation late-bind。
+
+**状态：🟡 C-AT0～C-AT3 代码重构完成（2026-08-13）**；已删除旧权威路径并补确定性 Resolver 测试。待 Editor 绑定 TargetSwitch/CameraLock、Unity 编译/Test Runner/Play 回归后关闭出口，再进入 Camera C1 Director / LockOn VCam。
 
 ### [P1] Lockstep 模拟核迁移
 
@@ -165,6 +175,7 @@
 - [x] 2026-06-29：Domain 命中/索敌入口移除直接 `ACTGameArchitecture.Interface` 依赖，改为目标集合注入、`GetActiveTargetsQuery` 与 App 层 Command 编排
 - [x] 2026-06-29：新增 Editor 架构边界校验，检查 `System` / `Controller` / `Event` 契约和 Domain 单例访问
 - [ ] 仅 `Domain/Simulation` 已拆 asmdef；其余业务仍在单一 Assembly-CSharp
+- [x] 2026-08-13：MoveReferenceYaw 输入闭包；唯一 SelectedTarget + 动作中切敌；删除 PlanarBasis/CombatTargetLock/ActionTargetId/Presentation late-bind
 
 ## 已完成
 

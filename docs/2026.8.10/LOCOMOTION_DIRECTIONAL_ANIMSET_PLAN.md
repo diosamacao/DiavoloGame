@@ -13,7 +13,8 @@
 > - 锁步 / 表现边界：[`../ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md`](../ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)、[`../INPLACE_ROOTMOTION_MOTION_TABLE_PLAN.md`](../INPLACE_ROOTMOTION_MOTION_TABLE_PLAN.md)  
 > - 参考心智：UE Lyra（Cardinal + Orientation Warping）、ALS / 经典 Strafe、疾跑倾身（Bank）  
 > - 格式 skill：`.cursor/skills/actgame-design-plan`  
-> 装配链：`WASD→镜头相对 wish→角色追 wish`；`相机 yaw 平滑追角色朝向→再喂 PlanarBasis`；`facing↔wish→Lean`
+> 装配链：`WASD + InputFrame.MoveReferenceYaw→世界 wish→角色追 wish`；`相机 yaw 平滑追角色朝向→staged 到下一 InputFrame`；`facing↔wish→Lean`
+> 2026-08-13 修订：C-AT0 已删除 Camera→Motor PlanarBasis 旁路；本文所有 L-DIR5 闭环均以 MoveReferenceYaw 输入闭包为准。
 
 ---
 
@@ -47,7 +48,7 @@ CharacterActor.Step
 | 步态 | `LocomotionGaitPolicy` 外置；敌我靠 Profile，State 无身份 if |
 | 选片 | 离散 `AnimationKey`：Idle/Walk/WalkLeft/WalkRight/WalkStart*/Run/Sprint/Start/StartEnd/StopL/R/PivotTurn |
 | 朝向 | Profile.`GaitRotationMode`：`FollowInput` / `FaceCamera`（敌对峙） |
-| wish 构造 | `CharacterMotor.ResolveWorldMoveDirection`：`OrbitForward*y + OrbitRight*x`（`SetCameraPlanarBasis`） |
+| wish 构造 | `CharacterMotor.ResolveWorldMoveDirection`：本地轴按 `MoveReferenceYawQuantized` 旋转到世界平面 |
 | 位移 | **FollowInput：沿当前朝向**（与 `RotationSmoothTime` 同参拐弯）；FaceCamera 仍沿 wish |
 | 转向 | `FollowInput` → `SmoothDampAngle(RotationSmoothTime)` 追 wish；只调这一项即可拉长 W→WD |
 | 循环横移 | 仅左右；无后向、无对角线、无完整八向 |
@@ -77,7 +78,7 @@ CharacterActor.Step
 | 配置收敛 | 人维护 AnimSet / Blend 资产；不再每方向改枚举与 State |
 | Sprint 倾身 | `facing↔wish` 有符号 Lean；**对齐时 lean≡0** |
 | 绕圈 | 移动中 Orbit yaw **插值跟随**角色移动朝向，使 WD/D 在跟随过程中持续变 wish → 转圈 |
-| 正交 | Locomotion 产朝向；相机**只读**跟随并回写 PlanarBasis；不写 Motor 权威 |
+| 正交 | Locomotion 产朝向；相机**只读**跟随并 staged yaw 到输入边界；不直接写 Motor |
 | 不做 | 八向相位类；Lean 相位/改权威；坦克键位默认定案；Lock-On 式环绕冒充自由绕圈；Motion Matching；Agent 改 `.asset`/Clip |
 
 ### 1.4 产品需求归纳（2026-08-11）
@@ -97,7 +98,7 @@ CharacterActor.Step
 |----|------|
 | 痛点 | 固定视角下 WD/D 世界 wish 不变 → 直线；角色秒贴斜前 |
 | 期望 | **相机视角自动插值跟随到玩家移动朝向**；输入 WD 或 D 时，视角在跟随过程中持续更新 → **移动转圈** |
-| 工程闭环 | 角色追 wish → 相机 yaw 平滑追角色朝向 → PlanarBasis 变 → wish 世界方向变 → 路径弯曲 |
+| 工程闭环 | 角色追 wish → 相机 yaw 平滑追角色朝向 → 下一 InputFrame reference yaw 变 → wish 世界方向变 → 路径弯曲 |
 
 #### 根因（现网）
 
@@ -119,7 +120,7 @@ wish = OrbitFwd*W + OrbitRight*D
 **定案结论：**
 
 1. **绕圈主路径 = 相机跟随朝向闭环**（须改 `CameraManager` / 后续 Rig，属相机表现能力，与本方案 L-DIR5 交叉验收）。  
-2. **方向铁律不变**：Gameplay 朝向权威在 Motor；相机 **只读 facing → 平滑改自己的 Orbit yaw → 再 `SetCameraPlanarBasis`**；禁止相机写回 Motor 朝向。  
+2. **方向铁律不变**：Gameplay 朝向权威在 Motor；相机 **只读 facing → 平滑改自己的 Orbit yaw → staged 到下一 InputFrame**；禁止相机直接写 Motor。
 3. **Look 优先**：有 Look 输入时暂停或大幅减弱自动跟随，避免抢视角；松手后恢复跟随（可配延迟）。  
 4. **跟随必须滞后**：相机 yaw 不得 1:1 贴死 facing，否则纯 D 易「原地拧圈」；`cameraFollowFacingSmoothTime` 明显大于 0。  
 5. **倾身 = L-DIR4**；角色侧可保留适度转向平滑（辅助倾身窗口），但绕圈**不**再依赖「人手一直转视角」。  
@@ -128,12 +129,12 @@ wish = OrbitFwd*W + OrbitRight*D
 ```mermaid
 flowchart LR
   WASD[WASD] --> Wish[wishWorld]
-  Basis[CameraPlanarBasis] --> Wish
+  Yaw[InputFrame.MoveReferenceYaw] --> Wish
   Wish --> Move[位移沿 wish]
   Wish --> Face[角色朝向追 wish]
   Face --> CamYaw[Orbit yaw 插值追 facing]
   Look[Look 输入] -.->|抢权/暂停| CamYaw
-  CamYaw --> Basis
+  CamYaw --> Yaw
   Face --> Err[yawError vs wish]
   Err --> Lean[Visual Lean]
   Err -->|0| Lean0[lean = 0]
@@ -154,7 +155,7 @@ flowchart LR
 9. **倾身是表现，不是相位**：Lean 只读 gait + 转向偏角，输出有符号倾角/权重给 Presentation；禁止新 `LeanLocomotionState`，禁止 Lean 改 Motor 位移权威或命中盒中心。  
 10. **倾身默认仅 Sprint**：Walk/Run/Pivot/Stop/Hit 默认 Lean→0（可配「Run 也倾」但首版不做）；离开 Sprint 或 wish 与 facing 对齐后平滑回正。  
 11. **Lean 与转向同一误差源**：驱动量 = `SignedAngle(facing, wishWorld)`；**禁止**与朝向脱钩的假倾身衰减。  
-12. **绕圈靠相机跟随朝向闭环**：移动中 Orbit yaw 平滑追角色移动朝向，反哺 PlanarBasis；**禁止**相机写 Motor 权威；Look 输入优先于自动跟随。  
+12. **绕圈靠相机跟随朝向闭环**：移动中 Orbit yaw 平滑追角色移动朝向，并固化到下一 InputFrame；**禁止**相机直接写 Motor；Look 输入优先于自动跟随。
 13. **跟随必须可配滞后**：避免相机贴死 facing 导致纯 D 自旋；与角色 `RotationSmoothTime` 分开调参。
 
 ---
@@ -174,7 +175,7 @@ flowchart LR
     → 若有移动且无 Look 抢权：
          OrbitYaw = SmoothDamp(OrbitYaw, facingYaw, cameraFollowFacingSmoothTime)
     → 若有 Look：Look 直接改 OrbitYaw，暂停/减弱跟随
-  → SetCameraPlanarBasis(PlanarFwd, PlanarRight)  // 反哺下一帧 wish
+  → StageMoveReferenceYaw(orbitYaw)               // 固化进下一 InputFrame
   → 禁止写回 Motor.SetFacing / 权威朝向
 
 【选片 — L-DIR1～3】
@@ -306,7 +307,7 @@ Walk↔Run 升档/降档逻辑留在相位 + GaitPolicy；**不再**以 `Animati
 
 ### 3.8 CameraFollowFacing + 角色转向（定案：L-DIR5）
 
-**产品意图（对齐 §1.4 B）：** 相机视角自动插值跟随玩家**移动朝向**；按住 WD/D 时，视角在跟随过程中持续更新 PlanarBasis，从而绕圈。
+**产品意图（对齐 §1.4 B）：** 相机视角自动插值跟随玩家**移动朝向**；按住 WD/D 时，视角在跟随过程中持续更新下一输入帧的 MoveReferenceYaw，从而绕圈。
 
 ```text
 【相机 — 主】
@@ -315,7 +316,7 @@ Walk↔Run 升档/降档逻辑留在相位 + GaitPolicy；**不再**以 `Animati
       orbitYaw = SmoothDampAngle(orbitYaw, targetYaw, cameraFollowFacingSmoothTime)
   else if lookOverride:
       orbitYaw += lookDelta            // 现网 Look；期间暂停或减弱跟随
-  Publish PlanarBasis(orbitYaw)
+  Stage MoveReferenceYaw(orbitYaw)
 
 【角色 — 辅】
   位移仍 ∥ wishWorld（镜头相对语义不变）
@@ -338,7 +339,7 @@ Walk↔Run 升档/降档逻辑留在相位 + GaitPolicy；**不再**以 `Animati
 
 | 层 | 职责 | 不负责 |
 |----|------|--------|
-| 相机 App | Look；**yaw 跟随 facing**；PlanarBasis；跟随滞后与抢权 | 改 Motor 朝向、Lean、权威位移 |
+| 相机 App | Look；**yaw 跟随 facing**；staged MoveReferenceYaw；跟随滞后与抢权 | 直接改 Motor、Lean、权威位移 |
 | 输入 / Desire | 本地 WASD / Desire | AnimationKey、Cardinal、Lean |
 | Phase SM | 起停 Pivot、松手、必经 Start | 八向枚举、绑 Clip、倾身幅度 |
 | GaitPolicy | MaxGait、Sprint 计时、AllowPivot | 读仇恨、选左右片、算 Lean |
@@ -384,7 +385,7 @@ Walk↔Run 升档/降档逻辑留在相位 + GaitPolicy；**不再**以 `Animati
 | L-DIR2 | Start 四向表；Start 相位去 Key 族特例；Cardinal 滞回；敌人/玩家 Profile 接线契约 | 方向×落脚 Stop 笛卡尔积 |
 | L-DIR3 | 玩家锁定 FaceTarget 可玩；可选 Octant8 或 Loop BlendSpace；Run strafing 表 | Motion Matching、完整 Lyra Warp |
 | L-DIR4 | Sprint Lean；**yawError→0 ⇒ lean≡0**；Visual Bank；与 §1.4 A 验收对齐 | Lean 改权威；Run 倾身；锁定倾身；Lean Clip |
-| L-DIR5 | Orbit yaw 跟随角色朝向；Look 抢权；滞后可配；PlanarBasis 反哺；交叉相机方案 | 相机写 Motor；坦克键位；LockOn 环绕；贴死 facing |
+| L-DIR5 | Orbit yaw 跟随角色朝向；Look 抢权；滞后可配；MoveReferenceYaw 输入闭包；交叉相机方案 | 相机直接写 Motor；坦克键位；LockOn 环绕；贴死 facing |
 | 全程不做 | Agent 改 Prefab/`.asset`/Clip；身份 if；长期旧 Resolver 与 AnimSet 并行；Lean 相位类 |
 
 ---
@@ -486,15 +487,15 @@ Walk↔Run 升档/降档逻辑留在相位 + GaitPolicy；**不再**以 `Animati
 
 **任务**
 
-- [x] `CameraManager`：移动中 yaw SmoothDamp 追角色朝向；Look 抢权 + 延迟恢复；TargetLock 时关闭  
-- [x] 仍发布 PlanarBasis；不写 Motor；默认 `cameraFollowFacingSmoothTime=0.35`  
+- [x] `CameraManager`：移动中 yaw SmoothDamp 追角色朝向；Look 抢权 + 延迟恢复；CameraLock 时关闭
+- [x] staged MoveReferenceYaw 到下一 InputFrame；不直接写 Motor；默认 `cameraFollowFacingSmoothTime=0.35`
 - [x] `CAMERA_SYSTEM_PLAN` 铁律 #6 + TECHNICAL  
 
 **验收**
 
 - [x] Play：不拖视角按住 WD/D 可转圈  
 - [x] Play：Look 可抢权；松手后恢复跟随；无贴死自旋  
-- [x] 架构：相机只读 facing → Orbit yaw → PlanarBasis  
+- [x] 架构：相机只读 facing → Orbit yaw → InputFrame.MoveReferenceYaw
 
 **出口：** 绕圈闭环可用。→ **已达成（2026-08-12）**
 
@@ -511,7 +512,7 @@ Walk↔Run 升档/降档逻辑留在相位 + GaitPolicy；**不再**以 `Animati
 | 敌人独立 LocomotionProfile | GaitRotationMode → FacingMode |
 | 顶层 Locomotion ↔ Action 边界 | LocomotionDesire 只喂 wish+face |
 | VisualMotionRoot / 表现层旋转钩子 | Lean 仅挂视觉；权威朝向仍走 Motor |
-| `SetCameraPlanarBasis` / 镜头相对 wish | L-DIR5：Orbit yaw 跟 facing 后继续发布；不改 wish 公式；不写 Motor |
+| `MoveReferenceYawQuantized` / 镜头相对 wish | L-DIR5：Orbit yaw 跟 facing 后写下一 InputFrame；Motor 只读帧字段 |
 
 ### 6.2 明确删除
 
@@ -646,7 +647,7 @@ docs/2026.8.6/CAMERA_SYSTEM_PLAN.md    // 交叉：Orbit yaw follow facing
 **自由移动手感完整：** L-DIR4+5。
 
 ```text
-闭环：facing → Camera orbitYaw → PlanarBasis → wish → facing …
+闭环：facing → Camera orbitYaw → InputFrame.MoveReferenceYaw → wish → facing …
 铁律：相机只读 facing，不写 Motor
 ```
 

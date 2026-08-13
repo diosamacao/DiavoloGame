@@ -3,7 +3,6 @@ using UnityEngine;
 /// <summary>角色招式输入路由：起手、高优硬打断、缓冲、移动取消与离开 Action 后的预输入消费；玩家与敌人共用。</summary>
 public sealed class CharacterActionDriver
 {
-    readonly CombatTargetLock targetLock;
     readonly IMoveIntentSource _moveIntent;
     readonly GameplayIntentBuffer _intentBuffer;
     readonly CharacterStateMachine _stateMachine;
@@ -27,7 +26,6 @@ public sealed class CharacterActionDriver
         CharacterStateMachine stateMachine,
         ActionSim actionSim,
         CombatModeService combatMode,
-        CombatTargetLock lockState,
         ActionResolverService resolverService,
         Transform actorRoot,
         IActionStartContext startContext,
@@ -38,7 +36,6 @@ public sealed class CharacterActionDriver
         _stateMachine = stateMachine;
         _actionSim = actionSim;
         _combatMode = combatMode;
-        targetLock = lockState;
         _resolverService = resolverService;
         _actorRoot = actorRoot;
         _startContext = startContext;
@@ -51,7 +48,6 @@ public sealed class CharacterActionDriver
         bool inAction = _stateMachine.CurrentStateId == CharacterStateType.Action;
         if (_wasInAction && !inAction)
         {
-            targetLock.ClearLock();
             _combatMode.ApplyPendingModeIfReady();
             // 费用不足时保留缓冲至自然过期，禁止离开 Action 时一刀清空
             TryStartFromBufferedInputs();
@@ -111,11 +107,10 @@ public sealed class CharacterActionDriver
         return true;
     }
 
-    /// <summary>进入受控或死亡状态时清空动作缓冲与索敌锁定。</summary>
+    /// <summary>进入受控或死亡状态时清空动作缓冲。</summary>
     public void ClearPendingActions()
     {
         ClearAllActionBuffers();
-        targetLock.ClearLock();
         _wasInAction = false;
     }
 
