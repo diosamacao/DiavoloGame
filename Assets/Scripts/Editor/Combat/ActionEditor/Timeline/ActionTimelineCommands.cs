@@ -319,7 +319,7 @@ public static class ActionTimelineCommands
         {
             // 默认 TargetAdhesion + Branch_02 常用偏移；可在 Inspector 改 SoftBodySuppress
             SetIfExists(element, "mode", (int)MotionModifierMode.TargetAdhesion);
-            SetIfExists(element, "targetSource", (int)MotionTargetSource.ActionTarget);
+            SetIfExists(element, "targetSource", (int)MotionTargetSource.SelectedTarget);
             SetIfExists(element, "horizontalOffsetMm", 1000);
             SetIfExists(element, "lateralOffsetMm", 0);
             SetIfExists(element, "maxCorrectionMmPerFrame", 250);

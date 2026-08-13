@@ -30,9 +30,9 @@ public readonly struct CharacterDebugSnapshot
         int incomingDamageMultMilli,
         NumericEffectDebugEntry[] activeEffects,
         string nextSpecialForm,
-        bool hasLock,
-        string lockTargetName,
-        float lockDistanceMeters,
+        bool hasSelectedTarget,
+        string selectedTargetName,
+        float selectedTargetDistanceMeters,
         int motorXMm,
         int motorZMm,
         int motorYMm,
@@ -68,9 +68,9 @@ public readonly struct CharacterDebugSnapshot
         IncomingDamageMultMilli = incomingDamageMultMilli;
         ActiveEffects = activeEffects ?? Array.Empty<NumericEffectDebugEntry>();
         NextSpecialForm = nextSpecialForm ?? "-";
-        HasLock = hasLock;
-        LockTargetName = lockTargetName ?? string.Empty;
-        LockDistanceMeters = lockDistanceMeters;
+        HasSelectedTarget = hasSelectedTarget;
+        SelectedTargetName = selectedTargetName ?? string.Empty;
+        SelectedTargetDistanceMeters = selectedTargetDistanceMeters;
         MotorXMm = motorXMm;
         MotorZMm = motorZMm;
         MotorYMm = motorYMm;
@@ -110,9 +110,12 @@ public readonly struct CharacterDebugSnapshot
     public NumericEffectDebugEntry[] ActiveEffects { get; }
     /// <summary>下一发 Special 同键形态：EX / Special / -。</summary>
     public string NextSpecialForm { get; }
-    public bool HasLock { get; }
-    public string LockTargetName { get; }
-    public float LockDistanceMeters { get; }
+    /// <summary>当前是否存在唯一 SelectedTarget。</summary>
+    public bool HasSelectedTarget { get; }
+    /// <summary>SelectedTarget 的表现名称。</summary>
+    public string SelectedTargetName { get; }
+    /// <summary>角色到 SelectedTarget 的表现距离，仅供调试。</summary>
+    public float SelectedTargetDistanceMeters { get; }
     public int MotorXMm { get; }
     public int MotorZMm { get; }
     public int MotorYMm { get; }

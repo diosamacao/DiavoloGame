@@ -8,10 +8,22 @@ public sealed class InputReader : ILocalInputSampler
     InputActionAsset inputActions = null!;
     InputAction moveAction = null!;
     InputAction lookAction = null!;
+    InputAction cameraLockAction;
+    InputAction targetSwitchLeftAction;
+    InputAction targetSwitchRightAction;
     InputActionReference[] _discreteInputs = System.Array.Empty<InputActionReference>();
+    ushort _stagedMoveReferenceYaw;
 
     public Vector2 MoveInput => moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
     public Vector2 LookInput => lookAction != null ? lookAction.ReadValue<Vector2>() : Vector2.zero;
+
+    /// <inheritdoc />
+    public bool CameraLockPressedThisFrame =>
+        cameraLockAction != null && cameraLockAction.WasPressedThisFrame();
+
+    /// <inheritdoc />
+    public void StageMoveReferenceYaw(float yawDegrees) =>
+        _stagedMoveReferenceYaw = InputQuantizer.QuantizeYaw(yawDegrees);
 
     /// <summary>创建纯 C# 输入源；由 PlayerController 按 CharacterConfig 构造。</summary>
     public InputReader(InputActionAsset actions)
@@ -48,6 +60,9 @@ public sealed class InputReader : ILocalInputSampler
                 released |= mask;
         }
 
+        SampleOptionalButton(targetSwitchLeftAction, InputButton.TargetSwitchLeft, ref pressed, ref held, ref released);
+        SampleOptionalButton(targetSwitchRightAction, InputButton.TargetSwitchRight, ref pressed, ref held, ref released);
+
         Vector2 move = MoveInput;
         return new InputFrame(
             targetFrame,
@@ -56,7 +71,8 @@ public sealed class InputReader : ILocalInputSampler
             InputQuantizer.QuantizeAxis(move.y),
             pressed,
             held,
-            released);
+            released,
+            _stagedMoveReferenceYaw);
     }
 
     /// <summary>启用输入资产；由 PlayerController.OnEnable 调用。</summary>
@@ -74,5 +90,28 @@ public sealed class InputReader : ILocalInputSampler
         InputActionMap playerMap = inputActions.FindActionMap("Player", throwIfNotFound: true);
         moveAction = playerMap.FindAction("Move", throwIfNotFound: true);
         lookAction = playerMap.FindAction("Look", throwIfNotFound: true);
+        cameraLockAction = playerMap.FindAction("CameraLock", throwIfNotFound: false);
+        targetSwitchLeftAction = playerMap.FindAction("TargetSwitchLeft", throwIfNotFound: false);
+        targetSwitchRightAction = playerMap.FindAction("TargetSwitchRight", throwIfNotFound: false);
+    }
+
+    /// <summary>把可选 Player Action 采样到稳定按钮位；资产未配置时保持未按下。</summary>
+    static void SampleOptionalButton(
+        InputAction action,
+        InputButton button,
+        ref ulong pressed,
+        ref ulong held,
+        ref ulong released)
+    {
+        if (action == null)
+            return;
+
+        ulong mask = InputButtonMask.Of(button);
+        if (action.WasPressedThisFrame())
+            pressed |= mask;
+        if (action.IsPressed())
+            held |= mask;
+        if (action.WasReleasedThisFrame())
+            released |= mask;
     }
 }

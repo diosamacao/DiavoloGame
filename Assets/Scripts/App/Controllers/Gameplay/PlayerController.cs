@@ -7,7 +7,6 @@ public class PlayerController : AppControllerBase
 {
     [Header("References")]
     [SerializeField] CharacterConfig characterConfig = null;
-    [SerializeField] Transform cameraTransform;
 
     [Header("Debug")]
     [Tooltip("Play 时在脚底画 wish（黄）与模型朝向（品红）实心箭头。")]
@@ -29,6 +28,9 @@ public class PlayerController : AppControllerBase
     /// <summary>相机表现使用的本地渲染帧视角输入，不进入锁步输入帧。</summary>
     public Vector2 LookInput => actor?.LookInput ?? Vector2.zero;
 
+    /// <summary>本渲染帧是否按下纯表现 CameraLock。</summary>
+    public bool CameraLockPressedThisFrame => actor != null && actor.CameraLockPressedThisFrame;
+
     /// <summary>玩家当前生命值；运行时未创建时为 0。</summary>
     public float CurrentHealth => actor != null ? actor.Vitality.CurrentHealth : 0f;
 
@@ -39,9 +41,6 @@ public class PlayerController : AppControllerBase
 
     void Awake()
     {
-        if (cameraTransform == null && Camera.main != null)
-            cameraTransform = Camera.main.transform;
-
         if (characterConfig == null)
         {
             Debug.LogError("PlayerController: 未绑定 CharacterConfig。", this);
@@ -73,7 +72,6 @@ public class PlayerController : AppControllerBase
             characterConfig,
             characterConfig.Combat.TeamId,
             inputSource,
-            cameraTransform,
             () => SendQuery(new GetActiveTargetsQuery()),
             simulationHost.CombatHits,
             out ActionSim actionSim,
@@ -154,18 +152,9 @@ public class PlayerController : AppControllerBase
         simulationRegistration = SimActorRegistration.Invalid;
     }
 
-    /// <summary>相机就绪或切换后刷新运行时使用的相机 Transform。</summary>
-    public void SetCameraTransform(Transform targetCamera)
-    {
-        cameraTransform = targetCamera;
-        actor?.SetCameraTransform(targetCamera);
-    }
-
-    /// <summary>由 CameraManager 每帧写入 Orbit 水平基，避免挤墙扭曲走位。</summary>
-    public void SetCameraPlanarBasis(Vector3 planarForward, Vector3 planarRight)
-    {
-        actor?.SetCameraPlanarBasis(planarForward, planarRight);
-    }
+    /// <summary>由 CameraManager 暂存 Orbit yaw，下一次采样写入 InputFrame。</summary>
+    public void StageMoveReferenceYaw(float yawDegrees) =>
+        actor?.StageMoveReferenceYaw(yawDegrees);
 
     /// <summary>玩家装配前确保场景存在统一战斗世界入口并返回该入口。</summary>
     CombatWorldController EnsureCombatWorldController()

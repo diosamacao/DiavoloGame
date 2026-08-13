@@ -12,7 +12,6 @@ public static class CharacterActorFactory
         CharacterConfig config,
         int teamId,
         ILocalInputSampler localInput,
-        Transform cameraTransform,
         Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider,
         CombatHitPipeline combatHitPipeline,
         out ActionSim actionSim,
@@ -59,8 +58,12 @@ public static class CharacterActorFactory
             controller,
             motorConfig,
             effectiveMoveIntent,
-            cameraTransform,
             motorSim);
+        var targetingState = new CharacterTargetingState(
+            teamId,
+            MotionQuantization.MetersToMm(config.Combat.TargetAcquireRangeMeters),
+            MotionQuantization.MetersToMm(config.Combat.TargetRetainRangeMeters),
+            activeTargetsProvider);
         IAnimationPlayback playback = new PlayableAnimationPlayback(animator);
         if (config.CombatProfile == null
             || !config.CombatProfile.TryGetLocomotionProfile(
@@ -124,17 +127,12 @@ public static class CharacterActorFactory
             hasPerfectDodgeCounter: () => numeric.Flags.HasPerfectDodgeCounter);
 
         Transform defaultAttach = ResolveModelPoint(config.Combat.AttachPointName, modelRoot, root);
-        Transform aimOrigin = ResolveModelPoint(config.Combat.AimOriginName, modelRoot, root);
         var attachPoints = new CharacterAttachPointResolver(modelRoot, defaultAttach);
-        var targetLock = new CombatTargetLock(root, teamId, aimOrigin, activeTargetsProvider);
-        // L-DIR3：Locomotion FaceTarget 单一朝向源（动作锁 + 软锁）
+        // L-DIR3：Locomotion FaceTarget 只读角色唯一 SelectedTarget。
         locomotionStateMachine.Context.BindFacingTargetSource(
             new LocomotionFacingTargetSource(
-                root,
-                teamId,
-                targetLock,
-                activeTargetsProvider,
-                () => locomotionProfile != null ? locomotionProfile.SoftFocusRadiusMeters : 0f));
+                targetingState,
+                motorSim));
         var hitboxFrameConsumer = new HitboxFrameConsumer(
             root,
             motorSim,
@@ -160,7 +158,7 @@ public static class CharacterActorFactory
             new ActionTimelineRunner(),
             defaultAttach,
             visualMotion,
-            targetLock,
+            targetingState,
             motionWorldQuery);
         actionPresentation.RegisterFrameConsumer(hitboxFrameConsumer);
         actionPresentation.RegisterNotifyConsumer(vfxPlayer);
@@ -172,7 +170,6 @@ public static class CharacterActorFactory
             stateMachine,
             actionSim,
             combatMode,
-            targetLock,
             resolverService,
             root,
             motor,
@@ -194,7 +191,7 @@ public static class CharacterActorFactory
             numeric,
             vitality,
             intentBuffer,
-            targetLock,
+            targetingState,
             root);
 
         var rotationDriver = new ActionRotationDriver(
@@ -202,7 +199,8 @@ public static class CharacterActorFactory
             effectiveMoveIntent,
             motor,
             actionSim,
-            targetLock);
+            targetingState,
+            motorSim);
 
         context.ActionRotation = rotationDriver;
         return actor;

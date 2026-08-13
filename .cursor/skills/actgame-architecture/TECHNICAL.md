@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-11（L-DIR4 Sprint 倾身 + L-DIR5 相机跟朝向绕圈）
+> Last updated: 2026-08-13（MoveReferenceYaw 输入闭包 + 唯一 SelectedTarget + 纯表现 CameraLock）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -19,7 +19,7 @@
 | GAS-lite 数值重构 | ✅ G0～G5 完成 | `NumericSystem`、`DamageNumericCalculator`、`CharacterVitality` | Effect SO 壳 |
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
-| 输入（量化帧 + 语义意图） | ✅ L0B 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | `GameInputActions.inputactions` + 全局 `GameplayIntentSettings` |
+| 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -28,7 +28,8 @@
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionStateMachine` + `LocomotionState` | AnimationProfile + `CharacterLocomotionProfile` |
 | Locomotion 起步/急停/转身 | ✅ Play 2026-08-12 | 内层相位 + L-DIR1～5 + Pivot 两段式 | 旧 Phase D 减速曲线不做 |
 | Sprint 倾身 / 相机跟朝向 | 🟡 代码已接、待 Play | `SprintLeanModel` + `CameraManager` Follow Facing | `docs/2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md` L-DIR4/5 |
-| 第三人称相机 | ✅ 已实现（含 L-DIR5 跟朝向） | `CameraManager` | 场景内 CameraManager 对象 |
+| 第三人称相机 | 🟡 C-AT 前置完成，C1 构图待做 | `CameraManager` | Orbit yaw 不再写 Motor；本地 CameraLock 契约已接 |
+| 唯一战斗目标 | 🟡 代码完成、输入资产与 Play 待验 | `CharacterTargetingState` + `DeterministicTargetResolver` | 自动最近、滞回保持、Action 中 TargetSwitch |
 | 动作系统（整数帧 / 选招 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ L1B 已实现（Play Mode 待回归） | `ActionSim` + `CharacterActionPresentationBridge` + `ActionFrameQuery` | 60Hz Action + `ActionGraph` |
 | Action Editor（时间轴编辑） | 🟡 骨架/部分 | `ActionEditorWindow` + `ActionTimeline` 手动加轨/窗口 | Menu：`ACT/Action Editor` |
 | 攻击 / 战斗判定 | ✅ L0C 延迟结算已实现 | `CombatHitPipeline` + `CombatDamageCalculator` + `CharacterReactionService` | SimHitKey；HitPayload；Hit/Death 状态 |
@@ -95,7 +96,7 @@ AppControllerBase
 | Actor 身份 | World 从 1 单调分配 `SimActorId`，会话内不复用 |
 | Actor 顺序 | `CharacterActor` / `EnemyHandle` 实现 `ISimulationActor`，按注册 Id 升序执行 |
 | 渲染输入 | `IRenderFrameSampler` 每渲染帧汇聚设备边沿；无逻辑 Step 时 Pressed/Released 保留到下一 Step |
-| 输入帧 | `InputFrame` 使用 sbyte Move、稳定按钮 bitset、frame 与 SimActorId；World 持有 `InputFrameBuffer` 历史 |
+| 输入帧 | `InputFrame` 使用 sbyte Move、MoveReferenceYaw、稳定按钮 bitset、frame 与 SimActorId；World 持有 `InputFrameBuffer` 历史 |
 | 输入阶段 | 每帧先调用 `ISimulationInputProducer`；AI 基于 Actor Step 前的 N-1 已提交状态写 N 帧输入 |
 | 命中阶段 | 全体 Actor 只 Collect；`CombatHitPipeline` 按 `SimHitKey` 排序后统一 Resolve |
 | PostCombat | `ISimulationPostCombatActor` 在结算后处理 OnHitConfirm/OnWhiff 与自然结束 |
@@ -163,7 +164,7 @@ SimulationHost.LateUpdate
 |----|------|
 | 碰撞体 | `CharacterController`（非 Rigidbody） |
 | 位移执行 | `LocomotionStateMachine` 各相位 → `CharacterMotor.ApplyLocomotion` |
-| 方向计算 | 输入 Vector2 → 相机 forward/right 投影到 XZ 平面 → 归一化方向 |
+| 方向计算 | InputFrame 本地 Vector2 + `MoveReferenceYawQuantized` → 世界 XZ wish；Motor 不读 Camera Transform |
 | 速度 | `moveInputMagnitude × speed`；幅度 > `runThreshold` 用 `runSpeed`，否则 `walkSpeed` |
 | 旋转 | `SmoothDampAngle` 显式传入固定 `1/60s`，绕 Y 轴对齐移动方向 |
 | 重力 | `CharacterMotorSim.TickVertical`（mm/s² ÷ logicHz）；着地钳 `GroundYMm` |
@@ -185,7 +186,7 @@ SimulationHost.LateUpdate
 SimulationWorld.Step
   → InputFrameBuffer.ResolveLocal
   → InputManager.IngestFrame
-  → GetCameraRelativeMoveDirection
+  → ResolveWorldMoveDirection(localMove, MoveReferenceYawQuantized)
   → 有方向：SmoothDamp 旋转 + Move(水平)
   → ApplyGravity：Move(垂直)
 ```
@@ -197,7 +198,8 @@ SimulationWorld.Step
 ### 已知限制
 
 - Locomotion 水平移动由内层相位 State → `ApplyLocomotion` 拥有；重力仍由 `CharacterActor` 每帧统一推进
-- `cameraTransform` 未绑定时回退为世界 XZ 平面移动
+- 玩家 Orbit yaw 在渲染采样边界 staged 到下一 InputFrame；追帧/回放只读已记录 yaw
+- AI `LocomotionDesire` 显式携带 reference yaw，不伪装玩家相机
 
 ### 相关文件
 
@@ -218,7 +220,7 @@ SimulationWorld.Step
 |----|------|
 | 资产 | `GameInputActions.inputactions` |
 | 形态 | `InputReader` 实现 `ILocalInputSampler`；AI 通过 `IMoveIntentSource` / `IActionEntryRequestSource` 注入，不伪装设备 |
-| 绑定 | Move 从 Player Map 读取并量化为 sbyte；Look 只供相机表现；离散 Action 名仅在边界映射为固定 `InputButton` |
+| 绑定 | Move 从 Player Map 读取并量化为 sbyte；Orbit yaw 量化为 MoveReferenceYaw；TargetSwitch 映射固定按钮；Look/CameraLock 仅供相机表现 |
 | 生命周期 | OnEnable/OnDisable 启用/禁用整个 Asset |
 | 输入历史 | `InputFrameBuffer` 按 `(frame, actorId)` 保存；多渲染样本边沿 OR、连续状态取最后值 |
 | 追帧展开 | 缺少下一设备样本时只延续 Move/Held；Pressed/Released 不重复、不从 Held 推导 |
@@ -235,6 +237,8 @@ SimulationWorld.Step
 | Look | Vector2 | 鼠标 Delta；Gamepad 右 Stick |
 | Attack | Button | Pressed→Attack（Sprint 时 SprintAttack；Dodge Action 中为 DodgeAttack）；HoldReached→LongPressedAttack；Released→AttackRelease |
 | Dodge | Button | Pressed→Dodge |
+| TargetSwitchLeft / Right | Button | Pressed→InputFrame 固定 bit；Locomotion/Action 中均可切换 SelectedTarget |
+| CameraLock | Button | 本地表现开关；无 SelectedTarget 时无效，不进入 InputFrame |
 
 ### 错误处理
 
@@ -325,7 +329,7 @@ SimulationWorld.Step
 | 移动朝向 | Profile.`FacingMode`：`FollowMove`（玩家）/ `FaceCamera`（八向敌）；经 `ResolveMotorRotationMode` |
 | 选片 | `LocomotionAnimSet`（Loop/Start×cardinal→Key）+ `DirectionModel` + Gait cardinal 滞回；Clip 在 AnimationProfile |
 | 起步 | Start 闩 `ActiveStartGait`/`ActiveStartCardinal`；升档/降档不认 WalkStart* Key 族 |
-| FaceTarget | `LocomotionFacingTargetSource`（动作锁+软锁）；Motor `FaceTarget`；选片 wish→本地；Pivot 关 |
+| FaceTarget | 仅 Profile 声明时读 `LocomotionFacingTargetSource`（SelectedTarget）；玩家 FollowMove 不因自动选敌升格；Motor `FaceTarget`；选片 wish→本地；Pivot 关 |
 | FollowInput 位移 | 沿**当前朝向**；朝向以 `CharacterConfig.RotationSmoothTime` 追 wish（单参控制 W→WD 转向时长） |
 | 起步选片 | Walk 横向 → `WalkStartLeft/Right`（缺则 `WalkStart`→`Start`）；正向 `WalkStart`；Run → `Start` |
 | 映射 | `CharacterAnimationProfile` → `AnimationClip` |
@@ -397,7 +401,7 @@ Dodge 恢复                            → Gait（PendingGait 经 MaxGait 钳�
 
 ### 功能说明
 
-Cinemachine 第三人称跟随；鼠标控制 yaw/pitch；碰撞遮挡；启动时锁定光标。Orbit 锚点对 `CameraRoot` 做 SmoothDamp。**L-DIR5**：移动中 Orbit yaw 插值跟随角色朝向，反哺 `SetCameraPlanarBasis` 以支持 WD/D 绕圈；Look 输入抢权暂停跟随；有 TargetLock 时关闭。
+Cinemachine 第三人称跟随；鼠标控制 yaw/pitch；碰撞遮挡；启动时锁定光标。Orbit 锚点对 `CameraRoot` 做 SmoothDamp。**L-DIR5**：移动中 Orbit yaw 插值跟随角色朝向，并把最终 yaw staged 到下一 `InputFrame`；Look 输入抢权暂停跟随。`CameraLockEnabled` 是本地表现状态，只在存在 SelectedTarget 时开启。
 
 ### 实现方案
 
@@ -422,7 +426,7 @@ CameraManager (场景对象)
 
 **跟随平滑**
 
-- `LateUpdate`：先 `ApplyFollowFacingYaw`（可选），再 `orbitPivot` 对 `cameraRoot` 做位置 `SmoothDamp`，再 `PushPlanarBasisToPlayer`
+- `LateUpdate`：先 `ApplyFollowFacingYaw`（可选），再 `orbitPivot` 对 `cameraRoot` 做位置 `SmoothDamp`，最后 `StageMoveReferenceYaw`
 - 首帧、`followSmoothTime <= 0`、或距离超过 `SnapDistance`(3) 时直接吸附
 - 对外提供 `SnapFollowToTarget()` 供传送等硬重置
 
@@ -431,6 +435,7 @@ CameraManager (场景对象)
 - `CameraManager` 引用玩家 `PlayerController`，通过 `PlayerController.LookInput` 获取非权威视角输入
 - Update 累加 yaw/pitch；有 Look 时启动 `lookOverrideResumeDelay` 暂停跟朝向
 - 移动中且无抢权：`SmoothDampAngle(yaw → presentation/facing yaw)`；**禁止**写 Motor 朝向
+- `CameraLock` 只切本地 `CameraLockEnabled`；SelectedTarget 无效时不能开启/自动关闭，不写 Targeting/Action/InputFrame
 
 **初始化**
 
@@ -454,16 +459,52 @@ CameraManager (场景对象)
 
 ### 与移动的协作
 
-`PlayerController` 用 `Camera.main`（或指定 `cameraTransform`）计算移动方向，与相机 yaw 一致。
+`CameraManager` 只把最终 Orbit yaw 提交到 `InputReader` staged 槽；`InputReader.Sample` 固化为 `MoveReferenceYawQuantized`，Motor 仅消费该输入字段。
 
 ### 已知限制
 
 - 平滑仅抹平位置顿挫；未按 Action/Locomotion 切换不同 `followSmoothTime`（可后续做方案 C）
 - LookAt 已切到 `orbitPivot`，角色急速冲刺时镜头会略滞后于角色身体
+- Camera C1 的 LockOn VCam、TargetGroup 与切敌短 Blend 尚未实现；当前只完成权威边界和本地开关契约
 
 ### 相关文件
 
 - `Assets/Scripts/App/Controllers/Camera/CameraManager.cs`
+
+### 5.1 唯一战斗目标
+
+**功能说明：** 角色在范围内自动维护一个 `SelectedTargetId`；玩家可在 Locomotion/Action 中左右切换，动作后续旋转、吸附和重定位立即读取新目标。
+
+**实现方案：**
+
+| 项 | 方案 |
+|----|------|
+| 角色状态 | `CharacterTargetingState` 唯一持有 SelectedTargetId，在 Action 路由前 Step |
+| 纯解析 | `DeterministicTargetResolver` 只读整数位置、team/alive 与 SimActorId |
+| 自动选择 | 当前无效时最近距离；等距取较小 SimActorId |
+| 保持 | 当前目标在 retainRange 内保持，不被新近敌人抢走 |
+| 切换 | `TargetSwitchLeft/Right` Pressed + MoveReferenceYaw 环绕排序；Action 中同样生效 |
+| 消费 | ActionRotation、TargetAdhesion、MotionCommand、Camera/UI 共读；Locomotion FaceTarget 仅 Profile 声明时消费 |
+| 相机 | `ILocalCameraTargetSource` 只映射 Id→ITargetable；CameraLock 不写回 |
+
+**关键参数：** `CharacterCombatConfig.TargetAcquireRangeMeters` 默认/旧资产回退 12m；`TargetRetainRangeMeters` 默认/非法值回退 Acquire+1.5m。
+
+**运行时流程：**
+
+```
+InputFrame → CharacterTargetingState.Step
+  → DeterministicTargetResolver → SelectedTargetId
+  → Action/Locomotion/Motion 本逻辑帧只读
+  → Camera/UI 只读表现映射
+```
+
+**已知限制：** Input Actions 仍需人工新增 `TargetSwitchLeft/Right` 与 `CameraLock`；Camera C1 的锁定构图/Blend 未实现；完整 Snapshot Restore 归 L3。
+
+**相关文件：**
+
+- `Assets/Scripts/Domain/Simulation/Targeting/*`
+- `Assets/Scripts/Domain/Combat/Targeting/CharacterTargetingState.cs`
+- `Assets/Scripts/Domain/Combat/Targeting/ILocalCameraTargetSource.cs`
 
 ---
 
@@ -521,7 +562,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 | 高优硬打断 | Action 态：`TryResolveStart(PriorityInterrupt)` → `ActionSim.TryInterrupt`（候选 `interruptPriority` 严格大于当前，且 `IsInterruptibleAtFrame`） |
 | 时间轴数据 | `ActionDefinition.Timeline`：`ActionNotify` 点事件（Event/VFX/SFX）+ `ActionNotifyState` 区间窗口 |
 | 移动取消 | `CharacterActionDriver` + `CancelWindowNotifyState(Movement)` |
-| 招式旋转 | `ActionRotationDriver` + `RotationNotifyState` + 节点 `TargetLockSettings`；SmoothDamp 显式使用固定逻辑步长，离开 Action 清空阻尼速度 |
+| 招式旋转 | `ActionRotationDriver` + `RotationNotifyState`；节点只声明是否消费 SelectedTarget/平滑覆盖，目标由角色逐帧提供 |
 | Runtime Logic Tick | `SimulationWorld` → `CharacterActor.Step` → 唯一 `ActionSim.Step`；窗口、Graph 与结束只读整数帧 |
 | 逻辑 / 表现边界 | `ActionSimSnapshot` / `ActionSimEvent` → `CharacterActionPresentationBridge` → Clip Seek / Timeline |
 | 命中回流 | `HitboxFrameConsumer` Collect → `CombatHitPipeline` 帧末 Resolve → `IActionHitReceiver.NotifyHit` |
@@ -866,6 +907,8 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-12 | L-DIR2：AnimSet Start 表；`ActiveStartGait`；Gait `cardinalMinDwellFrames` 滞回 |
 | 2026-08-12 | L-DIR3：FaceTarget 旋转+软锁；本地 cardinal；锁定禁 Pivot；相机跟朝向关闭 |
 | 2026-08-12 | Locomotion Play 验收关闭（L-DIR1～5 + Pivot）；旧案 Phase D 减速曲线不做 |
+| 2026-08-13 | C-AT0～3 代码重构：MoveReferenceYaw 入 InputFrame；唯一 SelectedTarget + Action 中切敌；删除 PlanarBasis、CombatTargetLock、ActionTargetId 与表现 late-bind |
+| 2026-08-13 | FollowMove 不再因 SelectedTarget 自动升格 FaceTarget；玩家锁面仅攻击窗口/显式 FaceTarget Profile |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
 | 2026-08-09 | BT Graph：装饰/条件改为宿主顶部徽章（UE 表现）；运行真源仍为装饰链 |
@@ -885,7 +928,7 @@ CombatHitPipeline（全体 Actor Step 后）
 |----|------|
 | 顺序 | BaseDelta → TargetAdhesion → MotionCommand（Relocate）→ MotorSim → SoftBodySeparation |
 | 纯计算 | `ActionMotionAdhesion`；Command 经 `ActionMotionResolver` |
-| 目标 | 起手 `CombatTargetLock.AcquireForActionNode` → `ActionSim.BindActionTarget` |
+| 目标 | `CharacterTargetingState.SelectedTargetId`；动作中切敌后下一逻辑帧改读新目标 |
 | Pose | `ActionMotionWorldQuery` → `IHurtboxTarget.GetLogicalCombatPose`（含朝向） |
 | SoftBody | Modifier 窗 / Relocate 落地 `SetSoftBodySuppressFrames` |
 | 数据 | `motionModifierStates` + `motionCommandNotifies` |
@@ -894,7 +937,7 @@ CombatHitPipeline（全体 Actor Step 后）
 ### 运行时流程
 
 ```
-HandleStarted → Acquire 锁 → BindActionTargetId
+CharacterTargetingState.Step → SelectedTargetId
 ApplyStep：SoftBodySuppress 刷新（含卡肉帧）
   → Base → Adhesion → MotionCommand（Resolver.Teleport + Facing）
   → SyncRootPoseFromSim

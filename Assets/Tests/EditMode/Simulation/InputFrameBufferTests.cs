@@ -29,7 +29,7 @@ public sealed class InputFrameBufferTests
         var buffer = new InputFrameBuffer();
         var id = new SimActorId(3);
         ulong attack = InputButtonMask.Of(InputButton.Attack);
-        var first = new InputFrame(0, id, 12, 127, attack, attack, 0ul);
+        var first = new InputFrame(0, id, 12, 127, attack, attack, 0ul, 1234);
         buffer.Set(in first);
 
         InputFrame frame0 = buffer.ResolveLocal(0, id);
@@ -39,6 +39,7 @@ public sealed class InputFrameBufferTests
         Assert.That(frame1.WasPressed(InputButton.Attack), Is.False);
         Assert.That(frame1.IsHeld(InputButton.Attack), Is.True);
         Assert.That(frame1.MoveY, Is.EqualTo((sbyte)127));
+        Assert.That(frame1.MoveReferenceYawQuantized, Is.EqualTo((ushort)1234));
     }
 
     /// <summary>同帧多 Actor 输入必须按 SimActorId 隔离。</summary>

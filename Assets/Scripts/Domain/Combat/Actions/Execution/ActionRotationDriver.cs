@@ -1,13 +1,14 @@
 using UnityEngine;
 
-/// <summary>招式 Rotation 窗口转向：优先索敌锁；无锁时用移动意图。</summary>
+/// <summary>招式 Rotation 窗口转向：优先读取唯一 SelectedTarget；无目标策略时用移动意图。</summary>
 public sealed class ActionRotationDriver
 {
     readonly Transform _actorRoot;
     readonly IMoveIntentSource _moveIntent;
     readonly IMoveIntentResolver _moveResolver;
     readonly ActionSim _actionSim;
-    readonly CombatTargetLock targetLock;
+    readonly CharacterTargetingState _targetingState;
+    readonly CharacterMotorSim _motor;
     float _rotationVelocity;
 
     /// <summary>创建动作旋转服务；由 ActionState 在动作状态中调用。</summary>
@@ -16,20 +17,20 @@ public sealed class ActionRotationDriver
         IMoveIntentSource moveIntent,
         IMoveIntentResolver moveResolver,
         ActionSim actionSim,
-        CombatTargetLock lockState)
+        CharacterTargetingState targetingState,
+        CharacterMotorSim motor)
     {
         _actorRoot = actorRoot;
         _moveIntent = moveIntent;
         _moveResolver = moveResolver;
         _actionSim = actionSim;
-        targetLock = lockState;
+        _targetingState = targetingState;
+        _motor = motor;
     }
 
-    /// <summary>Action 状态下按固定逻辑步长推进索敌和旋转窗口。</summary>
+    /// <summary>Action 状态下按固定逻辑步长推进旋转窗口。</summary>
     public void Tick(float fixedDeltaSeconds)
     {
-        ActionSimSnapshot snapshot = _actionSim.Snapshot;
-        targetLock.Tick(in snapshot);
         TryApplyActionRotation(fixedDeltaSeconds);
     }
 
@@ -64,16 +65,21 @@ public sealed class ActionRotationDriver
             return false;
 
         float windowSmoothTime = rotationState.ResolveSmoothTime(_moveResolver.DefaultRotationSmoothTime);
-        float lockSmoothTime = targetLock.ResolveLockSmoothTime(windowSmoothTime);
-
-        bool hasLock = targetLock.TryGetLockDirection(out Vector3 lockDir);
+        bool consumesTarget = TryResolveTargetSmoothTime(
+            in snapshot,
+            windowSmoothTime,
+            out float targetSmoothTime);
+        Vector3 targetDirection = Vector3.zero;
+        bool hasTarget = consumesTarget
+            && _targetingState != null
+            && _targetingState.TryGetSelectedDirection(_motor, out targetDirection);
         bool hasInput = _moveIntent.HasMoveIntent;
 
-        if (hasLock)
+        if (hasTarget)
         {
-            // 有索敌时始终朝锁；侧移/残留 MoveIntent 不得扭开攻击朝向（AI 对峙污染）
-            direction = lockDir;
-            smoothTime = lockSmoothTime;
+            // 有目标策略时始终朝当前 SelectedTarget；同帧切敌后的方向不会被侧移输入扭开。
+            direction = targetDirection;
+            smoothTime = targetSmoothTime;
             return true;
         }
 
@@ -83,6 +89,25 @@ public sealed class ActionRotationDriver
         direction = _moveResolver.ResolveWorldMoveDirection(_moveIntent.MoveIntent);
         smoothTime = windowSmoothTime;
         return direction.sqrMagnitude > 0.001f;
+    }
+
+    /// <summary>读取当前 Graph 节点是否消费 SelectedTarget，并解析其转向平滑覆盖。</summary>
+    static bool TryResolveTargetSmoothTime(
+        in ActionSimSnapshot snapshot,
+        float windowSmoothTime,
+        out float smoothTime)
+    {
+        smoothTime = windowSmoothTime;
+        if (snapshot.Graph is not ActionGraph graph
+            || !graph.TryGetNode(snapshot.NodeId, out ActionGraphNode node)
+            || node == null
+            || !node.HasTargetLock)
+        {
+            return false;
+        }
+
+        smoothTime = node.TargetLockSettings.ResolveLockSmoothTime(windowSmoothTime);
+        return true;
     }
 
     /// <summary>按指定平滑时间和固定步长转向；smoothTime 极小时瞬时对齐。</summary>

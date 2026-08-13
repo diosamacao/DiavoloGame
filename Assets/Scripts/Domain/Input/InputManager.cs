@@ -25,6 +25,9 @@ public sealed class InputManager : IMoveIntentSource
     /// <inheritdoc />
     public bool HasMoveIntent => MoveIntent.sqrMagnitude >= MoveIntentThresholdSq;
 
+    /// <inheritdoc />
+    public ushort MoveReferenceYawQuantized => _frame.MoveReferenceYawQuantized;
+
     /// <summary>是否记录过最近一次有效移动意图。</summary>
     public bool HasBufferedMoveIntent => _bufferedMoveIntent.sqrMagnitude >= MoveIntentThresholdSq;
 

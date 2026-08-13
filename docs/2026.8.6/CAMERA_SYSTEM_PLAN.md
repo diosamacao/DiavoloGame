@@ -10,17 +10,18 @@
 > 修订：2026-08-06 — 对齐 VisualMotionRoot 层级；滤左右定位为 Wave 1 临时止血  
 > 修订：2026-08-09 — **LockOn / Predict / SkillShot / Finisher 排期全部由本文自管**：不再挂 MASTER Wave 4/5；C1～C4 按本篇 Phase 独立推进  
 > 修订：2026-08-11 — 铁律 #6：自由移动 Orbit yaw 可跟随角色朝向（交叉 Locomotion L-DIR5）；禁止反写 Motor
+> 修订：2026-08-13 — C-AT0～3 已切换为 MoveReferenceYaw + 唯一 SelectedTarget；CameraLock 仅为本地表现。旧 CombatTargetLock/PlanarBasis 描述已废止。
 
 ---
 
 ## 1. 结论摘要
 
-1. **现状**已是可用的「探索第三人称 + 避障 + 命中 Impulse」；缺的是**导演层、多机位、Lock-On、与 `CombatTargetLock` 联动**，以及**按招式时间轴驱动的多段演出机位**。
+1. **现状**已是可用的「探索第三人称 + 避障 + 命中 Impulse」，且 C-AT 权威前置已完成；缺的是**导演层、多机位、Lock-On 构图**，以及**按招式时间轴驱动的多段演出机位**。
 2. **定案骨架**：`CameraDirector`（模式栈） + **多锚点 Rig** + **多 VirtualCamera** + Impulse/FOV 反馈 + **`CameraShotSequence`（技能镜头轨）**。
 3. **锚点流水线**：`PresentationRoot` → `CameraRoot` → `FollowAnchor`（可滤左右）→ 可选 `PredictAnchor` → `Orbit/Pitch` → 日常 VCam；演出另用 Face/Body/Custom 锚点或独立 VCam。
 4. **大招/特殊技镜头**（绝区零向）：按 Action 逻辑帧或 Timeline 窗口切换 Shot（如脸部特写 → 回身第三人称），段内可叠震动、FOV 拉近拉远；**表现可定制，命中仍走 Sim**。
 5. **Look / 震屏 / Blend / Shot 仅表现层**；禁止相机写回 Motor/命中权威。移动前向读 Orbit Yaw（演出抢权期间可冻结 Look）。
-6. **联网暂缓不影响本方案**；Lock-On / Shot 都不进输入权威。
+6. TargetSwitch 属于玩法 InputFrame；CameraLock / Shot 属于本地表现，不进模拟 Snapshot。
 7. **参考**：Cinemachine（多 VCam、Blend、Impulse、Target Group、Timeline 协作）；绝区零「招式定制镜头作第二动画师」的产品思路（多段引导视线，而非单一固定机位）。
 
 ---
@@ -33,7 +34,7 @@
 | 旋转 | Update 累加 yaw/pitch → Orbit/Pitch 枢轴 | 正确；无锁定时输入重映射 |
 | VCam | 单机位 Transposer + HardLookAt + Collider | 无 Free/LockOn 切换与 Blend |
 | 震屏 | `CameraShakeController` 订 `AttackHitEvent`（仅玩家进攻命中） | 缺受击/弹刀/落地等通道；未 Feedback 化 |
-| 索敌 | Domain `CombatTargetLock` | **未驱动相机** |
+| 索敌 | `CharacterTargetingState.SelectedTargetId` | Camera 只读映射已接；LockOn VCam 未做 |
 | 时序 | `SimulationHost.LateUpdate(-100)` 先 `World.Render`，再相机 | ✅ 保留 |
 | 文档 | 无独立相机方案；清单中 Cinemachine 条目可能过期 | 以本文为准 |
 
@@ -53,18 +54,18 @@
 ```text
 ┌─────────────────────────────────────────────────────────┐
 │ App / Presentation                                        │
-│  CameraDirector（模式、优先级、与 TargetLock 订阅）        │
+│  CameraDirector（模式、优先级、只读 SelectedTarget）       │
 │  CameraRig（多锚点写入）                                  │
 │  CameraManager（输入 Look、光标；可降为 Rig 驱动器）         │
 │  多 VCam + CinemachineBrain（Blend / Collider / Impulse） │
 │  CameraShake / CameraFeedback（事件 → Impulse/FOV）       │
 └──────────────────────────▲──────────────────────────────┘
                            │ 只读：PresentationRoot、LookInput、
-                           │      CombatTargetLock 当前目标、Hit 事件
+                           │      ILocalCameraTargetSource、Hit 事件
 ┌──────────────────────────┴──────────────────────────────┐
 │ Domain（权威，相机不写回）                                 │
 │  CharacterActor / PresentationBridge / MotorSim           │
-│  CombatTargetLock / CombatHitPipeline                     │
+│  CharacterTargetingState / CombatHitPipeline              │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -135,11 +136,11 @@ LockGroup（CinemachineTargetGroup，锁定时）
 ## 4. 铁律（权威边界）
 
 1. **禁止**用相机最终 Transform 作为命中、弹刀、移动权威朝向。  
-2. **Motor 相机相对移动**改为读 `CameraDirector.PlanarForward`（Orbit Yaw 投影），不读挤墙后的 `Camera.main.forward`。  
+2. **Motor 相机相对移动**只读 `InputFrame.MoveReferenceYawQuantized`；Camera 只 staged Orbit yaw，不直接写 Motor。
 3. Look、FOV、Impulse、Blend **可抖、可丢**；不进 `InputFrame` / Sim Hash。  
-4. 锁定**目标选择**以 `CombatTargetLock` 为唯一真源；相机不得维护第二套「当前敌人」。  
+4. 锁定**目标选择**以 `CharacterTargetingState.SelectedTargetId` 为唯一真源；相机不得维护第二套「当前敌人」。
 5. 不在逻辑 `Step` 内驱动相机；仅 `LateUpdate`（且晚于 `World.Render`）。  
-6. **Orbit yaw 可只读跟随角色移动朝向**（自由移动绕圈，见 [`../2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md`](../2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md) **L-DIR5**）：相机平滑改自己的 yaw 并继续发布 PlanarBasis；**禁止**反写 Motor/Sim 朝向；Look 输入优先于自动跟随；LockOn/FaceTarget 下关闭。
+6. **Orbit yaw 可只读跟随角色移动朝向**（自由移动绕圈，见 [`../2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md`](../2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md) **L-DIR5**）：相机平滑改自己的 yaw 并 staged 到下一 InputFrame；**禁止**反写 Motor/Sim 朝向；Look 输入优先于自动跟随；仅 `CameraLockEnabled` 时关闭。
 
 ---
 
@@ -188,17 +189,17 @@ predict = followPosition
 
 ### 5.3 Lock-On
 
-**输入 / 玩法（Domain 已有方向）：**
+**输入 / 玩法（C-AT 完成态）：**
 
-- 锁定键：切换 / 锁定最近或准星最优目标  
-- 肩键或 Look 轻弹：切换左/右目标  
-- 丢失：死亡、超距、遮挡超时、手动解锁  
+- 范围内由 CharacterTargetingState 自动维护 SelectedTarget；锁定键只开关 CameraLock
+- `TargetSwitchLeft/Right` 经 InputFrame 切换目标，动作期间同样有效
+- 目标死亡/超距后确定性补选；范围内无目标时 CameraLock 自动解除
 
 **相机：**
 
-1. 订阅 `CombatTargetLock` 目标变更。  
+1. 通过 `ILocalCameraTargetSource` 只读当前 SelectedTarget 与表现 LockPoint。
 2. 激活 LockOn VCam；填充 `CinemachineTargetGroup`（玩家 + 敌人，Weight/Radius 可配）。  
-3. 角色 strafing / 朝向仍由现有 ActionRotation / Lock 逻辑负责；相机只负责构图。  
+3. 角色 strafing / 朝向由 Locomotion/Action 消费 SelectedTarget；相机只负责构图。
 4. UI：锁定准星跟随敌人 `LockPoint`（纯表现）。
 
 推荐 Body/Aim（CM2）：LockOn VCam 用 Transposer + GroupComposer（或 FramingTransposer + Composer），Screen 参数从中心保守调起。
@@ -349,7 +350,8 @@ Assets/Scripts/Domain/Combat/Actions/.../
   CameraNotifyState.cs          // 或 Timeline 窗口类型，绑定 ShotSequence
 
 Assets/Scripts/Domain/Combat/Targeting/
-  CombatTargetLock.cs
+  CharacterTargetingState.cs
+  ILocalCameraTargetSource.cs
 ```
 
 场景：日常 VCam + LockOn VCam + **可复用的 Face/Body Skill VCam 池**（按 `vcamKey` 租用，避免每招实例化爆炸）。
@@ -360,11 +362,11 @@ Assets/Scripts/Domain/Combat/Targeting/
 
 > 勾选与开工顺序以 [MASTER_IMPLEMENTATION_PLAN.md](./MASTER_IMPLEMENTATION_PLAN.md) 为准。
 
-### Phase C0 — 锚点 Rig + 前向跟随（不切 LockOn）→ **Wave 1**
+### Phase C0 — 锚点 Rig + 输入权威前置（不切 LockOn）→ **Wave 1 / C-AT**
 
 - [ ] 抽出 `CameraRig`：显式 `FollowAnchor`（可先与 Orbit 位置合一）  
 - [ ] 实现 §5.1 `lateralFollowFactor`（默认 0 或 0.1；定位见上）  
-- [ ] Motor / 移动前向改读 `PlanarForward`（Orbit Yaw）  
+- [x] Motor / 移动前向改读 `InputFrame.MoveReferenceYawQuantized`
 - [ ] Editor gizmo：CameraRoot / Follow / Orbit  
 - [ ] 保留现有单 VCam、震屏、PresentationRoot 时序  
 
@@ -374,7 +376,7 @@ Assets/Scripts/Domain/Combat/Targeting/
 
 - [ ] 新增 LockOn VCam + TargetGroup  
 - [ ] `CameraDirector`：`Free` / `LockOn` + Brain Blend + Inherit Position  
-- [ ] 与 `CombatTargetLock` 双向对齐（锁/解锁/切目标）  
+- [ ] 通过 `ILocalCameraTargetSource` 单向只读 SelectedTarget；CameraLock 不选择目标
 - [ ] 锁定 UI 指示  
 - [ ] LockOn 下 Look 输入策略（关或微距）  
 
@@ -449,7 +451,7 @@ Assets/Scripts/Domain/Combat/Targeting/
 | 滤左右导致横向走位人出画 | `lateralFollowFactor>0` 或疾跑时提高；LockOn 用 Group |
 | Free↔Lock 跳变 | Inherit Position + 共享 Follow 高度；Blend 调参 |
 | TargetGroup 过渡「低头」 | Group 成员高度一致；LookAt 用胸口/头 |
-| 双套锁定目标 | 只认 `CombatTargetLock` |
+| 双套锁定目标 | 只认 `CharacterTargetingState.SelectedTargetId`；CameraLock 只保存模式 bool |
 | **SkillShot 与逻辑帧不同步** | enter/exit 只认 ActionSim 帧；禁 normalizedTime 权威 |
 | **特写穿墙 / 脸被 Collider 顶飞** | 特写段降低或关闭 Collider；锚点略外偏 |
 | **每招一个 VCam Prefab 爆炸** | `vcamKey` 租用池 + 少量定制 |
@@ -479,8 +481,8 @@ Assets/Scripts/Domain/Combat/Targeting/
 |------|------|------|
 | 2026-08-05 | 混合架构：Director + 多锚点 + 多 VCam | 对齐业界 ACT；复用现有 CM 与 PresentationRoot |
 | 2026-08-05 | Follow 可配置忽略左右位移 | 稳攻击侧向；前向仍跟随 |
-| 2026-08-05 | 索敌真源唯一：`CombatTargetLock` | 避免相机与战斗朝向不一致 |
-| 2026-08-05 | 移动前向改读 Orbit Yaw | 避免 Collider 挤墙扭曲走位 |
+| 2026-08-05 | 索敌真源唯一（已于 2026-08-13 落为 CharacterTargetingState） | 避免相机与战斗朝向不一致 |
+| 2026-08-13 | 移动前向改读 InputFrame.MoveReferenceYaw | 避免 Collider 挤墙与渲染时序进入逻辑 |
 | 2026-08-05 | 联机暂缓；相机纯表现优先落地 | 与战斗框架并行，不堵网络选型 |
 | 2026-08-05 | **补强多段 `SkillShot` / `CameraShotSequence`** | 原 ActionCue 过薄；覆盖「脸特写→回身+震/FOV」等绝区零向大招 |
 | 2026-08-05 | Shot 窗口对齐 Action 逻辑帧 | 与卡肉/Cancel 一致；避免动画归一化时间漂移 |
@@ -505,7 +507,7 @@ Assets/Scripts/Domain/Combat/Targeting/
 ## 13. 成功标准
 
 - [ ] Free 模式：前向跟、左右可滤、避障与震屏不回归  
-- [ ] LockOn：与 `CombatTargetLock` 一致，双人基本同框，进出平滑  
+- [ ] LockOn：只读 SelectedTarget，双人基本同框，进出与切敌平滑
 - [ ] 多锚点在 Scene 可调试；职责不再全堆在 `CameraRoot`  
 - [ ] Motor 不再依赖挤墙后的 `Camera.main.forward`  
 - [ ] 无相机写回 Sim / 命中权威  

@@ -258,7 +258,11 @@ public sealed class EnemyBrain
         Vector2 localMove = freezeMove ? Vector2.zero : _blackboard.MoveDesire;
         bool faceTarget = _blackboard.FaceTargetRequested
             || (!freezeMove && _blackboard.MoveDesire.sqrMagnitude > 0.0001f);
-        _lastLocomotionDesire = new LocomotionDesire(localMove, faceTarget);
+        // AI 本地轴以感知目标方向为参考；显式写入 Desire，禁止回退读取 FacingProxy Transform。
+        float referenceYaw = snapshot.PlanarDirection.sqrMagnitude > 0.0001f
+            ? Mathf.Atan2(snapshot.PlanarDirection.x, snapshot.PlanarDirection.z) * Mathf.Rad2Deg
+            : 0f;
+        _lastLocomotionDesire = new LocomotionDesire(localMove, faceTarget, referenceYaw);
         if (_locomotionDesires != null)
             _locomotionDesires.Set(in _lastLocomotionDesire);
 

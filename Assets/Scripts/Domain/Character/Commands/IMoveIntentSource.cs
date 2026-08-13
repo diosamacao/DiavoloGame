@@ -14,4 +14,7 @@ public interface IMoveIntentSource
 
     /// <summary>最近一次有效移动方向，供起手朝向等上下文行为使用。</summary>
     Vector2 BufferedMoveIntent { get; }
+
+    /// <summary>把本地移动轴旋转到世界平面的量化参考偏航。</summary>
+    ushort MoveReferenceYawQuantized { get; }
 }

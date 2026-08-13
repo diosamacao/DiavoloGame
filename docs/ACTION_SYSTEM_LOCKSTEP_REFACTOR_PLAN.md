@@ -183,7 +183,7 @@ InputFrame
 ├─ actorId                   // 稳定 SimActorId
 ├─ moveAxes                  // 量化：例如 sbyte/short，禁止裸 float 上传
 ├─ buttonsPressed/Held/Released bitset
-└─ (可选) aimYawQuantized
+└─ moveReferenceYawQuantized（0.1°，[0,3599]）
 
 InputFrameBuffer
 ├─ SetLocal(frame, frameData)
@@ -584,6 +584,7 @@ Assets/Scripts/Presentation/
 **目标：** 玩家、AI、回放未来共用同一量化输入格式。
 
 - [x] 2026-08-01：删除 `PlayerInputFrame`，统一为 `InputFrame(frame, actorId, sbyte axes, button bitset, yaw)`
+- [x] 2026-08-13：yaw 明确为 `MoveReferenceYawQuantized`；TargetSwitch 进入固定 button bit；SelectedTargetId 纳入未来 Snapshot，CameraLock 不纳入
 - [x] 2026-08-01：`InputReader` 仅在设备边界量化，并把多次渲染采样合并到下一逻辑帧槽
 - [x] 2026-08-01：World 增加 Input Produce 阶段；`EnemyBrain` 在 Actor Step 前读 N-1 已提交状态并写 N 帧 `InputFrame`
 - [x] 2026-08-01：`GameplayIntentProducer`、`GameplayIntentBuffer` 与 AI 攻击/重试/重定向冷却改为整数帧

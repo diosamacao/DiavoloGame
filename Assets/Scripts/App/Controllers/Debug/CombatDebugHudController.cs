@@ -14,6 +14,7 @@ public sealed class CombatDebugHudController : AppControllerBase
     [SerializeField] KeyCode hurtboxToggleKey = KeyCode.F4;
 
     CharacterDebugSnapshot _cached;
+    CameraManager _cameraManager;
     readonly StringBuilder _sb = new(512);
     GUIStyle _boxStyle;
     GUIStyle _labelStyle;
@@ -22,6 +23,7 @@ public sealed class CombatDebugHudController : AppControllerBase
     {
         if (playerController == null)
             playerController = FindObjectOfType<PlayerController>();
+        _cameraManager = FindObjectOfType<CameraManager>();
 
         EnsureHurtboxVisualizer();
     }
@@ -62,14 +64,21 @@ public sealed class CombatDebugHudController : AppControllerBase
 
         EnsureStyles();
         _sb.Clear();
-        AppendSnapshot(_sb, in _cached);
+        AppendSnapshot(
+            _sb,
+            in _cached,
+            _cameraManager != null && _cameraManager.CameraLockEnabled);
         const float width = 440f;
         float height = Mathf.Min(420f, Screen.height * 0.55f);
         GUI.Box(new Rect(8f, 8f, width, height), GUIContent.none, _boxStyle);
         GUI.Label(new Rect(16f, 16f, width - 16f, height - 16f), _sb.ToString(), _labelStyle);
     }
 
-    static void AppendSnapshot(StringBuilder sb, in CharacterDebugSnapshot s)
+    /// <summary>把角色逻辑快照与本地 CameraLock 状态格式化为只读 HUD。</summary>
+    static void AppendSnapshot(
+        StringBuilder sb,
+        in CharacterDebugSnapshot s,
+        bool cameraLockEnabled)
     {
         sb.AppendLine("[Combat Debug]  F3 HUD | F4 Hurtbox")
             .Append("Hurtbox Gizmo: ")
@@ -140,10 +149,11 @@ public sealed class CombatDebugHudController : AppControllerBase
         }
 
         sb.AppendLine();
-        sb.Append("Lock: ").Append(s.HasLock ? "YES" : "NO");
-        if (s.HasLock)
-            sb.Append(" | ").Append(s.LockTargetName)
-                .Append(" | Dist=").Append(s.LockDistanceMeters.ToString("0.00"));
+        sb.Append("SelectedTarget: ").Append(s.HasSelectedTarget ? "YES" : "NO");
+        if (s.HasSelectedTarget)
+            sb.Append(" | ").Append(s.SelectedTargetName)
+                .Append(" | Dist=").Append(s.SelectedTargetDistanceMeters.ToString("0.00"));
+        sb.Append(" | CameraLock=").Append(cameraLockEnabled ? "ON" : "OFF");
         sb.AppendLine();
         sb.Append("Motor mm: (").Append(s.MotorXMm).Append(", ").Append(s.MotorYMm)
             .Append(", ").Append(s.MotorZMm).Append(") facing=")

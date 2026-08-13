@@ -9,7 +9,7 @@ using UnityEngine;
 public class MotionModifierNotifyState : ActionNotifyState
 {
     [SerializeField] MotionModifierMode mode = MotionModifierMode.TargetAdhesion;
-    [SerializeField] MotionTargetSource targetSource = MotionTargetSource.ActionTarget;
+    [SerializeField] MotionTargetSource targetSource = MotionTargetSource.SelectedTarget;
 
     [Tooltip("沿玩家→敌人连线、相对敌人中心的水平偏移（毫米）。>0 穿到敌后侧，=0 敌心，<0 敌前。")]
     [SerializeField] int horizontalOffsetMm = 1000;

@@ -29,7 +29,6 @@ public sealed class ActionSim : IActionSimHitReceiver
     ActionSimResolveResult _pendingTransition;
     bool _hasPendingTransition;
     bool _pendingStop;
-    SimActorId _actionTargetId;
 
     /// <summary>
     /// 创建动作模拟核；Resolver / 输入缓冲 / 资源 Gate / 起手回调可为空。
@@ -68,15 +67,9 @@ public sealed class ActionSim : IActionSimHitReceiver
     /// <summary>是否处于逻辑卡肉。</summary>
     public bool IsFrozen => FreezeFrames > 0;
 
-    /// <summary>起手固化的吸附/绕背目标；无目标时 Invalid。</summary>
-    public SimActorId ActionTargetId => _actionTargetId;
-
     /// <summary>返回指定动作实例是否已结束或被另一实例替换。</summary>
     public bool HasEndedActionInstance(int instanceId) =>
         instanceId > 0 && _lastEndedInstanceId == instanceId;
-
-    /// <summary>起手后绑定动作目标（Wave 4）；重复绑定以首次非 Invalid 为准可由调用方控制。</summary>
-    public void BindActionTarget(SimActorId targetId) => _actionTargetId = targetId;
 
     /// <summary>当前 Recovery 帧是否允许移动取消。</summary>
     public bool CanCancelByMovement =>
@@ -270,8 +263,6 @@ public sealed class ActionSim : IActionSimHitReceiver
         _hasConfirmedHit = false;
         _freezeFrames = 0;
         _hitStopAppliedForInstance = false;
-        _actionTargetId = SimActorId.Invalid;
-
         // 价签扣费与 Begin 同事务：仅成功起手路径调用一次
         _resourceGate?.CommitCost(_content);
         // 起手副作用（如 ClearPerfectDodgeCounter）经回调注入，覆盖 Start/Interrupt/Cancel
@@ -318,7 +309,6 @@ public sealed class ActionSim : IActionSimHitReceiver
         _hasConfirmedHit = false;
         _freezeFrames = 0;
         _hitStopAppliedForInstance = false;
-        _actionTargetId = SimActorId.Invalid;
     }
 
     /// <summary>派发跨过的全部帧；终止哨兵也交给外层时间轴生成区间 Exit。</summary>

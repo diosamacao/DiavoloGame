@@ -210,7 +210,8 @@ public sealed class LocomotionContext
         _facingTargetSource = source;
 
     /// <summary>
-    /// 运行时有效朝向：FaceCamera 保持配置；有目标时 FollowMove/FaceTarget→FaceTarget；无目标 FaceTarget→FollowMove。
+    /// 运行时有效朝向：FollowMove 不因 SelectedTarget 升格；FaceTarget 仅在 Profile 声明且有目标时生效。
+    /// SelectedTarget 只服务攻击/切敌，不自动变成锁面 strafing。
     /// </summary>
     public LocomotionFacingMode ResolveFacingMode()
     {
@@ -221,13 +222,11 @@ public sealed class LocomotionContext
         if (configured == LocomotionFacingMode.FaceCamera)
             return LocomotionFacingMode.FaceCamera;
 
+        if (configured != LocomotionFacingMode.FaceTarget)
+            return LocomotionFacingMode.FollowMove;
+
         bool hasTarget = _facingTargetSource != null
             && _facingTargetSource.TryGetFacingWorldDirection(out _);
-
-        if (configured == LocomotionFacingMode.FaceTarget)
-            return hasTarget ? LocomotionFacingMode.FaceTarget : LocomotionFacingMode.FollowMove;
-
-        // FollowMove：索敌锁或软锁命中时升格 FaceTarget，解锁自动回退
         return hasTarget ? LocomotionFacingMode.FaceTarget : LocomotionFacingMode.FollowMove;
     }
 

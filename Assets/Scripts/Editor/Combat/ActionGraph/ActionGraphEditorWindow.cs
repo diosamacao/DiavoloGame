@@ -618,11 +618,6 @@ sealed class ActionGraphView : GraphView
 
         SerializedProperty targeting = node.FindPropertyRelative("targetLockSettings");
         targeting.FindPropertyRelative("enabled").boolValue = existing.TargetLockEnabled;
-        targeting.FindPropertyRelative("lockRange").floatValue = existing.TargetLockRange;
-        targeting.FindPropertyRelative("forwardConeAngle").floatValue =
-            existing.TargetForwardConeAngle;
-        targeting.FindPropertyRelative("policy").enumValueIndex =
-            (int)existing.TargetSelectionPolicy;
         targeting.FindPropertyRelative("lockRotationSmoothTimeOverride").floatValue =
             existing.TargetLockRotationSmoothTimeOverride;
 
@@ -650,10 +645,6 @@ sealed class ActionGraphView : GraphView
 
         SerializedProperty targeting = node.FindPropertyRelative("targetLockSettings");
         targeting.FindPropertyRelative("enabled").boolValue = false;
-        targeting.FindPropertyRelative("lockRange").floatValue = 8f;
-        targeting.FindPropertyRelative("forwardConeAngle").floatValue = 120f;
-        targeting.FindPropertyRelative("policy").enumValueIndex =
-            (int)TargetSelectionPolicy.NearestDistance;
         targeting.FindPropertyRelative("lockRotationSmoothTimeOverride").floatValue = 0f;
         node.FindPropertyRelative("automaticTransitions").arraySize = 0;
     }
@@ -671,9 +662,6 @@ sealed class ActionGraphView : GraphView
         public readonly CombatModeType SwitchCombatModeTarget;
         public readonly CombatModeSwitchPolicy SwitchCombatModePolicy;
         public readonly bool TargetLockEnabled;
-        public readonly float TargetLockRange;
-        public readonly float TargetForwardConeAngle;
-        public readonly TargetSelectionPolicy TargetSelectionPolicy;
         public readonly float TargetLockRotationSmoothTimeOverride;
         public readonly TransitionSnapshot[] AutomaticTransitions;
 
@@ -690,9 +678,6 @@ sealed class ActionGraphView : GraphView
             SwitchCombatModePolicy = node.SwitchCombatModePolicy;
             TargetLockSettings targeting = node.TargetLockSettings;
             TargetLockEnabled = targeting.Enabled;
-            TargetLockRange = targeting.LockRange;
-            TargetForwardConeAngle = targeting.ForwardConeAngle;
-            TargetSelectionPolicy = targeting.Policy;
             TargetLockRotationSmoothTimeOverride =
                 targeting.LockRotationSmoothTimeOverride;
             AutomaticTransitions = node.AutomaticTransitions
@@ -1041,9 +1026,6 @@ sealed class ActionGraphNodePolicyView : IMGUIContainer
 
         EditorGUI.indentLevel++;
         EditorGUILayout.PropertyField(targetLock.FindPropertyRelative("enabled"));
-        EditorGUILayout.PropertyField(targetLock.FindPropertyRelative("lockRange"));
-        EditorGUILayout.PropertyField(targetLock.FindPropertyRelative("forwardConeAngle"));
-        EditorGUILayout.PropertyField(targetLock.FindPropertyRelative("policy"));
         EditorGUILayout.PropertyField(
             targetLock.FindPropertyRelative("lockRotationSmoothTimeOverride"));
         EditorGUI.indentLevel--;

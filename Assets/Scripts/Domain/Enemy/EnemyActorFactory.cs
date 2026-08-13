@@ -35,7 +35,6 @@ public static class EnemyActorFactory
             config,
             definition.TeamId,
             null,
-            facingProxy,
             activeTargetsProvider,
             combatHitPipeline,
             out ActionSim actionSim,
