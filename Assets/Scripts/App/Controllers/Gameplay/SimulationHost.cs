@@ -10,6 +10,7 @@ public sealed class SimulationHost : AppControllerBase
     readonly Dictionary<SimActorId, EnemyController> _enemyControllers = new();
     readonly Dictionary<SimActorId, NumericSystem> _numericByActor = new();
     readonly List<EnemyController> _enemyStepSnapshot = new();
+    readonly List<ReplicatedHitEvent> _frameHits = new();
 
     SimulationConfig _config;
     FixedStepAccumulator _accumulator;
@@ -38,6 +39,9 @@ public sealed class SimulationHost : AppControllerBase
 
     /// <summary>每个逻辑步在 Combat/PostCombat/生命周期提交之后触发；参数为权威帧号。</summary>
     public event Action<long> AfterLogicStep;
+
+    /// <summary>本逻辑步已发布的权威命中（AfterLogicStep 内可读，步末清空）。</summary>
+    public IReadOnlyList<ReplicatedHitEvent> FrameHits => _frameHits;
 
     void Awake()
     {
@@ -107,6 +111,7 @@ public sealed class SimulationHost : AppControllerBase
             GetArchitecture().SendEvent(SimulationLogicStepEvent.Instance);
             // 每个逻辑步都通知，避免追帧时漏打包复制 Tick
             AfterLogicStep?.Invoke(_world.CurrentFrame);
+            _frameHits.Clear();
         }
     }
 
@@ -132,6 +137,20 @@ public sealed class SimulationHost : AppControllerBase
             throw new ArgumentNullException(nameof(actor));
 
         return _world.Register(actor);
+    }
+
+    /// <summary>把当前仍注册的敌人控制器拷入列表，供复制打包；不包含本机玩家。</summary>
+    public void CopyEnemyControllers(List<EnemyController> results)
+    {
+        if (results == null)
+            throw new ArgumentNullException(nameof(results));
+
+        results.Clear();
+        foreach (EnemyController controller in _enemyControllers.Values)
+        {
+            if (controller != null)
+                results.Add(controller);
+        }
     }
 
     /// <summary>把敌人句柄注册到固定帧 World，并保留 Controller 处理帧后 App 生命周期。</summary>
@@ -177,6 +196,13 @@ public sealed class SimulationHost : AppControllerBase
     /// <summary>把帧末只读命中结果发布给镜头、动画与 VFX 等表现订阅者。</summary>
     void PublishResolvedHit(ResolvedCombatHit hit)
     {
+        if (!hit.AbsorbedByPerfectDodge
+            && hit.Key.AttackerId.IsValid
+            && hit.Key.TargetId.IsValid)
+        {
+            _frameHits.Add(new ReplicatedHitEvent(_world.CurrentFrame, hit.Key));
+        }
+
         SendCommand(new PublishAttackHitCommand(hit));
     }
 }

@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-/// <summary>从权威 CharacterActor 组装下行快照；不读 CameraLock / Look / Lean。</summary>
+/// <summary>从权威 CharacterActor 组装下行快照；读 Vitality 边沿，不读 CameraLock / Look / Lean。</summary>
 public static class CharacterReplicationCapture
 {
     /// <summary>
@@ -50,7 +50,9 @@ public static class CharacterReplicationCapture
             actor.TargetingSnapshot.SelectedTargetId,
             healthMilli,
             flagsPacked: 0,
-            VitalityReplicationEdge.None,
+            actor.Vitality != null
+                ? actor.Vitality.ReplicationEdge
+                : VitalityReplicationEdge.None,
             moveVxMm,
             moveVzMm,
             locomotionPhase: locomotionPhase,

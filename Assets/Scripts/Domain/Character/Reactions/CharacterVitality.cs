@@ -7,6 +7,7 @@ using UnityEngine;
 public sealed class CharacterVitality
 {
     readonly NumericSystem _numeric;
+    VitalityReplicationEdge _replicationEdge;
 
     /// <summary>绑定 Numeric；事件供 Reaction 订阅。</summary>
     public CharacterVitality(NumericSystem numeric)
@@ -25,6 +26,12 @@ public sealed class CharacterVitality
 
     /// <summary>生命是否已归零。</summary>
     public bool IsDead => _numeric.Attributes.GetCurrent(AttributeId.Health) <= 0;
+
+    /// <summary>本逻辑步生命边沿；Step 开头清零，供复制快照读取。</summary>
+    public VitalityReplicationEdge ReplicationEdge => _replicationEdge;
+
+    /// <summary>新逻辑步开始时清边沿，避免上一帧 Hit/Death 被重复复制。</summary>
+    public void ClearReplicationEdge() => _replicationEdge = VitalityReplicationEdge.None;
 
     /// <summary>成功受到非致命伤害后触发。</summary>
     public event Action<ActionHitContext, float> Damaged;
@@ -65,7 +72,10 @@ public sealed class CharacterVitality
         {
             // 0 伤命中仍可播受击（仅打击路径）
             if (triggerHitReaction && !IsDead && damageMilli <= 0)
+            {
+                _replicationEdge = VitalityReplicationEdge.Hit;
                 HitReceived?.Invoke(context);
+            }
             return;
         }
 
@@ -77,6 +87,7 @@ public sealed class CharacterVitality
         float applied = appliedMilli / 1000f;
         if (IsDead)
         {
+            _replicationEdge = VitalityReplicationEdge.Death;
             Died?.Invoke(context, applied);
             return;
         }
@@ -84,6 +95,7 @@ public sealed class CharacterVitality
         if (!triggerHitReaction)
             return;
 
+        _replicationEdge = VitalityReplicationEdge.Hit;
         HitReceived?.Invoke(context);
         if (appliedMilli > 0)
             Damaged?.Invoke(context, applied);

@@ -19,6 +19,8 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
 
     ActionDefinition _animationAction;
     int _animationSegmentIndex = -1;
+    int _lastActionId;
+    int _lastActionFrame;
     AnimationKey? _locomotionKey;
     bool _visualActionActive;
     Vector3 _debugWishWorld;
@@ -137,7 +139,10 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
             MotionQuantization.MmToMeters(snapshot.MoveVzMm));
     }
 
-    /// <summary>有招则只在切段时 Play+Seek；空闲播 LocomotionKey。禁止派发 Hitbox。</summary>
+    /// <summary>
+    /// 有招则切段时 Play+Seek；连续受击（生命边沿或动作帧回绕）硬切重播。
+    /// 空闲播 LocomotionKey。禁止派发 Hitbox。
+    /// </summary>
     void ApplyPresentation(in ActorReplicationSnapshot snapshot, float leanRollDegrees)
     {
         bool frozen = snapshot.FreezeFrames > 0;
@@ -145,13 +150,19 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         ActionDefinition action = null;
         bool actionActive = snapshot.ActionId != 0
             && _catalog.TryGet(snapshot.ActionId, out action);
+        bool forceRestart = ShouldForceActionRestart(
+            snapshot.VitalityEdge,
+            _lastActionId,
+            _lastActionFrame,
+            snapshot.ActionId,
+            snapshot.ActionFrame);
 
         if (_animation != null)
         {
             if (actionActive)
             {
                 _locomotionKey = null;
-                SeekActionIfSegmentChanged(action, snapshot.ActionFrame);
+                SeekActionIfSegmentChanged(action, snapshot.ActionFrame, forceRestart);
                 _animation.SetSpeed(frozen ? 0f : 1f);
                 if (!frozen)
                     _animation.Tick(_fixedDeltaSeconds);
@@ -175,6 +186,9 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
             }
         }
 
+        _lastActionId = snapshot.ActionId;
+        _lastActionFrame = snapshot.ActionFrame;
+
         // 倾身先写入，残差贴帧会一并带上 localRotation
         _visualMotion?.SetLeanRollDegrees(leanRollDegrees);
         if (actionActive)
@@ -189,22 +203,45 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         }
     }
 
-    /// <summary>与权威表现桥相同：同动作同段不 Seek，避免每逻辑帧硬切。</summary>
-    void SeekActionIfSegmentChanged(ActionDefinition action, int actionFrame)
+    /// <summary>
+    /// 同动作同段默认不 Seek，避免每逻辑帧硬切。
+    /// 连续受击须 forceRestart：与权威 EnterHit(force) 一样从头播。
+    /// </summary>
+    void SeekActionIfSegmentChanged(ActionDefinition action, int actionFrame, bool forceRestart)
     {
         ActionFrameQueryResult query = ActionFrameQuery.Query(action, actionFrame);
         if (!query.HasAnimationSegment)
             return;
 
         int segmentIndex = query.SegmentIndex;
-        if (_animationAction == action && _animationSegmentIndex == segmentIndex)
+        if (!forceRestart && _animationAction == action && _animationSegmentIndex == segmentIndex)
             return;
 
         ActionAnimationSegment segment = query.Segment;
-        _animation.PlayClip(segment.clip, action.ResolveSegmentCrossFade(segmentIndex));
+        // 连击重播必须 fade=0，否则和上一段受击混在一起看不出重入
+        float fade = forceRestart ? 0f : action.ResolveSegmentCrossFade(segmentIndex);
+        _animation.PlayClip(segment.clip, fade);
         _animation.SeekClip(query.SegmentLocalTime);
         _animationAction = action;
         _animationSegmentIndex = segmentIndex;
+    }
+
+    /// <summary>
+    /// 生命边沿 Hit/Death，或同一招动作帧回绕（再次 EnterHit），需要硬切重播。
+    /// </summary>
+    public static bool ShouldForceActionRestart(
+        VitalityReplicationEdge edge,
+        int previousActionId,
+        int previousActionFrame,
+        int actionId,
+        int actionFrame)
+    {
+        if (edge == VitalityReplicationEdge.Hit || edge == VitalityReplicationEdge.Death)
+            return true;
+
+        return actionId != 0
+            && actionId == previousActionId
+            && actionFrame < previousActionFrame;
     }
 
     static AnimationKey ResolveLocomotionKey(byte locomotionPhase)

@@ -379,6 +379,8 @@ public sealed class CharacterActor :
     {
         _currentFrameIndex = frameIndex;
         _lastSimulationInput = inputFrame;
+        // 边沿只活一帧：本步结算前清掉，AfterLogicStep 才能读到本帧 Hit/Death
+        _vitality?.ClearReplicationEdge();
         _presentation.BeginSimulationStep();
         // 逻辑步内残差贴帧，避免挂点读到上一渲染插值
         _visualMotion?.ApplyLogicLocalPose();

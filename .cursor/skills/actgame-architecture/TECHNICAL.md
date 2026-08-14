@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-15（NS3 预测表现：FollowInput / 倾身 / 出招贴齐）
+> Last updated: 2026-08-15（NS4 出招预测与权威命中）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,7 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
-| 组队 PVE 状态同步 / 权威进程 | 🟡 NS0～NS2 已验收；NS3 表现补齐 | `PredictedLocomotionDriver`、`PredictedClientPreviewController` | Play 待确认转向/倾身/出招；NS4～NS5 未做 |
+| 组队 PVE 状态同步 / 权威进程 | 🟡 NS0～NS3 已验收；NS4 代码 | `PredictedActionDriver`、`RemoteGhostViewController` | Play 待确认命中复制/取消预测招；NS5 未做 |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -337,17 +337,67 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 
 ### 已知限制
 
-- Play 待 Editor 确认（左侧应立刻动，且转向过程、Sprint 倾身、攻击位移不再 10Hz 吸附）
-- 预测不重跑 Locomotion FSM；起步/折返/急停/出招跟权威位姿（NS3 不出招预测）
+- Play 已验收（2026-08-15）：左侧立刻动，转向/倾身/攻击位移接近 Host
+- 预测不重跑 Locomotion FSM；起步/折返/急停跟权威位姿
 - Lean 不进 Snapshot，仅同机预览从权威 Actor 拷贝
 - 预测电机不进 SoftBodySeparation
-- 出招预测（本地先播、权威命中）是 NS4
+- 出招预测见下一节 NS4
 
 ### 相关文件
 
 - `Assets/Scripts/Domain/Simulation/Prediction/*`
 - `Assets/Scripts/App/Controllers/Gameplay/PredictedClientPreviewController.cs`
 - `Assets/Tests/EditMode/Simulation/PredictedLocomotionReconcileTests.cs`
+
+---
+
+## 组队 PVE · NS4 出招预测与权威命中
+
+### 功能说明
+
+本地预测出招只播 Clip；伤害、硬直、HP 只认权威 `CombatHitPipeline`。同机幽灵跟玩家与敌人的延迟 Snapshot，受击只出现一次。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 出招预测 | `PredictedActionDriver` 记 ActionId/帧；同招延迟 Tick 只 Ack |
+| 取消 | 该帧权威 ActionId=0，或 Vitality Hit/Death → 取消并改跟权威招 |
+| 命中下行 | `ResolvedCombatHit.Key` → `ReplicatedHitEvent`；`CharacterVitality.ReplicationEdge` 写入快照 |
+| 幽灵 | `RemoteGhostViewController` 打包玩家+敌人；RemoteProxy 只 Seek，不 Collect；`VitalityEdge.Hit` 或动作帧回绕时硬切重播受击 |
+| Host | Listen Host 本地仍不预测；`HitboxFrameConsumer` 只挂权威工厂 |
+
+### 关键参数
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `previewRemoteGhost` | Editor true | 右侧 +2m 含敌人幽灵 |
+| `remoteGhostLatencyMs` | 100 | 受击/掉血晚约 100ms |
+| `previewPredictedClient` | Editor true | 左侧出招立即播；被打后约 100ms 取消 |
+
+### 运行时流程
+
+```
+权威 Step → Pipeline.Collect/Resolve → Vitality 边沿 + FrameHits
+AfterLogicStep
+  Ghost：Capture 全员 + Hits → Loopback → RemoteProxy.ApplySnapshot
+  预测：Host 未硬直则 Predict(Action)；已硬直则 TickUnconfirmed
+        延迟 Tick → Action.Reconcile（未起手/Hit 则取消）
+```
+
+### 已知限制
+
+- Play 待 Editor 确认（砍木桩：右侧幽灵受击一次；左侧被打后预测招应取消）
+- 预测出招尚未独立跑 ActionSim/VFX，同机预览用 Host 当帧 ActionId 起手
+- 吸附/Relocate 仍只在权威 `ActionMotionResolver`
+- NS5 房间未做
+
+### 相关文件
+
+- `Assets/Scripts/Domain/Simulation/Prediction/PredictedActionDriver.cs`
+- `Assets/Scripts/App/Controllers/Gameplay/RemoteGhostViewController.cs`
+- `Assets/Scripts/App/Controllers/Gameplay/PredictedClientPreviewController.cs`
+- `Assets/Tests/EditMode/Simulation/PredictedActionReconcileTests.cs`
 
 ---
 
@@ -1116,6 +1166,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-15 | 幽灵 Locomotion：复制归一化时间并硬切 Seek；工厂关掉 Animator RM |
 | 2026-08-15 | NS3：PredictedLocomotionDriver + 纠偏单测 + 同机预测预览；Host 不预测 |
 | 2026-08-15 | NS3 表现：FollowInput 转向、Sprint 倾身拷贝、出招/转身贴齐权威以免 10Hz 吸附 |
+| 2026-08-15 | NS3 Play 验收关闭；NS4：PredictedActionDriver + 命中/生命边沿复制 + 敌人幽灵 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

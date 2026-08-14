@@ -47,6 +47,8 @@
 - **RemoteProxy**：他人/预览幽灵只应用 Snapshot（`Domain/Character/Replication/`），禁止 `CharacterActorFactory`、`HitboxFrameConsumer`、`EnemyBrain.Step`。Host 用 `AfterLogicStep` 打包，不得只在渲染帧漏步发送
 - **幽灵 Locomotion**：复制 `AnimationKey` + `LocomotionNormalizedMilli`；切入硬切（fade=0）后 Seek，禁止默认 CrossFade + 本地 Tick 另起时间线。必须关掉 Animator `applyRootMotion`，根朝向只认快照
 - **预测位移**：`PredictedLocomotionDriver` 只推进 MotorSim 副本，写在 `ACTGame.Simulation`。稳态走跑用 FollowInput；出招/起步/折返/急停用 `PredictAligned` 贴权威位姿，禁止再用 wish 去「预测」烘焙位移。Listen Host 本地禁止把预测写进 `CharacterActor.Step`。纠偏可改预测电机，禁止把表现 Pose 写回权威 Motor。Lean 不进 Snapshot，仅预测预览从权威 Actor 拷贝到 VisualMotionRoot
+- **预测出招**：`PredictedActionDriver` 只记 ActionId/帧供 Clip；禁止 Collect / 写 Numeric。同招延迟 Tick 只 Ack；权威未起手或 Vitality Hit/Death 才取消。Listen Host 本地仍不预测
+- **命中复制**：`CombatHitPipeline` 只在权威 Actor 收集；下行 `ReplicatedHitEvent` + `VitalityReplicationEdge`。幽灵/预测不得再跑命中或扣血。边沿由 `CharacterVitality` 记一帧，`CharacterActor.Step` 开头清空
 - **移动参考闭包**：相机相对移动只消费 `InputFrame.MoveReferenceYawQuantized`；CameraManager 只能 staged yaw，禁止把 PlanarBasis/Camera Transform 直接写入 Motor
 - **输入阶段先于 Actor**：World 每帧先调用 `ISimulationInputProducer`，再按 Id 执行 Actor；AI Brain 在该阶段写通用命令槽并为统一时序提交空 `InputFrame`
 - **命中延迟结算**：Hitbox 几何检测只写共享 `CombatHitPipeline`；全体 Actor Step 完成后按 `SimHitKey` 排序，再统一伤害、Reaction 与命中确认

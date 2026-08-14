@@ -1,6 +1,6 @@
 using UnityEngine;
 
-/// <summary>场景级战斗世界入口：固定帧宿主、反馈，以及 NS2 同机幽灵预览（可选）。</summary>
+/// <summary>场景级战斗世界入口：固定帧宿主、反馈，以及 NS2/NS4 同机幽灵与预测预览（可选）。</summary>
 [DefaultExecutionOrder(-200)]
 [DisallowMultipleComponent]
 public class CombatWorldController : AppControllerBase
@@ -9,7 +9,7 @@ public class CombatWorldController : AppControllerBase
     [SerializeField] StaticCollisionBake staticCollisionBake = null;
 
     [Header("NS2 Ghost Preview")]
-    [Tooltip("Editor 默认开启：同机第二视图跟本机玩家 Snapshot。不进花名册、不跑命中。")]
+    [Tooltip("Editor 默认开启：同机第二视图跟玩家与敌人 Snapshot（含受击）。不进花名册、不跑命中。")]
     [SerializeField] bool previewRemoteGhost =
 #if UNITY_EDITOR
         true;

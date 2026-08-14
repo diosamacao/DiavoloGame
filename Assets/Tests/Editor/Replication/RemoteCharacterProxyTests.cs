@@ -141,6 +141,32 @@ public sealed class RemoteCharacterProxyTests
         Object.DestroyImmediate(root);
     }
 
+    /// <summary>连续受击：Hit 边沿或同一招动作帧回绕须重播；同招帧前进不重播。</summary>
+    [Test]
+    public void ShouldForceActionRestart_HitEdgeOrFrameRewind()
+    {
+        Assert.That(
+            RemoteCharacterProxy.ShouldForceActionRestart(
+                VitalityReplicationEdge.Hit, 4, 8, 4, 0),
+            Is.True);
+        Assert.That(
+            RemoteCharacterProxy.ShouldForceActionRestart(
+                VitalityReplicationEdge.Death, 4, 3, 4, 4),
+            Is.True);
+        Assert.That(
+            RemoteCharacterProxy.ShouldForceActionRestart(
+                VitalityReplicationEdge.None, 4, 8, 4, 0),
+            Is.True);
+        Assert.That(
+            RemoteCharacterProxy.ShouldForceActionRestart(
+                VitalityReplicationEdge.None, 4, 3, 4, 4),
+            Is.False);
+        Assert.That(
+            RemoteCharacterProxy.ShouldForceActionRestart(
+                VitalityReplicationEdge.None, 0, 0, 4, 0),
+            Is.False);
+    }
+
     /// <summary>幽灵与工厂源码不得引用 Hitbox 收集或 EnemyBrain。</summary>
     [Test]
     public void GhostSource_HasNoHitboxCollectOrBrain()
@@ -150,7 +176,8 @@ public sealed class RemoteCharacterProxyTests
             "Assets/Scripts/Domain/Character/Replication/RemoteCharacterProxy.cs",
             "Assets/Scripts/Domain/Character/Replication/RemoteCharacterProxyFactory.cs",
             "Assets/Scripts/App/Controllers/Gameplay/RemoteGhostViewController.cs",
-            "Assets/Scripts/App/Controllers/Gameplay/PredictedClientPreviewController.cs"
+            "Assets/Scripts/App/Controllers/Gameplay/PredictedClientPreviewController.cs",
+            "Assets/Scripts/Domain/Simulation/Prediction/PredictedActionDriver.cs"
         };
 
         for (int i = 0; i < relativePaths.Length; i++)
