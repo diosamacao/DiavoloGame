@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-14（NS1 复制快照 + Loopback）
+> Last updated: 2026-08-14（NS2 RemoteProxy 同机幽灵）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,7 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
-| 组队 PVE 状态同步 / 权威进程 | 🟡 NS0 已验收；NS1 代码 | `ActorReplicationSnapshot`、`LoopbackReplicationTransport` | NS2～NS5 未做 |
+| 组队 PVE 状态同步 / 权威进程 | 🟡 NS0/NS1 已验收；NS2 代码 | `RemoteCharacterProxy`、`RemoteGhostViewController` | Play 待确认；NS3～NS5 未做 |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -184,8 +184,8 @@ EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
 ### 已知限制
 
 - Play / Unity 编译待 Editor 确认
-- NS1 快照与 Loopback 未做
-- 花名册尚无远端玩家；只有本机一条
+- 花名册尚无远端玩家；只有本机一条 + Editor 同机幽灵预览
+- NS3 预测位移未做
 
 ### 相关文件
 
@@ -227,9 +227,8 @@ Builder.FromAuthority → AuthorityTick → Codec.Write
 
 ### 已知限制
 
-- 未接 `SimulationWorld` 自动打包；NS2 才用 Tick 驱动幽灵
-- 水平速度 / Locomotion 相位 P0 可为 0
-- Test Runner 待 Editor 确认
+- 水平速度 P0 可为 0；空闲相位由 Capture 填 `AnimationKey`
+- 未接真实 UDP；NS5 才换传输
 
 ### 相关文件
 
@@ -238,6 +237,59 @@ Builder.FromAuthority → AuthorityTick → Codec.Write
 - `Assets/Scripts/Domain/Net/LoopbackReplicationTransport.cs`
 - `Assets/Tests/EditMode/Simulation/ActorReplicationSnapshotTests.cs`
 - `Assets/Tests/EditMode/Simulation/LoopbackReplicationTransportTests.cs`
+
+---
+
+## 组队 PVE · NS2 RemoteProxy
+
+### 功能说明
+
+同机第二视图只靠 `AuthorityTick` 播本机玩家的走路与出招；延迟走 Loopback，不跑第二份命中。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 捕获 | `CharacterReplicationCapture.FromActor` + 共享 `ActionReplicationCatalog` |
+| 传输 | 现有 `LoopbackReplicationTransport`（默认 100ms） |
+| 应用 | `RemoteCharacterProxy`：`ReplicationPoseApplier` + `SyncRootPoseFromSim` + 切段 Seek / Locomotion `Play` |
+| 插值 | 复用 `CharacterPresentationBridge.Render(alpha)` |
+| 装配 | `RemoteCharacterProxyFactory`，**不**走 `CharacterActorFactory` |
+| 入口 | `SimulationHost.AfterLogicStep`；`CombatWorldController.previewRemoteGhost`（Editor 默认开） |
+
+### 关键参数
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `previewRemoteGhost` | Editor true | 现有场景无需改 Prefab |
+| `remoteGhostWorldOffset` | (2,0,0) | 避免与 Host 重叠 |
+| `remoteGhostLatencyMs` | 100 | 单向 Loopback 延迟 |
+
+### 运行时流程
+
+```
+Host.Step → AfterLogicStep
+  → Capture 本机 Actor → AuthorityTick → Loopback
+  → Pump 到期包 → RemoteProxy.ApplySnapshot
+LateUpdate → proxy.Render(Host.InterpolationAlpha)
+```
+
+### 已知限制
+
+- Play 待 Editor 确认（走/攻是否跟帧、有无每帧瞬移）
+- Catalog 是同进程引用表，不是跨进程稳定 Id
+- 幽灵不进花名册、无 Hurtbox、无 VFX/SFX 时间轴
+- `ReplicationAuthority` / 真实房间仍待 NS5
+
+### 相关文件
+
+- `Assets/Scripts/Domain/Character/Replication/*`
+- `Assets/Scripts/App/Controllers/Gameplay/RemoteGhostViewController.cs`
+- `Assets/Scripts/App/Controllers/Combat/CombatWorldController.cs`
+- `Assets/Scripts/App/Controllers/Gameplay/SimulationHost.cs`
+- `Assets/Tests/EditMode/Simulation/ReplicationPoseApplierTests.cs`
+- `Assets/Tests/Editor/Replication/ActionReplicationCatalogTests.cs`
+- `Assets/Tests/Editor/Replication/RemoteCharacterProxyTests.cs`
 
 ---
 
@@ -1001,6 +1053,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-14 | 联网主路径更正为状态同步（删 TECHNICAL 内过期 FramePacket 句）；补服务器代码规范索引 |
 | 2026-08-14 | NS0：`ILocalPlayer` / `LocalPlayerService`；敌人感知最近玩家根；玩法删除 Find 唯一 PlayerController |
 | 2026-08-14 | NS1：复制 Snapshot/Tick/Command + Codec + Loopback；EditMode 往返与 60 帧单调 |
+| 2026-08-14 | NS2：RemoteProxy + Loopback 同机幽灵；Host AfterLogicStep 打包；不 Collect |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

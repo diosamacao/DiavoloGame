@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-14（NS1 复制快照契约 + Loopback）
+> Last audited: 2026-08-14（NS2 RemoteProxy 同机幽灵）
 
 ## 项目概述
 
@@ -19,6 +19,7 @@ Assets/
 │   │   │   ├── Animation/     # 动画播放与 Profile
 │   │   │   ├── Locomotion/    # 相位 FSM、FootCycle、脚步
 │   │   │   ├── Reactions/     # 受击/死亡请求解析与事件桥接
+│   │   │   ├── Replication/   # RemoteProxy / Catalog / Capture（只跟快照）
 │   │   │   └── StateMachine/  # 角色状态机基类与共享 State
 │   │   ├── Enemy/             # Definition、AI FSM、生命值、工厂与句柄
 │   │   ├── Combat/
@@ -83,7 +84,7 @@ flowchart TB
 
 | 类 | 职责 |
 |----|------|
-| `SimulationHost` | 场景唯一 Unity 时间入口：每渲染帧采样输入，并用 accumulator 驱动 60Hz World |
+| `SimulationHost` | 场景唯一 Unity 时间入口：每渲染帧采样输入，并用 accumulator 驱动 60Hz World；`AfterLogicStep` 供复制打包 |
 | `SimulationWorld` | 纯 C# Actor 容器：分配单调 `SimActorId`，按 Id 稳定执行 Input/Actor Step 与 PostCombat |
 | `ISimulationActor` | 玩家 `CharacterActor` 与敌人 `EnemyHandle` 的固定帧契约 |
 | `FixedStepAccumulator` | 把可变渲染时间转换为有追帧上限但不丢欠账的固定步数 |
@@ -100,7 +101,7 @@ flowchart TB
 | `CharacterMotorSim` / `ISimCollisionWorld` | 水平+竖直毫米权威；静态 AABB 硬挡或空场地；重力/着地在 Sim |
 | `StaticCollisionBake` / `SimStaticCollisionWorld` | Editor 烘焙场景 Collider→XZ AABB；Host 共享给全体 Actor |
 | `SoftBodySeparation` / `ISimSoftBodyParticipant` | World 帧末角色圆盘软弹开；死亡不参与 |
-| 复制契约（NS1） | `ActorReplicationSnapshot` / `AuthorityTick` / `ClientCommand` + `ReplicationCodec`；`LoopbackReplicationTransport` 同进程队列 |
+| 复制契约（NS1～NS2） | Snapshot/Tick/Codec + Loopback；`RemoteCharacterProxy` 同机跟状态，不进 World / 不 Collect |
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只负责装配和注册，不再实现 Actor `Update` Tick。
 
@@ -225,15 +226,18 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 |----|------|
 | `CameraManager` | Cinemachine 第三人称；Orbit yaw 只 staged 到 InputFrame，本地 CameraLock 只读 SelectedTarget |
 
-### 9. 复制与权威进程（规划，NS0～NS5）
+### 9. 复制与权威进程（NS0～NS2 已落地，NS3～NS5 规划）
 
 | 类 | 职责 |
 |----|------|
 | `ActorReplicationSnapshot` / `AuthorityTick` / `ClientCommand` | 无 Unity 上下行契约；Tick 按 SimActorId 排序 |
-| `ReplicationSnapshotBuilder` / `ReplicationCodec` | Motor+Action+数值字段 → 快照；小端字节往返 |
-| `IReplicationTransport` / `LoopbackReplicationTransport` | 只传字节；NS1 同进程队列，可设延迟 |
-| `ReplicationAuthority` / `ReplicationClient` | NS2 起；尚未实现 |
-| `PredictedLocalActor` / `RemoteCharacterProxy` | NS2～NS3；尚未实现 |
+| `ReplicationSnapshotBuilder` / `ReplicationCodec` / `ReplicationPoseApplier` | Motor+Action+数值 → 快照；小端往返；位姿写回 MotorSim |
+| `IReplicationTransport` / `LoopbackReplicationTransport` | 只传字节；同进程队列，可设延迟 |
+| `ActionReplicationCatalog` / `CharacterReplicationCapture` | 同进程 ActionDefinition↔int；从权威 Actor 填快照 |
+| `RemoteCharacterProxy` / `RemoteCharacterProxyFactory` | 只应用 pose + Seek/Locomotion；不创建 Hitbox / Brain / ActionSim |
+| `RemoteGhostViewController` | Host `AfterLogicStep` → Loopback → Ghost；Editor 默认预览 |
+| `ReplicationAuthority` / `ReplicationClient` | NS5 房间；尚未实现 |
+| `PredictedLocalActor` | NS3；尚未实现 |
 
 权威进程写法：同一份 `ACTGame.Simulation`，不另写服务器战斗。对照与禁区见 CONVENTIONS「服务器 / 权威进程」与方案 §13。
 

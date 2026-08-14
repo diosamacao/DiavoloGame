@@ -106,7 +106,7 @@
 
 **目标**：Listen Host / 日后 Dedicated 独跑现有 `SimulationWorld`；客户端上行 `InputFrame`、下行角色快照；本地预测移动与出招表现；命中只在权威逻辑盒结算。取代锁步 L5「全员输入广播 + 完整回滚」作为产品联网。
 
-**状态：🟡 NS0 已验收；NS1 代码已落地（2026-08-14）**。下一刀 NS2 RemoteProxy 同机幽灵。顺序 NS0 → NS1 Snapshot/Loopback → NS2 Ghost → NS3 预测位移 → NS4 权威命中 → NS5 两人进关。
+**状态：🟡 NS0/NS1 已验收；NS2 代码已落地（2026-08-14），Play 待确认**。下一刀 NS3 远端预测位移。顺序 NS0 → NS1 Snapshot/Loopback → NS2 Ghost → NS3 预测位移 → NS4 权威命中 → NS5 两人进关。
 
 ### [P1] Lockstep 模拟核迁移
 
