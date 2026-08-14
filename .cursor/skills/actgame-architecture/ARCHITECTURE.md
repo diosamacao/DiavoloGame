@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-13（Camera C1 前置：MoveReferenceYaw 输入闭包 + 唯一 SelectedTarget 权威）
+> Last audited: 2026-08-14（补 Replication / 权威进程模块边界；联网主路径为状态同步）
 
 ## 项目概述
 
@@ -30,7 +30,8 @@ Assets/
 │   │   │   ├── VFX/           # 招式 VFX 帧事件
 │   │   │   └── Targeting/     # 索敌
 │   │   ├── Input/             # 原始帧、意图与输入中枢
-│   │   └── Simulation/        # 纯 C# 固定帧、ActionSim、MotorSim、输入与命中键
+│   │   ├── Simulation/        # 纯 C# 固定帧、ActionSim、MotorSim、输入与命中键；Replication 快照（规划）
+│   │   └── Net/               # ReplicationAuthority / Client / Transport 契约（规划）
 │   ├── App/
 │   │   ├── Architecture/      # QFramework 风格强类型 Architecture / 能力接口 / 基类
 │   │   ├── Controllers/       # Player / Enemy / Camera / Combat / SimulationHost Unity 入口
@@ -38,7 +39,9 @@ Assets/
 │   │   ├── Commands/          # 跨系统业务行为
 │   │   ├── Queries/           # 无副作用读取请求
 │   │   └── Events/            # IArchitectureEvent 事件
-│   ├── Infrastructure/Input/  # Input System 与 AI 输入源适配
+│   ├── Infrastructure/
+│   │   ├── Input/             # Input System 与 AI 输入源适配
+│   │   └── Net/               # UDP 等传输实现（规划，NS5；不得引用进 ACTGame.Simulation）
 │   └── Editor/Combat/         # ActionDefinition 预览 Editor
 ├── Data/                      # ScriptableObject 配置
 ├── Prefabs/Player/            # 玩家 Prefab
@@ -97,7 +100,7 @@ flowchart TB
 | `CharacterMotorSim` / `ISimCollisionWorld` | 水平+竖直毫米权威；静态 AABB 硬挡或空场地；重力/着地在 Sim |
 | `StaticCollisionBake` / `SimStaticCollisionWorld` | Editor 烘焙场景 Collider→XZ AABB；Host 共享给全体 Actor |
 | `SoftBodySeparation` / `ISimSoftBodyParticipant` | World 帧末角色圆盘软弹开；死亡不参与 |
-| 预测 / 回滚（规划） | 权威输入锁步 + 客户端完整预测；分歧时 Snapshot 恢复并重演（见锁步方案 5.12） |
+| 复制 / 权威（规划） | Host/DS 独跑 World；上行 `InputFrame`，下行 `ActorReplicationSnapshot`；见组队 PVE 方案与 CONVENTIONS「服务器 / 权威进程」 |
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只负责装配和注册，不再实现 Actor `Update` Tick。
 
@@ -222,7 +225,19 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 |----|------|
 | `CameraManager` | Cinemachine 第三人称；Orbit yaw 只 staged 到 InputFrame，本地 CameraLock 只读 SelectedTarget |
 
-### 9. 敌人（Enemy）
+### 9. 复制与权威进程（规划，NS0～NS5）
+
+| 类 | 职责 |
+|----|------|
+| `ReplicationAuthority` | 收 `ClientCommand`、推进唯一 `SimulationWorld`、打包 `AuthorityTick` |
+| `ReplicationClient` | 发输入、预测本地、应用快照；不跑敌人 BT、不 Collect |
+| `IReplicationTransport` | 只传字节；Loopback 先于 UDP |
+| `ActorReplicationSnapshot` / `AuthorityTick` | 无 Unity 的状态下行契约 |
+| `PredictedLocalActor` / `RemoteCharacterProxy` | 拥有者预测 vs 他人插值 |
+
+权威进程写法：同一份 `ACTGame.Simulation`，不另写服务器战斗。对照与禁区见 CONVENTIONS「服务器 / 权威进程」与方案 §13。
+
+### 10. 敌人（Enemy）
 
 | 类 | 职责 |
 |----|------|

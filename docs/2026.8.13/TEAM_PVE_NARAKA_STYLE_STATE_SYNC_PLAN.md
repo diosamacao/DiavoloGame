@@ -6,7 +6,8 @@
 > - 模拟核（仍有效）：[`../ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md`](../ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)（L0～L2 时钟 / ActionSim / MotorSim；**L5 输入广播联网被本文取代**）  
 > - 输入与选敌：[`CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md`](./CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md)  
 > - 排期总表：[`../2026.8.6/MASTER_IMPLEMENTATION_PLAN.md`](../2026.8.6/MASTER_IMPLEMENTATION_PLAN.md)  
-> - 架构：`.cursor/skills/actgame-architecture/`（ROADMAP / CONVENTIONS）  
+> - 架构：`.cursor/skills/actgame-architecture/`（ROADMAP / CONVENTIONS「服务器 / 权威进程」）  
+> - 外部对照：`D:\Projects\DemoServer`（Handler/Room 壳；战斗权威不照搬）  
 > 装配链：`本地 InputFrame → 权威 SimulationWorld.Step → ActorReplicationSnapshot → 本地预测纠偏 / 远端插值`
 
 ---
@@ -386,6 +387,8 @@ docs/2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md
 
 传输第二实现（UDP）放 `Assets/Scripts/Infrastructure/Net/`，不得引用进 `ACTGame.Simulation`。
 
+元数据 RPC（登录/背包）**不进 NS0～NS5**；若日后单开，Handler 放独立目录，禁止与 `ReplicationAuthority` 抢 `SimulationWorld`。
+
 ---
 
 ## 8. 风险与对策
@@ -450,3 +453,86 @@ NS0 身份
 | 日期 | 说明 |
 |------|------|
 | 2026-08-13 | 初版：组队 PVE 改永劫式状态同步；命中定案为权威逻辑盒；L5 输入广播降为历史对照 |
+| 2026-08-14 | 补 §13 服务器代码规范：对照 Source / 守望 / NetCode Ghosts 与 DemoServer；写入 CONVENTIONS |
+
+---
+
+## 13. 服务器代码规范（权威进程怎么写）
+
+> 落地约定同步在 `.cursor/skills/actgame-architecture/CONVENTIONS.md`「服务器 / 权威进程」。本节说明对照来源与本项目取舍。
+
+### 13.1 开源 / 工业界：战斗服务器在写什么
+
+这些项目的**战斗服不是技能 Handler 列表**，而是「收命令 → 跑与客户端同构的移动/射击码 → 下发快照」。
+
+| 来源 | 服务器怎么写 | 本项目对应 |
+|------|----------------|------------|
+| Valve Source SDK 2013：`game/shared/usercmd.h`、`game/client/prediction.cpp`；[Source Multiplayer Networking](https://developer.valvesoftware.com/wiki/Source_Multiplayer_Networking) | `CUserCmd`（按钮、wish 方向、视角）上行；`game/shared` 移动码 Host/Client 共用；服务器 Snapshot；客户端预测错了回退再重放未确认 cmd | `InputFrame` = usercmd；`ACTGame.Simulation` = shared；NS3 纠偏重放移动 |
+| Timothy Ford, GDC 2017 *Overwatch Gameplay Architecture and Netcode* | 约 16ms command frame；专用服跑完整模拟；客户端预测自己（含技能）；下行实体快照；Hitscan 可倒带 | 60Hz `Step` + Snapshot；P0 **不做** Hitscan 倒带 |
+| Unity Netcode for Entities（Ghosts） | Ghost 分 Predicted（拥有者）与 Interpolated（他人）；命令只从 Owner 来 | `PredictedLocalActor` / `RemoteProxy` |
+| Glenn Fiedler, *Snapshot Interpolation* | 下行是状态，不是输入回放 | `AuthorityTick`，禁止锁步 L5 |
+| Mirror / Fish-Net / NGO `ServerRpc` | 适合开门、买东西；**不适合**每帧近战 | 元数据 RPC 可学；战斗流禁止逐招 Rpc |
+
+Dedicated 与 Listen 的差别只是**进程里有没有本地玩家**。Source / 守望都是同一份 sim；Unity Dedicated Server 只是去掉渲染。本项目 Dedicated 不得重写 Motor/Action。
+
+### 13.2 DemoServer（`D:\Projects\DemoServer`）怎么写、哪些能学
+
+独立 C# 进程（`ZZZServer/Program.cs`）：Kirara 收包 → Handler → Service/Model；`RoomService.Update` 驱动房间；Protobuf 消息。这是典型 **MMO 大厅 + 房间广播**，不是 60Hz 输入驱动 ACT。
+
+```text
+DemoServer 战斗实际路径（不要当 ACT 权威）
+  客户端上报位姿  MsgUpdateFromAutonomous → Player.UpdateFromAutonomous
+  客户端上报技能名 MsgRolePlayAction → 转播 NotifyOtherRolePlayAction
+  客户端上报伤害  MsgMonsterTakeDamage → monster.hp -= msg.Damage → Broadcast
+  房间每拍       Room.Update(dt) 清怪 AI + Broadcast NSyncPlayer / NSyncMonster
+```
+
+| 学 | DemoServer 位置 | 用在本项目 |
+|----|-----------------|------------|
+| Handler 保持薄 | `Handler/Account/ReqLogin_Handler.cs` | 元数据 RPC；战斗 Handler 若有，只入队 `InputFrame` |
+| 房间生命周期 | `Service/Room.cs` Add/Remove/Broadcast | NS5 房间；广播体是 `AuthorityTick` 不是 `NSync*` |
+| 快照字段与持久化分离 | `Role.NSyncRole` vs `NRole` | 复制用 Snapshot；存档另开，禁止 Player 档写 Motor |
+| 断线入队再改房间 | `EnqueueTask` → `RemovePlayer` | 断线不得从网络线程直接 `World` 删 Actor |
+| 配置与协议生成 | Luban / Proto | P0 不引入；Snapshot 先手写 struct + EditMode 往返 |
+
+| 不学 | 原因 |
+|------|------|
+| `UpdateFromAutonomous` 信任客户端坐标 | 与 MotorSim 权威冲突 |
+| `MsgMonsterTakeDamage` 信任 `msg.Damage` | 方案已禁客户端报伤；永劫攻击方盒也不做 P0 |
+| `MsgRolePlayAction` 字符串招式名 | 对不齐 `ActionSim` 整数帧 / Cancel |
+| `Room.Update(float dt)` 当战斗钟 | 必须 60Hz `SimulationWorld.Step` |
+| `MonsterCtrl` 自建秒制状态机 | 敌人已有 `EnemyBrain` + `CharacterActor` |
+| `Player` 同时是 Mongo 档和同步体 | 进房映射 `playerId → SimActorId` 即可 |
+
+### 13.3 权威进程伪代码（唯一写法）
+
+```text
+网络线程
+  收包 → 反序列化 ClientCommand → 入队（不 Step）
+
+模拟线程（60Hz）
+  出队 InputFrame → InputFrameBuffer.SetRemote(playerId)
+  缺帧 CarryForward（延续 Move/Held，不伪造 Pressed）
+  EnemyBrain 只在此进程 Produce Desire / EntryRequest
+  SimulationWorld.Step
+    CharacterActor.Step（权威装配，含 Hitbox Collect）
+    SoftBodySeparation
+    CombatHitPipeline.Resolve
+  ReplicationSnapshotBuilder.Build → AuthorityTick
+  IReplicationTransport.SendToAll(tick)
+
+客户端
+  自己：预测 Motor / 出招表现；Tick 到达则纠偏 / Seek
+  他人与怪：RemoteProxy 插值
+  禁止 Collect
+```
+
+Listen Host 本地玩家跳过预测，直接权威。Dedicated 上所有玩家都是远端，一律 PredictedLocal。
+
+### 13.4 实现检查（NS1 起每次 PR）
+
+- [ ] 新战斗规则写在 `SimulationWorld` / Actor / Pipeline，不写在 Handler
+- [ ] 新上行字段只能进 `InputFrame` / `ClientCommand`，不能是 Damage、HP、世界坐标、ActionName
+- [ ] `rg "hitPipeline.Collect"` 仅 Authority 装配
+- [ ] `ACTGame.Simulation` 无 Unity、无 `Infrastructure/Net` 引用
+- [ ] 无 `LockstepNetworkHost` 与 `StateSyncHost` 双主路径
