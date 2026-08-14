@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// 远端角色表现体：只应用 Snapshot 位姿、动作 Seek、视觉残差/倾身，不跑 ActionSim、Hitbox Collect、EnemyBrain。
+/// 远端角色表现体：只应用 Snapshot 位姿、动作 Seek、视觉残差/倾身；不跑动作模拟核、命中收集或敌人 AI。
 /// </summary>
 public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTarget
 {
