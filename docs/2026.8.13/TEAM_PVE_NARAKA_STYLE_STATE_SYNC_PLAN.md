@@ -147,7 +147,7 @@ ActorReplicationSnapshot（最小集）
   actorId, teamId, kind (Player/Enemy)
   posXMm, posZMm, posYMm, facingMilliDeg
   moveVxMm, moveVzMm                 // 远端插值用
-  locomotionPhase, gait, cardinal    // 可后置；P0 可用 action 空闲时的 facing+speed
+  locomotionPhase, gait, cardinal, locomotionNormalizedMilli  // Clip 键 + 归一化时间×1000
   actionId, graphNodeId, actionFrame, freezeFrames
   selectedTargetId                   // 仅复制给 Owner；他人可空
   healthMilli, flagsPacked
@@ -462,6 +462,7 @@ NS0 身份
 | 2026-08-14 | NS0 代码：ILocalPlayer / LocalPlayerService / 感知最近玩家；玩法删除 FindObjectOfType&lt;PlayerController&gt; |
 | 2026-08-14 | NS1 代码：复制 Snapshot/Tick/Command + Loopback 传输；EditMode 往返与 60 帧单调 |
 | 2026-08-14 | NS1 验收关闭；NS2 代码：RemoteProxy + Loopback 同机幽灵；Play 待确认 |
+| 2026-08-15 | 快照补 `locomotionNormalizedMilli`；幽灵 Locomotion 硬切 Seek，关掉 Animator RM |
 
 ---
 

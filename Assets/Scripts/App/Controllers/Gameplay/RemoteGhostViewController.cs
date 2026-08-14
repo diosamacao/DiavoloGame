@@ -10,12 +10,15 @@ public sealed class RemoteGhostViewController : AppControllerBase
 {
     [SerializeField] Vector3 worldOffset = new Vector3(2f, 0f, 0f);
     [SerializeField] int latencyMs = 100;
+    [Tooltip("Play 时在幽灵脚底画 wish（黄）与模型朝向（品红），与本体同一套箭头。")]
+    [SerializeField] bool drawFacingDebugArrows = true;
 
     SimulationHost _host;
     CharacterConfig _config;
     LoopbackReplicationTransport _transport;
     ActionReplicationCatalog _catalog;
     RemoteCharacterProxy _proxy;
+    CharacterFacingDebugVisualizer _facingDebugVisualizer;
 
     /// <summary>由战斗世界注入 Host、配置与预览参数；可在 AddComponent 后立即调用。</summary>
     public void Configure(
@@ -41,6 +44,8 @@ public sealed class RemoteGhostViewController : AppControllerBase
     {
         if (_proxy != null && _host != null)
             _proxy.Render(_host.InterpolationAlpha);
+        if (_facingDebugVisualizer != null)
+            _facingDebugVisualizer.SetDrawEnabled(drawFacingDebugArrows);
     }
 
     void OnDestroy()
@@ -101,7 +106,23 @@ public sealed class RemoteGhostViewController : AppControllerBase
             worldOffset,
             _host.FixedDeltaSeconds,
             transform);
+        EnsureFacingDebugVisualizer();
         return true;
+    }
+
+    /// <summary>开发构建下给幽灵挂与本体相同的脚底朝向箭头。</summary>
+    void EnsureFacingDebugVisualizer()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (_proxy?.Root == null)
+            return;
+
+        _facingDebugVisualizer = _proxy.Root.GetComponent<CharacterFacingDebugVisualizer>();
+        if (_facingDebugVisualizer == null)
+            _facingDebugVisualizer = _proxy.Root.gameObject.AddComponent<CharacterFacingDebugVisualizer>();
+        _facingDebugVisualizer.Bind(_proxy, "Ghost ");
+        _facingDebugVisualizer.SetDrawEnabled(drawFacingDebugArrows);
+#endif
     }
 
     void SubscribeHost()

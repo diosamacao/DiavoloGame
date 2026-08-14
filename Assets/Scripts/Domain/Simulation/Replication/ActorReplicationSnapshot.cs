@@ -26,7 +26,8 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
         SimActorId selectedTargetId,
         int healthMilli,
         int flagsPacked,
-        VitalityReplicationEdge vitalityEdge)
+        VitalityReplicationEdge vitalityEdge,
+        ushort locomotionNormalizedMilli = 0)
     {
         ActorId = actorId;
         TeamId = teamId;
@@ -40,6 +41,7 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
         LocomotionPhase = locomotionPhase;
         Gait = gait;
         Cardinal = cardinal;
+        LocomotionNormalizedMilli = locomotionNormalizedMilli;
         ActionId = actionId;
         GraphNodeId = graphNodeId ?? string.Empty;
         ActionFrame = actionFrame < 0 ? 0 : actionFrame;
@@ -86,6 +88,9 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
     /// <summary>八向 cardinal 编码；P0 可为 0。</summary>
     public byte Cardinal { get; }
 
+    /// <summary>Locomotion Clip 归一化时间 ×1000；循环片可大于 1000。幽灵按此 Seek。</summary>
+    public ushort LocomotionNormalizedMilli { get; }
+
     /// <summary>权威动作定义 Id；0 表示无活动动作。</summary>
     public int ActionId { get; }
 
@@ -124,6 +129,7 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
         && LocomotionPhase == other.LocomotionPhase
         && Gait == other.Gait
         && Cardinal == other.Cardinal
+        && LocomotionNormalizedMilli == other.LocomotionNormalizedMilli
         && ActionId == other.ActionId
         && string.Equals(GraphNodeId, other.GraphNodeId, StringComparison.Ordinal)
         && ActionFrame == other.ActionFrame
@@ -149,6 +155,7 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
             hash = (hash * 397) ^ PosZMm;
             hash = (hash * 397) ^ PosYMm;
             hash = (hash * 397) ^ FacingMilliDeg;
+            hash = (hash * 397) ^ LocomotionNormalizedMilli;
             hash = (hash * 397) ^ ActionId;
             hash = (hash * 397) ^ (GraphNodeId != null ? GraphNodeId.GetHashCode() : 0);
             hash = (hash * 397) ^ ActionFrame;

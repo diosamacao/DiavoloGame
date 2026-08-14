@@ -24,7 +24,8 @@ public static class ReplicationSnapshotBuilder
         int moveVzMm = 0,
         byte locomotionPhase = 0,
         byte gait = 0,
-        byte cardinal = 0)
+        byte cardinal = 0,
+        ushort locomotionNormalizedMilli = 0)
     {
         if (motor == null)
             throw new ArgumentNullException(nameof(motor));
@@ -55,6 +56,7 @@ public static class ReplicationSnapshotBuilder
             selectedTargetId,
             healthMilli,
             flagsPacked,
-            vitalityEdge);
+            vitalityEdge,
+            locomotionNormalizedMilli);
     }
 }

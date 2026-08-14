@@ -28,7 +28,8 @@ public sealed class ActorReplicationSnapshotTests
             selectedTargetId: new SimActorId(1),
             healthMilli: 85000,
             flagsPacked: 4,
-            VitalityReplicationEdge.Hit);
+            VitalityReplicationEdge.Hit,
+            locomotionNormalizedMilli: 750);
 
         var hit = new ReplicatedHitEvent(
             12,
@@ -87,6 +88,7 @@ public sealed class ActorReplicationSnapshotTests
         Assert.That(snapshot.ActionId, Is.Zero);
         Assert.That(snapshot.GraphNodeId, Is.Empty);
         Assert.That(snapshot.ActionFrame, Is.Zero);
+        Assert.That(snapshot.LocomotionNormalizedMilli, Is.Zero);
     }
 
     /// <summary>Tick 构造按 SimActorId 升序排列 actors。</summary>

@@ -4,12 +4,13 @@ using UnityEngine;
 /// <summary>
 /// 远端角色表现体：只应用 Snapshot 位姿与动作 Seek，不跑 ActionSim、Hitbox Collect、EnemyBrain。
 /// </summary>
-public sealed class RemoteCharacterProxy : IDisposable
+public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTarget
 {
     readonly Transform _root;
     readonly CharacterMotor _motor;
     readonly CharacterAnimationService _animation;
     readonly CharacterPresentationBridge _presentation;
+    readonly Transform _visualMotionRoot;
     readonly ActionReplicationCatalog _catalog;
     readonly Vector3 _worldOffset;
     readonly float _fixedDeltaSeconds;
@@ -18,6 +19,7 @@ public sealed class RemoteCharacterProxy : IDisposable
     ActionDefinition _animationAction;
     int _animationSegmentIndex = -1;
     AnimationKey? _locomotionKey;
+    Vector3 _debugWishWorld;
 
     /// <summary>幽灵权威根；调试与测试读位姿用。</summary>
     public Transform Root => _root;
@@ -31,7 +33,30 @@ public sealed class RemoteCharacterProxy : IDisposable
     /// <summary>幽灵永不收集命中；恒为 false，供装配断言。</summary>
     public bool CollectsHits => false;
 
-    /// <summary>装配已创建的表现图；animation 可空（仅测位姿时）。</summary>
+    /// <inheritdoc />
+    public bool HasFacingDebugPose => _presentation != null;
+
+    /// <inheritdoc />
+    public Vector3 FacingDebugFeetWorld =>
+        _presentation != null ? _presentation.RenderedPosition : _root.position;
+
+    /// <inheritdoc />
+    public Vector3 FacingDebugWishWorld => _debugWishWorld;
+
+    /// <inheritdoc />
+    public Vector3 FacingDebugModelForward
+    {
+        get
+        {
+            if (_visualMotionRoot != null)
+                return _visualMotionRoot.forward;
+            if (_presentation?.PresentationRoot != null)
+                return _presentation.PresentationRoot.forward;
+            return _root != null ? _root.forward : Vector3.forward;
+        }
+    }
+
+    /// <summary>装配已创建的表现图；animation / visualMotionRoot 可空（仅测位姿时）。</summary>
     public RemoteCharacterProxy(
         Transform root,
         CharacterMotor motor,
@@ -40,12 +65,14 @@ public sealed class RemoteCharacterProxy : IDisposable
         ActionReplicationCatalog catalog,
         Vector3 worldOffset,
         float fixedDeltaSeconds,
+        Transform visualMotionRoot = null,
         bool ownsRoot = false)
     {
         _root = root != null ? root : throw new ArgumentNullException(nameof(root));
         _motor = motor ?? throw new ArgumentNullException(nameof(motor));
         _animation = animation;
         _presentation = presentation ?? throw new ArgumentNullException(nameof(presentation));
+        _visualMotionRoot = visualMotionRoot;
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _worldOffset = worldOffset;
         _fixedDeltaSeconds = fixedDeltaSeconds > 0f
@@ -63,6 +90,7 @@ public sealed class RemoteCharacterProxy : IDisposable
         ReplicationPoseApplier.ApplyToMotor(_motor.Sim, in snapshot);
         ApplyWorldOffset();
         _motor.SyncRootPoseFromSim();
+        ApplyDebugWish(in snapshot);
         ApplyPresentation(in snapshot);
         _presentation.EndSimulationStep();
     }
@@ -90,6 +118,15 @@ public sealed class RemoteCharacterProxy : IDisposable
         _motor.Sim.TeleportMm(x, y, z);
     }
 
+    /// <summary>从同 Tick 的 moveV* 还原 wish，保证幽灵黄箭与延迟位姿成对。</summary>
+    void ApplyDebugWish(in ActorReplicationSnapshot snapshot)
+    {
+        _debugWishWorld = new Vector3(
+            MotionQuantization.MmToMeters(snapshot.MoveVxMm),
+            0f,
+            MotionQuantization.MmToMeters(snapshot.MoveVzMm));
+    }
+
     /// <summary>有招则只在切段时 Play+Seek；空闲播 LocomotionKey。禁止派发 Hitbox。</summary>
     void ApplyPresentation(in ActorReplicationSnapshot snapshot)
     {
@@ -113,12 +150,14 @@ public sealed class RemoteCharacterProxy : IDisposable
         AnimationKey key = ResolveLocomotionKey(snapshot.LocomotionPhase);
         if (_locomotionKey != key)
         {
-            _animation.Play(key);
+            // 与 PivotTurn Enter 相同：硬切，禁止和上一 Gait CrossFade 把转身混花
+            _animation.Play(key, 0f);
             _locomotionKey = key;
         }
 
+        // 对齐权威归一化时间；Seek 已 Evaluate，勿再 Tick 以免超前一帧
         if (!frozen)
-            _animation.Tick(_fixedDeltaSeconds);
+            _animation.SeekLocomotionNormalized(snapshot.LocomotionNormalizedMilli / 1000f);
     }
 
     /// <summary>与权威表现桥相同：同动作同段不 Seek，避免每逻辑帧硬切。</summary>

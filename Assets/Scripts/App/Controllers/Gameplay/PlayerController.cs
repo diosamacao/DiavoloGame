@@ -135,7 +135,7 @@ public class PlayerController : AppControllerBase, ILocalPlayer
             _facingDebugVisualizer = GetComponent<CharacterFacingDebugVisualizer>();
         if (_facingDebugVisualizer == null)
             _facingDebugVisualizer = gameObject.AddComponent<CharacterFacingDebugVisualizer>();
-        _facingDebugVisualizer.Bind(this);
+        _facingDebugVisualizer.Bind(actor);
         _facingDebugVisualizer.SetDrawEnabled(drawFacingDebugArrows);
 #endif
     }

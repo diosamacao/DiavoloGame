@@ -1,8 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// Play 模式脚底实心箭头：输入 wish（黄）与模型朝向（品红）。
-/// 圆柱+圆锥组合；不依赖 Scene Gizmos 开关；仅 Editor / Development Build。
+/// Play 模式脚底实心箭头：wish（黄）与模型朝向（品红）。
+/// 本机 Actor 与 RemoteProxy 共用；圆柱+圆锥；仅 Editor / Development Build。
 /// </summary>
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 [DefaultExecutionOrder(1200)]
@@ -22,16 +22,18 @@ public sealed class CharacterFacingDebugVisualizer : AppControllerBase
     [SerializeField, Range(0.15f, 0.45f)] float headLengthRatio = 0.28f;
     [SerializeField] bool showLabels = true;
 
-    PlayerController _player;
+    ICharacterFacingDebugTarget _target;
+    string _labelPrefix = string.Empty;
     Transform _root;
     SolidArrow _wishArrow;
     SolidArrow _modelArrow;
     GUIStyle _labelStyle;
 
-    /// <summary>绑定玩家；由 PlayerController 在装配后调用。</summary>
-    public void Bind(PlayerController player)
+    /// <summary>绑定本机 Actor 或幽灵 Proxy；labelPrefix 用于区分 Ghost 标签。</summary>
+    public void Bind(ICharacterFacingDebugTarget target, string labelPrefix = "")
     {
-        _player = player;
+        _target = target;
+        _labelPrefix = labelPrefix ?? string.Empty;
         EnsureRoot();
     }
 
@@ -46,9 +48,7 @@ public sealed class CharacterFacingDebugVisualizer : AppControllerBase
             return;
         }
 
-        if (_player == null)
-            _player = GetComponent<PlayerController>();
-        if (_player == null || _player.Actor == null)
+        if (_target == null || !_target.HasFacingDebugPose)
         {
             SetRootActive(false);
             return;
@@ -57,10 +57,9 @@ public sealed class CharacterFacingDebugVisualizer : AppControllerBase
         EnsureRoot();
         SetRootActive(true);
 
-        CharacterActor actor = _player.Actor;
-        Vector3 feet = ResolveFeetWorld(actor);
+        Vector3 feet = ResolveFeetWorld(_target);
 
-        Vector3 wish = actor.DebugMoveWishWorldDirection;
+        Vector3 wish = _target.FacingDebugWishWorld;
         wish.y = 0f;
         if (wish.sqrMagnitude > 0.0001f)
         {
@@ -72,7 +71,7 @@ public sealed class CharacterFacingDebugVisualizer : AppControllerBase
             _wishArrow.SetVisible(false);
         }
 
-        Vector3 modelFwd = ResolveModelForward(actor);
+        Vector3 modelFwd = _target.FacingDebugModelForward;
         modelFwd.y = 0f;
         if (modelFwd.sqrMagnitude > 0.0001f)
         {
@@ -93,13 +92,13 @@ public sealed class CharacterFacingDebugVisualizer : AppControllerBase
             return;
 
         Camera cam = Camera.main;
-        if (cam == null || _player?.Actor == null)
+        if (cam == null || _target == null || !_target.HasFacingDebugPose)
             return;
 
         EnsureLabelStyle();
-        Vector3 feet = ResolveFeetWorld(_player.Actor);
-        DrawLabel(cam, feet + Vector3.up * 0.35f, "Wish (黄)", ColorWish);
-        DrawLabel(cam, feet + Vector3.up * 0.55f, "Model (品红)", ColorModel);
+        Vector3 feet = ResolveFeetWorld(_target);
+        DrawLabel(cam, feet + Vector3.up * 0.35f, _labelPrefix + "Wish (黄)", ColorWish);
+        DrawLabel(cam, feet + Vector3.up * 0.55f, _labelPrefix + "Model (品红)", ColorModel);
     }
 
     void OnDestroy()
@@ -136,26 +135,10 @@ public sealed class CharacterFacingDebugVisualizer : AppControllerBase
     }
 
     /// <summary>脚底用表现插值位，避免逻辑帧阶梯造成箭头整体抖。</summary>
-    Vector3 ResolveFeetWorld(CharacterActor actor)
+    static Vector3 ResolveFeetWorld(ICharacterFacingDebugTarget target)
     {
-        Vector3 pos = actor.RenderedPosition;
-        if (pos.sqrMagnitude < 0.0001f && _player != null)
-            pos = _player.transform.position;
+        Vector3 pos = target.FacingDebugFeetWorld;
         return pos + Vector3.up * FeetLiftMeters;
-    }
-
-    /// <summary>模型朝向：优先 VisualMotionRoot 水平前向，否则 Presentation / Sim。</summary>
-    static Vector3 ResolveModelForward(CharacterActor actor)
-    {
-        Transform visual = actor.VisualMotionRoot;
-        if (visual != null)
-            return visual.forward;
-
-        Transform presentation = actor.PresentationRoot;
-        if (presentation != null)
-            return presentation.forward;
-
-        return Vector3.forward;
     }
 
     void DrawLabel(Camera cam, Vector3 world, string text, Color color)
@@ -165,7 +148,7 @@ public sealed class CharacterFacingDebugVisualizer : AppControllerBase
             return;
 
         _labelStyle.normal.textColor = color;
-        var rect = new Rect(screen.x + 6f, Screen.height - screen.y - 8f, 140f, 18f);
+        var rect = new Rect(screen.x + 6f, Screen.height - screen.y - 8f, 180f, 18f);
         GUI.Label(rect, text, _labelStyle);
     }
 
@@ -336,7 +319,7 @@ public sealed class CharacterFacingDebugVisualizer : AppControllerBase
 /// <summary>非开发构建不创建朝向调试箭头。</summary>
 public sealed class CharacterFacingDebugVisualizer : MonoBehaviour
 {
-    public void Bind(PlayerController player) { }
+    public void Bind(ICharacterFacingDebugTarget target, string labelPrefix = "") { }
 
     public void SetDrawEnabled(bool enabled) { }
 }

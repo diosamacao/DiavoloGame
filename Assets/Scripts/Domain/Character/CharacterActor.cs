@@ -11,7 +11,8 @@ public sealed class CharacterActor :
     ISimulationRenderable,
     ISimulationPostCombatActor,
     ISimSoftBodyParticipant,
-    ILocalCameraTargetSource
+    ILocalCameraTargetSource,
+    ICharacterFacingDebugTarget
 {
     readonly ILocalInputSampler _localInput;
     readonly InputManager _inputManager;
@@ -90,6 +91,28 @@ public sealed class CharacterActor :
             if (_motor == null || _inputManager == null || !_inputManager.HasMoveIntent)
                 return Vector3.zero;
             return _motor.DebugWishWorldDirection;
+        }
+    }
+
+    /// <inheritdoc />
+    public bool HasFacingDebugPose => _presentation != null;
+
+    /// <inheritdoc />
+    public Vector3 FacingDebugFeetWorld => RenderedPosition;
+
+    /// <inheritdoc />
+    public Vector3 FacingDebugWishWorld => DebugMoveWishWorldDirection;
+
+    /// <inheritdoc />
+    public Vector3 FacingDebugModelForward
+    {
+        get
+        {
+            if (_visualMotion?.VisualRoot != null)
+                return _visualMotion.VisualRoot.forward;
+            if (_presentation?.PresentationRoot != null)
+                return _presentation.PresentationRoot.forward;
+            return _simulationRoot != null ? _simulationRoot.forward : Vector3.forward;
         }
     }
 

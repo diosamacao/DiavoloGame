@@ -125,6 +125,7 @@ public static class ReplicationCodec
         writer.WriteInt32(snapshot.HealthMilli);
         writer.WriteInt32(snapshot.FlagsPacked);
         writer.WriteByte((byte)snapshot.VitalityEdge);
+        writer.WriteUInt16(snapshot.LocomotionNormalizedMilli);
     }
 
     static ActorReplicationSnapshot ReadSnapshot(ref Reader reader)
@@ -149,7 +150,8 @@ public static class ReplicationCodec
             reader.ReadActorId(),
             reader.ReadInt32(),
             reader.ReadInt32(),
-            (VitalityReplicationEdge)reader.ReadByte());
+            (VitalityReplicationEdge)reader.ReadByte(),
+            reader.ReadUInt16());
     }
 
     static void WriteHit(ref Writer writer, in ReplicatedHitEvent hit)

@@ -72,6 +72,8 @@ public static class RemoteCharacterProxyFactory
             playback,
             animator,
             locomotionProfile.AnimationProfile);
+        // 与权威工厂相同：默认关掉 Animator RM 并复位局部，避免 Clip 根曲线叠在快照朝向上
+        _ = new CharacterRootMotionDriver(motor, animator);
         var presentation = new CharacterPresentationBridge(owner.transform, presentationRoot);
 
         return new RemoteCharacterProxy(
@@ -82,6 +84,7 @@ public static class RemoteCharacterProxyFactory
             catalog,
             worldOffset,
             fixedDeltaSeconds,
+            visualMotionRoot,
             ownsRoot: true);
     }
 
