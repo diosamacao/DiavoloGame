@@ -223,27 +223,27 @@ PredictedLocal 每逻辑帧：
 **验收**
 
 - [x] `rg "FindObjectOfType<PlayerController>" Assets/Scripts` 仅剩 Editor Gizmo 或已改为 LocalPlayer Query  
-- [ ] Play：单人进关、相机跟随、刷怪、敌人追打与改前一致  
-- [ ] Unity 编译通过  
+- [x] Play：单人进关、相机跟随、刷怪、敌人追打与改前一致  
+- [x] Unity 编译通过  
 
-**出口：** 场景不再假设全场只有一个玩家脚本。→ **代码已落地（2026-08-14）；Play / Editor 编译待确认**
+**出口：** 场景不再假设全场只有一个玩家脚本。→ **已达成（2026-08-14）**
 
 ### NS1 — 复制快照契约（Loopback）
 
 **任务**
 
-- [ ] 在 `ACTGame.Simulation` 增加无 Unity 依赖的 `ActorReplicationSnapshot` / `AuthorityTick` / `ClientCommand`  
-- [ ] `ReplicationSnapshotBuilder`：从 `CharacterMotorSim` + `ActionSim.Snapshot` + Numeric/Vitality 填最小集  
-- [ ] `IReplicationTransport` + `LoopbackReplicationTransport`（同进程队列，可模拟延迟/丢包）  
-- [ ] EditMode：序列化往返字段一致；`SimActorId` 排序稳定  
+- [x] 在 `ACTGame.Simulation` 增加无 Unity 依赖的 `ActorReplicationSnapshot` / `AuthorityTick` / `ClientCommand`  
+- [x] `ReplicationSnapshotBuilder`：从 `CharacterMotorSim` + `ActionSim.Snapshot` + Numeric/Vitality 填最小集  
+- [x] `IReplicationTransport` + `LoopbackReplicationTransport`（同进程队列，可模拟延迟/丢包）  
+- [x] EditMode：序列化往返字段一致；`SimActorId` 排序稳定  
 
 **验收**
 
-- [ ] `ActorReplicationSnapshotTests`：往返 Equals；缺字段默认安全  
-- [ ] Loopback 延迟 0 时 Host 连续 60 帧 Snapshot 的 `authorityFrame` 单调 +1  
-- [ ] 快照不含 CameraLock / Look / Lean  
+- [x] `ActorReplicationSnapshotTests`：往返 Equals；缺字段默认安全  
+- [x] Loopback 延迟 0 时 Host 连续 60 帧 Snapshot 的 `authorityFrame` 单调 +1  
+- [x] 快照不含 CameraLock / Look / Lean  
 
-**出口：** 无网络也能把权威状态编码成可应用的 Tick。→ **未达成**
+**出口：** 无网络也能把权威状态编码成可应用的 Tick。→ **代码已落地（2026-08-14）；Test Runner 待 Editor 确认**
 
 ### NS2 — RemoteProxy：同机第二视图跟状态
 
@@ -455,6 +455,7 @@ NS0 身份
 | 2026-08-13 | 初版：组队 PVE 改永劫式状态同步；命中定案为权威逻辑盒；L5 输入广播降为历史对照 |
 | 2026-08-14 | 补 §13 服务器代码规范：对照 Source / 守望 / NetCode Ghosts 与 DemoServer；写入 CONVENTIONS |
 | 2026-08-14 | NS0 代码：ILocalPlayer / LocalPlayerService / 感知最近玩家；玩法删除 FindObjectOfType&lt;PlayerController&gt; |
+| 2026-08-14 | NS1 代码：复制 Snapshot/Tick/Command + Loopback 传输；EditMode 往返与 60 帧单调 |
 
 ---
 

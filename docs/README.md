@@ -1,6 +1,6 @@
 # ACTGame 文档索引
 
-> 更新：2026-08-14 — 状态同步方案补服务器代码规范（§13）；对照 Source / 守望 / DemoServer。
+> 更新：2026-08-14 — NS0 已验收；NS1 复制快照 + Loopback 代码已落地。
 > **一页总览先读：** [PROJECT_CHECKLIST.md](./PROJECT_CHECKLIST.md)  
 > **排期真源：** [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md)  
 > **架构运行时：** `.cursor/skills/actgame-architecture/`（ARCHITECTURE / TECHNICAL / ROADMAP）

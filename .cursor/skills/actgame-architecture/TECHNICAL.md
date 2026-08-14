@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-14（NS0 LocalPlayer 花名册）
+> Last updated: 2026-08-14（NS1 复制快照 + Loopback）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,7 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
-| 组队 PVE 状态同步 / 权威进程 | 🟡 NS0 代码 | `ILocalPlayer`、`LocalPlayerService` | NS1～NS5 未做；方案 `TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md` |
+| 组队 PVE 状态同步 / 权威进程 | 🟡 NS0 已验收；NS1 代码 | `ActorReplicationSnapshot`、`LoopbackReplicationTransport` | NS2～NS5 未做 |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -195,6 +195,49 @@ EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
 - `Assets/Scripts/App/Queries/Player/GetPlayerRootsQuery.cs`
 - `Assets/Scripts/Domain/Enemy/EnemyPerception.cs`
 - `Assets/Tests/Editor/Enemy/EnemyPerceptionTests.cs`
+
+---
+
+## 组队 PVE · NS1 复制快照
+
+### 功能说明
+
+权威世界能打成可往返的 `AuthorityTick`；同进程 Loopback 假装网络，不接 UDP。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 下行 | `ActorReplicationSnapshot` + `AuthorityTick`（按 SimActorId 排序） |
+| 上行 | `ClientCommand`（frameHint + playerId + `InputFrame`） |
+| 组装 | `ReplicationSnapshotBuilder.FromAuthority`（Motor + Action 快照 + 传入 healthMilli） |
+| 字节 | `ReplicationCodec` 小端，首字节版本 1 |
+| 传输 | `IReplicationTransport` / `LoopbackReplicationTransport`（`ACTGame.Net`） |
+
+### 关键参数
+
+Loopback `LatencyMs` 默认 0。`actionId` 由调用方映射，内容接口暂无稳定 int。
+
+### 运行时流程
+
+```
+Builder.FromAuthority → AuthorityTick → Codec.Write
+  → Loopback.SendAuthorityToClients → Pump → TryDequeueClient → Codec.Read
+```
+
+### 已知限制
+
+- 未接 `SimulationWorld` 自动打包；NS2 才用 Tick 驱动幽灵
+- 水平速度 / Locomotion 相位 P0 可为 0
+- Test Runner 待 Editor 确认
+
+### 相关文件
+
+- `Assets/Scripts/Domain/Simulation/Replication/*`
+- `Assets/Scripts/Domain/Net/IReplicationTransport.cs`
+- `Assets/Scripts/Domain/Net/LoopbackReplicationTransport.cs`
+- `Assets/Tests/EditMode/Simulation/ActorReplicationSnapshotTests.cs`
+- `Assets/Tests/EditMode/Simulation/LoopbackReplicationTransportTests.cs`
 
 ---
 
@@ -957,6 +1000,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-13 | FollowMove 不再因 SelectedTarget 自动升格 FaceTarget；玩家锁面仅攻击窗口/显式 FaceTarget Profile |
 | 2026-08-14 | 联网主路径更正为状态同步（删 TECHNICAL 内过期 FramePacket 句）；补服务器代码规范索引 |
 | 2026-08-14 | NS0：`ILocalPlayer` / `LocalPlayerService`；敌人感知最近玩家根；玩法删除 Find 唯一 PlayerController |
+| 2026-08-14 | NS1：复制 Snapshot/Tick/Command + Codec + Loopback；EditMode 往返与 60 帧单调 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

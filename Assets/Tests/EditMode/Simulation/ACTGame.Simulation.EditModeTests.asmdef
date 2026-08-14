@@ -2,7 +2,8 @@
     "name": "ACTGame.Simulation.EditModeTests",
     "rootNamespace": "",
     "references": [
-        "ACTGame.Simulation"
+        "ACTGame.Simulation",
+        "ACTGame.Net"
     ],
     "includePlatforms": [
         "Editor"
