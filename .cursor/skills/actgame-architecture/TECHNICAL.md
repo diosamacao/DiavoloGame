@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-14（联网主路径改为状态同步；补服务器代码规范索引）
+> Last updated: 2026-08-14（NS0 LocalPlayer 花名册）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,7 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
-| 组队 PVE 状态同步 / 权威进程 | ⬜ 仅规范 | `ReplicationAuthority`（规划） | `docs/2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md` §13；CONVENTIONS「服务器 / 权威进程」 |
+| 组队 PVE 状态同步 / 权威进程 | 🟡 NS0 代码 | `ILocalPlayer`、`LocalPlayerService` | NS1～NS5 未做；方案 `TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md` |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -150,6 +150,51 @@ SimulationHost.LateUpdate
 - `Assets/Scripts/App/Controllers/Combat/CombatWorldController.cs`
 - `Assets/Scripts/Domain/Character/Presentation/CharacterPresentationBridge.cs`
 - `Assets/Tests/EditMode/Simulation/*`
+
+---
+
+## 组队 PVE · NS0 LocalPlayer
+
+### 功能说明
+
+场景不再假设全场只有一个 `PlayerController`；相机、HUD、刷怪与敌人感知通过花名册查询本机玩家或全部玩家根。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 本机入口 | `ILocalPlayer`（`PlayerController` 实现）；`IsLocalPredicted` 恒 false |
+| 登记 | `LocalPlayerService`（Architecture System）；Awake/OnEnable 登记，OnDisable 注销 |
+| 查询 | `GetLocalPlayerQuery` / `GetPlayerRootsQuery` |
+| 仇恨 | `EnemyPerception` 在玩家根列表中取水平最近；可选 Inspector 钉死单 Transform |
+| 禁止 | 玩法 `FindObjectOfType<PlayerController>()`（仅 Editor Gizmo） |
+
+### 关键参数
+
+无新 SerializeField 必填项。`EnemySpawnController.target` / `EnemyController.target` 为空即走花名册。
+
+### 运行时流程
+
+```
+PlayerController.Awake → LocalPlayerService.Register(this, isLocalOwner: true)
+CameraManager / HUD → GetLocalPlayerQuery
+EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
+```
+
+### 已知限制
+
+- Play / Unity 编译待 Editor 确认
+- NS1 快照与 Loopback 未做
+- 花名册尚无远端玩家；只有本机一条
+
+### 相关文件
+
+- `Assets/Scripts/Domain/Character/ILocalPlayer.cs`
+- `Assets/Scripts/App/Systems/Player/LocalPlayerService.cs`
+- `Assets/Scripts/App/Queries/Player/GetLocalPlayerQuery.cs`
+- `Assets/Scripts/App/Queries/Player/GetPlayerRootsQuery.cs`
+- `Assets/Scripts/Domain/Enemy/EnemyPerception.cs`
+- `Assets/Tests/Editor/Enemy/EnemyPerceptionTests.cs`
 
 ---
 
@@ -911,6 +956,8 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-13 | C-AT0～3 代码重构：MoveReferenceYaw 入 InputFrame；唯一 SelectedTarget + Action 中切敌；删除 PlanarBasis、CombatTargetLock、ActionTargetId 与表现 late-bind |
 | 2026-08-13 | FollowMove 不再因 SelectedTarget 自动升格 FaceTarget；玩家锁面仅攻击窗口/显式 FaceTarget Profile |
 | 2026-08-14 | 联网主路径更正为状态同步（删 TECHNICAL 内过期 FramePacket 句）；补服务器代码规范索引 |
+| 2026-08-14 | NS0：`ILocalPlayer` / `LocalPlayerService`；敌人感知最近玩家根；玩法删除 Find 唯一 PlayerController |
+| 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
 | 2026-08-09 | BT Graph：装饰/条件改为宿主顶部徽章（UE 表现）；运行真源仍为装饰链 |

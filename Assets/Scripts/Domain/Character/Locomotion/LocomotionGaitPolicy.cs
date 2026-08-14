@@ -79,7 +79,8 @@ public sealed class LocomotionGaitPolicy
                 return new GaitPolicyResult(LocomotionGait.Run, 0f);
 
             hold += Mathf.Max(0f, input.DeltaTime);
-            if (hold >= SprintAfterRunSeconds)
+            // 0.1f×30 等十进制步长累加会略低于 3，用 0.1ms 容差避免卡在 Run。
+            if (hold + 0.0001f >= SprintAfterRunSeconds)
                 return new GaitPolicyResult(LocomotionGait.Sprint, 0f);
 
             return new GaitPolicyResult(LocomotionGait.Run, hold);

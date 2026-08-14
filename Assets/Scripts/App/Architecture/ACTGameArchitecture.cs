@@ -138,6 +138,7 @@ public sealed class ACTGameArchitecture
         architecture.RegisterSystem(new TargetSystem());
         architecture.RegisterSystem(new CombatFeedbackSystem());
         architecture.RegisterSystem(new EnemySpawnSystem());
+        architecture.RegisterSystem(new LocalPlayerService());
         return architecture;
     }
 }

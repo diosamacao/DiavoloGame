@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-14（补 Replication / 权威进程模块边界；联网主路径为状态同步）
+> Last audited: 2026-08-14（NS0 LocalPlayer 花名册；玩法不再 Find 唯一玩家）
 
 ## 项目概述
 
@@ -35,9 +35,9 @@ Assets/
 │   ├── App/
 │   │   ├── Architecture/      # QFramework 风格强类型 Architecture / 能力接口 / 基类
 │   │   ├── Controllers/       # Player / Enemy / Camera / Combat / SimulationHost Unity 入口
-│   │   ├── Systems/           # 注册到 Architecture IOC 的业务系统
+│   │   ├── Systems/           # Combat / Enemy / Player（LocalPlayerService）
 │   │   ├── Commands/          # 跨系统业务行为
-│   │   ├── Queries/           # 无副作用读取请求
+│   │   ├── Queries/           # 无副作用读取请求（含 GetLocalPlayer / GetPlayerRoots）
 │   │   └── Events/            # IArchitectureEvent 事件
 │   ├── Infrastructure/
 │   │   ├── Input/             # Input System 与 AI 输入源适配
@@ -245,13 +245,15 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `IEnemyBehaviorRunner` / `EnemyBrain` / `EnemyPerception` | Runner 决策；Brain 门闩+黑板+CooldownTable+提交；Perception 只读快照 |
 | `LocomotionDesireBuffer` / `ActionEntryRequestBuffer` | Character / Combat 通用命令槽；Enemy 仅生产，不向下层泄漏具体类型 |
 | `EnemyActorFactory` / `EnemyHandle` | 复用 CharacterActorFactory，聚合 Actor、Brain、Vitality、Hurtbox 生命周期 |
-| `EnemyController` / `EnemySpawnController` | 单敌 Tick 入口与场景刷怪入口 |
+| `EnemyController` / `EnemySpawnController` | 单敌 Tick 入口与场景刷怪入口；感知读玩家花名册，不 Find 唯一玩家 |
 | `EnemySpawnSystem` | 架构级敌人实例注册与同 Definition 存活上限 |
+| `ILocalPlayer` / `LocalPlayerService` | 本机输入/相机拥有者 + 全部玩家根列表；NS0 `IsLocalPredicted=false` |
 
 **数据流（敌人 · 当前终态）**：
 
 ```
 EnemyActorFactory 构造 LocomotionDesireBuffer + ActionEntryRequestBuffer，并通过通用接口注入角色服务图
+EnemyPerception 从 GetPlayerRootsQuery / 可选钉死 Transform 取水平最近玩家
 EnemyBrain → Runner.Tick → 写 LocomotionDesire + ActionEntryRequest
 CharacterMotor / LocomotionStateMachine 读 IMoveIntentSource；CharacterActionDriver 读 IActionEntryRequestSource
 玩家仍为 InputFrame → InputManager → Intent；CharacterActor 无 Enemy 分支

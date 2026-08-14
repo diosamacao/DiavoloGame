@@ -5,12 +5,12 @@ using UnityEngine;
 /// <summary>敌人实例工厂；在共享 CharacterActor 管线上装配 AI、Vitality 和 Hurtbox。</summary>
 public static class EnemyActorFactory
 {
-    /// <summary>按 EnemyDefinition 创建完整敌人句柄；架构注册仍由 App Controller 负责。</summary>
+    /// <summary>按 EnemyDefinition 创建完整敌人句柄；playerRootsProvider 提供感知候选，架构注册仍由 App Controller 负责。</summary>
     public static EnemyHandle Create(
         GameObject owner,
         Transform root,
         EnemyDefinition definition,
-        Func<Transform> targetProvider,
+        Func<IReadOnlyList<Transform>> playerRootsProvider,
         Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider,
         CombatHitPipeline combatHitPipeline,
         CharacterReactionResolver reactionResolver,
@@ -48,7 +48,7 @@ public static class EnemyActorFactory
 
         var perception = new EnemyPerception(
             root,
-            targetProvider,
+            playerRootsProvider,
             () => actor.CurrentState,
             () => actor.Vitality.IsDead);
 
