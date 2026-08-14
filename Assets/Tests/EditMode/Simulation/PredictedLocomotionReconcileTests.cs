@@ -137,11 +137,12 @@ public sealed class PredictedLocomotionReconcileTests
         Assert.That(driver.Motor.PositionMm.X, Is.EqualTo(2500));
     }
 
-    /// <summary>预测无墙穿过去，权威有墙停住；和解后拉回权威边缘。</summary>
+    /// <summary>预测无墙沿 +Z 穿过去，权威有墙停住；和解后拉回权威边缘。</summary>
     [Test]
     public void Reconcile_Wall_AuthorityStops_SnapPullsBack()
     {
-        var wall = new SimStaticAabb(1000, 2000, -500, 500);
+        // PredictForward 是 yaw0 + 前向，FollowInput 沿 +Z；墙必须挡 Z 而不是 X
+        var wall = new SimStaticAabb(-500, 500, 1000, 2000);
         var blocked = new SimStaticCollisionWorld(0, new[] { wall });
         var open = OpenFieldSimCollisionWorld.Instance;
 
@@ -158,7 +159,7 @@ public sealed class PredictedLocomotionReconcileTests
             PredictForward(authorityDriver, id, i);
         }
 
-        Assert.That(predicted.Motor.PositionMm.X, Is.GreaterThan(authorityMotor.PositionMm.X + 50));
+        Assert.That(predicted.Motor.PositionMm.Z, Is.GreaterThan(authorityMotor.PositionMm.Z + 50));
 
         ActorReplicationSnapshot authority = PoseSnapshot(
             id,
