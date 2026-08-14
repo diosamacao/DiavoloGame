@@ -256,28 +256,28 @@ PredictedLocal 每逻辑帧：
 
 **验收**
 
-- [ ] Play：Host 行走、出招，Ghost 在设定的 Loopback 延迟下跟动作帧与位置，不跑第二份命中  
+- [x] Play：Host 行走、出招，Ghost 在设定的 Loopback 延迟下跟动作帧与位置，不跑第二份命中  
 - [x] Ghost 进程（或视图）`CombatHitPipeline` 无 Collect  
 - [x] 延迟 100ms 时 Ghost 平滑插值，无权威 Pose 每帧瞬移（可用现有 Render 插值）  
 
-**出口：** 他人角色可以只靠 Snapshot 播出来。→ **代码已落地（2026-08-14）；Play 待 Editor 确认**
+**出口：** 他人角色可以只靠 Snapshot 播出来。→ **已达成（2026-08-15）**
 
 ### NS3 — 远端客户端预测位移
 
 **任务**
 
-- [ ] `PredictedLocomotionDriver`：用本地 `InputFrame` 推进 `CharacterMotorSim` 副本  
-- [ ] 权威 pose 和解：阈值内忽略，超阈重放未确认移动  
-- [ ] Listen Host 本地玩家 **不走预测**（直接权威）  
-- [ ] 纠偏时表现层允许 SmoothDamp，禁止把表现 Pose 写回权威 Motor  
+- [x] `PredictedLocomotionDriver`：用本地 `InputFrame` 推进 `CharacterMotorSim` 副本  
+- [x] 权威 pose 和解：阈值内忽略，超阈重放未确认移动  
+- [x] Listen Host 本地玩家 **不走预测**（直接权威）  
+- [x] 纠偏时表现层允许 SmoothDamp，禁止把表现 Pose 写回权威 Motor  
 
 **验收**
 
-- [ ] Loopback RTT=0：预测路径与 Host 本地路径位置误差 ≤ 1mm（同输入脚本）  
+- [x] Loopback RTT=0：预测路径与 Host 本地路径位置误差 ≤ 1mm（同输入脚本）  
 - [ ] Loopback RTT=100ms：本地 strafing 无「等服务器才动」；撞墙后会回拉一次  
-- [ ] 单测：超阈重放后最终 pose 等于权威 + 后续输入  
+- [x] 单测：超阈重放后最终 pose 等于权威 + 后续输入  
 
-**出口：** 非 Host 玩家走路手感接近单机，权威仍能纠正穿墙。→ **未达成**
+**出口：** 非 Host 玩家走路手感接近单机，权威仍能纠正穿墙。→ **代码已落地（2026-08-15）；Play 待 Editor 确认**
 
 ### NS4 — 出招预测与权威命中
 
@@ -375,11 +375,16 @@ Assets/Scripts/Domain/Character/Replication/
   CharacterReplicationCapture.cs
   RemoteCharacterProxy.cs
   RemoteCharacterProxyFactory.cs
-  PredictedLocomotionDriver.cs        // NS3
+
+Assets/Scripts/Domain/Simulation/Prediction/
+  PredictedLocomotionDriver.cs
+  PredictedLocomotionMath.cs
+  PredictedLocomotionConfig.cs
 
 Assets/Scripts/App/Controllers/Gameplay/
   LocalPlayerService.cs
   RemoteGhostViewController.cs
+  PredictedClientPreviewController.cs
   AuthoritySimulationHost.cs          // 可由 SimulationHost 演进改名
 
 Assets/Tests/EditMode/Simulation/
@@ -417,7 +422,8 @@ docs/2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md
 3. NS5：增加独立 Client 启动场景或同编辑器 ParrelSync / 第二实例；Input Actions 无需为网络新增（沿用现 Player Map）。  
 4. 若用 ParrelSync：人工安装，Agent 不改工程第三方。  
 5. Prefab 上若需挂 `RemoteCharacterProxy`，只改脚本并列出拖拽字段，不直接改 `.prefab`。  
-6. **NS2 Play：** `CombatWorldController` 在 Editor 默认勾选 `previewRemoteGhost`（现有场景无需改 Prefab）。进入 Play 后角色右侧约 2m 出现幽灵，默认 Loopback 100ms。可在 Inspector 调 `remoteGhostWorldOffset` / `remoteGhostLatencyMs`，或取消勾选关闭预览。幽灵不进花名册、不跑命中。
+6. **NS2 Play：** `CombatWorldController` 在 Editor 默认勾选 `previewRemoteGhost`（现有场景无需改 Prefab）。进入 Play 后角色右侧约 2m 出现幽灵，默认 Loopback 100ms。可在 Inspector 调 `remoteGhostWorldOffset` / `remoteGhostLatencyMs`，或取消勾选关闭预览。幽灵不进花名册、不跑命中。  
+7. **NS3 Play：** 同组件默认勾选 `previewPredictedClient`。左侧约 2m 为预测视图：应立刻动，且 WASD 转向过程、Sprint 左右倾身、攻击位移应接近中间 Host（不再 10Hz 吸附）。可调 `predictedClientWorldOffset` / `predictedClientLatencyMs`。
 
 ---
 
@@ -463,6 +469,8 @@ NS0 身份
 | 2026-08-14 | NS1 代码：复制 Snapshot/Tick/Command + Loopback 传输；EditMode 往返与 60 帧单调 |
 | 2026-08-14 | NS1 验收关闭；NS2 代码：RemoteProxy + Loopback 同机幽灵；Play 待确认 |
 | 2026-08-15 | 快照补 `locomotionNormalizedMilli`；幽灵 Locomotion 硬切 Seek，关掉 Animator RM |
+| 2026-08-15 | NS2 验收关闭；NS3 代码：PredictedLocomotionDriver + 纠偏单测 + 同机预测预览；Host 不预测 |
+| 2026-08-15 | NS3 表现：FollowInput 转向、拷贝 Sprint 倾身、出招/转身贴齐权威电机 |
 
 ---
 

@@ -101,6 +101,46 @@ public sealed class RemoteCharacterProxyTests
         Object.DestroyImmediate(root);
     }
 
+    /// <summary>预测预览传入的 lean 写到 VisualMotionRoot Roll，不改权威根朝向。</summary>
+    [Test]
+    public void ApplySnapshot_WithLean_WritesVisualMotionRootRoll()
+    {
+        var root = new GameObject("GhostLeanRoot");
+        var presentation = new GameObject("GhostLeanPresentation");
+        presentation.transform.SetParent(root.transform, false);
+        var visual = new GameObject("GhostLeanVisual");
+        visual.transform.SetParent(presentation.transform, false);
+        CharacterController controller = root.AddComponent<CharacterController>();
+        controller.enabled = false;
+
+        var motor = new CharacterMotor(
+            root.transform,
+            controller,
+            CharacterMotorConfig.Default,
+            new IdleIntent(),
+            new CharacterMotorSim(OpenFieldSimCollisionWorld.Instance, radiusMm: 280));
+        var proxy = new RemoteCharacterProxy(
+            root.transform,
+            motor,
+            animation: null,
+            new CharacterPresentationBridge(root.transform, presentation.transform),
+            new ActionReplicationCatalog(),
+            Vector3.zero,
+            1f / 60f,
+            visual.transform);
+
+        ActorReplicationSnapshot snapshot = CreatePoseSnapshot(0, 0);
+        proxy.ApplySnapshot(in snapshot, leanRollDegrees: -8f);
+
+        float visualRoll = visual.transform.localEulerAngles.z;
+        if (visualRoll > 180f)
+            visualRoll -= 360f;
+        Assert.That(visualRoll, Is.EqualTo(-8f).Within(0.2f));
+        Assert.That(root.transform.eulerAngles.z, Is.EqualTo(0f).Within(0.2f));
+
+        Object.DestroyImmediate(root);
+    }
+
     /// <summary>幽灵与工厂源码不得引用 Hitbox 收集或 EnemyBrain。</summary>
     [Test]
     public void GhostSource_HasNoHitboxCollectOrBrain()
@@ -109,7 +149,8 @@ public sealed class RemoteCharacterProxyTests
         {
             "Assets/Scripts/Domain/Character/Replication/RemoteCharacterProxy.cs",
             "Assets/Scripts/Domain/Character/Replication/RemoteCharacterProxyFactory.cs",
-            "Assets/Scripts/App/Controllers/Gameplay/RemoteGhostViewController.cs"
+            "Assets/Scripts/App/Controllers/Gameplay/RemoteGhostViewController.cs",
+            "Assets/Scripts/App/Controllers/Gameplay/PredictedClientPreviewController.cs"
         };
 
         for (int i = 0; i < relativePaths.Length; i++)

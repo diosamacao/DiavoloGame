@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// 远端角色表现体：只应用 Snapshot 位姿与动作 Seek，不跑 ActionSim、Hitbox Collect、EnemyBrain。
+/// 远端角色表现体：只应用 Snapshot 位姿、动作 Seek、视觉残差/倾身，不跑 ActionSim、Hitbox Collect、EnemyBrain。
 /// </summary>
 public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTarget
 {
@@ -11,6 +11,7 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     readonly CharacterAnimationService _animation;
     readonly CharacterPresentationBridge _presentation;
     readonly Transform _visualMotionRoot;
+    readonly CharacterVisualMotionBridge _visualMotion;
     readonly ActionReplicationCatalog _catalog;
     readonly Vector3 _worldOffset;
     readonly float _fixedDeltaSeconds;
@@ -19,6 +20,7 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     ActionDefinition _animationAction;
     int _animationSegmentIndex = -1;
     AnimationKey? _locomotionKey;
+    bool _visualActionActive;
     Vector3 _debugWishWorld;
 
     /// <summary>幽灵权威根；调试与测试读位姿用。</summary>
@@ -73,6 +75,9 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         _animation = animation;
         _presentation = presentation ?? throw new ArgumentNullException(nameof(presentation));
         _visualMotionRoot = visualMotionRoot;
+        _visualMotion = visualMotionRoot != null
+            ? new CharacterVisualMotionBridge(visualMotionRoot)
+            : null;
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _worldOffset = worldOffset;
         _fixedDeltaSeconds = fixedDeltaSeconds > 0f
@@ -83,20 +88,25 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
 
     /// <summary>
     /// 应用一帧权威快照：写 Motor、同步根、Seek/播 Locomotion；不 Dispatch 判定帧。
+    /// leanRollDegrees 仅预测预览传入（Lean 不进 Snapshot）；幽灵默认 0。
     /// </summary>
-    public void ApplySnapshot(in ActorReplicationSnapshot snapshot)
+    public void ApplySnapshot(in ActorReplicationSnapshot snapshot, float leanRollDegrees = 0f)
     {
         _presentation.BeginSimulationStep();
         ReplicationPoseApplier.ApplyToMotor(_motor.Sim, in snapshot);
         ApplyWorldOffset();
         _motor.SyncRootPoseFromSim();
         ApplyDebugWish(in snapshot);
-        ApplyPresentation(in snapshot);
+        ApplyPresentation(in snapshot, leanRollDegrees);
         _presentation.EndSimulationStep();
     }
 
-    /// <summary>按 Host 插值比例更新模型锚点；邻近 Pose 走 lerp，禁止每渲染帧硬切。</summary>
-    public void Render(float interpolationAlpha) => _presentation.Render(interpolationAlpha);
+    /// <summary>按 Host 插值比例更新模型锚点与视觉残差/倾身；邻近 Pose 走 lerp，禁止每渲染帧硬切。</summary>
+    public void Render(float interpolationAlpha)
+    {
+        _presentation.Render(interpolationAlpha);
+        _visualMotion?.Render(interpolationAlpha, Time.deltaTime);
+    }
 
     /// <summary>释放动画后端；ownsRoot 时销毁幽灵根物体。</summary>
     public void Dispose()
@@ -128,36 +138,55 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     }
 
     /// <summary>有招则只在切段时 Play+Seek；空闲播 LocomotionKey。禁止派发 Hitbox。</summary>
-    void ApplyPresentation(in ActorReplicationSnapshot snapshot)
+    void ApplyPresentation(in ActorReplicationSnapshot snapshot, float leanRollDegrees)
     {
-        if (_animation == null)
-            return;
-
         bool frozen = snapshot.FreezeFrames > 0;
-        if (snapshot.ActionId != 0 && _catalog.TryGet(snapshot.ActionId, out ActionDefinition action))
+        // 先声明再 out：短路时编译器不认为 action 已赋值（CS0165）
+        ActionDefinition action = null;
+        bool actionActive = snapshot.ActionId != 0
+            && _catalog.TryGet(snapshot.ActionId, out action);
+
+        if (_animation != null)
         {
-            _locomotionKey = null;
-            SeekActionIfSegmentChanged(action, snapshot.ActionFrame);
-            _animation.SetSpeed(frozen ? 0f : 1f);
-            if (!frozen)
-                _animation.Tick(_fixedDeltaSeconds);
-            return;
+            if (actionActive)
+            {
+                _locomotionKey = null;
+                SeekActionIfSegmentChanged(action, snapshot.ActionFrame);
+                _animation.SetSpeed(frozen ? 0f : 1f);
+                if (!frozen)
+                    _animation.Tick(_fixedDeltaSeconds);
+            }
+            else
+            {
+                _animationAction = null;
+                _animationSegmentIndex = -1;
+                _animation.SetSpeed(frozen ? 0f : 1f);
+                AnimationKey key = ResolveLocomotionKey(snapshot.LocomotionPhase);
+                if (_locomotionKey != key)
+                {
+                    // 与 PivotTurn Enter 相同：硬切，禁止和上一 Gait CrossFade 把转身混花
+                    _animation.Play(key, 0f);
+                    _locomotionKey = key;
+                }
+
+                // 对齐权威归一化时间；Seek 已 Evaluate，勿再 Tick 以免超前一帧
+                if (!frozen)
+                    _animation.SeekLocomotionNormalized(snapshot.LocomotionNormalizedMilli / 1000f);
+            }
         }
 
-        _animationAction = null;
-        _animationSegmentIndex = -1;
-        _animation.SetSpeed(frozen ? 0f : 1f);
-        AnimationKey key = ResolveLocomotionKey(snapshot.LocomotionPhase);
-        if (_locomotionKey != key)
+        // 倾身先写入，残差贴帧会一并带上 localRotation
+        _visualMotion?.SetLeanRollDegrees(leanRollDegrees);
+        if (actionActive)
         {
-            // 与 PivotTurn Enter 相同：硬切，禁止和上一 Gait CrossFade 把转身混花
-            _animation.Play(key, 0f);
-            _locomotionKey = key;
+            _visualMotion?.CaptureSimulationFrame(action, snapshot.ActionFrame, actionActive: true);
+            _visualActionActive = true;
         }
-
-        // 对齐权威归一化时间；Seek 已 Evaluate，勿再 Tick 以免超前一帧
-        if (!frozen)
-            _animation.SeekLocomotionNormalized(snapshot.LocomotionNormalizedMilli / 1000f);
+        else if (_visualActionActive)
+        {
+            _visualMotion?.EndAction(VisualResidualExitPolicy.BlendToZero);
+            _visualActionActive = false;
+        }
     }
 
     /// <summary>与权威表现桥相同：同动作同段不 Seek，避免每逻辑帧硬切。</summary>

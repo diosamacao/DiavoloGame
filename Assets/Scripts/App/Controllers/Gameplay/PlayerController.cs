@@ -45,7 +45,7 @@ public class PlayerController : AppControllerBase, ILocalPlayer
     /// <summary>权威根，供敌人感知与花名册使用。</summary>
     public Transform Root => transform;
 
-    /// <summary>NS0 单机即 Host 本地，不预测；远端客户端在 NS3 才为 true。</summary>
+    /// <summary>Listen Host 本地不预测，恒为 false。NS3 预测只走 PredictedLocomotionDriver / 预览视图。</summary>
     public bool IsLocalPredicted => false;
 
     void Awake()
