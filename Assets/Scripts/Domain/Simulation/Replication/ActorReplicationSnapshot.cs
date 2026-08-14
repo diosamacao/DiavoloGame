@@ -115,6 +115,36 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
     /// <summary>本 Tick 生命边沿。</summary>
     public VitalityReplicationEdge VitalityEdge { get; }
 
+    /// <summary>用预测电机位姿替换本快照的毫米坐标与朝向；其它复制字段不变。</summary>
+    public ActorReplicationSnapshot WithMotorPose(CharacterMotorSim motor)
+    {
+        if (motor == null)
+            throw new ArgumentNullException(nameof(motor));
+
+        return new ActorReplicationSnapshot(
+            ActorId,
+            TeamId,
+            Kind,
+            motor.PositionMm.X,
+            motor.PositionMm.Z,
+            motor.YMm,
+            motor.FacingMilliDeg,
+            MoveVxMm,
+            MoveVzMm,
+            LocomotionPhase,
+            Gait,
+            Cardinal,
+            ActionId,
+            GraphNodeId,
+            ActionFrame,
+            FreezeFrames,
+            SelectedTargetId,
+            HealthMilli,
+            FlagsPacked,
+            VitalityEdge,
+            LocomotionNormalizedMilli);
+    }
+
     /// <summary>比较全部复制字段。</summary>
     public bool Equals(ActorReplicationSnapshot other) =>
         ActorId == other.ActorId

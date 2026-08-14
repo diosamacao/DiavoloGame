@@ -32,6 +32,7 @@ public sealed class CharacterActor :
     readonly CharacterTargetingState _targetingState;
     readonly Transform _simulationRoot;
     InputFrameBuffer _inputFrames;
+    InputFrame _lastSimulationInput;
     SimActorId _actorId;
     long _currentFrameIndex = -1;
     bool _wasActionActive;
@@ -49,6 +50,9 @@ public sealed class CharacterActor :
 
     /// <summary>当前 SimulationWorld 分配的稳定身份；注册前为 Invalid。</summary>
     public SimActorId SimulationId => _actorId;
+
+    /// <summary>最近一次权威 Step 摄入的量化输入；未步进时为空帧。</summary>
+    public InputFrame LastSimulationInput => _lastSimulationInput;
 
     /// <summary>本地相机使用的渲染帧 Look；AI 与回放 Actor 返回零。</summary>
     public Vector2 LookInput => _localInput?.LookInput ?? Vector2.zero;
@@ -130,6 +134,9 @@ public sealed class CharacterActor :
 
     /// <summary>当前顶层角色状态，供 AI 感知与生命周期控制器读取。</summary>
     public CharacterStateType CurrentState => _stateMachine.CurrentStateId;
+
+    /// <summary>当前 Sprint 视觉倾身（度）；非 Locomotion 为 0。不进复制快照。</summary>
+    public float SprintLeanRollDegrees => _stateMachine.SprintLeanRollDegrees;
 
     /// <summary>死亡动作是否已播放完成。</summary>
     public bool DeathPresentationComplete => _stateMachine.DeathPresentationComplete;
@@ -371,6 +378,7 @@ public sealed class CharacterActor :
     public void Step(long frameIndex, float fixedDeltaSeconds, in InputFrame inputFrame)
     {
         _currentFrameIndex = frameIndex;
+        _lastSimulationInput = inputFrame;
         _presentation.BeginSimulationStep();
         // 逻辑步内残差贴帧，避免挂点读到上一渲染插值
         _visualMotion?.ApplyLogicLocalPose();

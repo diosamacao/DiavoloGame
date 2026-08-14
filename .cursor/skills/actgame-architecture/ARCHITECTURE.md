@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-14（NS2 RemoteProxy 同机幽灵）
+> Last audited: 2026-08-15（NS3 预测表现补齐）
 
 ## 项目概述
 
@@ -31,7 +31,7 @@ Assets/
 │   │   │   ├── VFX/           # 招式 VFX 帧事件
 │   │   │   └── Targeting/     # 索敌
 │   │   ├── Input/             # 原始帧、意图与输入中枢
-│   │   ├── Simulation/        # 固定帧核 + Replication 快照 / Tick / Command / Codec
+│   │   ├── Simulation/        # 固定帧核 + Replication + Prediction（无 Unity）
 │   │   └── Net/               # IReplicationTransport + Loopback（ACTGame.Net）
 │   ├── App/
 │   │   ├── Architecture/      # QFramework 风格强类型 Architecture / 能力接口 / 基类
@@ -226,7 +226,7 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 |----|------|
 | `CameraManager` | Cinemachine 第三人称；Orbit yaw 只 staged 到 InputFrame，本地 CameraLock 只读 SelectedTarget |
 
-### 9. 复制与权威进程（NS0～NS2 已落地，NS3～NS5 规划）
+### 9. 复制与权威进程（NS0～NS3 已落地，NS4～NS5 规划）
 
 | 类 | 职责 |
 |----|------|
@@ -234,10 +234,11 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `ReplicationSnapshotBuilder` / `ReplicationCodec` / `ReplicationPoseApplier` | Motor+Action+数值 → 快照；小端往返；位姿写回 MotorSim |
 | `IReplicationTransport` / `LoopbackReplicationTransport` | 只传字节；同进程队列，可设延迟 |
 | `ActionReplicationCatalog` / `CharacterReplicationCapture` | 同进程 ActionDefinition↔int；从权威 Actor 填快照 |
-| `RemoteCharacterProxy` / `RemoteCharacterProxyFactory` | 只应用 pose + Seek/Locomotion；不创建 Hitbox / Brain / ActionSim |
+| `RemoteCharacterProxy` / `RemoteCharacterProxyFactory` | 只应用 pose + Seek/Locomotion + 视觉残差/倾身；不创建 Hitbox / Brain / ActionSim |
 | `RemoteGhostViewController` | Host `AfterLogicStep` → Loopback → Ghost；Editor 默认预览 |
+| `PredictedLocomotionDriver` / `PredictedLocomotionMath` | 无 Unity：FollowInput 预测或贴齐权威电机；超阈吸附 + 只重放非 aligned |
+| `PredictedClientPreviewController` | 同机左侧预测预览；Listen Host 本地仍不预测 |
 | `ReplicationAuthority` / `ReplicationClient` | NS5 房间；尚未实现 |
-| `PredictedLocalActor` | NS3；尚未实现 |
 
 权威进程写法：同一份 `ACTGame.Simulation`，不另写服务器战斗。对照与禁区见 CONVENTIONS「服务器 / 权威进程」与方案 §13。
 

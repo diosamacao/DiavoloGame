@@ -19,6 +19,17 @@ public class CombatWorldController : AppControllerBase
     [SerializeField] Vector3 remoteGhostWorldOffset = new Vector3(2f, 0f, 0f);
     [SerializeField] int remoteGhostLatencyMs = 100;
 
+    [Header("NS3 Predicted Preview")]
+    [Tooltip("Editor 默认开启：左侧预测视图立即跟输入，并对延迟权威 Tick 纠偏。不替换 Host 本地玩家。")]
+    [SerializeField] bool previewPredictedClient =
+#if UNITY_EDITOR
+        true;
+#else
+        false;
+#endif
+    [SerializeField] Vector3 predictedClientWorldOffset = new Vector3(-2f, 0f, 0f);
+    [SerializeField] int predictedClientLatencyMs = 100;
+
     /// <summary>当前场景战斗世界；系统查询只把它作为生命周期锚点，不作为业务单例入口。</summary>
     public static CombatWorldController Current { get; private set; }
 
@@ -44,6 +55,8 @@ public class CombatWorldController : AppControllerBase
     {
         if (previewRemoteGhost)
             EnsureRemoteGhostPreview();
+        if (previewPredictedClient)
+            EnsurePredictedClientPreview();
     }
 
     void OnDestroy()
@@ -94,5 +107,21 @@ public class CombatWorldController : AppControllerBase
             config,
             remoteGhostWorldOffset,
             remoteGhostLatencyMs);
+    }
+
+    /// <summary>运行时挂上同机预测预览；Listen Host 本地玩家仍走权威，不改 IsLocalPredicted。</summary>
+    void EnsurePredictedClientPreview()
+    {
+        PredictedClientPreviewController preview = GetComponent<PredictedClientPreviewController>();
+        if (preview == null)
+            preview = gameObject.AddComponent<PredictedClientPreviewController>();
+
+        ILocalPlayer local = SendQuery(new GetLocalPlayerQuery());
+        CharacterConfig config = local is PlayerController player ? player.CharacterConfig : null;
+        preview.Configure(
+            EnsureSimulationHost(),
+            config,
+            predictedClientWorldOffset,
+            predictedClientLatencyMs);
     }
 }

@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-15（幽灵 Locomotion Seek 对齐）
+> Last updated: 2026-08-15（NS3 预测表现：FollowInput / 倾身 / 出招贴齐）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,7 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
-| 组队 PVE 状态同步 / 权威进程 | 🟡 NS0/NS1 已验收；NS2 代码 | `RemoteCharacterProxy`、`RemoteGhostViewController` | Play 待确认；NS3～NS5 未做 |
+| 组队 PVE 状态同步 / 权威进程 | 🟡 NS0～NS2 已验收；NS3 表现补齐 | `PredictedLocomotionDriver`、`PredictedClientPreviewController` | Play 待确认转向/倾身/出招；NS4～NS5 未做 |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -184,8 +184,8 @@ EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
 ### 已知限制
 
 - Play / Unity 编译待 Editor 确认
-- 花名册尚无远端玩家；只有本机一条 + Editor 同机幽灵预览
-- NS3 预测位移未做
+- 花名册尚无远端玩家；Editor 有幽灵预览 + 预测预览
+- NS4 出招预测未做
 
 ### 相关文件
 
@@ -292,6 +292,62 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 - `Assets/Tests/EditMode/Simulation/ReplicationPoseApplierTests.cs`
 - `Assets/Tests/Editor/Replication/ActionReplicationCatalogTests.cs`
 - `Assets/Tests/Editor/Replication/RemoteCharacterProxyTests.cs`
+
+---
+
+## 组队 PVE · NS3 预测位移
+
+### 功能说明
+
+远端客户端用本地 `InputFrame` 立刻推进 `CharacterMotorSim` 副本；权威 Tick 到达后阈值内忽略，超阈吸附并重放未确认输入。Listen Host 本地玩家不预测。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 稳态步进 | `PredictedLocomotionMath.ApplyInput`：wish 算出后 FollowInput（朝向 SmoothDamp，位移沿朝向） |
+| 贴齐步进 | 出招/受击/死亡与 Start/Pivot/Stop：`PredictAligned` 复制权威 MotorSim，避免烘焙位移等 100ms 纠偏才出现 |
+| 缓存 | `PredictedLocomotionDriver.Predict` 存 (frame, input, pose, aligned) |
+| 和解 | 水平误差 ≤ 50mm 只 Ack；超阈吸附后只重放非 aligned 输入 |
+| Host | `PlayerController.IsLocalPredicted` 恒 false |
+| 预览 | 左侧立即跟输入；`RemoteProxy` 写权威 lean + 动作视觉残差 |
+
+### 关键参数
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| 走/跑/冲刺 | 4000 / 7000 / 9000 mm/s | 与 Motor 默认一致；预览按权威 AnimationKey 选用 |
+| `rotationSmoothTimeSeconds` | 0.2 | 与 `CharacterMotorConfig` FollowInput 同参 |
+| `runThresholdMilli` | 600 | 输入幅度 0.6 |
+| `reconcileThresholdMm` | 50 | 方案建议值 |
+| `previewPredictedClient` | Editor true | 现有场景无需改 Prefab |
+| `predictedClientWorldOffset` | (-2,0,0) | 与右侧幽灵对看 |
+
+### 运行时流程
+
+```
+本机 InputFrame
+  → 稳态 Gait：Driver.Predict（FollowInput）
+  → 出招/转身等：Driver.PredictAligned（贴权威电机）
+权威 AfterLogicStep → Loopback 延迟 Tick
+  → Reconcile：阈内 Ack / 超阈吸附 + 只重放非 aligned
+  → 若本帧仍须贴齐：SnapMotorTo(权威)
+表现：Capture 动画 + lean/残差 + WithMotorPose(预测电机) → RemoteProxy
+```
+
+### 已知限制
+
+- Play 待 Editor 确认（左侧应立刻动，且转向过程、Sprint 倾身、攻击位移不再 10Hz 吸附）
+- 预测不重跑 Locomotion FSM；起步/折返/急停/出招跟权威位姿（NS3 不出招预测）
+- Lean 不进 Snapshot，仅同机预览从权威 Actor 拷贝
+- 预测电机不进 SoftBodySeparation
+- 出招预测（本地先播、权威命中）是 NS4
+
+### 相关文件
+
+- `Assets/Scripts/Domain/Simulation/Prediction/*`
+- `Assets/Scripts/App/Controllers/Gameplay/PredictedClientPreviewController.cs`
+- `Assets/Tests/EditMode/Simulation/PredictedLocomotionReconcileTests.cs`
 
 ---
 
@@ -1058,6 +1114,8 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-14 | NS2：RemoteProxy + Loopback 同机幽灵；Host AfterLogicStep 打包；不 Collect |
 | 2026-08-14 | 朝向调试箭头解耦为 `ICharacterFacingDebugTarget`；幽灵同步黄/品红箭（wish 走 moveV*） |
 | 2026-08-15 | 幽灵 Locomotion：复制归一化时间并硬切 Seek；工厂关掉 Animator RM |
+| 2026-08-15 | NS3：PredictedLocomotionDriver + 纠偏单测 + 同机预测预览；Host 不预测 |
+| 2026-08-15 | NS3 表现：FollowInput 转向、Sprint 倾身拷贝、出招/转身贴齐权威以免 10Hz 吸附 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

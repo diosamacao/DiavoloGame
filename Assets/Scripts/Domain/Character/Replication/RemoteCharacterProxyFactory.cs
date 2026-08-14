@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// 只装配幽灵表现图：模型、Motor、动画、插值锚点。
+/// 只装配幽灵表现图：模型、Motor、动画、插值锚点、VisualMotionRoot。
 /// 禁止走 CharacterActorFactory（会注册 HitboxFrameConsumer）。
 /// </summary>
 public static class RemoteCharacterProxyFactory
