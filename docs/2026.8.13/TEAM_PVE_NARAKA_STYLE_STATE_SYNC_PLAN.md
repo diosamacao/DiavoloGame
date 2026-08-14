@@ -243,24 +243,24 @@ PredictedLocal 每逻辑帧：
 - [x] Loopback 延迟 0 时 Host 连续 60 帧 Snapshot 的 `authorityFrame` 单调 +1  
 - [x] 快照不含 CameraLock / Look / Lean  
 
-**出口：** 无网络也能把权威状态编码成可应用的 Tick。→ **代码已落地（2026-08-14）；Test Runner 待 Editor 确认**
+**出口：** 无网络也能把权威状态编码成可应用的 Tick。→ **已达成（2026-08-14）**
 
 ### NS2 — RemoteProxy：同机第二视图跟状态
 
 **任务**
 
-- [ ] 新增 `RemoteCharacterProxy`（或 `CharacterActor` 的 Remote 装配）：只读 Tick 应用 pose + `CharacterActionPresentationBridge` Seek  
-- [ ] 调试场景 / 第二 Camera：Host 控玩家 A，Ghost 显示 A 的复制体（可先同角色）  
-- [ ] **删除** Remote 路径上的 `HitboxFrameConsumer.Collect` 与 `EnemyBrain.Step`  
-- [ ] Host 仍用现有 `SimulationHost` 作为 Authority  
+- [x] 新增 `RemoteCharacterProxy`（或 `CharacterActor` 的 Remote 装配）：只读 Tick 应用 pose + `CharacterActionPresentationBridge` Seek  
+- [x] 调试场景 / 第二 Camera：Host 控玩家 A，Ghost 显示 A 的复制体（可先同角色）  
+- [x] **删除** Remote 路径上的 `HitboxFrameConsumer.Collect` 与 `EnemyBrain.Step`  
+- [x] Host 仍用现有 `SimulationHost` 作为 Authority  
 
 **验收**
 
 - [ ] Play：Host 行走、出招，Ghost 在设定的 Loopback 延迟下跟动作帧与位置，不跑第二份命中  
-- [ ] Ghost 进程（或视图）`CombatHitPipeline` 无 Collect  
-- [ ] 延迟 100ms 时 Ghost 平滑插值，无权威 Pose 每帧瞬移（可用现有 Render 插值）  
+- [x] Ghost 进程（或视图）`CombatHitPipeline` 无 Collect  
+- [x] 延迟 100ms 时 Ghost 平滑插值，无权威 Pose 每帧瞬移（可用现有 Render 插值）  
 
-**出口：** 他人角色可以只靠 Snapshot 播出来。→ **未达成**
+**出口：** 他人角色可以只靠 Snapshot 播出来。→ **代码已落地（2026-08-14）；Play 待 Editor 确认**
 
 ### NS3 — 远端客户端预测位移
 
@@ -370,12 +370,16 @@ Assets/Scripts/Domain/Net/
   ReplicationAuthority.cs
   ReplicationClient.cs
 
-Assets/Scripts/Domain/Character/
+Assets/Scripts/Domain/Character/Replication/
+  ActionReplicationCatalog.cs
+  CharacterReplicationCapture.cs
   RemoteCharacterProxy.cs
-  PredictedLocomotionDriver.cs
+  RemoteCharacterProxyFactory.cs
+  PredictedLocomotionDriver.cs        // NS3
 
 Assets/Scripts/App/Controllers/Gameplay/
   LocalPlayerService.cs
+  RemoteGhostViewController.cs
   AuthoritySimulationHost.cs          // 可由 SimulationHost 演进改名
 
 Assets/Tests/EditMode/Simulation/
@@ -412,7 +416,8 @@ docs/2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md
 2. NS0 后：在场景或架构里绑定 `LocalPlayerService` 到现有 Player Prefab（人工拖引用）。  
 3. NS5：增加独立 Client 启动场景或同编辑器 ParrelSync / 第二实例；Input Actions 无需为网络新增（沿用现 Player Map）。  
 4. 若用 ParrelSync：人工安装，Agent 不改工程第三方。  
-5. Prefab 上若需挂 `RemoteCharacterProxy`，只改脚本并列出拖拽字段，不直接改 `.prefab`。
+5. Prefab 上若需挂 `RemoteCharacterProxy`，只改脚本并列出拖拽字段，不直接改 `.prefab`。  
+6. **NS2 Play：** `CombatWorldController` 在 Editor 默认勾选 `previewRemoteGhost`（现有场景无需改 Prefab）。进入 Play 后角色右侧约 2m 出现幽灵，默认 Loopback 100ms。可在 Inspector 调 `remoteGhostWorldOffset` / `remoteGhostLatencyMs`，或取消勾选关闭预览。幽灵不进花名册、不跑命中。
 
 ---
 
@@ -456,6 +461,7 @@ NS0 身份
 | 2026-08-14 | 补 §13 服务器代码规范：对照 Source / 守望 / NetCode Ghosts 与 DemoServer；写入 CONVENTIONS |
 | 2026-08-14 | NS0 代码：ILocalPlayer / LocalPlayerService / 感知最近玩家；玩法删除 FindObjectOfType&lt;PlayerController&gt; |
 | 2026-08-14 | NS1 代码：复制 Snapshot/Tick/Command + Loopback 传输；EditMode 往返与 60 帧单调 |
+| 2026-08-14 | NS1 验收关闭；NS2 代码：RemoteProxy + Loopback 同机幽灵；Play 待确认 |
 
 ---
 

@@ -22,6 +22,9 @@ public class PlayerController : AppControllerBase, ILocalPlayer
     /// <summary>运行时角色 Actor；供 Debug HUD / Scene Gizmo 只读访问。</summary>
     public CharacterActor Actor => actor;
 
+    /// <summary>装配用角色配置；幽灵预览复用同一套模型与动画。</summary>
+    public CharacterConfig CharacterConfig => characterConfig;
+
     /// <summary>玩家量化输入中枢，供调试与玩法查询。</summary>
     public InputManager Input => actor?.Input;
 

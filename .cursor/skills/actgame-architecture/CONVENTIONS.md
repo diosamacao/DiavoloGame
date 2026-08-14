@@ -43,6 +43,7 @@
 - **量化输入格式**：玩家设备、回放与未来网络输入使用 `InputFrame`；Move 为 sbyte、按钮为固定 bitset，禁止恢复 float/string `PlayerInputFrame`。AI 控制命令使用 Desire / Entry Request，不伪装设备输入
 - **本机玩家入口**：玩法与相机通过 `LocalPlayerService` / `GetLocalPlayerQuery` / `GetPlayerRootsQuery` 取玩家；禁止 `FindObjectOfType<PlayerController>()`（仅 Editor Gizmo 可留）。`IsLocalPredicted` 在 NS0 单机 Host 上恒为 false
 - **复制契约**：上下行结构体与编解码在 `ACTGame.Simulation/Replication`；传输接口在 `ACTGame.Net`。禁止把 CameraLock/Look/Lean 写入 Snapshot；禁止 ClientCommand 带 HP/坐标/招式名
+- **RemoteProxy**：他人/预览幽灵只应用 Snapshot（`Domain/Character/Replication/`），禁止 `CharacterActorFactory`、`HitboxFrameConsumer`、`EnemyBrain.Step`。Host 用 `AfterLogicStep` 打包，不得只在渲染帧漏步发送
 - **移动参考闭包**：相机相对移动只消费 `InputFrame.MoveReferenceYawQuantized`；CameraManager 只能 staged yaw，禁止把 PlanarBasis/Camera Transform 直接写入 Motor
 - **输入阶段先于 Actor**：World 每帧先调用 `ISimulationInputProducer`，再按 Id 执行 Actor；AI Brain 在该阶段写通用命令槽并为统一时序提交空 `InputFrame`
 - **命中延迟结算**：Hitbox 几何检测只写共享 `CombatHitPipeline`；全体 Actor Step 完成后按 `SimHitKey` 排序，再统一伤害、Reaction 与命中确认
@@ -161,7 +162,7 @@ public class MyBehaviour : MonoBehaviour
 
 - **一份战斗逻辑**：`ACTGame.Simulation`（`Assets/Scripts/Domain/Simulation/ACTGame.Simulation.asmdef`，`noEngineReferences`）等价 Source 的 `game/shared`。Listen Host、Dedicated、客户端预测位移必须调用同一 `CharacterMotorSim` / `ActionSim`，禁止 `ServerMotor` / `ClientMotor` 双份
 - **输入即命令**：`InputFrame` 等价 Source `CUserCmd`（`game/shared/usercmd.h`）。权威 `InputFrameBuffer.SetRemote` 后 `SimulationWorld.Step`；禁止把「放 LightAttack1」RPC 当战斗上行
-- **状态下行**：`ReplicationSnapshotBuilder` 从权威 Actor 填 `ActorReplicationSnapshot`（规划：`Domain/Simulation/Replication/`）。客户端 PredictedLocal 纠偏、RemoteProxy 插值；禁止再广播全员输入让各端重演
+- **状态下行**：`CharacterReplicationCapture` + `ReplicationSnapshotBuilder` 从权威 Actor 填 `ActorReplicationSnapshot`（`Domain/Simulation/Replication/`）。客户端 PredictedLocal 纠偏、RemoteProxy 插值；禁止再广播全员输入让各端重演
 - **命中只在权威**：`CombatHitPipeline` 仅 Authority 装配 Collect。客户端刀光不得改 Numeric / Vitality
 
 ### 两套管线（不可混）
@@ -192,8 +193,9 @@ public class MyBehaviour : MonoBehaviour
 ### 目录（实现时必须落这里）
 
 ```
-Domain/Simulation/Replication/   # Snapshot / Tick / Command，无 Unity
-Domain/Net/                      # IReplicationTransport、Authority、Client
+Domain/Simulation/Replication/   # Snapshot / Tick / Command / PoseApplier，无 Unity
+Domain/Character/Replication/    # Catalog / Capture / RemoteProxy（有 Unity，无 Collect）
+Domain/Net/                      # IReplicationTransport、Loopback；Authority/Client 待 NS5
 Infrastructure/Net/              # UDP 等传输，不得被 ACTGame.Simulation 引用
 ```
 

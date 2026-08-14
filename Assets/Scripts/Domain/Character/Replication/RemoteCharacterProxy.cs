@@ -1,0 +1,148 @@
+using System;
+using UnityEngine;
+
+/// <summary>
+/// 远端角色表现体：只应用 Snapshot 位姿与动作 Seek，不跑 ActionSim、Hitbox Collect、EnemyBrain。
+/// </summary>
+public sealed class RemoteCharacterProxy : IDisposable
+{
+    readonly Transform _root;
+    readonly CharacterMotor _motor;
+    readonly CharacterAnimationService _animation;
+    readonly CharacterPresentationBridge _presentation;
+    readonly ActionReplicationCatalog _catalog;
+    readonly Vector3 _worldOffset;
+    readonly float _fixedDeltaSeconds;
+    readonly bool _ownsRoot;
+
+    ActionDefinition _animationAction;
+    int _animationSegmentIndex = -1;
+    AnimationKey? _locomotionKey;
+
+    /// <summary>幽灵权威根；调试与测试读位姿用。</summary>
+    public Transform Root => _root;
+
+    /// <summary>幽灵逻辑电机；仅被快照写入，不进 SimulationWorld。</summary>
+    public CharacterMotorSim MotorSim => _motor.Sim;
+
+    /// <summary>供相机以外的表现跟随的插值锚点。</summary>
+    public Transform PresentationRoot => _presentation != null ? _presentation.PresentationRoot : _root;
+
+    /// <summary>幽灵永不收集命中；恒为 false，供装配断言。</summary>
+    public bool CollectsHits => false;
+
+    /// <summary>装配已创建的表现图；animation 可空（仅测位姿时）。</summary>
+    public RemoteCharacterProxy(
+        Transform root,
+        CharacterMotor motor,
+        CharacterAnimationService animation,
+        CharacterPresentationBridge presentation,
+        ActionReplicationCatalog catalog,
+        Vector3 worldOffset,
+        float fixedDeltaSeconds,
+        bool ownsRoot = false)
+    {
+        _root = root != null ? root : throw new ArgumentNullException(nameof(root));
+        _motor = motor ?? throw new ArgumentNullException(nameof(motor));
+        _animation = animation;
+        _presentation = presentation ?? throw new ArgumentNullException(nameof(presentation));
+        _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
+        _worldOffset = worldOffset;
+        _fixedDeltaSeconds = fixedDeltaSeconds > 0f
+            ? fixedDeltaSeconds
+            : 1f / SimulationConfig.DefaultLogicHz;
+        _ownsRoot = ownsRoot;
+    }
+
+    /// <summary>
+    /// 应用一帧权威快照：写 Motor、同步根、Seek/播 Locomotion；不 Dispatch 判定帧。
+    /// </summary>
+    public void ApplySnapshot(in ActorReplicationSnapshot snapshot)
+    {
+        _presentation.BeginSimulationStep();
+        ReplicationPoseApplier.ApplyToMotor(_motor.Sim, in snapshot);
+        ApplyWorldOffset();
+        _motor.SyncRootPoseFromSim();
+        ApplyPresentation(in snapshot);
+        _presentation.EndSimulationStep();
+    }
+
+    /// <summary>按 Host 插值比例更新模型锚点；邻近 Pose 走 lerp，禁止每渲染帧硬切。</summary>
+    public void Render(float interpolationAlpha) => _presentation.Render(interpolationAlpha);
+
+    /// <summary>释放动画后端；ownsRoot 时销毁幽灵根物体。</summary>
+    public void Dispose()
+    {
+        _animation?.Dispose();
+        if (_ownsRoot && _root != null)
+            UnityEngine.Object.Destroy(_root.gameObject);
+    }
+
+    /// <summary>预览偏移加在毫米坐标上，避免与 Host 模型重叠。</summary>
+    void ApplyWorldOffset()
+    {
+        if (_worldOffset.sqrMagnitude < 0.0001f)
+            return;
+
+        int x = _motor.Sim.PositionMm.X + MotionQuantization.MetersToMm(_worldOffset.x);
+        int y = _motor.Sim.YMm + MotionQuantization.MetersToMm(_worldOffset.y);
+        int z = _motor.Sim.PositionMm.Z + MotionQuantization.MetersToMm(_worldOffset.z);
+        _motor.Sim.TeleportMm(x, y, z);
+    }
+
+    /// <summary>有招则只在切段时 Play+Seek；空闲播 LocomotionKey。禁止派发 Hitbox。</summary>
+    void ApplyPresentation(in ActorReplicationSnapshot snapshot)
+    {
+        if (_animation == null)
+            return;
+
+        bool frozen = snapshot.FreezeFrames > 0;
+        if (snapshot.ActionId != 0 && _catalog.TryGet(snapshot.ActionId, out ActionDefinition action))
+        {
+            _locomotionKey = null;
+            SeekActionIfSegmentChanged(action, snapshot.ActionFrame);
+            _animation.SetSpeed(frozen ? 0f : 1f);
+            if (!frozen)
+                _animation.Tick(_fixedDeltaSeconds);
+            return;
+        }
+
+        _animationAction = null;
+        _animationSegmentIndex = -1;
+        _animation.SetSpeed(frozen ? 0f : 1f);
+        AnimationKey key = ResolveLocomotionKey(snapshot.LocomotionPhase);
+        if (_locomotionKey != key)
+        {
+            _animation.Play(key);
+            _locomotionKey = key;
+        }
+
+        if (!frozen)
+            _animation.Tick(_fixedDeltaSeconds);
+    }
+
+    /// <summary>与权威表现桥相同：同动作同段不 Seek，避免每逻辑帧硬切。</summary>
+    void SeekActionIfSegmentChanged(ActionDefinition action, int actionFrame)
+    {
+        ActionFrameQueryResult query = ActionFrameQuery.Query(action, actionFrame);
+        if (!query.HasAnimationSegment)
+            return;
+
+        int segmentIndex = query.SegmentIndex;
+        if (_animationAction == action && _animationSegmentIndex == segmentIndex)
+            return;
+
+        ActionAnimationSegment segment = query.Segment;
+        _animation.PlayClip(segment.clip, action.ResolveSegmentCrossFade(segmentIndex));
+        _animation.SeekClip(query.SegmentLocalTime);
+        _animationAction = action;
+        _animationSegmentIndex = segmentIndex;
+    }
+
+    static AnimationKey ResolveLocomotionKey(byte locomotionPhase)
+    {
+        if (!Enum.IsDefined(typeof(AnimationKey), (int)locomotionPhase))
+            return AnimationKey.Idle;
+        return (AnimationKey)locomotionPhase;
+    }
+}

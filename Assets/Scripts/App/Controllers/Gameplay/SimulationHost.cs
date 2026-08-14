@@ -33,6 +33,12 @@ public sealed class SimulationHost : AppControllerBase
     /// <summary>场景共享静态碰撞世界；角色 MotorSim 必须使用同一实例。</summary>
     public ISimCollisionWorld CollisionWorld => _collisionWorld;
 
+    /// <summary>当前渲染帧相对上一逻辑步的插值比例，供幽灵与权威表现共用。</summary>
+    public float InterpolationAlpha => _accumulator != null ? _accumulator.InterpolationAlpha : 0f;
+
+    /// <summary>每个逻辑步在 Combat/PostCombat/生命周期提交之后触发；参数为权威帧号。</summary>
+    public event Action<long> AfterLogicStep;
+
     void Awake()
     {
         _config = new SimulationConfig();
@@ -99,6 +105,8 @@ public sealed class SimulationHost : AppControllerBase
             CommitEnemyLifecycle();
             // 表现层按逻辑帧递减 VFX HitStop 等，禁止用 unscaled 秒倒计时
             GetArchitecture().SendEvent(SimulationLogicStepEvent.Instance);
+            // 每个逻辑步都通知，避免追帧时漏打包复制 Tick
+            AfterLogicStep?.Invoke(_world.CurrentFrame);
         }
     }
 

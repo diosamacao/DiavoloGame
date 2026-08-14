@@ -1,12 +1,23 @@
 using UnityEngine;
 
-/// <summary>场景级战斗世界入口控制器，集中承载目标注册、命中检测、索敌与反馈系统的生命周期。</summary>
+/// <summary>场景级战斗世界入口：固定帧宿主、反馈，以及 NS2 同机幽灵预览（可选）。</summary>
 [DefaultExecutionOrder(-200)]
 [DisallowMultipleComponent]
 public class CombatWorldController : AppControllerBase
 {
     [Tooltip("可选：静态障碍烘焙资产。未绑定则使用空场地（地面 Y=0、无硬挡）。")]
     [SerializeField] StaticCollisionBake staticCollisionBake = null;
+
+    [Header("NS2 Ghost Preview")]
+    [Tooltip("Editor 默认开启：同机第二视图跟本机玩家 Snapshot。不进花名册、不跑命中。")]
+    [SerializeField] bool previewRemoteGhost =
+#if UNITY_EDITOR
+        true;
+#else
+        false;
+#endif
+    [SerializeField] Vector3 remoteGhostWorldOffset = new Vector3(2f, 0f, 0f);
+    [SerializeField] int remoteGhostLatencyMs = 100;
 
     /// <summary>当前场景战斗世界；系统查询只把它作为生命周期锚点，不作为业务单例入口。</summary>
     public static CombatWorldController Current { get; private set; }
@@ -27,6 +38,12 @@ public class CombatWorldController : AppControllerBase
         EnsureSimulationHost();
         ApplyStaticCollisionBake();
         EnsureFeedbackController();
+    }
+
+    void Start()
+    {
+        if (previewRemoteGhost)
+            EnsureRemoteGhostPreview();
     }
 
     void OnDestroy()
@@ -61,5 +78,21 @@ public class CombatWorldController : AppControllerBase
             ? staticCollisionBake.CreateWorld()
             : OpenFieldSimCollisionWorld.Instance;
         host.SetCollisionWorld(world);
+    }
+
+    /// <summary>运行时挂上同机幽灵预览；不改 Prefab，现有场景用脚本默认值即可。</summary>
+    void EnsureRemoteGhostPreview()
+    {
+        RemoteGhostViewController ghost = GetComponent<RemoteGhostViewController>();
+        if (ghost == null)
+            ghost = gameObject.AddComponent<RemoteGhostViewController>();
+
+        ILocalPlayer local = SendQuery(new GetLocalPlayerQuery());
+        CharacterConfig config = local is PlayerController player ? player.CharacterConfig : null;
+        ghost.Configure(
+            EnsureSimulationHost(),
+            config,
+            remoteGhostWorldOffset,
+            remoteGhostLatencyMs);
     }
 }

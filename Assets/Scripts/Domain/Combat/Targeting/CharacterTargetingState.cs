@@ -29,6 +29,9 @@ public sealed class CharacterTargetingState
     public CharacterTargetingSnapshot Snapshot =>
         new CharacterTargetingSnapshot(_selectedTargetId);
 
+    /// <summary>阵营 Id，供复制快照填写。</summary>
+    public int TeamId => _teamId;
+
     /// <summary>在动作解析前推进自动选择与左右切敌；Action/Locomotion 共用同一规则。</summary>
     public void Step(
         SimActorId requesterId,

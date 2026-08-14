@@ -117,6 +117,9 @@ public sealed class CharacterActor :
     /// <summary>唯一 SelectedTarget 的只读快照。</summary>
     public CharacterTargetingSnapshot TargetingSnapshot => _targetingState.Snapshot;
 
+    /// <summary>阵营 Id，与 Targeting 一致；复制快照直接填写。</summary>
+    public int TeamId => _targetingState.TeamId;
+
     /// <summary>为 Camera/UI 把 SelectedTargetId 映射到只读表现目标。</summary>
     public bool TryGetSelectedTarget(out ITargetable target) =>
         _targetingState.TryGetSelectedTarget(out target);
