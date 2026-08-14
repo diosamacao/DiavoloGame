@@ -87,7 +87,7 @@ public class MyBehaviour : MonoBehaviour
 - 需要独占时 `SetLocked(true)`；卡肉用 `SetSpeed(0)`，禁止业务直写 `Animator.speed`
 - Locomotion：`applyRootMotion = false`，水平位移经 `CharacterMotor` → `CharacterMotorSim`；Transform/CC 跟随 XZ
 - 角色互撞（定案）：逻辑圆盘软弹开，按 `softBodyMass` 分配推力；大体型勾 `softBodyImmovable`；禁止 Unity Physics/CC 互撞权威；静态障碍烘焙硬挡
-- 联网（定案，2026-08-13）：组队 PVE 为 Host/DS 权威状态同步；上行量化 `InputFrame`，下行 `ActorReplicationSnapshot`；命中只在权威 `CombatHitPipeline`。禁止全端同构输入广播作为产品主路径，禁止客户端上报伤害结果，禁止以齐帧停等作为手感模型。锁步 L0～L2 模拟核仍适用。真源：`docs/2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md`
+- 联网（定案，2026-08-13；规范补全 2026-08-14）：组队 PVE 为 Host/DS 权威状态同步；上行量化 `InputFrame`，下行 `ActorReplicationSnapshot`；命中只在权威 `CombatHitPipeline`。禁止全端同构输入广播作为产品主路径，禁止客户端上报伤害结果，禁止以齐帧停等作为手感模型。锁步 L0～L2 模拟核仍适用。服务器写法见下方「服务器 / 权威进程」。真源：`docs/2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md`
 - Action：烘焙表就绪时查表写 MotorSim；未烘焙且 `UseRootMotion` 时由 `CharacterRootMotionDriver` 经 Motor 写入；否则可用 `MovementNotifyState` 脚本位移
 - 同 key 不重复 Play（门面 `_currentKey` 去重）；无 Animator Controller 业务依赖
 - 角色销毁时 `CharacterActor.Dispose()` 释放 PlayableGraph
@@ -151,6 +151,59 @@ public class MyBehaviour : MonoBehaviour
 - 灵敏度、Clamp 等 tunable 值 SerializeField 暴露
 - `CameraLockEnabled` 只属于本地表现；通过 `ILocalCameraTargetSource` 只读 SelectedTarget，范围内无目标时不得开启
 
+## 服务器 / 权威进程
+
+权威进程 = 独跑 `SimulationWorld` 的 Listen Host 或日后 Dedicated，不是另一套战斗工程。对照：Valve Source `game/shared` + `CUserCmd`、守望 command frame、Unity Netcode Entities Ghost、以及 `D:\Projects\DemoServer` 的 Handler/Room。细则与「学 / 不学」表见方案 §13。
+
+### 共享模拟核
+
+- **一份战斗逻辑**：`ACTGame.Simulation`（`Assets/Scripts/Domain/Simulation/ACTGame.Simulation.asmdef`，`noEngineReferences`）等价 Source 的 `game/shared`。Listen Host、Dedicated、客户端预测位移必须调用同一 `CharacterMotorSim` / `ActionSim`，禁止 `ServerMotor` / `ClientMotor` 双份
+- **输入即命令**：`InputFrame` 等价 Source `CUserCmd`（`game/shared/usercmd.h`）。权威 `InputFrameBuffer.SetRemote` 后 `SimulationWorld.Step`；禁止把「放 LightAttack1」RPC 当战斗上行
+- **状态下行**：`ReplicationSnapshotBuilder` 从权威 Actor 填 `ActorReplicationSnapshot`（规划：`Domain/Simulation/Replication/`）。客户端 PredictedLocal 纠偏、RemoteProxy 插值；禁止再广播全员输入让各端重演
+- **命中只在权威**：`CombatHitPipeline` 仅 Authority 装配 Collect。客户端刀光不得改 Numeric / Vitality
+
+### 两套管线（不可混）
+
+| 管线 | 频率 | 载荷 | 写法 |
+|------|------|------|------|
+| **战斗流** | 逻辑帧 | `ClientCommand` ↔ `AuthorityTick` | `ReplicationAuthority` 收命令、Step、打包；无逐技能 Handler |
+| **元数据 RPC** | 点一次 | 登录、背包、领奖（NS5 后另开） | 可学 DemoServer `Req*_Handler` / `RpcHandler`；**禁止**改 HP、硬直、`ActionSim` |
+
+### Handler 与房间（学 DemoServer 的壳，不学它的战斗权威）
+
+- Handler 只做：Session → `playerId`、校验房间、把 `InputFrame` 入队或调用元数据 Service。示例对照：`DemoServer/ZZZServer/Handler/Account/ReqLogin_Handler.cs`（薄 Handler）
+- Handler **禁止**：`MotorSim.Step`、`ActionSim.Step`、`CombatHitPipeline.Collect`、写 HP、写世界坐标
+- 房间时钟 = `SimulationWorld.Step`（60Hz 整数帧），不是 `Room.Update(float dt)` 里手写怪 AI。AI 仍走权威端 `EnemyBrain`（`Assets/Scripts/Domain/Enemy/EnemyBrain.cs`）
+- 广播走 `AuthorityTick` 全员同一份；不要为攻击者单独发「你打中了」作为唯一血量通道。`hits[]` 只补边沿，HP 在 Snapshot 里
+
+### 线程与入队
+
+- 网络收包线程只入队 `ClientCommand`；`SimulationWorld.Step` 与 Snapshot 打包在**同一模拟线程**
+- 断线回调不得直接改 World；入队到权威帧再剔除（对照 DemoServer `NetMsgProcessor.EnqueueTask`，语义保留、实现自有）
+- Listen Host 本地玩家不预测，直接吃权威（0 RTT）；远端客户端才 PredictedLocal
+
+### 身份与配置
+
+- 战斗身份只有 `SimActorId`。进房时 `playerId` → Actor 映射一次；禁止 `GetInstanceID()`、Uid 字符串进 HitKey / Snapshot 排序
+- 关卡与招式配置：Host 仍读现有 ScriptableObject。Dedicated 无头进程另开数据烘焙，不在战斗流里用 Mongo 玩家档当 Motor 状态（DemoServer `Player` 混持久化与 `NSync` 的做法不搬进 PVE 房间）
+
+### 目录（实现时必须落这里）
+
+```
+Domain/Simulation/Replication/   # Snapshot / Tick / Command，无 Unity
+Domain/Net/                      # IReplicationTransport、Authority、Client
+Infrastructure/Net/              # UDP 等传输，不得被 ACTGame.Simulation 引用
+```
+
+### 明确不搬进本项目的 DemoServer 战斗写法
+
+| DemoServer | 路径 | 本项目 |
+|------------|------|--------|
+| 客户端上报位姿 | `Player.UpdateFromAutonomous` | 禁止；位姿由权威 MotorSim 算 |
+| 客户端上报伤害 | `MsgMonsterTakeDamage_Handler` | 禁止；只认权威逻辑盒 |
+| 技能名字符串 RPC | `MsgRolePlayAction` | 禁止；用 InputFrame 边沿 + 权威 ActionId/帧 |
+| 秒制 Room.Update | `Room.Update(float dt)` | 禁止作为战斗权威时钟 |
+
 ## 注释与语言
 
 - 用户可见 Debug 信息可用中文
@@ -177,6 +230,10 @@ public class MyBehaviour : MonoBehaviour
 | 在 `PlayerController.Awake` 中为业务类 `AddComponent` | 这只是把 Prefab 堆脚本改成运行时堆脚本，必须改为纯 C# service |
 | 新增 static event / static registry 作为跨系统业务入口 | 破坏 QFramework 风格架构边界；应使用 Command / Event / System |
 | 在 `Domain/**` 中直接调用 `ACTGameArchitecture.Interface` | 破坏下层不依赖上层的分层规则；应由 App 层通过 Query、Command 或构造注入提供依赖 |
+| 为 Dedicated 重写一套 Motor/Action/Hit 逻辑 | 必须复用 `ACTGame.Simulation`；Host/DS 只换宿主与传输 |
+| 战斗上行用技能名 / 伤害 / 世界坐标 RPC | 破坏 InputFrame 命令流与权威 Hitbox；元数据 RPC 另管线 |
+| 客户端 `HitboxFrameConsumer` 写入 `CombatHitPipeline` | 多端各算各的刀；Collect 仅 Authority |
+| 传输实现引用进 `ACTGame.Simulation` | Snapshot 契约必须无引擎、可单测；UDP 放 `Infrastructure/Net/` |
 
 ## 已废弃模式
 

@@ -1411,7 +1411,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   characterConfig: {fileID: 11400000, guid: a21dbce80e5086944bce3b6329980cf1, type: 2}
-  cameraTransform: {fileID: 1124908586}
+  drawFacingDebugArrows: 1
 --- !u!4 &1634889785
 Transform:
   m_ObjectHideFlags: 0
@@ -12041,7 +12041,7 @@ MonoBehaviour:
   lockCursorOnStart: 1
   followDistance: 4
   initialPitch: 15
-  followSmoothTime: 0
+  followSmoothTime: 0.05
   followFacingWhileMoving: 1
   cameraFollowFacingSmoothTime: 0.35
   lookOverrideResumeDelay: 0.25

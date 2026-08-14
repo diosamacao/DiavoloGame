@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-13（MoveReferenceYaw 输入闭包 + 唯一 SelectedTarget + 纯表现 CameraLock）
+> Last updated: 2026-08-14（联网主路径改为状态同步；补服务器代码规范索引）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,6 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
+| 组队 PVE 状态同步 / 权威进程 | ⬜ 仅规范 | `ReplicationAuthority`（规划） | `docs/2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md` §13；CONVENTIONS「服务器 / 权威进程」 |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -140,7 +141,7 @@ SimulationHost.LateUpdate
 - L2/M2：`Bake All` / `Bake Dirty Only` + Inspector Dirty 黄条 + `ACTGame/Motion/Validate Motion Dirty`。
 - L2 软弹开：`SimulationWorld` 帧末按 Id 序对 `ISimSoftBodyParticipant` 执行 `SoftBodySeparation`（默认 factor=500‰、迭代 3）；按 `softBodyMass` 分配推力，`softBodyImmovable` 像墙；死亡不参与。
 - L2 命中：`SimCombatPose` 从 MotorSim 取水平根；Hitbox 挂点只提供相对根局部 TRS；Hurtbox 用 `GetLogicalHurtbox`；自身排除用 `SimActorId`。
-- 联网定案（方案层）：完整客户端预测 + 回滚；权威仍为 FramePacket（见 `docs/ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md` §5.12）。
+- 联网定案（方案层，2026-08-13）：Host/DS 权威状态同步；上行 `InputFrame`，下行 `ActorReplicationSnapshot`；命中只在权威 Pipeline。锁步 L5 已取消。服务器写法见 CONVENTIONS「服务器 / 权威进程」与方案 §13。
 
 ### 相关文件
 
@@ -909,6 +910,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-12 | Locomotion Play 验收关闭（L-DIR1～5 + Pivot）；旧案 Phase D 减速曲线不做 |
 | 2026-08-13 | C-AT0～3 代码重构：MoveReferenceYaw 入 InputFrame；唯一 SelectedTarget + Action 中切敌；删除 PlanarBasis、CombatTargetLock、ActionTargetId 与表现 late-bind |
 | 2026-08-13 | FollowMove 不再因 SelectedTarget 自动升格 FaceTarget；玩家锁面仅攻击窗口/显式 FaceTarget Profile |
+| 2026-08-14 | 联网主路径更正为状态同步（删 TECHNICAL 内过期 FramePacket 句）；补服务器代码规范索引 |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
 | 2026-08-09 | BT Graph：装饰/条件改为宿主顶部徽章（UE 表现）；运行真源仍为装饰链 |
