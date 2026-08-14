@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-14（NS2 RemoteProxy 同机幽灵）
+> Last updated: 2026-08-15（幽灵 Locomotion Seek 对齐）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -12,7 +12,7 @@
 | 逻辑 Hurtbox 调试线框 | ✅ 已实现 | `CombatHurtboxDebugSettings` + `CombatHurtboxDebugVisualizer` | F4 开关（F3 HUD 显示状态） |
 | 固定帧模拟宿主 | ✅ L0A 已实现 | `SimulationHost`、`SimulationWorld`、`SimActorId` | 60Hz，无资产 |
 | Wave0 动作审计 / 锚点可视化 / Debug HUD | ✅ 已实现 | `ActionDefinitionAuditUtility`、`CharacterAnchorGizmoDrawer`、`CombatDebugHudController` | 菜单 `ACTGame/Action/Validate Motion Sources`；场景挂 HUD |
-| 角色朝向调试箭头 | ✅ Play 实心箭 | `CharacterFacingDebugVisualizer`（wish 黄 / 模型品红） | PlayerController `drawFacingDebugArrows` |
+| 角色朝向调试箭头 | ✅ Play 实心箭 | `CharacterFacingDebugVisualizer` + `ICharacterFacingDebugTarget` | 本体 / 幽灵各一份；黄=wish 品红=模型 |
 | Wave1 位移止血 / BaseMotionMode / 相机滤左右 | ✅ 已实现 | `ForwardSigned`、`ActionBaseMotionMode`、`CameraManager.lateralFollowFactor` | Attack 需以 ForwardSigned 重烘焙；菜单 Migrate Base Motion Mode |
 | Wave2 视觉残差 / VisualMotionRoot | ✅ 已实现（含 2.5） | `CharacterVisualMotionBridge`、`TryGetVisualResidualMm` | ForwardSigned：Motor 无横摆，模型在 VisualRoot 摆；BlendToZero 期间跳过逻辑贴帧，避免回 Idle 抖动 |
 | Wave3 玩法资源 / 同键 EX | 🟡 资产待绑；运行时已迁 Numeric | `NumericCostGate`、`ActionResourceSpec`、`ActionEnergyFormSelector` | Spec 填表；Graph 双 Entry |
@@ -252,7 +252,8 @@ Builder.FromAuthority → AuthorityTick → Codec.Write
 |----|------|
 | 捕获 | `CharacterReplicationCapture.FromActor` + 共享 `ActionReplicationCatalog` |
 | 传输 | 现有 `LoopbackReplicationTransport`（默认 100ms） |
-| 应用 | `RemoteCharacterProxy`：`ReplicationPoseApplier` + `SyncRootPoseFromSim` + 切段 Seek / Locomotion `Play` |
+| 应用 | `RemoteCharacterProxy`：位姿写 Motor；招式切段 Seek；Locomotion 硬切 + `SeekLocomotionNormalized`；关掉 Animator RM |
+| 朝向调试 | 幽灵挂同一套黄/品红箭；wish 走快照 `moveV*`，与延迟位姿成对 |
 | 插值 | 复用 `CharacterPresentationBridge.Render(alpha)` |
 | 装配 | `RemoteCharacterProxyFactory`，**不**走 `CharacterActorFactory` |
 | 入口 | `SimulationHost.AfterLogicStep`；`CombatWorldController.previewRemoteGhost`（Editor 默认开） |
@@ -277,6 +278,7 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 ### 已知限制
 
 - Play 待 Editor 确认（走/攻是否跟帧、有无每帧瞬移）
+- PivotTurn 根朝向仍只跟快照 facing（不在幽灵侧重跑 AnimAuth）；Clip 已按权威归一化时间 Seek
 - Catalog 是同进程引用表，不是跨进程稳定 Id
 - 幽灵不进花名册、无 Hurtbox、无 VFX/SFX 时间轴
 - `ReplicationAuthority` / 真实房间仍待 NS5
@@ -1054,6 +1056,8 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-14 | NS0：`ILocalPlayer` / `LocalPlayerService`；敌人感知最近玩家根；玩法删除 Find 唯一 PlayerController |
 | 2026-08-14 | NS1：复制 Snapshot/Tick/Command + Codec + Loopback；EditMode 往返与 60 帧单调 |
 | 2026-08-14 | NS2：RemoteProxy + Loopback 同机幽灵；Host AfterLogicStep 打包；不 Collect |
+| 2026-08-14 | 朝向调试箭头解耦为 `ICharacterFacingDebugTarget`；幽灵同步黄/品红箭（wish 走 moveV*） |
+| 2026-08-15 | 幽灵 Locomotion：复制归一化时间并硬切 Seek；工厂关掉 Animator RM |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

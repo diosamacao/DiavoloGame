@@ -91,6 +91,29 @@ public sealed class CharacterAnimationService : IDisposable, ILocomotionAnimClip
     /// <summary>将当前招式 Clip 跳到指定时间（秒）；仅切段对时使用，勿每逻辑帧调用。</summary>
     public void SeekClip(float timeSeconds) => playback?.Seek(timeSeconds);
 
+    /// <summary>
+    /// 按权威归一化时间对齐当前 Locomotion Clip。
+    /// 循环片对 1 取模，避免 Seek 被夹到片尾；Evaluate 在 Seek 内完成，调用方不必再 Tick。
+    /// </summary>
+    public void SeekLocomotionNormalized(float normalizedTime)
+    {
+        if (playback == null || !playback.IsValid || playback.CurrentClip == null)
+            return;
+
+        AnimationClip clip = playback.CurrentClip;
+        float wrapped = normalizedTime;
+        if (clip.isLooping && wrapped >= 0f)
+            wrapped -= Mathf.Floor(wrapped);
+        if (wrapped < 0f)
+            wrapped = 0f;
+
+        float length = clip.length;
+        if (length <= 0.0001f)
+            return;
+
+        playback.Seek(wrapped * length);
+    }
+
     public bool HasFinishedClip(AnimationClip clip)
     {
         if (playback == null || clip == null)
