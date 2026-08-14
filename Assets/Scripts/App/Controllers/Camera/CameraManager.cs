@@ -19,6 +19,7 @@ public class CameraManager : AppControllerBase
     [SerializeField] float cameraRootHeight = 1.4f;
 
     [Header("Input")]
+    [Tooltip("可选覆盖；为空时查询 LocalPlayerService。")]
     [SerializeField] PlayerController playerController;
 
     [Header("Look")]
@@ -140,7 +141,6 @@ public class CameraManager : AppControllerBase
         pitch = initialPitch;
         EnsureBrain();
         ResolveFollowTarget();
-        ResolvePlayerController();
         ResolvePresentationFollowTarget();
         EnsureCameraRoot();
         EnsureCameraShakeController();
@@ -150,7 +150,6 @@ public class CameraManager : AppControllerBase
     void Start()
     {
         ResolveFollowTarget();
-        ResolvePlayerController();
         ResolvePresentationFollowTarget();
         if (cameraRoot == null || virtualCamera == null)
         {
@@ -206,9 +205,7 @@ public class CameraManager : AppControllerBase
     /// <summary>把最终 Orbit yaw 暂存到设备输入边界，不直接写 Motor。</summary>
     void StageMoveReferenceYaw()
     {
-        if (playerController == null)
-            ResolvePlayerController();
-        playerController?.StageMoveReferenceYaw(yaw);
+        ResolveLocalPlayer()?.StageMoveReferenceYaw(yaw);
     }
 
     void EnsureBrain()
@@ -225,6 +222,13 @@ public class CameraManager : AppControllerBase
     {
         if (followTarget != null)
             return;
+
+        ILocalPlayer local = ResolveLocalPlayer();
+        if (local != null)
+        {
+            followTarget = local.PresentationRoot != null ? local.PresentationRoot : local.Root;
+            return;
+        }
 
         GameObject player = GameObject.FindGameObjectWithTag(playerTag);
         if (player != null)
@@ -249,22 +253,26 @@ public class CameraManager : AppControllerBase
         cameraRoot = rootObject.transform;
     }
 
-    void ResolvePlayerController()
+    /// <summary>本机玩家：Inspector 覆盖优先，否则 LocalPlayerService，禁止场景 Find。</summary>
+    ILocalPlayer ResolveLocalPlayer()
     {
         if (playerController != null)
-            return;
+            return playerController;
 
-        if (followTarget != null)
-            playerController = followTarget.GetComponentInParent<PlayerController>();
+        ILocalPlayer local = GetSystem<LocalPlayerService>()?.Local;
+        if (local is UnityEngine.Object obj && obj == null)
+            return null;
+        return local;
     }
 
     /// <summary>角色装配完成后把相机锚点切到插值表现根，避免追随阶梯式逻辑 Transform。</summary>
     void ResolvePresentationFollowTarget()
     {
-        if (playerController == null)
+        ILocalPlayer local = ResolveLocalPlayer();
+        if (local == null)
             return;
 
-        Transform presentationRoot = playerController.PresentationRoot;
+        Transform presentationRoot = local.PresentationRoot;
         if (presentationRoot == null || presentationRoot == followTarget)
             return;
 
@@ -369,10 +377,11 @@ public class CameraManager : AppControllerBase
 
     void ApplyLookInput()
     {
-        if (!lookEnabled || playerController == null)
+        ILocalPlayer local = ResolveLocalPlayer();
+        if (!lookEnabled || local == null)
             return;
 
-        Vector2 lookInput = playerController.LookInput;
+        Vector2 lookInput = local.LookInput;
         float verticalInput = invertY ? -lookInput.y : lookInput.y;
 
         // Look 抢权：有视角输入时暂停自动跟朝向，松手后延迟恢复
@@ -408,17 +417,16 @@ public class CameraManager : AppControllerBase
         if (_lookOverrideRemaining > 0f)
             return;
 
-        if (playerController == null)
-            ResolvePlayerController();
-        if (playerController?.Input == null || !playerController.Input.HasMoveIntent)
+        ILocalPlayer local = ResolveLocalPlayer();
+        if (local?.Input == null || !local.Input.HasMoveIntent)
         {
             _yawFollowVelocity = 0f;
             return;
         }
 
         // FaceTarget 时不跟朝向，避免与 strafing 锁面抢 yaw
-        if (playerController.Actor != null
-            && playerController.Actor.IsLocomotionFaceTargetActive)
+        if (local.Actor != null
+            && local.Actor.IsLocomotionFaceTargetActive)
         {
             _yawFollowVelocity = 0f;
             return;
@@ -426,7 +434,7 @@ public class CameraManager : AppControllerBase
 
         Transform facingSource = followTarget != null
             ? followTarget
-            : playerController.transform;
+            : local.Root;
         float targetYaw = facingSource.eulerAngles.y;
         yaw = Mathf.SmoothDampAngle(
             yaw,
@@ -438,15 +446,13 @@ public class CameraManager : AppControllerBase
     /// <summary>读取本地锁定键；有 SelectedTarget 才能开启，无目标时自动退出。</summary>
     void UpdateCameraLock()
     {
-        if (playerController == null)
-            ResolvePlayerController();
-
-        ILocalCameraTargetSource targetSource = playerController?.Actor;
+        ILocalPlayer local = ResolveLocalPlayer();
+        ILocalCameraTargetSource targetSource = local?.Actor;
         bool hasTarget = targetSource != null && targetSource.TargetingSnapshot.HasSelectedTarget;
         if (_cameraLockEnabled && !hasTarget)
             _cameraLockEnabled = false;
 
-        if (playerController == null || !playerController.CameraLockPressedThisFrame)
+        if (local == null || !local.CameraLockPressedThisFrame)
             return;
 
         if (_cameraLockEnabled)

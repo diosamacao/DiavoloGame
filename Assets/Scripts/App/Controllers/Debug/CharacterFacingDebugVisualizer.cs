@@ -47,7 +47,7 @@ public sealed class CharacterFacingDebugVisualizer : AppControllerBase
         }
 
         if (_player == null)
-            _player = GetComponent<PlayerController>() ?? FindObjectOfType<PlayerController>();
+            _player = GetComponent<PlayerController>();
         if (_player == null || _player.Actor == null)
         {
             SetRootActive(false);

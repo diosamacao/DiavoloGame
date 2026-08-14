@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>单敌人 Scene/App 入口；按固定顺序推进 Brain 与共享 CharacterActor。</summary>
@@ -10,6 +12,7 @@ public sealed class EnemyController : AppControllerBase
     [SerializeField] bool logBehaviorTreeEachStep = false;
 
     EnemyHandle _handle;
+    Transform[] _pinnedPlayerRoots;
     bool _registered;
     bool _despawnRequested;
     SimulationHost _simulationHost;
@@ -33,11 +36,28 @@ public sealed class EnemyController : AppControllerBase
     /// <summary>打开 Brain 路径采集（供 Graph 调试高亮）。</summary>
     public void EnsureBehaviorDebugEnabled() => _handle?.SetBrainDebugEnabled(true);
 
-    /// <summary>供 SpawnEnemyCommand 在 Start 前注入定义、位置与目标。</summary>
+    /// <summary>供 SpawnEnemyCommand 在 Start 前注入定义；targetTransform 非空时钉死单目标，否则读玩家花名册。</summary>
     public void Initialize(EnemyDefinition definition, Transform targetTransform)
     {
         enemyDefinition = definition;
         target = targetTransform;
+    }
+
+    /// <summary>
+    /// 感知候选：Inspector/命令钉死的单目标优先，否则查询全部玩家根。
+    /// 不得 FindObjectOfType 唯一玩家。
+    /// </summary>
+    IReadOnlyList<Transform> ResolvePlayerRoots()
+    {
+        if (target != null)
+        {
+            if (_pinnedPlayerRoots == null || _pinnedPlayerRoots[0] != target)
+                _pinnedPlayerRoots = new[] { target };
+            return _pinnedPlayerRoots;
+        }
+
+        IReadOnlyList<Transform> roots = SendQuery(new GetPlayerRootsQuery());
+        return roots ?? Array.Empty<Transform>();
     }
 
     void Start()
@@ -91,19 +111,13 @@ public sealed class EnemyController : AppControllerBase
         if (!enemyDefinition.Validate(this))
             return false;
 
-        if (target == null)
-        {
-            PlayerController player = FindObjectOfType<PlayerController>();
-            target = player != null ? player.transform : null;
-        }
-
         CombatWorldController combatWorld = EnsureCombatWorldController();
         _simulationHost = combatWorld.EnsureSimulationHost();
         _handle = EnemyActorFactory.Create(
             gameObject,
             transform,
             enemyDefinition,
-            () => target,
+            ResolvePlayerRoots,
             () => SendQuery(new GetActiveTargetsQuery()),
             _simulationHost.CombatHits,
             new CharacterReactionResolver(enemyDefinition.CharacterConfig.Combat.Reactions),

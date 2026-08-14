@@ -62,15 +62,13 @@ public sealed class CameraDebugAnchorVisualizer : AppControllerBase
         EnsureRoot();
         SetRootActive(true);
 
-        PlayerController player = _camera.GetComponent<PlayerController>();
-        if (player == null)
-            player = FindObjectOfType<PlayerController>();
+        ILocalPlayer local = SendQuery(new GetLocalPlayerQuery());
+        Transform sim = local != null ? local.Root : null;
 
         Transform presentation = _camera.PresentationFollowTarget;
         Transform visual = presentation != null
             ? presentation.Find("CharacterVisualMotionRoot")
             : null;
-        Transform sim = player != null ? player.transform : null;
         Transform cameraRoot = _camera.CameraRootTransform;
         Transform orbit = _camera.OrbitPivotTransform;
         Transform pitch = _camera.PitchPivotTransform;

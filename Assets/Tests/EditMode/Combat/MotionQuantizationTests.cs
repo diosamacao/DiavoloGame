@@ -9,9 +9,10 @@ public sealed class MotionQuantizationTests
     {
         Assert.That(MotionQuantization.MetersToMm(1f), Is.EqualTo(1000));
         Assert.That(MotionQuantization.MetersToMm(0.001f), Is.EqualTo(1));
-        // 0.0025m → 2.5mm → 3（AwayFromZero）；负向对称
-        Assert.That(MotionQuantization.MetersToMm(0.0025f), Is.EqualTo(3));
-        Assert.That(MotionQuantization.MetersToMm(-0.0025f), Is.EqualTo(-3));
+        // 0.0025f*1000 在 float 里是 2.4999… 不是中点，不能用来验 AwayFromZero。
+        Assert.That(MotionQuantization.MetersToMm(0.0016f), Is.EqualTo(2));
+        Assert.That(MotionQuantization.MetersToMm(0.0014f), Is.EqualTo(1));
+        Assert.That(MotionQuantization.MetersToMm(-0.0016f), Is.EqualTo(-2));
     }
 
     /// <summary>偏航包装后再量化，避免 ±360 漂移。</summary>

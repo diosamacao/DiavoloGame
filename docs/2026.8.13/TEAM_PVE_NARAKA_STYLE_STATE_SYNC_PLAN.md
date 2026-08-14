@@ -215,18 +215,18 @@ PredictedLocal 每逻辑帧：
 
 **任务**
 
-- [ ] 引入 `ILocalPlayer` / `LocalPlayerService`：当前拥有输入与相机的 `CharacterActor` 显式注入，禁止玩法再 `FindObjectOfType<PlayerController>()`  
-- [ ] 改 `CameraManager`、`EnemySpawnController`、`EnemyController` 感知、`CombatDebugHudController` 走注入或 Query  
-- [ ] `PlayerController` 增加 `IsLocalPredicted` 预留（NS0 单机恒为 Host 本地，值为 false）  
-- [ ] 敌人仇恨目标改为「感知范围内的玩家 Actor 列表」，不得写死唯一玩家 Transform  
+- [x] 引入 `ILocalPlayer` / `LocalPlayerService`：当前拥有输入与相机的 `CharacterActor` 显式注入，禁止玩法再 `FindObjectOfType<PlayerController>()`  
+- [x] 改 `CameraManager`、`EnemySpawnController`、`EnemyController` 感知、`CombatDebugHudController` 走注入或 Query  
+- [x] `PlayerController` 增加 `IsLocalPredicted` 预留（NS0 单机恒为 Host 本地，值为 false）  
+- [x] 敌人仇恨目标改为「感知范围内的玩家 Actor 列表」，不得写死唯一玩家 Transform  
 
 **验收**
 
-- [ ] `rg "FindObjectOfType<PlayerController>" Assets/Scripts` 仅剩 Editor Gizmo 或已改为 LocalPlayer Query  
+- [x] `rg "FindObjectOfType<PlayerController>" Assets/Scripts` 仅剩 Editor Gizmo 或已改为 LocalPlayer Query  
 - [ ] Play：单人进关、相机跟随、刷怪、敌人追打与改前一致  
 - [ ] Unity 编译通过  
 
-**出口：** 场景不再假设全场只有一个玩家脚本。→ **未达成**
+**出口：** 场景不再假设全场只有一个玩家脚本。→ **代码已落地（2026-08-14）；Play / Editor 编译待确认**
 
 ### NS1 — 复制快照契约（Loopback）
 
@@ -454,6 +454,7 @@ NS0 身份
 |------|------|
 | 2026-08-13 | 初版：组队 PVE 改永劫式状态同步；命中定案为权威逻辑盒；L5 输入广播降为历史对照 |
 | 2026-08-14 | 补 §13 服务器代码规范：对照 Source / 守望 / NetCode Ghosts 与 DemoServer；写入 CONVENTIONS |
+| 2026-08-14 | NS0 代码：ILocalPlayer / LocalPlayerService / 感知最近玩家；玩法删除 FindObjectOfType&lt;PlayerController&gt; |
 
 ---
 

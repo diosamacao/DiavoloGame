@@ -71,7 +71,8 @@ public sealed class SprintLeanModelTests
             leanRecoverSmoothTime: 0.25f);
 
         model.Tick(settings, Vector3.forward, Vector3.right, allowLean: true, deltaTime: 0.016f);
-        Assert.That(Mathf.Abs(model.Lean01), Is.GreaterThan(0.01f));
+        // SmoothDamp(0.25s, 16ms) 首帧约 0.007，只要求动了且未满倾。
+        Assert.That(Mathf.Abs(model.Lean01), Is.GreaterThan(0.001f));
         Assert.That(Mathf.Abs(model.Lean01), Is.LessThan(0.95f));
     }
 

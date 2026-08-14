@@ -17,15 +17,9 @@ public sealed class LocomotionGaitPolicyTests
         gait = r0.NextGait;
         hold = r0.RunHoldSeconds;
 
-        // 累计 3s
-        for (int i = 0; i < 30; i++)
-        {
-            GaitPolicyResult r = policy.Evaluate(new GaitPolicyInput(gait, 1f, 0.5f, 0.1f, hold));
-            gait = r.NextGait;
-            hold = r.RunHoldSeconds;
-        }
-
-        Assert.That(gait, Is.EqualTo(LocomotionGait.Sprint));
+        // 一次累满 3s，避免 0.1f 循环加法的二进制误差。
+        GaitPolicyResult rSprint = policy.Evaluate(new GaitPolicyInput(gait, 1f, 0.5f, 3f, hold));
+        Assert.That(rSprint.NextGait, Is.EqualTo(LocomotionGait.Sprint));
     }
 
     [Test]

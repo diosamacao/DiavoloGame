@@ -22,7 +22,7 @@ public sealed class CombatDebugHudController : AppControllerBase
     void Awake()
     {
         if (playerController == null)
-            playerController = FindObjectOfType<PlayerController>();
+            playerController = SendQuery(new GetLocalPlayerQuery()) as PlayerController;
         _cameraManager = FindObjectOfType<CameraManager>();
 
         EnsureHurtboxVisualizer();
@@ -50,6 +50,9 @@ public sealed class CombatDebugHudController : AppControllerBase
 
     void LateUpdate()
     {
+        if (playerController == null)
+            playerController = SendQuery(new GetLocalPlayerQuery()) as PlayerController;
+
         if (!visible || playerController == null || playerController.Actor == null)
             return;
 

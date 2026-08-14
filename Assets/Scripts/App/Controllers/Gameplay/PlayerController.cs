@@ -3,7 +3,7 @@ using UnityEngine.InputSystem;
 
 /// <summary>玩家角色装配与位移入口；Scene 空物体只需挂本组件并指定 CharacterConfig。</summary>
 [DefaultExecutionOrder(-50)]
-public class PlayerController : AppControllerBase
+public class PlayerController : AppControllerBase, ILocalPlayer
 {
     [Header("References")]
     [SerializeField] CharacterConfig characterConfig = null;
@@ -38,6 +38,12 @@ public class PlayerController : AppControllerBase
     public Transform PresentationRoot => actor?.PresentationRoot != null
         ? actor.PresentationRoot
         : transform;
+
+    /// <summary>权威根，供敌人感知与花名册使用。</summary>
+    public Transform Root => transform;
+
+    /// <summary>NS0 单机即 Host 本地，不预测；远端客户端在 NS3 才为 true。</summary>
+    public bool IsLocalPredicted => false;
 
     void Awake()
     {
@@ -95,6 +101,7 @@ public class PlayerController : AppControllerBase
 
         GetSystem<CombatActorSystem>()?.Register(transform, actor, animation);
         GetSystem<TargetSystem>()?.Register(hurtboxTarget);
+        GetSystem<LocalPlayerService>()?.Register(this, isLocalOwner: true);
         EnsureFacingDebugVisualizer();
     }
 
@@ -107,6 +114,7 @@ public class PlayerController : AppControllerBase
             simulationHost.RegisterNumeric(actor.SimulationId, actor.Numeric);
         }
 
+        GetSystem<LocalPlayerService>()?.Register(this, isLocalOwner: true);
         EnsureFacingDebugVisualizer();
     }
 
@@ -131,6 +139,7 @@ public class PlayerController : AppControllerBase
 
     void OnDisable()
     {
+        GetSystem<LocalPlayerService>()?.Unregister(this);
         if (simulationHost != null)
             simulationHost.Unregister(simulationRegistration);
         simulationRegistration = SimActorRegistration.Invalid;
@@ -139,6 +148,7 @@ public class PlayerController : AppControllerBase
 
     void OnDestroy()
     {
+        GetSystem<LocalPlayerService>()?.Unregister(this);
         if (simulationHost != null)
             simulationHost.Unregister(simulationRegistration);
         reactionService?.Dispose();

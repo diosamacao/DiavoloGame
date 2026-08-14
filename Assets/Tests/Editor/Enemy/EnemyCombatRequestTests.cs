@@ -89,9 +89,10 @@ public sealed class EnemyCombatRequestTests
         var target = new GameObject("BrainTestTarget");
         var profile = ScriptableObject.CreateInstance<EnemyBrainProfile>();
         var requests = new ActionEntryRequestBuffer();
+        Transform[] playerRoots = { target.transform };
         var perception = new EnemyPerception(
             self.transform,
-            () => target.transform,
+            () => playerRoots,
             () => state,
             () => false);
         var brain = new EnemyBrain(
@@ -124,9 +125,10 @@ public sealed class EnemyCombatRequestTests
         var target = new GameObject("BrainTestTarget");
         var profile = ScriptableObject.CreateInstance<EnemyBrainProfile>();
         var requests = new ActionEntryRequestBuffer();
+        Transform[] playerRoots = { target.transform };
         var perception = new EnemyPerception(
             self.transform,
-            () => target.transform,
+            () => playerRoots,
             () => state,
             () => false);
         var brain = new EnemyBrain(

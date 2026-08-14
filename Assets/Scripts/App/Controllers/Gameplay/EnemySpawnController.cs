@@ -9,12 +9,7 @@ public sealed class EnemySpawnController : AppControllerBase
 
     void Start()
     {
-        if (target == null)
-        {
-            PlayerController player = FindObjectOfType<PlayerController>();
-            target = player != null ? player.transform : null;
-        }
-
+        // target 仅作可选钉死；为空时敌人感知读 LocalPlayerService 花名册。
         for (int i = 0; i < entries.Length; i++)
         {
             if (entries[i].SpawnOnStart)

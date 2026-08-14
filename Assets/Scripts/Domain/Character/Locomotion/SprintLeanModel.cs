@@ -98,9 +98,10 @@ public sealed class SprintLeanModel
 
         float curAbs = Mathf.Abs(current);
         float tgtAbs = Mathf.Abs(target);
-        // 同侧加深用 engage；回正或反向切换用 recover（反向先柔和收）
-        bool engaging = tgtAbs > curAbs + SnapEpsilon
-            && Mathf.Sign(current) * Mathf.Sign(target) >= 0f;
+        // 从静止加深必须算 engage：Unity Mathf.Sign(0)==1，Sign(0)*Sign(负目标)<0 会误走 recover。
+        bool fromRest = curAbs <= SnapEpsilon;
+        bool sameSide = current * target >= 0f;
+        bool engaging = tgtAbs > curAbs + SnapEpsilon && (fromRest || sameSide);
         return engaging ? settings.LeanEngageSmoothTime : settings.LeanRecoverSmoothTime;
     }
 

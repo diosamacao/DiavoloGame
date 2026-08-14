@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-/// <summary>创建一个敌人 App 根节点并在 Start 前注入 Definition 与追击目标。</summary>
+/// <summary>创建一个敌人 App 根节点并在 Start 前注入 Definition；target 可空，空则感知读玩家花名册。</summary>
 public sealed class SpawnEnemyCommand : ArchitectureCommandBase
 {
     readonly EnemyDefinition _definition;
