@@ -55,7 +55,7 @@ alwaysApply: true
 ## 执行顺序
 
 ```
-改代码 → 补注释(全部改动文件) → ReadLints(全部改动路径) → 修错 → 再 ReadLints → 附「代码收尾」清单 → 结束
+改代码 → 补注释(全部改动文件) → ReadLints(全部改动路径) → 修错 → 再 ReadLints → 附「改动总结」（及按需「请你在 Editor 确认」，见 summarize-code-changes.mdc）→ 附「代码收尾」清单 → 结束
 ```
 
 ## 禁止

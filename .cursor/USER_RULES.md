@@ -13,6 +13,7 @@
 
 - `actgame-editor-only-assets.mdc` — 美术 / Data / Prefab 仅 Editor 人工
 - `actgame-code-finish-gate.mdc` — 注释 + ReadLints + 「代码收尾」清单
+- `actgame-change-summary.mdc` — 各脚本改动总结 + 整体思路 + Editor 验收清单
 - `actgame-no-legacy-compatibility.mdc` — 重写/重构不保留旧兼容层
 
 新开 Agent 对话后应自动加载。若未生效，请将下方「Settings 粘贴版」复制到 **Cursor Settings → Rules → User Rules**。
@@ -29,8 +30,10 @@ ACTGame Unity 项目约束（最高优先级，与 .cursor/rules/ 一致）：
 【代码收尾】每次创建或修改代码后，向用户表示「已完成」前必须：
 1. 为改动的类、public/protected 成员、非 obvious 逻辑补充注释；
 2. 调用 ReadLints 工具，paths 覆盖本次全部改动文件；有错误则修复后再查；
-3. 在最终回复末尾附「代码收尾」清单（注释文件列表、ReadLints 结果、未解决问题）。
-禁止仅用文字说「已检查 linter」而不调用 ReadLints。
+3. 在最终回复写「改动总结」：整体思路 + 每个脚本一行说明改了什么；
+4. 若需 Unity 编译/Play/Test Runner/Inspector 人工确认，附「请你在 Editor 确认」清单（打开工程等编译通过；Play 写相关游玩路径；Test Runner 写测试类名）；
+5. 在最终回复末尾附「代码收尾」清单（注释文件列表、ReadLints 结果、未解决问题）。
+禁止仅用文字说「已检查 linter」而不调用 ReadLints。禁止只写「已改完」而不总结各脚本。
 
 【重写/重构】涉及代码逻辑重写、框架重构、模块替换时，默认不保留旧兼容层：
 1. 新逻辑为唯一真源，删除旧入口/旧分支/旧适配层；
@@ -42,4 +45,4 @@ ACTGame Unity 项目约束（最高优先级，与 .cursor/rules/ 一致）：
 ## 验证
 
 1. 打开 **Cursor Settings → Rules**，确认 User Rules 中有上述文本（若使用粘贴版）
-2. 在 Agent 中改一个 `.cs` 文件，检查是否：补注释 → 调用 ReadLints → 回复含「代码收尾」清单
+2. 在 Agent 中改一个 `.cs` 文件，检查是否：补注释 → 调用 ReadLints → 回复含「改动总结」与「代码收尾」；涉及运行时/测试时还含「请你在 Editor 确认」
