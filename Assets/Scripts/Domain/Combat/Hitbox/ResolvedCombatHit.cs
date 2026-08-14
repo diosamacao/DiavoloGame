@@ -9,13 +9,15 @@ public readonly struct ResolvedCombatHit
         Transform targetTransform,
         Vector3 hitDirection,
         Vector3 hitPoint,
-        bool absorbedByPerfectDodge = false)
+        bool absorbedByPerfectDodge = false,
+        SimHitKey key = default)
     {
         Context = context;
         TargetTransform = targetTransform;
         HitDirection = hitDirection;
         HitPoint = hitPoint;
         AbsorbedByPerfectDodge = absorbedByPerfectDodge;
+        Key = key;
     }
 
     /// <summary>已成功结算的命中上下文。</summary>
@@ -32,4 +34,7 @@ public readonly struct ResolvedCombatHit
 
     /// <summary>是否为完美闪避吞伤（无扣血/受击 Reaction，表现侧勿播受击 Cue）。</summary>
     public bool AbsorbedByPerfectDodge { get; }
+
+    /// <summary>权威命中键；供下行 ReplicatedHitEvent 去重，不参与表现方向。</summary>
+    public SimHitKey Key { get; }
 }

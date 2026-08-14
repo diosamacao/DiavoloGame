@@ -274,21 +274,21 @@ PredictedLocal 每逻辑帧：
 **验收**
 
 - [x] Loopback RTT=0：预测路径与 Host 本地路径位置误差 ≤ 1mm（同输入脚本）  
-- [ ] Loopback RTT=100ms：本地 strafing 无「等服务器才动」；撞墙后会回拉一次  
+- [x] Loopback RTT=100ms：本地 strafing 无「等服务器才动」；撞墙后会回拉一次  
 - [x] 单测：超阈重放后最终 pose 等于权威 + 后续输入  
 
-**出口：** 非 Host 玩家走路手感接近单机，权威仍能纠正穿墙。→ **代码已落地（2026-08-15）；Play 待 Editor 确认**
+**出口：** 非 Host 玩家走路手感接近单机，权威仍能纠正穿墙。→ **已达成（2026-08-15）**
 
 ### NS4 — 出招预测与权威命中
 
 **任务**
 
-- [ ] PredictedLocal 可推进只读 Action 表现（Clip/VFX）；**禁止**调用权威 `CombatHitPipeline.Collect`  
-- [ ] Authority 继续现有 `HitboxFrameConsumer` → Pipeline → Numeric / Reaction  
-- [ ] 下行 `ReplicatedHitEvent` / Vitality 边沿；客户端 `CharacterReactionService` 只消费复制事件  
-- [ ] 权威未确认的预测招：取消或 Seek 到权威 ActionId/帧  
-- [ ] 吸附 / Relocate 只在 Authority `ActionMotionResolver` 执行，客户端跟 pose，不本地算吸附权威  
-- [ ] **删除**客户端 Numeric 因本地 Hitbox 扣血的任何路径  
+- [x] PredictedLocal 可推进只读 Action 表现（Clip）；**禁止**调用权威 `CombatHitPipeline.Collect`  
+- [x] Authority 继续现有 `HitboxFrameConsumer` → Pipeline → Numeric / Reaction  
+- [x] 下行 `ReplicatedHitEvent` / Vitality 边沿；幽灵只消费 Snapshot/事件，不 Collect  
+- [x] 权威未确认的预测招：取消或改跟权威 ActionId/帧  
+- [x] 吸附 / Relocate 只在 Authority `ActionMotionResolver` 执行，客户端跟 pose，不本地算吸附权威  
+- [x] **删除**客户端 Numeric 因本地 Hitbox 扣血的任何路径（预测/幽灵路径无 Collect）  
 
 **验收**
 
@@ -297,7 +297,7 @@ PredictedLocal 每逻辑帧：
 - [ ] `rg "hitPipeline.Collect" Assets/Scripts` 仅出现在 Authority 装配  
 - [ ] EditMode：权威结算与单机现行 Pipeline 对同一 Input 脚本伤害一致  
 
-**出口：** 伤害与硬直以服务器逻辑盒为准；本地仍能立刻看到自己出招。→ **未达成**
+**出口：** 伤害与硬直以服务器逻辑盒为准；本地仍能立刻看到自己出招。→ **代码已落地（2026-08-15）；Play 待 Editor 确认**
 
 ### NS5 — 最小 2 人 PVE 房间
 
@@ -423,7 +423,8 @@ docs/2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md
 4. 若用 ParrelSync：人工安装，Agent 不改工程第三方。  
 5. Prefab 上若需挂 `RemoteCharacterProxy`，只改脚本并列出拖拽字段，不直接改 `.prefab`。  
 6. **NS2 Play：** `CombatWorldController` 在 Editor 默认勾选 `previewRemoteGhost`（现有场景无需改 Prefab）。进入 Play 后角色右侧约 2m 出现幽灵，默认 Loopback 100ms。可在 Inspector 调 `remoteGhostWorldOffset` / `remoteGhostLatencyMs`，或取消勾选关闭预览。幽灵不进花名册、不跑命中。  
-7. **NS3 Play：** 同组件默认勾选 `previewPredictedClient`。左侧约 2m 为预测视图：应立刻动，且 WASD 转向过程、Sprint 左右倾身、攻击位移应接近中间 Host（不再 10Hz 吸附）。可调 `predictedClientWorldOffset` / `predictedClientLatencyMs`。
+7. **NS3 Play：** 同组件默认勾选 `previewPredictedClient`。左侧约 2m 为预测视图：应立刻动，且 WASD 转向过程、Sprint 左右倾身、攻击位移应接近中间 Host（不再 10Hz 吸附）。可调 `predictedClientWorldOffset` / `predictedClientLatencyMs`。  
+8. **NS4 Play：** 右侧幽灵应同时出现玩家与木桩/敌人（同 +2m 偏移）。Host 砍木桩：中间立刻受击掉血；右侧约 100ms 后播受击，且只一次。左侧出招应立刻播；Host 被打后左侧预测招约 100ms 后取消并改跟受击。
 
 ---
 
@@ -471,6 +472,7 @@ NS0 身份
 | 2026-08-15 | 快照补 `locomotionNormalizedMilli`；幽灵 Locomotion 硬切 Seek，关掉 Animator RM |
 | 2026-08-15 | NS2 验收关闭；NS3 代码：PredictedLocomotionDriver + 纠偏单测 + 同机预测预览；Host 不预测 |
 | 2026-08-15 | NS3 表现：FollowInput 转向、拷贝 Sprint 倾身、出招/转身贴齐权威电机 |
+| 2026-08-15 | NS3 Play 验收关闭；NS4 代码：出招预测纠偏 + 命中/生命边沿复制 + 敌人幽灵 |
 
 ---
 

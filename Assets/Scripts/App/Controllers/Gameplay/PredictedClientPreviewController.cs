@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// NS3 同机预测预览：稳态走跑用 FollowInput 立即预测；出招/转身贴齐权威位姿与倾身。
+/// NS3/NS4 同机预测预览：稳态走跑 FollowInput；出招立即播 Clip，权威硬直延迟到达后取消。
 /// 不替换 Listen Host 本地玩家，不进花名册、不跑命中。
 /// </summary>
 [DefaultExecutionOrder(-39)]
@@ -17,6 +17,7 @@ public sealed class PredictedClientPreviewController : AppControllerBase
     LoopbackReplicationTransport _transport;
     ActionReplicationCatalog _catalog;
     PredictedLocomotionDriver _driver;
+    PredictedActionDriver _actionDriver;
     RemoteCharacterProxy _proxy;
 
     /// <summary>由战斗世界注入 Host、配置与预览参数。</summary>
@@ -65,13 +66,25 @@ public sealed class PredictedClientPreviewController : AppControllerBase
 
         ActorReplicationSnapshot authority = CharacterReplicationCapture.FromActor(actor, _catalog);
         InputFrame input = actor.LastSimulationInput;
-        bool alignToAuthority = ShouldAlignToAuthority(actor, in authority);
+        bool hostStaggered = IsAuthorityStaggered(actor);
+        bool alignToAuthority = !hostStaggered && ShouldAlignToAuthority(actor, in authority);
         if (input.ActorId.IsValid)
         {
-            if (alignToAuthority)
+            if (hostStaggered)
+            {
+                // 权威已硬直：本地继续播预测招，等延迟 Tick 取消，禁止立刻贴受击位姿
+                _actionDriver.TickUnconfirmed(authorityFrame);
+            }
+            else if (alignToAuthority)
+            {
                 _driver.PredictAligned(in input, actor.MotorSim);
+                _actionDriver.Predict(authorityFrame, authority.ActionId, authority.ActionFrame);
+            }
             else
+            {
                 _driver.Predict(in input, ResolvePredictedPlanarSpeedMm(actor, _driver.Config));
+                _actionDriver.Predict(authorityFrame, authority.ActionId, authority.ActionFrame);
+            }
         }
 
         _transport.SendAuthorityToClients(
@@ -87,14 +100,17 @@ public sealed class PredictedClientPreviewController : AppControllerBase
             if (received.Actors.Length == 0)
                 continue;
             _driver.Reconcile(received.AuthorityFrame, in received.Actors[0]);
+            _actionDriver.Reconcile(received.AuthorityFrame, in received.Actors[0]);
         }
 
         // 纠偏重放可能冲掉本帧贴齐；出招/转身仍以权威电机为准
         if (alignToAuthority)
             _driver.SnapMotorTo(actor.MotorSim);
 
-        ActorReplicationSnapshot visual = authority.WithMotorPose(_driver.Motor);
-        _proxy.ApplySnapshot(in visual, actor.SprintLeanRollDegrees);
+        ActorReplicationSnapshot visual = authority
+            .WithMotorPose(_driver.Motor)
+            .WithAction(_actionDriver.ActionId, _actionDriver.ActionFrame, authority.FreezeFrames);
+        _proxy.ApplySnapshot(in visual, hostStaggered ? 0f : actor.SprintLeanRollDegrees);
     }
 
     /// <summary>首次创建预测电机、Loopback 与表现体；位姿与权威对齐后才开始预测。</summary>
@@ -137,6 +153,7 @@ public sealed class PredictedClientPreviewController : AppControllerBase
             config.Motor.RotationSmoothTime,
             MotionQuantization.MetersToMm(config.Motor.SprintSpeed));
         _driver = new PredictedLocomotionDriver(predictMotor, predictConfig);
+        _actionDriver = new PredictedActionDriver();
         _proxy = RemoteCharacterProxyFactory.Create(
             config,
             _catalog,
@@ -147,12 +164,19 @@ public sealed class PredictedClientPreviewController : AppControllerBase
         return true;
     }
 
+    /// <summary>权威已进受击/死亡：预测侧不得立刻跟，否则看不到延迟取消。</summary>
+    static bool IsAuthorityStaggered(CharacterActor actor) =>
+        actor.CurrentState == CharacterStateType.Hit
+        || actor.CurrentState == CharacterStateType.Death;
+
     /// <summary>
-    /// 出招/受击/死亡，以及起步、折返、急停等烘焙相位：跟权威位姿。
-    /// 稳态走跑冲刺才走 FollowInput 预测。
+    /// 出招与起步/折返/急停等烘焙相位：跟权威位姿。
+    /// 受击/死亡不贴齐；稳态走跑冲刺走 FollowInput 预测。
     /// </summary>
     static bool ShouldAlignToAuthority(CharacterActor actor, in ActorReplicationSnapshot snapshot)
     {
+        if (IsAuthorityStaggered(actor))
+            return false;
         if (actor.CurrentState != CharacterStateType.Locomotion)
             return true;
         if (snapshot.ActionId != 0)

@@ -115,6 +115,33 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
     /// <summary>本 Tick 生命边沿。</summary>
     public VitalityReplicationEdge VitalityEdge { get; }
 
+    /// <summary>用预测动作 Id/帧替换本快照的出招字段；位姿与生命不变。</summary>
+    public ActorReplicationSnapshot WithAction(int actionId, int actionFrame, int freezeFrames = 0)
+    {
+        return new ActorReplicationSnapshot(
+            ActorId,
+            TeamId,
+            Kind,
+            PosXMm,
+            PosZMm,
+            PosYMm,
+            FacingMilliDeg,
+            MoveVxMm,
+            MoveVzMm,
+            LocomotionPhase,
+            Gait,
+            Cardinal,
+            actionId,
+            GraphNodeId,
+            actionFrame < 0 ? 0 : actionFrame,
+            freezeFrames < 0 ? 0 : freezeFrames,
+            SelectedTargetId,
+            HealthMilli,
+            FlagsPacked,
+            VitalityEdge,
+            LocomotionNormalizedMilli);
+    }
+
     /// <summary>用预测电机位姿替换本快照的毫米坐标与朝向；其它复制字段不变。</summary>
     public ActorReplicationSnapshot WithMotorPose(CharacterMotorSim motor)
     {

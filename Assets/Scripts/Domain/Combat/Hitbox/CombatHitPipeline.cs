@@ -111,7 +111,8 @@ public sealed class CombatHitPipeline
                     hit.TargetTransform,
                     ResolveHitDirection(hit.Context.Attacker, hit.TargetTransform),
                     hit.HitPoint,
-                    absorbedByPerfectDodge: true));
+                    absorbedByPerfectDodge: true,
+                    hit.Key));
                 continue;
             }
 
@@ -148,7 +149,9 @@ public sealed class CombatHitPipeline
                 context,
                 hit.TargetTransform,
                 ResolveHitDirection(hit.Context.Attacker, hit.TargetTransform),
-                hit.HitPoint));
+                hit.HitPoint,
+                absorbedByPerfectDodge: false,
+                hit.Key));
         }
 
         _pending.Clear();

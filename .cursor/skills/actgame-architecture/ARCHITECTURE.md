@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-15（NS3 预测表现补齐）
+> Last audited: 2026-08-15（NS4 出招预测与权威命中）
 
 ## 项目概述
 
@@ -226,7 +226,7 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 |----|------|
 | `CameraManager` | Cinemachine 第三人称；Orbit yaw 只 staged 到 InputFrame，本地 CameraLock 只读 SelectedTarget |
 
-### 9. 复制与权威进程（NS0～NS3 已落地，NS4～NS5 规划）
+### 9. 复制与权威进程（NS0～NS4 已落地，NS5 规划）
 
 | 类 | 职责 |
 |----|------|
@@ -235,8 +235,9 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `IReplicationTransport` / `LoopbackReplicationTransport` | 只传字节；同进程队列，可设延迟 |
 | `ActionReplicationCatalog` / `CharacterReplicationCapture` | 同进程 ActionDefinition↔int；从权威 Actor 填快照 |
 | `RemoteCharacterProxy` / `RemoteCharacterProxyFactory` | 只应用 pose + Seek/Locomotion + 视觉残差/倾身；不创建 Hitbox / Brain / ActionSim |
-| `RemoteGhostViewController` | Host `AfterLogicStep` → Loopback → Ghost；Editor 默认预览 |
+| `RemoteGhostViewController` | Host `AfterLogicStep` → Loopback → 玩家/敌人 Ghost；带 `ReplicatedHitEvent` |
 | `PredictedLocomotionDriver` / `PredictedLocomotionMath` | 无 Unity：FollowInput 预测或贴齐权威电机；超阈吸附 + 只重放非 aligned |
+| `PredictedActionDriver` | 无 Unity：预测 ActionId/帧；Hit/未起手则取消，同招不 Seek 回旧帧 |
 | `PredictedClientPreviewController` | 同机左侧预测预览；Listen Host 本地仍不预测 |
 | `ReplicationAuthority` / `ReplicationClient` | NS5 房间；尚未实现 |
 

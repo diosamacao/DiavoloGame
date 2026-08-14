@@ -21,6 +21,14 @@ public sealed class EnemyController : AppControllerBase
 
     /// <summary>当前敌人定义。</summary>
     public EnemyDefinition Definition => enemyDefinition;
+
+    /// <summary>已装配的权威角色；未创建时为 null。</summary>
+    public CharacterActor Actor => _handle?.Actor;
+
+    /// <summary>复制幽灵用的角色配置；未绑定时为 null。</summary>
+    public CharacterConfig CharacterConfig => enemyDefinition != null
+        ? enemyDefinition.CharacterConfig
+        : null;
     /// <summary>当前生命值；尚未装配时为 0。</summary>
     public float CurrentHealth => _handle != null ? _handle.CurrentHealth : 0f;
     /// <summary>当前 AI 状态。</summary>
