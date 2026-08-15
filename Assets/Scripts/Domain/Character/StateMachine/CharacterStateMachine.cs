@@ -10,6 +10,9 @@ public sealed class CharacterStateMachine : ICharacterStateMachine
 
     public CharacterStateType CurrentStateId => _machine.CurrentStateId;
 
+    /// <summary>内层走跑机；纠偏 Restore/Replay 与顶层 Locomotion 共用。</summary>
+    public LocomotionStateMachine Locomotion => Context.LocomotionStateMachine;
+
     /// <summary>顶层 Locomotion 时的内层步态；供复制 Gait 字段。非 Locomotion 为 Walk。</summary>
     public LocomotionGait ReplicationGait
     {

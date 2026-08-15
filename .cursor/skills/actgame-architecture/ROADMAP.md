@@ -110,7 +110,7 @@
 
 **实现说明（先读）：** [`docs/2026.8.15/NETWORK_SYNC.md`](../../docs/2026.8.15/NETWORK_SYNC.md)
 
-**下一档（客机预测对齐 UE）：** [`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md) — **UE4 代码已落地（2026-08-15）**，只读 ActionSim；已修自然结束重播延迟招 / 连招误 Cancel / 卡肉推帧。Play 复验连招 Cancel、出招结束无二段刀光、受击取消。顺序 UE1 → UE2 → UE3 → UE4。
+**客机装配：** [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md) — **CA0～CA2 代码已切（2026-08-15）**：同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。Play 待 Editor。纠偏合同仍见 [`UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
 
 ### [P1] Lockstep 模拟核迁移
 

@@ -43,6 +43,18 @@ public sealed class CharacterVitality
     public event Action<ActionHitContext, float> Died;
 
     /// <summary>
+    /// 客机用权威快照覆盖当前生命；不发 Hit/Death 事件（边沿由房间调 EnterHit）。
+    /// </summary>
+    public void ApplyAuthorityHealthMilli(int healthMilli)
+    {
+        int max = _numeric.Attributes.GetCurrent(AttributeId.MaxHealth);
+        int clamped = healthMilli < 0 ? 0 : healthMilli;
+        if (max > 0 && clamped > max)
+            clamped = max;
+        _numeric.Attributes.SetBase(AttributeId.Health, clamped);
+    }
+
+    /// <summary>
     /// 将 Max/Current Health 设为指定整点（敌人 Definition.MaxHp 覆盖 Config）。
     /// </summary>
     public void ResetMaxHealthPoints(int maxHealthPoints)

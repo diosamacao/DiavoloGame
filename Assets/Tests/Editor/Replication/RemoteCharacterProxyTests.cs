@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
 using UnityEngine;
@@ -219,6 +220,90 @@ public sealed class RemoteCharacterProxyTests
             Is.False);
     }
 
+    /// <summary>快照写入只读索敌身份；OnHit 不改血。</summary>
+    [Test]
+    public void ApplySnapshot_BindsReadOnlyTargetable_OnHitDoesNotChangeHealth()
+    {
+        var root = new GameObject("GhostTargetRoot");
+        var presentation = new GameObject("GhostTargetPresentation");
+        presentation.transform.SetParent(root.transform, false);
+        CharacterController controller = root.AddComponent<CharacterController>();
+        controller.enabled = false;
+
+        var proxy = new RemoteCharacterProxy(
+            root.transform,
+            new CharacterMotor(
+                root.transform,
+                controller,
+                CharacterMotorConfig.Default,
+                new IdleIntent(),
+                new CharacterMotorSim(OpenFieldSimCollisionWorld.Instance, radiusMm: 280)),
+            animation: null,
+            new CharacterPresentationBridge(root.transform, presentation.transform),
+            new ActionReplicationCatalog(),
+            Vector3.zero,
+            1f / 60f);
+
+        ActorReplicationSnapshot snapshot = CreatePoseSnapshot(2000, 0);
+        proxy.ApplySnapshot(in snapshot);
+
+        Assert.That(proxy.CollectsHits, Is.False);
+        Assert.That(proxy.SimulationId.Value, Is.EqualTo(1));
+        Assert.That(proxy.TeamId, Is.EqualTo(1));
+        Assert.That(proxy.IsAlive, Is.True);
+        Assert.That(proxy.CurrentHealth, Is.EqualTo(100f).Within(0.01f));
+
+        float healthBefore = proxy.CurrentHealth;
+        proxy.OnHit(default);
+        Assert.That(proxy.CurrentHealth, Is.EqualTo(healthBefore));
+
+        Object.DestroyImmediate(root);
+    }
+
+    /// <summary>Autonomous Targeting 能从 Proxy 花名册自动选中范围内异阵营目标。</summary>
+    [Test]
+    public void TargetingState_AcquiresProxyInRange()
+    {
+        var root = new GameObject("GhostAcquireRoot");
+        var presentation = new GameObject("GhostAcquirePresentation");
+        presentation.transform.SetParent(root.transform, false);
+        CharacterController controller = root.AddComponent<CharacterController>();
+        controller.enabled = false;
+
+        var proxy = new RemoteCharacterProxy(
+            root.transform,
+            new CharacterMotor(
+                root.transform,
+                controller,
+                CharacterMotorConfig.Default,
+                new IdleIntent(),
+                new CharacterMotorSim(OpenFieldSimCollisionWorld.Instance, radiusMm: 280)),
+            animation: null,
+            new CharacterPresentationBridge(root.transform, presentation.transform),
+            new ActionReplicationCatalog(),
+            Vector3.zero,
+            1f / 60f);
+        ActorReplicationSnapshot snapshot = CreatePoseSnapshot(2000, 0);
+        proxy.ApplySnapshot(in snapshot);
+
+        var roster = new List<IHurtboxTarget> { proxy };
+        var targeting = new CharacterTargetingState(
+            teamId: 0,
+            acquireRangeMm: 10000,
+            retainRangeMm: 10000,
+            () => roster);
+        var requesterMotor = new CharacterMotorSim(OpenFieldSimCollisionWorld.Instance, radiusMm: 280);
+        InputFrame input = InputFrame.Empty(0, new SimActorId(99));
+        targeting.Step(new SimActorId(99), requesterMotor, in input);
+
+        Assert.That(targeting.Snapshot.HasSelectedTarget, Is.True);
+        Assert.That(targeting.Snapshot.SelectedTargetId.Value, Is.EqualTo(1));
+        Assert.That(targeting.TryGetSelectedTarget(out ITargetable selected), Is.True);
+        Assert.That(selected, Is.SameAs(proxy));
+
+        Object.DestroyImmediate(root);
+    }
+
     /// <summary>幽灵与工厂源码不得引用 Hitbox 收集或 EnemyBrain。</summary>
     [Test]
     public void GhostSource_HasNoHitboxCollectOrBrain()
@@ -228,8 +313,7 @@ public sealed class RemoteCharacterProxyTests
             "Assets/Scripts/Domain/Character/Replication/RemoteCharacterProxy.cs",
             "Assets/Scripts/Domain/Character/Replication/RemoteCharacterProxyFactory.cs",
             "Assets/Scripts/App/Controllers/Gameplay/RemoteGhostViewController.cs",
-            "Assets/Scripts/App/Controllers/Gameplay/PredictedClientPreviewController.cs",
-            "Assets/Scripts/Domain/Character/Replication/AutonomousActionRunner.cs"
+            "Assets/Scripts/App/Controllers/Gameplay/PredictedClientPreviewController.cs"
         };
 
         for (int i = 0; i < relativePaths.Length; i++)
@@ -241,15 +325,57 @@ public sealed class RemoteCharacterProxyTests
             Assert.That(text, Does.Not.Contain("hitPipeline.Collect"));
             Assert.That(text, Does.Not.Contain("EnemyBrain"));
         }
+    }
 
-        string actionRunnerPath = Path.GetFullPath(Path.Combine(
+    /// <summary>本机 Runner 已删除；预测改走 CharacterActor Autonomous 座位。</summary>
+    [Test]
+    public void AutonomousRunners_AreDeleted()
+    {
+        string root = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+        Assert.That(
+            File.Exists(Path.Combine(root, "Assets/Scripts/Domain/Character/Replication/AutonomousActionRunner.cs")),
+            Is.False);
+        Assert.That(
+            File.Exists(Path.Combine(root, "Assets/Scripts/Domain/Character/Replication/AutonomousLocomotionRunner.cs")),
+            Is.False);
+    }
+
+    /// <summary>Hitbox 只在 Authority 分支注册，避免 Autonomous 双伤。</summary>
+    [Test]
+    public void FactorySource_RegistersHitboxOnlyForAuthority()
+    {
+        string path = Path.GetFullPath(Path.Combine(
             Application.dataPath,
             "..",
-            "Assets/Scripts/Domain/Character/Replication/AutonomousActionRunner.cs"));
-        string actionRunner = File.ReadAllText(actionRunnerPath);
-        Assert.That(actionRunner, Does.Not.Contain("ActionMotionResolver"));
-        Assert.That(actionRunner, Does.Not.Contain("NumericCostGate"));
-        Assert.That(actionRunner, Does.Not.Contain("CommitCost"));
+            "Assets/Scripts/Domain/Character/CharacterActorFactory.cs"));
+        string text = File.ReadAllText(path);
+        int seatGate = text.IndexOf(
+            "if (seat == ReplicationSeat.Authority)",
+            System.StringComparison.Ordinal);
+        int register = text.IndexOf(
+            "RegisterFrameConsumer(hitboxFrameConsumer)",
+            System.StringComparison.Ordinal);
+        Assert.That(seatGate, Is.GreaterThan(0));
+        Assert.That(register, Is.GreaterThan(seatGate));
+    }
+
+    /// <summary>WorldQuery 在 Hitbox 门禁外创建，客机才能跑 Adhesion / Relocate。</summary>
+    [Test]
+    public void FactorySource_InjectsWorldQueryForBothSeats()
+    {
+        string path = Path.GetFullPath(Path.Combine(
+            Application.dataPath,
+            "..",
+            "Assets/Scripts/Domain/Character/CharacterActorFactory.cs"));
+        string text = File.ReadAllText(path);
+        int query = text.IndexOf("new ActionMotionWorldQuery", System.StringComparison.Ordinal);
+        int hitboxRegister = text.IndexOf(
+            "RegisterFrameConsumer(hitboxFrameConsumer)",
+            System.StringComparison.Ordinal);
+        Assert.That(query, Is.GreaterThan(0));
+        Assert.That(query, Is.LessThan(hitboxRegister));
+        Assert.That(text, Does.Not.Contain("Autonomous 不注入 WorldQuery"));
+        Assert.That(text, Does.Contain("new PredictedHitStopConsumer"));
     }
 
     static ActorReplicationSnapshot CreatePoseSnapshot(int xMm, int zMm) =>

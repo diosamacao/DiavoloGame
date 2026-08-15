@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 客机房间：渲染帧合并输入、命令批上行、本机 Autonomous 走跑 + 出招预测、他人与敌人走 RemoteProxy。
-/// 不创建权威 CharacterActor，不刷怪，不 Collect。
+/// 客机房间：渲染帧合并输入、命令批上行、本机 Autonomous CharacterActor.Step、他人走 RemoteProxy。
+/// 本机 Actor 由 PlayerController 装配；不进 World，不 Collect。卡肉由本机几何预测。
+/// 他人/敌人 Proxy 登记进 TargetSystem，供本机 Targeting / CameraLock 只读选敌。
 /// </summary>
 [DefaultExecutionOrder(-150)]
 [DisallowMultipleComponent]
@@ -15,9 +16,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
     ActionReplicationCatalog _catalog;
     PlayerController _localPlayer;
     PredictedLocomotionDriver _driver;
-    AutonomousActionRunner _actionRunner;
-    AutonomousLocomotionRunner _locomotionRunner;
-    RemoteCharacterProxy _predictedView;
+    readonly PredictedActionAckQueue _actionAck = new();
     RoomIdleTracker _hostIdle;
     RoomJoinAccept _accept;
     bool _joined;
@@ -27,7 +26,6 @@ public sealed class ReplicationRoomClient : AppControllerBase
     long _nextHeartbeatMs;
     int _rttMs = -1;
     int _selfHealthMilli = -1;
-    int _lastPresentedActionId;
     ActorReplicationSnapshot _lastSelfSnapshot;
     bool _hasSelfSnapshot;
     InputFrameBuffer _inputFrames;
@@ -39,6 +37,11 @@ public sealed class ReplicationRoomClient : AppControllerBase
     readonly HashSet<int> _seenIds = new();
     readonly List<int> _staleIds = new();
     readonly List<CharacterConfig> _enemyConfigs = new();
+    readonly List<RemoteCharacterProxy> _softBlockers = new();
+    SimVec2[] _softBlockerPosMm = Array.Empty<SimVec2>();
+    int[] _softBlockerRadiiMm = Array.Empty<int>();
+    int _lastPredictedActionId;
+    int _lastPresentedHitStopFrames;
 
     /// <summary>由战斗世界在 Awake 注入。</summary>
     public void Configure(CombatWorldController world)
@@ -79,7 +82,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
             return;
 
         float alpha = _world.SimulationHost.InterpolationAlpha;
-        _predictedView?.Render(alpha);
+        _localPlayer?.Actor?.Render(alpha);
         foreach (RemoteCharacterProxy proxy in _proxies.Values)
             proxy.Render(alpha);
     }
@@ -113,30 +116,22 @@ public sealed class ReplicationRoomClient : AppControllerBase
         RememberCommand(in command);
         _transport.SendClientToAuthority(RoomCodec.WriteClientCommandBatch(_recentCommands));
 
-        if (!_hasSelfSnapshot || _driver == null || _locomotionRunner == null || _actionRunner == null)
+        CharacterActor actor = _localPlayer != null ? _localPlayer.Actor : null;
+        if (!_hasSelfSnapshot || _driver == null || actor == null)
             return;
 
-        // 权威卡肉时本机不推 ActionSim，避免 Clip 暂停、解冻一次派多段 VFX。
-        _actionRunner.Tick(in input, _predictFrame, _lastSelfSnapshot.FreezeFrames > 0);
-        if (_actionRunner.LastActionId != 0)
-            _lastPresentedActionId = _actionRunner.LastActionId;
-        if (!_actionRunner.IsActive && _lastSelfSnapshot.ActionId == 0)
-            _actionRunner.NotifyAuthorityIdle();
-        if (ShouldPresentAction())
-        {
-            _locomotionRunner.Exit();
-            _driver.PredictAlignedToSnapshot(in input, in _lastSelfSnapshot);
-        }
-        else
-        {
-            LocomotionResumeRequest resume = default;
-            if (!_locomotionRunner.IsActive)
-                resume = ResolveResumeAfterAction();
-            _locomotionRunner.Tick(in input, in resume);
-            _driver.RecordAutonomous(in input);
-        }
+        float dt = _world.SimulationHost.FixedDeltaSeconds;
+        actor.Step(_predictFrame, dt, in input);
+        actor.ResolvePostCombat(_predictFrame);
+        PresentPredictedHitStop(actor);
+        ResolveAutonomousSoftBody(actor);
 
-        ApplyPredictedVisual();
+        int actionId = ResolveLocalActionId(actor);
+        if (actionId != 0)
+            _lastPredictedActionId = actionId;
+        _actionAck.Record(_predictFrame, actionId);
+
+        _driver.RecordAutonomous(in input);
         RefreshHud("Joined");
     }
 
@@ -240,6 +235,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
 
         _accept = accept;
         _joined = true;
+        _lastPredictedActionId = 0;
         _predictFrame = accept.AuthorityFrame;
         _lastAuthorityFrame = accept.AuthorityFrame;
         EnsureInputBuffer();
@@ -280,29 +276,38 @@ public sealed class ReplicationRoomClient : AppControllerBase
             _lastSelfSnapshot = self;
             _hasSelfSnapshot = true;
             _selfHealthMilli = self.HealthMilli;
-            EnsurePredictedView(in self);
+            EnsurePredictedDriver(in self);
+            CharacterActor actor = _localPlayer != null ? _localPlayer.Actor : null;
+            if (actor != null)
+                actor.Vitality.ApplyAuthorityHealthMilli(self.HealthMilli);
 
             // 仅本步真正灌入的 Hint 才纠偏；CarryForward 下行 0，避免用旧预测位姿对当前权威
-            if (appliedHint > 0)
+            if (appliedHint > 0 && actor != null && _driver != null)
             {
-                // 走跑带 Runner：Driver 默认 2m 硬吸，不得再传 50mm。
-                PredictedReconcileResult loco = _driver.Reconcile(appliedHint, in self, _locomotionRunner);
-                _actionRunner?.Reconcile(appliedHint, in self);
-                // 逻辑根已回拉时必须掐断表现插值，否则会把纠偏扫成一顿。
+                PredictedActionReconcileResult actionResult = _actionAck.Reconcile(appliedHint, in self);
+                if (PredictedActionAckQueue.ShouldStopAutonomousAction(actionResult, in self))
+                    actor.StopAutonomousAction();
+
+                // 穿敌吸附/关碰撞窗与权威卡肉：只 Ack，禁止 2m 硬吸把本机从敌后拽回。
+                _catalog.TryGet(self.ActionId, out ActionDefinition authorityAction);
+                PredictedReconcileResult loco = _driver.Reconcile(
+                    appliedHint,
+                    in self,
+                    actor,
+                    ActionMotionReconcileGate.ResolveSnapThresholdMm(
+                        actor,
+                        in self,
+                        authorityAction));
                 if (loco.Snapped)
-                    _predictedView?.SnapPresentationToSimulation();
+                    actor.SnapPresentationToSimulation();
             }
 
-            // 出招中只停走跑，位姿交给 AfterLogicStep 插值；每包硬切会掐死闪避位移和相机。
-            if (IsAuthorityHitOrDeath(in self))
+            if (IsAuthorityHitOrDeath(in self) && actor != null)
             {
-                _locomotionRunner?.Exit();
-                _actionRunner?.Stop(followAuthority: true);
-                _driver.SnapToSnapshot(in self);
-                _predictedView?.SnapPresentationToSimulation();
+                ApplyAuthorityVitalityEdge(actor, in self);
+                _driver?.SnapToSnapshot(in self);
+                actor.SnapPresentationToSimulation();
             }
-            else if (self.ActionId != 0)
-                _locomotionRunner?.Exit();
 
         }
 
@@ -355,6 +360,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
             host.FixedDeltaSeconds,
             transform);
         _proxies[id] = proxy;
+        GetSystem<TargetSystem>()?.Register(proxy);
         return true;
     }
 
@@ -365,27 +371,22 @@ public sealed class ReplicationRoomClient : AppControllerBase
         return _enemyConfigs.Count > 0 ? _enemyConfigs[0] : null;
     }
 
-    void EnsurePredictedView(in ActorReplicationSnapshot self)
+    /// <summary>首份 self 快照：绑定 ActorId、对齐位姿、建纠偏 Driver。不另建 Proxy。</summary>
+    void EnsurePredictedDriver(in ActorReplicationSnapshot self)
     {
-        if (_predictedView != null && _driver != null && _locomotionRunner != null && _actionRunner != null)
+        if (_driver != null)
             return;
-        if (_localPlayer == null || _localPlayer.CharacterConfig == null || _world?.SimulationHost == null)
+        if (_localPlayer == null || _localPlayer.CharacterConfig == null || _localPlayer.Actor == null)
             return;
 
+        CharacterActor actor = _localPlayer.Actor;
         CharacterConfig config = _localPlayer.CharacterConfig;
-        SimulationHost host = _world.SimulationHost;
-        AutonomousPredictedSeat seat = RemoteCharacterProxyFactory.CreateAutonomous(
-            config,
-            _catalog,
-            host.CollisionWorld,
-            Vector3.zero,
-            host.FixedDeltaSeconds,
-            _world.transform);
-        _predictedView = seat.Proxy;
-        _locomotionRunner = seat.Runner;
-        _actionRunner = seat.Action;
-        _predictedView.MotorSim.TeleportMm(self.PosXMm, self.PosYMm, self.PosZMm);
-        _predictedView.MotorSim.SetFacingMilliDeg(self.FacingMilliDeg);
+        actor.BindSimulationInput(new SimActorId(_accept.AssignedActorId), _inputFrames);
+        actor.MotorSim.TeleportMm(self.PosXMm, self.PosYMm, self.PosZMm);
+        actor.MotorSim.SetFacingMilliDeg(self.FacingMilliDeg);
+        // MotorSim 与 Transform 必须同帧对齐；只 Snap 插值会把 +2m 客机出生点拖进第一击位移
+        actor.AlignSimulationRootToMotor();
+        actor.SnapPresentationToSimulation();
 
         var predictConfig = new PredictedLocomotionConfig(
             MotionQuantization.MetersToMm(config.Motor.WalkSpeed),
@@ -395,74 +396,96 @@ public sealed class ReplicationRoomClient : AppControllerBase
             PredictedLocomotionConfig.Default.ReconcileThresholdMm,
             config.Motor.RotationSmoothTime,
             MotionQuantization.MetersToMm(config.Motor.SprintSpeed));
-        _driver = new PredictedLocomotionDriver(_predictedView.MotorSim, predictConfig);
-        _localPlayer.BindPredictedView(_predictedView);
+        _driver = new PredictedLocomotionDriver(actor.MotorSim, predictConfig);
     }
 
     /// <summary>
-    /// 出招/受击仍走 Proxy Seek；走跑只 Sync Motor/Lean，片子由 Runner 推进。
-    /// 本机预测招自然结束后禁止用延迟快照再 Seek/派特效。
+    /// 客机本机对只读幽灵做软弹开，避免走进敌人后再被权威 2m 纠偏拉回。
+    /// 不进 World、不推幽灵。
     /// </summary>
-    void ApplyPredictedVisual()
+    void ResolveAutonomousSoftBody(CharacterActor actor)
     {
-        if (_predictedView == null || !_hasSelfSnapshot)
+        if (actor == null || !actor.ParticipatesInSoftBodySeparation)
             return;
 
-        ActorReplicationSnapshot visual = _lastSelfSnapshot.WithMotorPose(_driver.Motor);
-        if (_actionRunner != null && _actionRunner.IsActive)
+        _softBlockers.Clear();
+        foreach (RemoteCharacterProxy proxy in _proxies.Values)
         {
-            visual = visual.WithAction(
-                _actionRunner.ActionId,
-                _actionRunner.ActionFrame,
-                _lastSelfSnapshot.FreezeFrames);
-            _predictedView.ApplySnapshot(in visual, leanRollDegrees: 0f, seekLocomotion: false);
-            return;
+            if (proxy == null || !proxy.IsAlive || proxy.MotorSim == null)
+                continue;
+            _softBlockers.Add(proxy);
         }
 
-        if (ShouldApplyAuthorityAction())
-        {
-            visual = visual.WithAction(
-                _lastSelfSnapshot.ActionId,
-                _lastSelfSnapshot.ActionFrame,
-                _lastSelfSnapshot.FreezeFrames);
-            _predictedView.ApplySnapshot(in visual, leanRollDegrees: 0f, seekLocomotion: true);
+        if (_softBlockers.Count == 0)
             return;
+
+        _softBlockers.Sort(CompareProxyId);
+        if (_softBlockerPosMm.Length < _softBlockers.Count)
+        {
+            _softBlockerPosMm = new SimVec2[_softBlockers.Count];
+            _softBlockerRadiiMm = new int[_softBlockers.Count];
         }
 
-        _predictedView.SyncAutonomousLocomotion(
-            _locomotionRunner != null ? _locomotionRunner.LeanRollDegrees : 0f,
-            _locomotionRunner != null ? _locomotionRunner.DebugWishWorld : Vector3.zero);
+        for (int i = 0; i < _softBlockers.Count; i++)
+        {
+            CharacterMotorSim motor = _softBlockers[i].MotorSim;
+            _softBlockerPosMm[i] = motor.PositionMm;
+            _softBlockerRadiiMm[i] = motor.RadiusMm;
+        }
+
+        if (AutonomousSoftBodySolver.TrySeparateLocal(
+            actor.MotorSim,
+            _softBlockerPosMm,
+            _softBlockerRadiiMm,
+            _softBlockers.Count))
+        {
+            actor.OnSoftBodySeparationApplied();
+        }
     }
 
-    /// <summary>本机应停走跑、改播出招或受击。自然结束的预测招不得被延迟权威招拖住。</summary>
-    bool ShouldPresentAction() =>
-        _actionRunner != null && _actionRunner.IsActive
-        || ShouldApplyAuthorityAction();
+    static int CompareProxyId(RemoteCharacterProxy left, RemoteCharacterProxy right) =>
+        left.SimulationId.Value.CompareTo(right.SimulationId.Value);
 
-    /// <summary>受击、从未预测、或和解真取消后才跟权威招；本机打完则忽略延迟 ActionId。</summary>
-    bool ShouldApplyAuthorityAction() =>
-        PredictedActionAckQueue.ShouldPresentAuthorityAction(
-            _actionRunner != null && _actionRunner.IsActive,
-            _actionRunner != null && _actionRunner.SuppressStaleAuthorityAction,
-            IsAuthorityHitOrDeath(in _lastSelfSnapshot),
-            _lastSelfSnapshot.ActionId);
-
-    /// <summary>闪避结束与 Host 一样 SprintAfterDodge；其它招用权威步态跳过 Start。</summary>
-    LocomotionResumeRequest ResolveResumeAfterAction()
+    /// <summary>本机 FreezeFrames 升高时同步刀光 VFX 卡肉；不发 AttackHitEvent。</summary>
+    void PresentPredictedHitStop(CharacterActor actor)
     {
-        CombatActionType lastAction = CombatActionType.Attack;
-        if (_lastPresentedActionId != 0
-            && _catalog != null
-            && _catalog.TryGet(_lastPresentedActionId, out ActionDefinition definition)
-            && definition != null)
-            lastAction = definition.ActionType;
+        if (actor?.ActionSim == null)
+            return;
 
-        LocomotionGait gait = LocomotionGait.Walk;
-        if (_hasSelfSnapshot
-            && System.Enum.IsDefined(typeof(LocomotionGait), (int)_lastSelfSnapshot.Gait))
-            gait = (LocomotionGait)_lastSelfSnapshot.Gait;
+        int freeze = actor.ActionSim.FreezeFrames;
+        if (freeze <= _lastPresentedHitStopFrames)
+        {
+            _lastPresentedHitStopFrames = freeze;
+            return;
+        }
 
-        return LocomotionResumeRequest.AfterAction(lastAction, gait);
+        Transform attackerRoot = _localPlayer != null ? _localPlayer.Root : null;
+        HitStopController hitStop = _world != null
+            ? _world.GetComponent<HitStopController>()
+            : null;
+        hitStop?.PresentPredicted(attackerRoot, freeze);
+        _lastPresentedHitStopFrames = freeze;
+    }
+
+    /// <summary>本机预测招 Catalog Id；无招为 0。</summary>
+    int ResolveLocalActionId(CharacterActor actor)
+    {
+        if (actor?.ActionSim == null || !actor.ActionSim.IsActive)
+            return 0;
+        if (actor.ActionSim.Snapshot.Content is ActionDefinition definition)
+            return _catalog.GetOrAdd(definition);
+        return 0;
+    }
+
+    /// <summary>权威 Hit/Death 边沿写入本机状态机；不经 Pipeline。</summary>
+    void ApplyAuthorityVitalityEdge(CharacterActor actor, in ActorReplicationSnapshot self)
+    {
+        CharacterConfig config = _localPlayer != null ? _localPlayer.CharacterConfig : null;
+        var resolver = new CharacterReactionResolver(config != null ? config.Combat.Reactions : null);
+        if (self.VitalityEdge == VitalityReplicationEdge.Death)
+            actor.EnterDeath(resolver.ResolveDeath(default));
+        else if (self.VitalityEdge == VitalityReplicationEdge.Hit)
+            actor.EnterHit(resolver.ResolveHit(default));
     }
 
     /// <summary>受击/死亡才硬切位姿；普通出招不得走这条。</summary>
@@ -537,7 +560,9 @@ public sealed class ReplicationRoomClient : AppControllerBase
         if (!actorId.IsValid)
             return null;
         if (actorId.Value == _accept.AssignedActorId)
-            return _predictedView?.Root;
+            return _localPlayer != null && _localPlayer.Actor != null
+                ? _localPlayer.Actor.PresentationRoot
+                : _localPlayer != null ? _localPlayer.Root : null;
         return _proxies.TryGetValue(actorId.Value, out RemoteCharacterProxy proxy)
             ? proxy.Root
             : null;
@@ -589,22 +614,23 @@ public sealed class ReplicationRoomClient : AppControllerBase
         {
             int id = _staleIds[i];
             if (_proxies.TryGetValue(id, out RemoteCharacterProxy proxy))
+            {
+                GetSystem<TargetSystem>()?.Unregister(proxy);
                 proxy.Dispose();
+            }
             _proxies.Remove(id);
         }
     }
 
     void DisposeViews()
     {
-        if (_localPlayer != null)
-            _localPlayer.BindPredictedView(null);
-        _predictedView?.Dispose();
-        _predictedView = null;
-        _locomotionRunner = null;
         _driver = null;
-        _actionRunner = null;
+        TargetSystem targets = GetSystem<TargetSystem>();
         foreach (RemoteCharacterProxy proxy in _proxies.Values)
+        {
+            targets?.Unregister(proxy);
             proxy.Dispose();
+        }
         _proxies.Clear();
     }
 

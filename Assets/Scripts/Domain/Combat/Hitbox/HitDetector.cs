@@ -89,4 +89,76 @@ public static class HitDetector
             }
         }
     }
+
+    /// <summary>
+    /// 客机预测卡肉：只对 UseHitStop 的盒做几何重叠并 RequestHitStop。
+    /// 不 Collect、不 OnHit、不写 Numeric。
+    /// </summary>
+    public static void ApplyPredictedHitStopAtFrame(
+        ActionDefinition action,
+        int frame,
+        int attackerTeamId,
+        Func<int, HitboxNotifyState, HitboxOrientedBox> resolveAttackBox,
+        HashSet<(int HitboxIndex, SimActorId TargetId)> hitPairs,
+        IActionSimHitReceiver hitReceiver,
+        IReadOnlyList<IHurtboxTarget> activeTargets,
+        SimActorId attackerId,
+        int actionInstanceId)
+    {
+        if (activeTargets == null
+            || activeTargets.Count == 0
+            || !attackerId.IsValid
+            || hitReceiver == null
+            || resolveAttackBox == null
+            || action == null)
+        {
+            return;
+        }
+
+        HitboxNotifyState[] hitboxes = action.HitboxStates;
+        if (hitboxes == null || hitboxes.Length == 0)
+            return;
+
+        for (int hitboxIndex = 0; hitboxIndex < hitboxes.Length; hitboxIndex++)
+        {
+            HitboxNotifyState hitbox = hitboxes[hitboxIndex];
+            if (hitbox == null || !hitbox.IsActiveAtFrame(frame))
+                continue;
+
+            HitFeedbackSettings feedback = hitbox.Payload.Feedback;
+            if (feedback == null || !feedback.UseHitStop)
+                continue;
+
+            HitboxOrientedBox attackBox = resolveAttackBox(hitboxIndex, hitbox);
+
+            foreach (IHurtboxTarget target in activeTargets)
+            {
+                if (target == null || !target.SimulationId.IsValid)
+                    continue;
+
+                if (target.SimulationId == attackerId)
+                    continue;
+
+                if (target is ITargetable targetable
+                    && (!targetable.IsAlive || targetable.TeamId == attackerTeamId))
+                {
+                    continue;
+                }
+
+                var pair = (hitboxIndex, target.SimulationId);
+                if (hitPairs.Contains(pair))
+                    continue;
+
+                HitboxOrientedBox hurtbox = target.GetLogicalHurtbox();
+                if (!HitboxMath.Intersects(attackBox, hurtbox))
+                    continue;
+
+                hitPairs.Add(pair);
+                hitReceiver.RequestHitStop(
+                    actionInstanceId,
+                    feedback.HitStopFrames,
+                    feedback.HitStopOncePerAction);
+            }
+        }
+    }
 }

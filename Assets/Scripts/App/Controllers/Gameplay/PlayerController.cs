@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-/// <summary>玩家座位：Host 装配权威 Actor；Client 只采样输入并挂预测表现。</summary>
+/// <summary>玩家座位：Host 装配 Authority Actor；Client 装配 Autonomous Actor（不进 World）。</summary>
 [DefaultExecutionOrder(-50)]
 public class PlayerController : AppControllerBase, ILocalPlayer
 {
@@ -19,7 +19,6 @@ public class PlayerController : AppControllerBase, ILocalPlayer
     SimActorRegistration simulationRegistration;
     CharacterFacingDebugVisualizer _facingDebugVisualizer;
     ILocalInputSampler _inputSampler;
-    RemoteCharacterProxy _predictedView;
     bool _clientSeat;
 
     /// <summary>运行时角色 Actor；供 Debug HUD / Scene Gizmo 只读访问。</summary>
@@ -28,7 +27,7 @@ public class PlayerController : AppControllerBase, ILocalPlayer
     /// <summary>装配用角色配置；幽灵预览复用同一套模型与动画。</summary>
     public CharacterConfig CharacterConfig => characterConfig;
 
-    /// <summary>量化输入中枢；客机无 Actor，为 null。</summary>
+    /// <summary>量化输入中枢；Autonomous 与 Authority 都有 Actor。</summary>
     public InputManager Input => actor?.Input;
 
     /// <inheritdoc />
@@ -39,9 +38,7 @@ public class PlayerController : AppControllerBase, ILocalPlayer
 
     /// <inheritdoc />
     public bool IsPresentingAction =>
-        actor != null
-            ? actor.CurrentState != CharacterStateType.Locomotion
-            : _predictedView != null && _predictedView.IsPresentingAction;
+        actor != null && actor.CurrentState != CharacterStateType.Locomotion;
 
     /// <summary>本机设备采样；客机座位用它上行，权威座位走 Actor。</summary>
     public ILocalInputSampler InputSampler => _inputSampler;
@@ -59,22 +56,15 @@ public class PlayerController : AppControllerBase, ILocalPlayer
     /// <summary>玩家当前生命值；运行时未创建时为 0。</summary>
     public float CurrentHealth => actor != null ? actor.Vitality.CurrentHealth : 0f;
 
-    /// <summary>相机应跟随的插值表现锚点；客机跟预测体，权威跟 Actor。</summary>
+    /// <summary>相机应跟随的插值表现锚点；两端都跟 Actor。</summary>
     public Transform PresentationRoot =>
-        _predictedView?.PresentationRoot != null
-            ? _predictedView.PresentationRoot
-            : actor?.PresentationRoot != null
-                ? actor.PresentationRoot
-                : transform;
+        actor?.PresentationRoot != null ? actor.PresentationRoot : transform;
 
     /// <summary>权威根，供敌人感知与花名册使用。</summary>
     public Transform Root => transform;
 
     /// <summary>Listen Host 本地不预测；客机座位为 true。</summary>
     public bool IsLocalPredicted => _clientSeat;
-
-    /// <summary>客机房间把预测表现体挂到本座位，供相机跟随。</summary>
-    public void BindPredictedView(RemoteCharacterProxy proxy) => _predictedView = proxy;
 
     void Awake()
     {
@@ -148,7 +138,9 @@ public class PlayerController : AppControllerBase, ILocalPlayer
         if (_clientSeat)
         {
             _inputSampler?.Enable();
+            actor?.Enable();
             GetSystem<LocalPlayerService>()?.Register(this, isLocalOwner: true);
+            EnsureFacingDebugVisualizer();
             return;
         }
 
@@ -188,6 +180,7 @@ public class PlayerController : AppControllerBase, ILocalPlayer
         if (_clientSeat)
         {
             _inputSampler?.Disable();
+            actor?.Disable();
             return;
         }
 
@@ -203,7 +196,8 @@ public class PlayerController : AppControllerBase, ILocalPlayer
         if (_clientSeat)
         {
             _inputSampler?.Disable();
-            _predictedView = null;
+            actor?.Dispose();
+            actor = null;
             return;
         }
 
@@ -229,7 +223,7 @@ public class PlayerController : AppControllerBase, ILocalPlayer
             actor?.StageMoveReferenceYaw(yawDegrees);
     }
 
-    /// <summary>客机只采样输入，不创建会 Collect 的权威 Actor。</summary>
+    /// <summary>客机装配 Autonomous Actor：同一类实例，不 Register World、不挂 Hurtbox。索敌读 TargetSystem（房间登记的只读 Proxy）。</summary>
     void BuildClientSeat(InputActionAsset inputActions)
     {
         _clientSeat = true;
@@ -244,7 +238,24 @@ public class PlayerController : AppControllerBase, ILocalPlayer
 
         reader.ConfigureDiscreteInputs(intentProfile.CollectInputReferences());
         _inputSampler = reader;
+        CombatWorldController combatWorld = EnsureCombatWorldController();
+        simulationHost = combatWorld != null ? combatWorld.EnsureSimulationHost() : null;
+        actor = CharacterActorFactory.Create(
+            gameObject,
+            transform,
+            characterConfig,
+            characterConfig.Combat.TeamId,
+            reader,
+            () => SendQuery(new GetActiveTargetsQuery()),
+            null,
+            out ActionSim _,
+            out CharacterAnimationService _,
+            simulationHost != null ? simulationHost.CollisionWorld : null,
+            null,
+            null,
+            ReplicationSeat.Autonomous);
         GetSystem<LocalPlayerService>()?.Register(this, isLocalOwner: true);
+        EnsureFacingDebugVisualizer();
     }
 
     /// <summary>玩家装配前确保场景存在统一战斗世界入口并返回该入口。</summary>

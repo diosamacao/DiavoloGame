@@ -2,33 +2,8 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// 装配幽灵表现图，或本机 Autonomous 座位（InputManager + 内层走跑机）。
-/// 禁止走 CharacterActorFactory（会注册命中收集）。
+/// 装配他人/敌人幽灵表现图。本机预测改走 <see cref="CharacterActorFactory"/> Autonomous 座位。
 /// </summary>
-/// <summary>本机预测座位：表现体 + 走跑 + 只读出招，共用同一 MotorSim。</summary>
-public readonly struct AutonomousPredictedSeat
-{
-    /// <summary>绑定已装配的预测体、走跑与出招 Runner。</summary>
-    public AutonomousPredictedSeat(
-        RemoteCharacterProxy proxy,
-        AutonomousLocomotionRunner runner,
-        AutonomousActionRunner action)
-    {
-        Proxy = proxy ?? throw new ArgumentNullException(nameof(proxy));
-        Runner = runner ?? throw new ArgumentNullException(nameof(runner));
-        Action = action ?? throw new ArgumentNullException(nameof(action));
-    }
-
-    /// <summary>本机预测表现体；走跑时不得再 Play Locomotion。</summary>
-    public RemoteCharacterProxy Proxy { get; }
-
-    /// <summary>本机内层走跑机。</summary>
-    public AutonomousLocomotionRunner Runner { get; }
-
-    /// <summary>本机只读 ActionSim；禁止 Collect / 写 Numeric。</summary>
-    public AutonomousActionRunner Action { get; }
-}
-
 public static class RemoteCharacterProxyFactory
 {
     /// <summary>按与权威相同的模型/动画配置生成 RemoteProxy；不注册 World、不挂 Hurtbox。</summary>
@@ -46,66 +21,23 @@ public static class RemoteCharacterProxyFactory
             collisionWorld,
             worldOffset,
             fixedDeltaSeconds,
-            parent,
-            IdleMoveIntentSource.Instance);
+            parent);
         return built.Proxy;
     }
 
-    /// <summary>
-    /// 本机 Autonomous 座位：Motor 绑可 Ingest 的 InputManager，挂内层走跑机与只读出招 Runner。
-    /// 禁止走 CharacterActorFactory。
-    /// </summary>
-    public static AutonomousPredictedSeat CreateAutonomous(
-        CharacterConfig config,
-        ActionReplicationCatalog catalog,
-        ISimCollisionWorld collisionWorld,
-        Vector3 worldOffset,
-        float fixedDeltaSeconds,
-        Transform parent = null)
-    {
-        var input = new InputManager();
-        BuiltGhost built = BuildGhost(
-            config,
-            catalog,
-            collisionWorld,
-            worldOffset,
-            fixedDeltaSeconds,
-            parent,
-            input);
-        var runner = new AutonomousLocomotionRunner(
-            input,
-            built.Motor,
-            built.Animation,
-            built.LocomotionProfile,
-            built.Proxy.Root,
-            fixedDeltaSeconds);
-        var action = new AutonomousActionRunner(
-            config,
-            catalog,
-            built.Proxy.Root,
-            built.Motor,
-            built.Animation,
-            input,
-            runner.Locomotion);
-        return new AutonomousPredictedSeat(built.Proxy, runner, action);
-    }
-
-    /// <summary>装配幽灵表现图；意图源由调用方注入（他人 Idle / 本机 InputManager）。</summary>
+    /// <summary>装配幽灵表现图；Motor 绑空意图，位移只跟 Snapshot。</summary>
     static BuiltGhost BuildGhost(
         CharacterConfig config,
         ActionReplicationCatalog catalog,
         ISimCollisionWorld collisionWorld,
         Vector3 worldOffset,
         float fixedDeltaSeconds,
-        Transform parent,
-        IMoveIntentSource moveIntent)
+        Transform parent)
     {
         if (config == null)
             throw new ArgumentNullException(nameof(config));
         if (catalog == null)
             throw new ArgumentNullException(nameof(catalog));
-        if (moveIntent == null)
-            throw new ArgumentNullException(nameof(moveIntent));
         if (config.ModelPrefab == null)
             throw new InvalidOperationException("RemoteCharacterProxyFactory: CharacterConfig 未绑定 ModelPrefab。");
 
@@ -151,7 +83,7 @@ public static class RemoteCharacterProxyFactory
             owner.transform,
             controller,
             motorConfig,
-            moveIntent,
+            IdleMoveIntentSource.Instance,
             motorSim);
         IAnimationPlayback playback = new PlayableAnimationPlayback(animator);
         var animation = new CharacterAnimationService(
@@ -183,7 +115,8 @@ public static class RemoteCharacterProxyFactory
             fixedDeltaSeconds,
             visualMotionRoot,
             ownsRoot: true,
-            notifyConsumers);
+            notifyConsumers,
+            config.Combat.Hurtbox);
         return new BuiltGhost(proxy, motor, animation, locomotionProfile);
     }
 

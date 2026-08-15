@@ -143,6 +143,45 @@ public sealed class PredictedActionReconcileTests
         Assert.That(result.Cancelled, Is.True);
         Assert.That(result.ActionId, Is.EqualTo(20));
         Assert.That(result.ActionFrame, Is.EqualTo(1));
+        Assert.That(
+            PredictedActionAckQueue.ShouldStopAutonomousAction(result, in hit),
+            Is.True);
+    }
+
+    /// <summary>权威仍在出招（卡肉/换招）时不得掐本机招回 Idle。</summary>
+    [Test]
+    public void ShouldStopAutonomousAction_AuthorityStillInAction_DoesNotStop()
+    {
+        var result = new PredictedActionReconcileResult(cancelled: true, actionId: 8, actionFrame: 3);
+        ActorReplicationSnapshot authority = ActionSnapshot(new SimActorId(1), actionId: 8, actionFrame: 3);
+
+        Assert.That(
+            PredictedActionAckQueue.ShouldStopAutonomousAction(result, in authority),
+            Is.False);
+    }
+
+    /// <summary>权威未起手或已收招：取消后应回走跑。</summary>
+    [Test]
+    public void ShouldStopAutonomousAction_AuthorityIdle_Stops()
+    {
+        var result = new PredictedActionReconcileResult(cancelled: true, actionId: 0, actionFrame: 0);
+        ActorReplicationSnapshot authority = ActionSnapshot(new SimActorId(1), actionId: 0, actionFrame: 0);
+
+        Assert.That(
+            PredictedActionAckQueue.ShouldStopAutonomousAction(result, in authority),
+            Is.True);
+    }
+
+    /// <summary>未 Cancel 时即使权威空闲也不 Stop。</summary>
+    [Test]
+    public void ShouldStopAutonomousAction_NotCancelled_DoesNotStop()
+    {
+        var result = new PredictedActionReconcileResult(cancelled: false, actionId: 7, actionFrame: 2);
+        ActorReplicationSnapshot authority = ActionSnapshot(new SimActorId(1), actionId: 7, actionFrame: 2);
+
+        Assert.That(
+            PredictedActionAckQueue.ShouldStopAutonomousAction(result, in authority),
+            Is.False);
     }
 
     static ActorReplicationSnapshot ActionSnapshot(SimActorId id, int actionId, int actionFrame) =>

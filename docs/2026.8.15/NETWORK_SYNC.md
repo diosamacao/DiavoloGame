@@ -4,7 +4,8 @@
 > 角色：**已落地实现的阅读入口**（对照代码，不是下一阶段实施计划）  
 > 方案真源（设计决策 / 阶段勾选）：  
 > - 房间、权威 World、命中契约：[`../2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md`](../2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md)（NS0～NS5 已关闭）  
-> - 客机本机预测：[`UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](./UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)（UE1～UE4 代码已落地）  
+> - 客机本机预测纠偏合同：[`UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](./UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)  
+> - 客机装配真源：[`UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](./UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md)（同一 `CharacterActor` + `ReplicationSeat`）  
 > 约定：`.cursor/skills/actgame-architecture/CONVENTIONS.md`「复制契约 / 预测 / 服务器 / 权威进程」  
 > 外部对照（学 Handler/房间壳，不学战斗权威）：[`D:/Projects/DemoServer/docs/ARCHITECTURE.md`](../../../DemoServer/docs/ARCHITECTURE.md)  
 > 本文以 `Assets/Scripts/**` 为准；文档与代码冲突时改文档。
@@ -13,7 +14,7 @@
 
 ## 0. 一句话
 
-组队 PVE 是 **Listen Host 权威状态同步**：玩家只上行量化 `InputFrame`，权威进程独跑现有 `SimulationWorld`（60Hz），下行 `AuthorityTick`（角色快照 + 命中边沿）。客机本机用同一套走跑机 / 只读 `ActionSim` 先演位移和招式，权威只纠正结果。**命中、HP、硬直只认 Host 的 `CombatHitPipeline`。** 禁止全端同构重演（锁步 L5），禁止客户端上报伤害 / 坐标 / 招式名。
+组队 PVE 是 **Listen Host 权威状态同步**：玩家只上行量化 `InputFrame`，权威进程独跑现有 `SimulationWorld`（60Hz），下行 `AuthorityTick`（角色快照 + 命中边沿）。客机本机用 **同一份 `CharacterActor`（`ReplicationSeat.Autonomous`）** 先演走跑和招式，权威只纠正结果。**命中、HP、硬直只认 Host 的 `CombatHitPipeline`。** 禁止全端同构重演（锁步 L5），禁止客户端上报伤害 / 坐标 / 招式名。
 
 单机一人进关也是 Listen Host，不另开 Offline 模拟核。
 
@@ -34,7 +35,7 @@
 |------|------------|
 | Source `CUserCmd` + `game/shared` | `InputFrame` + `ACTGame.Simulation` |
 | 守望 command frame + 专用服模拟 | 60Hz `SimulationWorld.Step` + Snapshot |
-| UE `ROLE_Authority` / `AutonomousProxy` / `SimulatedProxy` | Host `CharacterActor` / 客机 Runner / `RemoteCharacterProxy` |
+| UE `ROLE_Authority` / `AutonomousProxy` / `SimulatedProxy` | Host `CharacterActor` / 客机 Autonomous `CharacterActor` / `RemoteCharacterProxy` |
 | Unity Netcode Entities Ghost | 拥有者预测、他人插值；命令只从 Owner 来 |
 | Mirror / NGO `ServerRpc` | 只适合元数据；禁止每帧近战 Rpc |
 
@@ -47,7 +48,7 @@
 | 座位 | 谁创建 | 跑什么 | 不跑什么 |
 |------|--------|--------|----------|
 | **Authority** | Listen Host 的本机玩家、远端玩家在 Host 上的 `RemotePlayerSeat`、全部敌人 | 完整 `CharacterActor.Step` + `HitboxFrameConsumer.Collect` + Numeric | 客机设备采样（远端玩家吃收到的 `InputFrame`） |
-| **Autonomous（客机本机）** | `RemoteCharacterProxyFactory.CreateAutonomous` | `AutonomousLocomotionRunner` + 只读 `AutonomousActionRunner` + 预测 `CharacterMotorSim` | `CharacterActorFactory`、Collect、写 Numeric、`ActionMotionResolver` |
+| **Autonomous（客机本机）** | `PlayerController` → `CharacterActorFactory.Create(seat: Autonomous)` | 同一 `CharacterActor.Step`（无 Hitbox、有 WorldQuery、不进 World） | Collect、`SimulationWorld.Register` |
 | **Simulated（他人 / 敌人）** | `RemoteCharacterProxyFactory.Create` | `RemoteCharacterProxy.ApplySnapshot`：位姿插值、Clip Seek、过点 VFX/SFX | `ActionSim.Step`、BT、Hitbox Collect |
 
 Listen Host 本地玩家：**不预测**，直接吃权威（0 RTT）。`ILocalPlayer.IsLocalPredicted` 在 Host 上恒为 `false`，客机座位为 `true`。
@@ -68,19 +69,15 @@ flowchart TB
     end
 
     subgraph clientProc [客机进程]
-        Sampler[PlayerController.BuildClientSeat 只采样]
-        Auto[AutonomousPredictedSeat]
-        Loco[AutonomousLocomotionRunner.Tick]
-        Act[AutonomousActionRunner.Tick]
+        Sampler[PlayerController Autonomous CharacterActor]
+        Step[CharacterActor.Step]
         Proxy[RemoteCharacterProxy.ApplySnapshot]
-        Sampler --> Auto
-        Auto --> Loco
-        Auto --> Act
+        Sampler --> Step
         Tick -->|他人/敌人| Proxy
         Tick -->|self + appliedHint| Recon[PredictedLocomotionDriver.Reconcile]
-        Recon --> Loco
+        Recon --> Replay[CharacterActor.ReplayTick]
         Tick --> ActAck[PredictedActionAckQueue.Reconcile]
-        ActAck --> Act
+        ActAck --> Stop[CharacterActor.StopAutonomousAction]
     end
 
     Sampler -->|ClientCommand 批| GuestSeat
@@ -105,9 +102,9 @@ Editor 启动覆盖（不硬引用 ParrelSync 程序集）：
 2. 否则读 `ACTGame/Room` 菜单写入的 EditorPrefs
 3. 再否则用场景 Inspector 默认值
 
-### 3.2 客机不建权威 Actor
+### 3.2 客机建 Autonomous Actor，不进 World
 
-`PlayerController` 发现 `!combatWorld.IsAuthority` 时走 `BuildClientSeat`：只建 `InputReader`，**不**调用 `CharacterActorFactory.Create`。这样客机没有 `HitboxFrameConsumer`，也不会把本机玩家注册进 `SimulationWorld`。
+`PlayerController` 发现 `!combatWorld.IsAuthority` 时走 `BuildClientSeat`：`CharacterActorFactory.Create(seat: Autonomous)`。同一类实例，**不**注册 `HitboxFrameConsumer`，**不** `RegisterPlayer`。相机读 `ILocalPlayer.Actor`。
 
 敌人只在权威端刷：`EnemySpawnController.Start` 在 `!IsAuthority` 时直接 return。客机看到的怪是 `RemoteCharacterProxy`。
 
@@ -123,7 +120,7 @@ Editor 启动覆盖（不硬引用 ParrelSync 程序集）：
 | -150 | `ReplicationRoomHost` / `Client` | `Pump` → 灌入客机命令到 `CurrentFrame+1` | `Pump` → 收 Tick 纠偏；`MergeLocalSample` |
 | -100 | `SimulationHost` | `World.Step` → 命中结算 → `AfterLogicStep` | 空 World 步进 → `AfterLogicStep`（预测钟） |
 | 事件 | `AfterLogicStep` | Host 打包 `AuthorityTick` 下行 | Client 预测一帧并上行命令批 |
-| LateUpdate | `SimulationHost` / Client | 权威表现插值 | 预测体 + 他人 Proxy `Render(alpha)` |
+| LateUpdate | `SimulationHost` / Client | 权威表现插值 | 本机 `CharacterActor.Render` + 他人 Proxy `Render(alpha)` |
 
 **必须先灌输入再 Step。** Host 在 -150 把客机命令写入 `InputFrameBuffer`，-100 的 `SimulationWorld.Step` 才能读到下一权威帧。
 
@@ -445,7 +442,7 @@ flowchart TD
 
 ### 11.1 他人 / 敌人
 
-`ApplyRemoteActors` 跳过 `AssignedActorId`。未见过的 Id 用 `RemoteCharacterProxyFactory.Create` 建幽灵（不注册 World、不挂 Hurtbox）。本 Tick 消失的 Id 销毁。玩家模型用本机 `CharacterConfig`；敌人暂用刷怪列表**第一条**配置（多种敌人时会穿错模，已知限制）。
+`ApplyRemoteActors` 跳过 `AssignedActorId`。未见过的 Id 用 `RemoteCharacterProxyFactory.Create` 建幽灵（不注册 World、不挂 Hurtbox）。创建时 `TargetSystem.Register(proxy)`，销毁时 Unregister，供本机 Targeting / CameraLock。本 Tick 消失的 Id 销毁。玩家模型用本机 `CharacterConfig`；敌人暂用刷怪列表**第一条**配置（多种敌人时会穿错模，已知限制）。
 
 `ApplySnapshot`：写 Motor、同步根、有招则切段 Play+Seek，并按 `previousFrame → currentFrame` 只派发 VFX/SFX。**禁止派发 Hitbox。** `FreezeFrames > 0` 时动画 Speed=0。生命边沿 Hit/Death 或同一招动作帧回绕 → `ShouldForceActionRestart` 硬切重播。
 
@@ -453,14 +450,13 @@ flowchart TD
 
 ### 11.2 本机预测体
 
-第一份 self 快照到达后 `CreateAutonomous`：
+`PlayerController.BuildClientSeat` 在入房前就 `CharacterActorFactory.Create(seat: Autonomous)`。第一份 self 快照到达后 `EnsurePredictedDriver`：
 
-- `RemoteCharacterProxy`（表现图 + 预测 `CharacterMotorSim`）
-- `AutonomousLocomotionRunner`（同一套 `LocomotionStateMachine`）
-- `AutonomousActionRunner`（只读 `ActionSim`，`resourceGate: null`）
-- `PredictedLocomotionDriver` 只记账与纠偏，**不再自己算 wish 走跑**
+- 绑定 `SimActorId` + 对齐 Motor 位姿
+- `PredictedLocomotionDriver` 只记账与纠偏
+- 相机跟 `ILocalPlayer.Actor.PresentationRoot`
 
-`PlayerController.BindPredictedView` 后，相机跟 `PresentationRoot`，不跟空座位的 `transform`。
+不另建 Proxy，不对自角色 `ApplySnapshot` Seek。
 
 ---
 
@@ -470,21 +466,19 @@ flowchart TD
 
 ### 12.1 预测步
 
-无招、非受击：
+`ReplicationRoomClient.AfterLogicStep` 调本机 `CharacterActor.Step` + `ResolvePostCombat`（不进 `SimulationWorld`）。
 
-1. `AutonomousLocomotionRunner.Tick(input, resume)`
-2. `InputManager.IngestFrame` → `LocomotionStateMachine.Tick` → 写 MotorSim + Animation + Lean
-3. `PredictedLocomotionDriver.RecordAutonomous`（`skipWishReplay=true`，纠偏走 Runner）
+走跑由顶层 `LocomotionState` → 同一套 `LocomotionStateMachine`。出招由 `CharacterActionDriver` + `CharacterActionPresentationBridge`（Clip / VFX / 烘焙位移 / Adhesion / Relocate）。Autonomous 注入 `ActionMotionWorldQuery`，目标 Pose 读只读 Proxy，不 Collect。
 
-闪避结束再 Enter 必须 `LocomotionResumeRequest.AfterAction`（`SprintAfterDodge`），禁止 `Enter(default)` 从 Idle 重计 Sprint。
+卡肉由 `PredictedHitStopConsumer` 在本机 Hitbox 与只读 Proxy 重叠时 `RequestHitStop`。禁止用延迟权威 `FreezeFrames` 再 `holdActionClock`。
 
-有招 / 受击：`Runner.Exit()`，位移 `PredictAlignedToSnapshot`（贴齐延迟快照毫米位姿，不跑 wish，不重放烘焙招式位移）。出招位移**不**在客机跑 `ActionMotionResolver`。
+`PredictedLocomotionDriver.RecordAutonomous`（`skipWishReplay=true`，纠偏走 Actor 的 `ReplayTick`）。
 
-走跑表现：`SyncAutonomousLocomotion` 只同步位置与 Lean，**禁止** Proxy 再 Play/Seek Locomotion，**禁止**每帧 `SyncRootPoseFromSim`（会清零转向阻尼）。
+闪避结束回走跑仍走 Host 同一套 `ActionState.Exit` → `SprintAfterDodge`，禁止另写 Runner `Enter(default)`。
 
 ### 12.2 纠偏
 
-`Reconcile(appliedHint, self, locomotionRunner)`：
+`Reconcile(appliedHint, self, actor)`：
 
 1. 用 pending 里 **该 Hint 帧记下的预测位姿** 和权威位姿算误差（不是和当前墙钟位姿比）
 2. `DropAcked` 丢掉 `<= appliedHint` 的 SavedMove
@@ -492,14 +486,17 @@ flowchart TD
 4. 刚吸附后 8 包内误差 ≤ 150mm 只 Ack（`SnapGraceMaxErrorMm`）
 5. 超阈：`ReplicationPoseApplier.ApplyToMotor` + `RestoreFromAuthority`（`LocomotionSavedState.FromAuthority` 恢复相位 / 步态 / cardinal / 归一化时间）+ 对后续 pending `ReplayTick`
 6. 权威正在出招或 Hit/Death：只吸 Pose，**不** Runner 重放
-7. 仅 `Snapped` 或权威 Hit/Death 才 `SnapPresentationToSimulation`。出招 / 闪避禁止每包硬切表现，否则插值被掐死、位移和相机一起跳
+7. **穿敌吸附 / SoftBodySuppress 窗，或权威 `FreezeFrames > 0`**：`ActionMotionReconcileGate` 把硬吸阈提到 `int.MaxValue`，只 Ack。否则本机已吸到敌后、延迟快照还停在敌前，2m 会把人拽回
+8. 仅 `Snapped` 或权威 Hit/Death 才 `SnapPresentationToSimulation`。出招 / 闪避禁止每包硬切表现，否则插值被掐死、位移和相机一起跳
 
 ```mermaid
 flowchart TD
     Rec[PredictedLocomotionDriver.Reconcile]
     Rec --> Err[ResolveErrorAgainstPredictedFrame]
     Rec --> Drop[DropAcked]
-    Err --> Gate{误差 小于等于 2m 或宽限 150mm}
+    Rec --> Defer{ActionMotionReconcileGate 推迟硬吸}
+    Defer -->|是| AckOnly[只 Ack]
+    Defer -->|否| Gate{误差 小于等于 2m 或宽限 150mm}
     Gate -->|是| Ack[只 Ack]
     Gate -->|否| Snap[ReplicationPoseApplier.ApplyToMotor]
     Snap --> Act{权威出招或 Hit}
@@ -507,24 +504,24 @@ flowchart TD
     Act -->|否| Rest[IPredictedLocomotionReplay.RestoreFromAuthority]
     Rest --> Rep[ReplayTick 未确认 InputFrame]
     Snap --> Pres{Snapped}
-    Pres -->|是| Hard[RemoteCharacterProxy.SnapPresentationToSimulation]
+    Pres -->|是| Hard[CharacterActor.SnapPresentationToSimulation]
 ```
 
 ---
 
 ## 13. 出招预测与 Clip / VFX 所有权
 
-客机本机跑只读 `ActionSim`：Graph 起手、Cancel 窗、连招、推帧。事件 `DrainDiscard`，禁止外层拿去派发 Hitbox。`GameplayIntentProducer` 的状态机探针只回报「在播招 / 在走跑」，不能 `TryChangeState`。
+客机本机跑完整 `ActionSim` + 表现桥：Graph 起手、Cancel 窗、连招、推帧、Clip/VFX。挂 `PredictedHitStopConsumer`（只卡肉），没有 `HitboxFrameConsumer`，事件不会进 `CombatHitPipeline`。`GameplayIntentProducer` 绑真实 `CharacterStateMachine`。
 
 ### 13.1 预测步
 
-`AutonomousActionRunner.Tick(input, predictFrame, authorityFrozen)`：
+`CharacterActor.Step`（Autonomous）：
 
-- 权威 `FreezeFrames > 0`：只把当帧意图写入 Cancel 缓冲，**不** `ActionSim.Step`、不起手、不移动取消。否则 Clip 暂停时 ActionFrame 跑飞，解冻一次派多段 VFX
-- 未冻结：Producer → 起手 / 移动取消 / 高优打断 / 缓冲 → `Step` + `ResolvePostCombat`
+- Driver → 起手 / 移动取消 / 高优打断 → `Step` + `ResolvePostCombat` + `ApplyStep`（烘焙位移 + Adhesion / Relocate + 预测卡肉）
+- 本机 `ActionSim.freezeFrames` 由预测重叠写入；权威 Freeze 不再拖本机时钟
 - 每帧 `PredictedActionAckQueue.Record(frame, actionId)`
 
-Host 已硬直时同机预览走 `TickUnconfirmed`（继续推已预测招，等延迟 Tick 取消）。真客机受击走权威边沿硬切。
+同机预览 Host 已硬直时 `suppressNewStarts`：不新起手，只推已预测招。真客机受击走权威边沿 `EnterHit`。
 
 ### 13.2 Ack
 
@@ -538,31 +535,18 @@ Host 已硬直时同机预览走 `TickUnconfirmed`（继续推已预测招，等
 | 该帧预测已是下一招，权威仍是本机刚打过的上一招 | **只 Ack，不 Cancel**（连招超前） |
 | 同招 | 只 Ack，**禁止 Seek 回旧帧** |
 
-`Cancelled` 时 `Stop(followAuthority)`：权威仍有招或受击则改跟快照；权威未起手则回走跑。
+`Cancelled` 时 `CharacterActor.StopAutonomousAction()`：停本地招并回走跑。权威 Hit/Death 另走 `EnterHit` / `EnterDeath`。
 
 ### 13.3 呈现规则（避免特效重播）
 
-本机招打完后若再用延迟快照 `ApplySnapshot`，`SyncAutonomousLocomotion` 已清 `_lastActionId`，会从帧 `-1` 派到权威帧，刀光再来一遍。
+本机 Clip/VFX 由 `CharacterActionPresentationBridge` 消费 `ActionSim` 事件，**禁止**对自角色再 `ApplySnapshot` Seek。自然结束后立刻回走跑；延迟快照上的 `ActionId` 不得重派刀光。
 
 | 条件 | 播什么 |
 |------|--------|
-| Runner `IsActive` | 预测 `ActionId` / `ActionFrame` |
-| 权威 Hit/Death | 快照（硬切） |
-| 和解真取消且权威仍有招 | 快照 |
-| 本机从未起手（无预测会话）且权威有招 | 快照 |
-| 本机自然结束 | **立刻走跑**，忽略延迟 `snapshot.ActionId`，直到权威 `ActionId==0` 再 `NotifyAuthorityIdle` |
-
-判定函数：`PredictedActionAckQueue.ShouldPresentAuthorityAction`。
-
-```mermaid
-flowchart TD
-    Vis[ApplyPredictedVisual]
-    Vis --> Active{ActionRunner.IsActive}
-    Active -->|是| Pred[WithAction 预测帧 ApplySnapshot]
-    Active -->|否| Auth{ShouldPresentAuthorityAction}
-    Auth -->|是| Snap[WithAction 快照帧 ApplySnapshot]
-    Auth -->|否| Loco[SyncAutonomousLocomotion]
-```
+| 本机 `ActionSim.IsActive` | Actor 自己的招 |
+| 权威 Hit/Death | `EnterHit` / `EnterDeath` |
+| Ack 取消 | `StopAutonomousAction` 回走跑 |
+| 本机自然结束 | 立刻走跑，忽略延迟 `snapshot.ActionId` |
 
 Listen Host 本地**不**跑这套出招预测。
 
@@ -644,9 +628,9 @@ flowchart LR
 | Tick 可靠重传 / 增量快照 / 相关性裁剪 | 无 |
 | `AuthorityTick.Spawns/Despawns` 驱动生成 | 字段在 Codec 里；房间主要靠 Actors 列表扫幽灵 |
 | `LateInputWindowFrames` | 常量存在，过滤未使用 |
-| 客机 CameraLock | 无权威 Actor |
+| 客机 CameraLock | Proxy 只读进 TargetSystem；范围内自动选中后可开 |
 | 多种敌人正确模型 | 客机暂用第一条刷怪配置 |
-| 客机出招吸附 / Relocate | 明确不做；位移跟快照插值 |
+| 客机出招 Relocate / Adhesion | 读只读 Proxy 逻辑 Pose；敌人位姿仍有 Tick 延迟 |
 | 锁步 L5 / 全世界回滚 | 已废止，不得双轨 |
 
 ---
@@ -657,7 +641,8 @@ flowchart LR
 
 - 新战斗规则写在 `SimulationWorld` / Actor / Pipeline，不写在房间 Handler
 - 新上行字段只能进 `InputFrame` / `ClientCommand`
-- `CharacterActorFactory` / `hitPipeline.Collect` 仅权威装配
+- `HitboxFrameConsumer` / `hitPipeline.Collect` 仅 `ReplicationSeat.Authority`
+- 无 `AutonomousLocomotionRunner` / `AutonomousActionRunner` / `CreateAutonomous`
 - `ACTGame.Simulation` 无 Unity、无传输实现引用
 - 无 `LockstepNetworkHost` 与 `StateSyncHost` 双主路径
 - 无 `PredictedActionDriver` / `PredictedLocomotionVisual`
@@ -685,7 +670,7 @@ flowchart LR
 |------|------|
 | `CharacterReplicationCapture` / `ActionReplicationCatalog` | `Assets/Scripts/Domain/Character/Replication/` |
 | `RemoteCharacterProxy` / `RemoteCharacterProxyFactory` | 同上 |
-| `AutonomousLocomotionRunner` / `AutonomousActionRunner` | 同上 |
+| `ReplicationSeat` | 同上 |
 | `LocomotionSavedState` / `ReplicationPresentationAlign` | 同上 |
 | `ReplicationRoomHost` / `ReplicationRoomClient` | `Assets/Scripts/App/Controllers/Gameplay/` |
 | `RemotePlayerSeat` / `ReplicationRoomLaunchSettings` | 同上 |
@@ -709,7 +694,7 @@ flowchart LR
 4. F3 看 Room 行：Host `ListenHost / ClientJoined`，Client `Client / Joined` 与 RTT
 5. 一人 Play 就是 Listen Host，行为应与改联网前单机一致（本机不预测）
 
-无需新建 Prefab / Input Actions。客机 Runner 读现有 `CharacterConfig`。Catalog 必须能看到 Graph 变体，否则侧闪没片子。
+无需新建 Prefab / Input Actions。客机 Autonomous Actor 读现有 `CharacterConfig`。Catalog 必须能看到 Graph 变体，否则侧闪没片子。
 
 ---
 

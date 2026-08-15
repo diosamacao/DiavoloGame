@@ -1,7 +1,7 @@
 # 客机预测向 UE AutonomousProxy 对齐 — 实施方案
 
 > 制定：2026-08-15  
-> 角色：**NS5 之后客机本机预测/表现的结构真源（先文档，后实现）**；房间、权威 World、命中契约仍以 [`TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md`](../2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md) 为准  
+> 角色：**走跑纠偏合同仍有效**；客机**装配**真源已迁 [`UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](./UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md)（同一 `CharacterActor` + `ReplicationSeat`）。房间、权威 World、命中契约仍以 [`TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md`](../2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md) 为准  
 > 相关：  
 > - 组队 PVE 联网（NS0～NS5 已关闭）：[`../2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md`](../2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md)  
 > - 内层走跑真源：`LocomotionStateMachine` + [`../2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md`](../2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md)  
@@ -385,3 +385,4 @@ UE1 装配内层机并切断猜片
 | 2026-08-15 | UE3：删除 `PredictedLocomotionVisual`；相位判断并入 `ReplicationPresentationAlign`；约定与文档对齐 |
 | 2026-08-15 | UE4：`AutonomousActionRunner` 只读 ActionSim；删除 `PredictedActionDriver`；Ack 队列保留 |
 | 2026-08-15 | 客机出招对齐：自然结束不重播延迟招；连招超前不误 Cancel；权威卡肉暂停本机推帧 |
+| 2026-08-15 | 装配迁出：本机改 `CharacterActor` Autonomous 座位；本方案只保留纠偏合同 |

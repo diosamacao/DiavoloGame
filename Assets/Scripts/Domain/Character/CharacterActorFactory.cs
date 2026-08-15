@@ -2,10 +2,13 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>角色实例工厂，负责从 CharacterConfig 和输入源创建纯 C# 服务图。</summary>
+/// <summary>角色实例工厂；按 <see cref="ReplicationSeat"/> 装配能力图，禁止身份 if 开双套 Actor。</summary>
 public static class CharacterActorFactory
 {
-    /// <summary>按配置创建角色实例；Hitbox 仅写共享帧末命中流水线。</summary>
+    /// <summary>
+    /// 按配置创建角色。Authority 必须带命中流水线并注册 Hitbox；
+    /// Autonomous 不挂 Collect；预测卡肉 + Adhesion / Relocate 读只读花名册。
+    /// </summary>
     public static CharacterActor Create(
         GameObject owner,
         Transform root,
@@ -18,7 +21,8 @@ public static class CharacterActorFactory
         out CharacterAnimationService animation,
         ISimCollisionWorld collisionWorld = null,
         IMoveIntentSource moveIntentSource = null,
-        IActionEntryRequestSource actionEntryRequests = null)
+        IActionEntryRequestSource actionEntryRequests = null,
+        ReplicationSeat seat = ReplicationSeat.Authority)
     {
         CharacterActor actor = null;
         CharacterMotorConfig motorConfig = config.Motor;
@@ -133,19 +137,14 @@ public static class CharacterActorFactory
             new LocomotionFacingTargetSource(
                 targetingState,
                 motorSim));
-        var hitboxFrameConsumer = new HitboxFrameConsumer(
-            root,
-            motorSim,
-            teamId,
-            actionSim,
-            attachPoints,
-            activeTargetsProvider,
-            () => actor?.SimulationId ?? SimActorId.Invalid,
-            combatHitPipeline);
+        if (seat == ReplicationSeat.Authority && combatHitPipeline == null)
+            throw new ArgumentNullException(nameof(combatHitPipeline), "Authority 座位必须绑定 CombatHitPipeline。");
+
         var vfxPlayer = new ActionVfxPlayer(root, attachPoints);
         var sfxPlayer = new ActionSfxPlayer(root);
         var visualMotion = new CharacterVisualMotionBridge(visualMotionRoot);
-        // Wave 4：吸附读 Hurtbox 逻辑 Pose，不读表现骨骼
+        // 两端都注入 WorldQuery：Adhesion / Relocate / SnapFacing 读花名册逻辑 Pose。
+        // Autonomous 花名册是只读 Proxy；仍不挂 Hitbox，不进 World。
         var motionWorldQuery = new ActionMotionWorldQuery(activeTargetsProvider);
         var actionPresentation = new CharacterActionPresentationBridge(
             actionSim,
@@ -160,7 +159,33 @@ public static class CharacterActorFactory
             visualMotion,
             targetingState,
             motionWorldQuery);
-        actionPresentation.RegisterFrameConsumer(hitboxFrameConsumer);
+        if (seat == ReplicationSeat.Authority)
+        {
+            var hitboxFrameConsumer = new HitboxFrameConsumer(
+                root,
+                motorSim,
+                teamId,
+                actionSim,
+                attachPoints,
+                activeTargetsProvider,
+                () => actor?.SimulationId ?? SimActorId.Invalid,
+                combatHitPipeline);
+            actionPresentation.RegisterFrameConsumer(hitboxFrameConsumer);
+        }
+        else
+        {
+            // 客机只预测卡肉表现；伤害仍只走权威 Collect。
+            actionPresentation.RegisterFrameConsumer(
+                new PredictedHitStopConsumer(
+                    root,
+                    motorSim,
+                    teamId,
+                    actionSim,
+                    attachPoints,
+                    activeTargetsProvider,
+                    () => actor?.SimulationId ?? SimActorId.Invalid));
+        }
+
         actionPresentation.RegisterNotifyConsumer(vfxPlayer);
         actionPresentation.RegisterNotifyConsumer(sfxPlayer);
 
@@ -192,7 +217,9 @@ public static class CharacterActorFactory
             vitality,
             intentBuffer,
             targetingState,
-            root);
+            root,
+            seat,
+            1f / SimulationConfig.DefaultLogicHz);
 
         var rotationDriver = new ActionRotationDriver(
             root,
