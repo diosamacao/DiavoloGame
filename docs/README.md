@@ -1,6 +1,6 @@
 # ACTGame 文档索引
 
-> 更新：2026-08-15 — NS0～NS5 已验收；客机预测下一档见 `2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`。
+> 更新：2026-08-15 — NS0～NS5 已验收；**网络同步实现说明**见 `2026.8.15/NETWORK_SYNC.md`；客机预测方案见 `2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`。
 > **一页总览先读：** [PROJECT_CHECKLIST.md](./PROJECT_CHECKLIST.md)  
 > **排期真源：** [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md)  
 > **架构运行时：** `.cursor/skills/actgame-architecture/`（ARCHITECTURE / TECHNICAL / ROADMAP）
@@ -20,8 +20,10 @@
 | [2026.8.6/CHARACTER_MOVEMENT_ANCHOR_OPTIMIZATION_PLAN.md](./2026.8.6/CHARACTER_MOVEMENT_ANCHOR_OPTIMIZATION_PLAN.md) | Gameplay/Residual 锚点 |
 | [2026.8.6/CAMERA_SYSTEM_PLAN.md](./2026.8.6/CAMERA_SYSTEM_PLAN.md) | 相机 / Lock-On / SkillShot |
 | [2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md](./2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md) | **Camera C1 前置**：MoveReferenceYaw 输入闭包、唯一 SelectedTarget 权威与纯表现 CameraLock |
-| [2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md](./2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md) | **组队 PVE 联网真源（NS0～NS5 已关闭）**：Host 权威、房间、命中、§13 服务器规范 |
-| [2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md](./2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md) | **客机预测真源（UE1～UE4）**：本机 Autonomous 跑内层机，权威 Restore+Replay |
+| [2026.8.15/NETWORK_SYNC.md](./2026.8.15/NETWORK_SYNC.md) | **网络同步实现说明（先读）**：三种座位、房间协议、上下行、预测纠偏、命中复制；以代码为准 |
+| [DemoServer `docs/ARCHITECTURE.md`](../../DemoServer/docs/ARCHITECTURE.md) | **DemoClient / DemoServer 对照**：独立 C# 大厅服 + 客户端上报坐标/伤害；学 Handler 壳，不学战斗权威 |
+| [2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md](./2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md) | **组队 PVE 联网设计真源（NS0～NS5 已关闭）**：Host 权威、房间、命中、§13 服务器规范 |
+| [2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md](./2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md) | **客机预测设计真源（UE1～UE4）**：本机 Autonomous 跑内层机，权威 Restore+Replay |
 | [ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](./ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md) | 模拟核 L0～L2；联网主路径见 8.13 状态同步方案 |
 | [2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md) | 敌人 AI **结构**真源（已关闭；Desire + Entry Request） |
 | [2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md](./2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md) | **BT 待优化真源**（编辑器 A2～A5 + 可选 C1～C4） |

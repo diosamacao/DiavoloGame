@@ -108,6 +108,8 @@
 
 **状态：✅ NS0～NS5 已验收（2026-08-15）**。单机即 Listen Host。房间 / 权威 World 以该方案为准。命中 **P0 仍 Host Collect**；终态以 PVP 为真源（攻击方申报几何、权威入账），PVE 同一条链，见方案 §3.3。`NS-PVP` 未开，禁止现在分叉两套盒。
 
+**实现说明（先读）：** [`docs/2026.8.15/NETWORK_SYNC.md`](../../docs/2026.8.15/NETWORK_SYNC.md)
+
 **下一档（客机预测对齐 UE）：** [`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md) — **UE4 代码已落地（2026-08-15）**，只读 ActionSim；已修自然结束重播延迟招 / 连招误 Cancel / 卡肉推帧。Play 复验连招 Cancel、出招结束无二段刀光、受击取消。顺序 UE1 → UE2 → UE3 → UE4。
 
 ### [P1] Lockstep 模拟核迁移
