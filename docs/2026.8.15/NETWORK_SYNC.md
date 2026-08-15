@@ -172,7 +172,7 @@ flowchart TD
 
 | 实现 | 用途 |
 |------|------|
-| `LoopbackReplicationTransport` | 同进程队列，可设 `LatencyMs`；NS1～NS4 预览、单测 |
+| `LoopbackReplicationTransport` | 同进程队列，可设 `LatencyMs`；仅单测。Host 同机预览已删 |
 | `UdpReplicationTransport` | NS5 真房间；Host `Bind`，Client `Connect`；非阻塞收包 |
 
 UDP 实现要点：
@@ -353,7 +353,7 @@ flowchart LR
 | `FlagsPacked` | P0 为 0 | |
 | `VitalityEdge` | `CharacterVitality.ReplicationEdge` | 当帧 Hit / Death，防只靠 HP 差值漏播 |
 
-**明确不进快照：** CameraLock、Look、Lean、Impulse、表现插值锚点。Lean 只在本机 / 同机预览从 Runner 或权威 Actor 拷。
+**明确不进快照：** CameraLock、Look、Lean、Impulse、表现插值锚点。Lean 只在本机 Actor 倾身模型推进。
 
 本机预测表现会用 `WithMotorPose` / `WithAction` / `WithLocomotion` 在**本地副本**上改字段再 `ApplySnapshot`，不回写权威 Motor。
 
@@ -521,7 +521,7 @@ flowchart TD
 - 本机 `ActionSim.freezeFrames` 由预测重叠写入；权威 Freeze 不再拖本机时钟
 - 每帧 `PredictedActionAckQueue.Record(frame, actionId)`
 
-同机预览 Host 已硬直时 `suppressNewStarts`：不新起手，只推已预测招。真客机受击走权威边沿 `EnterHit`。
+真客机受击走权威边沿 `EnterHit`。已删除 `SetAutonomousPredictMode`（仅同机预览用）。
 
 ### 13.2 Ack
 
@@ -595,16 +595,11 @@ flowchart LR
 
 ---
 
-## 16. 同机预览（不是房间）
+## 16. 同机预览（已删除）
 
-仅 Listen Host 的 Editor 默认开启，**不替换** Host 本地玩家，不进花名册，不跑命中。
+Host 不再生成右侧 +2m 延迟幽灵或左侧 -2m 预测体。`RemoteGhostViewController`、`PredictedClientPreviewController` 与 `CombatWorldController` 的 preview 开关已删。
 
-| 组件 | 偏移 | 作用 |
-|------|------|------|
-| `RemoteGhostViewController` | 默认 +2m，Loopback 100ms | 本机玩家 + 敌人的延迟 Snapshot，验收「幽灵只跟状态」 |
-| `PredictedClientPreviewController` | 默认 -2m，Loopback 100ms | 左侧走同一套 Autonomous Runner，验收预测 / 延迟取消 |
-
-真客机路径是 UDP + `ReplicationRoomClient`，不要把预览延迟当成房间 RTT。
+验收走 ParrelSync 真客机：UDP + `ReplicationRoomClient`。不要把已删除的 Loopback 预览延迟当成房间 RTT。
 
 ---
 
@@ -646,6 +641,7 @@ flowchart LR
 - `ACTGame.Simulation` 无 Unity、无传输实现引用
 - 无 `LockstepNetworkHost` 与 `StateSyncHost` 双主路径
 - 无 `PredictedActionDriver` / `PredictedLocomotionVisual`
+- 无 `RemoteGhostViewController` / `PredictedClientPreviewController` / `SetAutonomousPredictMode`
 - 玩法禁止 `FindObjectOfType<PlayerController>`（仅 Editor Gizmo 可留）
 
 ---
@@ -703,3 +699,4 @@ flowchart LR
 | 日期 | 说明 |
 |------|------|
 | 2026-08-15 | 初版：按 NS0～NS5 + UE1～UE4 已落地代码整理网络同步说明；与方案文档分离，本文对实现负责 |
+| 2026-08-15 | 删除 Host 同机预览（±2m Ghost / Predicted Client）；Loopback 仅留单测 |

@@ -304,16 +304,14 @@ public sealed class RemoteCharacterProxyTests
         Object.DestroyImmediate(root);
     }
 
-    /// <summary>幽灵与工厂源码不得引用 Hitbox 收集或 EnemyBrain。</summary>
+    /// <summary>他人/敌人幽灵与工厂源码不得引用 Hitbox 收集或 EnemyBrain。</summary>
     [Test]
     public void GhostSource_HasNoHitboxCollectOrBrain()
     {
         string[] relativePaths =
         {
             "Assets/Scripts/Domain/Character/Replication/RemoteCharacterProxy.cs",
-            "Assets/Scripts/Domain/Character/Replication/RemoteCharacterProxyFactory.cs",
-            "Assets/Scripts/App/Controllers/Gameplay/RemoteGhostViewController.cs",
-            "Assets/Scripts/App/Controllers/Gameplay/PredictedClientPreviewController.cs"
+            "Assets/Scripts/Domain/Character/Replication/RemoteCharacterProxyFactory.cs"
         };
 
         for (int i = 0; i < relativePaths.Length; i++)
@@ -337,6 +335,19 @@ public sealed class RemoteCharacterProxyTests
             Is.False);
         Assert.That(
             File.Exists(Path.Combine(root, "Assets/Scripts/Domain/Character/Replication/AutonomousLocomotionRunner.cs")),
+            Is.False);
+    }
+
+    /// <summary>Host 同机 ±2m 预览已删除；验收走 ParrelSync 真客机。</summary>
+    [Test]
+    public void HostSameProcessPreviewControllers_AreDeleted()
+    {
+        string root = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+        Assert.That(
+            File.Exists(Path.Combine(root, "Assets/Scripts/App/Controllers/Gameplay/RemoteGhostViewController.cs")),
+            Is.False);
+        Assert.That(
+            File.Exists(Path.Combine(root, "Assets/Scripts/App/Controllers/Gameplay/PredictedClientPreviewController.cs")),
             Is.False);
     }
 

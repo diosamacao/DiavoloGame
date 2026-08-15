@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-15（UE4 只读 ActionSim）
+> Last audited: 2026-08-15（删除 Host 同机预览）
 
 ## 项目概述
 
@@ -240,10 +240,8 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `CharacterActor`（Autonomous） | 客机本机同一类实例；实现 `IPredictedLocomotionReplay`；表现走 `CharacterActionPresentationBridge` |
 | `PredictedActionAckQueue` | 出招预测 Ack；未起手/变体分叉/Hit 则 Stop；连招超前只 Ack |
 | `LocomotionSavedState` | 内层机 Capture/Restore；权威 FromAuthority |
-| `RemoteGhostViewController` | Host 同机 Ghost；Client 不启用 |
 | `PredictedLocomotionDriver` | 走跑记账；超阈 Restore+Replay |
-| `PredictedClientPreviewController` | Host 同机左侧预览走同一 Runner；Listen Host 本地仍不预测 |
-| `ReplicationRoomHost` / `ReplicationRoomClient` / `RemotePlayerSeat` | 最小 2 人房间；单机=Listen Host |
+| `ReplicationRoomHost` / `ReplicationRoomClient` / `RemotePlayerSeat` | 最小 2 人房间；单机=Listen Host。Host 不再生成同机 ±2m 预览体 |
 
 权威进程写法：同一份 `ACTGame.Simulation`，不另写服务器战斗。对照与禁区见 CONVENTIONS「服务器 / 权威进程」与方案 §13。实现级阅读入口：[`docs/2026.8.15/NETWORK_SYNC.md`](../../docs/2026.8.15/NETWORK_SYNC.md)。
 

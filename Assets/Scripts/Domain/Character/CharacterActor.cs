@@ -36,7 +36,6 @@ public sealed class CharacterActor :
     readonly Transform _simulationRoot;
     readonly ReplicationSeat _seat;
     readonly float _fixedDeltaSeconds;
-    bool _autonomousSuppressNewStarts;
     InputFrameBuffer _inputFrames;
     InputFrame _lastSimulationInput;
     SimActorId _actorId;
@@ -501,18 +500,6 @@ public sealed class CharacterActor :
         _presentation.RefreshCurrentPoseFromSimulationRoot();
     }
 
-    /// <summary>
-    /// 同机预览：权威已受击/死亡时禁止新起手，只推已在播的招。
-    /// Authority 座位忽略。真客机卡肉走本机 RequestHitStop，不经此旗标。
-    /// </summary>
-    public void SetAutonomousPredictMode(bool suppressNewStarts)
-    {
-        if (_seat != ReplicationSeat.Autonomous)
-            return;
-
-        _autonomousSuppressNewStarts = suppressNewStarts;
-    }
-
     /// <summary>Ack 取消本地招并回走跑；不写 Numeric、不 Collect。</summary>
     public void StopAutonomousAction()
     {
@@ -552,29 +539,11 @@ public sealed class CharacterActor :
         _animation.Tick(_fixedDeltaSeconds);
     }
 
-    /// <summary>按预测旗标推进或暂停 ActionSim；Authority 走完整起手+Step。</summary>
+    /// <summary>推进 ActionSim：起手/取消后推一帧。卡肉由本机 RequestHitStop 写入 freeze。</summary>
     void StepActionClock()
     {
-        if (_autonomousSuppressNewStarts)
-        {
-            BufferAutonomousIntentsOnly();
-            if (_actionSim != null && _actionSim.IsActive)
-                _actionSim.Step();
-            return;
-        }
-
         _actionDriver.ProcessGameplayInput();
         _actionSim?.Step();
-    }
-
-    /// <summary>卡肉/硬直窗只把当帧意图写入缓冲，禁止起手。</summary>
-    void BufferAutonomousIntentsOnly()
-    {
-        if (_intentBuffer == null)
-            return;
-
-        for (int i = 0; i < _intentBuffer.FrameIntents.Count; i++)
-            _intentBuffer.Buffer(_intentBuffer.FrameIntents[i]);
     }
 
     /// <summary>把前后逻辑 Pose 插值到表现锚点，再插值视觉残差到模型根。</summary>
