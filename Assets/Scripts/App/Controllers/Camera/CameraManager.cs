@@ -400,7 +400,8 @@ public class CameraManager : AppControllerBase
     }
 
     /// <summary>
-    /// L-DIR5：有移动且无 Look 抢权时，Orbit yaw 平滑追角色移动朝向；只读 facing，不写 Motor。
+    /// L-DIR5：有移动且无 Look 抢权、且未在播招时，Orbit yaw 平滑追角色朝向；只读 facing，不写 Motor。
+    /// 出招/闪避期间暂停，避免连闪时 yaw 追权威朝向台阶。
     /// </summary>
     void ApplyFollowFacingYaw()
     {
@@ -420,7 +421,7 @@ public class CameraManager : AppControllerBase
             return;
 
         ILocalPlayer local = ResolveLocalPlayer();
-        if (local?.Input == null || !local.Input.HasMoveIntent)
+        if (local == null || !local.HasMoveIntent || local.IsPresentingAction)
         {
             _yawFollowVelocity = 0f;
             return;
@@ -434,9 +435,10 @@ public class CameraManager : AppControllerBase
             return;
         }
 
-        Transform facingSource = followTarget != null
-            ? followTarget
-            : local.Root;
+        // 客机必须读预测体 PresentationRoot；空座位 transform 不转，跟它无法绕圈
+        Transform facingSource = local.PresentationRoot != null
+            ? local.PresentationRoot
+            : followTarget != null ? followTarget : local.Root;
         float targetYaw = facingSource.eulerAngles.y;
         yaw = Mathf.SmoothDampAngle(
             yaw,

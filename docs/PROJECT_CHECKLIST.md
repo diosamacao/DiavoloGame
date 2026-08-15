@@ -51,7 +51,7 @@
 | 相机 | 🟡 | 跟随 + 滤左右；Lock-On / SkillShot 未做 |
 | 正式 UI / 血条 | ⬜ | 仅 Debug HUD；目标 MVVM |
 | 吸附 / 绕背 | ✅ | Wave 4 位移出口（2026-08-09） |
-| 预测回滚 / 联网 | 🟡 | NS0～NS5 ✅；客机预测 UE1～UE4 未开始 |
+| 预测回滚 / 联网 | 🟡 | NS0～NS5 ✅；UE3 已删猜片，Play 复验后进 UE4 |
 | 打击感木桩验收台 | ✅ | Monster_EDF + 关行动 + Hit_Shake；Play 验收 2026-08-08 |
 | 命中 VFX/SFX（A2） | ✅ | HitFeedback + Cue；打击感验收 2026-08-09 |
 | 学习/工程实践轨 | ⬜ | BT 编辑器、A*、AB/Lua、SDK、剧情等（§6.4） |
@@ -60,7 +60,7 @@
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项：** 客机预测对齐 UE AutonomousProxy（UE1 起）  
+**下一项：** UE3 Play 复验（同机预览相位、双人走跑无回归）后进入 UE4  
 → [`2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](./2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)  
 
 
@@ -125,7 +125,7 @@
 | L2 收口：斜坡/网格精确碰撞 | ⬜ |
 | L3 可导出复制快照（纠偏用，非 GGPO） | ⬜ |
 | 组队 PVE 状态同步 NS0～NS5 | ✅ 2026-08-15 |
-| 客机预测对齐 UE（UE1～UE4） | ⬜ 方案已立；未开工 |
+| 客机预测对齐 UE（UE1～UE4） | 🟡 UE3 代码已落地；Play 复验中 |
 | L5 全员输入广播 + 完整回滚 | ❌ 2026-08-13 取消产品主路径 |
 
 ---

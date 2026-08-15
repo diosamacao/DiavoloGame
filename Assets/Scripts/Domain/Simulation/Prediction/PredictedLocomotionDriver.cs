@@ -13,6 +13,7 @@ public sealed class PredictedLocomotionDriver
     readonly PredictedLocomotionConfig _config;
     readonly List<PendingCommand> _pending = new(32);
     float _facingVelocityDeg;
+    int _snapGraceFrames;
 
     /// <summary>绑定电机副本与速度/阈值；motor 不得再交给 SimulationWorld 当权威。</summary>
     public PredictedLocomotionDriver(CharacterMotorSim motor, PredictedLocomotionConfig config)
@@ -33,6 +34,15 @@ public sealed class PredictedLocomotionDriver
     /// <summary>当前纠偏阈值（毫米）。</summary>
     public int ReconcileThresholdMm => _config.ReconcileThresholdMm;
 
+    /// <summary>
+    /// 内层机已写出 MotorSim 后只记账。skipWishReplay：禁止 ApplyInput。
+    /// skipRunnerReplay=false：纠偏经 Runner 重放。
+    /// </summary>
+    public void RecordAutonomous(in InputFrame input)
+    {
+        RecordPending(in input, skipWishReplay: true, skipRunnerReplay: false);
+    }
+
     /// <summary>用本帧输入按 FollowInput 推进预测电机并缓存 (frame, input, pose)。</summary>
     public void Predict(in InputFrame input, int planarSpeedMm = 0)
     {
@@ -42,7 +52,7 @@ public sealed class PredictedLocomotionDriver
             in _config,
             ref _facingVelocityDeg,
             planarSpeedMm);
-        RecordPending(in input, aligned: false);
+        RecordPending(in input, skipWishReplay: false, skipRunnerReplay: true);
     }
 
     /// <summary>
@@ -55,7 +65,7 @@ public sealed class PredictedLocomotionDriver
             throw new ArgumentNullException(nameof(authorityMotor));
 
         CopyMotorPose(authorityMotor);
-        RecordPending(in input, aligned: true);
+        RecordPending(in input, skipWishReplay: true, skipRunnerReplay: true);
     }
 
     /// <summary>只改预测电机，不追加 pending；供纠偏后把出招帧重新贴回权威。</summary>
@@ -72,7 +82,7 @@ public sealed class PredictedLocomotionDriver
     {
         ReplicationPoseApplier.ApplyToMotor(_motor, in authority);
         _facingVelocityDeg = 0f;
-        RecordPending(in input, aligned: true);
+        RecordPending(in input, skipWishReplay: true, skipRunnerReplay: true);
     }
 
     /// <summary>只把预测电机吸到快照，不追加 pending；纠偏后烘焙相位仍以权威为准。</summary>
@@ -80,34 +90,88 @@ public sealed class PredictedLocomotionDriver
     {
         ReplicationPoseApplier.ApplyToMotor(_motor, in authority);
         _facingVelocityDeg = 0f;
+        // 硬贴后同样给宽限，避免下一包 50mm 上下立刻再吸。
+        _snapGraceFrames = SnapGraceFrames;
     }
 
+    /// <summary>UE1 过渡硬吸阈；UE2 房间改走 Runner 重放，不再使用。</summary>
+    public const int AutonomousHardSnapMm = 2000;
+
+    /// <summary>刚吸附后若干逻辑步内，小于此误差不再连吸，避免 50mm 上下抖。</summary>
+    public const int SnapGraceMaxErrorMm = 150;
+
+    const int SnapGraceFrames = 8;
+
+    /// <summary>无 Runner 时的和解（单测 / 旧 Predict 路径）。</summary>
+    public PredictedReconcileResult Reconcile(
+        long authorityFrame,
+        in ActorReplicationSnapshot authority,
+        int snapThresholdMm = -1) =>
+        Reconcile(authorityFrame, in authority, replay: null, snapThresholdMm);
+
     /// <summary>
-    /// 用权威帧位姿和解。误差 ≤ 阈值只丢弃该帧及更旧缓存；超阈吸附后重放更新的输入。
-    /// 禁止把表现 Pose 写回本电机。
+    /// 用权威帧位姿和解。误差 ≤ 阈值只 Ack。
+    /// 走跑且提供 replay：未显式传阈时用 <see cref="AutonomousHardSnapMm"/>（2m），
+    /// 禁止再用 50mm——内层机与 Host 常态偏差就会每包 Restore+Replay，表现为卡顿。
+    /// 出招/受击：只吸 Pose。无 replay 时非 aligned 仍 ApplyInput（旧单测，默认 50mm）。
     /// </summary>
     public PredictedReconcileResult Reconcile(
         long authorityFrame,
-        in ActorReplicationSnapshot authority)
+        in ActorReplicationSnapshot authority,
+        IPredictedLocomotionReplay replay,
+        int snapThresholdMm = -1)
     {
         int errorMm = ResolveErrorAgainstPredictedFrame(authorityFrame, in authority);
         DropAcked(authorityFrame);
 
-        if (errorMm <= _config.ReconcileThresholdMm)
+        int threshold = snapThresholdMm >= 0
+            ? snapThresholdMm
+            : replay != null
+                ? AutonomousHardSnapMm
+                : _config.ReconcileThresholdMm;
+        // 先消耗本包宽限，再判断：刚吸附的若干权威包不再因 50～150mm 连吸。
+        if (_snapGraceFrames > 0)
+            _snapGraceFrames--;
+
+        bool withinThreshold = errorMm <= threshold;
+        bool withinGrace = _snapGraceFrames > 0 && errorMm <= SnapGraceMaxErrorMm;
+        if (withinThreshold || withinGrace)
             return new PredictedReconcileResult(snapped: false, errorMm, replayedInputs: 0);
 
         ReplicationPoseApplier.ApplyToMotor(_motor, in authority);
         _facingVelocityDeg = 0f;
+
+        bool useRunner = replay != null && !IsActionOrHit(in authority);
+        if (useRunner)
+            replay.RestoreFromAuthority(in authority);
+
         int replayed = 0;
         for (int i = 0; i < _pending.Count; i++)
         {
             PendingCommand pending = _pending[i];
-            // 贴齐帧没有 wish 重放式；强行 ApplyInput 会把攻击/转身烘焙位移冲掉
-            if (pending.Aligned)
+            InputFrame replayInput = pending.Input;
+            if (useRunner)
+            {
+                if (pending.SkipRunnerReplay)
+                    continue;
+
+                replay.ReplayTick(in replayInput);
+                _pending[i] = new PendingCommand(
+                    pending.Frame,
+                    pending.Input,
+                    _motor.PositionMm.X,
+                    _motor.PositionMm.Z,
+                    _motor.YMm,
+                    _motor.FacingMilliDeg,
+                    skipWishReplay: true,
+                    skipRunnerReplay: false);
+                replayed++;
+                continue;
+            }
+
+            if (pending.SkipWishReplay)
                 continue;
 
-            // in 参数必须是可寻址变量，不能直接传属性
-            InputFrame replayInput = pending.Input;
             PredictedLocomotionMath.ApplyInput(
                 _motor,
                 in replayInput,
@@ -120,12 +184,20 @@ public sealed class PredictedLocomotionDriver
                 _motor.PositionMm.Z,
                 _motor.YMm,
                 _motor.FacingMilliDeg,
-                aligned: false);
+                skipWishReplay: false,
+                skipRunnerReplay: true);
             replayed++;
         }
 
+        _snapGraceFrames = SnapGraceFrames;
         return new PredictedReconcileResult(snapped: true, errorMm, replayed);
     }
+
+    /// <summary>权威正在出招或本 Tick 受击/死亡，走跑不得 Restore+Replay。</summary>
+    static bool IsActionOrHit(in ActorReplicationSnapshot snapshot) =>
+        snapshot.ActionId != 0
+        || snapshot.VitalityEdge == VitalityReplicationEdge.Hit
+        || snapshot.VitalityEdge == VitalityReplicationEdge.Death;
 
     /// <summary>把权威毫米位姿拷到预测电机，并清空转向阻尼以免回摆。</summary>
     void CopyMotorPose(CharacterMotorSim authorityMotor)
@@ -135,7 +207,7 @@ public sealed class PredictedLocomotionDriver
         _facingVelocityDeg = 0f;
     }
 
-    void RecordPending(in InputFrame input, bool aligned)
+    void RecordPending(in InputFrame input, bool skipWishReplay, bool skipRunnerReplay)
     {
         _pending.Add(new PendingCommand(
             input.Frame,
@@ -144,7 +216,8 @@ public sealed class PredictedLocomotionDriver
             _motor.PositionMm.Z,
             _motor.YMm,
             _motor.FacingMilliDeg,
-            aligned));
+            skipWishReplay,
+            skipRunnerReplay));
 
         if (_pending.Count > MaxPending)
             _pending.RemoveRange(0, _pending.Count - MaxPending);
@@ -190,7 +263,8 @@ public sealed class PredictedLocomotionDriver
             int posZMm,
             int posYMm,
             int facingMilliDeg,
-            bool aligned)
+            bool skipWishReplay,
+            bool skipRunnerReplay)
         {
             Frame = frame;
             Input = input;
@@ -198,7 +272,8 @@ public sealed class PredictedLocomotionDriver
             PosZMm = posZMm;
             PosYMm = posYMm;
             FacingMilliDeg = facingMilliDeg;
-            Aligned = aligned;
+            SkipWishReplay = skipWishReplay;
+            SkipRunnerReplay = skipRunnerReplay;
         }
 
         public long Frame { get; }
@@ -207,6 +282,7 @@ public sealed class PredictedLocomotionDriver
         public int PosZMm { get; }
         public int PosYMm { get; }
         public int FacingMilliDeg { get; }
-        public bool Aligned { get; }
+        public bool SkipWishReplay { get; }
+        public bool SkipRunnerReplay { get; }
     }
 }

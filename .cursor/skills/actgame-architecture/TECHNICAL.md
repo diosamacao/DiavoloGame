@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-15（NS5 客机 Locomotion 选片：Sprint/Stop/起步）
+> Last updated: 2026-08-15（闪避插值 + 出招暂停跟朝向）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,7 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
-| 组队 PVE 状态同步 / 权威进程 | 🟡 NS0～NS4 已验收；NS5 代码 | `ReplicationRoomHost` / `UdpReplicationTransport` | 两人房间 Play 待确认；单机=Listen Host |
+| 组队 PVE 状态同步 / 权威进程 | ✅ NS0～NS5；🟡 UE3 代码 | `ReplicationRoomHost` / `AutonomousLocomotionRunner` | 客机 L-DIR5 用 HasMoveIntent；纠偏后 SnapPresentation + 150mm/8 包宽限 |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -292,6 +292,7 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 - `Assets/Tests/EditMode/Simulation/ReplicationPoseApplierTests.cs`
 - `Assets/Tests/Editor/Replication/ActionReplicationCatalogTests.cs`
 - `Assets/Tests/Editor/Replication/RemoteCharacterProxyTests.cs`
+- `Assets/Tests/Editor/Replication/ReplicationPresentationAlignTests.cs`
 
 ---
 
@@ -299,27 +300,29 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 
 ### 功能说明
 
-远端客户端用本地 `InputFrame` 立刻推进 `CharacterMotorSim` 副本；权威 Tick 到达后阈值内忽略，超阈吸附并重放未确认输入。Listen Host 本地玩家不预测。
+远端客户端用本地 `InputFrame` 立刻推进位移。**房间与同机预览走跑由 `AutonomousLocomotionRunner` 写 MotorSim**；`Predict`/`ApplyInput` 仅留单测。Listen Host 本地玩家不预测。已删除 `PredictedLocomotionVisual` 猜片。
 
 ### 实现方案
 
 | 项 | 方案 |
 |----|------|
-| 稳态步进 | `PredictedLocomotionMath.ApplyInput`：wish 算出后 FollowInput（朝向 SmoothDamp，位移沿朝向） |
-| 贴齐步进 | 出招/受击/死亡与 Start/Pivot/Stop：`PredictAligned` 复制权威 MotorSim，避免烘焙位移等 100ms 纠偏才出现 |
-| 缓存 | `PredictedLocomotionDriver.Predict` 存 (frame, input, pose, aligned) |
-| 和解 | 水平误差 ≤ 50mm 只 Ack；超阈吸附后只重放非 aligned 输入 |
+| 走跑步进 | `AutonomousLocomotionRunner.Tick`（同一套内层机） |
+| 贴齐步进 | 出招/受击：`PredictAligned` / `SnapToSnapshot`，不重放烘焙位移 |
+| 缓存 | `PredictedLocomotionDriver.RecordAutonomous` 存 (frame, input, pose) |
+| 和解 | 走跑+Runner：≤ 2m 只 Ack；无 replay：≤ 50mm 只 Ack；刚吸附 8 包内 ≤ 150mm 也只 Ack；超阈 Restore 后重放 |
 | Host | `PlayerController.IsLocalPredicted` 恒 false |
-| 预览 | 左侧立即跟输入；`RemoteProxy` 写权威 lean + 动作视觉残差 |
+| 预览 | 左侧同一 Runner；禁止 Predict + 猜片 |
 
 ### 关键参数
 
 | 参数 | 默认 | 说明 |
 |------|------|------|
-| 走/跑/冲刺 | 4000 / 7000 / 9000 mm/s | 与 Motor 默认一致；预览按权威 AnimationKey 选用 |
+| 走/跑/冲刺 | 4000 / 7000 / 9000 mm/s | 与 Motor 默认一致；纠偏阈用毫米 |
 | `rotationSmoothTimeSeconds` | 0.2 | 与 `CharacterMotorConfig` FollowInput 同参 |
 | `runThresholdMilli` | 600 | 输入幅度 0.6 |
-| `reconcileThresholdMm` | 50 | 方案建议值 |
+| `reconcileThresholdMm` | 50 | 仅无 replay / 单测；房间走跑不用 |
+| `AutonomousHardSnapMm` | 2000 | 走跑+Runner 默认硬吸阈；50mm 每包重放会卡顿 |
+| `SnapGraceMaxErrorMm` / 宽限包数 | 150 / 8 | 吸附后避免立刻连吸 |
 | `previewPredictedClient` | Editor true | 现有场景无需改 Prefab |
 | `predictedClientWorldOffset` | (-2,0,0) | 与右侧幽灵对看 |
 
@@ -327,21 +330,23 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 
 ```
 本机 InputFrame
-  → 稳态 Gait：Driver.Predict（FollowInput）
-  → 出招/转身等：Driver.PredictAligned（贴权威电机）
-权威 AfterLogicStep → Loopback 延迟 Tick
-  → Reconcile：阈内 Ack / 超阈吸附 + 只重放非 aligned
-  → 若本帧仍须贴齐：SnapMotorTo(权威)
-表现：Capture 动画 + lean/残差 + WithMotorPose(预测电机) → RemoteProxy
+  → 走跑：Runner.Tick + RecordAutonomous
+  → 出招/受击：Runner.Exit + PredictAligned
+权威 Tick
+  → Reconcile：走跑 ≤2m 或宽限内 Ack / 超 2m RestoreFromAuthority + ReplayTick
+  → 仅走跑 Snapped 或 Hit/Death 后 SnapPresentationToSimulation
+  → 出招/闪避：只 Exit Runner，位姿由 AfterLogicStep ApplySnapshot 插值
+表现：走跑 SyncAutonomousLocomotion；出招 ApplySnapshot
 ```
 
 ### 已知限制
 
-- Play 已验收（2026-08-15）：左侧立刻动，转向/倾身/攻击位移接近 Host
-- 预测不重跑 Locomotion FSM；起步/折返/急停跟权威位姿
+- 同机预览 Play 待 UE3 复验：左侧起步/急停/Sprint 与 Host 同相位族（允许 Loopback 延迟）
 - Lean 不进 Snapshot，仅同机预览从权威 Actor 拷贝
 - 预测电机不进 SoftBodySeparation
-- 出招预测见下一节 NS4
+- 出招预测见下一节 NS4 / 方案 UE4
+- 客机相机绕圈依赖 `HasMoveIntent`（设备采样），不得读空的 `ILocalPlayer.Input`
+- 客机闪避仍等权威 ActionId（UE4 未做）；连闪只保证插值不硬切，不起手预测
 
 ### 相关文件
 
@@ -414,8 +419,8 @@ Listen Host 创建一人房间并可接纳第二人；客机预测自己的位�
 | 角色 | 默认 Listen Host；ParrelSync 克隆自动 Client；无克隆时菜单写 EditorPrefs |
 | 传输 | `UdpReplicationTransport` 实现 `IReplicationTransport`；房间信封 `RoomCodec` 不改 Tick 布局 |
 | Host | `ReplicationRoomHost` 生成 `RemotePlayerSeat`；命令批按 Hint 合并未应用边沿写入下一帧；无新命令时 `appliedHint=0` |
-| Client | 每渲染帧 `MergeLocalSample`；预测体只在逻辑步 Apply 一次；选片走 `PredictedLocomotionVisual` + 本地 GaitPolicy；Proxy 过点播 VFX |
-| 动作 Id | `ActionReplicationCatalog` 按资产名稳定哈希，两端 Prefill Graph/反应 |
+| Client | 每渲染帧 `MergeLocalSample`；走跑走 `AutonomousLocomotionRunner`；出招仍 `PredictedActionDriver`；他人 Proxy Seek |
+| 动作 Id | `ActionReplicationCatalog` 按资产名稳定哈希，两端 Prefill Graph 节点、`VariantResolver` 变体与反应 |
 | 掉线 | `RoomIdleTracker` 10s 无包剔除客机；Host 可继续 |
 | HUD | F3 增加 Room 行：角色 / 状态 / authorityFrame / RTT |
 
@@ -433,26 +438,29 @@ Listen Host 创建一人房间并可接纳第二人；客机预测自己的位�
 
 ```
 Host：Pump → 合并未应用命令批 → SimulationWorld.Step → Capture 全员 → UDP Tick（仅本步有新命令才带 appliedHint）
-Client：Update 合并按键边沿 → 逻辑步 Resolve 上行命令批 → 走跑 FollowInput / 转身出招贴齐 → 收 Tick 纠偏（hint>0）并 Proxy 他人/敌人
+Client：Update 合并按键边沿 → 逻辑步 Resolve 上行命令批 → Runner.Tick（闪避后 SprintAfterDodge）或出招贴齐 → 收 Tick Restore+Replay 并 Proxy 他人/敌人
 ```
 
 ### 已知限制
 
-- 两人 Play 待 Editor 确认（两编辑器或 Host+Client）
 - 客机连招下一段仍等权威 ActionId（本地只预测默认 Graph 第一条 Attack）
 - 客机 CameraLock 仍读 `ILocalPlayer.Actor`，无权威 Actor 时不能锁敌
 - 多种敌人时客机幽灵暂用第一条刷怪配置的模型
 - 未做匹配、排位、Host 迁移
 - UDP 仍不可靠；冗余 3 条降低丢边沿，不能保证 0 丢包
 - 客机刀光跟预测/快照 ActionFrame，不是权威时间轴逐帧 Dispatch；漏 Tick 时靠跨帧补偿补点
+- UE2：走跑超阈 Restore+Replay；烘焙 Stop/Pivot 游标用归一化时间近似，未加 `locomotionMotionFrame`
+- 客机闪避仍等权威 ActionId（不预测 Dodge，UE4）；结束时本机按 `SprintAfterDodge` 接片
 
 ### 相关文件
 
+- `Assets/Scripts/Domain/Character/Replication/AutonomousLocomotionRunner.cs`
+- `Assets/Scripts/Domain/Character/Replication/LocomotionSavedState.cs`
+- `Assets/Scripts/Domain/Simulation/Prediction/IPredictedLocomotionReplay.cs`
 - `Assets/Scripts/Domain/Net/UdpReplicationTransport.cs`
 - `Assets/Scripts/Domain/Simulation/Replication/RoomCodec.cs`
 - `Assets/Scripts/Domain/Simulation/Replication/RoomRemoteInputMerge.cs`
 - `Assets/Scripts/Domain/Character/Replication/ReplicationPresentationAlign.cs`
-- `Assets/Scripts/Domain/Character/Replication/PredictedLocomotionVisual.cs`
 - `Assets/Scripts/App/Controllers/Gameplay/ReplicationRoomHost.cs`
 - `Assets/Scripts/App/Controllers/Gameplay/ReplicationRoomClient.cs`
 - `Assets/Scripts/Domain/Combat/VFX/HitImpactCuePlayer.cs`
@@ -745,7 +753,10 @@ CameraManager (场景对象)
 
 - `CameraManager` 引用玩家 `PlayerController`，通过 `PlayerController.LookInput` 获取非权威视角输入
 - Update 累加 yaw/pitch；有 Look 时启动 `lookOverrideResumeDelay` 暂停跟朝向
-- 移动中且无抢权：`SmoothDampAngle(yaw → presentation/facing yaw)`；**禁止**写 Motor 朝向
+- 移动中且无抢权、且未在播招：`SmoothDampAngle(yaw → PresentationRoot yaw)`；**禁止**写 Motor 朝向
+- 是否在移动：读 `ILocalPlayer.HasMoveIntent`。客机无 Actor，`Input` 为空，禁止再判 `local.Input.HasMoveIntent`
+- 出招/闪避/受击：读 `IsPresentingAction`，暂停跟朝向，避免连闪甩镜头
+- 朝向源优先 `PresentationRoot`（客机预测体插值锚点）；空座位 `transform` 不转，跟它无法 A/D 绕圈
 - `CameraLock` 只切本地 `CameraLockEnabled`；SelectedTarget 无效时不能开启/自动关闭，不写 Targeting/Action/InputFrame
 
 **初始化**
@@ -1235,6 +1246,13 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-15 | NS5 客机手感：渲染帧合并输入、命令批冗余、CarryForward 不下发旧 Hint、转身/出招贴齐、走跑 Tick |
 | 2026-08-15 | NS5 客机表现：单步 Apply、Proxy 过点 VFX/SFX、命中下行落点、克隆端受击 Cue |
 | 2026-08-15 | NS5 客机 Locomotion：本地 GaitPolicy 升 Sprint；松手等权威 Stop；Idle↔走跑淡入 |
+| 2026-08-15 | UE1：客机本机 `AutonomousLocomotionRunner`；删除房间/预览 `ResolveSelfKey`；纠偏相位重放仍待 UE2 |
+| 2026-08-15 | UE1 复验：走跑禁止 `SyncRootPoseFromSim`；Prefill 含 Directional 变体；走跑硬吸 2m |
+| 2026-08-15 | UE2：`LocomotionSavedState` + `IPredictedLocomotionReplay` Restore/Replay；闪避后 SprintAfterDodge |
+| 2026-08-15 | UE3：删除 `PredictedLocomotionVisual` 猜片；相位判断并入 `ReplicationPresentationAlign` |
+| 2026-08-15 | 客机 L-DIR5：`HasMoveIntent` 走设备采样；纠偏后 `SnapPresentationToSimulation`；吸附宽限 150mm/8 包 |
+| 2026-08-15 | 走跑+Runner 纠偏默认 2m：禁止 50mm 每包 Restore+Replay（客机卡顿） |
+| 2026-08-15 | 出招/闪避禁止每包 SnapPresentation；`IsPresentingAction` 时相机暂停跟朝向 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

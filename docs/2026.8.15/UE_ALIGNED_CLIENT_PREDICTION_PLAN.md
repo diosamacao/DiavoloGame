@@ -187,67 +187,69 @@ Reconcile(authoritySnapshot):
 
 **任务**
 
-- [ ] 新增 `AutonomousLocomotionRunner`：在预测体上装配 `InputManager` + `LocomotionStateMachine` + 现有 `CharacterMotor` / `CharacterAnimationService` / `CharacterLocomotionProfile` / `LocomotionFootstepPlayer`  
-- [ ] 扩展 `RemoteCharacterProxyFactory`（或并列 `AutonomousLocomotionFactory`）：本机座位注入可 `IngestFrame` 的意图源，**禁止**再绑 `IdleMoveIntentSource`；**禁止**走 `CharacterActorFactory`  
-- [ ] `ReplicationRoomClient` 逻辑步：无出招时 `Runner.Tick(input)`；有预测招或权威 `ActionId != 0` 或 Vitality Hit/Death 时 `Runner.Exit`，走现有出招/受击呈现  
-- [ ] 本机走跑：Proxy **不得**再 `Play`/`Seek` Locomotion；`ApplyPredictedVisual` 只同步 Motor 表现位姿与 Lean  
-- [ ] **删除**本机路径对 `PredictedLocomotionVisual.ResolveSelfKey`、`TickPredictedGait` 的调用  
-- [ ] `PredictedLocomotionDriver.Predict` 不再作为走跑主路径（UE1 可暂留 API，但房间不得调用）；位移以 Runner 写出的 MotorSim 为准  
-- [ ] Listen Host 本地仍不创建 Runner  
+- [x] 新增 `AutonomousLocomotionRunner`：在预测体上装配 `InputManager` + `LocomotionStateMachine` + 现有 `CharacterMotor` / `CharacterAnimationService` / `CharacterLocomotionProfile` / `LocomotionFootstepPlayer`  
+- [x] 扩展 `RemoteCharacterProxyFactory`（或并列 `AutonomousLocomotionFactory`）：本机座位注入可 `IngestFrame` 的意图源，**禁止**再绑 `IdleMoveIntentSource`；**禁止**走 `CharacterActorFactory`  
+- [x] `ReplicationRoomClient` 逻辑步：无出招时 `Runner.Tick(input)`；有预测招或权威 `ActionId != 0` 或 Vitality Hit/Death 时 `Runner.Exit`，走现有出招/受击呈现  
+- [x] 本机走跑：Proxy **不得**再 `Play`/`Seek` Locomotion；`ApplyPredictedVisual` 只同步 Motor 表现位姿与 Lean  
+- [x] **删除**本机路径对 `PredictedLocomotionVisual.ResolveSelfKey`、`TickPredictedGait` 的调用  
+- [x] `PredictedLocomotionDriver.Predict` 不再作为走跑主路径（UE1 可暂留 API，但房间不得调用）；位移以 Runner 写出的 MotorSim 为准  
+- [x] Listen Host 本地仍不创建 Runner  
 
 **验收**
 
-- [ ] `rg "ResolveSelfKey" Assets/Scripts` 无房间/预览调用  
-- [ ] `rg "CharacterActorFactory.Create" Assets/Scripts/App/Controllers/Gameplay/ReplicationRoomClient.cs` 无匹配  
-- [ ] `rg "hitPipeline.Collect" Assets/Scripts` 仍仅权威装配  
+- [x] `rg "ResolveSelfKey" Assets/Scripts` 无房间/预览调用  
+- [x] `rg "CharacterActorFactory.Create" Assets/Scripts/App/Controllers/Gameplay/ReplicationRoomClient.cs` 无匹配  
+- [x] `rg "hitPipeline.Collect" Assets/Scripts` 仍仅权威装配  
 - [ ] Play（ParrelSync）：客机按住走，本机立刻播 Start→Walk/Run，不必等 Host 快照才起步  
 - [ ] Play：客机松手本机立刻进 Stop（`StopL`/`StopR`），不再 Run→Idle→`run_end`  
 - [ ] Play：客机 Run 保持满 `sprintAfterRunSeconds` 后播 Sprint 片，速度与片一致  
 - [ ] Play：Host 上看客机仍只靠 Snapshot，伤害不双算  
 - [ ] Unity 编译 / EditMode 在 Editor 确认通过  
 
-**出口：** 客机本机走跑由内层机驱动，猜片主路径已断。→ **未达成**
+**出口：** 客机本机走跑由内层机驱动，猜片主路径已断。→ **代码已落地（2026-08-15）**；Play 复验中（已修：走跑 `SyncRootPoseFromSim` 清转向阻尼、Prefill 漏 Directional 变体、走跑 50mm 每包硬吸）
 
 ### UE2 — Saved Move 相位纠偏与 Runner 重放
 
 **任务**
 
-- [ ] 新增 `LocomotionSavedState`（Capture / Restore）。`LocomotionStateMachine` / `LocomotionContext` / `LocomotionRootMotionPlayer` 提供可恢复接口；禁止为纠偏复制一套相位袋  
-- [ ] `PredictedLocomotionDriver` 每步保存 `(InputFrame, pose, LocomotionSavedState)`；`Reconcile` 超阈时 Restore 权威对齐态，再对未确认输入调用 `Runner.Tick`，**禁止**对走跑步 `PredictedLocomotionMath.ApplyInput`  
-- [ ] 权威快照已有 `LocomotionPhase` / `Gait` / `LocomotionNormalizedMilli`。Restore 以这些为真源；若烘焙游标对不齐，给 Snapshot/Codec **只加** `locomotionMotionFrame`（或等价），并补往返单测  
-- [ ] 出招/受击 pending 仍标 `Aligned`：纠偏后贴权威位姿，不重放烘焙招式位移  
-- [ ] **删除**走跑路径上的 `PredictAlignedToSnapshot`（出招/受击贴齐可留在 Driver 的 Snap API）  
-- [ ] 更新 `PredictedLocomotionReconcileTests`：超阈后最终 pose/相位等于「权威 Restore + 后续输入经同一 Tick」  
+- [x] 新增 `LocomotionSavedState`（Capture / Restore）。`LocomotionStateMachine` / `LocomotionRootMotionPlayer` / `LocomotionFootCycle` 提供可恢复接口；禁止为纠偏复制一套相位袋  
+- [x] `PredictedLocomotionDriver.Reconcile` 超阈时经 `IPredictedLocomotionReplay` Restore 权威对齐态，再 `Runner.Tick` 重放；走跑步禁止 `ApplyInput`（旧 Predict 单测仍可无 replay）  
+- [x] Restore 以快照 `LocomotionPhase`（AnimationKey）/ `Gait` / `LocomotionNormalizedMilli` / `Cardinal` 为真源；烘焙游标用归一化时间近似，未加 `locomotionMotionFrame`  
+- [x] 出招/受击 pending 标 `SkipRunnerReplay`：纠偏后贴权威位姿，不重放烘焙招式位移  
+- [x] 走跑路径不调用 `PredictAlignedToSnapshot`（仅出招/受击贴齐）  
+- [x] 闪避结束 `LocomotionResumeRequest.AfterAction` → `SprintAfterDodge`，与 Host `ActionState.Exit` 对齐  
+- [x] 更新 `PredictedLocomotionReconcileTests` + `LocomotionSavedStateTests`  
 
 **验收**
 
-- [ ] EditMode：`PredictedLocomotionReconcileTests`（或继任类）超阈重放后 pose 对齐；走跑重放路径无 `ApplyInput`  
-- [ ] `rg "PredictAlignedToSnapshot" Assets/Scripts` 无走跑调用（出招 Snap 除外）  
+- [x] EditMode：`Reconcile_Autonomous_WithReplay_RestoresAndReplays`；走跑重放路径无 `ApplyInput`  
+- [x] `PredictAlignedToSnapshot` 仅出招/受击  
 - [ ] Play：客机贴墙/错位后回拉一次，回拉后本机相位不是 Idle 硬切再起步  
-- [ ] Play：RTT 可见时，客机连续走跑+急停，Host 与客机停步落点误差可被纠偏收住，无每步 10Hz 吸附感  
+- [ ] Play：闪避后按住走应接 Sprint，不应再从 Idle/Start 重计时  
+- [ ] Play：RTT 可见时连续走跑不应每包拉回  
 - [ ] Unity 编译 / Test Runner 在 Editor 确认通过  
 
-**出口：** 纠偏与 CMC 同构——吸权威态，用同一套移动码重放未确认输入。→ **未达成**
+**出口：** 纠偏与 CMC 同构——吸权威态，用同一套移动码重放未确认输入。→ **代码已落地（2026-08-15）；Play 待确认**
 
 ### UE3 — 清扫启发式与约定
 
 **任务**
 
-- [ ] **删除** `PredictedLocomotionVisual.ResolveSelfKey`、`LoopKeyFromGait`（若已无引用）、客机 `TickPredictedGait` / `_predictedGait` / `_runHoldSeconds`  
-- [ ] `PredictedLocomotionVisual` 仅保留他人 Proxy 仍需要的 `IsTransitionPhase` / `ShouldHardCut` / `TryReadPhase`；若可迁到 `ReplicationPresentationAlign` 则删空类  
-- [ ] `PredictedClientPreviewController` 改走同一 Runner（同机预览不得再 `Predict` + 猜片）  
-- [ ] 改 CONVENTIONS：废止「预测不重跑 Locomotion FSM」「稳态 FollowInput、过渡贴齐」；改为「本机 Autonomous 跑内层机；纠偏 Restore+Replay；他人仍 Snapshot」  
-- [ ] 改 TECHNICAL 客机预测节；`TEAM_PVE` §3.4 指向本文，删除过时伪代码  
-- [ ] `rg "TickPredictedGait|ResolveSelfKey" Assets/Scripts` 无匹配  
+- [x] **删除** `PredictedLocomotionVisual`（含 `ResolveSelfKey` / `LoopKeyFromGait` / `SpeedMmForGait`）；`TickPredictedGait` / `_predictedGait` / `_runHoldSeconds` 已无代码  
+- [x] `IsTransitionPhase` / `ShouldHardCut` / `TryReadPhase` 并入 `ReplicationPresentationAlign`；删除空类  
+- [x] `PredictedClientPreviewController` 走同一 Runner（禁止 Predict + 猜片）  
+- [x] 改 CONVENTIONS：本机 Autonomous 跑内层机；纠偏 Restore+Replay；他人仍 Snapshot  
+- [x] 改 TECHNICAL 客机预测节；`TEAM_PVE` §3.4 指向本文并删除猜片过渡句  
+- [x] `rg "TickPredictedGait|ResolveSelfKey" Assets/Scripts` 无匹配  
 
 **验收**
 
-- [ ] 上述 `rg` 无业务调用  
+- [x] 上述 `rg` 无业务调用  
 - [ ] 同机 `previewPredictedClient`：左侧预览起步/急停/Sprint 与中间 Host 同相位族（允许 Loopback 延迟）  
 - [ ] 两人 Play：走跑手感与 UE1/UE2 验收一致，无回归双伤  
-- [ ] 架构文档与代码一致  
+- [ ] Unity 编译 / Test Runner 在 Editor 确认通过  
 
-**出口：** 猜片与 wish 走跑核从仓库消失；约定与实现同一条。→ **未达成**
+**出口：** 猜片与 wish 走跑核从仓库消失；约定与实现同一条。→ **代码已落地（2026-08-15）；Play 待确认**
 
 ### UE4 — 出招预测向 GAS 靠拢
 
@@ -282,7 +284,7 @@ Reconcile(authoritySnapshot):
 | `RemoteCharacterProxy` | 他人；本机出招呈现 |
 | `PredictedLocomotionDriver` | 改为 SavedMove 编排，不再算 wish 走跑 |
 | `InputFrame` 上行与命令批 | 不变 |
-| `PredictedLocomotionVisual` 过渡相位判断 | UE3 前供他人 Proxy；之后能并则并 |
+| 他人过渡相位判断 | `ReplicationPresentationAlign`（UE3 已并入） |
 
 ### 6.2 明确删除
 
@@ -368,3 +370,7 @@ UE1 装配内层机并切断猜片
 | 日期 | 说明 |
 |------|------|
 | 2026-08-15 | 初版：NS5 之后客机预测对齐 UE AutonomousProxy；废止「预测不重跑 FSM」；他人仍 Snapshot |
+| 2026-08-15 | UE1 代码：`AutonomousLocomotionRunner` + 房间/预览切断 `ResolveSelfKey`；Play 待确认 |
+| 2026-08-15 | UE1 复验修复：走跑禁止 `SyncRootPoseFromSim`；Prefill 含六向变体；Runner 活动硬吸 2m |
+| 2026-08-15 | UE2：`LocomotionSavedState` + Runner Restore/Replay；闪避后 `SprintAfterDodge`；房间不再 2m 硬吸 |
+| 2026-08-15 | UE3：删除 `PredictedLocomotionVisual`；相位判断并入 `ReplicationPresentationAlign`；约定与文档对齐 |

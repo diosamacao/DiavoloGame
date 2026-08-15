@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 客机房间：渲染帧合并输入、命令批上行、本机预测位移/出招、他人与敌人走 RemoteProxy。
+/// 客机房间：渲染帧合并输入、命令批上行、本机 Autonomous 走跑 + 出招预测、他人与敌人走 RemoteProxy。
 /// 不创建权威 CharacterActor，不刷怪，不 Collect。
 /// </summary>
 [DefaultExecutionOrder(-150)]
@@ -16,6 +16,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
     PlayerController _localPlayer;
     PredictedLocomotionDriver _driver;
     PredictedActionDriver _actionDriver;
+    AutonomousLocomotionRunner _locomotionRunner;
     RemoteCharacterProxy _predictedView;
     RoomIdleTracker _hostIdle;
     RoomJoinAccept _accept;
@@ -26,13 +27,10 @@ public sealed class ReplicationRoomClient : AppControllerBase
     long _nextHeartbeatMs;
     int _rttMs = -1;
     int _selfHealthMilli = -1;
+    int _lastPresentedActionId;
     ActorReplicationSnapshot _lastSelfSnapshot;
     bool _hasSelfSnapshot;
-    InputFrame _lastPredictedInput;
     InputFrameBuffer _inputFrames;
-    LocomotionGaitPolicy _gaitPolicy;
-    LocomotionGait _predictedGait = LocomotionGait.Walk;
-    float _runHoldSeconds;
 
     readonly List<ClientCommand> _recentCommands = new();
     readonly HashSet<SimHitKey> _playedHits = new();
@@ -115,25 +113,25 @@ public sealed class ReplicationRoomClient : AppControllerBase
         RememberCommand(in command);
         _transport.SendClientToAuthority(RoomCodec.WriteClientCommandBatch(_recentCommands));
 
-        if (!_hasSelfSnapshot || _driver == null)
+        if (!_hasSelfSnapshot || _driver == null || _locomotionRunner == null)
             return;
 
-        bool hasMove = HasMoveIntent(in input);
-        TickPredictedGait(in input, hasMove);
-        bool align = ReplicationPresentationAlign.ShouldAlignFromSnapshot(in _lastSelfSnapshot);
-        if (align)
+        PredictLocalAction(in input, _lastSelfSnapshot.ActionId != 0);
+        if (ShouldPresentAction())
+        {
+            if (_lastSelfSnapshot.ActionId != 0)
+                _lastPresentedActionId = _lastSelfSnapshot.ActionId;
+            _locomotionRunner.Exit();
             _driver.PredictAlignedToSnapshot(in input, in _lastSelfSnapshot);
+        }
         else
         {
-            PredictedLocomotionConfig predictConfig = _driver.Config;
-            int speedMm = hasMove
-                ? PredictedLocomotionVisual.SpeedMmForGait(_predictedGait, in predictConfig)
-                : 0;
-            _driver.Predict(in input, speedMm);
+            LocomotionResumeRequest resume = default;
+            if (!_locomotionRunner.IsActive)
+                resume = ResolveResumeAfterAction();
+            _locomotionRunner.Tick(in input, in resume);
+            _driver.RecordAutonomous(in input);
         }
-
-        _lastPredictedInput = input;
-        PredictLocalAction(in input, align);
 
         ApplyPredictedVisual();
         RefreshHud("Joined");
@@ -284,13 +282,23 @@ public sealed class ReplicationRoomClient : AppControllerBase
             // 仅本步真正灌入的 Hint 才纠偏；CarryForward 下行 0，避免用旧预测位姿对当前权威
             if (appliedHint > 0)
             {
-                _driver.Reconcile(appliedHint, in self);
+                // 走跑带 Runner：Driver 默认 2m 硬吸，不得再传 50mm。
+                PredictedReconcileResult loco = _driver.Reconcile(appliedHint, in self, _locomotionRunner);
                 _actionDriver.Reconcile(appliedHint, in self);
+                // 逻辑根已回拉时必须掐断表现插值，否则会把纠偏扫成一顿。
+                if (loco.Snapped)
+                    _predictedView?.SnapPresentationToSimulation();
             }
 
-            bool align = ReplicationPresentationAlign.ShouldAlignFromSnapshot(in self);
-            if (align)
+            // 出招中只停走跑，位姿交给 AfterLogicStep 插值；每包硬切会掐死闪避位移和相机。
+            if (IsAuthorityHitOrDeath(in self))
+            {
+                _locomotionRunner?.Exit();
                 _driver.SnapToSnapshot(in self);
+                _predictedView?.SnapPresentationToSimulation();
+            }
+            else if (self.ActionId != 0)
+                _locomotionRunner?.Exit();
 
             // 权威已换招（连招下一段）时立刻跟 Clip，不要卡在本地第一段
             if (self.ActionId != 0
@@ -360,23 +368,24 @@ public sealed class ReplicationRoomClient : AppControllerBase
 
     void EnsurePredictedView(in ActorReplicationSnapshot self)
     {
-        if (_predictedView != null && _driver != null)
+        if (_predictedView != null && _driver != null && _locomotionRunner != null)
             return;
         if (_localPlayer == null || _localPlayer.CharacterConfig == null || _world?.SimulationHost == null)
             return;
 
         CharacterConfig config = _localPlayer.CharacterConfig;
         SimulationHost host = _world.SimulationHost;
-        var predictMotor = new CharacterMotorSim(
+        AutonomousPredictedSeat seat = RemoteCharacterProxyFactory.CreateAutonomous(
+            config,
+            _catalog,
             host.CollisionWorld,
-            MotionQuantization.MetersToMm(config.Motor.ControllerRadius),
-            config.Motor.SoftBodyMass,
-            config.Motor.SoftBodyImmovable,
-            SimulationConfig.DefaultLogicHz,
-            MotionQuantization.MetersToMm(config.Motor.Gravity),
-            MotionQuantization.MetersToMm(config.Motor.GroundedGravity));
-        predictMotor.TeleportMm(self.PosXMm, self.PosYMm, self.PosZMm);
-        predictMotor.SetFacingMilliDeg(self.FacingMilliDeg);
+            Vector3.zero,
+            host.FixedDeltaSeconds,
+            _world.transform);
+        _predictedView = seat.Proxy;
+        _locomotionRunner = seat.Runner;
+        _predictedView.MotorSim.TeleportMm(self.PosXMm, self.PosYMm, self.PosZMm);
+        _predictedView.MotorSim.SetFacingMilliDeg(self.FacingMilliDeg);
 
         var predictConfig = new PredictedLocomotionConfig(
             MotionQuantization.MetersToMm(config.Motor.WalkSpeed),
@@ -386,24 +395,13 @@ public sealed class ReplicationRoomClient : AppControllerBase
             PredictedLocomotionConfig.Default.ReconcileThresholdMm,
             config.Motor.RotationSmoothTime,
             MotionQuantization.MetersToMm(config.Motor.SprintSpeed));
-        _driver = new PredictedLocomotionDriver(predictMotor, predictConfig);
+        _driver = new PredictedLocomotionDriver(_predictedView.MotorSim, predictConfig);
         _actionDriver = new PredictedActionDriver();
-        _gaitPolicy = ResolveGaitPolicy(config);
-        _predictedGait = LocomotionGait.Walk;
-        _runHoldSeconds = 0f;
-        _predictedView = RemoteCharacterProxyFactory.Create(
-            config,
-            _catalog,
-            host.CollisionWorld,
-            Vector3.zero,
-            host.FixedDeltaSeconds,
-            _world.transform);
         _localPlayer.BindPredictedView(_predictedView);
     }
 
     /// <summary>
-    /// 本机出招用预测 ActionFrame；Locomotion 选片走 PredictedLocomotionVisual，
-    /// 禁止再用摇杆硬切 Idle/Walk/Run 盖掉 Sprint/Stop。
+    /// 出招/受击仍走 Proxy Seek；走跑只 Sync Motor/Lean，片子由 Runner 推进。
     /// </summary>
     void ApplyPredictedVisual()
     {
@@ -431,53 +429,42 @@ public sealed class ReplicationRoomClient : AppControllerBase
             return;
         }
 
-        bool hasMove = HasMoveIntent(in _lastPredictedInput);
-        AnimationKey key = PredictedLocomotionVisual.ResolveSelfKey(
-            in _lastSelfSnapshot,
-            hasMove,
-            _predictedGait);
-        bool seekTransition = PredictedLocomotionVisual.IsTransitionPhase(key);
-        visual = visual.WithAction(0, 0).WithLocomotion(
-            (byte)key,
-            seekTransition ? _lastSelfSnapshot.LocomotionNormalizedMilli : (ushort)0);
-        _predictedView.ApplySnapshot(in visual, leanRollDegrees: 0f, seekLocomotion: seekTransition);
+        _predictedView.SyncAutonomousLocomotion(
+            _locomotionRunner != null ? _locomotionRunner.LeanRollDegrees : 0f,
+            _locomotionRunner != null ? _locomotionRunner.DebugWishWorld : Vector3.zero);
     }
 
-    /// <summary>用与权威相同的 GaitPolicy 累计 Run 保持，满秒进 Sprint。</summary>
-    void TickPredictedGait(in InputFrame input, bool hasMove)
+    /// <summary>本机应停走跑、改播出招或受击。</summary>
+    bool ShouldPresentAction() =>
+        _actionDriver != null && _actionDriver.IsActive
+        || IsAuthorityActionOrHit(in _lastSelfSnapshot);
+
+    /// <summary>闪避结束与 Host 一样 SprintAfterDodge；其它招用权威步态跳过 Start。</summary>
+    LocomotionResumeRequest ResolveResumeAfterAction()
     {
-        _gaitPolicy ??= new LocomotionGaitPolicy();
-        if (!hasMove)
-        {
-            _runHoldSeconds = 0f;
-            return;
-        }
+        CombatActionType lastAction = CombatActionType.Attack;
+        if (_lastPresentedActionId != 0
+            && _catalog != null
+            && _catalog.TryGet(_lastPresentedActionId, out ActionDefinition definition)
+            && definition != null)
+            lastAction = definition.ActionType;
 
-        double mag01 = Math.Min(
-            1.0,
-            Math.Sqrt((int)input.MoveX * input.MoveX + (int)input.MoveY * input.MoveY)
-            / InputQuantizer.AxisScale);
-        GaitPolicyResult result = _gaitPolicy.Evaluate(
-            new GaitPolicyInput(
-                _predictedGait,
-                (float)mag01,
-                _driver.Config.RunThresholdMilli / 1000f,
-                1f / Math.Max(1, _driver.Config.LogicHz),
-                _runHoldSeconds));
-        _predictedGait = result.NextGait;
-        _runHoldSeconds = result.RunHoldSeconds;
+        LocomotionGait gait = LocomotionGait.Walk;
+        if (_hasSelfSnapshot
+            && System.Enum.IsDefined(typeof(LocomotionGait), (int)_lastSelfSnapshot.Gait))
+            gait = (LocomotionGait)_lastSelfSnapshot.Gait;
+
+        return LocomotionResumeRequest.AfterAction(lastAction, gait);
     }
 
-    static LocomotionGaitPolicy ResolveGaitPolicy(CharacterConfig config)
-    {
-        if (config?.CombatProfile != null
-            && config.CombatProfile.TryGetLocomotionProfile(
-                config.CombatProfile.DefaultMode,
-                out CharacterLocomotionProfile profile)
-            && profile.GaitPolicy != null)
-            return profile.GaitPolicy;
-        return new LocomotionGaitPolicy();
-    }
+    /// <summary>权威正在出招或本 Tick 受击/死亡。</summary>
+    static bool IsAuthorityActionOrHit(in ActorReplicationSnapshot snapshot) =>
+        snapshot.ActionId != 0 || IsAuthorityHitOrDeath(in snapshot);
+
+    /// <summary>受击/死亡才硬切位姿；普通出招不得走这条。</summary>
+    static bool IsAuthorityHitOrDeath(in ActorReplicationSnapshot snapshot) =>
+        snapshot.VitalityEdge == VitalityReplicationEdge.Hit
+        || snapshot.VitalityEdge == VitalityReplicationEdge.Death;
 
     /// <summary>按复制落点播受击 Cue；同一 SimHitKey 只播一次。</summary>
     void PlayReplicatedHits(AuthorityTick tick)
@@ -609,6 +596,9 @@ public sealed class ReplicationRoomClient : AppControllerBase
             _localPlayer.BindPredictedView(null);
         _predictedView?.Dispose();
         _predictedView = null;
+        _locomotionRunner = null;
+        _driver = null;
+        _actionDriver = null;
         foreach (RemoteCharacterProxy proxy in _proxies.Values)
             proxy.Dispose();
         _proxies.Clear();
@@ -689,13 +679,6 @@ public sealed class ReplicationRoomClient : AppControllerBase
         }
 
         return false;
-    }
-
-    /// <summary>与预测位移同一套死区，判断本帧是否有移动意图。</summary>
-    static bool HasMoveIntent(in InputFrame input)
-    {
-        int magSq = (int)input.MoveX * input.MoveX + (int)input.MoveY * input.MoveY;
-        return magSq >= PredictedLocomotionMath.MoveIntentMagnitudeSqMin;
     }
 
     void SubscribeHost()

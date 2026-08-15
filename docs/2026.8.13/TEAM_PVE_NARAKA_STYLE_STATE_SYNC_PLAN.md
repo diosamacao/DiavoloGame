@@ -179,9 +179,9 @@ HitCommit    = 仅 CombatHitPipeline 写 HP / 硬直 / 复制事件
 
 ### 3.4 预测与纠偏（移动）
 
-> **2026-08-15 起作废本节伪代码。** 客机本机预测改对齐 UE AutonomousProxy，真源见 [`../2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。废止「预测不重跑 Locomotion FSM」。房间 / 命中 / Snapshot 契约仍以本文为准。
+> **2026-08-15 起作废本节伪代码。** 客机本机预测改对齐 UE AutonomousProxy，真源见 [`../2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。本机 Autonomous 跑内层机；纠偏 Restore+Replay；他人仍 Snapshot。房间 / 命中 / Snapshot 契约仍以本文为准。
 
-NS5 过渡实现（wish + `PredictedLocomotionVisual` 猜片）仅维持到 UE1 切断猜片主路径；不得当终态继续加启发式。
+猜片核（`PredictedLocomotionVisual` / `ResolveSelfKey` / `TickPredictedGait`）已在 UE3 删除，不得再加启发式选片。
 
 出招预测（NS4 / 方案 UE4）：本地可 `ActionSim` 推进 **仅用于 Clip/VFX/Cancel 手感**；权威 ActionId/帧到达后 Seek 对齐。若权威未起手（资源不足/硬直），本地取消预测招并播恢复。
 

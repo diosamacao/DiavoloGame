@@ -28,8 +28,20 @@ public class PlayerController : AppControllerBase, ILocalPlayer
     /// <summary>装配用角色配置；幽灵预览复用同一套模型与动画。</summary>
     public CharacterConfig CharacterConfig => characterConfig;
 
-    /// <summary>玩家量化输入中枢，供调试与玩法查询。</summary>
+    /// <summary>量化输入中枢；客机无 Actor，为 null。</summary>
     public InputManager Input => actor?.Input;
+
+    /// <inheritdoc />
+    public bool HasMoveIntent =>
+        actor?.Input != null
+            ? actor.Input.HasMoveIntent
+            : _inputSampler != null && _inputSampler.HasMoveIntent;
+
+    /// <inheritdoc />
+    public bool IsPresentingAction =>
+        actor != null
+            ? actor.CurrentState != CharacterStateType.Locomotion
+            : _predictedView != null && _predictedView.IsPresentingAction;
 
     /// <summary>本机设备采样；客机座位用它上行，权威座位走 Actor。</summary>
     public ILocalInputSampler InputSampler => _inputSampler;

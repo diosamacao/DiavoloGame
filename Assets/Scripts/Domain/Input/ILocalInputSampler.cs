@@ -7,6 +7,9 @@ public interface ILocalInputSampler
     /// <summary>当前渲染帧视角输入；仅供相机表现，不进入权威输入帧。</summary>
     Vector2 LookInput { get; }
 
+    /// <summary>当前渲染帧是否有超过死区的移动轴；供客机相机跟朝向。</summary>
+    bool HasMoveIntent { get; }
+
     /// <summary>本渲染帧是否按下纯表现 CameraLock；不进入 InputFrame。</summary>
     bool CameraLockPressedThisFrame { get; }
 

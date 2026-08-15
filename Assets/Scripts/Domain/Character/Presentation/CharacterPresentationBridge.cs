@@ -49,6 +49,23 @@ public sealed class CharacterPresentationBridge
     }
 
     /// <summary>
+    /// 纠偏/传送后把插值两端都吸到当前逻辑根，避免把回拉扫成一帧抖动。
+    /// </summary>
+    public void SnapToSimulationRoot()
+    {
+        if (_simulationRoot == null)
+            return;
+
+        _previousPosition = _currentPosition = _simulationRoot.position;
+        _previousRotation = _currentRotation = _simulationRoot.rotation;
+        if (_presentationRoot == null)
+            return;
+
+        _presentationRoot.localPosition = Vector3.zero;
+        _presentationRoot.localRotation = Quaternion.identity;
+    }
+
+    /// <summary>
     /// World 帧末软弹开等校正后刷新本帧终点 Pose，不推进 previous（避免插值把校正当成传送）。
     /// </summary>
     public void RefreshCurrentPoseFromSimulationRoot()

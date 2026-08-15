@@ -22,6 +22,18 @@ public sealed class CharacterStateMachine : ICharacterStateMachine
         }
     }
 
+    /// <summary>顶层 Locomotion 时的 Gait cardinal；供复制 Cardinal 字段。</summary>
+    public byte ReplicationCardinal
+    {
+        get
+        {
+            if (CurrentStateId != CharacterStateType.Locomotion)
+                return 0;
+            LocomotionStateMachine locomotion = Context.LocomotionStateMachine;
+            return locomotion != null ? (byte)locomotion.Context.GaitCardinal : (byte)0;
+        }
+    }
+
     /// <summary>
     /// L-DIR4：仅顶层 Locomotion 时取内层 Sprint 倾身 Roll；其它状态为 0。
     /// </summary>

@@ -57,6 +57,8 @@ public static class CharacterReplicationCapture
             moveVzMm,
             locomotionPhase: locomotionPhase,
             gait: (byte)actor.ReplicationGait,
+            // Cardinal 供客机 Restore 滞回选片；出招期间为 0
+            cardinal: actor.ReplicationCardinal,
             locomotionNormalizedMilli: locomotionNormalizedMilli);
     }
 

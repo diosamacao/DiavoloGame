@@ -46,6 +46,41 @@ public sealed class RemoteCharacterProxyTests
         Object.DestroyImmediate(root);
     }
 
+    /// <summary>有招快照后 IsPresentingAction，供相机暂停跟朝向。</summary>
+    [Test]
+    public void ApplySnapshot_WithAction_MarksPresentingAction()
+    {
+        var root = new GameObject("GhostActionRoot");
+        var presentation = new GameObject("GhostActionPresentation");
+        presentation.transform.SetParent(root.transform, false);
+        CharacterController controller = root.AddComponent<CharacterController>();
+        controller.enabled = false;
+
+        var proxy = new RemoteCharacterProxy(
+            root.transform,
+            new CharacterMotor(
+                root.transform,
+                controller,
+                CharacterMotorConfig.Default,
+                new IdleIntent(),
+                new CharacterMotorSim(OpenFieldSimCollisionWorld.Instance, radiusMm: 280)),
+            animation: null,
+            new CharacterPresentationBridge(root.transform, presentation.transform),
+            new ActionReplicationCatalog(),
+            Vector3.zero,
+            1f / 60f);
+
+        ActorReplicationSnapshot idle = CreatePoseSnapshot(0, 0);
+        proxy.ApplySnapshot(in idle);
+        Assert.That(proxy.IsPresentingAction, Is.False);
+
+        ActorReplicationSnapshot dodge = idle.WithAction(7, 3);
+        proxy.ApplySnapshot(in dodge);
+        Assert.That(proxy.IsPresentingAction, Is.True);
+
+        Object.DestroyImmediate(root);
+    }
+
     /// <summary>快照 moveV* 还原为幽灵黄箭 wish，与位姿同一 Tick。</summary>
     [Test]
     public void ApplySnapshot_CopiesWishFromMoveVelocityFields()

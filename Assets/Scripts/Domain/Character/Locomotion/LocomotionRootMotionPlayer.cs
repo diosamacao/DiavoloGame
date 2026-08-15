@@ -43,6 +43,29 @@ public sealed class LocomotionRootMotionPlayer
         _track = LocomotionRootMotionTrack.Empty;
     }
 
+    /// <summary>捕获烘焙游标，供 SavedState。</summary>
+    public void Capture(out bool active, out AnimationKey key, out int frame, out float basisYaw)
+    {
+        active = _active;
+        key = _key;
+        frame = _frame;
+        basisYaw = _basisRotation.eulerAngles.y;
+    }
+
+    /// <summary>恢复烘焙会话；inactive 时 End。frame 为下一帧将读取的表下标。</summary>
+    public void Restore(bool active, AnimationKey key, int frame, float basisYaw)
+    {
+        if (!active)
+        {
+            End();
+            return;
+        }
+
+        Begin(key, Quaternion.Euler(0f, basisYaw, 0f));
+        int frameCount = _track.IsValid ? _track.GetFrameCount(ActionSim.LogicHz) : 0;
+        _frame = frameCount <= 0 ? 0 : Mathf.Clamp(frame, 0, frameCount);
+    }
+
     /// <summary>
     /// 消费当前逻辑帧位移并推进帧索引。
     /// applyYaw 为 false 时忽略烘焙偏航（转身 Clip 已含骨骼转向时使用）。

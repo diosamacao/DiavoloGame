@@ -89,4 +89,15 @@ public sealed class LocomotionFootCycle
         Freeze();
         return LastPlanted;
     }
+
+    /// <summary>纠偏恢复落脚记录；不恢复周期去重掩码（Seek 后下一 Tick 重新采样）。</summary>
+    public void Restore(FootSide lastPlanted, bool hasPlantRecord, bool frozen)
+    {
+        _lastPlanted = lastPlanted;
+        _hasPlantRecord = hasPlantRecord;
+        _frozen = frozen;
+        PlantedThisFrame = null;
+        _cycleIndex = -1;
+        _firedMask = 0;
+    }
 }
