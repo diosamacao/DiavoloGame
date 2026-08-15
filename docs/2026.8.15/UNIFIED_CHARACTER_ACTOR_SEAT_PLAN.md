@@ -165,7 +165,7 @@ Output → 本机表现由 Actor.Render；他人仍 Proxy.Render
 - [x] 新增 `ReplicationSeat`（`Authority` / `Autonomous`）  
 - [x] `CharacterActorFactory.Create` 增加 `seat`；Autonomous **不**创建/注册 `HitboxFrameConsumer`，**注入** `ActionMotionWorldQuery`（只读 Proxy Pose）  
 - [x] Authority 且 `combatHitPipeline == null` 抛错  
-- [x] `CharacterActor` 实现 `IPredictedLocomotionReplay`；Autonomous 卡肉/硬直用 `SetAutonomousPredictMode`，禁止 `if (isClient)`  
+- [x] `CharacterActor` 实现 `IPredictedLocomotionReplay`；禁止 `if (isClient)`（`SetAutonomousPredictMode` 随后随同机预览删除）  
 - [x] `CharacterVitality.ApplyAuthorityHealthMilli`：覆盖 HP，不发 Hit 事件  
 
 **验收**
@@ -182,7 +182,7 @@ Output → 本机表现由 Actor.Render；他人仍 Proxy.Render
 
 - [x] `PlayerController` 客机走 `Create(seat: Autonomous)`；不 `RegisterPlayer`、不挂 Hurtbox  
 - [x] `ReplicationRoomClient` 对本机调 `Actor.Step`，删除 Proxy 自表现、`BindPredictedView`  
-- [x] `PredictedClientPreviewController` 改用 Autonomous `CharacterActor`  
+- [x] 同机预览曾改用 Autonomous `CharacterActor`（随后整段删除）  
 - [x] **删除** `AutonomousLocomotionRunner`、`AutonomousActionRunner`、`CreateAutonomous`、`AutonomousPredictedSeat`  
 - [x] Ack 仍用 `PredictedActionAckQueue`；取消走 `StopAutonomousAction`  
 
@@ -242,7 +242,6 @@ Assets/Scripts/Domain/Character/CharacterActorFactory.cs
 Assets/Scripts/Domain/Character/CharacterActor.cs
 Assets/Scripts/App/Controllers/Gameplay/PlayerController.cs
 Assets/Scripts/App/Controllers/Gameplay/ReplicationRoomClient.cs
-Assets/Scripts/App/Controllers/Gameplay/PredictedClientPreviewController.cs
 Assets/Tests/Editor/Replication/RemoteCharacterProxyTests.cs
 docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md
 ```
@@ -267,7 +266,7 @@ docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md
 1. 打开工程，等编译通过。  
 2. 无需新建 Prefab / Input Actions / 角色资产。  
 3. **Play（ParrelSync）**：原工程 Host，克隆 Client；客机走跑/出招看本机 Actor；Host 上看对方跟快照。  
-4. 勾选 `previewPredictedClient`：左侧预览应与中间 Host 同相位族，且预览体是 Actor 不是 Ghost+Runner。  
+4. Host 同机预览已删除；不要再勾 `previewPredictedClient`。  
 5. Test Runner：上表测试类。  
 
 ---
@@ -292,3 +291,4 @@ CA0 座位+工厂 → CA1 切座删 Runner → CA2 客机花名册/CameraLock
 | 2026-08-15 | 客机注入 WorldQuery：Adhesion / Relocate / SoftBodySuppress 与 Host 同一套桥 |
 | 2026-08-15 | 穿敌窗/权威卡肉：`ActionMotionReconcileGate` 禁止 2m 硬吸拉回 |
 | 2026-08-15 | 客机预测卡肉；删除权威 Freeze 拖时钟 / FollowAuthorityAction |
+| 2026-08-15 | 删除 Host 同机预览与 `SetAutonomousPredictMode` |

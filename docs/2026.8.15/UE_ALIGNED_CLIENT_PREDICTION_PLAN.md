@@ -245,7 +245,7 @@ Reconcile(authoritySnapshot):
 **验收**
 
 - [x] 上述 `rg` 无业务调用  
-- [ ] 同机 `previewPredictedClient`：左侧预览起步/急停/Sprint 与中间 Host 同相位族（允许 Loopback 延迟）  
+- [x] 同机 `previewPredictedClient` 已删除（2026-08-15）；对照改走 ParrelSync  
 - [ ] 两人 Play：走跑手感与 UE1/UE2 验收一致，无回归双伤  
 - [ ] Unity 编译 / Test Runner 在 Editor 确认通过  
 
@@ -353,7 +353,7 @@ docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md
 2. 无需新建 Prefab / Input Actions / Locomotion 资产；客机 Runner 读现有 `CharacterConfig`。  
 3. **UE1 Play（ParrelSync）**：原工程 Host，克隆 Client；客机起步/急停/Sprint 看本机，Host 上看对方跟快照。  
 4. **UE2 Play**：走墙或故意延迟，确认回拉后相位连续。  
-5. **UE3**：勾选 `CombatWorldController.previewPredictedClient`，对照左侧预览与中间 Host。  
+5. **UE3**：Host 同机预览已删除；对照改走 ParrelSync 客机与 Host。  
 6. Test Runner：`PredictedLocomotionReconcileTests` 及本方案新增测试类。  
 7. AnimationProfile 未绑 Sprint 时两端仍会回退 Run（与单机相同，不在本方案修资产）。
 
@@ -386,3 +386,4 @@ UE1 装配内层机并切断猜片
 | 2026-08-15 | UE4：`AutonomousActionRunner` 只读 ActionSim；删除 `PredictedActionDriver`；Ack 队列保留 |
 | 2026-08-15 | 客机出招对齐：自然结束不重播延迟招；连招超前不误 Cancel；权威卡肉暂停本机推帧 |
 | 2026-08-15 | 装配迁出：本机改 `CharacterActor` Autonomous 座位；本方案只保留纠偏合同 |
+| 2026-08-15 | 删除 Host 同机 `previewPredictedClient`；验收改 ParrelSync |

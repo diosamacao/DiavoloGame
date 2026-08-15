@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-15（网络同步实现说明）
+> Last updated: 2026-08-15（删除 Host 同机预览）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -12,7 +12,7 @@
 | 逻辑 Hurtbox 调试线框 | ✅ 已实现 | `CombatHurtboxDebugSettings` + `CombatHurtboxDebugVisualizer` | F4 开关（F3 HUD 显示状态） |
 | 固定帧模拟宿主 | ✅ L0A 已实现 | `SimulationHost`、`SimulationWorld`、`SimActorId` | 60Hz，无资产 |
 | Wave0 动作审计 / 锚点可视化 / Debug HUD | ✅ 已实现 | `ActionDefinitionAuditUtility`、`CharacterAnchorGizmoDrawer`、`CombatDebugHudController` | 菜单 `ACTGame/Action/Validate Motion Sources`；场景挂 HUD |
-| 角色朝向调试箭头 | ✅ Play 实心箭 | `CharacterFacingDebugVisualizer` + `ICharacterFacingDebugTarget` | 本体 / 幽灵各一份；黄=wish 品红=模型 |
+| 角色朝向调试箭头 | ✅ Play 实心箭 | `CharacterFacingDebugVisualizer` + `ICharacterFacingDebugTarget` | 本体 / 客机他人幽灵各一份；黄=wish 品红=模型 |
 | Wave1 位移止血 / BaseMotionMode / 相机滤左右 | ✅ 已实现 | `ForwardSigned`、`ActionBaseMotionMode`、`CameraManager.lateralFollowFactor` | Attack 需以 ForwardSigned 重烘焙；菜单 Migrate Base Motion Mode |
 | Wave2 视觉残差 / VisualMotionRoot | ✅ 已实现（含 2.5） | `CharacterVisualMotionBridge`、`TryGetVisualResidualMm` | ForwardSigned：Motor 无横摆，模型在 VisualRoot 摆；BlendToZero 期间跳过逻辑贴帧，避免回 Idle 抖动 |
 | Wave3 玩法资源 / 同键 EX | 🟡 资产待绑；运行时已迁 Numeric | `NumericCostGate`、`ActionResourceSpec`、`ActionEnergyFormSelector` | Spec 填表；Graph 双 Entry |
@@ -185,8 +185,7 @@ EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
 ### 已知限制
 
 - Play / Unity 编译待 Editor 确认
-- 花名册尚无远端玩家；Editor 有幽灵预览 + 预测预览
-- NS4 出招预测未做
+- Host 花名册只有本机；远端玩家只在客机 `RemoteCharacterProxy` 上可见
 
 ### 相关文件
 
@@ -229,7 +228,7 @@ Builder.FromAuthority → AuthorityTick → Codec.Write
 ### 已知限制
 
 - 水平速度 P0 可为 0；空闲相位由 Capture 填 `AnimationKey`
-- NS5 已接 `UdpReplicationTransport`；Loopback 仍用于同机预览
+- NS5 已接 `UdpReplicationTransport`；`LoopbackReplicationTransport` 仅单测延迟队列，不再挂 Host 预览
 
 ### 相关文件
 
@@ -245,50 +244,44 @@ Builder.FromAuthority → AuthorityTick → Codec.Write
 
 ### 功能说明
 
-同机第二视图只靠 `AuthorityTick` 播本机玩家的走路与出招；延迟走 Loopback，不跑第二份命中。
+客机用 `RemoteCharacterProxy` 播他人与敌人：只跟 `AuthorityTick` Seek，不跑第二份命中。Host 同机 ±2m 预览已删除。
 
 ### 实现方案
 
 | 项 | 方案 |
 |----|------|
-| 捕获 | `CharacterReplicationCapture.FromActor` + 共享 `ActionReplicationCatalog` |
-| 传输 | 现有 `LoopbackReplicationTransport`（默认 100ms） |
+| 捕获 | Host `CharacterReplicationCapture.FromActor` + 共享 `ActionReplicationCatalog` |
+| 传输 | 房间 `UdpReplicationTransport`；Loopback 仅单测 |
 | 应用 | `RemoteCharacterProxy`：位姿写 Motor；招式切段 Seek；Locomotion 硬切 + `SeekLocomotionNormalized`；关掉 Animator RM |
-| 朝向调试 | 幽灵挂同一套黄/品红箭；wish 走快照 `moveV*`，与延迟位姿成对 |
+| 朝向调试 | 客机幽灵挂同一套黄/品红箭；wish 走快照 `moveV*`，与延迟位姿成对 |
 | 插值 | 复用 `CharacterPresentationBridge.Render(alpha)` |
 | 装配 | `RemoteCharacterProxyFactory`，**不**走 `CharacterActorFactory` |
-| 入口 | `SimulationHost.AfterLogicStep`；`CombatWorldController.previewRemoteGhost`（Editor 默认开） |
+| 入口 | `ReplicationRoomClient` 收 Tick 后 `ApplySnapshot` |
 
 ### 关键参数
 
-| 参数 | 默认 | 说明 |
-|------|------|------|
-| `previewRemoteGhost` | Editor true | 现有场景无需改 Prefab |
-| `remoteGhostWorldOffset` | (2,0,0) | 避免与 Host 重叠 |
-| `remoteGhostLatencyMs` | 100 | 单向 Loopback 延迟 |
+无 Host 预览 SerializeField。房间延迟即 UDP RTT，不另加 Loopback。
 
 ### 运行时流程
 
 ```
 Host.Step → AfterLogicStep
-  → Capture 本机 Actor → AuthorityTick → Loopback
-  → Pump 到期包 → RemoteProxy.ApplySnapshot
+  → Capture 全员 → AuthorityTick → UDP
+客机 Pump → RemoteProxy.ApplySnapshot
 LateUpdate → proxy.Render(Host.InterpolationAlpha)
 ```
 
 ### 已知限制
 
-- Play 待 Editor 确认（走/攻是否跟帧、有无每帧瞬移）
 - PivotTurn 根朝向仍只跟快照 facing（不在幽灵侧重跑 AnimAuth）；Clip 已按权威归一化时间 Seek
 - Catalog 已改为资产名稳定 Id（NS5）
-- 幽灵不进花名册、无 Hurtbox、无 VFX/SFX 时间轴
-- 真实房间见 NS5；本预览仅 Host 同机
+- 幽灵不进权威花名册、无 Hurtbox Collect；可按 ActionFrame 过点派发 VFX/SFX
+- 多种敌人时客机暂用第一条刷怪配置的模型
 
 ### 相关文件
 
 - `Assets/Scripts/Domain/Character/Replication/*`
-- `Assets/Scripts/App/Controllers/Gameplay/RemoteGhostViewController.cs`
-- `Assets/Scripts/App/Controllers/Combat/CombatWorldController.cs`
+- `Assets/Scripts/App/Controllers/Gameplay/ReplicationRoomClient.cs`
 - `Assets/Scripts/App/Controllers/Gameplay/SimulationHost.cs`
 - `Assets/Tests/EditMode/Simulation/ReplicationPoseApplierTests.cs`
 - `Assets/Tests/Editor/Replication/ActionReplicationCatalogTests.cs`
@@ -301,7 +294,7 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 
 ### 功能说明
 
-远端客户端用本地 `InputFrame` 立刻推进位移。**房间与同机预览走跑由 Autonomous `CharacterActor.Step` 写 MotorSim**；`Predict`/`ApplyInput` 仅留单测。Listen Host 本地玩家不预测。已删除 Runner / 猜片。
+远端客户端用本地 `InputFrame` 立刻推进位移。**房间走跑由 Autonomous `CharacterActor.Step` 写 MotorSim**；`Predict`/`ApplyInput` 仅留单测。Listen Host 本地玩家不预测。已删除 Runner / 猜片 / Host 同机预览。
 
 ### 实现方案
 
@@ -313,7 +306,6 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 | 缓存 | `PredictedLocomotionDriver.RecordAutonomous` 存 (frame, input, pose) |
 | 和解 | 走跑+Actor Replay：≤ 2m 只 Ack；无 replay：≤ 50mm 只 Ack；刚吸附 8 包内 ≤ 150mm 也只 Ack；超阈 Restore 后重放 |
 | Host | `PlayerController.IsLocalPredicted` 恒 false |
-| 预览 | 左侧同一 Autonomous Actor；禁止 Predict + 猜片 |
 
 ### 关键参数
 
@@ -325,8 +317,6 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 | `reconcileThresholdMm` | 50 | 仅无 replay / 单测；房间走跑不用 |
 | `AutonomousHardSnapMm` | 2000 | 走跑+Runner 默认硬吸阈；50mm 每包重放会卡顿 |
 | `SnapGraceMaxErrorMm` / 宽限包数 | 150 / 8 | 吸附后避免立刻连吸 |
-| `previewPredictedClient` | Editor true | 现有场景无需改 Prefab |
-| `predictedClientWorldOffset` | (-2,0,0) | 与右侧幽灵对看 |
 
 ### 运行时流程
 
@@ -343,9 +333,8 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 
 ### 已知限制
 
-- 同机预览 Play 待 UE3 复验：左侧起步/急停/Sprint 与 Host 同相位族（允许 Loopback 延迟）
-- Lean 不进 Snapshot，仅同机预览从权威 Actor 拷贝
-- 客机本机对幽灵做只读软弹开（幽灵不可推动）；不进 `SimulationWorld`
+- Lean 不进 Snapshot，仅本机从 Actor 倾身模型推进
+- 客机本机对他人/敌人幽灵做只读软弹开（幽灵不可推动）；不进 `SimulationWorld`
 - 出招预测见下一节 NS4 / 方案 UE4
 - 客机相机绕圈依赖 `HasMoveIntent`（设备采样），不得读空的 `ILocalPlayer.Input`
 - 客机出招/闪避由只读 ActionSim 本机起手；位移仍跟快照插值（不跑 ActionMotionResolver）
@@ -353,7 +342,7 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 ### 相关文件
 
 - `Assets/Scripts/Domain/Simulation/Prediction/*`
-- `Assets/Scripts/App/Controllers/Gameplay/PredictedClientPreviewController.cs`
+- `Assets/Scripts/App/Controllers/Gameplay/ReplicationRoomClient.cs`
 - `Assets/Tests/EditMode/Simulation/PredictedLocomotionReconcileTests.cs`
 
 ---
@@ -362,7 +351,7 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 
 ### 功能说明
 
-本地预测出招只播 Clip；伤害、硬直、HP 只认权威 `CombatHitPipeline`。同机幽灵跟玩家与敌人的延迟 Snapshot，受击只出现一次。
+本地预测出招只播 Clip；伤害、硬直、HP 只认权威 `CombatHitPipeline`。客机他人/敌人 `RemoteCharacterProxy` 跟延迟 Snapshot，受击只出现一次。
 
 ### 实现方案
 
@@ -374,31 +363,24 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 | 卡肉 | 客机 `PredictedHitStopConsumer` 几何重叠后 `RequestHitStop`；禁止用延迟权威 Freeze 再拖时钟。伤害只信权威下行 |
 | 跟招 | 已删除 `FollowAuthorityAction`；本机 Clip 只跟本地 ActionSim |
 | 命中下行 | `ResolvedCombatHit` → `ReplicatedHitEvent`（Key + 落点毫米 + ActionId）；`CharacterVitality.ReplicationEdge` 写入快照 |
-| 幽灵 | `RemoteGhostViewController` 打包玩家+敌人；RemoteProxy 只 Seek，不 Collect；`VitalityEdge.Hit` 或动作帧回绕时硬切重播受击 |
-| Host | Listen Host 本地仍不预测；`HitboxFrameConsumer` 只挂权威工厂 |
+| 他人/敌人 | `RemoteCharacterProxy` 只 Seek，不 Collect；`VitalityEdge.Hit` 或动作帧回绕时硬切重播受击 |
+| Host | Listen Host 本地仍不预测；`HitboxFrameConsumer` 只挂权威工厂。同机预览已删 |
 
 ### 关键参数
 
-| 参数 | 默认 | 说明 |
-|------|------|------|
-| `previewRemoteGhost` | Editor true | 右侧 +2m 含敌人幽灵 |
-| `remoteGhostLatencyMs` | 100 | 受击/掉血晚约 100ms |
-| `previewPredictedClient` | Editor true | 左侧出招立即播；被打后约 100ms 取消 |
+无 Host 预览参数。卡肉与 Ack 见客机 `PredictedHitStopConsumer` / `PredictedActionAckQueue`。
 
 ### 运行时流程
 
 ```
 权威 Step → Pipeline.Collect/Resolve → Vitality 边沿 + FrameHits
-AfterLogicStep
-  Ghost：Capture 全员 + Hits → Loopback → RemoteProxy.ApplySnapshot
-  预测：Host 未硬直则 ActionRunner.Tick（ActionSim 起手/Cancel）；已硬直则 TickUnconfirmed
-        延迟 Tick → Action.Reconcile（未起手/Hit 则 Stop）
+AfterLogicStep → Capture 全员 + Hits → UDP
+客机：本机 Actor.Step + Ack；他人/敌人 RemoteProxy.ApplySnapshot
 ```
 
 ### 已知限制
 
-- Play 已验收（2026-08-15）：幽灵受击一次；预测招在权威硬直到达后取消
-- 客机本机已跑只读 ActionSim（UE4）；仍不 Collect、不写 Numeric、不跑吸附
+- 客机本机跑 ActionSim；仍不 Collect、不写 Numeric
 - Clip 与 VFX/SFX 由本机 `CharacterActionPresentationBridge` 派发
 - 受击火花走复制落点 + Hitbox Feedback
 - 本机招打完后不得再用延迟快照重播同一招的 Clip/VFX
@@ -408,8 +390,7 @@ AfterLogicStep
 
 - `Assets/Scripts/Domain/Character/CharacterActor.cs`
 - `Assets/Scripts/Domain/Simulation/Prediction/PredictedActionAckQueue.cs`
-- `Assets/Scripts/App/Controllers/Gameplay/RemoteGhostViewController.cs`
-- `Assets/Scripts/App/Controllers/Gameplay/PredictedClientPreviewController.cs`
+- `Assets/Scripts/App/Controllers/Gameplay/ReplicationRoomClient.cs`
 - `Assets/Tests/EditMode/Simulation/PredictedActionReconcileTests.cs`
 
 ---
@@ -1269,6 +1250,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-15 | 客机注入 WorldQuery：TargetAdhesion / Relocate / SoftBodySuppress 与 Host 同一套桥 |
 | 2026-08-15 | 客机穿敌吸附/关碰撞窗与权威卡肉：纠偏只 Ack，禁止 2m 硬吸拉回 |
 | 2026-08-15 | 客机预测卡肉：`PredictedHitStopConsumer`；删除权威 Freeze 拖时钟 / FollowAuthorityAction |
+| 2026-08-15 | 删除 Host 同机预览：`RemoteGhostViewController` / `PredictedClientPreviewController` / `SetAutonomousPredictMode` |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

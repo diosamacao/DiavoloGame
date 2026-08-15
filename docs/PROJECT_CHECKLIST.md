@@ -60,8 +60,8 @@
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项：** UE3 Play 复验（同机预览相位、双人走跑无回归）后进入 UE4  
-→ [`2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](./2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)  
+**下一项：** ParrelSync 双人走跑/出招回归（Host 同机预览已删）  
+→ [`2026.8.15/NETWORK_SYNC.md`](./2026.8.15/NETWORK_SYNC.md)  
 
 
 

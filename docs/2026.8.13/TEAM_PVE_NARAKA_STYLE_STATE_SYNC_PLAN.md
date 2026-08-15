@@ -427,10 +427,8 @@ docs/2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md
 3. NS5：增加独立 Client 启动场景或同编辑器 ParrelSync / 第二实例；Input Actions 无需为网络新增（沿用现 Player Map）。  
 4. 若用 ParrelSync：人工安装，Agent 不改工程第三方。  
 5. Prefab 上若需挂 `RemoteCharacterProxy`，只改脚本并列出拖拽字段，不直接改 `.prefab`。  
-6. **NS2 Play：** `CombatWorldController` 在 Editor 默认勾选 `previewRemoteGhost`（现有场景无需改 Prefab）。进入 Play 后角色右侧约 2m 出现幽灵，默认 Loopback 100ms。可在 Inspector 调 `remoteGhostWorldOffset` / `remoteGhostLatencyMs`，或取消勾选关闭预览。幽灵不进花名册、不跑命中。  
-7. **NS3 Play：** 同组件默认勾选 `previewPredictedClient`。左侧约 2m 为预测视图：应立刻动，且 WASD 转向过程、Sprint 左右倾身、攻击位移应接近中间 Host（不再 10Hz 吸附）。可调 `predictedClientWorldOffset` / `predictedClientLatencyMs`。  
-8. **NS4 Play：** 右侧幽灵应同时出现玩家与木桩/敌人（同 +2m 偏移）。Host 砍木桩：中间立刻受击掉血；右侧约 100ms 后播受击，且只一次。左侧出招应立刻播；Host 被打后左侧预测招约 100ms 后取消并改跟受击。  
-9. **NS5 Play（推荐 ParrelSync）：** Package Manager → Add from git URL：`https://github.com/VeriorPies/ParrelSync.git?path=/ParrelSync`。菜单 `ParrelSync/Clones Manager` → Create clone → Open in New Editor。原工程 Play（Listen Host）；克隆工程直接 Play（自动 Client，连 127.0.0.1:7777）。无需改场景/Prefab，也不必点 `ACTGame/Room`。F3 应见 Room 行与 `authorityFrame`。两人打同一木桩，伤害不双算；停掉克隆约 10s 后 Host 剔除客机并可继续。
+6. **NS2～NS4 同机预览已删除（2026-08-15）：** Host 不再在 ±2m 生成延迟幽灵 / 预测体。不要再找 `previewRemoteGhost` / `previewPredictedClient`。  
+7. **NS5 Play（推荐 ParrelSync）：** Package Manager → Add from git URL：`https://github.com/VeriorPies/ParrelSync.git?path=/ParrelSync`。菜单 `ParrelSync/Clones Manager` → Create clone → Open in New Editor。原工程 Play（Listen Host）；克隆工程直接 Play（自动 Client，连 127.0.0.1:7777）。无需改场景/Prefab，也不必点 `ACTGame/Room`。F3 应见 Room 行与 `authorityFrame`。两人打同一木桩，伤害不双算；停掉克隆约 10s 后 Host 剔除客机并可继续。
 
 ---
 
@@ -485,6 +483,7 @@ NS0 身份
 | 2026-08-15 | NS5 客机 Locomotion：Sprint 用 Sprint 片；松手不再先 Idle 再 run_end |
 | 2026-08-15 | NS5 Play 验收关闭；§3.4 预测伪代码作废，客机预测改挂 `UE_ALIGNED_CLIENT_PREDICTION_PLAN` |
 | 2026-08-15 | §3.3：命中终态以 PVP 为真源（攻击方申报 + 权威入账）；P0 Host Collect 为过渡；PVE 不得另开盒 |
+| 2026-08-15 | 删除 Host 同机预览：`RemoteGhostViewController` / `PredictedClientPreviewController`；验收走 ParrelSync |
 
 ---
 
