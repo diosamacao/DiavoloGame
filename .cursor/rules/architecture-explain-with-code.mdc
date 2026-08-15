@@ -1,9 +1,9 @@
 ---
-description: 解释代码架构时必须引用仓库内真实代码；若无实现则写伪代码方案
+description: 解释代码架构时必须引用真实代码、画出流程图；若无实现则写伪代码并画方案流程图
 alwaysApply: true
 ---
 
-# 架构解释：先举代码，无则写伪代码（强制）
+# 架构解释：举代码 + 画流程图；无则伪代码（强制）
 
 > 当用户要求解释**代码架构**（分层、模块边界、数据流、某系统怎么组织/怎么跑、框架设计）时生效。只改代码、不解释架构时不触发。
 
@@ -11,43 +11,41 @@ alwaysApply: true
 
 1. **先读代码再解释**。用 Grep/Read 核对 `Assets/Scripts/**`（及相关测试），不得只凭文档或记忆编调用链。
 2. **每个关键结论至少举 1 个仓库内例子**。用代码引用（`startLine:endLine:path`），并写清：这个类/方法在架构里承担什么、和谁对接。
-3. **仓库里没有对应实现时**：明确写「当前代码无此实现」，再给出**伪代码实现方案**（类型、调用顺序、数据从哪来到哪去）。禁止把未落地的设计说成已有代码。
+3. **必须画出代码流程图**。用 mermaid（`flowchart` 或 `sequenceDiagram`），节点/消息用**真实类型与方法名**；箭头表示调用或数据流向。有分支、状态切换时画出来，不要只画一层目录框。
+4. **仓库里没有对应实现时**：明确写「当前代码无此实现」，再给出**伪代码实现方案**，并画**方案流程图**（标题标明「方案」）。禁止把未落地的设计说成已有代码。
 
 ## 解释时覆盖
 
 - 分层/目录职责 → 指出该层真实入口类
-- 数据流/调用链 → 按实际方法名串起来，每跳尽量落到代码
-- 「应该怎么做」且代码尚未存在 → 伪代码，并标明与现有类的衔接点
+- 数据流/调用链 → 按实际方法名串起来，每跳尽量落到代码，并用流程图画出整条链
+- 「应该怎么做」且代码尚未存在 → 伪代码 + 方案流程图，并标明与现有类的衔接点
 
 ## 禁止
 
-- 只画分层或只列目录，不引用任何 `.cs`
+- 只画分层或只列目录，不引用任何 `.cs`，也不画调用/数据流图
+- 流程图节点用「模块 A / 处理一下」等空泛词，不写真实类型/方法
 - 用 ARCHITECTURE.md / TECHNICAL.md 代替代码证据（文档可作索引，结论以代码为准）
 - 把规划中的类型/API 写成好像已经存在
 - 编造文件路径、方法名或「项目里一般都这样」的空泛举例
 
 ## 示例
 
-用户问「战斗请求怎么进状态机」且代码里有实现：
+用户问「战斗请求怎么进状态机」且代码里有实现：先引用真实代码，再画图。
 
-```markdown
-入口在 `EnemyController` 组好 `ActionRequest` 后交给角色上下文：
-```12:20:Assets/Scripts/App/Controllers/Gameplay/EnemyController.cs
-// 真实引用
-```
-解析侧由 `ActionRequest` 携带目标与定义：
-```8:16:Assets/Scripts/Domain/Combat/Actions/Resolution/ActionRequest.cs
-// 真实引用
-```
+```mermaid
+flowchart LR
+  EnemyController --> ActionRequest
+  ActionRequest --> CharacterContext
+  CharacterContext --> CombatState
 ```
 
-用户问「预测回滚怎么接复制」且代码里还没有：
+用户问「预测回滚怎么接复制」且代码里还没有：写明无实现 + 伪代码，再画方案图。
 
-```markdown
-当前代码无此实现（`Assets/Scripts/Domain/Simulation` 仅有 ReplicationCodec，未见 rollback）。
+**方案流程图**
 
-伪代码方案：
-1. ClientPredictionBuffer.Enqueue(cmd, tick)
-2. 收 ServerSnapshot 后 ReplayFrom(ackTick)
-3. 与 ReplicationCodec.Decode 的状态对齐后再渲染
+```mermaid
+flowchart LR
+  ClientPredictionBuffer -->|Enqueue| cmd
+  ServerSnapshot -->|ReplayFrom| ClientPredictionBuffer
+  ReplicationCodec -->|Decode 对齐| 渲染
 ```
