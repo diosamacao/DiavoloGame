@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-15（客机出招 Clip/VFX 对齐）
+> Last updated: 2026-08-15（网络同步实现说明）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -142,6 +142,7 @@ SimulationHost.LateUpdate
 - L2 软弹开：`SimulationWorld` 帧末按 Id 序对 `ISimSoftBodyParticipant` 执行 `SoftBodySeparation`（默认 factor=500‰、迭代 3）；按 `softBodyMass` 分配推力，`softBodyImmovable` 像墙；死亡不参与。
 - L2 命中：`SimCombatPose` 从 MotorSim 取水平根；Hitbox 挂点只提供相对根局部 TRS；Hurtbox 用 `GetLogicalHurtbox`；自身排除用 `SimActorId`。
 - 联网定案（方案层，2026-08-13）：Host/DS 权威状态同步；上行 `InputFrame`，下行 `ActorReplicationSnapshot`；命中只在权威 Pipeline。锁步 L5 已取消。服务器写法见 CONVENTIONS「服务器 / 权威进程」与方案 §13。
+- **实现说明（先读）：** [`docs/2026.8.15/NETWORK_SYNC.md`](../../docs/2026.8.15/NETWORK_SYNC.md) — 房间协议、三种座位、预测纠偏与命中复制的代码级说明。设计勾选仍以 `TEAM_PVE_*_PLAN` / `UE_ALIGNED_*_PLAN` 为准。
 
 ### 相关文件
 
@@ -1260,6 +1261,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-15 | 出招/闪避禁止每包 SnapPresentation；`IsPresentingAction` 时相机暂停跟朝向 |
 | 2026-08-15 | UE4：`AutonomousActionRunner` 只读 ActionSim；删除 `PredictedActionDriver` |
 | 2026-08-15 | 客机出招表现：自然结束不重播延迟招；连招超前不误 Cancel；权威卡肉暂停本机推帧 |
+| 2026-08-15 | 新增 `docs/2026.8.15/NETWORK_SYNC.md`：按已落地代码整理网络同步实现说明 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
