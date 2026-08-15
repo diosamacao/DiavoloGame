@@ -45,6 +45,12 @@ public sealed class AutonomousLocomotionRunner : IPredictedLocomotionReplay
             footstepPlayer);
     }
 
+    /// <summary>与出招 Runner 共用的输入中枢。</summary>
+    public InputManager Input => _input;
+
+    /// <summary>内层机；供意图生产器读 Sprint 条件。</summary>
+    public LocomotionStateMachine Locomotion => _machine;
+
     /// <summary>内层机已 Enter、正在推进走跑。</summary>
     public bool IsActive => _entered;
 

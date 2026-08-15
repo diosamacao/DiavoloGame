@@ -5,14 +5,18 @@ using UnityEngine;
 /// 装配幽灵表现图，或本机 Autonomous 座位（InputManager + 内层走跑机）。
 /// 禁止走 CharacterActorFactory（会注册命中收集）。
 /// </summary>
-/// <summary>本机预测座位：表现体 + 走跑 Runner，共用同一 MotorSim。</summary>
+/// <summary>本机预测座位：表现体 + 走跑 + 只读出招，共用同一 MotorSim。</summary>
 public readonly struct AutonomousPredictedSeat
 {
-    /// <summary>绑定已装配的预测体与 Runner。</summary>
-    public AutonomousPredictedSeat(RemoteCharacterProxy proxy, AutonomousLocomotionRunner runner)
+    /// <summary>绑定已装配的预测体、走跑与出招 Runner。</summary>
+    public AutonomousPredictedSeat(
+        RemoteCharacterProxy proxy,
+        AutonomousLocomotionRunner runner,
+        AutonomousActionRunner action)
     {
         Proxy = proxy ?? throw new ArgumentNullException(nameof(proxy));
         Runner = runner ?? throw new ArgumentNullException(nameof(runner));
+        Action = action ?? throw new ArgumentNullException(nameof(action));
     }
 
     /// <summary>本机预测表现体；走跑时不得再 Play Locomotion。</summary>
@@ -20,6 +24,9 @@ public readonly struct AutonomousPredictedSeat
 
     /// <summary>本机内层走跑机。</summary>
     public AutonomousLocomotionRunner Runner { get; }
+
+    /// <summary>本机只读 ActionSim；禁止 Collect / 写 Numeric。</summary>
+    public AutonomousActionRunner Action { get; }
 }
 
 public static class RemoteCharacterProxyFactory
@@ -45,7 +52,7 @@ public static class RemoteCharacterProxyFactory
     }
 
     /// <summary>
-    /// 本机 Autonomous 座位：Motor 绑可 Ingest 的 InputManager，并挂内层走跑机。
+    /// 本机 Autonomous 座位：Motor 绑可 Ingest 的 InputManager，挂内层走跑机与只读出招 Runner。
     /// 禁止走 CharacterActorFactory。
     /// </summary>
     public static AutonomousPredictedSeat CreateAutonomous(
@@ -72,7 +79,15 @@ public static class RemoteCharacterProxyFactory
             built.LocomotionProfile,
             built.Proxy.Root,
             fixedDeltaSeconds);
-        return new AutonomousPredictedSeat(built.Proxy, runner);
+        var action = new AutonomousActionRunner(
+            config,
+            catalog,
+            built.Proxy.Root,
+            built.Motor,
+            built.Animation,
+            input,
+            runner.Locomotion);
+        return new AutonomousPredictedSeat(built.Proxy, runner, action);
     }
 
     /// <summary>装配幽灵表现图；意图源由调用方注入（他人 Idle / 本机 InputManager）。</summary>

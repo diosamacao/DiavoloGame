@@ -7,7 +7,7 @@ public sealed class GameplayIntentProducer
     readonly GameplayIntentProfile _profile;
     readonly InputManager _input;
     readonly GameplayIntentBuffer _output;
-    readonly CharacterStateMachine _stateMachine;
+    readonly ICharacterStateMachine _stateMachine;
     readonly LocomotionStateMachine _locomotion;
     readonly ActionSim _actionSim;
     readonly Func<bool> _hasPerfectDodgeCounter;
@@ -17,13 +17,14 @@ public sealed class GameplayIntentProducer
 
     /// <summary>
     /// 创建意图生产器；Profile 是物理输入映射的唯一配置源。
+    /// stateMachine 只读 CurrentStateId（权威 SM 或客机播招探针）。
     /// hasPerfectDodgeCounter：武装反击缓冲时攻击键派生 PerfectDodgeAttack。
     /// </summary>
     public GameplayIntentProducer(
         GameplayIntentProfile profile,
         InputManager input,
         GameplayIntentBuffer output,
-        CharacterStateMachine stateMachine,
+        ICharacterStateMachine stateMachine,
         LocomotionStateMachine locomotion,
         ActionSim actionSim,
         Func<bool> hasPerfectDodgeCounter = null)
