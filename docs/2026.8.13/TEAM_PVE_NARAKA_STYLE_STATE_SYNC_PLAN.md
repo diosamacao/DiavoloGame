@@ -156,7 +156,7 @@ ActorReplicationSnapshot（最小集）
 
 `InputFrame` 继续走现有 Merge/Carry 语义；权威端对迟到包：超过窗口丢弃，缺帧按现 `CarryForward`（延续 Move/Held，**不伪造 Pressed**）。
 
-### 3.3 命中定案（相对永劫的裁剪）
+### 3.3 命中定案（P0 与 PVP 真源）
 
 ```text
 【永劫常见】攻击方客户端盒 → 申报命中 → 服务器认可 → 防守方拉回
@@ -164,7 +164,18 @@ ActorReplicationSnapshot（最小集）
 【客户端】刀光与预受击可播；若权威未确认则取消或改播 Whiff
 ```
 
-PVE 下怪物不会告你外挂；玩家之间也不做「谁 ping 低谁说了算」。若日后 PVP 再开 `NS-PVP` 讨论攻击方申报，不进本方案出口。
+**产品方向（2026-08-15）：** 战斗逻辑以 **PVP 为真源**，PVE 走同一条命中链，禁止 `if (PVE) Host盒 / if (PVP) 客户端盒` 两套几何或两套伤害。
+
+终态契约（实施另开 `NS-PVP`，**现在不改 Collect 装配**）：
+
+```text
+同一套 Hitbox 形状 / 帧窗 / SimHitKey / Numeric / Reaction
+HitProposal  = 攻击方座位跑几何（玩家=其 Autonomous/Listen 本机；AI=Host）
+HitValidate  = 仅 Authority：招还在、帧窗、阵营、距离 sanity、去重；可选防守方位姿倒带
+HitCommit    = 仅 CombatHitPipeline 写 HP / 硬直 / 复制事件
+```
+
+「盒放客户端」只表示 **攻击方申报几何**，不是客户端改血。PVE 打怪与 PVP 打人同一申报口；怪打玩家时 Host 就是攻击方座位。P0 的 Host 独 Collect 是过渡，不得再长 PVE 专用命中分支。防守方拉回、倒带窗口等校验松紧可按模式调参数，不得分叉公式。
 
 ### 3.4 预测与纠偏（移动）
 
@@ -473,6 +484,7 @@ NS0 身份
 | 2026-08-15 | NS5 客机表现：预测体单步 Apply；Proxy 派发刀光/音效；受击火花用复制落点 |
 | 2026-08-15 | NS5 客机 Locomotion：Sprint 用 Sprint 片；松手不再先 Idle 再 run_end |
 | 2026-08-15 | NS5 Play 验收关闭；§3.4 预测伪代码作废，客机预测改挂 `UE_ALIGNED_CLIENT_PREDICTION_PLAN` |
+| 2026-08-15 | §3.3：命中终态以 PVP 为真源（攻击方申报 + 权威入账）；P0 Host Collect 为过渡；PVE 不得另开盒 |
 
 ---
 
