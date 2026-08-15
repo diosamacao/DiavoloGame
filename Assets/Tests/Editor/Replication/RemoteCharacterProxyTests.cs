@@ -141,6 +141,23 @@ public sealed class RemoteCharacterProxyTests
         Object.DestroyImmediate(root);
     }
 
+    /// <summary>Proxy 只把刀光/音效当表现通知，位移与判定命令排除。</summary>
+    [Test]
+    public void IsPresentationNotify_OnlyVfxAndSfx()
+    {
+        Assert.That(RemoteCharacterProxy.IsPresentationNotify(new PlayVfxNotify()), Is.True);
+        Assert.That(RemoteCharacterProxy.IsPresentationNotify(new PlaySfxNotify()), Is.True);
+        Assert.That(RemoteCharacterProxy.IsPresentationNotify(new MotionCommandNotify()), Is.False);
+        Assert.That(RemoteCharacterProxy.IsPresentationNotify(null), Is.False);
+    }
+
+    /// <summary>无 Catalog 时不得假装能还原受击 Feedback。</summary>
+    [Test]
+    public void TryResolveFeedback_NullCatalog_ReturnsFalse()
+    {
+        Assert.That(HitImpactCuePlayer.TryResolveFeedback(null, 1, 0, out _), Is.False);
+    }
+
     /// <summary>连续受击：Hit 边沿或同一招动作帧回绕须重播；同招帧前进不重播。</summary>
     [Test]
     public void ShouldForceActionRestart_HitEdgeOrFrameRewind()

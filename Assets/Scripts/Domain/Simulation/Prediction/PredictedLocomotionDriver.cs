@@ -67,6 +67,21 @@ public sealed class PredictedLocomotionDriver
         CopyMotorPose(authorityMotor);
     }
 
+    /// <summary>真实客机没有权威 Motor 引用时，用快照毫米位姿贴齐并记账。</summary>
+    public void PredictAlignedToSnapshot(in InputFrame input, in ActorReplicationSnapshot authority)
+    {
+        ReplicationPoseApplier.ApplyToMotor(_motor, in authority);
+        _facingVelocityDeg = 0f;
+        RecordPending(in input, aligned: true);
+    }
+
+    /// <summary>只把预测电机吸到快照，不追加 pending；纠偏后烘焙相位仍以权威为准。</summary>
+    public void SnapToSnapshot(in ActorReplicationSnapshot authority)
+    {
+        ReplicationPoseApplier.ApplyToMotor(_motor, in authority);
+        _facingVelocityDeg = 0f;
+    }
+
     /// <summary>
     /// 用权威帧位姿和解。误差 ≤ 阈值只丢弃该帧及更旧缓存；超阈吸附后重放更新的输入。
     /// 禁止把表现 Pose 写回本电机。

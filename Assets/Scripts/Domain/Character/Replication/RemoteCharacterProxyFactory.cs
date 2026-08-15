@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// 只装配幽灵表现图：模型、Motor、动画、插值锚点、VisualMotionRoot。
+/// 只装配幽灵表现图：模型、Motor、动画、插值锚点、VisualMotionRoot、VFX/SFX 消费者。
 /// 禁止走 CharacterActorFactory（会注册命中收集）。
 /// </summary>
 public static class RemoteCharacterProxyFactory
@@ -76,6 +76,17 @@ public static class RemoteCharacterProxyFactory
         _ = new CharacterRootMotionDriver(motor, animator);
         var presentation = new CharacterPresentationBridge(owner.transform, presentationRoot);
 
+        Transform defaultAttach = ResolveModelPoint(
+            config.Combat.AttachPointName,
+            modelRoot,
+            owner.transform);
+        var attachPoints = new CharacterAttachPointResolver(modelRoot, defaultAttach);
+        IActionNotifyConsumer[] notifyConsumers =
+        {
+            new ActionVfxPlayer(owner.transform, attachPoints),
+            new ActionSfxPlayer(owner.transform),
+        };
+
         return new RemoteCharacterProxy(
             owner.transform,
             motor,
@@ -85,7 +96,18 @@ public static class RemoteCharacterProxyFactory
             worldOffset,
             fixedDeltaSeconds,
             visualMotionRoot,
-            ownsRoot: true);
+            ownsRoot: true,
+            notifyConsumers);
+    }
+
+    /// <summary>按配置挂点名在模型下查找；找不到回退角色根。</summary>
+    static Transform ResolveModelPoint(string pointName, Transform modelRoot, Transform fallback)
+    {
+        if (string.IsNullOrWhiteSpace(pointName))
+            return fallback;
+
+        Transform point = CharacterAttachPointResolver.FindByName(modelRoot, pointName);
+        return point != null ? point : fallback;
     }
 
     static Transform SpawnModelInstance(CharacterConfig config, Transform parent)

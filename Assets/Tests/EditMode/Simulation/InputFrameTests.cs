@@ -62,4 +62,21 @@ public sealed class InputFrameTests
         Assert.That(merged.ButtonsReleased, Is.EqualTo(attack));
         Assert.That(merged.MoveReferenceYawQuantized, Is.EqualTo((ushort)900));
     }
+
+    /// <summary>权威改写帧号与 Actor 时不得改动轴和按钮。</summary>
+    [Test]
+    public void WithIdentity_RewritesFrameAndActor_KeepsAxes()
+    {
+        var source = new InputFrame(3, new SimActorId(1), 7, -4, 1ul, 2ul, 4ul, 120);
+        InputFrame rewritten = source.WithIdentity(11, new SimActorId(8));
+
+        Assert.That(rewritten.Frame, Is.EqualTo(11));
+        Assert.That(rewritten.ActorId.Value, Is.EqualTo(8));
+        Assert.That(rewritten.MoveX, Is.EqualTo(source.MoveX));
+        Assert.That(rewritten.MoveY, Is.EqualTo(source.MoveY));
+        Assert.That(rewritten.ButtonsPressed, Is.EqualTo(source.ButtonsPressed));
+        Assert.That(rewritten.ButtonsHeld, Is.EqualTo(source.ButtonsHeld));
+        Assert.That(rewritten.ButtonsReleased, Is.EqualTo(source.ButtonsReleased));
+        Assert.That(rewritten.MoveReferenceYawQuantized, Is.EqualTo(source.MoveReferenceYawQuantized));
+    }
 }

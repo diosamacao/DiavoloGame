@@ -142,6 +142,33 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
             LocomotionNormalizedMilli);
     }
 
+    /// <summary>替换 Locomotion 相位与归一化时间；供客机本地走跑表现，不改位姿/出招。</summary>
+    public ActorReplicationSnapshot WithLocomotion(byte locomotionPhase, ushort locomotionNormalizedMilli)
+    {
+        return new ActorReplicationSnapshot(
+            ActorId,
+            TeamId,
+            Kind,
+            PosXMm,
+            PosZMm,
+            PosYMm,
+            FacingMilliDeg,
+            MoveVxMm,
+            MoveVzMm,
+            locomotionPhase,
+            Gait,
+            Cardinal,
+            ActionId,
+            GraphNodeId,
+            ActionFrame,
+            FreezeFrames,
+            SelectedTargetId,
+            HealthMilli,
+            FlagsPacked,
+            VitalityEdge,
+            locomotionNormalizedMilli);
+    }
+
     /// <summary>用预测电机位姿替换本快照的毫米坐标与朝向；其它复制字段不变。</summary>
     public ActorReplicationSnapshot WithMotorPose(CharacterMotorSim motor)
     {

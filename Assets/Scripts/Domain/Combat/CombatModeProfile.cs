@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -56,6 +57,9 @@ public class CombatModeProfile : ScriptableObject
 
     /// <summary>进入运行时时的默认模式。</summary>
     public CombatModeType DefaultMode => defaultMode;
+
+    /// <summary>全部模式条目；复制目录预填时遍历 Graph，不依赖登记顺序。</summary>
+    public IReadOnlyList<CombatModeEntry> Entries => entries ?? Array.Empty<CombatModeEntry>();
 
     /// <summary>查找指定模式的 ActionGraph。</summary>
     public bool TryGetActionGraph(CombatModeType mode, out ActionGraph actionGraph)

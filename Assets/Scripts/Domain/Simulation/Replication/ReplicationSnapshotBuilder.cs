@@ -7,7 +7,7 @@ using System;
 public static class ReplicationSnapshotBuilder
 {
     /// <summary>
-    /// 用电机位姿与动作快照填充复制字段；actionId 由调用方映射（内容接口无稳定 int Id）。
+    /// 用电机位姿与动作快照填充复制字段；actionId 由 Catalog 按资产名稳定哈希。
     /// </summary>
     public static ActorReplicationSnapshot FromAuthority(
         SimActorId actorId,

@@ -23,7 +23,7 @@ public interface ILocalPlayer
 
     /// <summary>
     /// 本机是否对移动/出招做客户端预测。
-    /// Listen Host 本地玩家恒为 false（直接吃权威）。NS3 预测只存在于 PredictedLocomotionDriver。
+    /// Listen Host 本地玩家恒为 false；远端客机为 true。
     /// </summary>
     bool IsLocalPredicted { get; }
 

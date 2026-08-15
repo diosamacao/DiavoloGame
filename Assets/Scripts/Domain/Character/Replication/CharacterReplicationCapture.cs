@@ -56,6 +56,7 @@ public static class CharacterReplicationCapture
             moveVxMm,
             moveVzMm,
             locomotionPhase: locomotionPhase,
+            gait: (byte)actor.ReplicationGait,
             locomotionNormalizedMilli: locomotionNormalizedMilli);
     }
 

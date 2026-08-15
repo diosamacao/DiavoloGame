@@ -137,6 +137,24 @@ public sealed class PredictedLocomotionReconcileTests
         Assert.That(driver.Motor.PositionMm.X, Is.EqualTo(2500));
     }
 
+    /// <summary>客机用快照贴齐后，与同位姿和解不得吸附。</summary>
+    [Test]
+    public void PredictAlignedToSnapshot_ThenReconcileSamePose_DoesNotSnap()
+    {
+        var driver = CreateDriver(OpenFieldSimCollisionWorld.Instance);
+        SimActorId id = new SimActorId(1);
+        ActorReplicationSnapshot snapshot = PoseSnapshot(id, 1200, 800, 0, 90000);
+        var input = new InputFrame(4, id, 0, 127, 0ul, 0ul, 0ul, 0);
+
+        driver.PredictAlignedToSnapshot(in input, in snapshot);
+        PredictedReconcileResult result = driver.Reconcile(4, in snapshot);
+
+        Assert.That(result.Snapped, Is.False);
+        Assert.That(driver.Motor.PositionMm.X, Is.EqualTo(1200));
+        Assert.That(driver.Motor.PositionMm.Z, Is.EqualTo(800));
+        Assert.That(driver.Motor.FacingMilliDeg, Is.EqualTo(90000));
+    }
+
     /// <summary>预测无墙沿 +Z 穿过去，权威有墙停住；和解后拉回权威边缘。</summary>
     [Test]
     public void Reconcile_Wall_AuthorityStops_SnapPullsBack()

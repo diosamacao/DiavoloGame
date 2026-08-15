@@ -170,6 +170,8 @@ public class CameraManager : AppControllerBase
 
     void LateUpdate()
     {
+        // 客机预测体在入房后才创建，必须每帧改跟 PresentationRoot。
+        ResolvePresentationFollowTarget();
         // 先跟朝向改 yaw，再把最终 Orbit yaw 暂存给下一逻辑输入帧。
         ApplyFollowFacingYaw();
         SyncOrbitPivots();

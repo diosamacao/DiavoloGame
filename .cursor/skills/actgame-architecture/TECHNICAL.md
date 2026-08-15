@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-15（NS4 出招预测与权威命中）
+> Last updated: 2026-08-15（NS5 客机 Locomotion 选片：Sprint/Stop/起步）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,7 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
-| 组队 PVE 状态同步 / 权威进程 | 🟡 NS0～NS3 已验收；NS4 代码 | `PredictedActionDriver`、`RemoteGhostViewController` | Play 待确认命中复制/取消预测招；NS5 未做 |
+| 组队 PVE 状态同步 / 权威进程 | 🟡 NS0～NS4 已验收；NS5 代码 | `ReplicationRoomHost` / `UdpReplicationTransport` | 两人房间 Play 待确认；单机=Listen Host |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -216,7 +216,7 @@ EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
 
 ### 关键参数
 
-Loopback `LatencyMs` 默认 0。`actionId` 由调用方映射，内容接口暂无稳定 int。
+Loopback `LatencyMs` 默认 0。`actionId` 由 `ActionReplicationCatalog` 按资产名稳定哈希。
 
 ### 运行时流程
 
@@ -228,7 +228,7 @@ Builder.FromAuthority → AuthorityTick → Codec.Write
 ### 已知限制
 
 - 水平速度 P0 可为 0；空闲相位由 Capture 填 `AnimationKey`
-- 未接真实 UDP；NS5 才换传输
+- NS5 已接 `UdpReplicationTransport`；Loopback 仍用于同机预览
 
 ### 相关文件
 
@@ -279,9 +279,9 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 
 - Play 待 Editor 确认（走/攻是否跟帧、有无每帧瞬移）
 - PivotTurn 根朝向仍只跟快照 facing（不在幽灵侧重跑 AnimAuth）；Clip 已按权威归一化时间 Seek
-- Catalog 是同进程引用表，不是跨进程稳定 Id
+- Catalog 已改为资产名稳定 Id（NS5）
 - 幽灵不进花名册、无 Hurtbox、无 VFX/SFX 时间轴
-- `ReplicationAuthority` / 真实房间仍待 NS5
+- 真实房间见 NS5；本预览仅 Host 同机
 
 ### 相关文件
 
@@ -363,7 +363,7 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 |----|------|
 | 出招预测 | `PredictedActionDriver` 记 ActionId/帧；同招延迟 Tick 只 Ack |
 | 取消 | 该帧权威 ActionId=0，或 Vitality Hit/Death → 取消并改跟权威招 |
-| 命中下行 | `ResolvedCombatHit.Key` → `ReplicatedHitEvent`；`CharacterVitality.ReplicationEdge` 写入快照 |
+| 命中下行 | `ResolvedCombatHit` → `ReplicatedHitEvent`（Key + 落点毫米 + ActionId）；`CharacterVitality.ReplicationEdge` 写入快照 |
 | 幽灵 | `RemoteGhostViewController` 打包玩家+敌人；RemoteProxy 只 Seek，不 Collect；`VitalityEdge.Hit` 或动作帧回绕时硬切重播受击 |
 | Host | Listen Host 本地仍不预测；`HitboxFrameConsumer` 只挂权威工厂 |
 
@@ -387,10 +387,10 @@ AfterLogicStep
 
 ### 已知限制
 
-- Play 待 Editor 确认（砍木桩：右侧幽灵受击一次；左侧被打后预测招应取消）
-- 预测出招尚未独立跑 ActionSim/VFX，同机预览用 Host 当帧 ActionId 起手
+- Play 已验收（2026-08-15）：幽灵受击一次；预测招在权威硬直到达后取消
+- 预测出招仍不跑 ActionSim / 不 Collect；Clip 与 VFX/SFX 由 Proxy 按 ActionFrame 过点派发
+- 真实客机本机出招用预测帧播 Clip/刀光；受击火花走复制落点 + Hitbox Feedback
 - 吸附/Relocate 仍只在权威 `ActionMotionResolver`
-- NS5 房间未做
 
 ### 相关文件
 
@@ -398,6 +398,68 @@ AfterLogicStep
 - `Assets/Scripts/App/Controllers/Gameplay/RemoteGhostViewController.cs`
 - `Assets/Scripts/App/Controllers/Gameplay/PredictedClientPreviewController.cs`
 - `Assets/Tests/EditMode/Simulation/PredictedActionReconcileTests.cs`
+
+---
+
+## 组队 PVE · NS5 最小 2 人房间
+
+### 功能说明
+
+Listen Host 创建一人房间并可接纳第二人；客机预测自己的位移、用 RemoteProxy 看队友与敌人；敌人与命中只在 Host 权威世界。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 角色 | 默认 Listen Host；ParrelSync 克隆自动 Client；无克隆时菜单写 EditorPrefs |
+| 传输 | `UdpReplicationTransport` 实现 `IReplicationTransport`；房间信封 `RoomCodec` 不改 Tick 布局 |
+| Host | `ReplicationRoomHost` 生成 `RemotePlayerSeat`；命令批按 Hint 合并未应用边沿写入下一帧；无新命令时 `appliedHint=0` |
+| Client | 每渲染帧 `MergeLocalSample`；预测体只在逻辑步 Apply 一次；选片走 `PredictedLocomotionVisual` + 本地 GaitPolicy；Proxy 过点播 VFX |
+| 动作 Id | `ActionReplicationCatalog` 按资产名稳定哈希，两端 Prefill Graph/反应 |
+| 掉线 | `RoomIdleTracker` 10s 无包剔除客机；Host 可继续 |
+| HUD | F3 增加 Room 行：角色 / 状态 / authorityFrame / RTT |
+
+### 关键参数
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `listenPort` | 7777 | Host 绑定 / Client 连接 |
+| `contentVersion` | 1 | 双方必须一致，否则拒收 |
+| 空闲超时 | 10000ms | 定案：待机 10s 后剔除 |
+| 迟到窗口 | 8 逻辑帧 | 更旧的 FrameHint 丢弃（不与权威帧比较） |
+| 输入冗余 | 3 条/包 | 最近 FrameHint 重发；Host 跳过已应用 Hint |
+
+### 运行时流程
+
+```
+Host：Pump → 合并未应用命令批 → SimulationWorld.Step → Capture 全员 → UDP Tick（仅本步有新命令才带 appliedHint）
+Client：Update 合并按键边沿 → 逻辑步 Resolve 上行命令批 → 走跑 FollowInput / 转身出招贴齐 → 收 Tick 纠偏（hint>0）并 Proxy 他人/敌人
+```
+
+### 已知限制
+
+- 两人 Play 待 Editor 确认（两编辑器或 Host+Client）
+- 客机连招下一段仍等权威 ActionId（本地只预测默认 Graph 第一条 Attack）
+- 客机 CameraLock 仍读 `ILocalPlayer.Actor`，无权威 Actor 时不能锁敌
+- 多种敌人时客机幽灵暂用第一条刷怪配置的模型
+- 未做匹配、排位、Host 迁移
+- UDP 仍不可靠；冗余 3 条降低丢边沿，不能保证 0 丢包
+- 客机刀光跟预测/快照 ActionFrame，不是权威时间轴逐帧 Dispatch；漏 Tick 时靠跨帧补偿补点
+
+### 相关文件
+
+- `Assets/Scripts/Domain/Net/UdpReplicationTransport.cs`
+- `Assets/Scripts/Domain/Simulation/Replication/RoomCodec.cs`
+- `Assets/Scripts/Domain/Simulation/Replication/RoomRemoteInputMerge.cs`
+- `Assets/Scripts/Domain/Character/Replication/ReplicationPresentationAlign.cs`
+- `Assets/Scripts/Domain/Character/Replication/PredictedLocomotionVisual.cs`
+- `Assets/Scripts/App/Controllers/Gameplay/ReplicationRoomHost.cs`
+- `Assets/Scripts/App/Controllers/Gameplay/ReplicationRoomClient.cs`
+- `Assets/Scripts/Domain/Combat/VFX/HitImpactCuePlayer.cs`
+- `Assets/Scripts/Editor/Net/ReplicationRoomMenu.cs`
+- `Assets/Tests/EditMode/Simulation/RoomCodecTests.cs`
+- `Assets/Tests/EditMode/Simulation/RoomIdleTrackerTests.cs`
+- `Assets/Tests/EditMode/Simulation/UdpReplicationTransportTests.cs`
 
 ---
 
@@ -1167,6 +1229,12 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-15 | NS3：PredictedLocomotionDriver + 纠偏单测 + 同机预测预览；Host 不预测 |
 | 2026-08-15 | NS3 表现：FollowInput 转向、Sprint 倾身拷贝、出招/转身贴齐权威以免 10Hz 吸附 |
 | 2026-08-15 | NS3 Play 验收关闭；NS4：PredictedActionDriver + 命中/生命边沿复制 + 敌人幽灵 |
+| 2026-08-15 | NS4 Play 验收关闭；NS5：UDP 房间 + Listen Host/Client + 稳定 actionId + 10s 空闲剔除 |
+| 2026-08-15 | NS5：ParrelSync 克隆自动当 Client（反射探测，不硬引用包） |
+| 2026-08-15 | NS5 客机：FrameHint 不再当权威帧丢包；相机改跟预测体；本机走跑/起手 Clip |
+| 2026-08-15 | NS5 客机手感：渲染帧合并输入、命令批冗余、CarryForward 不下发旧 Hint、转身/出招贴齐、走跑 Tick |
+| 2026-08-15 | NS5 客机表现：单步 Apply、Proxy 过点 VFX/SFX、命中下行落点、克隆端受击 Cue |
+| 2026-08-15 | NS5 客机 Locomotion：本地 GaitPolicy 升 Sprint；松手等权威 Stop；Idle↔走跑淡入 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

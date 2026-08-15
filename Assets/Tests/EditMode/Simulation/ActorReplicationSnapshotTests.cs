@@ -33,7 +33,13 @@ public sealed class ActorReplicationSnapshotTests
 
         var hit = new ReplicatedHitEvent(
             12,
-            new SimHitKey(12, new SimActorId(1), 5, 0, new SimActorId(3)));
+            new SimHitKey(12, new SimActorId(1), 5, 0, new SimActorId(3)),
+            actionId: 17,
+            hitXMm: 1100,
+            hitYMm: 900,
+            hitZMm: -200,
+            dirXMm: 1000,
+            dirZMm: 0);
         var tick = new AuthorityTick(
             12,
             new[] { snapshot },
@@ -46,6 +52,10 @@ public sealed class ActorReplicationSnapshotTests
 
         Assert.That(restored.Equals(tick), Is.True);
         Assert.That(restored.Actors[0].Equals(snapshot), Is.True);
+        Assert.That(restored.Hits[0].ActionId, Is.EqualTo(17));
+        Assert.That(restored.Hits[0].HitXMm, Is.EqualTo(1100));
+        Assert.That(restored.Hits[0].HitYMm, Is.EqualTo(900));
+        Assert.That(restored.Hits[0].DirXMm, Is.EqualTo(1000));
     }
 
     /// <summary>default 快照字段安全：无动作、无目标、无边沿。</summary>

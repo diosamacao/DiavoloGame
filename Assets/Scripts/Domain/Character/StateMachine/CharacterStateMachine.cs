@@ -10,6 +10,18 @@ public sealed class CharacterStateMachine : ICharacterStateMachine
 
     public CharacterStateType CurrentStateId => _machine.CurrentStateId;
 
+    /// <summary>顶层 Locomotion 时的内层步态；供复制 Gait 字段。非 Locomotion 为 Walk。</summary>
+    public LocomotionGait ReplicationGait
+    {
+        get
+        {
+            if (CurrentStateId != CharacterStateType.Locomotion)
+                return LocomotionGait.Walk;
+            LocomotionStateMachine locomotion = Context.LocomotionStateMachine;
+            return locomotion != null ? locomotion.Gait : LocomotionGait.Walk;
+        }
+    }
+
     /// <summary>
     /// L-DIR4：仅顶层 Locomotion 时取内层 Sprint 倾身 Roll；其它状态为 0。
     /// </summary>

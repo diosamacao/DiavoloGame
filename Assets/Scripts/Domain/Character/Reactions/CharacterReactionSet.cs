@@ -13,6 +13,21 @@ public sealed class CharacterReactionSet
     /// <summary>无受击动作时由 HitState 使用的默认硬直逻辑帧数。</summary>
     public int DefaultHitStunFrames => Mathf.Max(0, defaultHitStunFrames);
 
+    /// <summary>收集规则里的动作，供跨进程复制目录预填。</summary>
+    public void CollectActions(ICollection<ActionDefinition> results)
+    {
+        if (results == null)
+            return;
+
+        CharacterReactionRule[] availableRules = rules ?? Array.Empty<CharacterReactionRule>();
+        for (int i = 0; i < availableRules.Length; i++)
+        {
+            ActionDefinition action = availableRules[i] != null ? availableRules[i].Action : null;
+            if (action != null)
+                results.Add(action);
+        }
+    }
+
     /// <summary>按类型与反应 Id 查找动作；精确规则优先于该类型默认规则。</summary>
     public ActionDefinition Resolve(CharacterReactionType type, string reactionId)
     {
