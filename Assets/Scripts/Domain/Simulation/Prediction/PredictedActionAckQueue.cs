@@ -2,7 +2,8 @@ using System.Collections.Generic;
 
 /// <summary>
 /// 出招预测 Ack：只记 (frame, actionId)，不解招、不播 Clip。
-/// 权威未起手、变体分叉或 Hit/Death 时通知 Runner 停本地 ActionSim。
+/// 权威未起手、变体分叉或 Hit/Death 时标 Cancelled；
+/// 房间用 <see cref="ShouldStopAutonomousAction"/> 决定是否回 Idle（权威仍在出招则不掐）。
 /// 连招超前（权威仍是本机已打过的上一招）只 Ack。
 /// </summary>
 public sealed class PredictedActionAckQueue
@@ -73,6 +74,27 @@ public sealed class PredictedActionAckQueue
             cancelled: false,
             predictedIdAtFrame,
             authority.ActionFrame);
+    }
+
+    /// <summary>
+    /// 客机是否应掐掉本机招回 Idle。
+    /// 权威仍在出招（卡肉 / OnHit 换招）时不得 Stop——旧 Proxy 会跟权威招，Actor 路径若只 Stop 会只剩伤害没有 Clip。
+    /// 仅权威未起手/已收招，或本机被打/死亡，才回走跑。
+    /// </summary>
+    public static bool ShouldStopAutonomousAction(
+        in PredictedActionReconcileResult result,
+        in ActorReplicationSnapshot authority)
+    {
+        if (!result.Cancelled)
+            return false;
+
+        if (authority.VitalityEdge == VitalityReplicationEdge.Hit
+            || authority.VitalityEdge == VitalityReplicationEdge.Death)
+        {
+            return true;
+        }
+
+        return authority.ActionId == 0;
     }
 
     /// <summary>

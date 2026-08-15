@@ -58,5 +58,6 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "ACTGame.sln"
+    "dotnet.defaultSolution": "ACTGame.sln",
+    "dotrush.roslyn.projectOrSolutionFiles": []
 }

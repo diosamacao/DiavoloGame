@@ -27,6 +27,15 @@ public class HitStopController : AppControllerBase
         _lastTriggeredActionInstance.Clear();
     }
 
+    /// <summary>客机预测卡肉：只冻刀光/VFX，不发 AttackHitEvent、不结算伤害。</summary>
+    public void PresentPredicted(Transform attacker, int frames)
+    {
+        if (attacker == null || frames <= 0)
+            return;
+
+        BeginOrExtend(attacker, frames);
+    }
+
     /// <summary>命中回调：开启攻击者侧 VFX 卡肉窗口（逻辑帧数）。</summary>
     void HandleAttackHit(AttackHitEvent hitEvent)
     {

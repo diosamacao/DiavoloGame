@@ -20,7 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
-| 组队 PVE 状态同步 / 权威进程 | ✅ NS0～NS5；🟡 UE4 代码 | `ReplicationRoomHost` / `AutonomousActionRunner` | 客机只读 ActionSim；Cancel 窗本机起手；命中仍只 Host |
+| 组队 PVE 状态同步 / 权威进程 | ✅ NS0～NS5；🟡 CA1 代码 | `ReplicationRoomHost` / Autonomous `CharacterActor` | 客机同一 Actor；不 Collect；命中仍只 Host |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -301,18 +301,19 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 
 ### 功能说明
 
-远端客户端用本地 `InputFrame` 立刻推进位移。**房间与同机预览走跑由 `AutonomousLocomotionRunner` 写 MotorSim**；`Predict`/`ApplyInput` 仅留单测。Listen Host 本地玩家不预测。已删除 `PredictedLocomotionVisual` 猜片。
+远端客户端用本地 `InputFrame` 立刻推进位移。**房间与同机预览走跑由 Autonomous `CharacterActor.Step` 写 MotorSim**；`Predict`/`ApplyInput` 仅留单测。Listen Host 本地玩家不预测。已删除 Runner / 猜片。
 
 ### 实现方案
 
 | 项 | 方案 |
 |----|------|
-| 走跑步进 | `AutonomousLocomotionRunner.Tick`（同一套内层机） |
-| 贴齐步进 | 出招/受击：`PredictAligned` / `SnapToSnapshot`，不重放烘焙位移 |
+| 走跑步进 | Autonomous `CharacterActor.Step`（同一套内层机） |
+| 互撞 | 不进 World；`AutonomousSoftBodySolver` 把本机从只读幽灵圆盘推出 |
+| 出招位移 | 表现桥烘焙 + TargetAdhesion / Relocate（WorldQuery 读只读 Proxy Pose） |
 | 缓存 | `PredictedLocomotionDriver.RecordAutonomous` 存 (frame, input, pose) |
-| 和解 | 走跑+Runner：≤ 2m 只 Ack；无 replay：≤ 50mm 只 Ack；刚吸附 8 包内 ≤ 150mm 也只 Ack；超阈 Restore 后重放 |
+| 和解 | 走跑+Actor Replay：≤ 2m 只 Ack；无 replay：≤ 50mm 只 Ack；刚吸附 8 包内 ≤ 150mm 也只 Ack；超阈 Restore 后重放 |
 | Host | `PlayerController.IsLocalPredicted` 恒 false |
-| 预览 | 左侧同一 Runner；禁止 Predict + 猜片 |
+| 预览 | 左侧同一 Autonomous Actor；禁止 Predict + 猜片 |
 
 ### 关键参数
 
@@ -344,7 +345,7 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 
 - 同机预览 Play 待 UE3 复验：左侧起步/急停/Sprint 与 Host 同相位族（允许 Loopback 延迟）
 - Lean 不进 Snapshot，仅同机预览从权威 Actor 拷贝
-- 预测电机不进 SoftBodySeparation
+- 客机本机对幽灵做只读软弹开（幽灵不可推动）；不进 `SimulationWorld`
 - 出招预测见下一节 NS4 / 方案 UE4
 - 客机相机绕圈依赖 `HasMoveIntent`（设备采样），不得读空的 `ILocalPlayer.Input`
 - 客机出招/闪避由只读 ActionSim 本机起手；位移仍跟快照插值（不跑 ActionMotionResolver）
@@ -367,10 +368,11 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 
 | 项 | 方案 |
 |----|------|
-| 出招预测 | `AutonomousActionRunner` + 只读 `ActionSim`；Ack 用 `PredictedActionAckQueue` |
-| 取消 | 该帧权威 ActionId=0，或 Vitality Hit/Death → 取消并改跟权威招；连招超前不 Cancel |
-| 表现所有权 | Runner 活动跟预测帧；自然结束立刻走跑，忽略延迟 `snapshot.ActionId`；仅受击/真取消跟快照 |
-| 卡肉 | 权威 `FreezeFrames>0` 时本机不 `ActionSim.Step`，避免 Clip 暂停时帧跑飞、解冻一次派多段 VFX |
+| 出招预测 | Autonomous `CharacterActor` + `ActionSim` + 表现桥；Ack 用 `PredictedActionAckQueue` |
+| 取消 | 该帧权威 ActionId=0，或 Vitality Hit/Death → `StopAutonomousAction` / `EnterHit`；连招超前不 Cancel |
+| 表现所有权 | 本机 Clip 由 Actor 桥推进；禁止对自 `ApplySnapshot`；仅受击走 `EnterHit` |
+| 卡肉 | 客机 `PredictedHitStopConsumer` 几何重叠后 `RequestHitStop`；禁止用延迟权威 Freeze 再拖时钟。伤害只信权威下行 |
+| 跟招 | 已删除 `FollowAuthorityAction`；本机 Clip 只跟本地 ActionSim |
 | 命中下行 | `ResolvedCombatHit` → `ReplicatedHitEvent`（Key + 落点毫米 + ActionId）；`CharacterVitality.ReplicationEdge` 写入快照 |
 | 幽灵 | `RemoteGhostViewController` 打包玩家+敌人；RemoteProxy 只 Seek，不 Collect；`VitalityEdge.Hit` 或动作帧回绕时硬切重播受击 |
 | Host | Listen Host 本地仍不预测；`HitboxFrameConsumer` 只挂权威工厂 |
@@ -397,14 +399,14 @@ AfterLogicStep
 
 - Play 已验收（2026-08-15）：幽灵受击一次；预测招在权威硬直到达后取消
 - 客机本机已跑只读 ActionSim（UE4）；仍不 Collect、不写 Numeric、不跑吸附
-- Clip 与 VFX/SFX 由 Proxy 按预测 ActionFrame 过点派发
-- 真实客机本机出招用预测帧播 Clip/刀光；受击火花走复制落点 + Hitbox Feedback
+- Clip 与 VFX/SFX 由本机 `CharacterActionPresentationBridge` 派发
+- 受击火花走复制落点 + Hitbox Feedback
 - 本机招打完后不得再用延迟快照重播同一招的 Clip/VFX
-- 吸附/Relocate 仍只在权威 `ActionMotionResolver`
+- Relocate/Adhesion 客机读只读 Proxy 逻辑 Pose；不 Collect
 
 ### 相关文件
 
-- `Assets/Scripts/Domain/Character/Replication/AutonomousActionRunner.cs`
+- `Assets/Scripts/Domain/Character/CharacterActor.cs`
 - `Assets/Scripts/Domain/Simulation/Prediction/PredictedActionAckQueue.cs`
 - `Assets/Scripts/App/Controllers/Gameplay/RemoteGhostViewController.cs`
 - `Assets/Scripts/App/Controllers/Gameplay/PredictedClientPreviewController.cs`
@@ -425,7 +427,7 @@ Listen Host 创建一人房间并可接纳第二人；客机预测自己的位�
 | 角色 | 默认 Listen Host；ParrelSync 克隆自动 Client；无克隆时菜单写 EditorPrefs |
 | 传输 | `UdpReplicationTransport` 实现 `IReplicationTransport`；房间信封 `RoomCodec` 不改 Tick 布局 |
 | Host | `ReplicationRoomHost` 生成 `RemotePlayerSeat`；命令批按 Hint 合并未应用边沿写入下一帧；无新命令时 `appliedHint=0` |
-| Client | 每渲染帧 `MergeLocalSample`；走跑走 `AutonomousLocomotionRunner`；出招走 `AutonomousActionRunner`；他人 Proxy Seek |
+| Client | 每渲染帧 `MergeLocalSample`；本机 `CharacterActor.Step`；他人 Proxy Seek |
 | 动作 Id | `ActionReplicationCatalog` 按资产名稳定哈希，两端 Prefill Graph 节点、`VariantResolver` 变体与反应 |
 | 掉线 | `RoomIdleTracker` 10s 无包剔除客机；Host 可继续 |
 | HUD | F3 增加 Room 行：角色 / 状态 / authorityFrame / RTT |
@@ -450,17 +452,17 @@ Client：Update 合并按键边沿 → 逻辑步 Resolve 上行命令批 → Run
 ### 已知限制
 
 - 客机连招下一段在本机 Cancel 窗起手；权威未起手则 Stop
-- 客机 CameraLock 仍读 `ILocalPlayer.Actor`，无权威 Actor 时不能锁敌
+- 客机 CameraLock：Proxy 只读进 TargetSystem，范围内自动选中后可开；Play 待确认
 - 多种敌人时客机幽灵暂用第一条刷怪配置的模型
 - 未做匹配、排位、Host 迁移
 - UDP 仍不可靠；冗余 3 条降低丢边沿，不能保证 0 丢包
-- 客机刀光跟预测/快照 ActionFrame，不是权威时间轴逐帧 Dispatch；漏 Tick 时靠跨帧补偿补点
+- 客机刀光/音效由本机表现桥按预测帧派发；跟权威卡肉招时禁止重派点事件
 - UE2：走跑超阈 Restore+Replay；烘焙 Stop/Pivot 游标用归一化时间近似，未加 `locomotionMotionFrame`
-- 客机闪避由 ActionSim + Directional 解析本机起手；结束时按 `SprintAfterDodge` 接片；位移仍跟快照
+- 客机闪避由 Actor ActionSim + Directional 本机起手；结束时按 `SprintAfterDodge` 接片；烘焙位移会跑，Relocate 不跑
 
 ### 相关文件
 
-- `Assets/Scripts/Domain/Character/Replication/AutonomousLocomotionRunner.cs`
+- `Assets/Scripts/Domain/Character/Replication/ReplicationSeat.cs`
 - `Assets/Scripts/Domain/Character/Replication/LocomotionSavedState.cs`
 - `Assets/Scripts/Domain/Simulation/Prediction/IPredictedLocomotionReplay.cs`
 - `Assets/Scripts/Domain/Net/UdpReplicationTransport.cs`
@@ -1262,6 +1264,11 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-15 | UE4：`AutonomousActionRunner` 只读 ActionSim；删除 `PredictedActionDriver` |
 | 2026-08-15 | 客机出招表现：自然结束不重播延迟招；连招超前不误 Cancel；权威卡肉暂停本机推帧 |
 | 2026-08-15 | 新增 `docs/2026.8.15/NETWORK_SYNC.md`：按已落地代码整理网络同步实现说明 |
+| 2026-08-15 | CA1：客机同一 `CharacterActor` + `ReplicationSeat.Autonomous`；删除 Runner / CreateAutonomous |
+| 2026-08-15 | CA2：`RemoteCharacterProxy` 只读 ITargetable 进 TargetSystem；OnHit 空操作 |
+| 2026-08-15 | 客机注入 WorldQuery：TargetAdhesion / Relocate / SoftBodySuppress 与 Host 同一套桥 |
+| 2026-08-15 | 客机穿敌吸附/关碰撞窗与权威卡肉：纠偏只 Ack，禁止 2m 硬吸拉回 |
+| 2026-08-15 | 客机预测卡肉：`PredictedHitStopConsumer`；删除权威 Freeze 拖时钟 / FollowAuthorityAction |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
@@ -1296,6 +1303,8 @@ ApplyStep：SoftBodySuppress 刷新（含卡肉帧）
   → Base → Adhesion → MotionCommand（Resolver.Teleport + Facing）
   → SyncRootPoseFromSim
 SimulationWorld 帧末 SoftBodySeparation（抑制者不参与）
+客机：同一 Bridge；WorldQuery 读 Proxy.GetLogicalCombatPose；帧末 AutonomousSoftBodySolver（抑制者不参与）
+客机纠偏：窗内 / 权威卡肉走 ActionMotionReconcileGate，禁止 2m 硬吸
 ```
 
 ### 已知限制
@@ -1304,6 +1313,8 @@ SimulationWorld 帧末 SoftBodySeparation（抑制者不参与）
 - Relocate 挡墙精细候选（FindNearestValid 首版≈ ResolveMove）可后续加强
 - 共线退化（玩家与敌人水平重合）本帧不吸
 - **打击感吸附已验收；Relocate 需在招上配 MotionCommand 点事件后 Play 验**
+- 客机 Adhesion desired 读 Proxy MotorSim（有 Tick 延迟），落点相对 Host 可能有 RTT 级偏差
+- 客机不 Collect；卡肉由本机几何预测，伤害只信权威下行；穿敌窗内禁止 2m 硬吸（`ActionMotionReconcileGate`）
 
 ### 相关文件
 

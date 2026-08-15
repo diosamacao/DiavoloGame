@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 远端角色表现体：应用 Snapshot 位姿、播 Clip、过点派发 VFX/SFX；不跑 ActionSim、不收集命中。
+/// 远端角色表现体：应用 Snapshot 位姿、播 Clip、过点派发 VFX/SFX。
+/// 客机可作只读 <see cref="ITargetable"/>；OnHit 空操作，禁止 Collect。
 /// </summary>
-public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTarget
+public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTarget, ITargetable
 {
     readonly Transform _root;
     readonly CharacterMotor _motor;
@@ -26,6 +27,10 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     AnimationKey? _locomotionKey;
     bool _visualActionActive;
     Vector3 _debugWishWorld;
+    SimActorId _simulationId;
+    int _teamId;
+    int _healthMilli;
+    readonly HurtboxDefinition _hurtbox;
 
     /// <summary>幽灵权威根；调试与测试读位姿用。</summary>
     public Transform Root => _root;
@@ -41,6 +46,27 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
 
     /// <summary>幽灵永不收集命中；恒为 false，供装配断言。</summary>
     public bool CollectsHits => false;
+
+    /// <inheritdoc />
+    public SimActorId SimulationId => _simulationId;
+
+    /// <inheritdoc />
+    public Transform TargetTransform => _root;
+
+    /// <inheritdoc />
+    public Transform AimTransform => PresentationRoot != null ? PresentationRoot : _root;
+
+    /// <inheritdoc />
+    public bool IsAlive =>
+        _root != null
+        && _root.gameObject.activeInHierarchy
+        && _healthMilli > 0;
+
+    /// <inheritdoc />
+    public float CurrentHealth => _healthMilli / 1000f;
+
+    /// <inheritdoc />
+    public int TeamId => _teamId;
 
     /// <inheritdoc />
     public bool HasFacingDebugPose => _presentation != null;
@@ -76,9 +102,11 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         float fixedDeltaSeconds,
         Transform visualMotionRoot = null,
         bool ownsRoot = false,
-        IReadOnlyList<IActionNotifyConsumer> notifyConsumers = null)
+        IReadOnlyList<IActionNotifyConsumer> notifyConsumers = null,
+        HurtboxDefinition hurtbox = null)
     {
         _root = root != null ? root : throw new ArgumentNullException(nameof(root));
+        _hurtbox = hurtbox ?? new HurtboxDefinition();
         _motor = motor ?? throw new ArgumentNullException(nameof(motor));
         _animation = animation;
         _presentation = presentation ?? throw new ArgumentNullException(nameof(presentation));
@@ -105,6 +133,7 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         float leanRollDegrees = 0f,
         bool seekLocomotion = true)
     {
+        BindReplicationIdentity(in snapshot);
         _presentation.BeginSimulationStep();
         ReplicationPoseApplier.ApplyToMotor(_motor.Sim, in snapshot);
         ApplyWorldOffset();
@@ -153,6 +182,25 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     /// <summary>纠偏吸附后立刻对齐表现锚点，禁止插值扫过回拉。</summary>
     public void SnapPresentationToSimulation() => _presentation.SnapToSimulationRoot();
 
+    /// <summary>逻辑根 Pose；索敌用 MotorSim，不读表现骨骼。</summary>
+    public SimCombatPose GetLogicalCombatPose()
+    {
+        float heightY = _root != null ? _root.position.y : 0f;
+        return SimCombatPose.FromMotor(_motor.Sim, heightY);
+    }
+
+    /// <summary>只读几何，供接口完整；客机不得拿去 Collect。</summary>
+    public HitboxOrientedBox GetLogicalHurtbox()
+    {
+        SimCombatPose pose = GetLogicalCombatPose();
+        return HitboxMath.BuildFromHurtboxLogical(in pose, _hurtbox);
+    }
+
+    /// <summary>只读目标：命中不写血、不进 Pipeline。</summary>
+    public void OnHit(in ActionHitContext context)
+    {
+    }
+
     /// <summary>按 Host 插值比例更新模型锚点与视觉残差/倾身；邻近 Pose 走 lerp，禁止每渲染帧硬切。</summary>
     public void Render(float interpolationAlpha)
     {
@@ -166,6 +214,14 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         _animation?.Dispose();
         if (_ownsRoot && _root != null)
             UnityEngine.Object.Destroy(_root.gameObject);
+    }
+
+    /// <summary>从快照写入索敌身份；不改变表现图。</summary>
+    void BindReplicationIdentity(in ActorReplicationSnapshot snapshot)
+    {
+        _simulationId = snapshot.ActorId;
+        _teamId = snapshot.TeamId;
+        _healthMilli = snapshot.HealthMilli;
     }
 
     /// <summary>预览偏移加在毫米坐标上，避免与 Host 模型重叠。</summary>

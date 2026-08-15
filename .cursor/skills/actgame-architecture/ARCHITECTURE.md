@@ -236,8 +236,8 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `IReplicationTransport` / `LoopbackReplicationTransport` / `UdpReplicationTransport` | 只传字节；Loopback 同进程；UDP 为 NS5 第二实现 |
 | `ActionReplicationCatalog` / `CharacterReplicationCapture` | 资产名稳定 Id（含 VariantResolver 变体）；从权威 Actor 填快照 |
 | `RemoteCharacterProxy` / `RemoteCharacterProxyFactory` / `ReplicationPresentationAlign` | 他人 Seek；本机走跑只 Sync Motor；过渡相位硬切在 Align |
-| `AutonomousLocomotionRunner` | 客机本机同一套内层走跑机；实现 `IPredictedLocomotionReplay` |
-| `AutonomousActionRunner` | 客机本机只读 `ActionSim`（解析/推帧/Cancel）；自然结束不重播延迟招；不 Collect、不写 Numeric |
+| `ReplicationSeat` | Authority / Autonomous 工厂能力图；Autonomous 不 Collect、不进 World |
+| `CharacterActor`（Autonomous） | 客机本机同一类实例；实现 `IPredictedLocomotionReplay`；表现走 `CharacterActionPresentationBridge` |
 | `PredictedActionAckQueue` | 出招预测 Ack；未起手/变体分叉/Hit 则 Stop；连招超前只 Ack |
 | `LocomotionSavedState` | 内层机 Capture/Restore；权威 FromAuthority |
 | `RemoteGhostViewController` | Host 同机 Ghost；Client 不启用 |

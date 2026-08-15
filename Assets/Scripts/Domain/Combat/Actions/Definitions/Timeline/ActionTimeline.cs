@@ -315,6 +315,11 @@ public class ActionTimeline
         return best;
     }
 
+    /// <summary>本帧是否处于穿敌吸附或关碰撞窗（客机纠偏须让路）。</summary>
+    public bool HasAdhesionOrSoftBodySuppressAtFrame(int frame) =>
+        IsSoftBodySuppressActiveAtFrame(frame)
+        || GetActiveTargetAdhesionAtFrame(frame) != null;
+
     /// <summary>验证所有时间轴条目帧范围，保持编辑器拖拽后的数据有效。</summary>
     public void ClampToTotalFrames(int totalFrames)
     {

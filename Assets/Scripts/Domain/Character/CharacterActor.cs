@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>单角色运行实例，集中持有输入、移动、状态、动作和战斗服务。</summary>
+/// <summary>
+/// 单角色运行实例。Authority 进 World 并 Collect；Autonomous 由房间 Step，不 Collect。
+/// </summary>
 public sealed class CharacterActor :
     IDisposable,
     ISimulationActor,
@@ -12,7 +14,8 @@ public sealed class CharacterActor :
     ISimulationPostCombatActor,
     ISimSoftBodyParticipant,
     ILocalCameraTargetSource,
-    ICharacterFacingDebugTarget
+    ICharacterFacingDebugTarget,
+    IPredictedLocomotionReplay
 {
     readonly ILocalInputSampler _localInput;
     readonly InputManager _inputManager;
@@ -31,6 +34,9 @@ public sealed class CharacterActor :
     readonly GameplayIntentBuffer _intentBuffer;
     readonly CharacterTargetingState _targetingState;
     readonly Transform _simulationRoot;
+    readonly ReplicationSeat _seat;
+    readonly float _fixedDeltaSeconds;
+    bool _autonomousSuppressNewStarts;
     InputFrameBuffer _inputFrames;
     InputFrame _lastSimulationInput;
     SimActorId _actorId;
@@ -50,6 +56,15 @@ public sealed class CharacterActor :
 
     /// <summary>当前 SimulationWorld 分配的稳定身份；注册前为 Invalid。</summary>
     public SimActorId SimulationId => _actorId;
+
+    /// <summary>工厂装配座位；Autonomous 不 Collect、不进 World。</summary>
+    public ReplicationSeat Seat => _seat;
+
+    /// <summary>是否会把 Hitbox 写入共享流水线。</summary>
+    public bool CollectsCombatHits => _seat == ReplicationSeat.Authority;
+
+    /// <summary>内层走跑机；纠偏 Restore/Replay 用。</summary>
+    public LocomotionStateMachine Locomotion => _stateMachine?.Locomotion;
 
     /// <summary>最近一次权威 Step 摄入的量化输入；未步进时为空帧。</summary>
     public InputFrame LastSimulationInput => _lastSimulationInput;
@@ -187,7 +202,9 @@ public sealed class CharacterActor :
         CharacterVitality vitality,
         GameplayIntentBuffer intentBuffer,
         CharacterTargetingState targetingState,
-        Transform simulationRoot)
+        Transform simulationRoot,
+        ReplicationSeat seat = ReplicationSeat.Authority,
+        float fixedDeltaSeconds = 0f)
     {
         _localInput = localInput;
         _inputManager = inputManager;
@@ -206,6 +223,10 @@ public sealed class CharacterActor :
         _intentBuffer = intentBuffer;
         _targetingState = targetingState ?? throw new ArgumentNullException(nameof(targetingState));
         _simulationRoot = simulationRoot;
+        _seat = seat;
+        _fixedDeltaSeconds = fixedDeltaSeconds > 0f
+            ? fixedDeltaSeconds
+            : 1f / SimulationConfig.DefaultLogicHz;
     }
 
     /// <summary>组装只读调试快照；供 CombatDebugHudController LateUpdate 采样。</summary>
@@ -398,9 +419,7 @@ public sealed class CharacterActor :
             // Targeting 必须先于 Action 路由/推进，使同帧切敌立即作用于尚未解析的动作逻辑。
             _targetingState.Step(_actorId, _motor.Sim, in inputFrame);
             _intentProducer.Step();
-            _actionDriver.ProcessGameplayInput();
-            // ActionSim 是唯一动作推进路径；表现桥只消费本步产生的只读事件。
-            _actionSim?.Step();
+            StepActionClock();
             _actionPresentation?.ApplyStep(fixedDeltaSeconds);
             _motor.TickGravity(fixedDeltaSeconds);
             _stateMachine.Tick(fixedDeltaSeconds);
@@ -411,7 +430,7 @@ public sealed class CharacterActor :
             _animation.Tick(fixedDeltaSeconds);
             UpdateActionLateralPeakSample();
 
-            // 卡肉期间暂停 Numeric.Step（被动回能/充能/Effect/旗标）；动作或受击态刷新接战门闩
+            // 卡肉或权威 Freeze 覆盖期间暂停 Numeric.Step
             if (_actionSim != null && !_actionSim.IsFrozen)
             {
                 if (_actionSim.IsActive
@@ -480,6 +499,82 @@ public sealed class CharacterActor :
     {
         _motor.SyncRootPlanarFromSim();
         _presentation.RefreshCurrentPoseFromSimulationRoot();
+    }
+
+    /// <summary>
+    /// 同机预览：权威已受击/死亡时禁止新起手，只推已在播的招。
+    /// Authority 座位忽略。真客机卡肉走本机 RequestHitStop，不经此旗标。
+    /// </summary>
+    public void SetAutonomousPredictMode(bool suppressNewStarts)
+    {
+        if (_seat != ReplicationSeat.Autonomous)
+            return;
+
+        _autonomousSuppressNewStarts = suppressNewStarts;
+    }
+
+    /// <summary>Ack 取消本地招并回走跑；不写 Numeric、不 Collect。</summary>
+    public void StopAutonomousAction()
+    {
+        _actionSim?.Stop();
+        _intentBuffer?.ClearAllBuffers();
+        if (CurrentState == CharacterStateType.Action)
+            _stateMachine.TryChangeState(CharacterStateType.Locomotion, force: true);
+    }
+
+    /// <summary>把逻辑根位置与朝向写成 MotorSim，供首份快照/预览对齐。不改插值锚点。</summary>
+    public void AlignSimulationRootToMotor() => _motor?.SyncRootPoseFromSim();
+
+    /// <summary>纠偏/受击后掐断表现插值，避免回拉扫成一顿。</summary>
+    public void SnapPresentationToSimulation() => _presentation?.SnapToSimulationRoot();
+
+    /// <inheritdoc />
+    public void RestoreFromAuthority(in ActorReplicationSnapshot authority)
+    {
+        _motor.SyncRootPoseFromSim();
+        LocomotionSavedState state = LocomotionSavedState.FromAuthority(in authority);
+        LocomotionStateMachine loco = Locomotion;
+        if (loco == null)
+            return;
+
+        if (CurrentState != CharacterStateType.Locomotion)
+            _stateMachine.TryChangeState(CharacterStateType.Locomotion, force: true);
+        loco.Restore(in state);
+    }
+
+    /// <inheritdoc />
+    public void ReplayTick(in InputFrame input)
+    {
+        _inputManager.IngestFrame(input);
+        _motor.TickGravity(_fixedDeltaSeconds);
+        Locomotion?.Tick(_fixedDeltaSeconds);
+        _animation.SetSpeed(1f);
+        _animation.Tick(_fixedDeltaSeconds);
+    }
+
+    /// <summary>按预测旗标推进或暂停 ActionSim；Authority 走完整起手+Step。</summary>
+    void StepActionClock()
+    {
+        if (_autonomousSuppressNewStarts)
+        {
+            BufferAutonomousIntentsOnly();
+            if (_actionSim != null && _actionSim.IsActive)
+                _actionSim.Step();
+            return;
+        }
+
+        _actionDriver.ProcessGameplayInput();
+        _actionSim?.Step();
+    }
+
+    /// <summary>卡肉/硬直窗只把当帧意图写入缓冲，禁止起手。</summary>
+    void BufferAutonomousIntentsOnly()
+    {
+        if (_intentBuffer == null)
+            return;
+
+        for (int i = 0; i < _intentBuffer.FrameIntents.Count; i++)
+            _intentBuffer.Buffer(_intentBuffer.FrameIntents[i]);
     }
 
     /// <summary>把前后逻辑 Pose 插值到表现锚点，再插值视觉残差到模型根。</summary>

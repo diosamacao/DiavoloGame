@@ -133,6 +133,44 @@ public sealed class SoftBodySeparationTests
         Assert.That(b.SoftApplyCount, Is.EqualTo(0));
     }
 
+    /// <summary>客机本机应被不可推动幽灵推出，幽灵位置不变。</summary>
+    [Test]
+    public void AutonomousSolver_PushesLocalOutAndLeavesBlocker()
+    {
+        var local = new CharacterMotorSim(OpenFieldSimCollisionWorld.Instance, 280);
+        local.TeleportMm(0, 0);
+        var blockerPos = new[] { new SimVec2(100, 0) };
+        var blockerRad = new[] { 280 };
+
+        Assert.That(
+            AutonomousSoftBodySolver.TrySeparateLocal(
+                local,
+                blockerPos,
+                blockerRad,
+                blockerCount: 1,
+                factorMilli: 1000,
+                iterations: 3),
+            Is.True);
+        Assert.That(local.PositionMm.X, Is.LessThan(0));
+        Assert.That(blockerPos[0].X, Is.EqualTo(100));
+    }
+
+    /// <summary>本机 SoftBody 抑制时不推，避免出招叠人窗被客机提前弹开。</summary>
+    [Test]
+    public void AutonomousSolver_SuppressedLocal_DoesNotMove()
+    {
+        var local = new CharacterMotorSim(OpenFieldSimCollisionWorld.Instance, 280);
+        local.TeleportMm(0, 0);
+        local.SetSoftBodySuppressFrames(2);
+        var blockerPos = new[] { new SimVec2(100, 0) };
+        var blockerRad = new[] { 280 };
+
+        Assert.That(
+            AutonomousSoftBodySolver.TrySeparateLocal(local, blockerPos, blockerRad, 1, 1000, 3),
+            Is.False);
+        Assert.That(local.PositionMm.X, Is.EqualTo(0));
+    }
+
     /// <summary>测试用软弹开参与者。</summary>
     sealed class SoftBodyActor : ISimulationActor, ISimSoftBodyParticipant
     {

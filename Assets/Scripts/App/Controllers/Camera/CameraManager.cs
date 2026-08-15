@@ -75,6 +75,8 @@ public class CameraManager : AppControllerBase
     float _yawFollowVelocity;
     float _lookOverrideRemaining;
     bool _cameraLockEnabled;
+    /// <summary>进关后尚未看/走/出招：Orbit yaw 跟角色朝向，避免 MoveReferenceYaw 停在 0。</summary>
+    bool _orbitYawFollowUntilInput = true;
 
     public Transform FollowTarget => cameraRoot != null ? cameraRoot : followTarget;
 
@@ -275,16 +277,36 @@ public class CameraManager : AppControllerBase
             return;
 
         Transform presentationRoot = local.PresentationRoot;
-        if (presentationRoot == null || presentationRoot == followTarget)
+        if (presentationRoot == null)
             return;
 
-        followTarget = presentationRoot;
-        if (cameraRoot == null)
+        if (presentationRoot != followTarget)
+        {
+            followTarget = presentationRoot;
+            if (cameraRoot != null)
+            {
+                cameraRoot.SetParent(followTarget, false);
+                cameraRoot.localPosition = new Vector3(0f, cameraRootHeight, 0f);
+                cameraRoot.localRotation = Quaternion.identity;
+            }
+        }
+
+        // 进关未操作时 Orbit yaw 默认 0；首份快照改朝向后仍要对齐，直到玩家看/走/出招
+        MaybeSnapOrbitYawBeforeFirstInput(presentationRoot, local);
+    }
+
+    /// <summary>进关后、第一次看/走/出招前，Orbit yaw 跟随角色朝向并写入 MoveReferenceYaw。</summary>
+    void MaybeSnapOrbitYawBeforeFirstInput(Transform facingSource, ILocalPlayer local)
+    {
+        if (local != null && (local.HasMoveIntent || local.IsPresentingAction))
+            _orbitYawFollowUntilInput = false;
+
+        if (!_orbitYawFollowUntilInput || facingSource == null)
             return;
 
-        cameraRoot.SetParent(followTarget, false);
-        cameraRoot.localPosition = new Vector3(0f, cameraRootHeight, 0f);
-        cameraRoot.localRotation = Quaternion.identity;
+        yaw = facingSource.eulerAngles.y;
+        _yawFollowVelocity = 0f;
+        local.StageMoveReferenceYaw(yaw);
     }
 
     void EnsureOrbitPivots()
@@ -392,6 +414,7 @@ public class CameraManager : AppControllerBase
         {
             _lookOverrideRemaining = lookOverrideResumeDelay;
             _yawFollowVelocity = 0f;
+            _orbitYawFollowUntilInput = false;
         }
 
         yaw += lookInput.x * horizontalSensitivity;

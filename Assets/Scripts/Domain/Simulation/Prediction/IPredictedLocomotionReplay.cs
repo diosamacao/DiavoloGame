@@ -1,5 +1,5 @@
 /// <summary>
-/// 客机走跑纠偏重放口。由 <c>AutonomousLocomotionRunner</c> 实现。
+/// 客机走跑纠偏重放口。由 Autonomous CharacterActor 实现。
 /// Simulation 不引用内层机类型，避免程序集反向依赖。
 /// </summary>
 public interface IPredictedLocomotionReplay

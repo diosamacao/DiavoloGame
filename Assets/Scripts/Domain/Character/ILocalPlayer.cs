@@ -6,7 +6,7 @@ using UnityEngine;
 /// </summary>
 public interface ILocalPlayer
 {
-    /// <summary>已装配的角色 Actor；未就绪时为空。</summary>
+    /// <summary>已装配的角色 Actor；客机为 Autonomous，Host 为 Authority。</summary>
     CharacterActor Actor { get; }
 
     /// <summary>权威根（逻辑 Transform）。</summary>
@@ -27,7 +27,7 @@ public interface ILocalPlayer
     /// </summary>
     bool IsLocalPredicted { get; }
 
-    /// <summary>量化输入中枢；客机座位无 Actor 时为空，相机请用 <see cref="HasMoveIntent"/>。</summary>
+    /// <summary>量化输入中枢；两端都有 Actor 后非空。</summary>
     InputManager Input { get; }
 
     /// <summary>本机当前是否有移动输入；客机读设备采样，不得依赖空的 Input。</summary>
