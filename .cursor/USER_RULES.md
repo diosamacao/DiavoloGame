@@ -14,7 +14,7 @@
 - `actgame-editor-only-assets.mdc` — 美术 / Data / Prefab 仅 Editor 人工
 - `actgame-code-finish-gate.mdc` — 注释 + ReadLints + 「代码收尾」清单
 - `actgame-change-summary.mdc` — 各脚本改动总结 + 整体思路 + Editor 验收清单
-- `actgame-architecture-explain-with-code.mdc` — 解释架构时举真实代码，无则写伪代码
+- `actgame-architecture-explain-with-code.mdc` — 解释架构时举真实代码、画流程图；无则伪代码+方案图
 - `actgame-no-legacy-compatibility.mdc` — 重写/重构不保留旧兼容层
 
 新开 Agent 对话后应自动加载。若未生效，请将下方「Settings 粘贴版」复制到 **Cursor Settings → Rules → User Rules**。
@@ -36,8 +36,9 @@ ACTGame Unity 项目约束（最高优先级，与 .cursor/rules/ 一致）：
 
 【架构解释】解释分层、模块边界、数据流或某系统怎么组织时：
 1. 先读 Assets/Scripts 再解释，每个关键结论至少引用 1 处真实代码（路径+行号）；
-2. 仓库里没有对应实现时，写明「当前代码无此实现」，再给伪代码方案（类型、调用顺序、数据流向、与现有类的衔接点）；
-3. 禁止只画分层、只引文档，或把未落地的 API 写成已存在。
+2. 必须画 mermaid 代码流程图（flowchart 或 sequenceDiagram），节点用真实类型/方法名；
+3. 仓库里没有对应实现时，写明「当前代码无此实现」，再给伪代码方案，并画标明「方案」的流程图；
+4. 禁止只画分层、只引文档、流程图用空泛模块名，或把未落地的 API 写成已存在。
 
 【重写/重构】涉及代码逻辑重写、框架重构、模块替换时，默认不保留旧兼容层：
 1. 新逻辑为唯一真源，删除旧入口/旧分支/旧适配层；
@@ -50,4 +51,4 @@ ACTGame Unity 项目约束（最高优先级，与 .cursor/rules/ 一致）：
 
 1. 打开 **Cursor Settings → Rules**，确认 User Rules 中有上述文本（若使用粘贴版）
 2. 在 Agent 中改一个 `.cs` 文件，检查是否：补注释 → 调用 ReadLints → 回复含「改动总结」与「代码收尾」；涉及运行时/测试时还含「请你在 Editor 确认」
-3. 问「XX 架构怎么组织」时，检查回复是否引用了真实 `.cs`；若功能未落地，是否写了「当前代码无此实现」+ 伪代码
+3. 问「XX 架构怎么组织」时，检查回复是否引用了真实 `.cs` 且含 mermaid 流程图；若功能未落地，是否写了「当前代码无此实现」+ 伪代码 + 方案流程图
