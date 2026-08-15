@@ -106,6 +106,129 @@ public sealed class PredictedLocomotionReconcileTests
         Assert.That(motor.PositionMm.Z, Is.GreaterThan(motor.PositionMm.X));
     }
 
+    /// <summary>UE1：Runner 记账后超阈只吸附，不 wish 重放。</summary>
+    [Test]
+    public void RecordAutonomous_OverThreshold_SnapsWithoutWishReplay()
+    {
+        var driver = CreateDriver(OpenFieldSimCollisionWorld.Instance);
+        SimActorId id = new SimActorId(1);
+        driver.Motor.TeleportMm(800, 0, 0);
+        driver.Motor.SetFacingMilliDeg(0);
+        for (int i = 0; i <= 8; i++)
+        {
+            var input = new InputFrame(i, id, 0, 127, 0ul, 0ul, 0ul, 0);
+            driver.RecordAutonomous(in input);
+        }
+
+        ActorReplicationSnapshot authority = PoseSnapshot(id, 0, 0, 0, 0);
+        PredictedReconcileResult result = driver.Reconcile(4, in authority);
+
+        Assert.That(result.Snapped, Is.True);
+        Assert.That(result.ReplayedInputs, Is.Zero);
+        Assert.That(driver.Motor.PositionMm.X, Is.EqualTo(0));
+        Assert.That(driver.Motor.PositionMm.Z, Is.EqualTo(0));
+    }
+
+    /// <summary>UE1：Runner 活动时用硬吸阈，800mm 误差只 Ack 不拉回。</summary>
+    [Test]
+    public void Reconcile_AutonomousHardSnap_BelowThreshold_DoesNotSnap()
+    {
+        var driver = CreateDriver(OpenFieldSimCollisionWorld.Instance);
+        SimActorId id = new SimActorId(1);
+        driver.Motor.TeleportMm(800, 0, 0);
+        driver.Motor.SetFacingMilliDeg(0);
+        for (int i = 0; i <= 8; i++)
+        {
+            var input = new InputFrame(i, id, 0, 127, 0ul, 0ul, 0ul, 0);
+            driver.RecordAutonomous(in input);
+        }
+
+        ActorReplicationSnapshot authority = PoseSnapshot(id, 0, 0, 0, 0);
+        PredictedReconcileResult result = driver.Reconcile(
+            4,
+            in authority,
+            PredictedLocomotionDriver.AutonomousHardSnapMm);
+
+        Assert.That(result.Snapped, Is.False);
+        Assert.That(result.PlanarErrorMm, Is.EqualTo(800));
+        Assert.That(driver.Motor.PositionMm.X, Is.EqualTo(800));
+        Assert.That(driver.PendingCount, Is.EqualTo(4));
+    }
+
+    /// <summary>UE2：走跑超阈 Restore 后经 replay 重放未确认输入，不再只吸 Pose。</summary>
+    [Test]
+    public void Reconcile_Autonomous_WithReplay_RestoresAndReplays()
+    {
+        var driver = CreateDriver(OpenFieldSimCollisionWorld.Instance);
+        var replay = new FakeLocomotionReplay(driver.Motor, PredictedLocomotionConfig.Default);
+        SimActorId id = new SimActorId(1);
+        driver.Motor.TeleportMm(800, 0, 0);
+        driver.Motor.SetFacingMilliDeg(0);
+        for (int i = 0; i <= 8; i++)
+        {
+            var input = new InputFrame(i, id, 0, 127, 0ul, 0ul, 0ul, 0);
+            driver.RecordAutonomous(in input);
+        }
+
+        ActorReplicationSnapshot authority = PoseSnapshot(id, 0, 0, 0, 0);
+        PredictedReconcileResult result = driver.Reconcile(
+            4,
+            in authority,
+            replay,
+            snapThresholdMm: 50);
+
+        Assert.That(result.Snapped, Is.True);
+        Assert.That(replay.RestoreCount, Is.EqualTo(1));
+        Assert.That(result.ReplayedInputs, Is.EqualTo(4));
+        Assert.That(replay.TickCount, Is.EqualTo(4));
+        Assert.That(driver.Motor.PositionMm.Z, Is.GreaterThan(0));
+        Assert.That(driver.Motor.PositionMm.X, Is.EqualTo(0));
+    }
+
+    /// <summary>走跑带 replay 时默认 2m 硬吸：800mm 只 Ack，避免每包重放卡顿。</summary>
+    [Test]
+    public void Reconcile_AutonomousReplay_BelowHardSnap_DoesNotSnap()
+    {
+        var driver = CreateDriver(OpenFieldSimCollisionWorld.Instance);
+        var replay = new FakeLocomotionReplay(driver.Motor, PredictedLocomotionConfig.Default);
+        SimActorId id = new SimActorId(1);
+        driver.Motor.TeleportMm(800, 0, 0);
+        var input = new InputFrame(4, id, 0, 127, 0ul, 0ul, 0ul, 0);
+        driver.RecordAutonomous(in input);
+
+        ActorReplicationSnapshot authority = PoseSnapshot(id, 0, 0, 0, 0);
+        PredictedReconcileResult result = driver.Reconcile(4, in authority, replay);
+
+        Assert.That(result.Snapped, Is.False);
+        Assert.That(result.PlanarErrorMm, Is.EqualTo(800));
+        Assert.That(replay.RestoreCount, Is.Zero);
+        Assert.That(driver.Motor.PositionMm.X, Is.EqualTo(800));
+    }
+
+    /// <summary>刚吸附后 80mm 误差走宽限，不再连吸。</summary>
+    [Test]
+    public void Reconcile_WithinSnapGrace_DoesNotResnap()
+    {
+        var driver = CreateDriver(OpenFieldSimCollisionWorld.Instance);
+        SimActorId id = new SimActorId(1);
+        driver.Motor.TeleportMm(800, 0, 0);
+        var input = new InputFrame(4, id, 0, 127, 0ul, 0ul, 0ul, 0);
+        driver.RecordAutonomous(in input);
+
+        ActorReplicationSnapshot first = PoseSnapshot(id, 0, 0, 0, 0);
+        Assert.That(driver.Reconcile(4, in first).Snapped, Is.True);
+
+        driver.Motor.TeleportMm(80, 0, 0);
+        var later = new InputFrame(5, id, 0, 127, 0ul, 0ul, 0ul, 0);
+        driver.RecordAutonomous(in later);
+        ActorReplicationSnapshot second = PoseSnapshot(id, 0, 0, 0, 0);
+        PredictedReconcileResult grace = driver.Reconcile(5, in second);
+
+        Assert.That(grace.Snapped, Is.False);
+        Assert.That(grace.PlanarErrorMm, Is.EqualTo(80));
+        Assert.That(driver.Motor.PositionMm.X, Is.EqualTo(80));
+    }
+
     /// <summary>贴齐权威后 pending 与权威同位姿，和解不吸附。</summary>
     [Test]
     public void PredictAligned_ThenReconcileSamePose_DoesNotSnap()
@@ -190,6 +313,31 @@ public sealed class PredictedLocomotionReconcileTests
         Assert.That(result.Snapped, Is.True);
         Assert.That(predicted.Motor.PositionMm.X, Is.EqualTo(authorityMotor.PositionMm.X));
         Assert.That(predicted.Motor.PositionMm.Z, Is.EqualTo(authorityMotor.PositionMm.Z));
+    }
+
+    /// <summary>单测用重放：Restore 只计数，Tick 用同一套 ApplyInput 推进电机。</summary>
+    sealed class FakeLocomotionReplay : IPredictedLocomotionReplay
+    {
+        readonly CharacterMotorSim _motor;
+        readonly PredictedLocomotionConfig _config;
+        float _facingVelocity;
+
+        public FakeLocomotionReplay(CharacterMotorSim motor, PredictedLocomotionConfig config)
+        {
+            _motor = motor;
+            _config = config;
+        }
+
+        public int RestoreCount { get; private set; }
+        public int TickCount { get; private set; }
+
+        public void RestoreFromAuthority(in ActorReplicationSnapshot authority) => RestoreCount++;
+
+        public void ReplayTick(in InputFrame input)
+        {
+            TickCount++;
+            PredictedLocomotionMath.ApplyInput(_motor, in input, in _config, ref _facingVelocity);
+        }
     }
 
     static PredictedLocomotionDriver CreateDriver(ISimCollisionWorld world) =>

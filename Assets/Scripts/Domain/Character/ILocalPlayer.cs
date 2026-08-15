@@ -27,8 +27,14 @@ public interface ILocalPlayer
     /// </summary>
     bool IsLocalPredicted { get; }
 
-    /// <summary>量化输入中枢；未装配时为空。</summary>
+    /// <summary>量化输入中枢；客机座位无 Actor 时为空，相机请用 <see cref="HasMoveIntent"/>。</summary>
     InputManager Input { get; }
+
+    /// <summary>本机当前是否有移动输入；客机读设备采样，不得依赖空的 Input。</summary>
+    bool HasMoveIntent { get; }
+
+    /// <summary>本机正在播招/受击/死亡；相机跟朝向应暂停，避免连闪甩镜头。</summary>
+    bool IsPresentingAction { get; }
 
     /// <summary>由相机暂存 Orbit yaw，供下一逻辑帧写入 InputFrame。</summary>
     void StageMoveReferenceYaw(float yawDegrees);

@@ -2,9 +2,26 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// 只装配幽灵表现图：模型、Motor、动画、插值锚点、VisualMotionRoot、VFX/SFX 消费者。
+/// 装配幽灵表现图，或本机 Autonomous 座位（InputManager + 内层走跑机）。
 /// 禁止走 CharacterActorFactory（会注册命中收集）。
 /// </summary>
+/// <summary>本机预测座位：表现体 + 走跑 Runner，共用同一 MotorSim。</summary>
+public readonly struct AutonomousPredictedSeat
+{
+    /// <summary>绑定已装配的预测体与 Runner。</summary>
+    public AutonomousPredictedSeat(RemoteCharacterProxy proxy, AutonomousLocomotionRunner runner)
+    {
+        Proxy = proxy ?? throw new ArgumentNullException(nameof(proxy));
+        Runner = runner ?? throw new ArgumentNullException(nameof(runner));
+    }
+
+    /// <summary>本机预测表现体；走跑时不得再 Play Locomotion。</summary>
+    public RemoteCharacterProxy Proxy { get; }
+
+    /// <summary>本机内层走跑机。</summary>
+    public AutonomousLocomotionRunner Runner { get; }
+}
+
 public static class RemoteCharacterProxyFactory
 {
     /// <summary>按与权威相同的模型/动画配置生成 RemoteProxy；不注册 World、不挂 Hurtbox。</summary>
@@ -16,10 +33,64 @@ public static class RemoteCharacterProxyFactory
         float fixedDeltaSeconds,
         Transform parent = null)
     {
+        BuiltGhost built = BuildGhost(
+            config,
+            catalog,
+            collisionWorld,
+            worldOffset,
+            fixedDeltaSeconds,
+            parent,
+            IdleMoveIntentSource.Instance);
+        return built.Proxy;
+    }
+
+    /// <summary>
+    /// 本机 Autonomous 座位：Motor 绑可 Ingest 的 InputManager，并挂内层走跑机。
+    /// 禁止走 CharacterActorFactory。
+    /// </summary>
+    public static AutonomousPredictedSeat CreateAutonomous(
+        CharacterConfig config,
+        ActionReplicationCatalog catalog,
+        ISimCollisionWorld collisionWorld,
+        Vector3 worldOffset,
+        float fixedDeltaSeconds,
+        Transform parent = null)
+    {
+        var input = new InputManager();
+        BuiltGhost built = BuildGhost(
+            config,
+            catalog,
+            collisionWorld,
+            worldOffset,
+            fixedDeltaSeconds,
+            parent,
+            input);
+        var runner = new AutonomousLocomotionRunner(
+            input,
+            built.Motor,
+            built.Animation,
+            built.LocomotionProfile,
+            built.Proxy.Root,
+            fixedDeltaSeconds);
+        return new AutonomousPredictedSeat(built.Proxy, runner);
+    }
+
+    /// <summary>装配幽灵表现图；意图源由调用方注入（他人 Idle / 本机 InputManager）。</summary>
+    static BuiltGhost BuildGhost(
+        CharacterConfig config,
+        ActionReplicationCatalog catalog,
+        ISimCollisionWorld collisionWorld,
+        Vector3 worldOffset,
+        float fixedDeltaSeconds,
+        Transform parent,
+        IMoveIntentSource moveIntent)
+    {
         if (config == null)
             throw new ArgumentNullException(nameof(config));
         if (catalog == null)
             throw new ArgumentNullException(nameof(catalog));
+        if (moveIntent == null)
+            throw new ArgumentNullException(nameof(moveIntent));
         if (config.ModelPrefab == null)
             throw new InvalidOperationException("RemoteCharacterProxyFactory: CharacterConfig 未绑定 ModelPrefab。");
 
@@ -65,7 +136,7 @@ public static class RemoteCharacterProxyFactory
             owner.transform,
             controller,
             motorConfig,
-            IdleMoveIntentSource.Instance,
+            moveIntent,
             motorSim);
         IAnimationPlayback playback = new PlayableAnimationPlayback(animator);
         var animation = new CharacterAnimationService(
@@ -87,7 +158,7 @@ public static class RemoteCharacterProxyFactory
             new ActionSfxPlayer(owner.transform),
         };
 
-        return new RemoteCharacterProxy(
+        var proxy = new RemoteCharacterProxy(
             owner.transform,
             motor,
             animation,
@@ -98,6 +169,27 @@ public static class RemoteCharacterProxyFactory
             visualMotionRoot,
             ownsRoot: true,
             notifyConsumers);
+        return new BuiltGhost(proxy, motor, animation, locomotionProfile);
+    }
+
+    readonly struct BuiltGhost
+    {
+        public BuiltGhost(
+            RemoteCharacterProxy proxy,
+            CharacterMotor motor,
+            CharacterAnimationService animation,
+            CharacterLocomotionProfile locomotionProfile)
+        {
+            Proxy = proxy;
+            Motor = motor;
+            Animation = animation;
+            LocomotionProfile = locomotionProfile;
+        }
+
+        public RemoteCharacterProxy Proxy { get; }
+        public CharacterMotor Motor { get; }
+        public CharacterAnimationService Animation { get; }
+        public CharacterLocomotionProfile LocomotionProfile { get; }
     }
 
     /// <summary>按配置挂点名在模型下查找；找不到回退角色根。</summary>

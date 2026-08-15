@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>六向动作解析：按角色朝向分派前、后、左前、左后、右前、右后变体。</summary>
@@ -29,6 +30,21 @@ public class DirectionalActionResolver : ActionResolver
 
         result = default;
         return false;
+    }
+
+    /// <summary>登记六向变体与回退，供复制目录 Prefill；空槽跳过。</summary>
+    public override void CollectActions(List<ActionDefinition> actions)
+    {
+        if (actions == null)
+            return;
+
+        AddCollected(actions, defaultAction);
+        AddCollected(actions, forwardAction);
+        AddCollected(actions, backwardAction);
+        AddCollected(actions, forwardLeftAction);
+        AddCollected(actions, backwardLeftAction);
+        AddCollected(actions, forwardRightAction);
+        AddCollected(actions, backwardRightAction);
     }
 
     /// <summary>按角色平面朝向把输入划分为两个正向扇区与四个斜向扇区。</summary>
@@ -101,5 +117,11 @@ public class DirectionalActionResolver : ActionResolver
 
         normalized = source.normalized;
         return true;
+    }
+
+    static void AddCollected(List<ActionDefinition> actions, ActionDefinition action)
+    {
+        if (action != null)
+            actions.Add(action);
     }
 }

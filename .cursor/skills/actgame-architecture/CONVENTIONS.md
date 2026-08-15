@@ -42,13 +42,18 @@
 - **渲染输入汇聚**：本地设备 Actor 通过 `IRenderFrameSampler` 缓存渲染帧边沿，逻辑 Step 不直接依赖 Unity 渲染帧是否恰好发生。客机房间同样每渲染帧 `MergeLocalSample` 到下一 FrameHint，禁止只在 `AfterLogicStep` 里 `Sample`（会丢掉无逻辑步的 `WasPressedThisFrame`）
 - **量化输入格式**：玩家设备、回放与未来网络输入使用 `InputFrame`；Move 为 sbyte、按钮为固定 bitset，禁止恢复 float/string `PlayerInputFrame`。AI 控制命令使用 Desire / Entry Request，不伪装设备输入
 - **本机玩家入口**：玩法与相机通过 `LocalPlayerService` / `GetLocalPlayerQuery` / `GetPlayerRootsQuery` 取玩家；禁止 `FindObjectOfType<PlayerController>()`（仅 Editor Gizmo 可留）。Listen Host 的 `IsLocalPredicted` 恒为 false
+- **客机相机跟朝向**：`CameraManager.ApplyFollowFacingYaw` 必须读 `ILocalPlayer.HasMoveIntent` 与 `PresentationRoot`。客机座位无 Actor，`Input` 恒空，禁止再写 `local.Input == null || !local.Input.HasMoveIntent`（L-DIR5 绕圈会失效）。`HasMoveIntent` 走 `ILocalInputSampler`
 - **朝向调试箭头**：`CharacterFacingDebugVisualizer` 只绑 `ICharacterFacingDebugTarget`（本机 Actor 或 RemoteProxy）；禁止再 Bind `PlayerController`。幽灵 wish 必须与对应 Tick 成对，禁止用当前帧本机输入画延迟模型
 - **复制契约**：上下行结构体与编解码在 `ACTGame.Simulation/Replication`；传输接口在 `ACTGame.Net`。禁止把 CameraLock/Look/Lean 写入 Snapshot；禁止 ClientCommand 带 HP/坐标/招式名。房间上行是最近 N 条命令批；Host 只合并未应用 Hint 的边沿。`appliedClientFrameHint` 仅本步真正灌入远端命令时非 0，CarryForward 必须下发 0
 - **RemoteProxy**：他人/预览幽灵只应用 Snapshot（`Domain/Character/Replication/`），禁止 `CharacterActorFactory`、`HitboxFrameConsumer`、`EnemyBrain.Step`。可按 ActionFrame 过点派发 VFX/SFX，禁止派发 Hitbox/MotionCommand。Host 用 `AfterLogicStep` 打包，不得只在渲染帧漏步发送
 - **幽灵 Locomotion（他人）**：切 `AnimationKey` 时一次性相位硬切并可 Seek；Idle↔走跑冲刺用 Profile 默认 CrossFade。同键只 `Tick`
-- **客机本机走跑（UE1 起）**：真源 [`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。本机跑同一套 `LocomotionStateMachine`，禁止 `PredictedLocomotionVisual.ResolveSelfKey` / 摇杆硬映射 Idle/Walk/Run。废止「预测不重跑 FSM」。过渡期（UE1 落地前）不得再往猜片加规则
-- **客机表现节拍**：本机预测体走跑由 Runner 推进 Animation；Proxy 不得对走跑再 Play/Seek。出招/受击仍可 `ApplySnapshot`。权威 Tick 只更新纠偏状态。禁止同一逻辑帧 Tick 两次 Clip
-- **预测位移**：`PredictedLocomotionDriver` 只做 SavedMove 队列与纠偏编排（UE2：Restore 相位后经 Runner 重放）。禁止再用 `ApplyInput` / FollowInput 当走跑主路径。Listen Host 本地禁止把预测写进 `CharacterActor.Step`。纠偏可改预测电机，禁止把表现 Pose 写回权威 Motor。Lean 不进 Snapshot
+- **客机本机走跑**：真源 [`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。本机 Autonomous 跑同一套 `LocomotionStateMachine`；纠偏 Restore+Replay；他人仍 Snapshot。禁止猜片 / 摇杆硬映射 Idle/Walk/Run。已废止「预测不重跑 FSM」「稳态 FollowInput、过渡贴齐」
+- **客机表现节拍**：本机预测体走跑由 Runner 推进 Animation；Proxy 不得对走跑再 Play/Seek。出招/受击仍可 `ApplySnapshot`。权威 Tick 只更新纠偏状态。禁止同一逻辑帧 Tick 两次 Clip。走跑后禁止 `SyncRootPoseFromSim`（会清零转向阻尼）
+- **复制目录 Prefill**：必须收录 Graph 节点 `Action` 与 `VariantResolver` 变体（六向闪避）。只预填 `node.Action` 时客机侧/后闪 `TryGet` 失败，只有位移没有 Clip
+- **预测位移**：`PredictedLocomotionDriver` 只做 SavedMove 队列与纠偏编排。走跑带 `IPredictedLocomotionReplay` 时默认硬吸阈 `AutonomousHardSnapMm`（2m），禁止房间再传 50mm：内层机与 Host 常态偏差就会每包 Restore+Replay+表现硬切，客机走跑卡顿。无 replay 的旧 Predict 单测仍用 50mm。超 2m：`RestoreFromAuthority` + `ReplayTick`，禁止对走跑步 `ApplyInput`。Listen Host 本地禁止把预测写进 `CharacterActor.Step`。纠偏可改预测电机，禁止把表现 Pose 写回权威 Motor。Lean 不进 Snapshot
+- **纠偏后表现**：仅走跑真正 `Snapped`（≥ 2m）或权威 **Hit/Death** 才 `SnapPresentationToSimulation`。出招/闪避禁止每包硬切表现，否则插值被掐死、位移和相机一起跳。刚吸附后 8 包内 ≤ 150mm 只 Ack
+- **出招中相机**：`CameraManager` 在 `ILocalPlayer.IsPresentingAction` 时暂停 L-DIR5 跟朝向，避免连闪 yaw 追权威朝向台阶
+- **闪避回走跑**：Host `ActionState.Exit` 写 `SprintAfterDodge`；客机 Runner 再 Enter 必须 `LocomotionResumeRequest.AfterAction`，禁止 `Enter(default)` 从 Idle 重计 Sprint
 - **预测出招**：UE4 前 `PredictedActionDriver` 只记 ActionId/帧供 Clip；禁止 Collect / 写 Numeric。同招延迟 Tick 只 Ack；权威未起手或 Vitality Hit/Death 才取消。Listen Host 本地仍不预测
 - **命中复制**：`CombatHitPipeline` 只在权威 Actor 收集；下行 `ReplicatedHitEvent` + `VitalityReplicationEdge`。幽灵/预测不得再跑命中或扣血。边沿由 `CharacterVitality` 记一帧，`CharacterActor.Step` 开头清空
 - **移动参考闭包**：相机相对移动只消费 `InputFrame.MoveReferenceYawQuantized`；CameraManager 只能 staged yaw，禁止把 PlanarBasis/Camera Transform 直接写入 Motor

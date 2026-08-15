@@ -138,6 +138,9 @@ public sealed class CharacterActor :
     /// <summary>复制用步态；非 Locomotion 为 Walk。</summary>
     public LocomotionGait ReplicationGait => _stateMachine.ReplicationGait;
 
+    /// <summary>复制用 Gait cardinal；非 Locomotion 为 0。</summary>
+    public byte ReplicationCardinal => _stateMachine.ReplicationCardinal;
+
     /// <summary>当前 Sprint 视觉倾身（度）；非 Locomotion 为 0。不进复制快照。</summary>
     public float SprintLeanRollDegrees => _stateMachine.SprintLeanRollDegrees;
 

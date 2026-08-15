@@ -27,6 +27,23 @@ public class StateMachine<TStateId, TContext>
         ChangeState(initialState, force: true);
     }
 
+    /// <summary>
+    /// 纠偏恢复到指定态，不走 Exit/Enter（避免 Idle.Enter 清掉 Sprint 计时）。
+    /// 调用方须已写好 Context 并自行 Play/Seek Clip。
+    /// </summary>
+    public void RestoreCurrent(TContext context, TStateId stateId)
+    {
+        _context = context;
+        foreach (IState<TStateId, TContext> state in _states.Values)
+            state.Bind(_context);
+
+        if (!_states.TryGetValue(stateId, out IState<TStateId, TContext> next))
+            throw new InvalidOperationException($"StateMachine: 未注册状态 {stateId}。");
+
+        _currentStateId = stateId;
+        _currentState = next;
+    }
+
     public void Tick(float deltaTime) => _currentState?.Tick(deltaTime);
 
     public bool TryChangeState(TStateId next, bool force = false)

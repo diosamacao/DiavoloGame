@@ -36,6 +36,9 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     /// <summary>供相机以外的表现跟随的插值锚点。</summary>
     public Transform PresentationRoot => _presentation != null ? _presentation.PresentationRoot : _root;
 
+    /// <summary>本机/幽灵当前快照正在播招或受击残差。</summary>
+    public bool IsPresentingAction => _lastActionId != 0 || _visualActionActive;
+
     /// <summary>幽灵永不收集命中；恒为 false，供装配断言。</summary>
     public bool CollectsHits => false;
 
@@ -110,6 +113,45 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         ApplyPresentation(in snapshot, leanRollDegrees, seekLocomotion);
         _presentation.EndSimulationStep();
     }
+
+    /// <summary>
+    /// 本机走跑：只同步位置与 Lean，禁止 Play/Seek Locomotion（片子由 Runner 推进）。
+    /// 不调用 SyncRootPoseFromSim，以免清零转向阻尼。预览偏移只写进表现采样。
+    /// </summary>
+    public void SyncAutonomousLocomotion(float leanRollDegrees, Vector3 debugWishWorld)
+    {
+        _presentation.BeginSimulationStep();
+        int savedX = _motor.Sim.PositionMm.X;
+        int savedY = _motor.Sim.YMm;
+        int savedZ = _motor.Sim.PositionMm.Z;
+        int savedFacing = _motor.Sim.FacingMilliDeg;
+        ApplyWorldOffset();
+        // 只同步位置，保留 ApplyLocomotion 的 SmoothDamp 朝向与转向速度
+        _motor.SyncRootFromSim();
+        if (_worldOffset.sqrMagnitude >= 0.0001f)
+        {
+            _motor.Sim.TeleportMm(savedX, savedY, savedZ);
+            _motor.Sim.SetFacingMilliDeg(savedFacing);
+        }
+
+        _debugWishWorld = debugWishWorld;
+        _locomotionKey = _animation != null ? _animation.CurrentKey : null;
+        _animationAction = null;
+        _animationSegmentIndex = -1;
+        _lastActionId = 0;
+        _lastActionFrame = 0;
+        _visualMotion?.SetLeanRollDegrees(leanRollDegrees);
+        if (_visualActionActive)
+        {
+            _visualMotion?.EndAction(VisualResidualExitPolicy.BlendToZero);
+            _visualActionActive = false;
+        }
+
+        _presentation.EndSimulationStep();
+    }
+
+    /// <summary>纠偏吸附后立刻对齐表现锚点，禁止插值扫过回拉。</summary>
+    public void SnapPresentationToSimulation() => _presentation.SnapToSimulationRoot();
 
     /// <summary>按 Host 插值比例更新模型锚点与视觉残差/倾身；邻近 Pose 走 lerp，禁止每渲染帧硬切。</summary>
     public void Render(float interpolationAlpha)
@@ -190,13 +232,13 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
                 bool keyChanged = _locomotionKey != key;
                 if (keyChanged)
                 {
-                    bool hardCut = PredictedLocomotionVisual.ShouldHardCut(_locomotionKey, key);
+                    bool hardCut = ReplicationPresentationAlign.ShouldHardCut(_locomotionKey, key);
                     _animation.Play(key, hardCut ? 0f : (float?)null);
                     _locomotionKey = key;
                     // 一次性相位才 Seek 对齐权威时间；走跑循环淡入后只 Tick
                     if (seekLocomotion
                         && !frozen
-                        && PredictedLocomotionVisual.IsTransitionPhase(key))
+                        && ReplicationPresentationAlign.IsTransitionPhase(key))
                         _animation.SeekLocomotionNormalized(snapshot.LocomotionNormalizedMilli / 1000f);
                 }
 

@@ -90,6 +90,95 @@ public sealed class LocomotionStateMachine
         Context.SprintLean.Reset();
     }
 
+    /// <summary>捕获当前内层机可恢复字段，供 SavedMove。</summary>
+    public LocomotionSavedState Capture()
+    {
+        Context.RootMotionPlayer.Capture(
+            out bool rmActive,
+            out AnimationKey rmKey,
+            out int rmFrame,
+            out float rmYaw);
+        AnimationKey animKey = Context.Animation != null && Context.Animation.CurrentKey.HasValue
+            ? Context.Animation.CurrentKey.Value
+            : AnimationKey.Idle;
+        float normalized = Context.Animation != null ? Context.Animation.NormalizedTime : 0f;
+        return new LocomotionSavedState(
+            Phase,
+            Context.Gait,
+            animKey,
+            normalized,
+            Context.RunHoldSeconds,
+            Context.GaitInputGapSeconds,
+            Context.GaitCardinal,
+            Context.GaitCardinalDwellFrames,
+            Context.ActiveStartKey,
+            Context.ActiveStartGait,
+            Context.ActiveStartCardinal,
+            Context.StopKey,
+            Context.StopFromStart,
+            Context.StopEnterFacing,
+            Context.PivotTargetDirection,
+            Context.PivotEnterFacing,
+            Context.PivotMoveLatched,
+            rmActive,
+            rmKey,
+            rmFrame,
+            rmYaw,
+            Context.FootCycle.LastPlanted,
+            Context.FootCycle.HasPlantRecord,
+            footFrozen: Phase != LocomotionPhase.Gait && Phase != LocomotionPhase.Start);
+    }
+
+    /// <summary>
+    /// 纠偏恢复：写 Context、RestoreCurrent 不走 Enter，再硬切 Play/Seek。
+    /// 禁止 Initialize→Idle.Enter，否则会清掉 Sprint。
+    /// </summary>
+    public void Restore(in LocomotionSavedState state)
+    {
+        Context.RunHoldSeconds = state.RunHoldSeconds;
+        Context.GaitInputGapSeconds = state.GaitInputGapSeconds;
+        Context.Gait = state.Gait;
+        Context.PendingGait = state.Gait;
+        Context.PendingGaitHardCutPlay = false;
+        Context.PendingGaitFaceDirection = Vector3.zero;
+        Context.GaitCardinal = state.GaitCardinal;
+        Context.GaitCardinalDwellFrames = state.GaitCardinalDwellFrames;
+        Context.ActiveStartKey = state.ActiveStartKey;
+        Context.ActiveStartGait = state.ActiveStartGait;
+        Context.ActiveStartCardinal = state.ActiveStartCardinal;
+        Context.StopKey = state.StopKey;
+        Context.StopFromStart = state.StopFromStart;
+        Context.StopPlayHardCut = false;
+        Context.StopEnterFacing = state.StopEnterFacing.sqrMagnitude > 0.0001f
+            ? state.StopEnterFacing
+            : Vector3.forward;
+        Context.PivotTargetDirection = state.PivotTarget.sqrMagnitude > 0.0001f
+            ? state.PivotTarget
+            : Vector3.forward;
+        Context.PivotEnterFacing = state.PivotEnterFacing.sqrMagnitude > 0.0001f
+            ? state.PivotEnterFacing
+            : Vector3.forward;
+        Context.PivotMoveLatched = state.PivotMoveLatched;
+        Context.SprintLean.Reset();
+        Context.FootCycle.SetMarkers(Context.GetMarkersForPhase(state.Phase));
+        Context.FootCycle.Restore(state.LastPlanted, state.HasPlantRecord, state.FootFrozen);
+        Context.RootMotionPlayer.Restore(
+            state.RootMotionActive,
+            state.RootMotionKey,
+            state.RootMotionFrame,
+            state.RootMotionBasisYaw);
+
+        _machine.RestoreCurrent(Context, state.Phase);
+
+        if (Context.Animation != null)
+        {
+            Context.Animation.ResetPlaybackState();
+            Context.Animation.Play(state.AnimationKey, 0f);
+            if (state.NormalizedTime > 0f)
+                Context.Animation.SeekLocomotionNormalized(state.NormalizedTime);
+        }
+    }
+
     /// <summary>推进转换，再执行当前相位的位移/动画/脚步，并刷新 Sprint 倾身。</summary>
     public void Tick(float deltaTime)
     {

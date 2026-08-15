@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-15（NS5 客机 Locomotion 选片）
+> Last audited: 2026-08-15（闪避插值 + 出招暂停跟朝向）
 
 ## 项目概述
 
@@ -19,7 +19,7 @@ Assets/
 │   │   │   ├── Animation/     # 动画播放与 Profile
 │   │   │   ├── Locomotion/    # 相位 FSM、FootCycle、脚步
 │   │   │   ├── Reactions/     # 受击/死亡请求解析与事件桥接
-│   │   │   ├── Replication/   # RemoteProxy / Catalog / Capture（只跟快照）
+│   │   │   ├── Replication/   # RemoteProxy / Catalog / Capture / AutonomousRunner
 │   │   │   └── StateMachine/  # 角色状态机基类与共享 State
 │   │   ├── Enemy/             # Definition、AI FSM、生命值、工厂与句柄
 │   │   ├── Combat/
@@ -234,11 +234,13 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `ReplicationSnapshotBuilder` / `ReplicationCodec` / `ReplicationPoseApplier` | Motor+Action+数值 → 快照；小端往返；位姿写回 MotorSim |
 | `RoomCodec` / `RoomIdleTracker` / `RoomRemoteInputMerge` | 房间信封（命令批，不改 Tick 布局）；空闲 10s 剔除；未应用 Hint 边沿合并 |
 | `IReplicationTransport` / `LoopbackReplicationTransport` / `UdpReplicationTransport` | 只传字节；Loopback 同进程；UDP 为 NS5 第二实现 |
-| `ActionReplicationCatalog` / `CharacterReplicationCapture` | 资产名稳定 Id；从权威 Actor 填快照 |
-| `RemoteCharacterProxy` / `RemoteCharacterProxyFactory` / `ReplicationPresentationAlign` / `PredictedLocomotionVisual` | pose + Clip；客机选片（Sprint/Stop/起步）；过点 VFX/SFX |
+| `ActionReplicationCatalog` / `CharacterReplicationCapture` | 资产名稳定 Id（含 VariantResolver 变体）；从权威 Actor 填快照 |
+| `RemoteCharacterProxy` / `RemoteCharacterProxyFactory` / `ReplicationPresentationAlign` | 他人 Seek；本机走跑只 Sync Motor；过渡相位硬切在 Align |
+| `AutonomousLocomotionRunner` | 客机本机同一套内层走跑机；实现 `IPredictedLocomotionReplay` |
+| `LocomotionSavedState` | 内层机 Capture/Restore；权威 FromAuthority |
 | `RemoteGhostViewController` | Host 同机 Ghost；Client 不启用 |
-| `PredictedLocomotionDriver` / `PredictedActionDriver` | 无 Unity：位移/出招预测与纠偏 |
-| `PredictedClientPreviewController` | Host 同机左侧预览；Listen Host 本地仍不预测 |
+| `PredictedLocomotionDriver` / `PredictedActionDriver` | 走跑记账；超阈 Restore+Replay；出招仍记 ActionId/帧 |
+| `PredictedClientPreviewController` | Host 同机左侧预览走同一 Runner；Listen Host 本地仍不预测 |
 | `ReplicationRoomHost` / `ReplicationRoomClient` / `RemotePlayerSeat` | 最小 2 人房间；单机=Listen Host |
 
 权威进程写法：同一份 `ACTGame.Simulation`，不另写服务器战斗。对照与禁区见 CONVENTIONS「服务器 / 权威进程」与方案 §13。
@@ -253,7 +255,7 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `EnemyActorFactory` / `EnemyHandle` | 复用 CharacterActorFactory，聚合 Actor、Brain、Vitality、Hurtbox 生命周期 |
 | `EnemyController` / `EnemySpawnController` | 单敌 Tick 入口与场景刷怪入口；感知读玩家花名册，不 Find 唯一玩家 |
 | `EnemySpawnSystem` | 架构级敌人实例注册与同 Definition 存活上限 |
-| `ILocalPlayer` / `LocalPlayerService` | 本机输入/相机拥有者 + 全部玩家根列表；NS0 `IsLocalPredicted=false` |
+| `ILocalPlayer` / `LocalPlayerService` | 本机输入/相机拥有者；客机 `Input` 可空；跟朝向用 `HasMoveIntent`，出招用 `IsPresentingAction` 暂停 |
 
 **数据流（敌人 · 当前终态）**：
 

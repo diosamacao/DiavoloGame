@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// NS3/NS4 同机预测预览：稳态走跑 FollowInput；出招立即播 Clip，权威硬直延迟到达后取消。
+/// 同机预测预览：走跑走 Autonomous Runner（禁止 Predict + 猜片）；出招立即播 Clip，权威硬直延迟到达后取消。
 /// 不替换 Listen Host 本地玩家，不进花名册、不跑命中。
 /// </summary>
 [DefaultExecutionOrder(-39)]
@@ -18,6 +18,7 @@ public sealed class PredictedClientPreviewController : AppControllerBase
     ActionReplicationCatalog _catalog;
     PredictedLocomotionDriver _driver;
     PredictedActionDriver _actionDriver;
+    AutonomousLocomotionRunner _locomotionRunner;
     RemoteCharacterProxy _proxy;
 
     /// <summary>由战斗世界注入 Host、配置与预览参数。</summary>
@@ -51,9 +52,12 @@ public sealed class PredictedClientPreviewController : AppControllerBase
         UnsubscribeHost();
         _proxy?.Dispose();
         _proxy = null;
+        _locomotionRunner = null;
+        _driver = null;
+        _actionDriver = null;
     }
 
-    /// <summary>每逻辑步：稳态 FollowInput 预测或贴齐权威，再对延迟 Tick 和解并刷新 lean/残差。</summary>
+    /// <summary>每逻辑步：走跑走 Runner；出招贴齐权威；延迟 Tick 只纠偏位姿。</summary>
     void OnAfterLogicStep(long authorityFrame)
     {
         ILocalPlayer local = SendQuery(new GetLocalPlayerQuery());
@@ -67,23 +71,31 @@ public sealed class PredictedClientPreviewController : AppControllerBase
         ActorReplicationSnapshot authority = CharacterReplicationCapture.FromActor(actor, _catalog);
         InputFrame input = actor.LastSimulationInput;
         bool hostStaggered = IsAuthorityStaggered(actor);
-        bool alignToAuthority = !hostStaggered && ShouldAlignToAuthority(actor, in authority);
+        bool presentAction = hostStaggered
+            || actor.CurrentState != CharacterStateType.Locomotion
+            || authority.ActionId != 0;
         if (input.ActorId.IsValid)
         {
             if (hostStaggered)
             {
                 // 权威已硬直：本地继续播预测招，等延迟 Tick 取消，禁止立刻贴受击位姿
+                _locomotionRunner.Exit();
                 _actionDriver.TickUnconfirmed(authorityFrame);
             }
-            else if (alignToAuthority)
+            else if (presentAction)
             {
+                _locomotionRunner.Exit();
                 _driver.PredictAligned(in input, actor.MotorSim);
                 _actionDriver.Predict(authorityFrame, authority.ActionId, authority.ActionFrame);
             }
             else
             {
-                _driver.Predict(in input, ResolvePredictedPlanarSpeedMm(actor, _driver.Config));
-                _actionDriver.Predict(authorityFrame, authority.ActionId, authority.ActionFrame);
+                LocomotionResumeRequest resume = default;
+                if (!_locomotionRunner.IsActive)
+                    resume = LocomotionResumeRequest.FromGait(actor.ReplicationGait);
+                _locomotionRunner.Tick(in input, in resume);
+                _driver.RecordAutonomous(in input);
+                _actionDriver.Predict(authorityFrame, 0, 0);
             }
         }
 
@@ -99,24 +111,43 @@ public sealed class PredictedClientPreviewController : AppControllerBase
             AuthorityTick received = ReplicationCodec.ReadAuthorityTick(payload);
             if (received.Actors.Length == 0)
                 continue;
-            _driver.Reconcile(received.AuthorityFrame, in received.Actors[0]);
+            // 走跑带 Runner：默认 2m 硬吸，与房间客机相同。
+            PredictedReconcileResult loco = _driver.Reconcile(
+                received.AuthorityFrame,
+                in received.Actors[0],
+                _locomotionRunner);
             _actionDriver.Reconcile(received.AuthorityFrame, in received.Actors[0]);
+            // 与房间客机相同：吸附后对齐表现锚点，禁止插值扫回拉。
+            if (loco.Snapped)
+                _proxy.SnapPresentationToSimulation();
         }
 
-        // 纠偏重放可能冲掉本帧贴齐；出招/转身仍以权威电机为准
-        if (alignToAuthority)
+        // 出招贴齐可能被延迟 Tick 纠偏冲掉；走跑由 Runner 写电机，不再 Snap
+        // 出招只对齐电机，禁止每帧掐插值；受击才硬切表现。
+        if (presentAction && !hostStaggered)
             _driver.SnapMotorTo(actor.MotorSim);
+        if (hostStaggered)
+            _proxy.SnapPresentationToSimulation();
 
-        ActorReplicationSnapshot visual = authority
-            .WithMotorPose(_driver.Motor)
-            .WithAction(_actionDriver.ActionId, _actionDriver.ActionFrame, authority.FreezeFrames);
-        _proxy.ApplySnapshot(in visual, hostStaggered ? 0f : actor.SprintLeanRollDegrees);
+        if (presentAction || hostStaggered)
+        {
+            ActorReplicationSnapshot visual = authority
+                .WithMotorPose(_driver.Motor)
+                .WithAction(_actionDriver.ActionId, _actionDriver.ActionFrame, authority.FreezeFrames);
+            _proxy.ApplySnapshot(in visual, hostStaggered ? 0f : actor.SprintLeanRollDegrees);
+        }
+        else
+        {
+            _proxy.SyncAutonomousLocomotion(
+                _locomotionRunner.LeanRollDegrees,
+                _locomotionRunner.DebugWishWorld);
+        }
     }
 
     /// <summary>首次创建预测电机、Loopback 与表现体；位姿与权威对齐后才开始预测。</summary>
     bool TryEnsurePredicted(ILocalPlayer local, CharacterActor actor)
     {
-        if (_proxy != null && _driver != null)
+        if (_proxy != null && _driver != null && _locomotionRunner != null)
             return true;
 
         CharacterConfig config = _config;
@@ -130,19 +161,20 @@ public sealed class PredictedClientPreviewController : AppControllerBase
         _transport = new LoopbackReplicationTransport();
         _transport.SetLatencyMs(latencyMs);
 
-        var predictMotor = new CharacterMotorSim(
+        AutonomousPredictedSeat seat = RemoteCharacterProxyFactory.CreateAutonomous(
+            config,
+            _catalog,
             _host.CollisionWorld,
-            MotionQuantization.MetersToMm(config.Motor.ControllerRadius),
-            config.Motor.SoftBodyMass,
-            config.Motor.SoftBodyImmovable,
-            SimulationConfig.DefaultLogicHz,
-            MotionQuantization.MetersToMm(config.Motor.Gravity),
-            MotionQuantization.MetersToMm(config.Motor.GroundedGravity));
-        predictMotor.TeleportMm(
+            worldOffset,
+            _host.FixedDeltaSeconds,
+            transform);
+        _proxy = seat.Proxy;
+        _locomotionRunner = seat.Runner;
+        _proxy.MotorSim.TeleportMm(
             actor.MotorSim.PositionMm.X,
             actor.MotorSim.YMm,
             actor.MotorSim.PositionMm.Z);
-        predictMotor.SetFacingMilliDeg(actor.MotorSim.FacingMilliDeg);
+        _proxy.MotorSim.SetFacingMilliDeg(actor.MotorSim.FacingMilliDeg);
 
         var predictConfig = new PredictedLocomotionConfig(
             MotionQuantization.MetersToMm(config.Motor.WalkSpeed),
@@ -152,15 +184,8 @@ public sealed class PredictedClientPreviewController : AppControllerBase
             PredictedLocomotionConfig.Default.ReconcileThresholdMm,
             config.Motor.RotationSmoothTime,
             MotionQuantization.MetersToMm(config.Motor.SprintSpeed));
-        _driver = new PredictedLocomotionDriver(predictMotor, predictConfig);
+        _driver = new PredictedLocomotionDriver(_proxy.MotorSim, predictConfig);
         _actionDriver = new PredictedActionDriver();
-        _proxy = RemoteCharacterProxyFactory.Create(
-            config,
-            _catalog,
-            _host.CollisionWorld,
-            worldOffset,
-            _host.FixedDeltaSeconds,
-            transform);
         return true;
     }
 
@@ -168,40 +193,6 @@ public sealed class PredictedClientPreviewController : AppControllerBase
     static bool IsAuthorityStaggered(CharacterActor actor) =>
         actor.CurrentState == CharacterStateType.Hit
         || actor.CurrentState == CharacterStateType.Death;
-
-    /// <summary>
-    /// 出招与起步/折返/急停等烘焙相位：跟权威位姿。
-    /// 受击/死亡不贴齐；稳态走跑冲刺走 FollowInput 预测。
-    /// </summary>
-    static bool ShouldAlignToAuthority(CharacterActor actor, in ActorReplicationSnapshot snapshot)
-    {
-        if (IsAuthorityStaggered(actor))
-            return false;
-        if (actor.CurrentState != CharacterStateType.Locomotion)
-            return true;
-        return ReplicationPresentationAlign.ShouldAlignFromSnapshot(in snapshot);
-    }
-
-    /// <summary>按权威当前 AnimationKey 选走/跑/冲刺速度；未知则让数学层按输入幅度估。</summary>
-    static int ResolvePredictedPlanarSpeedMm(CharacterActor actor, in PredictedLocomotionConfig config)
-    {
-        if (actor.Animation == null || !actor.Animation.CurrentKey.HasValue)
-            return 0;
-
-        switch (actor.Animation.CurrentKey.Value)
-        {
-            case AnimationKey.Sprint:
-                return config.SprintSpeedMm;
-            case AnimationKey.Walk:
-            case AnimationKey.WalkLeft:
-            case AnimationKey.WalkRight:
-                return config.WalkSpeedMm;
-            case AnimationKey.Run:
-                return config.RunSpeedMm;
-            default:
-                return 0;
-        }
-    }
 
     void SubscribeHost()
     {

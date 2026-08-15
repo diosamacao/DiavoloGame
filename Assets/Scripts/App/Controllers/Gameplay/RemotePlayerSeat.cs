@@ -34,6 +34,13 @@ public sealed class RemotePlayerSeat : AppControllerBase, ILocalPlayer
     /// <inheritdoc />
     public InputManager Input => _actor?.Input;
 
+    /// <inheritdoc />
+    public bool HasMoveIntent => _actor?.Input != null && _actor.Input.HasMoveIntent;
+
+    /// <inheritdoc />
+    public bool IsPresentingAction =>
+        _actor != null && _actor.CurrentState != CharacterStateType.Locomotion;
+
     /// <summary>远端输入来自网络，忽略本机相机 yaw。</summary>
     public void StageMoveReferenceYaw(float yawDegrees)
     {

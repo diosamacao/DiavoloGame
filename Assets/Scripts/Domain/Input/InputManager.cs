@@ -6,7 +6,8 @@ using UnityEngine;
 /// </summary>
 public sealed class InputManager : IMoveIntentSource
 {
-    const float MoveIntentThresholdSq = 0.01f;
+    /// <summary>与设备采样共用的移动死区（平方）。</summary>
+    public const float MoveIntentThresholdSq = 0.01f;
 
     InputFrame _frame;
     Vector2 _bufferedMoveIntent;

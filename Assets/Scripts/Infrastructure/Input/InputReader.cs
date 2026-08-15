@@ -18,6 +18,9 @@ public sealed class InputReader : ILocalInputSampler
     public Vector2 LookInput => lookAction != null ? lookAction.ReadValue<Vector2>() : Vector2.zero;
 
     /// <inheritdoc />
+    public bool HasMoveIntent => MoveInput.sqrMagnitude >= InputManager.MoveIntentThresholdSq;
+
+    /// <inheritdoc />
     public bool CameraLockPressedThisFrame =>
         cameraLockAction != null && cameraLockAction.WasPressedThisFrame();
 

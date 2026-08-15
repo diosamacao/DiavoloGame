@@ -108,7 +108,7 @@
 
 **状态：✅ NS0～NS5 已验收（2026-08-15）**。单机即 Listen Host。房间 / 权威 World 以该方案为准。命中 **P0 仍 Host Collect**；终态以 PVP 为真源（攻击方申报几何、权威入账），PVE 同一条链，见方案 §3.3。`NS-PVP` 未开，禁止现在分叉两套盒。
 
-**下一档（客机预测对齐 UE）：** [`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md) — 本机 Autonomous 跑同一套 `LocomotionStateMachine`，权威 Restore+Replay；废止「预测不重跑 FSM」与猜片。顺序 UE1 → UE2 → UE3 → UE4。
+**下一档（客机预测对齐 UE）：** [`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md) — **UE3 代码已落地（2026-08-15）**，猜片类已删；Play 复验预览/双人走跑后进 UE4。顺序 UE1 → UE2 → UE3 → UE4。
 
 ### [P1] Lockstep 模拟核迁移
 

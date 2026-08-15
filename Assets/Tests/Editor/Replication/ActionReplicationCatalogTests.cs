@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 
 /// <summary>动作目录：同资产稳定 Id，同名跨目录同 Id，null 为 0。</summary>
@@ -53,5 +55,41 @@ public sealed class ActionReplicationCatalogTests
         Assert.That(catalog.GetOrAdd(null), Is.Zero);
         Assert.That(catalog.TryGet(0, out _), Is.False);
         Assert.That(catalog.TryGet(99, out _), Is.False);
+    }
+
+    /// <summary>六向 Resolver 变体必须能预填，否则客机侧/后闪只有位移没有 Clip。</summary>
+    [Test]
+    public void Prefill_DirectionalResolverVariants_CanTryGetEach()
+    {
+        ActionDefinition forward = CreateNamedAction("Dodge_Forward");
+        ActionDefinition backward = CreateNamedAction("Dodge_Backward");
+        ActionDefinition forwardLeft = CreateNamedAction("Dodge_ForwardLeft");
+        var resolver = ScriptableObject.CreateInstance<DirectionalActionResolver>();
+        var serialized = new SerializedObject(resolver);
+        serialized.FindProperty("forwardAction").objectReferenceValue = forward;
+        serialized.FindProperty("backwardAction").objectReferenceValue = backward;
+        serialized.FindProperty("forwardLeftAction").objectReferenceValue = forwardLeft;
+        serialized.ApplyModifiedPropertiesWithoutUndo();
+
+        var collected = new List<ActionDefinition>();
+        resolver.CollectActions(collected);
+        var catalog = new ActionReplicationCatalog();
+        catalog.Prefill(collected);
+
+        Assert.That(catalog.TryGet(ActionReplicationCatalog.ComputeStableId("Dodge_Forward"), out _), Is.True);
+        Assert.That(catalog.TryGet(ActionReplicationCatalog.ComputeStableId("Dodge_Backward"), out _), Is.True);
+        Assert.That(catalog.TryGet(ActionReplicationCatalog.ComputeStableId("Dodge_ForwardLeft"), out _), Is.True);
+
+        Object.DestroyImmediate(resolver);
+        Object.DestroyImmediate(forward);
+        Object.DestroyImmediate(backward);
+        Object.DestroyImmediate(forwardLeft);
+    }
+
+    static ActionDefinition CreateNamedAction(string name)
+    {
+        ActionDefinition action = ScriptableObject.CreateInstance<ActionDefinition>();
+        action.name = name;
+        return action;
     }
 }

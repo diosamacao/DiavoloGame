@@ -12,7 +12,7 @@ public sealed class ActionReplicationCatalog
     /// <summary>已登记的动作条数（不含 Id=0）。</summary>
     public int Count => _toId.Count;
 
-    /// <summary>按角色配置预填 Graph 节点与受击反应，保证 Host/Client 同名同 Id。</summary>
+    /// <summary>按角色配置预填 Graph 节点、VariantResolver 变体与受击反应，保证 Host/Client 同名同 Id。</summary>
     public void Prefill(CharacterConfig config)
     {
         if (config == null)
@@ -32,9 +32,14 @@ public sealed class ActionReplicationCatalog
                 IReadOnlyList<ActionGraphNode> nodes = graph.Nodes;
                 for (int n = 0; n < nodes.Count; n++)
                 {
-                    ActionDefinition action = nodes[n] != null ? nodes[n].Action : null;
-                    if (action != null)
-                        actions.Add(action);
+                    ActionGraphNode node = nodes[n];
+                    if (node == null)
+                        continue;
+
+                    // 节点默认 Action 往往只是前闪/第一段；六向变体在 VariantResolver 上
+                    if (node.Action != null)
+                        actions.Add(node.Action);
+                    node.VariantResolver?.CollectActions(actions);
                 }
             }
         }

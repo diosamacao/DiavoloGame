@@ -25,4 +25,20 @@ public readonly struct LocomotionResumeRequest
     /// <summary>Dodge 离开后持方向直接恢复 Sprint。</summary>
     public static LocomotionResumeRequest SprintAfterDodge =>
         new(LocomotionGait.Sprint, skipStart: true, requireMoveIntent: true);
+
+    /// <summary>按权威步态跳过 Start 恢复；无移动则仍回 Idle。</summary>
+    public static LocomotionResumeRequest FromGait(LocomotionGait gait) =>
+        new(gait, skipStart: true, requireMoveIntent: true);
+
+    /// <summary>
+    /// 出招结束回走跑：Dodge 与 Host 一样进 Sprint；其余用权威步态跳过 Start。
+    /// </summary>
+    public static LocomotionResumeRequest AfterAction(
+        CombatActionType lastAction,
+        LocomotionGait authorityGait)
+    {
+        if (lastAction == CombatActionType.Dodge)
+            return SprintAfterDodge;
+        return FromGait(authorityGait);
+    }
 }
