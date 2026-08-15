@@ -54,7 +54,7 @@
 - **纠偏后表现**：仅走跑真正 `Snapped`（≥ 2m）或权威 **Hit/Death** 才 `SnapPresentationToSimulation`。出招/闪避禁止每包硬切表现，否则插值被掐死、位移和相机一起跳。刚吸附后 8 包内 ≤ 150mm 只 Ack
 - **出招中相机**：`CameraManager` 在 `ILocalPlayer.IsPresentingAction` 时暂停 L-DIR5 跟朝向，避免连闪 yaw 追权威朝向台阶
 - **闪避回走跑**：Host `ActionState.Exit` 写 `SprintAfterDodge`；客机 Runner 再 Enter 必须 `LocomotionResumeRequest.AfterAction`，禁止 `Enter(default)` 从 Idle 重计 Sprint
-- **预测出招**：UE4 前 `PredictedActionDriver` 只记 ActionId/帧供 Clip；禁止 Collect / 写 Numeric。同招延迟 Tick 只 Ack；权威未起手或 Vitality Hit/Death 才取消。Listen Host 本地仍不预测
+- **预测出招**：客机本机 `AutonomousActionRunner` 跑只读 `ActionSim`（Graph 起手 + Cancel 窗 + 推帧）。禁止 Collect、写 Numeric、跑 `ActionMotionResolver`。Ack 用 `PredictedActionAckQueue`：同招不 Seek 回旧帧；权威 `ActionId==0` 或 Hit/Death 则 `Stop` 并 `Runner` 回走跑。本机已连到下一招、权威还停在上一招：只 Ack，不 Cancel。本机招自然结束后禁止用延迟快照再 Seek/派 VFX。权威卡肉时本机不 `ActionSim.Step`。已删除 `PredictedActionDriver`。Listen Host 本地仍不预测出招
 - **命中复制**：`CombatHitPipeline` 只在权威 Actor 收集；下行 `ReplicatedHitEvent` + `VitalityReplicationEdge`。幽灵/预测不得再跑命中或扣血。边沿由 `CharacterVitality` 记一帧，`CharacterActor.Step` 开头清空
 - **移动参考闭包**：相机相对移动只消费 `InputFrame.MoveReferenceYawQuantized`；CameraManager 只能 staged yaw，禁止把 PlanarBasis/Camera Transform 直接写入 Motor
 - **输入阶段先于 Actor**：World 每帧先调用 `ISimulationInputProducer`，再按 Id 执行 Actor；AI Brain 在该阶段写通用命令槽并为统一时序提交空 `InputFrame`

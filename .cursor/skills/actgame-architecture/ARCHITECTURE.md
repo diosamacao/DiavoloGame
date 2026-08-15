@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-15（闪避插值 + 出招暂停跟朝向）
+> Last audited: 2026-08-15（UE4 只读 ActionSim）
 
 ## 项目概述
 
@@ -237,9 +237,11 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `ActionReplicationCatalog` / `CharacterReplicationCapture` | 资产名稳定 Id（含 VariantResolver 变体）；从权威 Actor 填快照 |
 | `RemoteCharacterProxy` / `RemoteCharacterProxyFactory` / `ReplicationPresentationAlign` | 他人 Seek；本机走跑只 Sync Motor；过渡相位硬切在 Align |
 | `AutonomousLocomotionRunner` | 客机本机同一套内层走跑机；实现 `IPredictedLocomotionReplay` |
+| `AutonomousActionRunner` | 客机本机只读 `ActionSim`（解析/推帧/Cancel）；自然结束不重播延迟招；不 Collect、不写 Numeric |
+| `PredictedActionAckQueue` | 出招预测 Ack；未起手/变体分叉/Hit 则 Stop；连招超前只 Ack |
 | `LocomotionSavedState` | 内层机 Capture/Restore；权威 FromAuthority |
 | `RemoteGhostViewController` | Host 同机 Ghost；Client 不启用 |
-| `PredictedLocomotionDriver` / `PredictedActionDriver` | 走跑记账；超阈 Restore+Replay；出招仍记 ActionId/帧 |
+| `PredictedLocomotionDriver` | 走跑记账；超阈 Restore+Replay |
 | `PredictedClientPreviewController` | Host 同机左侧预览走同一 Runner；Listen Host 本地仍不预测 |
 | `ReplicationRoomHost` / `ReplicationRoomClient` / `RemotePlayerSeat` | 最小 2 人房间；单机=Listen Host |
 

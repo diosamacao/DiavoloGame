@@ -229,7 +229,7 @@ public sealed class RemoteCharacterProxyTests
             "Assets/Scripts/Domain/Character/Replication/RemoteCharacterProxyFactory.cs",
             "Assets/Scripts/App/Controllers/Gameplay/RemoteGhostViewController.cs",
             "Assets/Scripts/App/Controllers/Gameplay/PredictedClientPreviewController.cs",
-            "Assets/Scripts/Domain/Simulation/Prediction/PredictedActionDriver.cs"
+            "Assets/Scripts/Domain/Character/Replication/AutonomousActionRunner.cs"
         };
 
         for (int i = 0; i < relativePaths.Length; i++)
@@ -241,6 +241,15 @@ public sealed class RemoteCharacterProxyTests
             Assert.That(text, Does.Not.Contain("hitPipeline.Collect"));
             Assert.That(text, Does.Not.Contain("EnemyBrain"));
         }
+
+        string actionRunnerPath = Path.GetFullPath(Path.Combine(
+            Application.dataPath,
+            "..",
+            "Assets/Scripts/Domain/Character/Replication/AutonomousActionRunner.cs"));
+        string actionRunner = File.ReadAllText(actionRunnerPath);
+        Assert.That(actionRunner, Does.Not.Contain("ActionMotionResolver"));
+        Assert.That(actionRunner, Does.Not.Contain("NumericCostGate"));
+        Assert.That(actionRunner, Does.Not.Contain("CommitCost"));
     }
 
     static ActorReplicationSnapshot CreatePoseSnapshot(int xMm, int zMm) =>

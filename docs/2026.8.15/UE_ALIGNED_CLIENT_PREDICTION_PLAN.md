@@ -109,7 +109,7 @@ NS3 曾写「预测不重跑 Locomotion FSM」——那是当时为先走路做�
 | 服务器重演 + Correction | 已有 `PredictedLocomotionDriver.Reconcile`，改为经 Runner 重放 |
 | 本机 AnimBP 吃本机速度 | 本机 Animation 由内层机 Play，不再 `ResolveSelfKey` |
 | 远端复制加速度驱动 AnimBP | **不学**；远端继续相位 + `LocomotionNormalizedMilli` |
-| GAS 技能预测、服务器取消 | UE4：只读 `ActionSim`；现 `PredictedActionDriver` 为过渡 |
+| GAS 技能预测、服务器取消 | UE4：只读 `ActionSim`（`AutonomousActionRunner`） |
 
 ### 3.2 数据流
 
@@ -126,7 +126,7 @@ NS3 曾写「预测不重跑 Locomotion FSM」——那是当时为先走路做�
          记下 SavedMove(input, pose, LocomotionSavedState)
     若出招/受击:
          Runner.Exit（停走跑）
-         PredictedActionDriver / 权威 Action 字段 → Proxy Seek
+         AutonomousActionRunner（只读 ActionSim）→ Proxy Seek
     表现：走跑不经 Proxy 再 Play Locomotion；只插值 Motor 表现根
 
   收到 AuthorityTick.actor[self]:
@@ -162,7 +162,7 @@ Reconcile(authoritySnapshot):
 | `AutonomousLocomotionRunner` | 本机走跑相位、位移、选片 | 命中、AI、房间 |
 | `PredictedLocomotionDriver` | SavedMove 队列、阈值、编排 Restore+Replay | 自己算 wish 走跑 |
 | `RemoteCharacterProxy` | 他人 Seek；本机出招/受击呈现 | 本机走跑选片 |
-| `PredictedActionDriver` | 出招 Clip 帧（UE4 前） | 走跑 |
+| `AutonomousActionRunner` | 只读 ActionSim：起手 / Cancel / 推帧 | Collect、Numeric、吸附 |
 | `ReplicationRoom*` / Codec | 房间与字节 | 内层机 |
 | Host `CharacterActor` | 权威真源 + Collect | 客机座位 |
 
@@ -255,21 +255,28 @@ Reconcile(authoritySnapshot):
 
 **任务**
 
-- [ ] 客机本机增加**只读** `ActionSim`（解析 + 推帧 + Cancel 窗），仅驱动 Clip/VFX/Cancel 手感  
-- [ ] **删除**仅记 ActionId/帧的 `PredictedActionDriver` 主路径（迁完即删类，或缩成薄封装且无第二语义）  
-- [ ] 权威 `ActionId==0` 或 Vitality Hit/Death：取消本地预测招并 `Runner` 恢复 Locomotion  
-- [ ] 禁止 Action 预测路径调用 `HitboxFrameConsumer`、写 Numeric、跑 `ActionMotionResolver` 吸附权威  
-- [ ] Listen Host 本地仍不预测出招  
+- [x] 客机本机增加**只读** `ActionSim`（解析 + 推帧 + Cancel 窗），仅驱动 Clip/VFX/Cancel 手感  
+- [x] **删除**仅记 ActionId/帧的 `PredictedActionDriver` 主路径；Ack 缩为 `PredictedActionAckQueue`  
+- [x] 权威 `ActionId==0` 或 Vitality Hit/Death：取消本地预测招并 `Runner` 恢复 Locomotion  
+- [x] 禁止 Action 预测路径调用 `HitboxFrameConsumer`、写 Numeric、跑 `ActionMotionResolver` 吸附权威  
+- [x] Listen Host 本地仍不预测出招  
 
 **验收**
 
-- [ ] `rg "class PredictedActionDriver" Assets/Scripts` 无主路径残留（或仅测试夹具且注明）  
-- [ ] `rg "hitPipeline.Collect" Assets/Scripts` 仍仅权威  
+- [x] `rg "class PredictedActionDriver" Assets/Scripts` 无匹配  
+- [x] `rg "hitPipeline.Collect" Assets/Scripts` 仍仅权威装配（代码检索）  
 - [ ] Play：客机连招下一段在本机 Cancel 窗立刻起手；权威未起手则取消，无双伤  
 - [ ] Play：客机出招中受击，本地招取消并跟权威受击  
+- [ ] Play：本机招打完后延迟快照不得再播一遍刀光/片子；连招下一段不被上一招权威包掐掉  
 - [ ] Unity 编译 / 相关 EditMode 在 Editor 确认通过  
 
-**出口：** 出招手感对齐 GAS「先演、服务器可取消」；命中仍只认 Host。→ **未达成**
+**出口：** 出招手感对齐 GAS「先演、服务器可取消」；命中仍只认 Host。→ **代码已落地（2026-08-15）；Play 待确认**
+
+**复验修复（2026-08-15）**
+
+- 本机 `ActionSim` 自然结束后立刻走跑，忽略延迟 `snapshot.ActionId`（禁止 `SyncAutonomousLocomotion` 清 `_lastActionId` 后再 `ApplySnapshot` 重派 VFX）
+- Ack：权威仍是本机已记录的上一招、该帧预测已是下一招 → 只 Ack，不 `Stop`
+- 权威 `FreezeFrames>0` 时本机不 `ActionSim.Step`，避免卡肉期间帧跑飞
 
 ---
 
@@ -310,6 +317,8 @@ Reconcile(authoritySnapshot):
 
 ```text
 Assets/Scripts/Domain/Character/Replication/AutonomousLocomotionRunner.cs
+Assets/Scripts/Domain/Character/Replication/AutonomousActionRunner.cs
+Assets/Scripts/Domain/Simulation/Prediction/PredictedActionAckQueue.cs
 Assets/Scripts/Domain/Character/Replication/LocomotionSavedState.cs
 Assets/Scripts/Domain/Character/Replication/AutonomousLocomotionFactory.cs   // 或扩 RemoteCharacterProxyFactory
 Assets/Scripts/Domain/Simulation/Prediction/PredictedLocomotionDriver.cs     // 改为编排 Restore+Replay
@@ -374,3 +383,5 @@ UE1 装配内层机并切断猜片
 | 2026-08-15 | UE1 复验修复：走跑禁止 `SyncRootPoseFromSim`；Prefill 含六向变体；Runner 活动硬吸 2m |
 | 2026-08-15 | UE2：`LocomotionSavedState` + Runner Restore/Replay；闪避后 `SprintAfterDodge`；房间不再 2m 硬吸 |
 | 2026-08-15 | UE3：删除 `PredictedLocomotionVisual`；相位判断并入 `ReplicationPresentationAlign`；约定与文档对齐 |
+| 2026-08-15 | UE4：`AutonomousActionRunner` 只读 ActionSim；删除 `PredictedActionDriver`；Ack 队列保留 |
+| 2026-08-15 | 客机出招对齐：自然结束不重播延迟招；连招超前不误 Cancel；权威卡肉暂停本机推帧 |

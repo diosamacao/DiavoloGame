@@ -15,7 +15,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
     ActionReplicationCatalog _catalog;
     PlayerController _localPlayer;
     PredictedLocomotionDriver _driver;
-    PredictedActionDriver _actionDriver;
+    AutonomousActionRunner _actionRunner;
     AutonomousLocomotionRunner _locomotionRunner;
     RemoteCharacterProxy _predictedView;
     RoomIdleTracker _hostIdle;
@@ -113,14 +113,17 @@ public sealed class ReplicationRoomClient : AppControllerBase
         RememberCommand(in command);
         _transport.SendClientToAuthority(RoomCodec.WriteClientCommandBatch(_recentCommands));
 
-        if (!_hasSelfSnapshot || _driver == null || _locomotionRunner == null)
+        if (!_hasSelfSnapshot || _driver == null || _locomotionRunner == null || _actionRunner == null)
             return;
 
-        PredictLocalAction(in input, _lastSelfSnapshot.ActionId != 0);
+        // 权威卡肉时本机不推 ActionSim，避免 Clip 暂停、解冻一次派多段 VFX。
+        _actionRunner.Tick(in input, _predictFrame, _lastSelfSnapshot.FreezeFrames > 0);
+        if (_actionRunner.LastActionId != 0)
+            _lastPresentedActionId = _actionRunner.LastActionId;
+        if (!_actionRunner.IsActive && _lastSelfSnapshot.ActionId == 0)
+            _actionRunner.NotifyAuthorityIdle();
         if (ShouldPresentAction())
         {
-            if (_lastSelfSnapshot.ActionId != 0)
-                _lastPresentedActionId = _lastSelfSnapshot.ActionId;
             _locomotionRunner.Exit();
             _driver.PredictAlignedToSnapshot(in input, in _lastSelfSnapshot);
         }
@@ -284,7 +287,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
             {
                 // 走跑带 Runner：Driver 默认 2m 硬吸，不得再传 50mm。
                 PredictedReconcileResult loco = _driver.Reconcile(appliedHint, in self, _locomotionRunner);
-                _actionDriver.Reconcile(appliedHint, in self);
+                _actionRunner?.Reconcile(appliedHint, in self);
                 // 逻辑根已回拉时必须掐断表现插值，否则会把纠偏扫成一顿。
                 if (loco.Snapped)
                     _predictedView?.SnapPresentationToSimulation();
@@ -294,16 +297,12 @@ public sealed class ReplicationRoomClient : AppControllerBase
             if (IsAuthorityHitOrDeath(in self))
             {
                 _locomotionRunner?.Exit();
+                _actionRunner?.Stop(followAuthority: true);
                 _driver.SnapToSnapshot(in self);
                 _predictedView?.SnapPresentationToSimulation();
             }
             else if (self.ActionId != 0)
                 _locomotionRunner?.Exit();
-
-            // 权威已换招（连招下一段）时立刻跟 Clip，不要卡在本地第一段
-            if (self.ActionId != 0
-                && (!_actionDriver.IsActive || self.ActionId != _actionDriver.ActionId))
-                _actionDriver.Predict(_predictFrame, self.ActionId, self.ActionFrame);
 
         }
 
@@ -368,7 +367,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
 
     void EnsurePredictedView(in ActorReplicationSnapshot self)
     {
-        if (_predictedView != null && _driver != null && _locomotionRunner != null)
+        if (_predictedView != null && _driver != null && _locomotionRunner != null && _actionRunner != null)
             return;
         if (_localPlayer == null || _localPlayer.CharacterConfig == null || _world?.SimulationHost == null)
             return;
@@ -384,6 +383,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
             _world.transform);
         _predictedView = seat.Proxy;
         _locomotionRunner = seat.Runner;
+        _actionRunner = seat.Action;
         _predictedView.MotorSim.TeleportMm(self.PosXMm, self.PosYMm, self.PosZMm);
         _predictedView.MotorSim.SetFacingMilliDeg(self.FacingMilliDeg);
 
@@ -396,12 +396,12 @@ public sealed class ReplicationRoomClient : AppControllerBase
             config.Motor.RotationSmoothTime,
             MotionQuantization.MetersToMm(config.Motor.SprintSpeed));
         _driver = new PredictedLocomotionDriver(_predictedView.MotorSim, predictConfig);
-        _actionDriver = new PredictedActionDriver();
         _localPlayer.BindPredictedView(_predictedView);
     }
 
     /// <summary>
     /// 出招/受击仍走 Proxy Seek；走跑只 Sync Motor/Lean，片子由 Runner 推进。
+    /// 本机预测招自然结束后禁止用延迟快照再 Seek/派特效。
     /// </summary>
     void ApplyPredictedVisual()
     {
@@ -409,17 +409,17 @@ public sealed class ReplicationRoomClient : AppControllerBase
             return;
 
         ActorReplicationSnapshot visual = _lastSelfSnapshot.WithMotorPose(_driver.Motor);
-        if (_actionDriver.IsActive)
+        if (_actionRunner != null && _actionRunner.IsActive)
         {
             visual = visual.WithAction(
-                _actionDriver.ActionId,
-                _actionDriver.ActionFrame,
+                _actionRunner.ActionId,
+                _actionRunner.ActionFrame,
                 _lastSelfSnapshot.FreezeFrames);
             _predictedView.ApplySnapshot(in visual, leanRollDegrees: 0f, seekLocomotion: false);
             return;
         }
 
-        if (_lastSelfSnapshot.ActionId != 0)
+        if (ShouldApplyAuthorityAction())
         {
             visual = visual.WithAction(
                 _lastSelfSnapshot.ActionId,
@@ -434,10 +434,18 @@ public sealed class ReplicationRoomClient : AppControllerBase
             _locomotionRunner != null ? _locomotionRunner.DebugWishWorld : Vector3.zero);
     }
 
-    /// <summary>本机应停走跑、改播出招或受击。</summary>
+    /// <summary>本机应停走跑、改播出招或受击。自然结束的预测招不得被延迟权威招拖住。</summary>
     bool ShouldPresentAction() =>
-        _actionDriver != null && _actionDriver.IsActive
-        || IsAuthorityActionOrHit(in _lastSelfSnapshot);
+        _actionRunner != null && _actionRunner.IsActive
+        || ShouldApplyAuthorityAction();
+
+    /// <summary>受击、从未预测、或和解真取消后才跟权威招；本机打完则忽略延迟 ActionId。</summary>
+    bool ShouldApplyAuthorityAction() =>
+        PredictedActionAckQueue.ShouldPresentAuthorityAction(
+            _actionRunner != null && _actionRunner.IsActive,
+            _actionRunner != null && _actionRunner.SuppressStaleAuthorityAction,
+            IsAuthorityHitOrDeath(in _lastSelfSnapshot),
+            _lastSelfSnapshot.ActionId);
 
     /// <summary>闪避结束与 Host 一样 SprintAfterDodge；其它招用权威步态跳过 Start。</summary>
     LocomotionResumeRequest ResolveResumeAfterAction()
@@ -456,10 +464,6 @@ public sealed class ReplicationRoomClient : AppControllerBase
 
         return LocomotionResumeRequest.AfterAction(lastAction, gait);
     }
-
-    /// <summary>权威正在出招或本 Tick 受击/死亡。</summary>
-    static bool IsAuthorityActionOrHit(in ActorReplicationSnapshot snapshot) =>
-        snapshot.ActionId != 0 || IsAuthorityHitOrDeath(in snapshot);
 
     /// <summary>受击/死亡才硬切位姿；普通出招不得走这条。</summary>
     static bool IsAuthorityHitOrDeath(in ActorReplicationSnapshot snapshot) =>
@@ -598,7 +602,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
         _predictedView = null;
         _locomotionRunner = null;
         _driver = null;
-        _actionDriver = null;
+        _actionRunner = null;
         foreach (RemoteCharacterProxy proxy in _proxies.Values)
             proxy.Dispose();
         _proxies.Clear();
@@ -625,60 +629,6 @@ public sealed class ReplicationRoomClient : AppControllerBase
             _lastAuthorityFrame,
             _rttMs,
             _selfHealthMilli);
-    }
-
-    /// <summary>本机出招预测：权威已有招则跟；否则 Attack 边沿用默认 Graph Entry。</summary>
-    void PredictLocalAction(in InputFrame input, bool align)
-    {
-        if (align && _lastSelfSnapshot.ActionId != 0)
-        {
-            _actionDriver.Predict(
-                _predictFrame,
-                _lastSelfSnapshot.ActionId,
-                _lastSelfSnapshot.ActionFrame);
-            return;
-        }
-
-        if (_actionDriver.IsActive)
-        {
-            _actionDriver.TickUnconfirmed(_predictFrame);
-            return;
-        }
-
-        if (input.WasPressed(InputButton.Attack) && TryResolvePredictedAttackId(out int actionId))
-        {
-            _actionDriver.Predict(_predictFrame, actionId, 0);
-            return;
-        }
-
-        _actionDriver.Predict(_predictFrame, 0, 0);
-    }
-
-    /// <summary>取默认模式 Graph 上第一条 Attack Entry，供客机立刻播 Clip。</summary>
-    bool TryResolvePredictedAttackId(out int actionId)
-    {
-        actionId = 0;
-        CharacterConfig config = _localPlayer != null ? _localPlayer.CharacterConfig : null;
-        if (config?.CombatProfile == null
-            || !config.CombatProfile.TryGetActionGraph(
-                config.CombatProfile.DefaultMode,
-                out ActionGraph graph))
-            return false;
-
-        IReadOnlyList<ActionGraphNode> nodes = graph.Nodes;
-        for (int i = 0; i < nodes.Count; i++)
-        {
-            ActionGraphNode node = nodes[i];
-            if (node == null || !node.IsEntry || node.Action == null)
-                continue;
-            if (node.Intent != GameplayIntentType.Attack)
-                continue;
-
-            actionId = _catalog.GetOrAdd(node.Action);
-            return actionId > 0;
-        }
-
-        return false;
     }
 
     void SubscribeHost()
