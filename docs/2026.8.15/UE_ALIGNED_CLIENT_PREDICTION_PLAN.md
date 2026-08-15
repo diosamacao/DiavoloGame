@@ -71,7 +71,7 @@ NS3 曾写「预测不重跑 Locomotion FSM」——那是当时为先走路做�
 
 | 不做 | 原因 |
 |------|------|
-| 客机 `CharacterActorFactory` / `HitboxFrameConsumer.Collect` | 双算伤害；NS4 已禁 |
+| 客机 `CharacterActorFactory` / `HitboxFrameConsumer` **写入 Pipeline** | 双算伤害；NS4 已禁。几何申报口留给日后 `NS-PVP`（与 PVE 同一条链），本方案不实现 |
 | 锁步 L5 / 全世界回滚 | 组队方案已否决 |
 | Listen Host 本地再套预测 | 与 CMC 一致：Authority 就是本机 |
 | 他人（SimulatedProxy）改成本地再跑内层机或 Lyra 加速度 AnimBP | 远端已有相位 + 归一化时间；另开题目 |
