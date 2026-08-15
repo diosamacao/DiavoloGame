@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-15（NS4 出招预测与权威命中）
+> Last audited: 2026-08-15（NS5 客机 Locomotion 选片）
 
 ## 项目概述
 
@@ -32,7 +32,7 @@ Assets/
 │   │   │   └── Targeting/     # 索敌
 │   │   ├── Input/             # 原始帧、意图与输入中枢
 │   │   ├── Simulation/        # 固定帧核 + Replication + Prediction（无 Unity）
-│   │   └── Net/               # IReplicationTransport + Loopback（ACTGame.Net）
+│   │   └── Net/               # IReplicationTransport + Loopback + UDP（ACTGame.Net）
 │   ├── App/
 │   │   ├── Architecture/      # QFramework 风格强类型 Architecture / 能力接口 / 基类
 │   │   ├── Controllers/       # Player / Enemy / Camera / Combat / SimulationHost Unity 入口
@@ -42,8 +42,8 @@ Assets/
 │   │   └── Events/            # IArchitectureEvent 事件
 │   ├── Infrastructure/
 │   │   ├── Input/             # Input System 与 AI 输入源适配
-│   │   └── Net/               # UDP 等传输实现（规划，NS5；不得引用进 ACTGame.Simulation）
-│   └── Editor/Combat/         # ActionDefinition 预览 Editor
+│   │   └── Net/               # 预留 Unity Transport；当前 UDP 在 Domain/Net
+│   └── Editor/Combat/         # ActionDefinition 预览 Editor；Editor/Net 房间菜单
 ├── Data/                      # ScriptableObject 配置
 ├── Prefabs/Player/            # 玩家 Prefab
 └── Art/                       # 美术资源（不参与代码依赖）
@@ -101,7 +101,7 @@ flowchart TB
 | `CharacterMotorSim` / `ISimCollisionWorld` | 水平+竖直毫米权威；静态 AABB 硬挡或空场地；重力/着地在 Sim |
 | `StaticCollisionBake` / `SimStaticCollisionWorld` | Editor 烘焙场景 Collider→XZ AABB；Host 共享给全体 Actor |
 | `SoftBodySeparation` / `ISimSoftBodyParticipant` | World 帧末角色圆盘软弹开；死亡不参与 |
-| 复制契约（NS1～NS2） | Snapshot/Tick/Codec + Loopback；`RemoteCharacterProxy` 同机跟状态，不进 World / 不 Collect |
+| 复制契约（NS1～NS5） | Snapshot/Tick/Codec + Loopback/UDP；`RemoteCharacterProxy` 跟状态；NS5 Listen Host 房间 |
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只负责装配和注册，不再实现 Actor `Update` Tick。
 
@@ -226,20 +226,20 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 |----|------|
 | `CameraManager` | Cinemachine 第三人称；Orbit yaw 只 staged 到 InputFrame，本地 CameraLock 只读 SelectedTarget |
 
-### 9. 复制与权威进程（NS0～NS4 已落地，NS5 规划）
+### 9. 复制与权威进程（NS0～NS5 代码已落地）
 
 | 类 | 职责 |
 |----|------|
 | `ActorReplicationSnapshot` / `AuthorityTick` / `ClientCommand` | 无 Unity 上下行契约；Tick 按 SimActorId 排序 |
 | `ReplicationSnapshotBuilder` / `ReplicationCodec` / `ReplicationPoseApplier` | Motor+Action+数值 → 快照；小端往返；位姿写回 MotorSim |
-| `IReplicationTransport` / `LoopbackReplicationTransport` | 只传字节；同进程队列，可设延迟 |
-| `ActionReplicationCatalog` / `CharacterReplicationCapture` | 同进程 ActionDefinition↔int；从权威 Actor 填快照 |
-| `RemoteCharacterProxy` / `RemoteCharacterProxyFactory` | 只应用 pose + Seek/Locomotion + 视觉残差/倾身；不创建 Hitbox / Brain / ActionSim |
-| `RemoteGhostViewController` | Host `AfterLogicStep` → Loopback → 玩家/敌人 Ghost；带 `ReplicatedHitEvent` |
-| `PredictedLocomotionDriver` / `PredictedLocomotionMath` | 无 Unity：FollowInput 预测或贴齐权威电机；超阈吸附 + 只重放非 aligned |
-| `PredictedActionDriver` | 无 Unity：预测 ActionId/帧；Hit/未起手则取消，同招不 Seek 回旧帧 |
-| `PredictedClientPreviewController` | 同机左侧预测预览；Listen Host 本地仍不预测 |
-| `ReplicationAuthority` / `ReplicationClient` | NS5 房间；尚未实现 |
+| `RoomCodec` / `RoomIdleTracker` / `RoomRemoteInputMerge` | 房间信封（命令批，不改 Tick 布局）；空闲 10s 剔除；未应用 Hint 边沿合并 |
+| `IReplicationTransport` / `LoopbackReplicationTransport` / `UdpReplicationTransport` | 只传字节；Loopback 同进程；UDP 为 NS5 第二实现 |
+| `ActionReplicationCatalog` / `CharacterReplicationCapture` | 资产名稳定 Id；从权威 Actor 填快照 |
+| `RemoteCharacterProxy` / `RemoteCharacterProxyFactory` / `ReplicationPresentationAlign` / `PredictedLocomotionVisual` | pose + Clip；客机选片（Sprint/Stop/起步）；过点 VFX/SFX |
+| `RemoteGhostViewController` | Host 同机 Ghost；Client 不启用 |
+| `PredictedLocomotionDriver` / `PredictedActionDriver` | 无 Unity：位移/出招预测与纠偏 |
+| `PredictedClientPreviewController` | Host 同机左侧预览；Listen Host 本地仍不预测 |
+| `ReplicationRoomHost` / `ReplicationRoomClient` / `RemotePlayerSeat` | 最小 2 人房间；单机=Listen Host |
 
 权威进程写法：同一份 `ACTGame.Simulation`，不另写服务器战斗。对照与禁区见 CONVENTIONS「服务器 / 权威进程」与方案 §13。
 

@@ -1,7 +1,8 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>场景刷怪入口；按配置的出生点发送 SpawnEnemyCommand。</summary>
+/// <summary>场景刷怪入口；仅权威端按出生点发送 SpawnEnemyCommand。</summary>
 public sealed class EnemySpawnController : AppControllerBase
 {
     [SerializeField] Transform target = null;
@@ -9,11 +10,31 @@ public sealed class EnemySpawnController : AppControllerBase
 
     void Start()
     {
+        // 敌人只在权威端生成；客机只跟 Snapshot。
+        if (CombatWorldController.Current != null && !CombatWorldController.Current.IsAuthority)
+            return;
+
         // target 仅作可选钉死；为空时敌人感知读 LocalPlayerService 花名册。
         for (int i = 0; i < entries.Length; i++)
         {
             if (entries[i].SpawnOnStart)
                 Spawn(i);
+        }
+    }
+
+    /// <summary>收集本控制器条目里的角色配置，供客机预填复制目录与幽灵模型。</summary>
+    public void CollectCharacterConfigs(List<CharacterConfig> results)
+    {
+        if (results == null)
+            return;
+
+        for (int i = 0; i < entries.Length; i++)
+        {
+            CharacterConfig config = entries[i].Definition != null
+                ? entries[i].Definition.CharacterConfig
+                : null;
+            if (config != null && !results.Contains(config))
+                results.Add(config);
         }
     }
 

@@ -200,7 +200,15 @@ public sealed class SimulationHost : AppControllerBase
             && hit.Key.AttackerId.IsValid
             && hit.Key.TargetId.IsValid)
         {
-            _frameHits.Add(new ReplicatedHitEvent(_world.CurrentFrame, hit.Key));
+            _frameHits.Add(new ReplicatedHitEvent(
+                _world.CurrentFrame,
+                hit.Key,
+                actionId: 0,
+                MotionQuantization.MetersToMm(hit.HitPoint.x),
+                MotionQuantization.MetersToMm(hit.HitPoint.y),
+                MotionQuantization.MetersToMm(hit.HitPoint.z),
+                MotionQuantization.MetersToMm(hit.HitDirection.x),
+                MotionQuantization.MetersToMm(hit.HitDirection.z)));
         }
 
         SendCommand(new PublishAttackHitCommand(hit));

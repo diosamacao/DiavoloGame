@@ -39,15 +39,17 @@
 - **帧边界切招**：Cancel、Recovery Entry 与 Graph 自动衔接只在当前帧排队，目标动作 frame 0 必须到下一 World 帧提交；禁止同一步递归推进多招
 - **模拟身份**：World Actor 使用会话内单调 `SimActorId` 排序；禁止用 Unity `GetInstanceID()` 作为模拟顺序、命中身份或未来网络身份
 - **启停生命周期**：Controller 在 `OnEnable` 注册 World、`OnDisable/OnDestroy` 对称注销；禁用 GameObject 不得继续被模拟
-- **渲染输入汇聚**：本地设备 Actor 通过 `IRenderFrameSampler` 缓存渲染帧边沿，逻辑 Step 不直接依赖 Unity 渲染帧是否恰好发生
+- **渲染输入汇聚**：本地设备 Actor 通过 `IRenderFrameSampler` 缓存渲染帧边沿，逻辑 Step 不直接依赖 Unity 渲染帧是否恰好发生。客机房间同样每渲染帧 `MergeLocalSample` 到下一 FrameHint，禁止只在 `AfterLogicStep` 里 `Sample`（会丢掉无逻辑步的 `WasPressedThisFrame`）
 - **量化输入格式**：玩家设备、回放与未来网络输入使用 `InputFrame`；Move 为 sbyte、按钮为固定 bitset，禁止恢复 float/string `PlayerInputFrame`。AI 控制命令使用 Desire / Entry Request，不伪装设备输入
 - **本机玩家入口**：玩法与相机通过 `LocalPlayerService` / `GetLocalPlayerQuery` / `GetPlayerRootsQuery` 取玩家；禁止 `FindObjectOfType<PlayerController>()`（仅 Editor Gizmo 可留）。Listen Host 的 `IsLocalPredicted` 恒为 false
 - **朝向调试箭头**：`CharacterFacingDebugVisualizer` 只绑 `ICharacterFacingDebugTarget`（本机 Actor 或 RemoteProxy）；禁止再 Bind `PlayerController`。幽灵 wish 必须与对应 Tick 成对，禁止用当前帧本机输入画延迟模型
-- **复制契约**：上下行结构体与编解码在 `ACTGame.Simulation/Replication`；传输接口在 `ACTGame.Net`。禁止把 CameraLock/Look/Lean 写入 Snapshot；禁止 ClientCommand 带 HP/坐标/招式名
-- **RemoteProxy**：他人/预览幽灵只应用 Snapshot（`Domain/Character/Replication/`），禁止 `CharacterActorFactory`、`HitboxFrameConsumer`、`EnemyBrain.Step`。Host 用 `AfterLogicStep` 打包，不得只在渲染帧漏步发送
-- **幽灵 Locomotion**：复制 `AnimationKey` + `LocomotionNormalizedMilli`；切入硬切（fade=0）后 Seek，禁止默认 CrossFade + 本地 Tick 另起时间线。必须关掉 Animator `applyRootMotion`，根朝向只认快照
-- **预测位移**：`PredictedLocomotionDriver` 只推进 MotorSim 副本，写在 `ACTGame.Simulation`。稳态走跑用 FollowInput；出招/起步/折返/急停用 `PredictAligned` 贴权威位姿，禁止再用 wish 去「预测」烘焙位移。Listen Host 本地禁止把预测写进 `CharacterActor.Step`。纠偏可改预测电机，禁止把表现 Pose 写回权威 Motor。Lean 不进 Snapshot，仅预测预览从权威 Actor 拷贝到 VisualMotionRoot
-- **预测出招**：`PredictedActionDriver` 只记 ActionId/帧供 Clip；禁止 Collect / 写 Numeric。同招延迟 Tick 只 Ack；权威未起手或 Vitality Hit/Death 才取消。Listen Host 本地仍不预测
+- **复制契约**：上下行结构体与编解码在 `ACTGame.Simulation/Replication`；传输接口在 `ACTGame.Net`。禁止把 CameraLock/Look/Lean 写入 Snapshot；禁止 ClientCommand 带 HP/坐标/招式名。房间上行是最近 N 条命令批；Host 只合并未应用 Hint 的边沿。`appliedClientFrameHint` 仅本步真正灌入远端命令时非 0，CarryForward 必须下发 0
+- **RemoteProxy**：他人/预览幽灵只应用 Snapshot（`Domain/Character/Replication/`），禁止 `CharacterActorFactory`、`HitboxFrameConsumer`、`EnemyBrain.Step`。可按 ActionFrame 过点派发 VFX/SFX，禁止派发 Hitbox/MotionCommand。Host 用 `AfterLogicStep` 打包，不得只在渲染帧漏步发送
+- **幽灵 Locomotion（他人）**：切 `AnimationKey` 时一次性相位硬切并可 Seek；Idle↔走跑冲刺用 Profile 默认 CrossFade。同键只 `Tick`
+- **客机本机走跑（UE1 起）**：真源 [`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。本机跑同一套 `LocomotionStateMachine`，禁止 `PredictedLocomotionVisual.ResolveSelfKey` / 摇杆硬映射 Idle/Walk/Run。废止「预测不重跑 FSM」。过渡期（UE1 落地前）不得再往猜片加规则
+- **客机表现节拍**：本机预测体走跑由 Runner 推进 Animation；Proxy 不得对走跑再 Play/Seek。出招/受击仍可 `ApplySnapshot`。权威 Tick 只更新纠偏状态。禁止同一逻辑帧 Tick 两次 Clip
+- **预测位移**：`PredictedLocomotionDriver` 只做 SavedMove 队列与纠偏编排（UE2：Restore 相位后经 Runner 重放）。禁止再用 `ApplyInput` / FollowInput 当走跑主路径。Listen Host 本地禁止把预测写进 `CharacterActor.Step`。纠偏可改预测电机，禁止把表现 Pose 写回权威 Motor。Lean 不进 Snapshot
+- **预测出招**：UE4 前 `PredictedActionDriver` 只记 ActionId/帧供 Clip；禁止 Collect / 写 Numeric。同招延迟 Tick 只 Ack；权威未起手或 Vitality Hit/Death 才取消。Listen Host 本地仍不预测
 - **命中复制**：`CombatHitPipeline` 只在权威 Actor 收集；下行 `ReplicatedHitEvent` + `VitalityReplicationEdge`。幽灵/预测不得再跑命中或扣血。边沿由 `CharacterVitality` 记一帧，`CharacterActor.Step` 开头清空
 - **移动参考闭包**：相机相对移动只消费 `InputFrame.MoveReferenceYawQuantized`；CameraManager 只能 staged yaw，禁止把 PlanarBasis/Camera Transform 直接写入 Motor
 - **输入阶段先于 Actor**：World 每帧先调用 `ISimulationInputProducer`，再按 Id 执行 Actor；AI Brain 在该阶段写通用命令槽并为统一时序提交空 `InputFrame`
@@ -201,8 +203,9 @@ public class MyBehaviour : MonoBehaviour
 Domain/Simulation/Replication/   # Snapshot / Tick / Command / PoseApplier，无 Unity
 Domain/Simulation/Prediction/    # PredictedLocomotionDriver，无 Unity
 Domain/Character/Replication/    # Catalog / Capture / RemoteProxy（有 Unity，无 Collect）
-Domain/Net/                      # IReplicationTransport、Loopback；Authority/Client 待 NS5
-Infrastructure/Net/              # UDP 等传输，不得被 ACTGame.Simulation 引用
+Domain/Net/                      # IReplicationTransport、Loopback、UdpReplicationTransport
+Infrastructure/Net/              # 预留 Unity Transport；不得被 ACTGame.Simulation 引用
+App/Controllers/Gameplay/        # ReplicationRoomHost / Client / RemotePlayerSeat
 ```
 
 ### 明确不搬进本项目的 DemoServer 战斗写法

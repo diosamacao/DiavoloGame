@@ -53,11 +53,11 @@ public sealed class CombatDebugHudController : AppControllerBase
         if (playerController == null)
             playerController = SendQuery(new GetLocalPlayerQuery()) as PlayerController;
 
-        if (!visible || playerController == null || playerController.Actor == null)
+        if (!visible)
             return;
 
-        // 在表现插值之后采样，避免 OnGUI 与逻辑帧交错读到半帧状态。
-        _cached = playerController.Actor.BuildDebugSnapshot();
+        if (playerController != null && playerController.Actor != null)
+            _cached = playerController.Actor.BuildDebugSnapshot();
     }
 
     void OnGUI()
@@ -65,16 +65,43 @@ public sealed class CombatDebugHudController : AppControllerBase
         if (!visible)
             return;
 
+        ReplicationRoomHudInfo room = CombatWorldController.Current != null
+            ? CombatWorldController.Current.RoomHud
+            : default;
+        bool hasActor = playerController != null && playerController.Actor != null;
+        if (!hasActor && !room.Active)
+            return;
+
         EnsureStyles();
         _sb.Clear();
-        AppendSnapshot(
-            _sb,
-            in _cached,
-            _cameraManager != null && _cameraManager.CameraLockEnabled);
+        AppendRoomLine(_sb, in room);
+        if (hasActor)
+        {
+            AppendSnapshot(
+                _sb,
+                in _cached,
+                _cameraManager != null && _cameraManager.CameraLockEnabled);
+        }
         const float width = 440f;
         float height = Mathf.Min(420f, Screen.height * 0.55f);
         GUI.Box(new Rect(8f, 8f, width, height), GUIContent.none, _boxStyle);
         GUI.Label(new Rect(16f, 16f, width - 16f, height - 16f), _sb.ToString(), _labelStyle);
+    }
+
+    /// <summary>房间角色、权威帧与 RTT；客机无本地 Actor 时仍显示。</summary>
+    static void AppendRoomLine(StringBuilder sb, in ReplicationRoomHudInfo room)
+    {
+        if (!room.Active)
+            return;
+
+        sb.Append("Room: ").Append(room.Role)
+            .Append(" | ").Append(room.Status)
+            .Append(" | frame=").Append(room.AuthorityFrame);
+        if (room.RttMs >= 0)
+            sb.Append(" | rtt=").Append(room.RttMs).Append("ms");
+        if (room.HealthMilli >= 0)
+            sb.Append(" | hpMilli=").Append(room.HealthMilli);
+        sb.AppendLine();
     }
 
     /// <summary>把角色逻辑快照与本地 CameraLock 状态格式化为只读 HUD。</summary>

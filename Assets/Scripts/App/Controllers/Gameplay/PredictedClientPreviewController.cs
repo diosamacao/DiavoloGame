@@ -179,25 +179,7 @@ public sealed class PredictedClientPreviewController : AppControllerBase
             return false;
         if (actor.CurrentState != CharacterStateType.Locomotion)
             return true;
-        if (snapshot.ActionId != 0)
-            return true;
-        if (!Enum.IsDefined(typeof(AnimationKey), (int)snapshot.LocomotionPhase))
-            return false;
-
-        switch ((AnimationKey)snapshot.LocomotionPhase)
-        {
-            case AnimationKey.Start:
-            case AnimationKey.PivotTurn:
-            case AnimationKey.StopL:
-            case AnimationKey.StopR:
-            case AnimationKey.StartEnd:
-            case AnimationKey.WalkStart:
-            case AnimationKey.WalkStartLeft:
-            case AnimationKey.WalkStartRight:
-                return true;
-            default:
-                return false;
-        }
+        return ReplicationPresentationAlign.ShouldAlignFromSnapshot(in snapshot);
     }
 
     /// <summary>按权威当前 AnimationKey 选走/跑/冲刺速度；未知则让数学层按输入幅度估。</summary>

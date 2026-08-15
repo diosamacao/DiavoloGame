@@ -168,18 +168,11 @@ PVE 下怪物不会告你外挂；玩家之间也不做「谁 ping 低谁说了�
 
 ### 3.4 预测与纠偏（移动）
 
-```text
-PredictedLocal 每逻辑帧：
-  1. 采样 InputFrame，立即 MotorSim.Step（与现 ResolveWorldMoveDirection 相同）
-  2. 缓存 (frame, input, pose)
-  3. 发送 InputFrame
+> **2026-08-15 起作废本节伪代码。** 客机本机预测改对齐 UE AutonomousProxy，真源见 [`../2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。废止「预测不重跑 Locomotion FSM」。房间 / 命中 / Snapshot 契约仍以本文为准。
 
-收到 AuthorityTick.actor[self]：
-  若 pose 与缓存对应 frame 误差 ≤ 阈值（建议水平 50mm）→ Ack，丢弃更旧缓存
-  否则：吸附到权威 pose，重放其后未确认 InputFrame（仅移动，不重放命中）
-```
+NS5 过渡实现（wish + `PredictedLocomotionVisual` 猜片）仅维持到 UE1 切断猜片主路径；不得当终态继续加启发式。
 
-出招预测（NS4）：本地可 `ActionSim` 推进 **仅用于 Clip/VFX/Cancel 手感**；权威 ActionId/帧到达后 Seek 对齐。若权威未起手（资源不足/硬直），本地取消预测招并播恢复。
+出招预测（NS4 / 方案 UE4）：本地可 `ActionSim` 推进 **仅用于 Clip/VFX/Cancel 手感**；权威 ActionId/帧到达后 Seek 对齐。若权威未起手（资源不足/硬直），本地取消预测招并播恢复。
 
 ### 3.5 边界
 
@@ -204,6 +197,7 @@ PredictedLocal 每逻辑帧：
 | NS4 | 出招预测；权威 Hitbox；受击复制 | 攻击方客户端盒 |
 | NS5 | 2 人进关、生成同步、最小房间 | 匹配、排位、Host 迁移 |
 | 以后 | Dedicated Server 进程、PVP 申报命中 | 本方案不承诺日期 |
+| 客机预测（UE1～UE4） | 本机跑同一套内层机 + 纠偏重放 | 见 `docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`；不改房间/命中 |
 
 ---
 
@@ -292,31 +286,31 @@ PredictedLocal 每逻辑帧：
 
 **验收**
 
-- [ ] Play 双视图：Host 砍木桩，Ghost 见受击与掉血，且只出现一次  
-- [ ] 预测起手但权威硬直：本地招被取消，无双倍伤害  
-- [ ] `rg "hitPipeline.Collect" Assets/Scripts` 仅出现在 Authority 装配  
-- [ ] EditMode：权威结算与单机现行 Pipeline 对同一 Input 脚本伤害一致  
+- [x] Play 双视图：Host 砍木桩，Ghost 见受击与掉血，且只出现一次  
+- [x] 预测起手但权威硬直：本地招被取消，无双倍伤害  
+- [x] `rg "hitPipeline.Collect" Assets/Scripts` 仅出现在 Authority 装配  
+- [x] EditMode：权威结算与单机现行 Pipeline 对同一 Input 脚本伤害一致  
 
-**出口：** 伤害与硬直以服务器逻辑盒为准；本地仍能立刻看到自己出招。→ **代码已落地（2026-08-15）；Play 待 Editor 确认**
+**出口：** 伤害与硬直以服务器逻辑盒为准；本地仍能立刻看到自己出招。→ **已达成（2026-08-15）**
 
 ### NS5 — 最小 2 人 PVE 房间
 
 **任务**
 
-- [ ] 最小房间：Host 创建、第二人加入、双方 `SimActorId` 分配、关卡内容版本校验  
-- [ ] 第二玩家生成 `PredictedLocal` + 对方 `RemoteProxy`；敌人只在 Host 生成 AuthorityActor  
-- [ ] 传输第二实现可先 UDP 或 Unity Transport，但必须走 `IReplicationTransport`  
-- [ ] 掉线：该玩家 Actor 权威侧待机或 AI 接管 **二选一，本阶段定案为「待机 10s 后剔除」**  
-- [ ] HUD 显示延迟与 `authorityFrame`  
+- [x] 最小房间：Host 创建、第二人加入、双方 `SimActorId` 分配、关卡内容版本校验  
+- [x] 第二玩家生成 `PredictedLocal` + 对方 `RemoteProxy`；敌人只在 Host 生成 AuthorityActor  
+- [x] 传输第二实现可先 UDP 或 Unity Transport，但必须走 `IReplicationTransport`  
+- [x] 掉线：该玩家 Actor 权威侧待机或 AI 接管 **二选一，本阶段定案为「待机 10s 后剔除」**  
+- [x] HUD 显示延迟与 `authorityFrame`  
 
 **验收**
 
-- [ ] 两台编辑器或 Host+Client：同一关打同一只怪，伤害不双算，怪只死一次  
-- [ ] 第二人切敌 / 攻击使用各自 `SelectedTargetId`，互不影响镜头  
-- [ ] 一人掉线后另一人可继续或房间结束（与剔除定案一致）  
-- [ ] 无 `FindObjectOfType<PlayerController>` 玩法残留  
+- [x] 两台编辑器或 Host+Client：同一关打同一只怪，伤害不双算，怪只死一次  
+- [x] 第二人切敌 / 攻击使用各自 `SelectedTargetId`，互不影响镜头  
+- [x] 一人掉线后另一人可继续或房间结束（与剔除定案一致）  
+- [x] 无 `FindObjectOfType<PlayerController>` 玩法残留  
 
-**出口：** 两人可进同一 PVE 关并完成击杀，同步模型闭合。→ **未达成**
+**出口：** 两人可进同一 PVE 关并完成击杀，同步模型闭合。→ **已达成（2026-08-15）**
 
 ---
 
@@ -424,7 +418,8 @@ docs/2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md
 5. Prefab 上若需挂 `RemoteCharacterProxy`，只改脚本并列出拖拽字段，不直接改 `.prefab`。  
 6. **NS2 Play：** `CombatWorldController` 在 Editor 默认勾选 `previewRemoteGhost`（现有场景无需改 Prefab）。进入 Play 后角色右侧约 2m 出现幽灵，默认 Loopback 100ms。可在 Inspector 调 `remoteGhostWorldOffset` / `remoteGhostLatencyMs`，或取消勾选关闭预览。幽灵不进花名册、不跑命中。  
 7. **NS3 Play：** 同组件默认勾选 `previewPredictedClient`。左侧约 2m 为预测视图：应立刻动，且 WASD 转向过程、Sprint 左右倾身、攻击位移应接近中间 Host（不再 10Hz 吸附）。可调 `predictedClientWorldOffset` / `predictedClientLatencyMs`。  
-8. **NS4 Play：** 右侧幽灵应同时出现玩家与木桩/敌人（同 +2m 偏移）。Host 砍木桩：中间立刻受击掉血；右侧约 100ms 后播受击，且只一次。左侧出招应立刻播；Host 被打后左侧预测招约 100ms 后取消并改跟受击。
+8. **NS4 Play：** 右侧幽灵应同时出现玩家与木桩/敌人（同 +2m 偏移）。Host 砍木桩：中间立刻受击掉血；右侧约 100ms 后播受击，且只一次。左侧出招应立刻播；Host 被打后左侧预测招约 100ms 后取消并改跟受击。  
+9. **NS5 Play（推荐 ParrelSync）：** Package Manager → Add from git URL：`https://github.com/VeriorPies/ParrelSync.git?path=/ParrelSync`。菜单 `ParrelSync/Clones Manager` → Create clone → Open in New Editor。原工程 Play（Listen Host）；克隆工程直接 Play（自动 Client，连 127.0.0.1:7777）。无需改场景/Prefab，也不必点 `ACTGame/Room`。F3 应见 Room 行与 `authorityFrame`。两人打同一木桩，伤害不双算；停掉克隆约 10s 后 Host 剔除客机并可继续。
 
 ---
 
@@ -473,6 +468,11 @@ NS0 身份
 | 2026-08-15 | NS2 验收关闭；NS3 代码：PredictedLocomotionDriver + 纠偏单测 + 同机预测预览；Host 不预测 |
 | 2026-08-15 | NS3 表现：FollowInput 转向、拷贝 Sprint 倾身、出招/转身贴齐权威电机 |
 | 2026-08-15 | NS3 Play 验收关闭；NS4 代码：出招预测纠偏 + 命中/生命边沿复制 + 敌人幽灵 |
+| 2026-08-15 | NS4 Play 验收关闭；NS5 代码：UDP 房间 + Listen Host/Client + 稳定 actionId + 10s 空闲剔除 |
+| 2026-08-15 | NS5 客机手感：渲染帧合并输入、命令批冗余、appliedHint 仅本步灌入时非 0、转身/出招贴齐 |
+| 2026-08-15 | NS5 客机表现：预测体单步 Apply；Proxy 派发刀光/音效；受击火花用复制落点 |
+| 2026-08-15 | NS5 客机 Locomotion：Sprint 用 Sprint 片；松手不再先 Idle 再 run_end |
+| 2026-08-15 | NS5 Play 验收关闭；§3.4 预测伪代码作废，客机预测改挂 `UE_ALIGNED_CLIENT_PREDICTION_PLAN` |
 
 ---
 

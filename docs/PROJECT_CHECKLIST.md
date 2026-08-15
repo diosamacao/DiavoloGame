@@ -1,6 +1,6 @@
 # ACTGame 项目总清单
 
-> 更新：2026-08-14 — 组队 PVE 方案补服务器代码规范（CONVENTIONS + §13）  
+> 更新：2026-08-15 — NS5 已验收；客机预测对齐 UE，见 `2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`  
 
 > 角色：**一页总览**（进度 / 下一步 / 明确不做）  
 > 细节真源勿与本文抢权威：
@@ -29,7 +29,7 @@
 
 **明确不做（Demo）：** 装备、任务对话、大地图、完整存档、正式联机上线、独立 SkillExecutor、第二套血量/资源口袋。
 
-**长期：** Action Editor 持续增强；联网走完整客户端预测 + 回滚（见锁步方案）。
+**长期：** Action Editor 持续增强；联网 = Host 权威状态同步 + 客机 Autonomous 预测（见 8.13 / 8.15 方案）。
 
 ---
 
@@ -51,7 +51,7 @@
 | 相机 | 🟡 | 跟随 + 滤左右；Lock-On / SkillShot 未做 |
 | 正式 UI / 血条 | ⬜ | 仅 Debug HUD；目标 MVVM |
 | 吸附 / 绕背 | ✅ | Wave 4 位移出口（2026-08-09） |
-| 预测回滚 / 联网 | ⬜ | L3 / L5 |
+| 预测回滚 / 联网 | 🟡 | NS0～NS5 ✅；客机预测 UE1～UE4 未开始 |
 | 打击感木桩验收台 | ✅ | Monster_EDF + 关行动 + Hit_Shake；Play 验收 2026-08-08 |
 | 命中 VFX/SFX（A2） | ✅ | HitFeedback + Cue；打击感验收 2026-08-09 |
 | 学习/工程实践轨 | ⬜ | BT 编辑器、A*、AB/Lua、SDK、剧情等（§6.4） |
@@ -60,9 +60,8 @@
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项：** 相机 Lock-On / Director，或 BT Backlog  
-→ [`2026.8.6/CAMERA_SYSTEM_PLAN.md`](./2026.8.6/CAMERA_SYSTEM_PLAN.md)  
-→ BT 待优化见 [`2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md`](./2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md)  
+**下一项：** 客机预测对齐 UE AutonomousProxy（UE1 起）  
+→ [`2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](./2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)  
 
 
 
@@ -125,7 +124,8 @@
 | L2 核心（表位移、HitStop、MotorSim、软分离、静态 AABB） | ✅ |
 | L2 收口：斜坡/网格精确碰撞 | ⬜ |
 | L3 可导出复制快照（纠偏用，非 GGPO） | ⬜ |
-| 组队 PVE 状态同步 NS0～NS5 | 🟡 NS0 已验收；NS1 代码已落地；NS2～NS5 未做 |
+| 组队 PVE 状态同步 NS0～NS5 | ✅ 2026-08-15 |
+| 客机预测对齐 UE（UE1～UE4） | ⬜ 方案已立；未开工 |
 | L5 全员输入广播 + 完整回滚 | ❌ 2026-08-13 取消产品主路径 |
 
 ---

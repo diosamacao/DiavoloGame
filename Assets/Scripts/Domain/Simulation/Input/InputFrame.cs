@@ -64,6 +64,18 @@ public readonly struct InputFrame : IEquatable<InputFrame>
     public bool WasReleased(InputButton button) =>
         (ButtonsReleased & InputButtonMask.Of(button)) != 0ul;
 
+    /// <summary>改写逻辑帧与 Actor，保留轴与按钮；权威用它把远端命令对齐到下一帧。</summary>
+    public InputFrame WithIdentity(long frame, SimActorId actorId) =>
+        new(
+            frame,
+            actorId,
+            MoveX,
+            MoveY,
+            ButtonsPressed,
+            ButtonsHeld,
+            ButtonsReleased,
+            MoveReferenceYawQuantized);
+
     /// <summary>把连续状态延续到下一逻辑帧，并清除 Pressed/Released 边沿。</summary>
     public InputFrame CarryForward(long targetFrame) =>
         new(

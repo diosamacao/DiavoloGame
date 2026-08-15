@@ -1,0 +1,41 @@
+using UnityEngine;
+
+/// <summary>
+/// Host 侧远端玩家入口：有权威 Actor，但不是本机输入/相机拥有者。
+/// 必须走 AppControllerBase，以满足 App/Controllers 的架构边界。
+/// </summary>
+public sealed class RemotePlayerSeat : AppControllerBase, ILocalPlayer
+{
+    CharacterActor _actor;
+
+    /// <summary>绑定权威 Actor；由房间 Host 在工厂创建后调用。</summary>
+    public void Bind(CharacterActor actor) => _actor = actor;
+
+    /// <inheritdoc />
+    public CharacterActor Actor => _actor;
+
+    /// <inheritdoc />
+    public Transform Root => transform;
+
+    /// <inheritdoc />
+    public Transform PresentationRoot => _actor?.PresentationRoot != null
+        ? _actor.PresentationRoot
+        : transform;
+
+    /// <inheritdoc />
+    public Vector2 LookInput => Vector2.zero;
+
+    /// <inheritdoc />
+    public bool CameraLockPressedThisFrame => false;
+
+    /// <inheritdoc />
+    public bool IsLocalPredicted => false;
+
+    /// <inheritdoc />
+    public InputManager Input => _actor?.Input;
+
+    /// <summary>远端输入来自网络，忽略本机相机 yaw。</summary>
+    public void StageMoveReferenceYaw(float yawDegrees)
+    {
+    }
+}

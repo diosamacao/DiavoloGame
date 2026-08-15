@@ -1,8 +1,9 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 远端角色表现体：只应用 Snapshot 位姿、动作 Seek、视觉残差/倾身；不跑动作模拟核、命中收集或敌人 AI。
+/// 远端角色表现体：应用 Snapshot 位姿、播 Clip、过点派发 VFX/SFX；不跑 ActionSim、不收集命中。
 /// </summary>
 public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTarget
 {
@@ -13,6 +14,7 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     readonly Transform _visualMotionRoot;
     readonly CharacterVisualMotionBridge _visualMotion;
     readonly ActionReplicationCatalog _catalog;
+    readonly IActionNotifyConsumer[] _notifyConsumers;
     readonly Vector3 _worldOffset;
     readonly float _fixedDeltaSeconds;
     readonly bool _ownsRoot;
@@ -60,7 +62,7 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         }
     }
 
-    /// <summary>装配已创建的表现图；animation / visualMotionRoot 可空（仅测位姿时）。</summary>
+    /// <summary>装配已创建的表现图；animation / visualMotionRoot / notifyConsumers 可空（仅测位姿时）。</summary>
     public RemoteCharacterProxy(
         Transform root,
         CharacterMotor motor,
@@ -70,7 +72,8 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         Vector3 worldOffset,
         float fixedDeltaSeconds,
         Transform visualMotionRoot = null,
-        bool ownsRoot = false)
+        bool ownsRoot = false,
+        IReadOnlyList<IActionNotifyConsumer> notifyConsumers = null)
     {
         _root = root != null ? root : throw new ArgumentNullException(nameof(root));
         _motor = motor ?? throw new ArgumentNullException(nameof(motor));
@@ -81,6 +84,7 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
             ? new CharacterVisualMotionBridge(visualMotionRoot)
             : null;
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
+        _notifyConsumers = CopyConsumers(notifyConsumers);
         _worldOffset = worldOffset;
         _fixedDeltaSeconds = fixedDeltaSeconds > 0f
             ? fixedDeltaSeconds
@@ -91,15 +95,19 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     /// <summary>
     /// 应用一帧权威快照：写 Motor、同步根、Seek/播 Locomotion；不 Dispatch 判定帧。
     /// leanRollDegrees 仅预测预览传入（Lean 不进 Snapshot）；幽灵默认 0。
+    /// seekLocomotion=false 时走跑只 Tick，避免本机预测每逻辑帧 Seek 抽帧。
     /// </summary>
-    public void ApplySnapshot(in ActorReplicationSnapshot snapshot, float leanRollDegrees = 0f)
+    public void ApplySnapshot(
+        in ActorReplicationSnapshot snapshot,
+        float leanRollDegrees = 0f,
+        bool seekLocomotion = true)
     {
         _presentation.BeginSimulationStep();
         ReplicationPoseApplier.ApplyToMotor(_motor.Sim, in snapshot);
         ApplyWorldOffset();
         _motor.SyncRootPoseFromSim();
         ApplyDebugWish(in snapshot);
-        ApplyPresentation(in snapshot, leanRollDegrees);
+        ApplyPresentation(in snapshot, leanRollDegrees, seekLocomotion);
         _presentation.EndSimulationStep();
     }
 
@@ -140,10 +148,13 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     }
 
     /// <summary>
-    /// 有招则切段时 Play+Seek；连续受击（生命边沿或动作帧回绕）硬切重播。
-    /// 空闲播 LocomotionKey。禁止派发 Hitbox。
+    /// 有招则切段时 Play+Seek，并按跨帧规则只派发 VFX/SFX。
+    /// 走跑切键后 Tick，禁止每帧 Seek。禁止派发 Hitbox。
     /// </summary>
-    void ApplyPresentation(in ActorReplicationSnapshot snapshot, float leanRollDegrees)
+    void ApplyPresentation(
+        in ActorReplicationSnapshot snapshot,
+        float leanRollDegrees,
+        bool seekLocomotion)
     {
         bool frozen = snapshot.FreezeFrames > 0;
         // 先声明再 out：短路时编译器不认为 action 已赋值（CS0165）
@@ -156,6 +167,9 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
             _lastActionFrame,
             snapshot.ActionId,
             snapshot.ActionFrame);
+        int previousActionFrame = !forceRestart && _lastActionId == snapshot.ActionId
+            ? _lastActionFrame
+            : -1;
 
         if (_animation != null)
         {
@@ -173,18 +187,27 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
                 _animationSegmentIndex = -1;
                 _animation.SetSpeed(frozen ? 0f : 1f);
                 AnimationKey key = ResolveLocomotionKey(snapshot.LocomotionPhase);
-                if (_locomotionKey != key)
+                bool keyChanged = _locomotionKey != key;
+                if (keyChanged)
                 {
-                    // 与 PivotTurn Enter 相同：硬切，禁止和上一 Gait CrossFade 把转身混花
-                    _animation.Play(key, 0f);
+                    bool hardCut = PredictedLocomotionVisual.ShouldHardCut(_locomotionKey, key);
+                    _animation.Play(key, hardCut ? 0f : (float?)null);
                     _locomotionKey = key;
+                    // 一次性相位才 Seek 对齐权威时间；走跑循环淡入后只 Tick
+                    if (seekLocomotion
+                        && !frozen
+                        && PredictedLocomotionVisual.IsTransitionPhase(key))
+                        _animation.SeekLocomotionNormalized(snapshot.LocomotionNormalizedMilli / 1000f);
                 }
 
-                // 对齐权威归一化时间；Seek 已 Evaluate，勿再 Tick 以免超前一帧
-                if (!frozen)
-                    _animation.SeekLocomotionNormalized(snapshot.LocomotionNormalizedMilli / 1000f);
+                // 同键只 Tick：远端也不再每 Tick Seek，避免抽帧
+                if (!frozen && !keyChanged)
+                    _animation.Tick(_fixedDeltaSeconds);
             }
         }
+
+        if (actionActive && !frozen)
+            DispatchPresentationNotifies(action, previousActionFrame, snapshot.ActionFrame);
 
         _lastActionId = snapshot.ActionId;
         _lastActionFrame = snapshot.ActionFrame;
@@ -242,6 +265,48 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         return actionId != 0
             && actionId == previousActionId
             && actionFrame < previousActionFrame;
+    }
+
+    /// <summary>只把 VFX/SFX 点事件交给消费者；不调用 notify.OnNotify，也不派发 Motion/Hitbox。</summary>
+    void DispatchPresentationNotifies(ActionDefinition action, int previousFrame, int currentFrame)
+    {
+        if (action?.Timeline == null || _notifyConsumers.Length == 0)
+            return;
+
+        IReadOnlyList<ActionNotify> notifies = action.Timeline.GetTriggeredNotifies(
+            previousFrame,
+            currentFrame);
+        for (int i = 0; i < notifies.Count; i++)
+        {
+            ActionNotify notify = notifies[i];
+            if (!IsPresentationNotify(notify))
+                continue;
+
+            var context = new ActionNotifyContext(
+                action,
+                currentFrame,
+                previousFrame,
+                _root,
+                _root,
+                notify);
+            for (int c = 0; c < _notifyConsumers.Length; c++)
+                _notifyConsumers[c].OnActionNotify(in context);
+        }
+    }
+
+    /// <summary>表现向点事件：刀光与动作音效。位移/判定命令不得走 Proxy。</summary>
+    public static bool IsPresentationNotify(ActionNotify notify) =>
+        notify is PlayVfxNotify || notify is PlaySfxNotify;
+
+    static IActionNotifyConsumer[] CopyConsumers(IReadOnlyList<IActionNotifyConsumer> source)
+    {
+        if (source == null || source.Count == 0)
+            return Array.Empty<IActionNotifyConsumer>();
+
+        var copy = new IActionNotifyConsumer[source.Count];
+        for (int i = 0; i < source.Count; i++)
+            copy[i] = source[i];
+        return copy;
     }
 
     static AnimationKey ResolveLocomotionKey(byte locomotionPhase)

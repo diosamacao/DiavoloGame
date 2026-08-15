@@ -1,7 +1,10 @@
 using System;
 using System.Text;
 
-/// <summary>ClientCommand / AuthorityTick 的无引擎小端编解码；首字节为协议版本。</summary>
+/// <summary>
+/// ClientCommand / AuthorityTick 的无引擎小端编解码；首字节为协议版本。
+/// 命中条目在 Key 之后带 ActionId 与毫米落点，供客机播受击 Cue。
+/// </summary>
 public static class ReplicationCodec
 {
     const byte Version = 1;
@@ -162,6 +165,12 @@ public static class ReplicationCodec
         writer.WriteInt32(hit.Key.ActionInstanceId);
         writer.WriteInt32(hit.Key.HitboxIndex);
         writer.WriteActorId(hit.Key.TargetId);
+        writer.WriteInt32(hit.ActionId);
+        writer.WriteInt32(hit.HitXMm);
+        writer.WriteInt32(hit.HitYMm);
+        writer.WriteInt32(hit.HitZMm);
+        writer.WriteInt32(hit.DirXMm);
+        writer.WriteInt32(hit.DirZMm);
     }
 
     static ReplicatedHitEvent ReadHit(ref Reader reader)
@@ -173,7 +182,15 @@ public static class ReplicationCodec
             reader.ReadInt32(),
             reader.ReadInt32(),
             reader.ReadActorId());
-        return new ReplicatedHitEvent(frame, key);
+        return new ReplicatedHitEvent(
+            frame,
+            key,
+            reader.ReadInt32(),
+            reader.ReadInt32(),
+            reader.ReadInt32(),
+            reader.ReadInt32(),
+            reader.ReadInt32(),
+            reader.ReadInt32());
     }
 
     static void WriteIdArray(ref Writer writer, SimActorId[] ids)

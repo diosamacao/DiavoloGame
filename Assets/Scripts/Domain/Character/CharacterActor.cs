@@ -135,6 +135,9 @@ public sealed class CharacterActor :
     /// <summary>当前顶层角色状态，供 AI 感知与生命周期控制器读取。</summary>
     public CharacterStateType CurrentState => _stateMachine.CurrentStateId;
 
+    /// <summary>复制用步态；非 Locomotion 为 Walk。</summary>
+    public LocomotionGait ReplicationGait => _stateMachine.ReplicationGait;
+
     /// <summary>当前 Sprint 视觉倾身（度）；非 Locomotion 为 0。不进复制快照。</summary>
     public float SprintLeanRollDegrees => _stateMachine.SprintLeanRollDegrees;
 
