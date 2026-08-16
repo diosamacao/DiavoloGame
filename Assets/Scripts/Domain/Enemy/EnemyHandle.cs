@@ -87,15 +87,19 @@ public sealed class EnemyHandle :
     /// <summary>决策写入 Desire/Request；World 输入槽仅放空 Frame（供 IntentProducer 无按钮语义）。</summary>
     public void ProduceInput(long frameIndex)
     {
+        // 输入阶段先跑 AI，写入 Desire/Request；死亡后不再决策
         if (!IsDead)
             _brain.Step();
 
+        // World 输入槽只放空 Frame，禁止 AI 伪装设备按钮
         _inputFrames.Set(InputFrame.Empty(frameIndex, _actorId));
     }
 
     public void Step(long frameIndex, float fixedDeltaSeconds, in InputFrame inputFrame)
     {
+        // 与玩家同一套 CharacterActor 推进
         _actor.Step(frameIndex, fixedDeltaSeconds, in inputFrame);
+        // 死亡表现播完后累计回收等待，供帧末 Commit 注销
         if (IsDead && _actor.DeathPresentationComplete)
             _deathReadyElapsed += Mathf.Max(0f, fixedDeltaSeconds);
     }

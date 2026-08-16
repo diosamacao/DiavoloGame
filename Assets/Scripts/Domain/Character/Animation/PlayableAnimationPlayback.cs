@@ -136,18 +136,21 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
         float dt = Mathf.Max(0f, deltaTime);
         if (_fading)
         {
+            // CrossFade：按速度推进权重，旧片→新片
             _fadeElapsed += dt * _speed;
             float t = _fadeDuration <= 0f ? 1f : Mathf.Clamp01(_fadeElapsed / _fadeDuration);
             SetWeights(1f - t, t);
 
             if (t >= 1f)
             {
+                // 淡入结束：只留当前槽，销毁上一 Clip
                 SetWeights(0f, 1f);
                 DestroySlot(PreviousSlot, ref _previousPlayable);
                 _fading = false;
             }
         }
 
+        // 唯一时间推进入口：固定步长 Evaluate Graph
         _graph.Evaluate(dt);
     }
 

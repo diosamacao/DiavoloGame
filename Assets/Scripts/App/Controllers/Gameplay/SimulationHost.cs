@@ -97,20 +97,28 @@ public sealed class SimulationHost : AppControllerBase
     /// <summary>按 Input/Actor/Combat/PostCombat/Commit 单轨顺序推进本渲染帧内的全部逻辑步。</summary>
     void Update()
     {
+        // 先汇聚本渲染帧设备边沿，再决定本帧要追几步逻辑
         _world.SampleRenderFrame();
         int stepCount = _accumulator.ConsumeSteps(Time.deltaTime);
         for (int i = 0; i < stepCount; i++)
         {
+            // 打开本逻辑帧的命中收集窗口
             _combatHits.BeginFrame(_world.CurrentFrame + 1);
+            // 输入生产 → Actor.Step → 软弹开
             _world.Step();
+            // 全体 Step 完成后统一结算伤害/Reaction
             _combatHits.ResolveBeforePostCombat(_world.CurrentFrame);
+            // 依赖命中结果的 OnHitConfirm/自然结束
             _world.ResolvePostCombat();
+            // 关闭命中窗口并发布只读结果
             _combatHits.CompleteFrame(_world.CurrentFrame);
+            // 死亡敌人在帧末统一注销，避免 Step 中改集合
             CommitEnemyLifecycle();
             // 表现层按逻辑帧递减 VFX HitStop 等，禁止用 unscaled 秒倒计时
             GetArchitecture().SendEvent(SimulationLogicStepEvent.Instance);
             // 每个逻辑步都通知，避免追帧时漏打包复制 Tick
             AfterLogicStep?.Invoke(_world.CurrentFrame);
+            // 本步命中列表只活到 AfterLogicStep 结束
             _frameHits.Clear();
         }
     }

@@ -44,6 +44,7 @@ public class StateMachine<TStateId, TContext>
         _currentState = next;
     }
 
+    /// <summary>推进当前状态一帧；无当前状态时为空操作。</summary>
     public void Tick(float deltaTime) => _currentState?.Tick(deltaTime);
 
     public bool TryChangeState(TStateId next, bool force = false)

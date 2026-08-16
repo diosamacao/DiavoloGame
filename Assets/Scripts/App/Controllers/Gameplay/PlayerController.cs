@@ -157,6 +157,7 @@ public class PlayerController : AppControllerBase, ILocalPlayer
 
     void LateUpdate()
     {
+        // Inspector 开关同步到朝向调试箭头（本帧表现 Pose 已插值完）
         if (_facingDebugVisualizer != null)
             _facingDebugVisualizer.SetDrawEnabled(drawFacingDebugArrows);
     }

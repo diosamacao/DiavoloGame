@@ -22,7 +22,9 @@ public class LocomotionState : CharacterState
 
     public override void Tick(float deltaTime)
     {
+        // 内层走跑相位机：转换 + 位移/动画/脚步
         Context.LocomotionStateMachine.Tick(deltaTime);
+        // 把 Motor 着地/速度快照写回 Context，供 HUD 与外部只读
         SyncMotorSnapshot();
     }
 

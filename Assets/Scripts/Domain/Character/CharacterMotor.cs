@@ -211,7 +211,9 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     public void TickGravity(float deltaTime)
     {
         _ = deltaTime;
+        // 竖直积分与着地在 MotorSim；deltaTime 仅占位，步长由 World 固定
         _sim.TickVertical();
+        // 完整 XYZ 写回根 Transform，禁止 CC.Move
         SyncRootFromSim();
     }
 

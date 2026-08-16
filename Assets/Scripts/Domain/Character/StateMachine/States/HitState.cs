@@ -34,10 +34,13 @@ public sealed class HitState : CharacterState
     /// <summary>无反应 Action 时递减固定硬直帧；动作会话在 PostCombat 收尾。</summary>
     public override void Tick(float deltaTime)
     {
+        // 硬直期间禁止走跑输入快照
         Context.Movement.ClearMoveSnapshot();
+        // 有受击 Action：退出改由 PostCombat 看会话结束
         if (_reactionActionInstanceId > 0)
             return;
 
+        // 无反应招：按配置整数帧倒数后回走跑
         if (_remainingFrames > 0)
             _remainingFrames--;
         if (_remainingFrames <= 0)

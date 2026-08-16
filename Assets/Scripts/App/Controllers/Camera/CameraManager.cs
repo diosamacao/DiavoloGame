@@ -166,7 +166,9 @@ public class CameraManager : AppControllerBase
 
     void Update()
     {
+        // 本渲染帧消费 Look 轴，更新 Orbit yaw/pitch
         ApplyLookInput();
+        // 消费 CameraLock 边沿并刷新锁定目标
         UpdateCameraLock();
     }
 

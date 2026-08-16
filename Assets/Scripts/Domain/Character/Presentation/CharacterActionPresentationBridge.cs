@@ -105,6 +105,7 @@ public sealed class CharacterActionPresentationBridge
             ApplySoftBodySuppressForFrame(current, snapshot.CurrentFrame);
             if (!snapshot.IsFrozen)
             {
+                // 未冻结：对齐 Clip 相位并应用查表位移
                 SyncAnimation(current, snapshot.CurrentFrame);
                 ApplyDisplacementForAction(current, snapshot.CurrentFrame, stepDelta);
             }
@@ -119,6 +120,7 @@ public sealed class CharacterActionPresentationBridge
             _visualMotion?.CaptureSimulationFrame(residualAction, residualFrame, actionActive: true);
         }
 
+        // 普通推进帧：位移后再派发 Hitbox/VFX 等过点事件
         for (int i = 0; i < _events.Count; i++)
         {
             ActionSimEvent actionEvent = _events[i];
@@ -135,6 +137,7 @@ public sealed class CharacterActionPresentationBridge
         // 命中结算可能刚写入 freezeFrames，同帧立即冻结骨骼
         SyncHitStopPresentation(_actionSim.Snapshot.IsFrozen);
 
+        // PostCombat 可能刚排队切招/停止，再排一次事件
         _events.Clear();
         _actionSim.DrainEvents(_events);
         for (int i = 0; i < _events.Count; i++)

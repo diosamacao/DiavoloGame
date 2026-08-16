@@ -14,6 +14,7 @@ public sealed class EnemyCooldownTable
         if (_remaining.Count == 0)
             return;
 
+        // Dictionary 迭代中不可删，先拷 key
         _scratch.Clear();
         foreach (KeyValuePair<string, int> pair in _remaining)
             _scratch.Add(pair.Key);

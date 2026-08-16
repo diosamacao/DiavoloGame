@@ -65,24 +65,33 @@ public sealed class ReplicationRoomClient : AppControllerBase
 
     void Update()
     {
+        // 传输未就绪或房间已结束：本渲染帧不再收包/采样
         if (_transport == null || _ended)
             return;
 
+        // 把套接字收包泵进客机收件箱
         _transport.Pump();
+        // 按消息类型处理 Accept/Reject/Tick/Kick
         DrainClientInbox();
+        // 已入房：每渲染帧合并本机按键边沿，避免无逻辑步时丢掉 WasPressed
         if (_joined && !_ended)
             SampleRenderInput();
+        // Host 心跳超时则关房
         if (_joined && _hostIdle.IsTimedOut(NowMs()))
             EndRoom("HostIdle");
     }
 
     void LateUpdate()
     {
+        // 尚无战斗世界：本机与幽灵都还不能插值
         if (_world?.SimulationHost == null)
             return;
 
+        // 与权威世界同一插值比例，避免本机与他人相位错开
         float alpha = _world.SimulationHost.InterpolationAlpha;
+        // 本机预测体：逻辑 Pose → 表现锚点
         _localPlayer?.Actor?.Render(alpha);
+        // 他人/敌人幽灵：快照 Pose → 表现锚点
         foreach (RemoteCharacterProxy proxy in _proxies.Values)
             proxy.Render(alpha);
     }
@@ -105,13 +114,16 @@ public sealed class ReplicationRoomClient : AppControllerBase
         if (!_joined || _ended || _localPlayer?.InputSampler == null)
             return;
 
+        // Host 空闲检测用：定期上行心跳
         MaybeSendHeartbeat();
         EnsureInputBuffer();
+        // 本机预测钟 +1；边沿已在 Update.SampleRenderInput 合并
         _predictFrame++;
         var actorId = new SimActorId(_accept.AssignedActorId);
         InputFrame input = _inputFrames.ResolveLocal(_predictFrame, actorId);
         _inputFrames.TrimBefore(_predictFrame - 32);
 
+        // 最近 N 条命令冗余上行，供 Host 丢包补齐
         var command = new ClientCommand(_predictFrame, _accept.AssignedPlayerId, in input);
         RememberCommand(in command);
         _transport.SendClientToAuthority(RoomCodec.WriteClientCommandBatch(_recentCommands));
@@ -120,6 +132,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
         if (!_hasSelfSnapshot || _driver == null || actor == null)
             return;
 
+        // 本机 Autonomous：同一套 Actor.Step，不进权威 World
         float dt = _world.SimulationHost.FixedDeltaSeconds;
         actor.Step(_predictFrame, dt, in input);
         actor.ResolvePostCombat(_predictFrame);
@@ -131,6 +144,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
             _lastPredictedActionId = actionId;
         _actionAck.Record(_predictFrame, actionId);
 
+        // 记下 SavedMove，权威包到达时 Replay
         _driver.RecordAutonomous(in input);
         RefreshHud("Joined");
     }
@@ -143,6 +157,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
 
         EnsureInputBuffer();
         var actorId = new SimActorId(_accept.AssignedActorId);
+        // 写入「下一预测帧」槽；Pressed 与已有样本做 OR
         InputFrame sample = _localPlayer.InputSampler.Sample(_predictFrame + 1, actorId);
         _inputFrames.MergeLocalSample(in sample);
     }

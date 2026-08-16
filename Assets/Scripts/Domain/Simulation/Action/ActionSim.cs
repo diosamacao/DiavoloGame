@@ -113,6 +113,7 @@ public sealed class ActionSim : IActionSimHitReceiver
             return;
         }
 
+        // 先提交上帧排队的切招（目标招 frame 0 在本 World 帧派发）
         bool committedTransition = CommitPendingDecision();
         if (!IsActive)
             return;
@@ -129,9 +130,11 @@ public sealed class ActionSim : IActionSimHitReceiver
         if (IsComplete)
             return;
 
+        // Cancel 窗内有更高优先意图：排队下一帧切招
         if (TryQueueCancel())
             return;
 
+        // Recovery 入口：排队自动衔接，仍等下一 World 帧提交
         TryQueueRecoveryStart();
     }
 

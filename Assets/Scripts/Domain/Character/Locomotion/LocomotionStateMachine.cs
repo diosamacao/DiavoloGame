@@ -183,12 +183,16 @@ public sealed class LocomotionStateMachine
     public void Tick(float deltaTime)
     {
         Context.DeltaTime = Mathf.Max(0f, deltaTime);
+        // 本步输入/速度快照，供各相位 Tick 共用
         Context.FrameSnapshot = Context.BuildSnapshot();
         // FaceTarget 朝向须在 ApplyLocomotion 前写入 Motor
         Context.PublishFacingTargetToMotor();
+        // 先做相位转换（Idle/Start/Gait/Stop/Pivot）
         _machine.Tick(Context.DeltaTime);
+        // 再执行当前相位的位移/动画/脚步
         if (_phases.TryGetValue(_machine.CurrentStateId, out LocomotionPhaseState phase))
             phase.ExecuteFrame(Context.DeltaTime);
+        // 冲刺倾身只写视觉 Roll
         UpdateSprintLean(Context.DeltaTime);
     }
 

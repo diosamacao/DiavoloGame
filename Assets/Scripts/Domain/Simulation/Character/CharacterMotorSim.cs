@@ -86,6 +86,7 @@ public sealed class CharacterMotorSim
     /// <summary>每逻辑步开头递减抑制计数。</summary>
     public void TickSoftBodySuppress()
     {
+        // 须在本帧 ApplyStep 重新置位之前递减，否则叠人窗永远清不掉
         if (_softBodySuppressFrames > 0)
             _softBodySuppressFrames--;
     }
@@ -148,9 +149,11 @@ public sealed class CharacterMotorSim
     /// </summary>
     public void TickVertical()
     {
+        // 已着地且仍在下压：钳到着地重力，避免穿地后累积下落速度
         if (_isGrounded && _verticalVelocityMmPerSec < 0)
             _verticalVelocityMmPerSec = _groundedGravityMmPerSec2;
 
+        // 整数 / logicHz，禁止 float dt 进权威
         _verticalVelocityMmPerSec += _gravityMmPerSec2 / _logicHz;
         _yMm += _verticalVelocityMmPerSec / _logicHz;
 

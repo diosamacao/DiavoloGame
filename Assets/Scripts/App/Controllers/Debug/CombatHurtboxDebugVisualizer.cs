@@ -23,6 +23,7 @@ public sealed class CombatHurtboxDebugVisualizer : AppControllerBase
         if (targets == null)
             return;
 
+        // 与命中同构：画逻辑 OBB，不画 Physics Collider
         IReadOnlyList<IHurtboxTarget> active = targets.ActiveTargets;
         for (int i = 0; i < active.Count; i++)
         {

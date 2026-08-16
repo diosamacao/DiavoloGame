@@ -31,6 +31,7 @@ public sealed class ActionRotationDriver
     /// <summary>Action 状态下按固定逻辑步长推进旋转窗口。</summary>
     public void Tick(float fixedDeltaSeconds)
     {
+        // 不在 Rotation 窗口或无方向时内部直接返回
         TryApplyActionRotation(fixedDeltaSeconds);
     }
 

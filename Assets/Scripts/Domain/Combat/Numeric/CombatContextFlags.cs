@@ -38,8 +38,10 @@ public sealed class CombatContextFlags
     /// <summary>每逻辑帧递减门闩与反击缓冲（不含闪避充能，由 NumericSystem 在充能逻辑里处理）。</summary>
     public void StepHoldAndCounter()
     {
+        // 接战回能门闩：到 0 后本帧不再回能
         if (InCombatHoldFrames > 0)
             InCombatHoldFrames--;
+        // 完美闪避反击缓冲：到 0 后攻击键不再派生 Counter
         if (PerfectDodgeCounterFrames > 0)
             PerfectDodgeCounterFrames--;
     }

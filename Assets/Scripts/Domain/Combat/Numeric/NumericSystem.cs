@@ -49,10 +49,12 @@ public sealed class NumericSystem
     /// </summary>
     public void Step()
     {
-        // 先按本帧仍有效的接战门闩回能，再递减旗标与 Effect
+        // 先按本帧仍有效的接战门闩回能，再递减旗标（顺序不可反）
         StepEnergyRegen();
         Flags.StepHoldAndCounter();
+        // 闪避充能到点 +1 次
         StepDodgeRecharge();
+        // Periodic 跳变与 Duration 到期
         Effects.Step();
     }
 

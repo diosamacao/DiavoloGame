@@ -44,7 +44,9 @@ public sealed class CharacterTargetingState
             return;
         }
 
+        // 从已提交逻辑 Pose 建候选，禁止读 Transform
         BuildCandidateSnapshot();
+        // 左右切敌边沿；同帧双按视为不切
         TargetSwitchDirection switchDirection = ResolveSwitchDirection(in inputFrame);
         var request = new SimTargetResolveRequest(
             requesterId,
@@ -56,6 +58,7 @@ public sealed class CharacterTargetingState
             _retainRangeMm,
             _selectedTargetId,
             switchDirection);
+        // 自动维持 / 切敌：写出本帧唯一 SelectedTarget
         _selectedTargetId = DeterministicTargetResolver.Resolve(in request, _candidateScratch);
     }
 

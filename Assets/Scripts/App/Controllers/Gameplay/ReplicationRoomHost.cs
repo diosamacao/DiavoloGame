@@ -42,12 +42,17 @@ public sealed class ReplicationRoomHost : AppControllerBase
 
     void Update()
     {
+        // 绑定失败或尚未监听：本帧不收包
         if (_transport == null)
             return;
 
+        // 把套接字收包泵进权威收件箱
         _transport.Pump();
+        // 处理 Join/Command/Heartbeat
         DrainAuthorityInbox();
+        // 待接纳队列：座位空时发 Accept
         TryAcceptPendingJoins();
+        // 客机心跳超时则踢人
         CheckGuestIdle();
     }
 
@@ -70,10 +75,13 @@ public sealed class ReplicationRoomHost : AppControllerBase
             return;
         }
 
+        // 目录未预填时补齐 Graph/变体，避免客机 TryGet 失败
         PrefillCatalogIfNeeded();
+        // 全员权威 Pose/招式写入快照列表
         CaptureAuthorityActors();
         ReplicatedHitEvent[] hits = CopyHits();
         var tick = new AuthorityTick(authorityFrame, _snapshots.ToArray(), hits);
+        // CarryForward 必须下发 0；仅本步真正灌入远端命令时非 0
         long appliedHintThisTick = _guest.AppliedHintThisTick;
         _guest.AppliedHintThisTick = 0;
         _transport.SendAuthorityToClients(

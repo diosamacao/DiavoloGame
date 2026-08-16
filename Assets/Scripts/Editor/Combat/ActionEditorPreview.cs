@@ -342,6 +342,7 @@ public sealed class ActionEditorPreviewSession : IDisposable
     /// <summary>每 Editor 帧调用：采样动画 Pose，再驱动扩展预览（VFX 等）。</summary>
     public void Tick()
     {
+        // Play 模式不跑 Editor 预览，避免和运行时动画抢 Graph
         if (EditorApplication.isPlayingOrWillChangePlaymode)
         {
             EndPreviewState();
@@ -376,6 +377,7 @@ public sealed class ActionEditorPreviewSession : IDisposable
         bool resampled = false;
         if (NeedsResample())
         {
+            // 与运行时同一套 ActionFrameQuery，禁止第二套窗口算法
             ActionFrameQueryResult query =
                 ActionFrameQuery.Query(context.Action, context.PreviewFrame);
             AnimationClip clip = query.HasAnimationSegment ? query.Segment.clip : null;
@@ -393,6 +395,7 @@ public sealed class ActionEditorPreviewSession : IDisposable
 
         BeginExtensionsIfNeeded(context);
 
+        // 重建 context：根已偏移，Extension 读最新挂点
         context = BuildContext();
         for (int i = 0; i < _extensions.Count; i++)
             _extensions[i].OnPreviewUpdate(in context);

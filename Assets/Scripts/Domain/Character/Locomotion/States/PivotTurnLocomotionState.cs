@@ -49,12 +49,14 @@ public sealed class PivotTurnLocomotionState : LocomotionPhaseState
         if (hasMove)
             Context.GaitInputGapSeconds = 0f;
 
+        // 转身中持续刷新折返目标，结束时决定回 Sprint 还是 Stop
         if (hasMove && snapshot.WorldMoveDirection.sqrMagnitude > 0.001f)
         {
             Context.PivotTargetDirection = snapshot.WorldMoveDirection.normalized;
             Context.PivotMoveLatched = true;
         }
 
+        // 未播完就松手：进急停，朝向用已闩的折返目标
         if (!hasMove && !Context.IsCurrentPhaseClipFinished())
         {
             Context.GoStop(fromStart: false, preferredFacing: Context.PivotTargetDirection);

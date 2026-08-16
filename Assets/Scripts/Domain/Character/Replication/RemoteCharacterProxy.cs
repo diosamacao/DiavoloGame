@@ -204,7 +204,9 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     /// <summary>按 Host 插值比例更新模型锚点与视觉残差/倾身；邻近 Pose 走 lerp，禁止每渲染帧硬切。</summary>
     public void Render(float interpolationAlpha)
     {
+        // 快照前后 Pose 插值到表现锚点
         _presentation.Render(interpolationAlpha);
+        // 视觉残差 / 倾身跟渲染帧，不回写 Motor
         _visualMotion?.Render(interpolationAlpha, Time.deltaTime);
     }
 
