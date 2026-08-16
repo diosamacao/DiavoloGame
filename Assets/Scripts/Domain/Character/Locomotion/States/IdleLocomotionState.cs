@@ -19,6 +19,7 @@ public sealed class IdleLocomotionState : LocomotionPhaseState
     /// <summary>有移动 → Start。</summary>
     public override void Tick(float deltaTime)
     {
+        // 有有效移动输入：必经起步，禁止直接进 Gait
         if (Context.HasMeaningfulMove(Context.FrameSnapshot))
             Context.RequestPhase(LocomotionPhase.Start);
     }
@@ -28,6 +29,7 @@ public sealed class IdleLocomotionState : LocomotionPhaseState
     {
         Context.Animation.SetSpeed(1f);
         Context.Animation.Play(AnimationKey.Idle);
+        // 不位移、锁朝向，避免 Idle 被输入微抖转走
         Context.Motor.ApplyLocomotion(
             new LocomotionMotorCommand(
                 false,

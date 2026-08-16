@@ -56,6 +56,7 @@ public sealed class EnemyBehaviorTreeEditorWindow : EditorWindow
 
     void Update()
     {
+        // 0.2s 节流，避免每 Editor 帧扫一遍运行时高亮
         if (EditorApplication.timeSinceStartup < _nextDebugPoll)
             return;
         _nextDebugPoll = EditorApplication.timeSinceStartup + 0.2;

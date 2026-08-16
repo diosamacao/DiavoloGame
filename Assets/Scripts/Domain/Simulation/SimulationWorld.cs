@@ -77,6 +77,7 @@ public sealed class SimulationWorld
     public void SampleRenderFrame()
     {
         EnsureNotStepping("采集渲染帧");
+        // 边沿写入「下一逻辑帧」槽，本帧尚未 Step
         long targetFrame = CurrentFrame + 1;
         for (int i = 0; i < _actors.Count; i++)
         {
@@ -192,6 +193,7 @@ public sealed class SimulationWorld
     public void ResolvePostCombat()
     {
         EnsureNotStepping("执行 PostCombat");
+        // 尚未 Step 或本帧已收尾：禁止重复跑 OnHitConfirm
         if (CurrentFrame < 0 || _lastPostCombatFrame == CurrentFrame)
             return;
 

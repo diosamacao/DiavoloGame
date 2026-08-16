@@ -92,6 +92,7 @@ public sealed class EnemyBrain
         if (!_running || _profile == null || _perception == null)
             return;
 
+        // 冷却与重寻路倒计时先减，再基于上一帧已提交状态决策
         _blackboard.Cooldowns.TickDown();
         _repathFramesRemaining = Mathf.Max(0, _repathFramesRemaining - 1);
 
@@ -129,12 +130,14 @@ public sealed class EnemyBrain
             return;
         }
 
+        // 消化上帧攻击确认，再填黑板并 Tick 行为树
         ResolveAttackConfirm(in snapshot);
         FillBlackboard(in snapshot);
         _blackboard.DebugEnabled = _debugEnabled;
         _blackboard.ResetFrameOutputs();
         _lastRunnerStatus = _runner.Tick(_blackboard);
         _lastDebugPath = _debugEnabled ? _blackboard.DebugPath : string.Empty;
+        // 把树输出写成 Desire/Request，供本帧 Actor.Step 消费
         CommitOutputs(in snapshot);
         DeriveDebugState();
     }
@@ -176,10 +179,12 @@ public sealed class EnemyBrain
     /// <summary>Hit 期间保持空命令，直到正式 Character Hit 状态结束。</summary>
     void TickHitGate(in EnemyPerceptionSnapshot snapshot)
     {
+        // 硬直期间清空 Desire/Request，避免树输出把角色拽出走跑
         ClearCommandBuffers();
         if (snapshot.CharacterState == CharacterStateType.Hit)
             return;
 
+        // 角色已离开 Hit：重置树，避免带着旧路径继续追打
         _runner?.Reset();
         if (!_profile.EnableCombatActions)
         {

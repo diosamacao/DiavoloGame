@@ -36,6 +36,7 @@ public sealed class DeathState : CharacterState
     /// <summary>死亡状态只锁定移动；动作整数帧由 CharacterActor 统一推进。</summary>
     public override void Tick(float deltaTime)
     {
+        // 死亡终态只锁移动；死亡招式由 Actor 统一推帧
         Context.Movement.ClearMoveSnapshot();
     }
 

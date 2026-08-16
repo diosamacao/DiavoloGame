@@ -46,6 +46,7 @@ public class ActionState : CharacterState
     /// <summary>记录当前整数帧动作并执行动作转向；会话由 CharacterActor 单次推进。</summary>
     public override void Tick(float deltaTime)
     {
+        // 缓存当前招式与会话 Id，供 Exit / PostCombat 判断是否已切招
         ActionSimSnapshot snapshot = Context.ActionSim != null
             ? Context.ActionSim.Snapshot
             : default;
@@ -56,8 +57,10 @@ public class ActionState : CharacterState
             _activeActionInstanceId = snapshot.InstanceId;
         }
 
+        // 出招中清空走跑输入快照，避免播移动循环
         Context.Movement.ClearMoveSnapshot();
         SyncMotorSnapshot();
+        // Rotation 窗口内转向（锁敌优先，否则跟移动意图）
         Context.ActionRotation?.Tick(deltaTime);
     }
 

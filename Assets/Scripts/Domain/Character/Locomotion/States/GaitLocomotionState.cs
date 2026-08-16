@@ -48,6 +48,7 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
 
         if (!hasMove)
         {
+            // 宽限内仍保持当前循环，避免点按松手立刻切 Idle
             Context.GaitInputGapSeconds += deltaTime;
             float grace = Context.Profile != null ? Context.Profile.GaitInputGapGraceSeconds : 0.15f;
             if (Context.GaitInputGapSeconds < grace)
@@ -56,6 +57,7 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
             Context.GaitInputGapSeconds = 0f;
             float stopMin = Context.Motor.RunSpeed
                 * (Context.Profile != null ? Context.Profile.StopMinSpeedFactor : 0.5f);
+            // 仍有速度或跑/冲刺档：走急停；否则直接 Idle
             if (snapshot.PlanarSpeed >= stopMin || LocomotionContext.IsRunTier(Context.Gait))
                 Context.GoStop(fromStart: false);
             else
@@ -63,12 +65,14 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
             return;
         }
 
+        // 大角度折返：进 Pivot，本帧不再升档
         if (CanEnterPivot(snapshot))
         {
             Context.TryGoPivot(snapshot.WorldMoveDirection);
             return;
         }
 
+        // Policy 评估走/跑/冲刺升降档
         UpdateGaitWhileMoving(snapshot.Magnitude, deltaTime);
     }
 
@@ -88,6 +92,7 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
         else
             Context.Animation.Play(key);
 
+        // 跟输入位移 + 当前步态旋转模式
         Context.Motor.ApplyLocomotion(
             new LocomotionMotorCommand(
                 true,

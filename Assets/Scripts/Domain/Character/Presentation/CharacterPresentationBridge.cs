@@ -84,6 +84,7 @@ public sealed class CharacterPresentationBridge
             return;
 
         float alpha = Mathf.Clamp01(interpolationAlpha);
+        // 传送/大位移：直接吸附，避免插值扫过整段路径
         bool teleported =
             (_currentPosition - _previousPosition).sqrMagnitude > TeleportSnapDistanceSq;
         Vector3 position = teleported

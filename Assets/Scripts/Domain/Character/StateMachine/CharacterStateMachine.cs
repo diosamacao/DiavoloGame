@@ -85,6 +85,7 @@ public sealed class CharacterStateMachine : ICharacterStateMachine
     /// <summary>推进当前状态。</summary>
     public void Tick(float deltaTime)
     {
+        // 转发给当前 CharacterState（Locomotion/Action/Hit/Death）
         _machine.Tick(deltaTime);
     }
 

@@ -393,9 +393,11 @@ public sealed class CharacterActor :
     /// <summary>把本地设备样本合并进下一逻辑帧；AI/回放 Actor 不执行设备采样。</summary>
     public void SampleRenderFrame(long targetFrame)
     {
+        // AI/回放 Actor 没有设备采样器，跳过
         if (_localInput == null || _inputFrames == null || !_actorId.IsValid)
             return;
 
+        // 本渲染帧边沿写入下一逻辑帧槽（Pressed 做 OR）
         InputFrame sample = _localInput.Sample(targetFrame, _actorId);
         _inputFrames.MergeLocalSample(in sample);
     }
@@ -403,10 +405,12 @@ public sealed class CharacterActor :
     /// <summary>由 SimulationWorld 按固定顺序推进输入、动作路由、重力、状态机与动画淡入。</summary>
     public void Step(long frameIndex, float fixedDeltaSeconds, in InputFrame inputFrame)
     {
+        // 记下本步帧号与输入，供 PostCombat / 调试快照对齐
         _currentFrameIndex = frameIndex;
         _lastSimulationInput = inputFrame;
         // 边沿只活一帧：本步结算前清掉，AfterLogicStep 才能读到本帧 Hit/Death
         _vitality?.ClearReplicationEdge();
+        // 锁定表现锚点，逻辑位移期间禁止插值读半帧
         _presentation.BeginSimulationStep();
         // 逻辑步内残差贴帧，避免挂点读到上一渲染插值
         _visualMotion?.ApplyLogicLocalPose();
@@ -414,24 +418,32 @@ public sealed class CharacterActor :
         {
             // 软体抑制倒计时：须在本帧 ApplyStep 置位之前递减
             _motor?.Sim.TickSoftBodySuppress();
+            // 量化输入灌入 InputManager（按钮边沿 / 移动意图）
             _inputManager.IngestFrame(inputFrame);
             // Targeting 必须先于 Action 路由/推进，使同帧切敌立即作用于尚未解析的动作逻辑。
             _targetingState.Step(_actorId, _motor.Sim, in inputFrame);
+            // 按钮生命周期 → 当帧意图 + Cancel 缓冲
             _intentProducer.Step();
+            // Graph 起手/取消后推进 ActionSim 一帧
             StepActionClock();
+            // 查表位移 / Timeline 表现桥消费本帧 Action 快照
             _actionPresentation?.ApplyStep(fixedDeltaSeconds);
+            // 重力与着地（MotorSim 权威）
             _motor.TickGravity(fixedDeltaSeconds);
+            // 顶层状态机：Locomotion / Action / Hit / Death
             _stateMachine.Tick(fixedDeltaSeconds);
             // L-DIR4：倾身只写 VisualMotionRoot，不改 Motor/Sim 权威朝向
             _visualMotion?.SetLeanRollDegrees(_stateMachine.SprintLeanRollDegrees);
             // Manual Playable：同帧末推进时间与 CrossFade。
             // 未烘焙招式仍可能由此 Evaluate 产生 Native RM delta；已烘焙招式 RM 在 ApplyStep 已关闭。
             _animation.Tick(fixedDeltaSeconds);
+            // Wave 0：记录招式横摆峰峰值，对照是否进了逻辑根
             UpdateActionLateralPeakSample();
 
             // 卡肉或权威 Freeze 覆盖期间暂停 Numeric.Step
             if (_actionSim != null && !_actionSim.IsFrozen)
             {
+                // 出招/受击期间刷新接战门闩，供回能与 HUD
                 if (_actionSim.IsActive
                     || CurrentState == CharacterStateType.Hit
                     || CurrentState == CharacterStateType.Action)
@@ -439,12 +451,15 @@ public sealed class CharacterActor :
                     _numeric.NotifyInCombat();
                 }
 
+                // 回能 / 旗标递减 / 闪避充能 / Effect
                 _numeric.Step();
             }
         }
         finally
         {
+            // 解锁表现锚点并记下本步终点 Pose
             _presentation.EndSimulationStep();
+            // 逻辑步结束再贴一次残差，避免 Render 前挂点漂移
             _visualMotion?.ApplyLogicLocalPose();
         }
     }
@@ -488,8 +503,11 @@ public sealed class CharacterActor :
         if (frameIndex != _currentFrameIndex)
             throw new InvalidOperationException("CharacterActor PostCombat 必须与最近 Step 属于同一逻辑帧。");
 
+        // OnHitConfirm/OnWhiff 自动衔接与自然结束排队
         _actionSim?.ResolvePostCombat();
+        // Action/Hit/Death 按会话结束标记退出
         _stateMachine.ResolvePostCombat();
+        // 同帧新增的 Started/Stopped 再派发给表现桥
         _actionPresentation?.ApplyPostCombat();
     }
 
@@ -532,6 +550,7 @@ public sealed class CharacterActor :
     /// <inheritdoc />
     public void ReplayTick(in InputFrame input)
     {
+        // 纠偏 Replay：只重放走跑，不重跑 Targeting/Action/Numeric
         _inputManager.IngestFrame(input);
         _motor.TickGravity(_fixedDeltaSeconds);
         Locomotion?.Tick(_fixedDeltaSeconds);
@@ -542,6 +561,7 @@ public sealed class CharacterActor :
     /// <summary>推进 ActionSim：起手/取消后推一帧。卡肉由本机 RequestHitStop 写入 freeze。</summary>
     void StepActionClock()
     {
+        // 先消费意图起手/取消，再推进整数帧
         _actionDriver.ProcessGameplayInput();
         _actionSim?.Step();
     }
@@ -549,6 +569,7 @@ public sealed class CharacterActor :
     /// <summary>把前后逻辑 Pose 插值到表现锚点，再插值视觉残差到模型根。</summary>
     public void Render(float interpolationAlpha)
     {
+        // 前后逻辑 Pose 插值到表现锚点（模型跟随）
         _presentation.Render(interpolationAlpha);
         // BlendOut 跟渲染帧走，避免逻辑 60Hz 与显示帧率脱节
         _visualMotion?.Render(interpolationAlpha, Time.deltaTime);

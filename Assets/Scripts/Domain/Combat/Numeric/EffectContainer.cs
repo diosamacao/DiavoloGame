@@ -58,13 +58,16 @@ public sealed class EffectContainer
     /// </summary>
     public void Step()
     {
+        // 倒序：到期移除时不影响尚未处理的下标
         for (int i = _active.Count - 1; i >= 0; i--)
         {
             ActiveEffect effect = _active[i];
 
+            // Periodic 到点：按叠层乘跳变（DOT 走 Vitality）
             if (effect.TickPeriod())
                 ApplyDeltas(effect.Definition.PeriodicDeltas, effect.StackCount);
 
+            // 持续时间耗尽：卸 Modifier 并移出容器
             if (effect.TickDuration())
                 RemoveAt(i);
         }

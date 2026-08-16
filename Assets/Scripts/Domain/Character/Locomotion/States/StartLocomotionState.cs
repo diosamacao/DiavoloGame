@@ -37,17 +37,21 @@ public sealed class StartLocomotionState : LocomotionPhaseState
     public override void Tick(float deltaTime)
     {
         LocomotionInputSnapshot snapshot = Context.FrameSnapshot;
+        // 松手：从起步进急停（用 StartEnd 片）
         if (!Context.HasMeaningfulMove(snapshot))
         {
             Context.GoStop(fromStart: true);
             return;
         }
 
+        // 走档起步且输入已属 Run：直入 Run 循环
         if (TryPromoteWalkStartToRunGait(in snapshot))
             return;
 
+        // 跑档起步降走：重闩走起步，避免播完才降档
         TryRelatchAfterGaitDowngrade(in snapshot);
 
+        // 起步 Clip 播完：按当前输入进对应 Gait
         if (Context.IsStartFinished())
             Context.GoGait(Context.ResolveInitialGait(snapshot.Magnitude));
     }

@@ -30,9 +30,11 @@ public sealed class CombatDebugHudController : AppControllerBase
 
     void Update()
     {
+        // F3：开关战斗 HUD
         if (UnityEngine.Input.GetKeyDown(toggleKey))
             visible = !visible;
 
+        // F4：开关 Hurtbox 线框
         if (UnityEngine.Input.GetKeyDown(hurtboxToggleKey))
             CombatHurtboxDebugSettings.ShowHurtboxes = !CombatHurtboxDebugSettings.ShowHurtboxes;
     }
@@ -50,12 +52,14 @@ public sealed class CombatDebugHudController : AppControllerBase
 
     void LateUpdate()
     {
+        // 本机玩家可能晚于 HUD 创建，每帧补一次查询
         if (playerController == null)
             playerController = SendQuery(new GetLocalPlayerQuery()) as PlayerController;
 
         if (!visible)
             return;
 
+        // 在 Actor.Render 之后采样，HUD 与画面同一表现帧
         if (playerController != null && playerController.Actor != null)
             _cached = playerController.Actor.BuildDebugSnapshot();
     }

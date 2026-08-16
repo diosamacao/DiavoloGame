@@ -42,11 +42,14 @@ public sealed class GameplayIntentProducer
     /// <summary>先推进旧缓冲一帧，再按量化按钮生命周期输出本帧语义意图。</summary>
     public void Step()
     {
+        // 先推进跨帧 Cancel 缓冲有效期
         _output.Step();
+        // 再清空当帧意图列表，准备本步生产
         _output.BeginFrame();
         if (_profile == null || _input == null)
             return;
 
+        // 每个稳定按钮依次处理按下 / 长按阈值 / 松开
         for (int i = 0; i < _buttons.Length; i++)
             ProduceForButton(_buttons[i]);
     }

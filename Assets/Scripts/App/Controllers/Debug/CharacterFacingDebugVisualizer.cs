@@ -48,6 +48,7 @@ public sealed class CharacterFacingDebugVisualizer : AppControllerBase
             return;
         }
 
+        // 无绑定或尚无表现 Pose：藏掉箭头，避免停在上一帧脚底
         if (_target == null || !_target.HasFacingDebugPose)
         {
             SetRootActive(false);
@@ -57,8 +58,10 @@ public sealed class CharacterFacingDebugVisualizer : AppControllerBase
         EnsureRoot();
         SetRootActive(true);
 
+        // 脚底用插值位，避免逻辑帧阶梯抖箭头
         Vector3 feet = ResolveFeetWorld(_target);
 
+        // 黄箭：本 Tick 的 wish（水平）
         Vector3 wish = _target.FacingDebugWishWorld;
         wish.y = 0f;
         if (wish.sqrMagnitude > 0.0001f)
@@ -71,6 +74,7 @@ public sealed class CharacterFacingDebugVisualizer : AppControllerBase
             _wishArrow.SetVisible(false);
         }
 
+        // 品红箭：模型朝向（水平）
         Vector3 modelFwd = _target.FacingDebugModelForward;
         modelFwd.y = 0f;
         if (modelFwd.sqrMagnitude > 0.0001f)

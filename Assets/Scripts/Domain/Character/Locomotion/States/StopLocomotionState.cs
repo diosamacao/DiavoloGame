@@ -32,12 +32,14 @@ public sealed class StopLocomotionState : LocomotionPhaseState
     /// <summary>有输入 → Start；播完 → Idle。</summary>
     public override void Tick(float deltaTime)
     {
+        // 任意时刻有输入：取消急停回起步
         if (Context.HasMeaningfulMove(Context.FrameSnapshot))
         {
             Context.RequestPhase(LocomotionPhase.Start, force: true);
             return;
         }
 
+        // 急停 Clip 播完回 Idle
         if (Context.IsCurrentPhaseClipFinished())
             Context.RequestPhase(LocomotionPhase.Idle, force: true);
     }
@@ -54,6 +56,7 @@ public sealed class StopLocomotionState : LocomotionPhaseState
             LocomotionRotationMode.Hold,
             LocomotionGait.Walk);
 
+        // 有烘焙轨吃查表位移；否则锁朝向原地
         if (Context.RootMotionPlayer.IsActive)
             Context.ApplyBakedRootMotion(LocomotionPhase.Stop, deltaTime);
         else

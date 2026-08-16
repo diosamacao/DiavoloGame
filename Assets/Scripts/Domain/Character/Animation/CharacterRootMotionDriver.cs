@@ -77,11 +77,13 @@ sealed class CharacterRootMotionReceiver : MonoBehaviour
         if (!_active || _motor == null || _animator == null)
             return;
 
+        // 只取水平 delta，竖直由 Motor 重力管
         Vector3 delta = _animator.deltaPosition;
         delta.y = 0f;
         // 逻辑步长未知于此回调；速度估算用 0 跳过
         _motor.MovePlanar(delta, 0f);
 
+        // 烘焙 yaw 写入 Motor，避免 Animator 把模型根转走
         if (_animator.deltaRotation != Quaternion.identity)
         {
             float yaw = _animator.deltaRotation.eulerAngles.y;
@@ -90,6 +92,7 @@ sealed class CharacterRootMotionReceiver : MonoBehaviour
             _motor.ApplyYawDegrees(yaw);
         }
 
+        // 吃完 delta 后把 Animator 局部 Pose 掰回绑定初值
         ResetLocalPose();
     }
 
