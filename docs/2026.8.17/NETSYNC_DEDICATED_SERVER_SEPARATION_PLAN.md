@@ -4,6 +4,7 @@
 > 角色：**NetSync Dedicated Server 分离实施真源**（基于通用网络核心 / ACT 业务层分离方案）  
 > 代码基线：`NetSync@3f695f93865a29f92a09fedfe60788a620900419`  
 > 相关：  
+> - 总开发排期：[`NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](./NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)（GF4 后启动 Dedicated 主路径；DS6 关闭 DS-Demo）  
 > - 通用层 / 业务层分离：[`NETSYNC_GENERIC_CORE_GAMEPLAY_SEPARATION_PLAN.md`](./NETSYNC_GENERIC_CORE_GAMEPLAY_SEPARATION_PLAN.md)  
 > - 当前架构分析：[`NETSYNC_ARCHITECTURE_ANALYSIS_AND_FRAMEWORK_COMPARISON.md`](./NETSYNC_ARCHITECTURE_ANALYSIS_AND_FRAMEWORK_COMPARISON.md)  
 > - 当前实现真源：`docs/2026.8.15/NETWORK_SYNC.md`  
@@ -1712,15 +1713,13 @@ Build Server
 ## 23. 推荐开工顺序
 
 ```text
-GF0 / GF1 / GF2
+GF0 + DS0 审计
   ↓
-DS0 审计
+GF1 / GF2 / GF3 / GF4               ★ 网络层分离完成
   ↓
 DS1 Bootstrap
   ↓
 DS2 无 Host 玩家 Session
-  ↓
-GF3 / GF4
   ↓
 DS3 Headless Authority
   ↓
@@ -1730,14 +1729,18 @@ DS5 Match + Replication
   ↓
 DS6 Dedicated Build               ★ DS-Demo
   ↓
+ListenServer 组合收敛
+  ↓
 GF5 / GF6
   ↓
 DS7 Public Net / Security / Reconnect
   ↓
-GF7
+GF7 / GF8
   ↓
 DS8 Operations / Container / Load ★ DS-Full
 ```
+
+> 总排期以 [`NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](./NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) 为准。DS0 仅做只读审计；Dedicated 运行时实现从 GF4 出口关闭后开始。
 
 最小可证明切片：
 

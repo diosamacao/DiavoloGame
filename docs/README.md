@@ -1,6 +1,6 @@
 # ACTGame 文档索引
 
-> 更新：2026-08-17 — 网络同步自学问答第 0～6 部分已收束。
+> 更新：2026-08-17 — 新增网络层分离 + Dedicated Server 总开发计划。
 > **一页总览先读：** [PROJECT_CHECKLIST.md](./PROJECT_CHECKLIST.md)  
 > **排期真源：** [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md)  
 > **架构运行时：** `.cursor/skills/actgame-architecture/`（ARCHITECTURE / TECHNICAL / ROADMAP）
@@ -22,6 +22,9 @@
 | [2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md](./2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md) | **Camera C1 前置**：MoveReferenceYaw 输入闭包、唯一 SelectedTarget 权威与纯表现 CameraLock |
 | [2026.8.15/NETWORK_SYNC.md](./2026.8.15/NETWORK_SYNC.md) | **网络同步实现说明（先读）**：三种座位、房间协议、上下行、预测纠偏、命中复制；以代码为准 |
 | [2026.8.16/NETWORK_SYNC_STUDY_QA.md](./2026.8.16/NETWORK_SYNC_STUDY_QA.md) | **自学问答备忘（第 0～6 已收束）**：含框架分层与数据流图；不是实现真源 |
+| [2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md](./2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) | **网络重构总排期真源**：W0～W4 分离通用网络层，W5～W8 交付 DS-Demo，W9～W12 完成 Listen 收敛、公网、规模与运维 |
+| [2026.8.17/NETSYNC_GENERIC_CORE_GAMEPLAY_SEPARATION_PLAN.md](./2026.8.17/NETSYNC_GENERIC_CORE_GAMEPLAY_SEPARATION_PLAN.md) | **通用网络核心 / ACT 业务层分离设计真源**：GF0～GF8 |
+| [2026.8.17/NETSYNC_DEDICATED_SERVER_SEPARATION_PLAN.md](./2026.8.17/NETSYNC_DEDICATED_SERVER_SEPARATION_PLAN.md) | **Dedicated Server 分离设计真源**：DS0～DS8 |
 | [DemoServer `docs/ARCHITECTURE.md`](../../DemoServer/docs/ARCHITECTURE.md) | **DemoClient / DemoServer 对照**：独立 C# 大厅服 + 客户端上报坐标/伤害；学 Handler 壳，不学战斗权威 |
 | [2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md](./2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md) | **组队 PVE 联网设计真源（NS0～NS5 已关闭）**：Host 权威、房间、命中、§13 服务器规范 |
 | [2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md](./2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md) | **客机装配真源**：同一 `CharacterActor` + `ReplicationSeat`；CA2 花名册代码已落地 |
