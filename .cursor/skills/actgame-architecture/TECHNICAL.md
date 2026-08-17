@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-17（NetSync W2 Transport + Session 分离）
+> Last updated: 2026-08-17（NetSync W3 Replication Runtime 基础）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -1259,6 +1259,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-17 | NetSync W1：新增零依赖 `ACTNet.Core` 身份/版本/结果/Metrics/有界小端 Buffer；Room/Replication Codec 切换 Core 并删除重复私有 Reader/Writer |
 | 2026-08-17 | NetSync W2 Transport：新增 `ACTNet.Transport`、多连接 Loopback 与 ConnectionId UDP；Host/Client 单轨切换 `INetTransport`，删除方向固化旧接口与实现 |
 | 2026-08-17 | NetSync W2 Session：新增 `ACTNet.Session`、连接/玩家注册表、Join/Heartbeat/Kick 状态机与 FakeGame 三连接测试；Composition Root 注入 Session，删除 Room 控制 DTO、握手 switch 与 IdleTracker |
+| 2026-08-17 | NetSync W3 Runtime 基础：新增纯 C# `ACTNet.Replication`，提供 Version 1 Frame Codec、Schema Registry、Server full-set 生命周期差分、Client 原子应用与 Sequence 丢旧；尚未切换 Character 生产路径 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

@@ -903,26 +903,26 @@ Assets/Tests/PlayMode/Networking/
 
 **验收**
 
-- [ ] Session 测试不引用 Character、Action、Combat。  
-- [ ] FakeGame 可以 Join、Heartbeat、Kick，不创建任何 Unity 对象。  
-- [ ] Host 可区分两条 Loopback connection。  
-- [ ] 当前双人 UDP 入房行为不变。  
+- [x] Session 测试不引用 Character、Action、Combat。（2026-08-17：Test Runner 验收）
+- [x] FakeGame 可以 Join、Heartbeat、Kick，不创建任何 Unity 对象。（2026-08-17：Test Runner 验收）
+- [x] Host 可区分三条 Loopback connection。（2026-08-17：Test Runner 验收）
+- [x] 当前双人 UDP 入房行为不变。（2026-08-17：双进程 Play 验收）
 
-**出口：** 房间连接与 ACT Gameplay 解耦。→ **代码完成，待 Session Test Runner 与双进程 UDP 验收**
+**出口：** 房间连接与 ACT Gameplay 解耦。→ **已达成（2026-08-17）**
 
 ### GF3 — Replication Runtime 与实体生命周期
 
 **任务**
 
-- [ ] 创建 `ReplicatedEntityRegistry`。  
-- [ ] 定义 `ReplicationFrame` / `EntityRecord` / `SpawnRecord` / `DespawnRecord`。  
-- [ ] 定义 `IReplicationSchema` 与 Schema Registry。  
+- [x] 创建 `ReplicatedEntityRegistry`。（纯 C# Runtime 代码完成，待 Test Runner）
+- [x] 定义 `ReplicationFrame` / `EntityRecord` / `SpawnRecord` / `DespawnRecord`。
+- [x] 定义 `IReplicationSchema` 与 Schema Registry。
 - [ ] 首版注册一个 `CharacterSnapshotSchemaV1`，内部仍编码完整旧 Snapshot。  
 - [ ] Host 通过 `ReplicationServer` 对每连接生成 Frame。  
 - [ ] Client 通过 `ReplicationClient` 应用 Frame。  
 - [ ] `Spawns/Despawns` 成为生命周期真源；Periodic full list 仅作诊断或恢复。  
 - [ ] 加入 `NetArchetypeId`，禁止客机始终取 `_enemyConfigs[0]`。  
-- [ ] 增加旧 Tick / 旧 Sequence 丢弃。  
+- [x] 增加旧 Sequence 丢弃。（Runtime 测试已写，生产切换待后续切片）
 - [ ] **删除** `ApplyRemoteActors` 里“本 Tick 未见即销毁”的生命周期主逻辑。  
 
 **验收**
