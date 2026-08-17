@@ -212,9 +212,10 @@ W5 起额外要求：
 - [x] 建 `ReplicatedEntityRegistry`、`ReplicationServer`、`ReplicationClient`。（纯 C# Runtime 代码完成，待 Test Runner）
 - [x] 定义 `ReplicationFrame`、`EntityRecord`、`SpawnRecord`、`DespawnRecord`。
 - [x] 定义 `IReplicationSchema` 与 Schema Registry。
-- [ ] 注册 `CharacterSnapshotSchemaV1`，首版正文保持旧 Snapshot 语义。
+- [x] 实现 `CharacterSnapshotSchemaV1`，首版正文复用 `ActorReplicationSnapshotCodec` 保持旧 Snapshot 语义。（代码完成，待 Test Runner；生产注册后续）
 - [ ] `Spawn/Despawn` 成为生命周期真源。
-- [ ] 引入 `NetArchetypeId`，删除客户端 `_enemyConfigs[0]` 模型回退主路径。
+- [x] 建立稳定 Character Archetype Catalog：调用方 stableKey 经 FNV-1a 映射 `NetArchetypeId`，拒绝重复键与哈希碰撞。（代码完成，待 Test Runner）
+- [ ] 将 `NetArchetypeId` 接入生产 Spawn/Proxy，删除客户端 `_enemyConfigs[0]` 模型回退主路径。
 - [ ] 每连接构造 Frame；即使首版内容相同，也禁止全局 ACK。
 - [x] 旧 Sequence 不得覆盖新状态。（Runtime 测试已写，生产切换待后续切片）
 - [ ] 删除 `ApplyRemoteActors` 中“本 Tick 未见即销毁”的生命周期主逻辑。

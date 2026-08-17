@@ -10,7 +10,6 @@ public static class ReplicationCodec
     const int MaxActorsPerTick = 1024;
     const int MaxHitsPerTick = 1024;
     const int MaxLifecycleIdsPerTick = 1024;
-    const int MaxGraphNodeIdBytes = 256;
 
     /// <summary>编码上行命令。</summary>
     public static byte[] WriteClientCommand(in ClientCommand command)
@@ -46,7 +45,7 @@ public static class ReplicationCodec
         writer.WriteInt64(tick.AuthorityFrame);
         writer.WriteInt32(tick.Actors.Length);
         for (int i = 0; i < tick.Actors.Length; i++)
-            WriteSnapshot(writer, tick.Actors[i]);
+            ActorReplicationSnapshotCodec.WriteFields(writer, in tick.Actors[i]);
 
         writer.WriteInt32(tick.Hits.Length);
         for (int i = 0; i < tick.Hits.Length; i++)
@@ -66,7 +65,7 @@ public static class ReplicationCodec
         int actorCount = reader.ReadLength(MaxActorsPerTick);
         var actors = new ActorReplicationSnapshot[actorCount];
         for (int i = 0; i < actorCount; i++)
-            actors[i] = ReadSnapshot(reader);
+            actors[i] = ActorReplicationSnapshotCodec.ReadFields(reader);
 
         int hitCount = reader.ReadLength(MaxHitsPerTick);
         var hits = new ReplicatedHitEvent[hitCount];
@@ -112,59 +111,6 @@ public static class ReplicationCodec
         ulong released = reader.ReadUInt64();
         ushort yaw = reader.ReadUInt16();
         return new InputFrame(frame, actorId, moveX, moveY, pressed, held, released, yaw);
-    }
-
-    /// <summary>编码一个 ACTGame Actor 快照，不向 Core 泄漏 Gameplay 类型。</summary>
-    static void WriteSnapshot(NetBufferWriter writer, in ActorReplicationSnapshot snapshot)
-    {
-        WriteActorId(writer, snapshot.ActorId);
-        writer.WriteInt32(snapshot.TeamId);
-        writer.WriteByte((byte)snapshot.Kind);
-        writer.WriteInt32(snapshot.PosXMm);
-        writer.WriteInt32(snapshot.PosZMm);
-        writer.WriteInt32(snapshot.PosYMm);
-        writer.WriteInt32(snapshot.FacingMilliDeg);
-        writer.WriteInt32(snapshot.MoveVxMm);
-        writer.WriteInt32(snapshot.MoveVzMm);
-        writer.WriteByte(snapshot.LocomotionPhase);
-        writer.WriteByte(snapshot.Gait);
-        writer.WriteByte(snapshot.Cardinal);
-        writer.WriteInt32(snapshot.ActionId);
-        writer.WriteString(snapshot.GraphNodeId, MaxGraphNodeIdBytes);
-        writer.WriteInt32(snapshot.ActionFrame);
-        writer.WriteInt32(snapshot.FreezeFrames);
-        WriteActorId(writer, snapshot.SelectedTargetId);
-        writer.WriteInt32(snapshot.HealthMilli);
-        writer.WriteInt32(snapshot.FlagsPacked);
-        writer.WriteByte((byte)snapshot.VitalityEdge);
-        writer.WriteUInt16(snapshot.LocomotionNormalizedMilli);
-    }
-
-    /// <summary>解码一个 ACTGame Actor 快照并校验可变长度字段。</summary>
-    static ActorReplicationSnapshot ReadSnapshot(NetBufferReader reader)
-    {
-        return new ActorReplicationSnapshot(
-            ReadActorId(reader),
-            reader.ReadInt32(),
-            (ReplicationActorKind)reader.ReadByte(),
-            reader.ReadInt32(),
-            reader.ReadInt32(),
-            reader.ReadInt32(),
-            reader.ReadInt32(),
-            reader.ReadInt32(),
-            reader.ReadInt32(),
-            reader.ReadByte(),
-            reader.ReadByte(),
-            reader.ReadByte(),
-            reader.ReadInt32(),
-            reader.ReadString(MaxGraphNodeIdBytes),
-            reader.ReadInt32(),
-            reader.ReadInt32(),
-            ReadActorId(reader),
-            reader.ReadInt32(),
-            reader.ReadInt32(),
-            (VitalityReplicationEdge)reader.ReadByte(),
-            reader.ReadUInt16());
     }
 
     /// <summary>编码权威命中事件及其稳定去重键。</summary>

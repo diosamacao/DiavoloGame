@@ -1,0 +1,24 @@
+{
+    "name": "ACTGame.Networking.EditModeTests",
+    "rootNamespace": "",
+    "references": [
+        "ACTGame.Networking",
+        "ACTGame.Simulation",
+        "ACTNet.Core",
+        "ACTNet.Replication"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

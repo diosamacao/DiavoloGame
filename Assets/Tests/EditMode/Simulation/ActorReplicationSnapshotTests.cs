@@ -58,6 +58,46 @@ public sealed class ActorReplicationSnapshotTests
         Assert.That(restored.Hits[0].DirXMm, Is.EqualTo(1000));
     }
 
+    /// <summary>独立 Snapshot Codec 往返保留布局，并把无效 Actor Id 保持为 Invalid。</summary>
+    [Test]
+    public void SnapshotCodec_StandaloneRoundTrip_PreservesAllFields()
+    {
+        var snapshot = new ActorReplicationSnapshot(
+            SimActorId.Invalid,
+            teamId: 3,
+            ReplicationActorKind.Player,
+            posXMm: -100,
+            posZMm: 200,
+            posYMm: 300,
+            facingMilliDeg: 45000,
+            moveVxMm: -600,
+            moveVzMm: 700,
+            locomotionPhase: 2,
+            gait: 1,
+            cardinal: 5,
+            actionId: 12,
+            graphNodeId: "Graph/Node",
+            actionFrame: 9,
+            freezeFrames: 4,
+            selectedTargetId: SimActorId.Invalid,
+            healthMilli: 99000,
+            flagsPacked: 17,
+            VitalityReplicationEdge.Hit,
+            locomotionNormalizedMilli: 1337);
+
+        byte[] payload = ActorReplicationSnapshotCodec.Encode(in snapshot);
+        // ActorId 线值改为 -1，确认提取后仍保持既有“任意非正值均为 Invalid”语义。
+        payload[0] = 0xFF;
+        payload[1] = 0xFF;
+        payload[2] = 0xFF;
+        payload[3] = 0xFF;
+        ActorReplicationSnapshot restored = ActorReplicationSnapshotCodec.Decode(payload);
+
+        Assert.That(restored.Equals(snapshot), Is.True);
+        Assert.That(restored.ActorId, Is.EqualTo(SimActorId.Invalid));
+        Assert.That(restored.SelectedTargetId, Is.EqualTo(SimActorId.Invalid));
+    }
+
     /// <summary>default 快照字段安全：无动作、无目标、无边沿。</summary>
     [Test]
     public void DefaultSnapshot_IsSafe()
