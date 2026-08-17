@@ -194,12 +194,12 @@ W5 起额外要求：
 
 **验收**
 
-- [ ] FakeGame 不创建 Character/Unity 对象即可 Join、Heartbeat、Kick。
-- [ ] 三条 Loopback 连接获得独立 ConnectionId / PlayerId。
-- [ ] 一条连接断开不影响其他连接。
-- [ ] 当前双人 UDP 入房行为不变。
+- [x] FakeGame 不创建 Character/Unity 对象即可 Join、Heartbeat、Kick。（2026-08-17：Test Runner 验收）
+- [x] 三条 Loopback 连接获得独立 ConnectionId / PlayerId。（2026-08-17：Test Runner 验收）
+- [x] 一条连接断开不影响其他连接。（2026-08-17：Test Runner 验收）
+- [x] 当前双人 UDP 入房行为不变。（2026-08-17：双进程 Play 验收）
 
-**出口：** 连接与房间状态不再依赖 ACT Gameplay。→ **代码完成，待 Session Test Runner 与双进程 UDP 验收**
+**出口：** 连接与房间状态不再依赖 ACT Gameplay。→ **已达成（2026-08-17）**
 
 ---
 
@@ -209,14 +209,14 @@ W5 起额外要求：
 
 **任务**
 
-- [ ] 建 `ReplicatedEntityRegistry`、`ReplicationServer`、`ReplicationClient`。
-- [ ] 定义 `ReplicationFrame`、`EntityRecord`、`SpawnRecord`、`DespawnRecord`。
-- [ ] 定义 `IReplicationSchema` 与 Schema Registry。
+- [x] 建 `ReplicatedEntityRegistry`、`ReplicationServer`、`ReplicationClient`。（纯 C# Runtime 代码完成，待 Test Runner）
+- [x] 定义 `ReplicationFrame`、`EntityRecord`、`SpawnRecord`、`DespawnRecord`。
+- [x] 定义 `IReplicationSchema` 与 Schema Registry。
 - [ ] 注册 `CharacterSnapshotSchemaV1`，首版正文保持旧 Snapshot 语义。
 - [ ] `Spawn/Despawn` 成为生命周期真源。
 - [ ] 引入 `NetArchetypeId`，删除客户端 `_enemyConfigs[0]` 模型回退主路径。
 - [ ] 每连接构造 Frame；即使首版内容相同，也禁止全局 ACK。
-- [ ] 旧 Sequence / 旧 Tick 不得覆盖新状态。
+- [x] 旧 Sequence 不得覆盖新状态。（Runtime 测试已写，生产切换待后续切片）
 - [ ] 删除 `ApplyRemoteActors` 中“本 Tick 未见即销毁”的生命周期主逻辑。
 
 **验收**

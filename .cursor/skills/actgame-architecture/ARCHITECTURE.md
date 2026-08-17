@@ -36,7 +36,8 @@ Assets/
 │   ├── Framework/ACTNet/
 │   │   ├── Core/              # 稳定网络身份、版本、结果、Metrics 与有界小端 Buffer（纯 C#）
 │   │   ├── Transport/         # INetTransport + 多连接 Loopback / UDP Adapter（纯 C#）
-│   │   └── Session/           # Join、注册表、Heartbeat、Kick 与应用消息路由（纯 C#）
+│   │   ├── Session/           # Join、注册表、Heartbeat、Kick 与应用消息路由（纯 C#）
+│   │   └── Replication/       # Frame、Schema、实体生命周期与 Sequence 门禁（纯 C#）
 │   ├── App/
 │   │   ├── Architecture/      # QFramework 风格强类型 Architecture / 能力接口 / 基类
 │   │   ├── Controllers/       # Player / Enemy / Camera / Combat / SimulationHost Unity 入口
@@ -96,6 +97,7 @@ flowchart TB
 | `ACTNet.Core` | 零依赖纯 C# 网络基础：稳定 Id/Tick/Sequence、协议/内容版本、结果、Metrics 与有界小端 Reader/Writer |
 | `ACTNet.Transport` | 只依赖 Core：按 `NetConnectionId` 定向收发；统一 Server/Client 启动、Poll、Disconnect 与 Metrics |
 | `ACTNet.Session` | 只依赖 Core/Transport：多连接 Join、Player 分配、Heartbeat/RTT、超时/Kick 与已鉴权应用消息透传 |
+| `ACTNet.Replication` | 只依赖 Core：显式 Spawn/Update/Despawn、Schema Registry、Frame Codec、Server full-set 差分与 Client Sequence 丢旧 |
 | `IRenderFrameSampler` | 可选渲染帧输入汇聚契约，避免高 FPS 无逻辑 Step 时丢 Pressed/Released |
 | `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
 | `CharacterPresentationBridge` | 保留前后权威 Pose，只移动运行时模型锚点，不回写模拟根 |

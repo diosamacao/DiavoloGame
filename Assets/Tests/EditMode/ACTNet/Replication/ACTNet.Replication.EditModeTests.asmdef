@@ -1,0 +1,22 @@
+{
+    "name": "ACTNet.Replication.EditModeTests",
+    "rootNamespace": "",
+    "references": [
+        "ACTNet.Core",
+        "ACTNet.Replication"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

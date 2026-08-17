@@ -212,6 +212,7 @@ Domain/Net/                      # ACTGame 身份/内容 Adapter；不得重新�
 Framework/ACTNet/Core/           # 零依赖 Id / Tick / Version / Result / Metrics / 有界小端 Buffer
 Framework/ACTNet/Transport/      # INetTransport / LoopbackTransport / UdpTransport；只引用 Core
 Framework/ACTNet/Session/        # ServerSession / ClientSession / Registry / SessionCodec；纯 C#
+Framework/ACTNet/Replication/    # Frame / Schema / Entity Registry / Server / Client；只引用 Core
 Infrastructure/Net/              # 预留 Unity Transport；不得被 ACTGame.Simulation 引用
 App/Controllers/Gameplay/        # ReplicationRoomHost / Client / RemotePlayerSeat
 ```
