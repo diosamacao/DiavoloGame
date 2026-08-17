@@ -61,6 +61,37 @@ public sealed class ReplicationRuntimeTests
         Assert.That(client.Registry.TryGet(new NetEntityId(2), out _), Is.True);
     }
 
+    /// <summary>整张中间 Update 帧丢失后，后续较新帧仍应更新实体且不能推断 Despawn。</summary>
+    [Test]
+    public void ApplyFrame_DroppedMiddleFrame_AppliesNewestWithoutDespawn()
+    {
+        ReplicationClient client = CreateClient();
+        var server = new ReplicationServer();
+        byte latestPayload = 0;
+        client.Spawned += record => latestPayload = record.Payload[0];
+        client.Updated += record => latestPayload = record.Payload[0];
+
+        ReplicationFrame spawn = RoundTrip(server.BuildFrame(
+            new NetTick(1),
+            new[] { State(1, 10, 1) },
+            Array.Empty<byte>()));
+        ReplicationFrame dropped = server.BuildFrame(
+            new NetTick(2),
+            new[] { State(1, 10, 2) },
+            Array.Empty<byte>());
+        ReplicationFrame newest = RoundTrip(server.BuildFrame(
+            new NetTick(3),
+            new[] { State(1, 10, 3) },
+            Array.Empty<byte>()));
+
+        Assert.That(client.ApplyFrame(spawn).Status, Is.EqualTo(ReplicationClientApplyStatus.Applied));
+        Assert.That(dropped.Updates, Has.Length.EqualTo(1));
+        Assert.That(client.ApplyFrame(newest).Status, Is.EqualTo(ReplicationClientApplyStatus.Applied));
+        Assert.That(latestPayload, Is.EqualTo(3));
+        Assert.That(client.Registry.Count, Is.EqualTo(1));
+        Assert.That(newest.Despawns, Is.Empty);
+    }
+
     /// <summary>旧或重复 Sequence 必须整帧丢弃，不能触发记录事件覆盖新状态。</summary>
     [Test]
     public void ApplyFrame_StaleSequence_DoesNotOverwriteNewState()
@@ -68,22 +99,22 @@ public sealed class ReplicationRuntimeTests
         ReplicationClient client = CreateClient();
         byte latestPayload = 0;
         client.Updated += record => latestPayload = record.Payload[0];
-        client.ApplyFrame(Frame(5, new[] { Spawn(1, 10, 1) }));
-        client.ApplyFrame(new ReplicationFrame(
+        client.ApplyFrame(RoundTrip(Frame(5, new[] { Spawn(1, 10, 1) })));
+        client.ApplyFrame(RoundTrip(new ReplicationFrame(
             new NetTick(6),
             new NetSequence(6),
             Array.Empty<SpawnRecord>(),
             new[] { new EntityRecord(new NetEntityId(1), 1, new byte[] { 9 }) },
             Array.Empty<DespawnRecord>(),
-            Array.Empty<byte>()));
+            Array.Empty<byte>())));
 
-        ReplicationClientApplyResult stale = client.ApplyFrame(new ReplicationFrame(
+        ReplicationClientApplyResult stale = client.ApplyFrame(RoundTrip(new ReplicationFrame(
             new NetTick(4),
             new NetSequence(4),
             Array.Empty<SpawnRecord>(),
             new[] { new EntityRecord(new NetEntityId(1), 1, new byte[] { 3 }) },
             Array.Empty<DespawnRecord>(),
-            Array.Empty<byte>()));
+            Array.Empty<byte>())));
 
         Assert.That(stale.Status, Is.EqualTo(ReplicationClientApplyStatus.StaleSequence));
         Assert.That(latestPayload, Is.EqualTo(9));
@@ -95,14 +126,20 @@ public sealed class ReplicationRuntimeTests
     public void ApplyFrame_TwoArchetypes_RemainDistinct()
     {
         ReplicationClient client = CreateClient();
-        client.ApplyFrame(Frame(
-            1,
+        var server = new ReplicationServer();
+        ReplicationFrame frame = RoundTrip(server.BuildFrame(
+            new NetTick(1),
             new[]
             {
-                Spawn(1, 100, 1),
-                Spawn(2, 200, 1),
-            }));
+                State(1, 100, 1),
+                State(2, 200, 1),
+            },
+            Array.Empty<byte>()));
 
+        ReplicationClientApplyResult result = client.ApplyFrame(frame);
+
+        Assert.That(result.Status, Is.EqualTo(ReplicationClientApplyStatus.Applied));
+        Assert.That(result.Spawns, Has.Length.EqualTo(2));
         Assert.That(
             client.Registry.TryGet(new NetEntityId(1), out ReplicatedEntityMetadata first),
             Is.True);
@@ -193,6 +230,10 @@ public sealed class ReplicationRuntimeTests
             Array.Empty<EntityRecord>(),
             Array.Empty<DespawnRecord>(),
             Array.Empty<byte>());
+
+    // 强制经过真实 V1 线格式，避免 Runtime 测试只覆盖内存对象。
+    static ReplicationFrame RoundTrip(ReplicationFrame frame) =>
+        ReplicationFrameCodec.Decode(ReplicationFrameCodec.Encode(frame));
 
     /// <summary>测试用严格单字节 Schema，用于证明后续业务 Schema 可接入同一接口。</summary>
     sealed class OneByteSchema : IReplicationSchema
