@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 /// <summary>场景级战斗世界入口：Listen Host / Client 房间与固定帧宿主。</summary>
@@ -120,18 +121,77 @@ public class CombatWorldController : AppControllerBase
     /// <summary>按角色挂 Host 或 Client；单机也是 Listen Host，不走旧旁路。</summary>
     void EnsureRoomController()
     {
+        SessionConfig sessionConfig = CreateSessionConfig();
         if (IsAuthority)
         {
             ReplicationRoomHost host = GetComponent<ReplicationRoomHost>();
             if (host == null)
                 host = gameObject.AddComponent<ReplicationRoomHost>();
-            host.Configure(this);
+            host.Configure(this, TryCreateServerSession(sessionConfig));
             return;
         }
 
         ReplicationRoomClient client = GetComponent<ReplicationRoomClient>();
         if (client == null)
             client = gameObject.AddComponent<ReplicationRoomClient>();
-        client.Configure(this);
+        client.Configure(this, TryCreateClientSession(sessionConfig));
+    }
+
+    /// <summary>把场景配置转换为纯 C# Session 参数；远端容量不再由 Room 常量控制。</summary>
+    SessionConfig CreateSessionConfig() => new(
+        new NetworkProtocolVersion(ReplicationRoomProtocol.ProtocolVersion),
+        contentVersion,
+        maxRemotePlayers: 1,
+        idleTimeoutMs: ReplicationRoomProtocol.IdleTimeoutMs,
+        heartbeatIntervalMs: ReplicationRoomProtocol.HeartbeatIntervalMs);
+
+    /// <summary>Composition Root 创建具体 UDP 服务端并处理绑定失败。</summary>
+    ServerSession TryCreateServerSession(SessionConfig config)
+    {
+        var transport = new UdpTransport();
+        try
+        {
+            var session = new ServerSession(
+                transport,
+                config,
+                new NetEndpoint("0.0.0.0", listenPort, allowEphemeralPort: true));
+            Debug.Log($"CombatWorldController: 监听 UDP {session.LocalEndpoint}。", this);
+            return session;
+        }
+        catch (Exception ex)
+        {
+            transport.Dispose();
+            Debug.LogError(
+                $"CombatWorldController: 绑定端口 {listenPort} 失败，房间不可加入。{ex.Message}",
+                this);
+            return null;
+        }
+    }
+
+    /// <summary>Composition Root 创建具体 UDP 客户端并立即发起 Session Join。</summary>
+    ClientSession TryCreateClientSession(SessionConfig config)
+    {
+        var transport = new UdpTransport();
+        ClientSession session = null;
+        try
+        {
+            session = new ClientSession(transport, config);
+            session.Start(
+                new NetEndpoint(joinHost, listenPort),
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+            Debug.Log($"CombatWorldController: 已请求加入 {joinHost}:{listenPort}。", this);
+            return session;
+        }
+        catch (Exception ex)
+        {
+            if (session != null)
+                session.Dispose();
+            else
+                transport.Dispose();
+            Debug.LogError(
+                $"CombatWorldController: 连接 {joinHost}:{listenPort} 失败。{ex.Message}",
+                this);
+            return null;
+        }
     }
 }

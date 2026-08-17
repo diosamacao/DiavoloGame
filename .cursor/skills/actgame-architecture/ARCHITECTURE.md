@@ -35,7 +35,8 @@ Assets/
 │   │   └── Net/               # ACTGame 网络身份 Adapter（ACTGame.Net）
 │   ├── Framework/ACTNet/
 │   │   ├── Core/              # 稳定网络身份、版本、结果、Metrics 与有界小端 Buffer（纯 C#）
-│   │   └── Transport/         # INetTransport + 多连接 Loopback / UDP Adapter（纯 C#）
+│   │   ├── Transport/         # INetTransport + 多连接 Loopback / UDP Adapter（纯 C#）
+│   │   └── Session/           # Join、注册表、Heartbeat、Kick 与应用消息路由（纯 C#）
 │   ├── App/
 │   │   ├── Architecture/      # QFramework 风格强类型 Architecture / 能力接口 / 基类
 │   │   ├── Controllers/       # Player / Enemy / Camera / Combat / SimulationHost Unity 入口
@@ -94,6 +95,7 @@ flowchart TB
 | `ActionSim` | `ACTGame.Simulation` 内无 Unity 依赖的 60Hz 动作核：帧推进、Cancel、Graph 衔接、命中确认与 Snapshot/Event |
 | `ACTNet.Core` | 零依赖纯 C# 网络基础：稳定 Id/Tick/Sequence、协议/内容版本、结果、Metrics 与有界小端 Reader/Writer |
 | `ACTNet.Transport` | 只依赖 Core：按 `NetConnectionId` 定向收发；统一 Server/Client 启动、Poll、Disconnect 与 Metrics |
+| `ACTNet.Session` | 只依赖 Core/Transport：多连接 Join、Player 分配、Heartbeat/RTT、超时/Kick 与已鉴权应用消息透传 |
 | `IRenderFrameSampler` | 可选渲染帧输入汇聚契约，避免高 FPS 无逻辑 Step 时丢 Pressed/Released |
 | `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
 | `CharacterPresentationBridge` | 保留前后权威 Pose，只移动运行时模型锚点，不回写模拟根 |
@@ -237,7 +239,8 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 |----|------|
 | `ActorReplicationSnapshot` / `AuthorityTick` / `ClientCommand` | 无 Unity 上下行契约；Tick 按 SimActorId 排序 |
 | `ReplicationSnapshotBuilder` / `ReplicationCodec` / `ReplicationPoseApplier` | Motor+Action+数值 → 快照；复用 `ACTNet.Core.NetBufferReader/Writer` 小端往返；位姿写回 MotorSim |
-| `RoomCodec` / `RoomIdleTracker` / `RoomRemoteInputMerge` | 房间信封复用 Core 有界 Buffer（Golden Bytes 布局不变）；空闲 10s 剔除；未应用 Hint 边沿合并 |
+| `SessionCodec` / `ServerSession` / `ClientSession` | Session 信封与控制消息唯一真源；每连接注册、版本/容量校验、心跳、超时和 Kick |
+| `RoomCodec` / `RoomRemoteInputMerge` | 只编码 ACT Command/Tick 应用正文；未应用 Hint 边沿合并，不再处理 Session 控制流 |
 | `SimActorNetIdAdapter` | 在 ACTGame 边界显式映射 `SimActorId ↔ NetEntityId`；首版数值相同 |
 | `INetTransport` / `LoopbackTransport` / `UdpTransport` | 通用多连接字节传输；Loopback 一服多客；UDP 以本地 `NetConnectionId` 映射远端端点 |
 | `ActionReplicationCatalog` / `CharacterReplicationCapture` | 资产名稳定 Id（含 VariantResolver 变体）；从权威 Actor 填快照 |

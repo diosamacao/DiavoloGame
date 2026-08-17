@@ -3,8 +3,8 @@ using NUnit.Framework;
 using UnityEngine;
 
 /// <summary>
-/// W0 生产编排特征测试：冻结现有 Room/Simulation 方法内的关键调用顺序。
-/// W2 删除旧 Room 入口时应由新 Session/Replication 编排测试替换本测试。
+/// App 生产编排特征测试：冻结 Session 收包、Gameplay 消费与 Simulation 步进顺序。
+/// 纯 Session 状态转换由 ACTNet.Session.EditModeTests 覆盖。
 /// </summary>
 public sealed class ReplicationProductionOrderTests
 {
@@ -18,15 +18,14 @@ public sealed class ReplicationProductionOrderTests
         string roomUpdate = Slice(room, "    void Update()", "    void OnDisable()");
         AssertInOrder(
             roomUpdate,
-            "_transport.Poll();",
-            "DrainAuthorityInbox();",
-            "TryAcceptPendingJoins();",
-            "CheckGuestIdle();");
+            "_session.Poll(NowMs());",
+            "DrainPlayerRequests();",
+            "DrainApplicationMessages();");
 
         string applyCommands = Slice(
             room,
             "    void ApplyGuestCommands(ClientCommand[] commands)",
-            "    void CheckGuestIdle()");
+            "    void OnSessionDisconnected(SessionDisconnected disconnected)");
         AssertInOrder(
             applyCommands,
             "CurrentFrame + 1",
@@ -53,14 +52,14 @@ public sealed class ReplicationProductionOrderTests
         string afterStep = Slice(
             room,
             "    void OnAfterLogicStep(long authorityFrame)",
-            "    void TryBindTransport()");
+            "    void DrainPlayerRequests()");
         AssertInOrder(
             afterStep,
             "CaptureAuthorityActors();",
             "CopyHits();",
             "new AuthorityTick(",
             "RoomCodec.WriteAuthorityTickEnvelope(",
-            "_transport.Send(");
+            "_session.SendApplication(");
     }
 
     /// <summary>Client 必须先收权威并采样，再于逻辑步回调中先上行、后预测。</summary>
@@ -72,10 +71,11 @@ public sealed class ReplicationProductionOrderTests
         string update = Slice(client, "    void Update()", "    void LateUpdate()");
         AssertInOrder(
             update,
-            "_transport.Poll();",
-            "DrainClientInbox();",
-            "SampleRenderInput();",
-            "_hostIdle.IsTimedOut(");
+            "_session.Poll(NowMs());",
+            "SyncSessionState();",
+            "DrainApplicationMessages();",
+            "if (_joined && !_ended)",
+            "SampleRenderInput();");
 
         string authorityTick = Slice(
             client,
@@ -100,7 +100,7 @@ public sealed class ReplicationProductionOrderTests
             "_predictFrame++;",
             "_inputFrames.ResolveLocal(",
             "RememberCommand(in command);",
-            "_transport.Send(",
+            "_session.SendApplication(",
             "actor.Step(",
             "actor.ResolvePostCombat(",
             "_driver.RecordAutonomous(in input);");

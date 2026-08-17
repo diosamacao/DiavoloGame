@@ -185,12 +185,12 @@ W5 起额外要求：
 
 - [x] 以 `INetTransport` 替换方向固化的 `IReplicationTransport`。（2026-08-17：旧接口与两套旧实现已删除）
 - [x] 接口支持 `StartServer/StartClient/Poll/Send(connection, channel)/TryReceive/Disconnect`。
-- [ ] 建 `ServerSession`、`ClientSession`、`ConnectionRegistry`、`PlayerRegistry`。
-- [ ] Join / Accept / Reject / Heartbeat / Kick 从 Room 移到 Session。
-- [ ] 容量由 Session 配置，不再写死 `MaxPlayers=2`。
+- [x] 建 `ServerSession`、`ClientSession`、`ConnectionRegistry`、`PlayerRegistry`。
+- [x] Join / Accept / Reject / Heartbeat / Kick 从 Room 移到 Session。
+- [x] 容量由 Session 配置，不再写死 `MaxPlayers=2`。
 - [x] UDP Adapter 保持当前行为；本 Wave 不接可靠 UDP。（代码已单轨切换，待双进程 Play）
 - [x] `LoopbackTransport` 支持至少三条独立连接。（多连接测试已写，待 Test Runner）
-- [ ] 删除 Room 中 Endpoint 列表、握手 switch、固定 Guest 连接状态。
+- [x] 删除 Room 中 Endpoint、握手 switch、IdleTracker 与固定 Session Guest 状态。（Gameplay 单 Guest Actor 留待 W5）
 
 **验收**
 
@@ -199,7 +199,7 @@ W5 起额外要求：
 - [ ] 一条连接断开不影响其他连接。
 - [ ] 当前双人 UDP 入房行为不变。
 
-**出口：** 连接与房间状态不再依赖 ACT Gameplay。→ **Transport 切片完成；Session 迁移未达成**
+**出口：** 连接与房间状态不再依赖 ACT Gameplay。→ **代码完成，待 Session Test Runner 与双进程 UDP 验收**
 
 ---
 
