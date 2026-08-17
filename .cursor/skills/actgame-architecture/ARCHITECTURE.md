@@ -112,7 +112,7 @@ flowchart TB
 | `CharacterMotorSim` / `ISimCollisionWorld` | 水平+竖直毫米权威；静态 AABB 硬挡或空场地；重力/着地在 Sim |
 | `StaticCollisionBake` / `SimStaticCollisionWorld` | Editor 烘焙场景 Collider→XZ AABB；Host 共享给全体 Actor |
 | `SoftBodySeparation` / `ISimSoftBodyParticipant` | World 帧末角色圆盘软弹开；死亡不参与 |
-| 复制契约（NS1～NS5） | Snapshot/Tick/Codec + Loopback/UDP；`RemoteCharacterProxy` 跟状态；NS5 Listen Host 房间 |
+| 复制契约（NS1～NS5 / W3） | `ClientCommand` 上行；`ReplicationFrame` 下行显式生命周期与 Sequence 门禁；Loopback/UDP；`RemoteCharacterProxy` 跟状态 |
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只负责装配和注册，不再实现 Actor `Update` Tick。
 
@@ -241,10 +241,12 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 
 | 类 | 职责 |
 |----|------|
-| `ActorReplicationSnapshot` / `AuthorityTick` / `ClientCommand` | 无 Unity 上下行契约；Tick 按 SimActorId 排序 |
-| `ReplicationSnapshotBuilder` / `ReplicationCodec` / `ReplicationPoseApplier` | Motor+Action+数值 → 快照；复用 `ACTNet.Core.NetBufferReader/Writer` 小端往返；位姿写回 MotorSim |
+| `ActorReplicationSnapshot` / `ClientCommand` | 无 Unity业务状态与上行命令契约；旧 `AuthorityTick` 已删除 |
+| `ReplicationServer` / `ReplicationFrameCodec` / `ReplicationClient` | Host full set 生成显式 Spawn/Update/Despawn；Client 原子应用并丢弃旧 Sequence |
+| `ActorReplicationSnapshotCodec` / `CharacterSnapshotSchemaV1` / `ReplicationPoseApplier` | Snapshot 字段唯一布局 → Schema payload；客户端解码后写回 MotorSim |
+| `ActReplicationApplicationPayloadCodec` | 帧级 V1 载荷：本步 applied hint + 权威命中事件；Tick 由 ReplicationFrame 承载 |
 | `SessionCodec` / `ServerSession` / `ClientSession` | Session 信封与控制消息唯一真源；每连接注册、版本/容量校验、心跳、超时和 Kick |
-| `RoomCodec` / `RoomRemoteInputMerge` | 只编码 ACT Command/Tick 应用正文；未应用 Hint 边沿合并，不再处理 Session 控制流 |
+| `RoomCodec` / `RoomRemoteInputMerge` | 只编码 ACT 上行命令批；未应用 Hint 边沿合并，不处理 Session 或下行 Frame |
 | `SimActorNetIdAdapter` | 在 ACTGame 边界显式映射 `SimActorId ↔ NetEntityId`；首版数值相同 |
 | `INetTransport` / `LoopbackTransport` / `UdpTransport` | 通用多连接字节传输；Loopback 一服多客；UDP 以本地 `NetConnectionId` 映射远端端点 |
 | `ActionReplicationCatalog` / `CharacterReplicationCapture` | 资产名稳定 Id（含 VariantResolver 变体）；从权威 Actor 填快照 |
@@ -254,7 +256,7 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `PredictedActionAckQueue` | 出招预测 Ack；未起手/变体分叉/Hit 则 Stop；连招超前只 Ack |
 | `LocomotionSavedState` | 内层机 Capture/Restore；权威 FromAuthority |
 | `PredictedLocomotionDriver` | 走跑记账；超阈 Restore+Replay |
-| `ReplicationRoomHost` / `ReplicationRoomClient` / `RemotePlayerSeat` | 最小 2 人房间；单机=Listen Host。Host 不再生成同机 ±2m 预览体 |
+| `ReplicationRoomHost` / `ReplicationRoomClient` / `CharacterReplicationContentRegistry` | 最小 2 人房间；按稳定 Archetype 精确创建 Proxy，显式 Despawn；无默认敌种回退 |
 
 权威进程写法：同一份 `ACTGame.Simulation`，不另写服务器战斗。对照与禁区见 CONVENTIONS「服务器 / 权威进程」与方案 §13。实现级阅读入口：[`docs/2026.8.15/NETWORK_SYNC.md`](../../docs/2026.8.15/NETWORK_SYNC.md)。
 

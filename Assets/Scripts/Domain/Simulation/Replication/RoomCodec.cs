@@ -2,8 +2,7 @@ using System;
 using System.Collections.Generic;
 
 /// <summary>
-/// ACT 复制应用正文编解码；Session 信封与控制消息由 ACTNet.Session 独占。
-/// ClientCommand 正文为命令批，AuthorityTick 正文额外携带 appliedFrameHint。
+/// ACT 上行 ClientCommand 批编解码；下行由 ACTNet.ReplicationFrameCodec 独占。
 /// </summary>
 public static class RoomCodec
 {
@@ -63,28 +62,4 @@ public static class RoomCodec
         return writer.ToArray();
     }
 
-    /// <summary>
-    /// 包装权威 Tick：先写客机本步被采用的 FrameHint，再跟 ReplicationCodec Tick 字节。
-    /// appliedClientFrameHint=0 表示本步无新命令（CarryForward）。
-    /// </summary>
-    public static byte[] WriteAuthorityTickEnvelope(long appliedClientFrameHint, byte[] tickBytes)
-    {
-        tickBytes ??= Array.Empty<byte>();
-        var writer = new NetBufferWriter();
-        writer.WriteInt64(appliedClientFrameHint);
-        writer.WriteBytes(tickBytes, 0, tickBytes.Length);
-        return writer.ToArray();
-    }
-
-    /// <summary>拆出 appliedFrameHint 与 Tick 正文。</summary>
-    public static void ReadAuthorityTickEnvelope(
-        byte[] body,
-        out long appliedClientFrameHint,
-        out byte[] tickBytes)
-    {
-        var reader = new NetBufferReader(body);
-        appliedClientFrameHint = reader.ReadInt64();
-        tickBytes = reader.ReadBytes(reader.Remaining);
-        reader.EnsureComplete();
-    }
 }

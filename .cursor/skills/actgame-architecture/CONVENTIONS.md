@@ -44,7 +44,7 @@
 - **本机玩家入口**：玩法与相机通过 `LocalPlayerService` / `GetLocalPlayerQuery` / `GetPlayerRootsQuery` 取玩家；禁止 `FindObjectOfType<PlayerController>()`（仅 Editor Gizmo 可留）。Listen Host 的 `IsLocalPredicted` 恒为 false
 - **客机相机跟朝向**：`CameraManager.ApplyFollowFacingYaw` 必须读 `ILocalPlayer.HasMoveIntent` 与 `PresentationRoot`。客机有 Autonomous `CharacterActor`，`PresentationRoot` 来自 Actor。他人/敌人 `RemoteCharacterProxy` 只读登记 `TargetSystem`；`OnHit` 空操作，禁止 Collect
 - **朝向调试箭头**：`CharacterFacingDebugVisualizer` 只绑 `ICharacterFacingDebugTarget`（本机 Actor 或 RemoteProxy）；禁止再 Bind `PlayerController`。幽灵 wish 必须与对应 Tick 成对，禁止用当前帧本机输入画延迟模型
-- **复制契约**：当前上下行结构体与应用正文 Codec 仍在 `ACTGame.Simulation/Replication`，其中 `ActorReplicationSnapshotCodec` 是角色快照字段布局唯一真源；`ACTGame.Networking.CharacterSnapshotSchemaV1` 只做通用 Schema 适配，禁止复制字段读写。Session 信封、Join、Heartbeat、Kick 的唯一真源是 `ACTNet.Session`；禁止在 Room/App 恢复控制消息 switch 或 Endpoint/IdleTracker 状态。小端字节读写唯一复用 `ACTNet.Core.NetBufferReader/Writer`。稳定网络身份使用 `Net*Id`，`SimActorId ↔ NetEntityId` 只在 ACT Adapter 显式映射；Character Archetype 必须由明确 stableKey 经 Catalog 映射，禁止按注册顺序编号。传输唯一入口为 `ACTNet.Transport.INetTransport`，必须按 `NetConnectionId` 定向 `Send`；禁止恢复方向固化接口。禁止把 CameraLock/Look/Lean 写入 Snapshot；禁止 ClientCommand 带 HP/坐标/招式名。房间上行是最近 N 条命令批；Host 只合并未应用 Hint 的边沿。`appliedClientFrameHint` 仅本步真正灌入远端命令时非 0，CarryForward 必须下发 0。装配用 `ReplicationSeat`，禁止 `if (isClient)` 开第二套 Actor
+- **复制契约**：上行唯一为 `ClientCommand` 命令批；下行唯一为 `ACTNet.Replication.ReplicationFrame`。`ReplicationServer` 从权威 full set 生成显式 Spawn/Update/Despawn，`ReplicationClient` 原子应用并丢弃旧 Sequence；禁止恢复 `AuthorityTick` 全量数组、缺席即销毁或双轨 Codec。`ActorReplicationSnapshotCodec` 是角色快照字段布局唯一真源；`CharacterSnapshotSchemaV1` 只做 Schema 适配。`ActReplicationApplicationPayloadCodec` 只承载本步 applied hint 与命中事件，Tick 由 Frame 承载。Session 信封、Join、Heartbeat、Kick 的唯一真源是 `ACTNet.Session`；禁止在 Room/App 恢复控制消息 switch 或 Endpoint/IdleTracker 状态。稳定网络身份使用 `Net*Id`；Character Archetype 由明确 stableKey 经 Catalog 映射，未知 Id 必须失败，禁止默认取首个敌人配置。传输唯一入口为 `INetTransport`。禁止把 CameraLock/Look/Lean 写入 Snapshot；禁止 ClientCommand 带 HP/坐标/招式名。`appliedClientFrameHint` 仅本步真正灌入远端命令时非 0，CarryForward 必须下发 0。装配用 `ReplicationSeat`，禁止 `if (isClient)` 开第二套 Actor
 - **RemoteProxy**：他人/敌人幽灵只应用 Snapshot（`Domain/Character/Replication/`），禁止 `CharacterActorFactory`、`HitboxFrameConsumer`、`EnemyBrain.Step`。可按 ActionFrame 过点派发 VFX/SFX，禁止派发 Hitbox/MotionCommand。Host 用 `AfterLogicStep` 打包，不得只在渲染帧漏步发送。禁止再挂 Host 同机 ±2m 预览（`RemoteGhostViewController` / `PredictedClientPreviewController` 已删）
 - **幽灵 Locomotion（他人）**：切 `AnimationKey` 时一次性相位硬切并可 Seek；Idle↔走跑冲刺用 Profile 默认 CrossFade。同键只 `Tick`
 - **客机本机走跑**：真源 [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md)。本机 Autonomous `CharacterActor` 跑同一套 `LocomotionStateMachine`；纠偏 Restore+Replay；他人仍 Snapshot。禁止猜片 / 摇杆硬映射 Idle/Walk/Run。已废止 Runner/CreateAutonomous
@@ -181,7 +181,7 @@ public class MyBehaviour : MonoBehaviour
 
 | 管线 | 频率 | 载荷 | 写法 |
 |------|------|------|------|
-| **战斗流** | 逻辑帧 | `ClientCommand` ↔ `AuthorityTick` | `ReplicationAuthority` 收命令、Step、打包；无逐技能 Handler |
+| **战斗流** | 逻辑帧 | `ClientCommand` ↔ `ReplicationFrame` | Authority 收命令、Step、按连接构帧；无逐技能 Handler |
 | **元数据 RPC** | 点一次 | 登录、背包、领奖（NS5 后另开） | 可学 DemoServer `Req*_Handler` / `RpcHandler`；**禁止**改 HP、硬直、`ActionSim` |
 
 ### Handler 与房间（学 DemoServer 的壳，不学它的战斗权威）
@@ -189,7 +189,7 @@ public class MyBehaviour : MonoBehaviour
 - Handler 只做：Session → `playerId`、校验房间、把 `InputFrame` 入队或调用元数据 Service。示例对照：`DemoServer/ZZZServer/Handler/Account/ReqLogin_Handler.cs`（薄 Handler）
 - Handler **禁止**：`MotorSim.Step`、`ActionSim.Step`、`CombatHitPipeline.Collect`、写 HP、写世界坐标
 - 房间时钟 = `SimulationWorld.Step`（60Hz 整数帧），不是 `Room.Update(float dt)` 里手写怪 AI。AI 仍走权威端 `EnemyBrain`（`Assets/Scripts/Domain/Enemy/EnemyBrain.cs`）
-- 广播走 `AuthorityTick` 全员同一份；不要为攻击者单独发「你打中了」作为唯一血量通道。`hits[]` 只补边沿，HP 在 Snapshot 里
+- 下行走 `ReplicationFrame`；命中放帧级 ApplicationPayload，HP 在 Character Snapshot 里。不要为攻击者单独发「你打中了」作为唯一血量通道
 
 ### 线程与入队
 

@@ -22,19 +22,18 @@ public sealed class EnemySpawnController : AppControllerBase
         }
     }
 
-    /// <summary>收集本控制器条目里的角色配置，供客机预填复制目录与幽灵模型。</summary>
-    public void CollectCharacterConfigs(List<CharacterConfig> results)
+    /// <summary>收集本控制器条目里的敌人定义；同一对象只返回一次。</summary>
+    public void CollectDefinitions(List<EnemyDefinition> results)
     {
         if (results == null)
             return;
 
         for (int i = 0; i < entries.Length; i++)
         {
-            CharacterConfig config = entries[i].Definition != null
-                ? entries[i].Definition.CharacterConfig
-                : null;
-            if (config != null && !results.Contains(config))
-                results.Add(config);
+            EnemyDefinition definition = entries[i].Definition;
+            // Definition 是网络原型 stableKey 的资产真源，不能按 CharacterConfig 合并不同敌人。
+            if (definition != null && !results.Contains(definition))
+                results.Add(definition);
         }
     }
 

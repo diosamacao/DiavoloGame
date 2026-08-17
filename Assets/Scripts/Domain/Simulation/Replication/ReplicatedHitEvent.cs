@@ -38,7 +38,7 @@ public readonly struct ReplicatedHitEvent : IEquatable<ReplicatedHitEvent>
     /// <summary>稳定命中键。</summary>
     public SimHitKey Key { get; }
 
-    /// <summary>攻击者当时招式的 Catalog Id；0 表示客机需回退到同 Tick 快照。</summary>
+    /// <summary>攻击者当时招式的 Catalog Id；Host 在进入帧级应用载荷前补齐。</summary>
     public int ActionId { get; }
 
     /// <summary>受击 Cue 落点 X（毫米）。</summary>
@@ -56,7 +56,7 @@ public readonly struct ReplicatedHitEvent : IEquatable<ReplicatedHitEvent>
     /// <summary>水平命中方向 Z（毫米）。</summary>
     public int DirZMm { get; }
 
-    /// <summary>补写 Catalog ActionId，保留落点。Host 打包 Tick 时用攻击者当帧快照盖上。</summary>
+    /// <summary>补写 Catalog ActionId 并保留落点；Host 打包应用载荷时调用。</summary>
     public ReplicatedHitEvent WithActionId(int actionId) =>
         new(Frame, Key, actionId, HitXMm, HitYMm, HitZMm, DirXMm, DirZMm);
 

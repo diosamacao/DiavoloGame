@@ -11,13 +11,9 @@ public sealed class ProtocolGoldenBytesTests
         "0105010000003500000001080706050403020144332211181716151413121104030201FE7F"
         + "0807060504030201181716151413121128272625242322213412";
 
-    const string EmptyAuthorityTickGolden =
-        "01080706050403020100000000000000000000000000000000";
-
-    const string HitAuthorityTickGolden =
-        "01090000000000000000000000010000000900000000000000090000000000000001000000"
-        + "02000000030000000400000005000000FAFFFFFF07000000F8FFFFFFE803000018FCFFFF"
-        + "0000000000000000";
+    const string EmptyReplicationFrameGolden =
+        "0108070605040302011817161514131211"
+        + "00000000000000000000000000000000";
 
     /// <summary>JoinRequest 的房间版本、消息类型和两个版本号保持固定。</summary>
     [Test]
@@ -69,49 +65,24 @@ public sealed class ProtocolGoldenBytesTests
         Assert.That(restored[0].Equals(command), Is.True);
     }
 
-    /// <summary>无 Actor、Hit 与生命周期边沿的 AuthorityTick 头布局保持固定。</summary>
+    /// <summary>空 ReplicationFrame 的 Tick、Sequence、三区生命周期计数与应用长度保持固定。</summary>
     [Test]
-    public void EmptyAuthorityTick_GoldenBytes_FreezesTickHeader()
+    public void EmptyReplicationFrame_GoldenBytes_FreezesFrameHeader()
     {
-        var tick = new AuthorityTick(
-            0x0102030405060708,
-            Array.Empty<ActorReplicationSnapshot>());
-        byte[] expected = ParseHex(EmptyAuthorityTickGolden);
-
-        byte[] actual = ReplicationCodec.WriteAuthorityTick(tick);
+        var frame = new ReplicationFrame(
+            new NetTick(0x0102030405060708),
+            new NetSequence(0x1112131415161718),
+            Array.Empty<SpawnRecord>(),
+            Array.Empty<EntityRecord>(),
+            Array.Empty<DespawnRecord>(),
+            Array.Empty<byte>());
+        byte[] expected = ParseHex(EmptyReplicationFrameGolden);
+        byte[] actual = ReplicationFrameCodec.Encode(frame);
 
         Assert.That(actual, Is.EqualTo(expected));
-        Assert.That(ReplicationCodec.ReadAuthorityTick(expected).Equals(tick), Is.True);
-    }
-
-    /// <summary>命中键、ActionId、落点、方向及生命周期计数的字节顺序保持固定。</summary>
-    [Test]
-    public void HitAuthorityTick_GoldenBytes_FreezesHitLayout()
-    {
-        var hit = new ReplicatedHitEvent(
-            9,
-            new SimHitKey(
-                9,
-                new SimActorId(1),
-                2,
-                3,
-                new SimActorId(4)),
-            actionId: 5,
-            hitXMm: -6,
-            hitYMm: 7,
-            hitZMm: -8,
-            dirXMm: 1000,
-            dirZMm: -1000);
-        var tick = new AuthorityTick(
-            9,
-            Array.Empty<ActorReplicationSnapshot>(),
-            new[] { hit });
-        byte[] expected = ParseHex(HitAuthorityTickGolden);
-
-        byte[] actual = ReplicationCodec.WriteAuthorityTick(tick);
-
-        Assert.That(actual, Is.EqualTo(expected));
-        Assert.That(ReplicationCodec.ReadAuthorityTick(expected).Equals(tick), Is.True);
+        ReplicationFrame restored = ReplicationFrameCodec.Decode(expected);
+        Assert.That(restored.Tick, Is.EqualTo(frame.Tick));
+        Assert.That(restored.Sequence, Is.EqualTo(frame.Sequence));
     }
 
     /// <summary>把紧凑十六进制协议样本转为断言使用的固定字节数组。</summary>

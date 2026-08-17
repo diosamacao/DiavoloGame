@@ -57,9 +57,20 @@ public sealed class ReplicationProductionOrderTests
             afterStep,
             "CaptureAuthorityActors();",
             "CopyHits();",
-            "new AuthorityTick(",
-            "RoomCodec.WriteAuthorityTickEnvelope(",
+            "ActReplicationApplicationPayloadCodec.Encode(",
+            "_replicationServer.BuildFrame(",
+            "ReplicationFrameCodec.Encode(frame);",
             "_session.SendApplication(");
+
+        string spawnGuest = Slice(
+            room,
+            "    bool TrySpawnGuest(",
+            "    void ApplyGuestCommands(ClientCommand[] commands)");
+        AssertInOrder(
+            spawnGuest,
+            "_replicationServer = new ReplicationServer();",
+            "_guest = new GuestSeat(",
+            "_session.AcceptPlayer(");
     }
 
     /// <summary>Client 必须先收权威并采样，再于逻辑步回调中先上行、后预测。</summary>
@@ -77,19 +88,20 @@ public sealed class ReplicationProductionOrderTests
             "if (_joined && !_ended)",
             "SampleRenderInput();");
 
-        string authorityTick = Slice(
+        string replicationFrame = Slice(
             client,
-            "    void OnAuthorityTick(byte[] body)",
-            "    void ApplyRemoteActors(AuthorityTick tick)");
+            "    void OnReplicationFrame(byte[] body)",
+            "    void ApplySpawns(");
         AssertInOrder(
-            authorityTick,
-            "RoomCodec.ReadAuthorityTickEnvelope(",
-            "ReplicationCodec.ReadAuthorityTick(",
-            "ApplyRemoteActors(tick);",
-            "TryFindSelf(tick, out ActorReplicationSnapshot self)",
-            "_actionAck.Reconcile(",
-            "_driver.Reconcile(",
-            "PlayReplicatedHits(tick);");
+            replicationFrame,
+            "ReplicationFrameCodec.Decode(body);",
+            "_replicationClient.ApplyFrame(frame);",
+            "ActReplicationApplicationPayloadCodec.Decode(",
+            "ApplySpawns(",
+            "ApplyUpdates(",
+            "ApplyDespawns(",
+            "ApplyOwnerSnapshot(",
+            "PlayReplicatedHits(application.Hits);");
 
         string afterStep = Slice(
             client,

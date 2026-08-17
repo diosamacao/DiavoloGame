@@ -1,0 +1,122 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>把稳定角色网络原型与 Unity CharacterConfig、EnemyDefinition 内容精确绑定。</summary>
+public sealed class CharacterReplicationContentRegistry
+{
+    readonly CharacterArchetypeCatalog _catalog = new();
+    readonly Dictionary<CharacterConfig, NetArchetypeId> _players = new();
+    readonly Dictionary<EnemyDefinition, NetArchetypeId> _enemies = new();
+    readonly Dictionary<string, UnityEngine.Object> _ownersByKey =
+        new(StringComparer.Ordinal);
+    readonly Dictionary<NetArchetypeId, CharacterConfig> _configsById = new();
+    readonly Dictionary<NetArchetypeId, ReplicationActorKind> _kindsById = new();
+
+    /// <summary>登记玩家配置；stableKey 固定为 player/{CharacterConfig.name}。</summary>
+    public NetArchetypeId RegisterPlayer(CharacterConfig config)
+    {
+        if (config == null)
+            throw new ArgumentNullException(nameof(config));
+        if (_players.TryGetValue(config, out NetArchetypeId existing))
+            return existing;
+
+        string stableKey = BuildStableKey("player", config.name, nameof(config));
+        NetArchetypeId id = Register(
+            stableKey,
+            ReplicationActorKind.Player,
+            config,
+            config);
+        _players.Add(config, id);
+        return id;
+    }
+
+    /// <summary>登记敌人定义；stableKey 固定为 enemy/{EnemyDefinition.name}。</summary>
+    public NetArchetypeId RegisterEnemy(EnemyDefinition definition)
+    {
+        if (definition == null)
+            throw new ArgumentNullException(nameof(definition));
+        if (_enemies.TryGetValue(definition, out NetArchetypeId existing))
+            return existing;
+        if (definition.CharacterConfig == null)
+        {
+            throw new InvalidOperationException(
+                $"EnemyDefinition '{definition.name}' 未绑定 CharacterConfig。");
+        }
+
+        string stableKey = BuildStableKey("enemy", definition.name, nameof(definition));
+        NetArchetypeId id = Register(
+            stableKey,
+            ReplicationActorKind.Enemy,
+            definition,
+            definition.CharacterConfig);
+        _enemies.Add(definition, id);
+        return id;
+    }
+
+    /// <summary>按已登记玩家配置取得网络原型；未知配置明确失败。</summary>
+    public NetArchetypeId GetArchetypeId(CharacterConfig config)
+    {
+        if (config == null)
+            throw new ArgumentNullException(nameof(config));
+        if (!_players.TryGetValue(config, out NetArchetypeId id))
+            throw new KeyNotFoundException($"玩家配置 '{config.name}' 尚未登记。");
+        return id;
+    }
+
+    /// <summary>按已登记敌人定义取得网络原型；未知定义明确失败。</summary>
+    public NetArchetypeId GetArchetypeId(EnemyDefinition definition)
+    {
+        if (definition == null)
+            throw new ArgumentNullException(nameof(definition));
+        if (!_enemies.TryGetValue(definition, out NetArchetypeId id))
+            throw new KeyNotFoundException($"敌人定义 '{definition.name}' 尚未登记。");
+        return id;
+    }
+
+    /// <summary>按网络原型精确解析 CharacterConfig；未知 Id 不提供默认内容。</summary>
+    public CharacterConfig ResolveCharacterConfig(NetArchetypeId archetypeId)
+    {
+        if (!_configsById.TryGetValue(archetypeId, out CharacterConfig config))
+            throw new KeyNotFoundException($"角色网络原型 {archetypeId.Value} 未登记。");
+        return config;
+    }
+
+    /// <summary>按网络原型解析角色类别，供 Spawn 与 Snapshot 类别一致性校验。</summary>
+    public ReplicationActorKind ResolveKind(NetArchetypeId archetypeId)
+    {
+        if (!_kindsById.TryGetValue(archetypeId, out ReplicationActorKind kind))
+            throw new KeyNotFoundException($"角色网络原型 {archetypeId.Value} 未登记。");
+        return kind;
+    }
+
+    // 先锁定 key 所属 Unity 对象，再交给纯 C# Catalog 检测确定性哈希碰撞。
+    NetArchetypeId Register(
+        string stableKey,
+        ReplicationActorKind kind,
+        UnityEngine.Object owner,
+        CharacterConfig config)
+    {
+        if (_ownersByKey.TryGetValue(stableKey, out UnityEngine.Object existingOwner))
+        {
+            if (existingOwner == owner)
+                throw new InvalidOperationException($"角色原型 '{stableKey}' 的对象索引不一致。");
+            throw new InvalidOperationException(
+                $"角色原型 stableKey '{stableKey}' 已由另一资产 '{existingOwner.name}' 占用。");
+        }
+
+        CharacterArchetype archetype = _catalog.Register(stableKey, kind);
+        _ownersByKey.Add(stableKey, owner);
+        _configsById.Add(archetype.NetArchetypeId, config);
+        _kindsById.Add(archetype.NetArchetypeId, kind);
+        return archetype.NetArchetypeId;
+    }
+
+    static string BuildStableKey(string prefix, string assetName, string parameterName)
+    {
+        // 名称必须按 Unity 资产原值参与 Ordinal key；禁止 Trim 产生隐式别名。
+        if (string.IsNullOrEmpty(assetName))
+            throw new ArgumentException("角色内容资产 name 不能为空。", parameterName);
+        return $"{prefix}/{assetName}";
+    }
+}

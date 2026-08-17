@@ -1,36 +1,14 @@
 using System;
 using NUnit.Framework;
 
-/// <summary>ACT 复制命令批与 AuthorityTick 应用正文往返。</summary>
+/// <summary>ACT 上行复制命令批的往返与严格协议边界。</summary>
 public sealed class RoomCodecTests
 {
-    /// <summary>Tick 应用正文带着 appliedHint，外层 Session 类型保持 AuthorityTick。</summary>
+    /// <summary>下行 ReplicationFrame 继续占用既有 Session 应用消息数值 6。</summary>
     [Test]
-    public void AuthorityTickEnvelope_Roundtrip_PreservesHintAndTick()
+    public void ReplicationFrame_MessageKind_RemainsSix()
     {
-        var motor = new CharacterMotorSim(OpenFieldSimCollisionWorld.Instance, radiusMm: 280);
-        var idle = new ActionSimSnapshot(null, null, null, 0, 0, false, false, 0);
-        ActorReplicationSnapshot snapshot = ReplicationSnapshotBuilder.FromAuthority(
-            new SimActorId(1),
-            1,
-            ReplicationActorKind.Player,
-            motor,
-            in idle,
-            actionId: 0,
-            SimActorId.Invalid,
-            healthMilli: 100000,
-            flagsPacked: 0,
-            VitalityReplicationEdge.None);
-        var tick = new AuthorityTick(9, new[] { snapshot });
-        byte[] payload = SessionCodec.WriteEnvelope(
-            (byte)RoomMessageKind.AuthorityTick,
-            RoomCodec.WriteAuthorityTickEnvelope(15, ReplicationCodec.WriteAuthorityTick(tick)));
-
-        SessionCodec.ReadEnvelope(payload, out byte kind, out byte[] body);
-        Assert.That(kind, Is.EqualTo((byte)RoomMessageKind.AuthorityTick));
-        RoomCodec.ReadAuthorityTickEnvelope(body, out long hint, out byte[] tickBytes);
-        Assert.That(hint, Is.EqualTo(15));
-        Assert.That(ReplicationCodec.ReadAuthorityTick(tickBytes).AuthorityFrame, Is.EqualTo(9));
+        Assert.That((byte)RoomMessageKind.ReplicationFrame, Is.EqualTo(6));
     }
 
     /// <summary>命令批按原序往返，正文仍是 ReplicationCodec 单条命令。</summary>
@@ -54,21 +32,6 @@ public sealed class RoomCodecTests
         Assert.That(restored[0].Input.WasPressed(InputButton.Attack), Is.True);
         Assert.That(restored[1].FrameHint, Is.EqualTo(11));
         Assert.That(restored[1].Input.MoveX, Is.EqualTo((sbyte)20));
-    }
-
-    /// <summary>负 Actor count 必须在数组分配前被协议边界拒绝。</summary>
-    [Test]
-    public void AuthorityTick_NegativeActorCount_ThrowsProtocolError()
-    {
-        byte[] payload =
-        {
-            1,
-            0, 0, 0, 0, 0, 0, 0, 0,
-            0xFF, 0xFF, 0xFF, 0xFF,
-        };
-
-        Assert.Catch<InvalidOperationException>(
-            () => ReplicationCodec.ReadAuthorityTick(payload));
     }
 
     /// <summary>单条 ClientCommand 解码后必须拒绝额外尾随字节。</summary>

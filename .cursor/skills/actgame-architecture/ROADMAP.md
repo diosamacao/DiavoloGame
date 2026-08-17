@@ -112,7 +112,7 @@
 
 **客机装配：** [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md) — **CA0～CA2 代码已切（2026-08-15）**：同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。Play 待 Editor。纠偏合同仍见 [`UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
 
-**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W3 Character Schema / Archetype 待验收（2026-08-18）**：Replication Runtime 基础已验收；Snapshot 布局已收敛到唯一 Codec，纯 C# `ACTGame.Networking` 已提供 `CharacterSnapshotSchemaV1` 与 stableKey Archetype Catalog。下一出口是 Test Runner 通过后单轨切换 Host/Client 到显式生命周期并删除缺 Tick 即销毁与 `_enemyConfigs[0]` 主路径；Dedicated 仍须等 W4 出口。
+**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W3 生产切换待验收（2026-08-18）**：Host/Client 已单轨切到 `ReplicationFrame`、显式 Spawn/Update/Despawn、Sequence 丢旧与稳定 Archetype 内容绑定；旧 `AuthorityTick`、缺 Tick 即销毁和 `_enemyConfigs[0]` 回退已删除。下一出口是 Networking/Simulation/ProductionOrder Test Runner、多敌种与双进程 Play 验收；通过后关闭 W3 并进入 W4 Adapter。Dedicated 仍须等 W4 出口。
 
 ### [P1] Lockstep 模拟核迁移
 
