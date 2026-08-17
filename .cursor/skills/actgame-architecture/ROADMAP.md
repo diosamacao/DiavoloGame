@@ -112,7 +112,7 @@
 
 **客机装配：** [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md) — **CA0～CA2 代码已切（2026-08-15）**：同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。Play 待 Editor。纠偏合同仍见 [`UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
 
-**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W0 未开工**。先完成 W0～W4（GF0～GF4）通用网络层 / ACT Adapter 分离，再做 W5～W8 Dedicated Server LAN Demo；Listen 组合收敛、公网与规模能力后置。
+**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W0 进行中（2026-08-17）**：Golden Bytes 与 Unity ExecutionOrder 测试代码、双进程回归脚本、Host/Dedicated 依赖审计已建立；待 Test Runner、帧序生产编排测试、人工回归和指标基线。完成 W0～W4（GF0～GF4）分离后，再做 W5～W8 Dedicated Server LAN Demo。
 
 ### [P1] Lockstep 模拟核迁移
 

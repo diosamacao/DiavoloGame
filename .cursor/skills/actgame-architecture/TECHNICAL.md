@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-15（删除 Host 同机预览）
+> Last updated: 2026-08-17（NetSync W0 保护网与指标观测）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -411,7 +411,7 @@ Listen Host 创建一人房间并可接纳第二人；客机预测自己的位�
 | Client | 每渲染帧 `MergeLocalSample`；本机 `CharacterActor.Step`；他人 Proxy Seek |
 | 动作 Id | `ActionReplicationCatalog` 按资产名稳定哈希，两端 Prefill Graph 节点、`VariantResolver` 变体与反应 |
 | 掉线 | `RoomIdleTracker` 10s 无包剔除客机；Host 可继续 |
-| HUD | F3 增加 Room 行：角色 / 状态 / authorityFrame / RTT |
+| HUD | F3 Room 行：角色 / 状态 / authorityFrame / RTT；W0 基线追加完整 Tick/Command 字节、Proxy 数、预测 pending |
 
 ### 关键参数
 
@@ -1251,6 +1251,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-15 | 客机穿敌吸附/关碰撞窗与权威卡肉：纠偏只 Ack，禁止 2m 硬吸拉回 |
 | 2026-08-15 | 客机预测卡肉：`PredictedHitStopConsumer`；删除权威 Freeze 拖时钟 / FollowAuthorityAction |
 | 2026-08-15 | 删除 Host 同机预览：`RemoteGhostViewController` / `PredictedClientPreviewController` / `SetAutonomousPredictMode` |
+| 2026-08-17 | NetSync W0：新增 Codec Golden Bytes / Room 执行顺序测试；F3 HUD 增加 Tick/Command 字节、Proxy 与预测 pending 基线观测 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

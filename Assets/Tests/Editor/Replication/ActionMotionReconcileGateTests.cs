@@ -1,5 +1,5 @@
+using System.Reflection;
 using NUnit.Framework;
-using UnityEditor;
 using UnityEngine;
 
 /// <summary>穿敌吸附/关碰撞窗与权威卡肉时，客机纠偏不得硬吸位姿。</summary>
@@ -100,23 +100,36 @@ public sealed class ActionMotionReconcileGateTests
         }
     }
 
+    /// <summary>创建不经过资产 OnValidate 裁剪的时间轴窗口测试夹具。</summary>
     static ActionDefinition CreateActionWithModifier(
         MotionModifierMode mode,
         int startFrame,
         int endFrame)
     {
         ActionDefinition action = ScriptableObject.CreateInstance<ActionDefinition>();
-        SerializedObject serialized = new SerializedObject(action);
-        SerializedProperty modifiers = serialized
-            .FindProperty("timeline")
-            .FindPropertyRelative("motionModifierStates");
-        modifiers.arraySize = 1;
-        SerializedProperty element = modifiers.GetArrayElementAtIndex(0);
-        element.FindPropertyRelative("startFrame").intValue = startFrame;
-        element.FindPropertyRelative("endFrame").intValue = endFrame;
-        element.FindPropertyRelative("mode").enumValueIndex = (int)mode;
-        serialized.ApplyModifiedPropertiesWithoutUndo();
+        var modifier = new MotionModifierNotifyState();
+        SetField(typeof(ActionTimelineItem), modifier, "startFrame", startFrame);
+        SetField(typeof(ActionTimelineItem), modifier, "endFrame", endFrame);
+        SetField(typeof(MotionModifierNotifyState), modifier, "mode", mode);
+        SetField(
+            typeof(ActionTimeline),
+            action.Timeline,
+            "motionModifierStates",
+            new[] { modifier });
         return action;
+    }
+
+    /// <summary>
+    /// 直接构造 Gate 所需的纯时间轴夹具，避免无动画测试 Action 的 OnValidate
+    /// 把所有窗口裁剪到第 0 帧。
+    /// </summary>
+    static void SetField<T>(System.Type ownerType, object target, string fieldName, T value)
+    {
+        FieldInfo field = ownerType.GetField(
+            fieldName,
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.That(field, Is.Not.Null, $"测试夹具字段不存在：{ownerType.Name}.{fieldName}");
+        field.SetValue(target, value);
     }
 
     static ActorReplicationSnapshot CreateSnapshot(int actionId, int actionFrame, int freezeFrames) =>

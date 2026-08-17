@@ -1325,11 +1325,11 @@ Release Server 禁止输出敏感 token 和完整用户输入历史。
 **任务**
 
 - [ ] 依赖 GF0 的 Codec Golden Bytes 与双进程回归。  
-- [ ] 列出所有 Host 本地玩家假设：Query、PlayerId、HostActorId、Spawn、Config、HUD。  
-- [ ] 列出 Authority Actor 对 Presentation / Unity Object 的依赖。  
+- [x] 列出所有 Host 本地玩家假设：Query、PlayerId、HostActorId、Spawn、Config、HUD。（2026-08-17：见 W0 审计 §4.1）
+- [x] 列出 Authority Actor 对 Presentation / Unity Object 的依赖。（2026-08-17：见 W0 审计 §4.2）
 - [ ] 记录单人 Listen Host 与双人当前基准。  
-- [ ] 创建 Server Dependency Guard 测试清单。  
-- [ ] 定案 DS-Demo：一场一进程、2～4 玩家、无重连。
+- [x] 创建 Server Dependency Guard 测试清单。（2026-08-17：见 W0 审计 §4.4）
+- [x] 定案 DS-Demo：一场一进程、2～4 玩家、无重连。
 
 **验收**
 

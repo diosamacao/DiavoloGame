@@ -130,15 +130,15 @@ W5 起额外要求：
 
 **任务**
 
-- [ ] 为 `RoomCodec`、`ReplicationCodec` 建 Golden Bytes 测试。
-- [ ] 固定 Join、CommandBatch、AuthorityTick、Hit 的往返字节。
+- [x] 为 `RoomCodec`、`ReplicationCodec` 建 Golden Bytes 测试。（2026-08-17：`ProtocolGoldenBytesTests`，待 Test Runner）
+- [x] 固定 Join、CommandBatch、AuthorityTick、Hit 的往返字节。（2026-08-17）
 - [ ] 用测试固定 Host 一格顺序：Receive → Set Input → World.Step → Hit Resolve → Capture → Send。
-- [ ] 用测试固定 Client 一格顺序：Receive Tick → Reconcile → Sample → Predict → Send。
-- [ ] 建双进程人工回归脚本：移动、急停、折返、攻击、连招、闪避、受击、死亡、CameraLock、断线。
+- [ ] 用测试固定 Client 一格顺序：Receive Tick → Reconcile → Sample → Send → Predict。（按当前生产代码冻结；Send 在 Autonomous `Actor.Step` 前）
+- [x] 建双进程人工回归脚本：移动、急停、折返、攻击、连招、闪避、受击、死亡、CameraLock、断线。（2026-08-17：待 Editor 执行）
 - [ ] 记录 Tick bytes、GC alloc、Proxy 数、pending command、RTT 基线。
-- [ ] 列出 `ReplicationRoomHost` 中所有 Host LocalPlayer、固定 Guest、HostRoot Spawn 假设。
-- [ ] 列出 Authority Actor 对 Animator、Playable、Model、VFX/SFX、Transform 的依赖。
-- [ ] 定案 DS-Demo：一场一进程、2～4 玩家、LAN、无重连。
+- [x] 列出 `ReplicationRoomHost` 中所有 Host LocalPlayer、固定 Guest、HostRoot Spawn 假设。（2026-08-17：见 W0 审计）
+- [x] 列出 Authority Actor 对 Animator、Playable、Model、VFX/SFX、Transform 的依赖。（2026-08-17：见 W0 审计）
+- [x] 定案 DS-Demo：一场一进程、2～4 玩家、LAN、无重连。
 - [ ] 禁止修改协议布局、阈值和玩法语义。
 
 **验收**

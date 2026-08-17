@@ -23,6 +23,7 @@
 | [2026.8.15/NETWORK_SYNC.md](./2026.8.15/NETWORK_SYNC.md) | **网络同步实现说明（先读）**：三种座位、房间协议、上下行、预测纠偏、命中复制；以代码为准 |
 | [2026.8.16/NETWORK_SYNC_STUDY_QA.md](./2026.8.16/NETWORK_SYNC_STUDY_QA.md) | **自学问答备忘（第 0～6 已收束）**：含框架分层与数据流图；不是实现真源 |
 | [2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md](./2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) | **网络重构总排期真源**：W0～W4 分离通用网络层，W5～W8 交付 DS-Demo，W9～W12 完成 Listen 收敛、公网、规模与运维 |
+| [2026.8.17/NETSYNC_W0_BASELINE_AND_DEPENDENCY_AUDIT.md](./2026.8.17/NETSYNC_W0_BASELINE_AND_DEPENDENCY_AUDIT.md) | **W0 执行记录**：Golden Bytes、Host/Client 帧序、Dedicated 阻塞依赖、指标与双进程回归 |
 | [2026.8.17/NETSYNC_GENERIC_CORE_GAMEPLAY_SEPARATION_PLAN.md](./2026.8.17/NETSYNC_GENERIC_CORE_GAMEPLAY_SEPARATION_PLAN.md) | **通用网络核心 / ACT 业务层分离设计真源**：GF0～GF8 |
 | [2026.8.17/NETSYNC_DEDICATED_SERVER_SEPARATION_PLAN.md](./2026.8.17/NETSYNC_DEDICATED_SERVER_SEPARATION_PLAN.md) | **Dedicated Server 分离设计真源**：DS0～DS8 |
 | [DemoServer `docs/ARCHITECTURE.md`](../../DemoServer/docs/ARCHITECTURE.md) | **DemoClient / DemoServer 对照**：独立 C# 大厅服 + 客户端上报坐标/伤害；学 Handler 壳，不学战斗权威 |
