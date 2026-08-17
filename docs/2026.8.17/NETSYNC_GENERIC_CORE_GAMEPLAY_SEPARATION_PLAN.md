@@ -917,11 +917,12 @@ Assets/Tests/PlayMode/Networking/
 - [x] 创建 `ReplicatedEntityRegistry`。（纯 C# Runtime 代码完成，待 Test Runner）
 - [x] 定义 `ReplicationFrame` / `EntityRecord` / `SpawnRecord` / `DespawnRecord`。
 - [x] 定义 `IReplicationSchema` 与 Schema Registry。
-- [ ] 首版注册一个 `CharacterSnapshotSchemaV1`，内部仍编码完整旧 Snapshot。  
+- [x] 实现 `CharacterSnapshotSchemaV1`，内部复用 `ActorReplicationSnapshotCodec` 编码完整旧 Snapshot。（代码完成，待 Test Runner；生产注册后续）
 - [ ] Host 通过 `ReplicationServer` 对每连接生成 Frame。  
 - [ ] Client 通过 `ReplicationClient` 应用 Frame。  
 - [ ] `Spawns/Despawns` 成为生命周期真源；Periodic full list 仅作诊断或恢复。  
-- [ ] 加入 `NetArchetypeId`，禁止客机始终取 `_enemyConfigs[0]`。  
+- [x] 建立 stableKey → `NetArchetypeId` 的 Character Archetype Catalog，并拒绝重复键与哈希碰撞。（代码完成，待 Test Runner）
+- [ ] 将 `NetArchetypeId` 接入生产 Spawn/Proxy，禁止客机始终取 `_enemyConfigs[0]`。
 - [x] 增加旧 Sequence 丢弃。（Runtime 测试已写，生产切换待后续切片）
 - [ ] **删除** `ApplyRemoteActors` 里“本 Tick 未见即销毁”的生命周期主逻辑。  
 

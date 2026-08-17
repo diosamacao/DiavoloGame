@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-17（ACTNet.Core 与 Codec 基础迁移）
+> Last audited: 2026-08-18（W3 Character Schema 与 Archetype Catalog）
 
 ## 项目概述
 
@@ -32,7 +32,8 @@ Assets/
 │   │   │   └── Targeting/     # 索敌
 │   │   ├── Input/             # 原始帧、意图与输入中枢
 │   │   ├── Simulation/        # 固定帧核 + Replication + Prediction（无 Unity）
-│   │   └── Net/               # ACTGame 网络身份 Adapter（ACTGame.Net）
+│   │   ├── Net/               # ACTGame 网络身份 Adapter（ACTGame.Net）
+│   │   └── Networking/        # Character Schema 与稳定 Archetype Catalog（纯 C#）
 │   ├── Framework/ACTNet/
 │   │   ├── Core/              # 稳定网络身份、版本、结果、Metrics 与有界小端 Buffer（纯 C#）
 │   │   ├── Transport/         # INetTransport + 多连接 Loopback / UDP Adapter（纯 C#）
@@ -98,6 +99,7 @@ flowchart TB
 | `ACTNet.Transport` | 只依赖 Core：按 `NetConnectionId` 定向收发；统一 Server/Client 启动、Poll、Disconnect 与 Metrics |
 | `ACTNet.Session` | 只依赖 Core/Transport：多连接 Join、Player 分配、Heartbeat/RTT、超时/Kick 与已鉴权应用消息透传 |
 | `ACTNet.Replication` | 只依赖 Core：显式 Spawn/Update/Despawn、Schema Registry、Frame Codec、Server full-set 差分与 Client Sequence 丢旧 |
+| `ACTGame.Networking` | 依赖 Simulation 与 ACTNet Core/Replication：`CharacterSnapshotSchemaV1`、稳定 Character Archetype 映射；不含 Unity 资产引用 |
 | `IRenderFrameSampler` | 可选渲染帧输入汇聚契约，避免高 FPS 无逻辑 Step 时丢 Pressed/Released |
 | `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
 | `CharacterPresentationBridge` | 保留前后权威 Pose，只移动运行时模型锚点，不回写模拟根 |

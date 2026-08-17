@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-17（NetSync W3 Replication Runtime 基础）
+> Last updated: 2026-08-18（NetSync W3 Character Schema 与 Archetype）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -211,7 +211,8 @@ EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
 | 下行 | `ActorReplicationSnapshot` + `AuthorityTick`（按 SimActorId 排序） |
 | 上行 | `ClientCommand`（frameHint + playerId + `InputFrame`） |
 | 组装 | `ReplicationSnapshotBuilder.FromAuthority`（Motor + Action 快照 + 传入 healthMilli） |
-| 字节 | `ReplicationCodec` / `RoomCodec` 复用 `ACTNet.Core.NetBufferReader/Writer`；小端与 Golden Bytes 不改；负 count、字段/载荷超限和尾随字节拒绝 |
+| 字节 | `ActorReplicationSnapshotCodec` 是 Snapshot 字段布局唯一真源；`ReplicationCodec` / `RoomCodec` 组合复用它与 `ACTNet.Core.NetBufferReader/Writer`，保持 Golden Bytes |
+| W3 业务适配 | `CharacterSnapshotSchemaV1` 把 Snapshot 正文接入通用 Schema Registry；`CharacterArchetypeCatalog` 将 stableKey 顺序无关映射为 `NetArchetypeId` |
 | 通用身份 | `NetConnectionId` / `NetPlayerId` / `NetEntityId` / `NetArchetypeId`；`SimActorNetIdAdapter` 显式映射 Simulation Actor |
 | 版本基础 | `NetworkProtocolVersion` + 128 位 `ContentFingerprint` 已定义；握手切换留在 Content Manifest Wave |
 | 传输 | `INetTransport` / `LoopbackTransport` / `UdpTransport`（`ACTNet.Transport`，按 ConnectionId 定向） |
@@ -236,6 +237,7 @@ Builder.FromAuthority → AuthorityTick → Codec.Write
 ### 相关文件
 
 - `Assets/Scripts/Domain/Simulation/Replication/*`
+- `Assets/Scripts/Domain/Networking/*`
 - `Assets/Scripts/Framework/ACTNet/Core/*`
 - `Assets/Scripts/Domain/Net/Identity/SimActorNetIdAdapter.cs`
 - `Assets/Scripts/Framework/ACTNet/Transport/*`
@@ -1260,6 +1262,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-17 | NetSync W2 Transport：新增 `ACTNet.Transport`、多连接 Loopback 与 ConnectionId UDP；Host/Client 单轨切换 `INetTransport`，删除方向固化旧接口与实现 |
 | 2026-08-17 | NetSync W2 Session：新增 `ACTNet.Session`、连接/玩家注册表、Join/Heartbeat/Kick 状态机与 FakeGame 三连接测试；Composition Root 注入 Session，删除 Room 控制 DTO、握手 switch 与 IdleTracker |
 | 2026-08-17 | NetSync W3 Runtime 基础：新增纯 C# `ACTNet.Replication`，提供 Version 1 Frame Codec、Schema Registry、Server full-set 生命周期差分、Client 原子应用与 Sequence 丢旧；尚未切换 Character 生产路径 |
+| 2026-08-18 | NetSync W3 Character Adapter：Snapshot 字段布局收敛为 `ActorReplicationSnapshotCodec`；新增纯 C# `ACTGame.Networking`、`CharacterSnapshotSchemaV1` 与 stableKey Archetype Catalog；尚未切换 Host/Client |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

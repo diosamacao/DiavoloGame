@@ -112,7 +112,7 @@
 
 **客机装配：** [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md) — **CA0～CA2 代码已切（2026-08-15）**：同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。Play 待 Editor。纠偏合同仍见 [`UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
 
-**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W3 Runtime 基础待验收（2026-08-17）**：纯 C# `ACTNet.Replication` 已实现 Frame/Codec、Schema Registry、Server full-set 差分、Client 原子生命周期与 Sequence 丢旧，FakeEntity 测试已写。通过 Test Runner 后接 `CharacterSnapshotSchemaV1`、Archetype Catalog 并单轨切换 Host/Client；Dedicated 仍须等 W4 出口。
+**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W3 Character Schema / Archetype 待验收（2026-08-18）**：Replication Runtime 基础已验收；Snapshot 布局已收敛到唯一 Codec，纯 C# `ACTGame.Networking` 已提供 `CharacterSnapshotSchemaV1` 与 stableKey Archetype Catalog。下一出口是 Test Runner 通过后单轨切换 Host/Client 到显式生命周期并删除缺 Tick 即销毁与 `_enemyConfigs[0]` 主路径；Dedicated 仍须等 W4 出口。
 
 ### [P1] Lockstep 模拟核迁移
 
