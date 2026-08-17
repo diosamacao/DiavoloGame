@@ -1,63 +1,9 @@
 using System.Reflection;
 using NUnit.Framework;
 
-/// <summary>复制快照往返、缺字段默认、排序与表现字段隔离。</summary>
+/// <summary>复制快照独立往返、缺字段默认与表现字段隔离。</summary>
 public sealed class ActorReplicationSnapshotTests
 {
-    /// <summary>编解码后全部复制字段相等。</summary>
-    [Test]
-    public void Codec_RoundTrip_PreservesSnapshotAndTick()
-    {
-        var snapshot = new ActorReplicationSnapshot(
-            new SimActorId(3),
-            teamId: 2,
-            ReplicationActorKind.Enemy,
-            posXMm: 1500,
-            posZMm: -400,
-            posYMm: 0,
-            facingMilliDeg: 90000,
-            moveVxMm: 1200,
-            moveVzMm: 0,
-            locomotionPhase: 1,
-            gait: 2,
-            cardinal: 3,
-            actionId: 17,
-            graphNodeId: "Node_Light1",
-            actionFrame: 8,
-            freezeFrames: 2,
-            selectedTargetId: new SimActorId(1),
-            healthMilli: 85000,
-            flagsPacked: 4,
-            VitalityReplicationEdge.Hit,
-            locomotionNormalizedMilli: 750);
-
-        var hit = new ReplicatedHitEvent(
-            12,
-            new SimHitKey(12, new SimActorId(1), 5, 0, new SimActorId(3)),
-            actionId: 17,
-            hitXMm: 1100,
-            hitYMm: 900,
-            hitZMm: -200,
-            dirXMm: 1000,
-            dirZMm: 0);
-        var tick = new AuthorityTick(
-            12,
-            new[] { snapshot },
-            new[] { hit },
-            new[] { new SimActorId(3) },
-            System.Array.Empty<SimActorId>());
-
-        AuthorityTick restored = ReplicationCodec.ReadAuthorityTick(
-            ReplicationCodec.WriteAuthorityTick(tick));
-
-        Assert.That(restored.Equals(tick), Is.True);
-        Assert.That(restored.Actors[0].Equals(snapshot), Is.True);
-        Assert.That(restored.Hits[0].ActionId, Is.EqualTo(17));
-        Assert.That(restored.Hits[0].HitXMm, Is.EqualTo(1100));
-        Assert.That(restored.Hits[0].HitYMm, Is.EqualTo(900));
-        Assert.That(restored.Hits[0].DirXMm, Is.EqualTo(1000));
-    }
-
     /// <summary>独立 Snapshot Codec 往返保留布局，并把无效 Actor Id 保持为 Invalid。</summary>
     [Test]
     public void SnapshotCodec_StandaloneRoundTrip_PreservesAllFields()
@@ -141,20 +87,6 @@ public sealed class ActorReplicationSnapshotTests
         Assert.That(snapshot.LocomotionNormalizedMilli, Is.Zero);
     }
 
-    /// <summary>Tick 构造按 SimActorId 升序排列 actors。</summary>
-    [Test]
-    public void AuthorityTick_SortsActorsBySimActorId()
-    {
-        ActorReplicationSnapshot a = MinimalSnapshot(new SimActorId(4));
-        ActorReplicationSnapshot b = MinimalSnapshot(new SimActorId(1));
-        ActorReplicationSnapshot c = MinimalSnapshot(new SimActorId(2));
-        var tick = new AuthorityTick(0, new[] { a, b, c });
-
-        Assert.That(tick.Actors[0].ActorId.Value, Is.EqualTo(1));
-        Assert.That(tick.Actors[1].ActorId.Value, Is.EqualTo(2));
-        Assert.That(tick.Actors[2].ActorId.Value, Is.EqualTo(4));
-    }
-
     /// <summary>快照类型不得包含本地表现字段。</summary>
     [Test]
     public void SnapshotType_HasNoPresentationFields()
@@ -190,26 +122,4 @@ public sealed class ActorReplicationSnapshotTests
         Assert.That(typeof(ClientCommand).GetProperty("PosXMm"), Is.Null);
     }
 
-    static ActorReplicationSnapshot MinimalSnapshot(SimActorId id) =>
-        new(
-            id,
-            1,
-            ReplicationActorKind.Player,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            string.Empty,
-            0,
-            0,
-            SimActorId.Invalid,
-            0,
-            0,
-            VitalityReplicationEdge.None);
 }

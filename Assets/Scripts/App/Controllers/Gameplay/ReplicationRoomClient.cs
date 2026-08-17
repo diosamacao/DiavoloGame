@@ -14,6 +14,10 @@ public sealed class ReplicationRoomClient : AppControllerBase
     CombatWorldController _world;
     ClientSession _session;
     ActionReplicationCatalog _catalog;
+    ReplicationSchemaRegistry _schemaRegistry;
+    ReplicationClient _replicationClient;
+    CharacterSnapshotSchemaV1 _characterSchema;
+    CharacterReplicationContentRegistry _content;
     PlayerController _localPlayer;
     PredictedLocomotionDriver _driver;
     readonly PredictedActionAckQueue _actionAck = new();
@@ -33,9 +37,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
     readonly HashSet<SimHitKey> _playedHits = new();
     readonly List<SimHitKey> _playedHitOrder = new();
     readonly Dictionary<int, RemoteCharacterProxy> _proxies = new();
-    readonly HashSet<int> _seenIds = new();
-    readonly List<int> _staleIds = new();
-    readonly List<CharacterConfig> _enemyConfigs = new();
+    readonly List<EnemyDefinition> _enemyDefinitions = new();
     readonly List<RemoteCharacterProxy> _softBlockers = new();
     SimVec2[] _softBlockerPosMm = Array.Empty<SimVec2>();
     int[] _softBlockerRadiiMm = Array.Empty<int>();
@@ -57,7 +59,11 @@ public sealed class ReplicationRoomClient : AppControllerBase
     void Start()
     {
         _catalog = new ActionReplicationCatalog();
-        CollectEnemyConfigs();
+        _characterSchema = new CharacterSnapshotSchemaV1();
+        _schemaRegistry = new ReplicationSchemaRegistry();
+        _schemaRegistry.Register(_characterSchema);
+        _replicationClient = new ReplicationClient(_schemaRegistry);
+        _content = new CharacterReplicationContentRegistry();
         PrepareContentCatalog();
         RefreshHud("Connecting");
     }
@@ -97,6 +103,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
     {
         UnsubscribeHost();
         DisposeViews();
+        ResetReplicationState();
         _session?.Dispose();
         _session = null;
     }
@@ -171,14 +178,28 @@ public sealed class ReplicationRoomClient : AppControllerBase
 
     void EnsureInputBuffer() => _inputFrames ??= new InputFrameBuffer();
 
-    /// <summary>预填本机与敌人内容目录；握手由已注入的 ClientSession 自动完成。</summary>
+    /// <summary>对称登记本机与场景敌人内容，并预填动作目录。</summary>
     void PrepareContentCatalog()
     {
         _localPlayer = SendQuery(new GetLocalPlayerQuery()) as PlayerController;
         if (_localPlayer != null)
+        {
             _catalog.Prefill(_localPlayer.CharacterConfig);
-        for (int i = 0; i < _enemyConfigs.Count; i++)
-            _catalog.Prefill(_enemyConfigs[i]);
+            _content.RegisterPlayer(_localPlayer.CharacterConfig);
+        }
+
+        EnemySpawnController[] spawns = FindObjectsOfType<EnemySpawnController>();
+        for (int i = 0; i < spawns.Length; i++)
+        {
+            _enemyDefinitions.Clear();
+            spawns[i].CollectDefinitions(_enemyDefinitions);
+            for (int d = 0; d < _enemyDefinitions.Count; d++)
+            {
+                EnemyDefinition definition = _enemyDefinitions[d];
+                _content.RegisterEnemy(definition);
+                _catalog.Prefill(definition.CharacterConfig);
+            }
+        }
     }
 
     /// <summary>把纯 C# ClientSession 状态映射到本机预测体初始化与 HUD。</summary>
@@ -194,13 +215,13 @@ public sealed class ReplicationRoomClient : AppControllerBase
             EndRoom($"SessionEnded:{_session.LastDisconnectReason}");
     }
 
-    /// <summary>只消费 ClientSession 已鉴权并拆信封的 AuthorityTick 应用消息。</summary>
+    /// <summary>只消费 ClientSession 已鉴权并拆信封的 ReplicationFrame 应用消息。</summary>
     void DrainApplicationMessages()
     {
         while (_session.TryDequeueApplication(out SessionApplicationPacket packet))
         {
-            if (packet.MessageType == (byte)RoomMessageKind.AuthorityTick)
-                OnAuthorityTick(packet.Payload);
+            if (packet.MessageType == (byte)RoomMessageKind.ReplicationFrame)
+                OnReplicationFrame(packet.Payload);
         }
     }
 
@@ -224,116 +245,219 @@ public sealed class ReplicationRoomClient : AppControllerBase
         RefreshHud("Joined");
     }
 
-    void OnAuthorityTick(byte[] body)
+    /// <summary>严格解码并原子应用一帧；任何协议或内容错误都会安全结束房间。</summary>
+    void OnReplicationFrame(byte[] body)
     {
         if (!_joined)
             return;
 
-        // body 已由 RoomCodec 去掉两字节信封头；基线记录完整 UDP payload。
-        _lastTickBytes = body != null ? body.Length + 2 : -1;
-        RoomCodec.ReadAuthorityTickEnvelope(body, out long appliedHint, out byte[] tickBytes);
-        AuthorityTick tick = ReplicationCodec.ReadAuthorityTick(tickBytes);
-        _lastAuthorityFrame = tick.AuthorityFrame;
-        ApplyRemoteActors(tick);
-
-        if (TryFindSelf(tick, out ActorReplicationSnapshot self))
+        try
         {
-            _lastSelfSnapshot = self;
-            _hasSelfSnapshot = true;
-            _selfHealthMilli = self.HealthMilli;
-            EnsurePredictedDriver(in self);
-            CharacterActor actor = _localPlayer != null ? _localPlayer.Actor : null;
-            if (actor != null)
-                actor.Vitality.ApplyAuthorityHealthMilli(self.HealthMilli);
-
-            // 仅本步真正灌入的 Hint 才纠偏；CarryForward 下行 0，避免用旧预测位姿对当前权威
-            if (appliedHint > 0 && actor != null && _driver != null)
+            // body 已由 Session 去掉两字节信封头；HUD 仍记录完整应用消息字节。
+            _lastTickBytes = body != null ? body.Length + 2 : -1;
+            ReplicationFrame frame = ReplicationFrameCodec.Decode(body);
+            ReplicationClientApplyResult result = _replicationClient.ApplyFrame(frame);
+            if (result.Status == ReplicationClientApplyStatus.StaleSequence)
+                return;
+            if (result.Status == ReplicationClientApplyStatus.Rejected)
             {
-                PredictedActionReconcileResult actionResult = _actionAck.Reconcile(appliedHint, in self);
-                if (PredictedActionAckQueue.ShouldStopAutonomousAction(actionResult, in self))
-                    actor.StopAutonomousAction();
-
-                // 穿敌吸附/关碰撞窗与权威卡肉：只 Ack，禁止 2m 硬吸把本机从敌后拽回。
-                _catalog.TryGet(self.ActionId, out ActionDefinition authorityAction);
-                PredictedReconcileResult loco = _driver.Reconcile(
-                    appliedHint,
-                    in self,
-                    actor,
-                    ActionMotionReconcileGate.ResolveSnapThresholdMm(
-                        actor,
-                        in self,
-                        authorityAction));
-                if (loco.Snapped)
-                    actor.SnapPresentationToSimulation();
+                Debug.LogWarning($"ReplicationRoomClient: 复制帧被拒绝。{result.Message}", this);
+                EndRoom("ReplicationRejected");
+                return;
             }
 
-            if (IsAuthorityHitOrDeath(in self) && actor != null)
-            {
-                ApplyAuthorityVitalityEdge(actor, in self);
-                _driver?.SnapToSnapshot(in self);
-                actor.SnapPresentationToSimulation();
-            }
+            // 旧 Sequence 已在上方整帧丢弃；只为真正提交的帧解析并执行 ACT 业务副载荷。
+            ActReplicationApplicationPayload application =
+                ActReplicationApplicationPayloadCodec.Decode(frame.ApplicationPayload);
+            ActorReplicationSnapshot self = default;
+            bool hasSelf = false;
+            ApplySpawns(result.Spawns, ref self, ref hasSelf);
+            ApplyUpdates(result.Updates, ref self, ref hasSelf);
+            if (!ApplyDespawns(result.Despawns))
+                return;
 
+            _lastAuthorityFrame = frame.Tick.Value;
+            if (hasSelf)
+                ApplyOwnerSnapshot(in self, application.AppliedClientFrameHint);
+            PlayReplicatedHits(application.Hits);
+            RefreshHud("Joined");
         }
-
-        // 预测体就绪后再播火花，Owner 才能挂到攻击者根
-        PlayReplicatedHits(tick);
-        RefreshHud("Joined");
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"ReplicationRoomClient: 非法复制帧。{ex.Message}", this);
+            EndRoom("ReplicationInvalid");
+        }
     }
 
-    void ApplyRemoteActors(AuthorityTick tick)
+    /// <summary>按顺序处理 Spawn；远端必须精准解析 Archetype，本机只记录最后一条快照。</summary>
+    void ApplySpawns(
+        SpawnRecord[] records,
+        ref ActorReplicationSnapshot self,
+        ref bool hasSelf)
     {
-        _seenIds.Clear();
-        for (int i = 0; i < tick.Actors.Length; i++)
+        for (int i = 0; i < records.Length; i++)
         {
-            ActorReplicationSnapshot snapshot = tick.Actors[i];
-            if (!snapshot.ActorId.IsValid)
-                continue;
+            SpawnRecord record = records[i];
+            ActorReplicationSnapshot snapshot = DecodeRecord(
+                record.EntityId,
+                record.SchemaId,
+                record.Payload);
+            ReplicationActorKind archetypeKind = _content.ResolveKind(record.ArchetypeId);
+            if (archetypeKind != snapshot.Kind)
+            {
+                throw new InvalidOperationException(
+                    $"Spawn {record.EntityId.Value} 的 Archetype Kind={archetypeKind} "
+                    + $"与 Snapshot Kind={snapshot.Kind} 不一致。");
+            }
 
-            int id = snapshot.ActorId.Value;
-            if (id == _accept.EntityId.Value)
+            if (record.EntityId.Value == _accept.EntityId.Value)
+            {
+                if (snapshot.Kind != ReplicationActorKind.Player)
+                    throw new InvalidOperationException("Owner Spawn 必须是 Player 原型。");
+                self = snapshot;
+                hasSelf = true;
                 continue;
+            }
 
-            _seenIds.Add(id);
-            if (!TryGetOrCreateProxy(in snapshot, out RemoteCharacterProxy proxy))
-                continue;
+            if (_proxies.ContainsKey(record.EntityId.Value))
+                throw new InvalidOperationException($"远端实体 {record.EntityId.Value} 重复创建 Proxy。");
+
+            CharacterConfig config = _content.ResolveCharacterConfig(record.ArchetypeId);
+            RemoteCharacterProxy proxy = CreateProxy(config);
+            _proxies.Add(record.EntityId.Value, proxy);
+            GetSystem<TargetSystem>()?.Register(proxy);
             proxy.ApplySnapshot(in snapshot);
         }
-
-        DisposeMissingProxies();
     }
 
-    bool TryGetOrCreateProxy(in ActorReplicationSnapshot snapshot, out RemoteCharacterProxy proxy)
+    /// <summary>按顺序处理 Update；未知远端实体明确失败，禁止静默创建默认 Proxy。</summary>
+    void ApplyUpdates(
+        EntityRecord[] records,
+        ref ActorReplicationSnapshot self,
+        ref bool hasSelf)
     {
-        int id = snapshot.ActorId.Value;
-        if (_proxies.TryGetValue(id, out proxy))
-            return true;
-
-        CharacterConfig config = ResolveConfig(in snapshot);
-        SimulationHost host = _world != null ? _world.SimulationHost : null;
-        if (config == null || config.ModelPrefab == null || host == null)
+        for (int i = 0; i < records.Length; i++)
         {
-            proxy = null;
-            return false;
+            EntityRecord record = records[i];
+            ActorReplicationSnapshot snapshot = DecodeRecord(
+                record.EntityId,
+                record.SchemaId,
+                record.Payload);
+            if (record.EntityId.Value == _accept.EntityId.Value)
+            {
+                self = snapshot;
+                hasSelf = true;
+                continue;
+            }
+
+            if (!_proxies.TryGetValue(record.EntityId.Value, out RemoteCharacterProxy proxy))
+            {
+                throw new InvalidOperationException(
+                    $"远端 Update {record.EntityId.Value} 没有已存在的 Proxy。");
+            }
+            proxy.ApplySnapshot(in snapshot);
+        }
+    }
+
+    /// <summary>按显式 Despawn 精确释放单个 Proxy；Owner 被移除时立即结束房间。</summary>
+    bool ApplyDespawns(DespawnRecord[] records)
+    {
+        for (int i = 0; i < records.Length; i++)
+        {
+            int id = records[i].EntityId.Value;
+            if (id == _accept.EntityId.Value)
+            {
+                EndRoom("OwnerDespawned");
+                return false;
+            }
+
+            if (!_proxies.TryGetValue(id, out RemoteCharacterProxy proxy))
+                throw new InvalidOperationException($"远端 Despawn {id} 没有已存在的 Proxy。");
+
+            GetSystem<TargetSystem>()?.Unregister(proxy);
+            proxy.Dispose();
+            _proxies.Remove(id);
         }
 
-        proxy = RemoteCharacterProxyFactory.Create(
+        return true;
+    }
+
+    /// <summary>校验 Schema 与 EntityId 后解码唯一角色快照布局。</summary>
+    ActorReplicationSnapshot DecodeRecord(
+        NetEntityId entityId,
+        ushort schemaId,
+        byte[] payload)
+    {
+        if (schemaId != CharacterSnapshotSchemaV1.Id)
+            throw new InvalidOperationException($"角色实体 {entityId.Value} 使用未知 Schema {schemaId}。");
+
+        ActorReplicationSnapshot snapshot = _characterSchema.DecodeSnapshot(payload);
+        if (!snapshot.ActorId.IsValid || snapshot.ActorId.Value != entityId.Value)
+        {
+            throw new InvalidOperationException(
+                $"角色记录 EntityId={entityId.Value} 与 Snapshot ActorId={snapshot.ActorId.Value} 不一致。");
+        }
+        return snapshot;
+    }
+
+    /// <summary>按精准 CharacterConfig 创建远端 Proxy；缺模型或战斗世界时明确失败。</summary>
+    RemoteCharacterProxy CreateProxy(CharacterConfig config)
+    {
+        SimulationHost host = _world != null ? _world.SimulationHost : null;
+        if (config == null || config.ModelPrefab == null || host == null)
+            throw new InvalidOperationException("远端原型缺少 CharacterConfig、ModelPrefab 或 SimulationHost。");
+
+        return RemoteCharacterProxyFactory.Create(
             config,
             _catalog,
             host.CollisionWorld,
             Vector3.zero,
             host.FixedDeltaSeconds,
             transform);
-        _proxies[id] = proxy;
-        GetSystem<TargetSystem>()?.Register(proxy);
-        return true;
     }
 
-    CharacterConfig ResolveConfig(in ActorReplicationSnapshot snapshot)
+    /// <summary>应用本帧最后一条 Owner 快照，并保持预测和解与受击硬吸语义。</summary>
+    void ApplyOwnerSnapshot(
+        in ActorReplicationSnapshot self,
+        long appliedHint)
     {
-        if (snapshot.Kind == ReplicationActorKind.Player)
-            return _localPlayer != null ? _localPlayer.CharacterConfig : null;
-        return _enemyConfigs.Count > 0 ? _enemyConfigs[0] : null;
+        if (self.Kind != ReplicationActorKind.Player)
+            throw new InvalidOperationException("Owner Snapshot Kind 必须为 Player。");
+
+        _lastSelfSnapshot = self;
+        _hasSelfSnapshot = true;
+        _selfHealthMilli = self.HealthMilli;
+        EnsurePredictedDriver(in self);
+        CharacterActor actor = _localPlayer != null ? _localPlayer.Actor : null;
+        if (actor != null)
+            actor.Vitality.ApplyAuthorityHealthMilli(self.HealthMilli);
+
+        // CarryForward hint=0 只更新状态，不拿旧预测位姿对当前权威帧做和解。
+        if (appliedHint > 0 && actor != null && _driver != null)
+        {
+            PredictedActionReconcileResult actionResult = _actionAck.Reconcile(appliedHint, in self);
+            if (PredictedActionAckQueue.ShouldStopAutonomousAction(actionResult, in self))
+                actor.StopAutonomousAction();
+
+            _catalog.TryGet(self.ActionId, out ActionDefinition authorityAction);
+            PredictedReconcileResult loco = _driver.Reconcile(
+                appliedHint,
+                in self,
+                actor,
+                ActionMotionReconcileGate.ResolveSnapThresholdMm(
+                    actor,
+                    in self,
+                    authorityAction));
+            if (loco.Snapped)
+                actor.SnapPresentationToSimulation();
+        }
+
+        if (IsAuthorityHitOrDeath(in self) && actor != null)
+        {
+            ApplyAuthorityVitalityEdge(actor, in self);
+            _driver?.SnapToSnapshot(in self);
+            actor.SnapPresentationToSimulation();
+        }
     }
 
     /// <summary>首份 self 快照：绑定 ActorId、对齐位姿、建纠偏 Driver。不另建 Proxy。</summary>
@@ -459,24 +583,21 @@ public sealed class ReplicationRoomClient : AppControllerBase
         || snapshot.VitalityEdge == VitalityReplicationEdge.Death;
 
     /// <summary>按复制落点播受击 Cue；同一 SimHitKey 只播一次。</summary>
-    void PlayReplicatedHits(AuthorityTick tick)
+    void PlayReplicatedHits(ReplicatedHitEvent[] hits)
     {
-        if (tick.Hits == null || tick.Hits.Length == 0)
+        if (hits == null || hits.Length == 0)
             return;
 
-        for (int i = 0; i < tick.Hits.Length; i++)
+        for (int i = 0; i < hits.Length; i++)
         {
-            ReplicatedHitEvent hit = tick.Hits[i];
+            ReplicatedHitEvent hit = hits[i];
             if (!RememberHit(hit.Key))
                 continue;
 
-            int actionId = hit.ActionId > 0
-                ? hit.ActionId
-                : ResolveActorActionId(tick, hit.Key.AttackerId);
             Transform attackerRoot = ResolveProxyRoot(hit.Key.AttackerId);
             HitImpactCuePlayer.TryPlay(
                 _catalog,
-                actionId,
+                hit.ActionId,
                 hit.Key.HitboxIndex,
                 new Vector3(
                     MotionQuantization.MmToMeters(hit.HitXMm),
@@ -506,19 +627,6 @@ public sealed class ReplicationRoomClient : AppControllerBase
         return true;
     }
 
-    static int ResolveActorActionId(AuthorityTick tick, SimActorId actorId)
-    {
-        if (!actorId.IsValid)
-            return 0;
-        for (int i = 0; i < tick.Actors.Length; i++)
-        {
-            if (tick.Actors[i].ActorId.Value == actorId.Value)
-                return tick.Actors[i].ActionId;
-        }
-
-        return 0;
-    }
-
     /// <summary>攻击者表现根，供火花卡肉挂 Owner；自己用预测体。</summary>
     Transform ResolveProxyRoot(SimActorId actorId)
     {
@@ -533,50 +641,6 @@ public sealed class ReplicationRoomClient : AppControllerBase
             : null;
     }
 
-    bool TryFindSelf(AuthorityTick tick, out ActorReplicationSnapshot self)
-    {
-        int id = _accept.EntityId.Value;
-        for (int i = 0; i < tick.Actors.Length; i++)
-        {
-            if (tick.Actors[i].ActorId.Value == id)
-            {
-                self = tick.Actors[i];
-                return true;
-            }
-        }
-
-        self = default;
-        return false;
-    }
-
-    void CollectEnemyConfigs()
-    {
-        _enemyConfigs.Clear();
-        EnemySpawnController[] spawns = FindObjectsOfType<EnemySpawnController>();
-        for (int i = 0; i < spawns.Length; i++)
-            spawns[i].CollectCharacterConfigs(_enemyConfigs);
-    }
-
-    void DisposeMissingProxies()
-    {
-        _staleIds.Clear();
-        foreach (int id in _proxies.Keys)
-        {
-            if (!_seenIds.Contains(id))
-                _staleIds.Add(id);
-        }
-
-        for (int i = 0; i < _staleIds.Count; i++)
-        {
-            int id = _staleIds[i];
-            if (_proxies.TryGetValue(id, out RemoteCharacterProxy proxy))
-            {
-                GetSystem<TargetSystem>()?.Unregister(proxy);
-                proxy.Dispose();
-            }
-            _proxies.Remove(id);
-        }
-    }
 
     void DisposeViews()
     {
@@ -596,8 +660,21 @@ public sealed class ReplicationRoomClient : AppControllerBase
             return;
         _ended = true;
         _joined = false;
+        DisposeViews();
+        ResetReplicationState();
         Debug.Log($"ReplicationRoomClient: 房间结束 {status}。", this);
         RefreshHud(status);
+    }
+
+    /// <summary>丢弃客户端实体注册表与 Schema 状态，避免结束房间后残留生命周期。</summary>
+    void ResetReplicationState()
+    {
+        _replicationClient = null;
+        _schemaRegistry = null;
+        _characterSchema = null;
+        _content = null;
+        _hasSelfSnapshot = false;
+        _lastSelfSnapshot = default;
     }
 
     void RefreshHud(string status)

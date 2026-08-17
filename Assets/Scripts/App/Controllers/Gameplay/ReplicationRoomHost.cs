@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Listen Host 房间：绑定 UDP、接纳第二人、把远端 InputFrame 写入权威世界并下行 Tick。
+/// Listen Host 房间：绑定 UDP、接纳第二人、把远端 InputFrame 写入权威世界并下行 ReplicationFrame。
 /// 单机一人进关也走本组件，不另开旧 Host 分支。
 /// </summary>
 [DefaultExecutionOrder(-150)]
@@ -13,9 +13,14 @@ public sealed class ReplicationRoomHost : AppControllerBase
     CombatWorldController _world;
     ServerSession _session;
     ActionReplicationCatalog _catalog;
+    ReplicationServer _replicationServer;
+    CharacterSnapshotSchemaV1 _characterSchema;
+    CharacterReplicationContentRegistry _content;
     GuestSeat _guest;
     readonly List<EnemyController> _enemies = new();
+    readonly List<EnemyDefinition> _enemyDefinitions = new();
     readonly List<ActorReplicationSnapshot> _snapshots = new();
+    readonly List<ReplicationEntityState> _entityStates = new();
     bool _bindFailed;
     int _lastTickBytes = -1;
     int _lastCommandBytes = -1;
@@ -40,6 +45,10 @@ public sealed class ReplicationRoomHost : AppControllerBase
     void Start()
     {
         _catalog = new ActionReplicationCatalog();
+        _replicationServer = new ReplicationServer();
+        _characterSchema = new CharacterSnapshotSchemaV1();
+        _content = new CharacterReplicationContentRegistry();
+        RegisterStaticReplicationContent();
         RefreshHud("Listening");
     }
 
@@ -67,7 +76,7 @@ public sealed class ReplicationRoomHost : AppControllerBase
         CleanupGuest(DisconnectReason.ServerShutdown);
     }
 
-    /// <summary>权威步前已在 Update 写入远端输入；步后打包全员快照。无新命令时 appliedHint=0。</summary>
+    /// <summary>权威步后构建 full-set ReplicationFrame；无新命令时 appliedHint=0。</summary>
     void OnAfterLogicStep(long authorityFrame)
     {
         if (_session == null || _guest == null || !_guest.Actor.SimulationId.IsValid)
@@ -78,20 +87,26 @@ public sealed class ReplicationRoomHost : AppControllerBase
 
         // 目录未预填时补齐 Graph/变体，避免客机 TryGet 失败
         PrefillCatalogIfNeeded();
-        // 全员权威 Pose/招式写入快照列表
+        // 全员权威 Pose/招式同时写入命中查询快照与通用复制 full set。
         CaptureAuthorityActors();
         ReplicatedHitEvent[] hits = CopyHits();
-        var tick = new AuthorityTick(authorityFrame, _snapshots.ToArray(), hits);
         // CarryForward 必须下发 0；仅本步真正灌入远端命令时非 0
         long appliedHintThisTick = _guest.AppliedHintThisTick;
         _guest.AppliedHintThisTick = 0;
-        byte[] body = RoomCodec.WriteAuthorityTickEnvelope(
+        var applicationPayload = new ActReplicationApplicationPayload(
             appliedHintThisTick,
-            ReplicationCodec.WriteAuthorityTick(tick));
+            hits);
+        byte[] applicationBytes =
+            ActReplicationApplicationPayloadCodec.Encode(applicationPayload);
+        ReplicationFrame frame = _replicationServer.BuildFrame(
+            new NetTick(authorityFrame),
+            _entityStates,
+            applicationBytes);
+        byte[] body = ReplicationFrameCodec.Encode(frame);
         _lastTickBytes = body.Length + 2;
         _session.SendApplication(
             _guest.ConnectionId,
-            (byte)RoomMessageKind.AuthorityTick,
+            (byte)RoomMessageKind.ReplicationFrame,
             NetChannel.SnapshotUnreliableSequenced,
             body);
         RefreshHud("ClientJoined");
@@ -197,14 +212,18 @@ public sealed class ReplicationRoomHost : AppControllerBase
 
         _catalog.Prefill(config);
         PrefillEnemyCatalog();
+        NetArchetypeId guestArchetypeId = _content.RegisterPlayer(config);
 
+        // ReplicationServer 的 Registry/Sequence 属于连接；新客机必须从全量 Spawn 开始，不能继承上一连接 baseline。
+        _replicationServer = new ReplicationServer();
         _guest = new GuestSeat(
             request.ConnectionId,
             seat,
             actor,
             registration,
             reactions,
-            hurtbox);
+            hurtbox,
+            guestArchetypeId);
         _session.AcceptPlayer(
             request.ConnectionId,
             new NetEntityId(actor.SimulationId.Value),
@@ -276,24 +295,30 @@ public sealed class ReplicationRoomHost : AppControllerBase
         RefreshHud("Listening");
     }
 
+    /// <summary>捕获玩家、Guest 与运行中敌人的完整权威状态，并精准绑定各自原型。</summary>
     void CaptureAuthorityActors()
     {
         _snapshots.Clear();
+        _entityStates.Clear();
         ILocalPlayer local = SendQuery(new GetLocalPlayerQuery());
-        if (local?.Actor != null)
+        if (local is PlayerController player && local.Actor != null)
         {
-            _snapshots.Add(CharacterReplicationCapture.FromActor(
+            ActorReplicationSnapshot snapshot = CharacterReplicationCapture.FromActor(
                 local.Actor,
                 _catalog,
-                ReplicationActorKind.Player));
+                ReplicationActorKind.Player);
+            AddEntityState(
+                in snapshot,
+                _content.RegisterPlayer(player.CharacterConfig));
         }
 
         if (_guest?.Actor != null)
         {
-            _snapshots.Add(CharacterReplicationCapture.FromActor(
+            ActorReplicationSnapshot snapshot = CharacterReplicationCapture.FromActor(
                 _guest.Actor,
                 _catalog,
-                ReplicationActorKind.Player));
+                ReplicationActorKind.Player);
+            AddEntityState(in snapshot, _guest.ArchetypeId);
         }
 
         SimulationHost host = _world != null ? _world.SimulationHost : null;
@@ -306,13 +331,37 @@ public sealed class ReplicationRoomHost : AppControllerBase
             CharacterActor enemy = _enemies[i].Actor;
             if (enemy == null)
                 continue;
-            _snapshots.Add(CharacterReplicationCapture.FromActor(
+            EnemyDefinition definition = _enemies[i].Definition;
+            if (definition == null)
+                throw new InvalidOperationException("运行中敌人缺少 EnemyDefinition，无法确定网络原型。");
+
+            // 运行时生成的新 Definition 允许幂等补登记；同 key 异资产仍由 Registry 明确拒绝。
+            NetArchetypeId archetypeId = _content.RegisterEnemy(definition);
+            ActorReplicationSnapshot snapshot = CharacterReplicationCapture.FromActor(
                 enemy,
                 _catalog,
-                ReplicationActorKind.Enemy));
+                ReplicationActorKind.Enemy);
+            AddEntityState(in snapshot, archetypeId);
         }
     }
 
+    /// <summary>保存命中补 ActionId 所需快照，并生成 EntityId=SimActorId 的完整复制状态。</summary>
+    void AddEntityState(
+        in ActorReplicationSnapshot snapshot,
+        NetArchetypeId archetypeId)
+    {
+        if (!snapshot.ActorId.IsValid)
+            throw new InvalidOperationException("权威角色尚无有效 SimActorId，不能进入复制 full set。");
+
+        _snapshots.Add(snapshot);
+        _entityStates.Add(new ReplicationEntityState(
+            new NetEntityId(snapshot.ActorId.Value),
+            archetypeId,
+            CharacterSnapshotSchemaV1.Id,
+            _characterSchema.Encode(in snapshot)));
+    }
+
+    /// <summary>复制本帧命中，并从同帧攻击者快照补齐唯一 ActionId。</summary>
     ReplicatedHitEvent[] CopyHits()
     {
         SimulationHost host = _world != null ? _world.SimulationHost : null;
@@ -329,7 +378,7 @@ public sealed class ReplicationRoomHost : AppControllerBase
         return copy;
     }
 
-    /// <summary>用本 Tick 攻击者快照的 ActionId 盖上命中，供客机还原 Hitbox Feedback。</summary>
+    /// <summary>用本帧攻击者快照的 ActionId 盖上命中；攻击者缺失时明确拒绝构帧。</summary>
     int ResolveHitActionId(in ReplicatedHitEvent hit)
     {
         int attacker = hit.Key.AttackerId.Value;
@@ -339,9 +388,11 @@ public sealed class ReplicationRoomHost : AppControllerBase
                 return _snapshots[i].ActionId;
         }
 
-        return hit.ActionId;
+        throw new InvalidOperationException(
+            $"命中攻击者 {attacker} 不在本帧复制 full set，无法补写 ActionId。");
     }
 
+    /// <summary>动作目录为空时，从本机与场景敌人配置一次性补齐动作及变体。</summary>
     void PrefillCatalogIfNeeded()
     {
         if (_catalog.Count > 0)
@@ -352,15 +403,33 @@ public sealed class ReplicationRoomHost : AppControllerBase
         PrefillEnemyCatalog();
     }
 
+    /// <summary>遍历场景刷怪定义，预填所有敌人身体配置引用的动作目录。</summary>
     void PrefillEnemyCatalog()
     {
         EnemySpawnController[] spawns = FindObjectsOfType<EnemySpawnController>();
         for (int i = 0; i < spawns.Length; i++)
         {
-            var configs = new List<CharacterConfig>();
-            spawns[i].CollectCharacterConfigs(configs);
-            for (int c = 0; c < configs.Count; c++)
-                _catalog.Prefill(configs[c]);
+            _enemyDefinitions.Clear();
+            spawns[i].CollectDefinitions(_enemyDefinitions);
+            for (int c = 0; c < _enemyDefinitions.Count; c++)
+                _catalog.Prefill(_enemyDefinitions[c].CharacterConfig);
+        }
+    }
+
+    /// <summary>在房间启动时对称登记本机玩家与场景刷怪表声明的全部角色内容。</summary>
+    void RegisterStaticReplicationContent()
+    {
+        ILocalPlayer local = SendQuery(new GetLocalPlayerQuery());
+        if (local is PlayerController player && player.CharacterConfig != null)
+            _content.RegisterPlayer(player.CharacterConfig);
+
+        EnemySpawnController[] spawns = FindObjectsOfType<EnemySpawnController>();
+        for (int i = 0; i < spawns.Length; i++)
+        {
+            _enemyDefinitions.Clear();
+            spawns[i].CollectDefinitions(_enemyDefinitions);
+            for (int c = 0; c < _enemyDefinitions.Count; c++)
+                _content.RegisterEnemy(_enemyDefinitions[c]);
         }
     }
 
@@ -413,7 +482,8 @@ public sealed class ReplicationRoomHost : AppControllerBase
             CharacterActor actor,
             SimActorRegistration registration,
             CharacterReactionService reactions,
-            CharacterHurtboxTarget hurtbox)
+            CharacterHurtboxTarget hurtbox,
+            NetArchetypeId archetypeId)
         {
             ConnectionId = connectionId;
             Seat = seat;
@@ -421,6 +491,7 @@ public sealed class ReplicationRoomHost : AppControllerBase
             Registration = registration;
             Reactions = reactions;
             Hurtbox = hurtbox;
+            ArchetypeId = archetypeId;
         }
 
         /// <summary>Transport 本地作用域内的客机连接。</summary>
@@ -430,6 +501,8 @@ public sealed class ReplicationRoomHost : AppControllerBase
         public SimActorRegistration Registration { get; }
         public CharacterReactionService Reactions { get; }
         public CharacterHurtboxTarget Hurtbox { get; }
+        /// <summary>Guest 复用 Host 玩家配置得到的稳定玩家网络原型。</summary>
+        public NetArchetypeId ArchetypeId { get; }
         public long LastAppliedFrameHint { get; set; }
 
         /// <summary>本逻辑步真正灌入的最新 Hint；无新命令时下行 0，避免 CarryForward 用旧 Hint 错位纠偏。</summary>

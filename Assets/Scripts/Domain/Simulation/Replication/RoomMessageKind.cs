@@ -4,6 +4,6 @@ public enum RoomMessageKind : byte
     /// <summary>正文为 ReplicationCodec 上行命令。</summary>
     ClientCommand = 5,
 
-    /// <summary>正文为 appliedFrameHint + AuthorityTick 字节。</summary>
-    AuthorityTick = 6,
+    /// <summary>正文为 ACTNet.Replication Version 1 ReplicationFrame 字节。</summary>
+    ReplicationFrame = 6,
 }

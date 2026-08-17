@@ -4,8 +4,11 @@
     "references": [
         "ACTGame.Simulation",
         "ACTGame.Net",
+        "ACTGame.Networking",
         "ACTNet.Core",
-        "ACTNet.Session"
+        "ACTNet.Session",
+        "ACTNet.Replication",
+        "ACTNet.Transport"
     ],
     "includePlatforms": [
         "Editor"
