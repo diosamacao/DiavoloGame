@@ -12,8 +12,8 @@
 | 项 | 状态 | 证据 / 待办 |
 |---|---|---|
 | Codec Golden Bytes | 🟡 测试已写，待 Unity Test Runner | `ProtocolGoldenBytesTests` |
-| Host 固定帧顺序 | 🟡 代码审计与 Unity ExecutionOrder 测试已写，待 Test Runner | `SimulationHost.Update`、`ReplicationFrameOrderTests` |
-| Client 固定帧顺序 | 🟡 代码审计与 Unity ExecutionOrder 测试已写，待 Test Runner | `ReplicationRoomClient.Update/OnAfterLogicStep` |
+| Host 固定帧顺序 | 🟡 ExecutionOrder + 生产源码编排测试已写，待 Test Runner | `ReplicationFrameOrderTests`、`ReplicationProductionOrderTests` |
+| Client 固定帧顺序 | 🟡 ExecutionOrder + 生产源码编排测试已写，待 Test Runner | `ReplicationFrameOrderTests`、`ReplicationProductionOrderTests` |
 | Host / Dedicated 耦合 | ✅ 静态审计完成 | §4 |
 | 双进程玩法回归 | ⬜ 待 Editor | §6 |
 | Tick bytes / GC / Proxy / pending / RTT | 🟡 HUD 观测已接，待 Profiler + 双进程采样 | §5 |
@@ -92,13 +92,18 @@ sequenceDiagram
 - `AuthorityTick_SortsActorsBySimActorId`
 - `ReplicationFrameOrderTests.HostUpdate_RunsBeforeSimulationHostUpdate`
 - `ReplicationFrameOrderTests.ClientUpdate_RunsBeforeSimulationHostUpdate`
+- `ReplicationProductionOrderTests.HostFrame_ProductionSource_PreservesReceiveStepCaptureSendOrder`
+- `ReplicationProductionOrderTests.ClientFrame_ProductionSource_PreservesReceiveSampleSendPredictOrder`
 
-### 2.2 尚缺自动保护
+### 2.2 W0 特征测试边界
+
+`ReplicationProductionOrderTests` 直接读取当前生产脚本的方法区间，冻结：
 
 - `AfterLogicStep` 必须发生在 Combat / PostCombat / Commit 后、`FrameHits.Clear` 前。
-- 收包命令实际写入 `CurrentFrame + 1` 后被同一渲染帧的下一逻辑步消费。
+- Host 命令写入 `CurrentFrame + 1`，然后才由 SimulationHost 推进。
+- Client 收 Tick / Reconcile / Sample 发生在 Update；AfterLogicStep 中先 Send、后 Autonomous Predict。
 
-这些测试不应通过复制一套“测试专用帧序”完成；W0 后续应为现有 App 编排增加最小可观察 seam，再直接测试生产顺序。
+这是 W0 搬迁保护网，不是长期框架 API。W2 删除旧 Room 入口时，必须删除该源码特征测试，并由新 Session / Replication 的运行时顺序测试直接替代，禁止保留旧入口只为让测试继续通过。
 
 ---
 
@@ -318,11 +323,12 @@ W0 不为采指标改协议；若增加 Debug 计数，只允许只读观测。
 - [x] Golden Bytes 测试代码已建立。
 - [x] Host / Client 真实帧序已审计。
 - [x] Room `-150` 先于 SimulationHost `-100` 的测试代码已建立。
+- [x] Host / Client 生产方法内关键调用顺序测试代码已建立。
 - [x] LocalPlayer、固定 Guest、HostRoot Spawn 与表现依赖已定位。
 - [x] DS-Demo 范围已冻结。
 - [ ] Unity Test Runner：`ProtocolGoldenBytesTests` 全通过。
 - [ ] Unity Test Runner：`ReplicationFrameOrderTests` 全通过。
-- [ ] `AfterLogicStep` 相对 Combat/Commit/FrameHits.Clear 的生产编排测试已补并通过。
+- [ ] Unity Test Runner：`ReplicationProductionOrderTests` 全通过。
 - [ ] 双进程人工回归 §6 全通过。
 - [ ] 指标基线 §5.3 已填写。
 

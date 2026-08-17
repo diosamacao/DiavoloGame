@@ -132,8 +132,8 @@ W5 起额外要求：
 
 - [x] 为 `RoomCodec`、`ReplicationCodec` 建 Golden Bytes 测试。（2026-08-17：`ProtocolGoldenBytesTests`，待 Test Runner）
 - [x] 固定 Join、CommandBatch、AuthorityTick、Hit 的往返字节。（2026-08-17）
-- [ ] 用测试固定 Host 一格顺序：Receive → Set Input → World.Step → Hit Resolve → Capture → Send。
-- [ ] 用测试固定 Client 一格顺序：Receive Tick → Reconcile → Sample → Send → Predict。（按当前生产代码冻结；Send 在 Autonomous `Actor.Step` 前）
+- [x] 用测试固定 Host 一格顺序：Receive → Set Input → World.Step → Hit Resolve → Capture → Send。（2026-08-17：待 Test Runner）
+- [x] 用测试固定 Client 一格顺序：Receive Tick → Reconcile → Sample → Send → Predict。（2026-08-17：按当前生产代码冻结，待 Test Runner）
 - [x] 建双进程人工回归脚本：移动、急停、折返、攻击、连招、闪避、受击、死亡、CameraLock、断线。（2026-08-17：待 Editor 执行）
 - [ ] 记录 Tick bytes、GC alloc、Proxy 数、pending command、RTT 基线。
 - [x] 列出 `ReplicationRoomHost` 中所有 Host LocalPlayer、固定 Guest、HostRoot Spawn 假设。（2026-08-17：见 W0 审计）
