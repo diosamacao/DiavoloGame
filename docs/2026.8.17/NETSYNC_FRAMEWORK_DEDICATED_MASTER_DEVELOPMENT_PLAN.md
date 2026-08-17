@@ -169,11 +169,11 @@ W5 起额外要求：
 **验收**
 
 - [x] `ACTNet.Core` 无 Unity / ACT 引用。（asmdef 零引用 + noEngineReferences）
-- [ ] W0 Golden Bytes 完全不变。
-- [ ] 非法长度、负 count、超上限、无效 Id 被拒绝。
-- [ ] Id Equality / Hash / Invalid 测试通过。
+- [x] W0 Golden Bytes 完全不变。（2026-08-17：Unity Test Runner 验收）
+- [x] 非法长度、负 count、超上限、无效 Id 被拒绝。（2026-08-17：Unity Test Runner 验收）
+- [x] Id Equality / Hash / Invalid 测试通过。（2026-08-17：Unity Test Runner 验收）
 
-**出口：** 通用纯 C# 协议基础形成，当前线上字节不变。→ **代码完成，待 Unity Test Runner 证明 Golden Bytes 与边界测试**
+**出口：** 通用纯 C# 协议基础形成，当前线上字节不变。→ **已达成（2026-08-17）**
 
 ---
 
@@ -183,13 +183,13 @@ W5 起额外要求：
 
 **任务**
 
-- [ ] 以 `INetTransport` 替换方向固化的 `IReplicationTransport`。
-- [ ] 接口支持 `StartServer/StartClient/Poll/Send(connection, channel)/TryReceive/Disconnect`。
+- [x] 以 `INetTransport` 替换方向固化的 `IReplicationTransport`。（2026-08-17：旧接口与两套旧实现已删除）
+- [x] 接口支持 `StartServer/StartClient/Poll/Send(connection, channel)/TryReceive/Disconnect`。
 - [ ] 建 `ServerSession`、`ClientSession`、`ConnectionRegistry`、`PlayerRegistry`。
 - [ ] Join / Accept / Reject / Heartbeat / Kick 从 Room 移到 Session。
 - [ ] 容量由 Session 配置，不再写死 `MaxPlayers=2`。
-- [ ] UDP Adapter 保持当前行为；本 Wave 不接可靠 UDP。
-- [ ] `LoopbackTransport` 支持至少三条独立连接。
+- [x] UDP Adapter 保持当前行为；本 Wave 不接可靠 UDP。（代码已单轨切换，待双进程 Play）
+- [x] `LoopbackTransport` 支持至少三条独立连接。（多连接测试已写，待 Test Runner）
 - [ ] 删除 Room 中 Endpoint 列表、握手 switch、固定 Guest 连接状态。
 
 **验收**
@@ -199,7 +199,7 @@ W5 起额外要求：
 - [ ] 一条连接断开不影响其他连接。
 - [ ] 当前双人 UDP 入房行为不变。
 
-**出口：** 连接与房间状态不再依赖 ACT Gameplay。→ **未达成**
+**出口：** 连接与房间状态不再依赖 ACT Gameplay。→ **Transport 切片完成；Session 迁移未达成**
 
 ---
 

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Net;
 using UnityEngine;
 
 /// <summary>
@@ -14,7 +13,7 @@ public sealed class ReplicationRoomHost : AppControllerBase
     const int GuestPlayerId = 2;
 
     CombatWorldController _world;
-    UdpReplicationTransport _transport;
+    INetTransport _transport;
     ActionReplicationCatalog _catalog;
     GuestSeat _guest;
     readonly List<PendingJoin> _pendingJoins = new();
@@ -49,7 +48,7 @@ public sealed class ReplicationRoomHost : AppControllerBase
             return;
 
         // 把套接字收包泵进权威收件箱
-        _transport.Pump();
+        _transport.Poll();
         // 处理 Join/Command/Heartbeat
         DrainAuthorityInbox();
         // 待接纳队列：座位空时发 Accept
@@ -90,18 +89,22 @@ public sealed class ReplicationRoomHost : AppControllerBase
             appliedHintThisTick,
             ReplicationCodec.WriteAuthorityTick(tick));
         _lastTickBytes = payload.Length;
-        _transport.SendAuthorityToClients(payload);
+        _transport.Send(
+            _guest.ConnectionId,
+            NetChannel.SnapshotUnreliableSequenced,
+            payload);
         RefreshHud("ClientJoined");
     }
 
     void TryBindTransport()
     {
         int port = _world != null ? _world.ListenPort : ReplicationRoomProtocol.DefaultPort;
-        _transport = new UdpReplicationTransport();
+        _transport = new UdpTransport();
         try
         {
-            _transport.Bind(port);
-            Debug.Log($"ReplicationRoomHost: 监听 UDP {_transport.BoundPort}。", this);
+            _transport.StartServer(
+                new NetEndpoint("0.0.0.0", port, allowEphemeralPort: true));
+            Debug.Log($"ReplicationRoomHost: 监听 UDP {_transport.LocalEndpoint}。", this);
         }
         catch (Exception ex)
         {
@@ -114,14 +117,15 @@ public sealed class ReplicationRoomHost : AppControllerBase
 
     void DrainAuthorityInbox()
     {
-        while (_transport.TryDequeueAuthorityFrom(out byte[] payload, out IPEndPoint from))
+        while (_transport.TryReceive(out NetPacket packet))
         {
             try
             {
+                byte[] payload = packet.Payload;
                 RoomCodec.ReadEnvelope(payload, out RoomMessageKind kind, out byte[] body);
                 if (kind == RoomMessageKind.ClientCommand)
                     _lastCommandBytes = payload.Length;
-                HandleMessage(kind, body, from);
+                HandleMessage(kind, body, packet.ConnectionId);
             }
             catch (Exception ex)
             {
@@ -130,24 +134,27 @@ public sealed class ReplicationRoomHost : AppControllerBase
         }
     }
 
-    void HandleMessage(RoomMessageKind kind, byte[] body, IPEndPoint from)
+    void HandleMessage(RoomMessageKind kind, byte[] body, NetConnectionId connectionId)
     {
         switch (kind)
         {
             case RoomMessageKind.JoinRequest:
-                _pendingJoins.Add(new PendingJoin(from, RoomCodec.ReadJoinRequest(body)));
+                _pendingJoins.Add(new PendingJoin(
+                    connectionId,
+                    RoomCodec.ReadJoinRequest(body)));
                 break;
             case RoomMessageKind.Heartbeat:
-                if (!IsGuestEndpoint(from))
+                if (!IsGuestConnection(connectionId))
                     return;
                 _guest.Idle.Touch(NowMs());
                 RoomHeartbeat request = RoomCodec.ReadHeartbeat(body);
-                _transport.SendTo(
-                    from,
+                _transport.Send(
+                    connectionId,
+                    NetChannel.ControlReliableOrdered,
                     RoomCodec.WriteHeartbeat(new RoomHeartbeat(request.SendTimeMs, request.SendTimeMs)));
                 break;
             case RoomMessageKind.ClientCommand:
-                if (!IsGuestEndpoint(from))
+                if (!IsGuestConnection(connectionId))
                     return;
                 _guest.Idle.Touch(NowMs());
                 ApplyGuestCommands(RoomCodec.ReadClientCommandBatch(body));
@@ -170,8 +177,9 @@ public sealed class ReplicationRoomHost : AppControllerBase
             PendingJoin pending = _pendingJoins[i];
             if (_guest != null)
             {
-                _transport.SendTo(
-                    pending.From,
+                _transport.Send(
+                    pending.ConnectionId,
+                    NetChannel.ControlReliableOrdered,
                     RoomCodec.WriteJoinReject(new RoomJoinReject(RoomRejectReason.RoomFull)));
                 continue;
             }
@@ -180,16 +188,18 @@ public sealed class ReplicationRoomHost : AppControllerBase
             if (pending.Request.ProtocolVersion != ReplicationRoomProtocol.ProtocolVersion
                 || pending.Request.ContentVersion != contentVersion)
             {
-                _transport.SendTo(
-                    pending.From,
+                _transport.Send(
+                    pending.ConnectionId,
+                    NetChannel.ControlReliableOrdered,
                     RoomCodec.WriteJoinReject(new RoomJoinReject(RoomRejectReason.VersionMismatch)));
                 continue;
             }
 
-            if (!TrySpawnGuest(local, hostActor, pending.From, contentVersion))
+            if (!TrySpawnGuest(local, hostActor, pending.ConnectionId, contentVersion))
             {
-                _transport.SendTo(
-                    pending.From,
+                _transport.Send(
+                    pending.ConnectionId,
+                    NetChannel.ControlReliableOrdered,
                     RoomCodec.WriteJoinReject(new RoomJoinReject(RoomRejectReason.RoomFull)));
             }
         }
@@ -197,7 +207,11 @@ public sealed class ReplicationRoomHost : AppControllerBase
         _pendingJoins.Clear();
     }
 
-    bool TrySpawnGuest(ILocalPlayer hostPlayer, CharacterActor hostActor, IPEndPoint from, int contentVersion)
+    bool TrySpawnGuest(
+        ILocalPlayer hostPlayer,
+        CharacterActor hostActor,
+        NetConnectionId connectionId,
+        int contentVersion)
     {
         CharacterConfig config = hostPlayer is PlayerController player
             ? player.CharacterConfig
@@ -255,24 +269,25 @@ public sealed class ReplicationRoomHost : AppControllerBase
         PrefillEnemyCatalog();
 
         _guest = new GuestSeat(
-            from,
+            connectionId,
             seat,
             actor,
             registration,
             reactions,
             hurtbox);
         _guest.Idle.Touch(NowMs());
-        _transport.AddClient(from);
-
         var accept = new RoomJoinAccept(
             GuestPlayerId,
             actor.SimulationId.Value,
             hostActor.SimulationId.Value,
             contentVersion,
             host.CurrentFrame);
-        _transport.SendTo(from, RoomCodec.WriteJoinAccept(in accept));
+        _transport.Send(
+            connectionId,
+            NetChannel.ControlReliableOrdered,
+            RoomCodec.WriteJoinAccept(in accept));
         Debug.Log(
-            $"ReplicationRoomHost: 客机加入 actor={actor.SimulationId.Value} from={from}。",
+            $"ReplicationRoomHost: 客机加入 actor={actor.SimulationId.Value} connection={connectionId}。",
             this);
         return true;
     }
@@ -325,14 +340,21 @@ public sealed class ReplicationRoomHost : AppControllerBase
         {
             try
             {
-                _transport.SendTo(guest.EndPoint, RoomCodec.WriteKick(new RoomKick(reason)));
+                _transport.Send(
+                    guest.ConnectionId,
+                    NetChannel.ControlReliableOrdered,
+                    RoomCodec.WriteKick(new RoomKick(reason)));
             }
             catch (Exception)
             {
             }
         }
 
-        _transport?.RemoveClient(guest.EndPoint);
+        _transport?.Disconnect(
+            guest.ConnectionId,
+            reason == RoomKickReason.IdleTimeout
+                ? DisconnectReason.Timeout
+                : DisconnectReason.ServerShutdown);
         SimulationHost host = _world != null ? _world.SimulationHost : null;
         GetSystem<LocalPlayerService>()?.Unregister(guest.Seat);
         GetSystem<TargetSystem>()?.Unregister(guest.Hurtbox);
@@ -436,8 +458,8 @@ public sealed class ReplicationRoomHost : AppControllerBase
         }
     }
 
-    bool IsGuestEndpoint(IPEndPoint from) =>
-        _guest != null && _guest.EndPoint.Equals(from);
+    bool IsGuestConnection(NetConnectionId connectionId) =>
+        _guest != null && _guest.ConnectionId == connectionId;
 
     void RefreshHud(string status)
     {
@@ -482,14 +504,14 @@ public sealed class ReplicationRoomHost : AppControllerBase
     sealed class GuestSeat
     {
         public GuestSeat(
-            IPEndPoint endPoint,
+            NetConnectionId connectionId,
             RemotePlayerSeat seat,
             CharacterActor actor,
             SimActorRegistration registration,
             CharacterReactionService reactions,
             CharacterHurtboxTarget hurtbox)
         {
-            EndPoint = endPoint;
+            ConnectionId = connectionId;
             Seat = seat;
             Actor = actor;
             Registration = registration;
@@ -498,7 +520,8 @@ public sealed class ReplicationRoomHost : AppControllerBase
             Idle = new RoomIdleTracker();
         }
 
-        public IPEndPoint EndPoint { get; }
+        /// <summary>Transport 本地作用域内的客机连接。</summary>
+        public NetConnectionId ConnectionId { get; }
         public RemotePlayerSeat Seat { get; }
         public CharacterActor Actor { get; }
         public SimActorRegistration Registration { get; }
@@ -513,13 +536,14 @@ public sealed class ReplicationRoomHost : AppControllerBase
 
     readonly struct PendingJoin
     {
-        public PendingJoin(IPEndPoint from, RoomJoinRequest request)
+        public PendingJoin(NetConnectionId connectionId, RoomJoinRequest request)
         {
-            From = from;
+            ConnectionId = connectionId;
             Request = request;
         }
 
-        public IPEndPoint From { get; }
+        /// <summary>发起 Join 的 Transport 连接。</summary>
+        public NetConnectionId ConnectionId { get; }
         public RoomJoinRequest Request { get; }
     }
 }

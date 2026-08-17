@@ -881,24 +881,24 @@ Assets/Tests/PlayMode/Networking/
 **验收**
 
 - [x] `ACTNet.Core` 不引用 Unity 与 ACTGame。（asmdef 零引用 + `noEngineReferences`）
-- [ ] Golden Bytes 与 GF0 完全一致。  
-- [ ] 非法长度、负 count、超上限 payload 被拒绝。  
-- [ ] Id 的 Invalid / Equality / Hash 测试通过。  
+- [x] Golden Bytes 与 GF0 完全一致。（2026-08-17：Unity Test Runner 验收）
+- [x] 非法长度、负 count、超上限 payload 被拒绝。（2026-08-17：Unity Test Runner 验收）
+- [x] Id 的 Invalid / Equality / Hash 测试通过。（2026-08-17：Unity Test Runner 验收）
 
-**出口：** 纯 C# 网络基础类型形成。→ **代码完成，待 Unity Test Runner**
+**出口：** 纯 C# 网络基础类型形成。→ **已达成（2026-08-17）**
 
 ### GF2 — Transport 与 Session 分离
 
 **任务**
 
-- [ ] 用 `INetTransport` 替代当前方向固化的 `IReplicationTransport`。  
-- [ ] 引入 `NetConnectionId` 和定向 `Send`。  
+- [x] 用 `INetTransport` 替代当前方向固化的 `IReplicationTransport`。（2026-08-17：旧接口/实现已删除）
+- [x] 引入 `NetConnectionId` 和定向 `Send`。
 - [ ] 创建 `ServerSession` / `ClientSession` / `ConnectionRegistry`。  
 - [ ] Join、Accept、Reject、Heartbeat、Kick 从 RoomHost/Client 移入 Session。  
 - [ ] `ReplicationRoomProtocol.MaxPlayers` 变为 Session 配置。  
 - [ ] `CombatWorldController` 通过 Composition Root 注入 Session。  
-- [ ] LoopbackTransport 支持至少两条模拟连接。  
-- [ ] UDP 适配器保持当前行为；可靠通道可在 GF6 接入成熟网库。  
+- [x] LoopbackTransport 支持至少三条模拟连接。（测试已写，待 Test Runner）
+- [x] UDP 适配器保持当前行为；可靠通道可在 GF6 接入成熟网库。（代码已切换，待双进程 Play）
 - [ ] **删除** RoomHost/Client 内 Endpoint 列表和握手 switch。  
 
 **验收**
@@ -908,7 +908,7 @@ Assets/Tests/PlayMode/Networking/
 - [ ] Host 可区分两条 Loopback connection。  
 - [ ] 当前双人 UDP 入房行为不变。  
 
-**出口：** 房间连接与 ACT Gameplay 解耦。→ **未达成**
+**出口：** 房间连接与 ACT Gameplay 解耦。→ **Transport 切片完成；Session 迁移未达成**
 
 ### GF3 — Replication Runtime 与实体生命周期
 

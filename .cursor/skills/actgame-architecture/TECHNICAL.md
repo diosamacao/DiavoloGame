@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-17（NetSync W1 ACTNet.Core 与有界 Codec）
+> Last updated: 2026-08-17（NetSync W2 通用 Transport 切片）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -214,7 +214,7 @@ EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
 | 字节 | `ReplicationCodec` / `RoomCodec` 复用 `ACTNet.Core.NetBufferReader/Writer`；小端与 Golden Bytes 不改；负 count、字段/载荷超限和尾随字节拒绝 |
 | 通用身份 | `NetConnectionId` / `NetPlayerId` / `NetEntityId` / `NetArchetypeId`；`SimActorNetIdAdapter` 显式映射 Simulation Actor |
 | 版本基础 | `NetworkProtocolVersion` + 128 位 `ContentFingerprint` 已定义；握手切换留在 Content Manifest Wave |
-| 传输 | `IReplicationTransport` / `LoopbackReplicationTransport`（`ACTGame.Net`） |
+| 传输 | `INetTransport` / `LoopbackTransport` / `UdpTransport`（`ACTNet.Transport`，按 ConnectionId 定向） |
 
 ### 关键参数
 
@@ -224,13 +224,13 @@ Loopback `LatencyMs` 默认 0。`actionId` 由 `ActionReplicationCatalog` 按资
 
 ```
 Builder.FromAuthority → AuthorityTick → Codec.Write
-  → Loopback.SendAuthorityToClients → Pump → TryDequeueClient → Codec.Read
+  → LoopbackTransport.Send(connection) → Poll → TryReceive → Codec.Read
 ```
 
 ### 已知限制
 
 - 水平速度 P0 可为 0；空闲相位由 Capture 填 `AnimationKey`
-- NS5 已接 `UdpReplicationTransport`；`LoopbackReplicationTransport` 仅单测延迟队列，不再挂 Host 预览
+- NS5 已单轨切到 `UdpTransport`；`LoopbackTransport` 支持一服多客和确定性延迟，不再挂 Host 预览
 - W1 Core/Codec 代码已接线；Golden Bytes、Id/Buffer 边界测试仍需 Unity Test Runner 通过后关闭出口
 
 ### 相关文件
@@ -238,10 +238,9 @@ Builder.FromAuthority → AuthorityTick → Codec.Write
 - `Assets/Scripts/Domain/Simulation/Replication/*`
 - `Assets/Scripts/Framework/ACTNet/Core/*`
 - `Assets/Scripts/Domain/Net/Identity/SimActorNetIdAdapter.cs`
-- `Assets/Scripts/Domain/Net/IReplicationTransport.cs`
-- `Assets/Scripts/Domain/Net/LoopbackReplicationTransport.cs`
+- `Assets/Scripts/Framework/ACTNet/Transport/*`
 - `Assets/Tests/EditMode/Simulation/ActorReplicationSnapshotTests.cs`
-- `Assets/Tests/EditMode/Simulation/LoopbackReplicationTransportTests.cs`
+- `Assets/Tests/EditMode/ACTNet/Transport/LoopbackTransportTests.cs`
 
 ---
 
@@ -256,7 +255,7 @@ Builder.FromAuthority → AuthorityTick → Codec.Write
 | 项 | 方案 |
 |----|------|
 | 捕获 | Host `CharacterReplicationCapture.FromActor` + 共享 `ActionReplicationCatalog` |
-| 传输 | 房间 `UdpReplicationTransport`；Loopback 仅单测 |
+| 传输 | 房间 `UdpTransport`；Loopback 仅单测 |
 | 应用 | `RemoteCharacterProxy`：位姿写 Motor；招式切段 Seek；Locomotion 硬切 + `SeekLocomotionNormalized`；关掉 Animator RM |
 | 朝向调试 | 客机幽灵挂同一套黄/品红箭；wish 走快照 `moveV*`，与延迟位姿成对 |
 | 插值 | 复用 `CharacterPresentationBridge.Render(alpha)` |
@@ -411,7 +410,7 @@ Listen Host 创建一人房间并可接纳第二人；客机预测自己的位�
 | 项 | 方案 |
 |----|------|
 | 角色 | 默认 Listen Host；ParrelSync 克隆自动 Client；无克隆时菜单写 EditorPrefs |
-| 传输 | `UdpReplicationTransport` 实现 `IReplicationTransport`；房间信封 `RoomCodec` 不改 Tick 布局 |
+| 传输 | `UdpTransport` 实现 `INetTransport`；按 `NetConnectionId` 定向收发，房间信封 `RoomCodec` 不改 Tick 布局 |
 | Host | `ReplicationRoomHost` 生成 `RemotePlayerSeat`；命令批按 Hint 合并未应用边沿写入下一帧；无新命令时 `appliedHint=0` |
 | Client | 每渲染帧 `MergeLocalSample`；本机 `CharacterActor.Step`；他人 Proxy Seek |
 | 动作 Id | `ActionReplicationCatalog` 按资产名稳定哈希，两端 Prefill Graph 节点、`VariantResolver` 变体与反应 |
@@ -451,7 +450,7 @@ Client：Update 合并按键边沿 → 逻辑步 Resolve 上行命令批 → Run
 - `Assets/Scripts/Domain/Character/Replication/ReplicationSeat.cs`
 - `Assets/Scripts/Domain/Character/Replication/LocomotionSavedState.cs`
 - `Assets/Scripts/Domain/Simulation/Prediction/IPredictedLocomotionReplay.cs`
-- `Assets/Scripts/Domain/Net/UdpReplicationTransport.cs`
+- `Assets/Scripts/Framework/ACTNet/Transport/UdpTransport.cs`
 - `Assets/Scripts/Domain/Simulation/Replication/RoomCodec.cs`
 - `Assets/Scripts/Domain/Simulation/Replication/RoomRemoteInputMerge.cs`
 - `Assets/Scripts/Domain/Character/Replication/ReplicationPresentationAlign.cs`
@@ -461,7 +460,7 @@ Client：Update 合并按键边沿 → 逻辑步 Resolve 上行命令批 → Run
 - `Assets/Scripts/Editor/Net/ReplicationRoomMenu.cs`
 - `Assets/Tests/EditMode/Simulation/RoomCodecTests.cs`
 - `Assets/Tests/EditMode/Simulation/RoomIdleTrackerTests.cs`
-- `Assets/Tests/EditMode/Simulation/UdpReplicationTransportTests.cs`
+- `Assets/Tests/EditMode/ACTNet/Transport/UdpTransportTests.cs`
 
 ---
 
@@ -1258,6 +1257,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-15 | 删除 Host 同机预览：`RemoteGhostViewController` / `PredictedClientPreviewController` / `SetAutonomousPredictMode` |
 | 2026-08-17 | NetSync W0：新增 Codec Golden Bytes / Room 执行顺序测试；F3 HUD 增加 Tick/Command 字节、Proxy 与预测 pending 基线观测 |
 | 2026-08-17 | NetSync W1：新增零依赖 `ACTNet.Core` 身份/版本/结果/Metrics/有界小端 Buffer；Room/Replication Codec 切换 Core 并删除重复私有 Reader/Writer |
+| 2026-08-17 | NetSync W2 Transport：新增 `ACTNet.Transport`、多连接 Loopback 与 ConnectionId UDP；Host/Client 单轨切换 `INetTransport`，删除方向固化旧接口与实现 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

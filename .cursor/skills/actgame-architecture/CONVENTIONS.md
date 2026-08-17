@@ -44,7 +44,7 @@
 - **本机玩家入口**：玩法与相机通过 `LocalPlayerService` / `GetLocalPlayerQuery` / `GetPlayerRootsQuery` 取玩家；禁止 `FindObjectOfType<PlayerController>()`（仅 Editor Gizmo 可留）。Listen Host 的 `IsLocalPredicted` 恒为 false
 - **客机相机跟朝向**：`CameraManager.ApplyFollowFacingYaw` 必须读 `ILocalPlayer.HasMoveIntent` 与 `PresentationRoot`。客机有 Autonomous `CharacterActor`，`PresentationRoot` 来自 Actor。他人/敌人 `RemoteCharacterProxy` 只读登记 `TargetSystem`；`OnHit` 空操作，禁止 Collect
 - **朝向调试箭头**：`CharacterFacingDebugVisualizer` 只绑 `ICharacterFacingDebugTarget`（本机 Actor 或 RemoteProxy）；禁止再 Bind `PlayerController`。幽灵 wish 必须与对应 Tick 成对，禁止用当前帧本机输入画延迟模型
-- **复制契约**：当前上下行结构体与 Codec 仍在 `ACTGame.Simulation/Replication`，但小端字节读写唯一复用零依赖 `ACTNet.Core.NetBufferReader/Writer`；Codec 禁止再内置私有 Reader/Writer。稳定网络身份使用 `Net*Id`，`SimActorId ↔ NetEntityId` 只在 ACT Adapter 显式映射。传输接口暂在 `ACTGame.Net`。禁止把 CameraLock/Look/Lean 写入 Snapshot；禁止 ClientCommand 带 HP/坐标/招式名。房间上行是最近 N 条命令批；Host 只合并未应用 Hint 的边沿。`appliedClientFrameHint` 仅本步真正灌入远端命令时非 0，CarryForward 必须下发 0。装配用 `ReplicationSeat`，禁止 `if (isClient)` 开第二套 Actor
+- **复制契约**：当前上下行结构体与 Codec 仍在 `ACTGame.Simulation/Replication`，但小端字节读写唯一复用零依赖 `ACTNet.Core.NetBufferReader/Writer`；Codec 禁止再内置私有 Reader/Writer。稳定网络身份使用 `Net*Id`，`SimActorId ↔ NetEntityId` 只在 ACT Adapter 显式映射。传输唯一入口为 `ACTNet.Transport.INetTransport`，必须按 `NetConnectionId` 定向 `Send`；禁止恢复 Client→Authority / Authority→Clients 方向固化接口。禁止把 CameraLock/Look/Lean 写入 Snapshot；禁止 ClientCommand 带 HP/坐标/招式名。房间上行是最近 N 条命令批；Host 只合并未应用 Hint 的边沿。`appliedClientFrameHint` 仅本步真正灌入远端命令时非 0，CarryForward 必须下发 0。装配用 `ReplicationSeat`，禁止 `if (isClient)` 开第二套 Actor
 - **RemoteProxy**：他人/敌人幽灵只应用 Snapshot（`Domain/Character/Replication/`），禁止 `CharacterActorFactory`、`HitboxFrameConsumer`、`EnemyBrain.Step`。可按 ActionFrame 过点派发 VFX/SFX，禁止派发 Hitbox/MotionCommand。Host 用 `AfterLogicStep` 打包，不得只在渲染帧漏步发送。禁止再挂 Host 同机 ±2m 预览（`RemoteGhostViewController` / `PredictedClientPreviewController` 已删）
 - **幽灵 Locomotion（他人）**：切 `AnimationKey` 时一次性相位硬切并可 Seek；Idle↔走跑冲刺用 Profile 默认 CrossFade。同键只 `Tick`
 - **客机本机走跑**：真源 [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md)。本机 Autonomous `CharacterActor` 跑同一套 `LocomotionStateMachine`；纠偏 Restore+Replay；他人仍 Snapshot。禁止猜片 / 摇杆硬映射 Idle/Walk/Run。已废止 Runner/CreateAutonomous
@@ -208,8 +208,9 @@ public class MyBehaviour : MonoBehaviour
 Domain/Simulation/Replication/   # Snapshot / Tick / Command / PoseApplier，无 Unity
 Domain/Simulation/Prediction/    # PredictedLocomotionDriver，无 Unity
 Domain/Character/Replication/    # Catalog / Capture / RemoteProxy（有 Unity，无 Collect）
-Domain/Net/                      # IReplicationTransport、Loopback、UdpReplicationTransport
+Domain/Net/                      # ACTGame 身份/内容 Adapter；不得重新放通用 Transport
 Framework/ACTNet/Core/           # 零依赖 Id / Tick / Version / Result / Metrics / 有界小端 Buffer
+Framework/ACTNet/Transport/      # INetTransport / LoopbackTransport / UdpTransport；只引用 Core
 Infrastructure/Net/              # 预留 Unity Transport；不得被 ACTGame.Simulation 引用
 App/Controllers/Gameplay/        # ReplicationRoomHost / Client / RemotePlayerSeat
 ```

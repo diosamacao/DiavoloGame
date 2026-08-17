@@ -18,7 +18,7 @@ public sealed class ReplicationProductionOrderTests
         string roomUpdate = Slice(room, "    void Update()", "    void OnDisable()");
         AssertInOrder(
             roomUpdate,
-            "_transport.Pump();",
+            "_transport.Poll();",
             "DrainAuthorityInbox();",
             "TryAcceptPendingJoins();",
             "CheckGuestIdle();");
@@ -60,7 +60,7 @@ public sealed class ReplicationProductionOrderTests
             "CopyHits();",
             "new AuthorityTick(",
             "RoomCodec.WriteAuthorityTickEnvelope(",
-            "_transport.SendAuthorityToClients(payload);");
+            "_transport.Send(");
     }
 
     /// <summary>Client 必须先收权威并采样，再于逻辑步回调中先上行、后预测。</summary>
@@ -72,7 +72,7 @@ public sealed class ReplicationProductionOrderTests
         string update = Slice(client, "    void Update()", "    void LateUpdate()");
         AssertInOrder(
             update,
-            "_transport.Pump();",
+            "_transport.Poll();",
             "DrainClientInbox();",
             "SampleRenderInput();",
             "_hostIdle.IsTimedOut(");
@@ -100,7 +100,7 @@ public sealed class ReplicationProductionOrderTests
             "_predictFrame++;",
             "_inputFrames.ResolveLocal(",
             "RememberCommand(in command);",
-            "_transport.SendClientToAuthority(payload);",
+            "_transport.Send(",
             "actor.Step(",
             "actor.ResolvePostCombat(",
             "_driver.RecordAutonomous(in input);");
