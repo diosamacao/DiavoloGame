@@ -112,7 +112,7 @@
 
 **客机装配：** [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md) — **CA0～CA2 代码已切（2026-08-15）**：同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。Play 待 Editor。纠偏合同仍见 [`UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
 
-**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W3 出口测试待验收（2026-08-18）**：生产单轨、稳定 Archetype、多敌种与双进程 Play 已验收；新增线格式门禁覆盖整张 Update 丢失后继续应用最新状态、乱序旧帧丢弃及多 Archetype 身份保持。该测试通过后关闭 W3 并进入 W4 ACT Adapter；Dedicated 仍须等 W4 出口。
+**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W3 已验收，W4 Authority Adapter 首切片待验收（2026-08-18）**：`ActAuthorityReplicationAdapter` 已接管远端 InputFrame 灌入、权威 Snapshot Capture 与 FrameHits ActionId 映射，`ReplicationRoomHost` 仅保留调用与 Frame/Session 编排。后续继续拆 Session Handler、Owner 与 Observer；Dedicated 仍须等 W4 出口。
 
 ### [P1] Lockstep 模拟核迁移
 

@@ -934,14 +934,14 @@ Assets/Tests/PlayMode/Networking/
 - [x] 两种敌人 Archetype 在 Client 精确解析各自内容。（2026-08-18 已验收）
 - [x] 当前 Player / Enemy 联机表现不变。（2026-08-18 双进程 Play 已验收）
 
-**出口：** 复制层不再等同于 Character Actors 全量数组。→ **代码与生产 Play 已达成；新增丢帧线格式测试待 Test Runner**
+**出口：** 复制层不再等同于 Character Actors 全量数组。→ **已达成（2026-08-18：生产 Play 与丢帧/乱序/多 Archetype 线格式测试验收）**
 
 ### GF4 — ACT Authority / Owner / Observer Adapter
 
 **任务**
 
 - [ ] 创建 `ActGameSessionHandler`，负责玩家加入后生成 Authority Actor。  
-- [ ] 创建 `ActAuthorityReplicationAdapter`，封装 InputFrame 灌入、Snapshot Capture、FrameHits。  
+- [ ] 创建 `ActAuthorityReplicationAdapter`，封装 InputFrame 灌入、Snapshot Capture、FrameHits。（2026-08-18 首切片代码完成，待 Test Runner / 双进程 Play）
 - [ ] 创建 `ActOwnerReplicationAdapter`，封装 self Snapshot 应用和 HP 权威覆盖。  
 - [ ] 创建 `ActRemoteProxyFactory`，封装 Proxy、TargetSystem、配置和 View 生命周期。  
 - [ ] `ActionReplicationCatalog` 迁入 `ActContentRegistry`。  

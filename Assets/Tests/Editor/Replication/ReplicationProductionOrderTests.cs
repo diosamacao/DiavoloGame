@@ -13,6 +13,7 @@ public sealed class ReplicationProductionOrderTests
     public void HostFrame_ProductionSource_PreservesReceiveStepCaptureSendOrder()
     {
         string room = ReadScript("App/Controllers/Gameplay/ReplicationRoomHost.cs");
+        string authority = ReadScript("App/Networking/Adapters/ActAuthorityReplicationAdapter.cs");
         string simulation = ReadScript("App/Controllers/Gameplay/SimulationHost.cs");
 
         string roomUpdate = Slice(room, "    void Update()", "    void OnDisable()");
@@ -23,15 +24,15 @@ public sealed class ReplicationProductionOrderTests
             "DrainApplicationMessages();");
 
         string applyCommands = Slice(
-            room,
-            "    void ApplyGuestCommands(ClientCommand[] commands)",
-            "    void OnSessionDisconnected(SessionDisconnected disconnected)");
+            authority,
+            "    public ActAuthorityInputApplyResult ApplyGuestCommands(",
+            "    public void CaptureAuthorityActors(");
         AssertInOrder(
             applyCommands,
-            "CurrentFrame + 1",
+            "currentFrame + 1",
             "RoomRemoteInputMerge.TryMergeUnapplied(",
             "buffer.Set(in merged);",
-            "_guest.AppliedHintThisTick = newestHint;");
+            "new ActAuthorityInputApplyResult(true, newestHint);");
 
         string simulationUpdate = Slice(
             simulation,

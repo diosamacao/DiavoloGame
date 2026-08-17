@@ -228,7 +228,7 @@ W5 起额外要求：
 - [x] 两种敌人 Archetype 通过稳定 Id 精确解析各自内容；生产 Play 已验收。
 - [x] Player / Enemy 当前联机表现不变。（2026-08-18 双进程 Play 已验收）
 
-**出口：** 复制层拥有通用实体生命周期，不再等于 Actors 全量数组。→ **代码与生产 Play 已达成；新增丢帧线格式测试待 Test Runner**
+**出口：** 复制层拥有通用实体生命周期，不再等于 Actors 全量数组。→ **已达成（2026-08-18：生产 Play 与丢帧/乱序/多 Archetype 线格式测试验收）**
 
 ---
 
@@ -239,7 +239,7 @@ W5 起额外要求：
 **任务**
 
 - [ ] 建 `ActGameSessionHandler`，玩家加入后创建 Authority Actor。
-- [ ] 建 `ActAuthorityReplicationAdapter`：InputFrame 灌入、Snapshot Capture、FrameHits。
+- [ ] 建 `ActAuthorityReplicationAdapter`：InputFrame 灌入、Snapshot Capture、FrameHits。（2026-08-18 首切片代码完成，待 Test Runner / 双进程 Play）
 - [ ] 建 `ActOwnerReplicationAdapter`：Owner HP、Action Ack、Locomotion Reconcile。
 - [ ] 建 `ActRemoteProxyFactory`：Proxy、TargetSystem、Archetype 与 View 生命周期。
 - [ ] `ActionReplicationCatalog` 迁入 `ActContentRegistry`。

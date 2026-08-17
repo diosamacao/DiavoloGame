@@ -14,13 +14,10 @@ public sealed class ReplicationRoomHost : AppControllerBase
     ServerSession _session;
     ActionReplicationCatalog _catalog;
     ReplicationServer _replicationServer;
-    CharacterSnapshotSchemaV1 _characterSchema;
     CharacterReplicationContentRegistry _content;
+    ActAuthorityReplicationAdapter _authority;
     GuestSeat _guest;
-    readonly List<EnemyController> _enemies = new();
     readonly List<EnemyDefinition> _enemyDefinitions = new();
-    readonly List<ActorReplicationSnapshot> _snapshots = new();
-    readonly List<ReplicationEntityState> _entityStates = new();
     bool _bindFailed;
     int _lastTickBytes = -1;
     int _lastCommandBytes = -1;
@@ -46,8 +43,8 @@ public sealed class ReplicationRoomHost : AppControllerBase
     {
         _catalog = new ActionReplicationCatalog();
         _replicationServer = new ReplicationServer();
-        _characterSchema = new CharacterSnapshotSchemaV1();
         _content = new CharacterReplicationContentRegistry();
+        _authority = new ActAuthorityReplicationAdapter(_catalog, _content);
         RegisterStaticReplicationContent();
         RefreshHud("Listening");
     }
@@ -100,7 +97,7 @@ public sealed class ReplicationRoomHost : AppControllerBase
             ActReplicationApplicationPayloadCodec.Encode(applicationPayload);
         ReplicationFrame frame = _replicationServer.BuildFrame(
             new NetTick(authorityFrame),
-            _entityStates,
+            _authority.EntityStates,
             applicationBytes);
         byte[] body = ReplicationFrameCodec.Encode(frame);
         _lastTickBytes = body.Length + 2;
@@ -241,27 +238,21 @@ public sealed class ReplicationRoomHost : AppControllerBase
     /// </summary>
     void ApplyGuestCommands(ClientCommand[] commands)
     {
-        if (_guest == null || _world?.SimulationHost?.World == null)
+        SimulationHost host = _world != null ? _world.SimulationHost : null;
+        if (_guest == null || host?.World == null || _authority == null)
             return;
 
-        long targetFrame = _world.SimulationHost.CurrentFrame + 1;
-        SimActorId actorId = _guest.Actor.SimulationId;
-        if (!RoomRemoteInputMerge.TryMergeUnapplied(
-                commands,
-                _guest.LastAppliedFrameHint,
-                targetFrame,
-                actorId,
-                out InputFrame merged,
-                out long newestHint))
+        ActAuthorityInputApplyResult result = _authority.ApplyGuestCommands(
+            host.World.InputFrames,
+            host.CurrentFrame,
+            _guest.Actor.SimulationId,
+            commands,
+            _guest.LastAppliedFrameHint);
+        if (!result.Applied)
             return;
 
-        InputFrameBuffer buffer = _world.SimulationHost.World.InputFrames;
-        if (buffer.TryGetExact(targetFrame, actorId, out InputFrame existing))
-            merged = existing.MergeSample(in merged);
-
-        buffer.Set(in merged);
-        _guest.LastAppliedFrameHint = newestHint;
-        _guest.AppliedHintThisTick = newestHint;
+        _guest.LastAppliedFrameHint = result.NewestHint;
+        _guest.AppliedHintThisTick = result.NewestHint;
     }
 
     /// <summary>Session 断开后清理由该连接创建的全部 ACT Gameplay 对象。</summary>
@@ -298,98 +289,20 @@ public sealed class ReplicationRoomHost : AppControllerBase
     /// <summary>捕获玩家、Guest 与运行中敌人的完整权威状态，并精准绑定各自原型。</summary>
     void CaptureAuthorityActors()
     {
-        _snapshots.Clear();
-        _entityStates.Clear();
         ILocalPlayer local = SendQuery(new GetLocalPlayerQuery());
-        if (local is PlayerController player && local.Actor != null)
-        {
-            ActorReplicationSnapshot snapshot = CharacterReplicationCapture.FromActor(
-                local.Actor,
-                _catalog,
-                ReplicationActorKind.Player);
-            AddEntityState(
-                in snapshot,
-                _content.RegisterPlayer(player.CharacterConfig));
-        }
-
-        if (_guest?.Actor != null)
-        {
-            ActorReplicationSnapshot snapshot = CharacterReplicationCapture.FromActor(
-                _guest.Actor,
-                _catalog,
-                ReplicationActorKind.Player);
-            AddEntityState(in snapshot, _guest.ArchetypeId);
-        }
-
         SimulationHost host = _world != null ? _world.SimulationHost : null;
-        if (host == null)
-            return;
-
-        host.CopyEnemyControllers(_enemies);
-        for (int i = 0; i < _enemies.Count; i++)
-        {
-            CharacterActor enemy = _enemies[i].Actor;
-            if (enemy == null)
-                continue;
-            EnemyDefinition definition = _enemies[i].Definition;
-            if (definition == null)
-                throw new InvalidOperationException("运行中敌人缺少 EnemyDefinition，无法确定网络原型。");
-
-            // 运行时生成的新 Definition 允许幂等补登记；同 key 异资产仍由 Registry 明确拒绝。
-            NetArchetypeId archetypeId = _content.RegisterEnemy(definition);
-            ActorReplicationSnapshot snapshot = CharacterReplicationCapture.FromActor(
-                enemy,
-                _catalog,
-                ReplicationActorKind.Enemy);
-            AddEntityState(in snapshot, archetypeId);
-        }
+        _authority.CaptureAuthorityActors(
+            local,
+            _guest?.Actor,
+            _guest != null ? _guest.ArchetypeId : default,
+            host);
     }
 
-    /// <summary>保存命中补 ActionId 所需快照，并生成 EntityId=SimActorId 的完整复制状态。</summary>
-    void AddEntityState(
-        in ActorReplicationSnapshot snapshot,
-        NetArchetypeId archetypeId)
-    {
-        if (!snapshot.ActorId.IsValid)
-            throw new InvalidOperationException("权威角色尚无有效 SimActorId，不能进入复制 full set。");
-
-        _snapshots.Add(snapshot);
-        _entityStates.Add(new ReplicationEntityState(
-            new NetEntityId(snapshot.ActorId.Value),
-            archetypeId,
-            CharacterSnapshotSchemaV1.Id,
-            _characterSchema.Encode(in snapshot)));
-    }
-
-    /// <summary>复制本帧命中，并从同帧攻击者快照补齐唯一 ActionId。</summary>
+    /// <summary>由权威适配器复制本帧命中，并从同帧快照补齐唯一 ActionId。</summary>
     ReplicatedHitEvent[] CopyHits()
     {
         SimulationHost host = _world != null ? _world.SimulationHost : null;
-        if (host == null || host.FrameHits.Count == 0)
-            return null;
-
-        var copy = new ReplicatedHitEvent[host.FrameHits.Count];
-        for (int i = 0; i < host.FrameHits.Count; i++)
-        {
-            ReplicatedHitEvent hit = host.FrameHits[i];
-            copy[i] = hit.WithActionId(ResolveHitActionId(in hit));
-        }
-
-        return copy;
-    }
-
-    /// <summary>用本帧攻击者快照的 ActionId 盖上命中；攻击者缺失时明确拒绝构帧。</summary>
-    int ResolveHitActionId(in ReplicatedHitEvent hit)
-    {
-        int attacker = hit.Key.AttackerId.Value;
-        for (int i = 0; i < _snapshots.Count; i++)
-        {
-            if (_snapshots[i].ActorId.Value == attacker)
-                return _snapshots[i].ActionId;
-        }
-
-        throw new InvalidOperationException(
-            $"命中攻击者 {attacker} 不在本帧复制 full set，无法补写 ActionId。");
+        return _authority.CopyHits(host?.FrameHits);
     }
 
     /// <summary>动作目录为空时，从本机与场景敌人配置一次性补齐动作及变体。</summary>
