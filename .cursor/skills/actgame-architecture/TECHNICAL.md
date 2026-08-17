@@ -1266,6 +1266,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-17 | NetSync W3 Runtime 基础：新增纯 C# `ACTNet.Replication`，提供 Version 1 Frame Codec、Schema Registry、Server full-set 生命周期差分、Client 原子应用与 Sequence 丢旧；尚未切换 Character 生产路径 |
 | 2026-08-18 | NetSync W3 Character Adapter：Snapshot 字段布局收敛为 `ActorReplicationSnapshotCodec`；新增纯 C# `ACTGame.Networking`、`CharacterSnapshotSchemaV1` 与 stableKey Archetype Catalog；尚未切换 Host/Client |
 | 2026-08-18 | NetSync W3 生产切换：Host/Client 单轨使用 `ReplicationFrame` 显式生命周期与 Sequence；hint/hits 迁入 V1 ApplicationPayload；删除 `AuthorityTick`、缺 Tick 即销毁和首敌配置回退 |
+| 2026-08-18 | NetSync W3 出口测试：Replication Runtime 用真实 V1 Frame Codec 覆盖中间 Update 整帧丢失、乱序旧帧和双 Archetype；生产 Play 已验收 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

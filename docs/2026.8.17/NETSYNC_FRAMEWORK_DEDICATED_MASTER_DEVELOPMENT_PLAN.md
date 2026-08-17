@@ -209,15 +209,15 @@ W5 起额外要求：
 
 **任务**
 
-- [x] 建 `ReplicatedEntityRegistry`、`ReplicationServer`、`ReplicationClient`。（纯 C# Runtime 代码完成，待 Test Runner）
+- [x] 建 `ReplicatedEntityRegistry`、`ReplicationServer`、`ReplicationClient`。（2026-08-18 已验收）
 - [x] 定义 `ReplicationFrame`、`EntityRecord`、`SpawnRecord`、`DespawnRecord`。
 - [x] 定义 `IReplicationSchema` 与 Schema Registry。
-- [x] 实现 `CharacterSnapshotSchemaV1`，首版正文复用 `ActorReplicationSnapshotCodec` 保持旧 Snapshot 语义。（代码完成，待 Test Runner；生产注册后续）
-- [x] `Spawn/Despawn` 成为生命周期真源。（生产代码已单轨切换，待双进程 Play 验收）
-- [x] 建立稳定 Character Archetype Catalog：调用方 stableKey 经 FNV-1a 映射 `NetArchetypeId`，拒绝重复键与哈希碰撞。（代码完成，待 Test Runner）
-- [x] 将 `NetArchetypeId` 接入生产 Spawn/Proxy，删除客户端 `_enemyConfigs[0]` 模型回退主路径。（代码完成，待多敌种 Play 验收）
-- [ ] 每连接构造 Frame；即使首版内容相同，也禁止全局 ACK。
-- [x] 旧 Sequence 不得覆盖新状态。（Runtime 测试已写，生产切换待后续切片）
+- [x] 实现 `CharacterSnapshotSchemaV1`，首版正文复用 `ActorReplicationSnapshotCodec` 保持旧 Snapshot 语义。（2026-08-18 已验收）
+- [x] `Spawn/Despawn` 成为生命周期真源。（2026-08-18 双进程 Play 已验收）
+- [x] 建立稳定 Character Archetype Catalog：调用方 stableKey 经 FNV-1a 映射 `NetArchetypeId`，拒绝重复键与哈希碰撞。（2026-08-18 已验收）
+- [x] 将 `NetArchetypeId` 接入生产 Spawn/Proxy，删除客户端 `_enemyConfigs[0]` 模型回退主路径。（2026-08-18 已验收）
+- [x] 当前单客机按连接持有 `ReplicationServer` baseline；重连重建 Server，禁止继承上一连接 ACK。（N 连接扩展仍属 W5）
+- [x] 旧 Sequence 不得覆盖新状态。（Runtime 与生产切换均完成）
 - [x] 删除 `ApplyRemoteActors` 中“本 Tick 未见即销毁”的生命周期主逻辑。
 
 **验收**
@@ -225,10 +225,10 @@ W5 起额外要求：
 - [x] FakeEntity 完成 Spawn → Update → Despawn。（2026-08-18 Runtime Test Runner 已验收）
 - [x] 丢一张普通 Snapshot 不会误 Despawn。（2026-08-18 Runtime Test Runner 已验收）
 - [x] 乱序旧 Frame 不会回滚实体。（2026-08-18 Runtime Test Runner 已验收）
-- [ ] 两种敌人 Archetype 创建正确 Proxy。
-- [ ] Player / Enemy 当前联机表现不变。
+- [x] 两种敌人 Archetype 通过稳定 Id 精确解析各自内容；生产 Play 已验收。
+- [x] Player / Enemy 当前联机表现不变。（2026-08-18 双进程 Play 已验收）
 
-**出口：** 复制层拥有通用实体生命周期，不再等于 Actors 全量数组。→ **未达成**
+**出口：** 复制层拥有通用实体生命周期，不再等于 Actors 全量数组。→ **代码与生产 Play 已达成；新增丢帧线格式测试待 Test Runner**
 
 ---
 

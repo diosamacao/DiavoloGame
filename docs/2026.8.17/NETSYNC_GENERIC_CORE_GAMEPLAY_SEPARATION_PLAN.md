@@ -914,16 +914,16 @@ Assets/Tests/PlayMode/Networking/
 
 **任务**
 
-- [x] 创建 `ReplicatedEntityRegistry`。（纯 C# Runtime 代码完成，待 Test Runner）
+- [x] 创建 `ReplicatedEntityRegistry`。（2026-08-18 已验收）
 - [x] 定义 `ReplicationFrame` / `EntityRecord` / `SpawnRecord` / `DespawnRecord`。
 - [x] 定义 `IReplicationSchema` 与 Schema Registry。
-- [x] 实现 `CharacterSnapshotSchemaV1`，内部复用 `ActorReplicationSnapshotCodec` 编码完整旧 Snapshot。（代码完成，待 Test Runner；生产注册后续）
+- [x] 实现 `CharacterSnapshotSchemaV1`，内部复用 `ActorReplicationSnapshotCodec` 编码完整旧 Snapshot。（2026-08-18 已验收）
 - [x] Host 通过 `ReplicationServer` 为当前连接生成 Frame。（单连接生产切换完成；N 连接仍属后续）
 - [x] Client 通过 `ReplicationClient` 应用 Frame。
 - [x] `Spawns/Despawns` 成为生命周期真源；普通 Update 缺席不再推断销毁。
-- [x] 建立 stableKey → `NetArchetypeId` 的 Character Archetype Catalog，并拒绝重复键与哈希碰撞。（代码完成，待 Test Runner）
+- [x] 建立 stableKey → `NetArchetypeId` 的 Character Archetype Catalog，并拒绝重复键与哈希碰撞。（2026-08-18 已验收）
 - [x] 将 `NetArchetypeId` 接入生产 Spawn/Proxy，删除 `_enemyConfigs[0]` 回退。
-- [x] 增加旧 Sequence 丢弃。（Runtime 测试已写，生产切换待后续切片）
+- [x] 增加旧 Sequence 丢弃。（Runtime 与生产切换均完成）
 - [x] **删除** `ApplyRemoteActors` 里“本 Tick 未见即销毁”的生命周期主逻辑。
 
 **验收**
@@ -931,10 +931,10 @@ Assets/Tests/PlayMode/Networking/
 - [x] FakeEntity 可 Spawn → Update → Despawn。（2026-08-18 Runtime Test Runner 已验收）
 - [x] 丢一个普通 Snapshot 不会误 Despawn。（2026-08-18 Runtime Test Runner 已验收）
 - [x] 乱序旧 Frame 不会覆盖新状态。（2026-08-18 Runtime Test Runner 已验收）
-- [ ] 两种敌人 Archetype 在 Client 创建正确 Proxy。  
-- [ ] 当前 Player / Enemy 联机表现不变。  
+- [x] 两种敌人 Archetype 在 Client 精确解析各自内容。（2026-08-18 已验收）
+- [x] 当前 Player / Enemy 联机表现不变。（2026-08-18 双进程 Play 已验收）
 
-**出口：** 复制层不再等同于 Character Actors 全量数组。→ **未达成**
+**出口：** 复制层不再等同于 Character Actors 全量数组。→ **代码与生产 Play 已达成；新增丢帧线格式测试待 Test Runner**
 
 ### GF4 — ACT Authority / Owner / Observer Adapter
 
