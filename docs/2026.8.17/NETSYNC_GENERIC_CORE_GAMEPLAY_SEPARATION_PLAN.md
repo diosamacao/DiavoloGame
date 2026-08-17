@@ -851,8 +851,8 @@ Assets/Tests/PlayMode/Networking/
 
 - [x] 为当前 `RoomCodec`、`ReplicationCodec` 建 Golden Bytes 测试。（2026-08-17：`ProtocolGoldenBytesTests`，待 Unity Test Runner）  
 - [x] 固定当前 Join、CommandBatch、AuthorityTick 往返测试。（2026-08-17：含独立 Hit 布局样本）  
-- [ ] 固定 Host 一帧调用顺序：收输入 → World.Step → Capture → Send。  
-- [ ] 固定 Client 一帧调用顺序：收 Tick → Reconcile → 采样 → Send → 预测。（按当前生产代码冻结）  
+- [x] 固定 Host 一帧调用顺序：收输入 → World.Step → Capture → Send。（2026-08-17：生产编排特征测试待 Test Runner）  
+- [x] 固定 Client 一帧调用顺序：收 Tick → Reconcile → 采样 → Send → 预测。（2026-08-17：按当前生产代码冻结，待 Test Runner）  
 - [x] 记录当前类依赖图和程序集引用。（2026-08-17：[`NETSYNC_W0_BASELINE_AND_DEPENDENCY_AUDIT.md`](./NETSYNC_W0_BASELINE_AND_DEPENDENCY_AUDIT.md)）  
 - [x] 建双进程人工回归脚本：移动、出招、连招、受击、死亡、CameraLock、断线。（2026-08-17：待 Editor 执行）  
 - [ ] 记录基准指标：Tick bytes、GC alloc、Proxy count、prediction pending。  
