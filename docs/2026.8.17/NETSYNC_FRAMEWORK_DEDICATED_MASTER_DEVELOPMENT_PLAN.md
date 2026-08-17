@@ -158,22 +158,22 @@ W5 起额外要求：
 
 **任务**
 
-- [ ] 创建纯 C# `ACTNet.Core`。
-- [ ] 增加 `NetConnectionId`、`NetPlayerId`、`NetEntityId`、`NetArchetypeId`、`NetTick`、`NetSequence`。
-- [ ] 增加有边界检查的小端 `NetBufferReader/Writer`。
-- [ ] 定义 `NetworkProtocolVersion`、`ContentFingerprint`、`NetResult`、`DisconnectReason`。
-- [ ] `SimActorId ↔ NetEntityId` 只在 ACT Adapter 映射；首版允许数值相同。
-- [ ] `RoomCodec` / `ReplicationCodec` 改用 Core Reader/Writer。
-- [ ] 删除各 Codec 重复私有 Reader/Writer。
+- [x] 创建纯 C# `ACTNet.Core`。（2026-08-17：`Framework/ACTNet/Core/ACTNet.Core.asmdef`，`noEngineReferences=true`）
+- [x] 增加 `NetConnectionId`、`NetPlayerId`、`NetEntityId`、`NetArchetypeId`、`NetTick`、`NetSequence`。
+- [x] 增加有边界检查的小端 `NetBufferReader/Writer`。
+- [x] 定义 `NetworkProtocolVersion`、`ContentFingerprint`、`NetResult`、`DisconnectReason`。
+- [x] `SimActorId ↔ NetEntityId` 只在 ACT Adapter 映射；首版允许数值相同。（`SimActorNetIdAdapter`）
+- [x] `RoomCodec` / `ReplicationCodec` 改用 Core Reader/Writer。
+- [x] 删除各 Codec 重复私有 Reader/Writer。
 
 **验收**
 
-- [ ] `ACTNet.Core` 无 Unity / ACT 引用。
+- [x] `ACTNet.Core` 无 Unity / ACT 引用。（asmdef 零引用 + noEngineReferences）
 - [ ] W0 Golden Bytes 完全不变。
 - [ ] 非法长度、负 count、超上限、无效 Id 被拒绝。
 - [ ] Id Equality / Hash / Invalid 测试通过。
 
-**出口：** 通用纯 C# 协议基础形成，当前线上字节不变。→ **未达成**
+**出口：** 通用纯 C# 协议基础形成，当前线上字节不变。→ **代码完成，待 Unity Test Runner 证明 Golden Bytes 与边界测试**
 
 ---
 
