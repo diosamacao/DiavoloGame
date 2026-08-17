@@ -12,7 +12,8 @@ using UnityEngine;
 public sealed class ReplicationRoomClient : AppControllerBase
 {
     CombatWorldController _world;
-    UdpReplicationTransport _transport;
+    INetTransport _transport;
+    NetConnectionId _serverConnection;
     ActionReplicationCatalog _catalog;
     PlayerController _localPlayer;
     PredictedLocomotionDriver _driver;
@@ -72,7 +73,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
             return;
 
         // 把套接字收包泵进客机收件箱
-        _transport.Pump();
+        _transport.Poll();
         // 按消息类型处理 Accept/Reject/Tick/Kick
         DrainClientInbox();
         // 已入房：每渲染帧合并本机按键边沿，避免无逻辑步时丢掉 WasPressed
@@ -130,7 +131,10 @@ public sealed class ReplicationRoomClient : AppControllerBase
         RememberCommand(in command);
         byte[] payload = RoomCodec.WriteClientCommandBatch(_recentCommands);
         _lastCommandBytes = payload.Length;
-        _transport.SendClientToAuthority(payload);
+        _transport.Send(
+            _serverConnection,
+            NetChannel.CommandUnreliableRedundant,
+            payload);
 
         CharacterActor actor = _localPlayer != null ? _localPlayer.Actor : null;
         if (!_hasSelfSnapshot || _driver == null || actor == null)
@@ -181,10 +185,13 @@ public sealed class ReplicationRoomClient : AppControllerBase
     {
         string host = _world != null ? _world.JoinHost : "127.0.0.1";
         int port = _world != null ? _world.ListenPort : ReplicationRoomProtocol.DefaultPort;
-        _transport = new UdpReplicationTransport();
+        _transport = new UdpTransport();
         try
         {
-            _transport.Connect(host, port);
+            _transport.StartClient(new NetEndpoint(host, port));
+            if (_transport.Connections.Count == 0)
+                throw new InvalidOperationException("Transport 未创建服务端连接。");
+            _serverConnection = _transport.Connections[0];
         }
         catch (Exception ex)
         {
@@ -202,7 +209,9 @@ public sealed class ReplicationRoomClient : AppControllerBase
             _catalog.Prefill(_enemyConfigs[i]);
 
         int contentVersion = _world != null ? _world.ContentVersion : 1;
-        _transport.SendClientToAuthority(
+        _transport.Send(
+            _serverConnection,
+            NetChannel.ControlReliableOrdered,
             RoomCodec.WriteJoinRequest(
                 new RoomJoinRequest(contentVersion, ReplicationRoomProtocol.ProtocolVersion)));
         Debug.Log($"ReplicationRoomClient: 已请求加入 {host}:{port}。", this);
@@ -210,10 +219,13 @@ public sealed class ReplicationRoomClient : AppControllerBase
 
     void DrainClientInbox()
     {
-        while (_transport.TryDequeueClient(out byte[] payload))
+        while (_transport.TryReceive(out NetPacket packet))
         {
             try
             {
+                if (packet.ConnectionId != _serverConnection)
+                    continue;
+                byte[] payload = packet.Payload;
                 RoomCodec.ReadEnvelope(payload, out RoomMessageKind kind, out byte[] body);
                 HandleMessage(kind, body);
             }
@@ -611,7 +623,10 @@ public sealed class ReplicationRoomClient : AppControllerBase
         if (now < _nextHeartbeatMs)
             return;
         _nextHeartbeatMs = now + ReplicationRoomProtocol.HeartbeatIntervalMs;
-        _transport.SendClientToAuthority(RoomCodec.WriteHeartbeat(new RoomHeartbeat(now, 0)));
+        _transport.Send(
+            _serverConnection,
+            NetChannel.ControlReliableOrdered,
+            RoomCodec.WriteHeartbeat(new RoomHeartbeat(now, 0)));
     }
 
     void CollectEnemyConfigs()

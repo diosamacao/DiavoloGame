@@ -112,7 +112,7 @@
 
 **客机装配：** [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md) — **CA0～CA2 代码已切（2026-08-15）**：同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。Play 待 Editor。纠偏合同仍见 [`UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
 
-**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W0 验收待人工，W1 代码完成待 Test Runner（2026-08-17）**：W0 已建 Golden Bytes、帧序测试、回归脚本与依赖审计；W1 已建零依赖 `ACTNet.Core`、稳定网络身份、有界小端 Buffer、ACT Id Adapter，并让现有 Codec 单轨切换到 Core、删除重复 Reader/Writer。Golden Bytes/边界测试和正式 60 秒指标基线通过后关闭出口；W2 与 Dedicated 不提前启动。
+**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W1 已验收，W2 Transport 切片完成（2026-08-17）**：`ACTNet.Transport` 已提供 ConnectionId 定向接口、多连接 Loopback 与 UDP Adapter；Host/Client 已单轨切换，方向固化的 `IReplicationTransport` 与旧实现已删除。下一切片迁 Join/Heartbeat/Kick 到 ServerSession/ClientSession；W0 正式 60 秒指标仍待补齐，Dedicated 须等 W4 出口。
 
 ### [P1] Lockstep 模拟核迁移
 
