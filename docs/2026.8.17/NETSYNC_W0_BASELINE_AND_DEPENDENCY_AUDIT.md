@@ -19,7 +19,7 @@
 | Tick bytes / GC / Proxy / pending / RTT | 🟡 HUD 观测已接，待 Profiler + 双进程采样 | §5 |
 | DS-Demo 范围 | ✅ 冻结 | 2～4 玩家、LAN、一场一进程、无重连 |
 
-W0 尚未关闭。当前只允许增加测试、审计和观测，不允许改协议布局、纠偏阈值、动作或命中语义。
+W0 尚未关闭。按总计划并行规则，允许推进 W1/GF1 的 Core Id 与 Reader/Writer，并以 Golden Bytes 约束线上布局不变；W2、Dedicated、纠偏阈值、动作与命中语义仍不得提前改动。
 
 ---
 

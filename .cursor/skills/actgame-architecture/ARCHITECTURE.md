@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-15（删除 Host 同机预览）
+> Last audited: 2026-08-17（ACTNet.Core 与 Codec 基础迁移）
 
 ## 项目概述
 
@@ -33,6 +33,8 @@ Assets/
 │   │   ├── Input/             # 原始帧、意图与输入中枢
 │   │   ├── Simulation/        # 固定帧核 + Replication + Prediction（无 Unity）
 │   │   └── Net/               # IReplicationTransport + Loopback + UDP（ACTGame.Net）
+│   ├── Framework/ACTNet/
+│   │   └── Core/              # 稳定网络身份、版本、结果、Metrics 与有界小端 Buffer（纯 C#）
 │   ├── App/
 │   │   ├── Architecture/      # QFramework 风格强类型 Architecture / 能力接口 / 基类
 │   │   ├── Controllers/       # Player / Enemy / Camera / Combat / SimulationHost Unity 入口
@@ -89,6 +91,7 @@ flowchart TB
 | `ISimulationActor` | 玩家 `CharacterActor` 与敌人 `EnemyHandle` 的固定帧契约 |
 | `FixedStepAccumulator` | 把可变渲染时间转换为有追帧上限但不丢欠账的固定步数 |
 | `ActionSim` | `ACTGame.Simulation` 内无 Unity 依赖的 60Hz 动作核：帧推进、Cancel、Graph 衔接、命中确认与 Snapshot/Event |
+| `ACTNet.Core` | 零依赖纯 C# 网络基础：稳定 Id/Tick/Sequence、协议/内容版本、结果、Metrics 与有界小端 Reader/Writer |
 | `IRenderFrameSampler` | 可选渲染帧输入汇聚契约，避免高 FPS 无逻辑 Step 时丢 Pressed/Released |
 | `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
 | `CharacterPresentationBridge` | 保留前后权威 Pose，只移动运行时模型锚点，不回写模拟根 |
@@ -231,8 +234,9 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | 类 | 职责 |
 |----|------|
 | `ActorReplicationSnapshot` / `AuthorityTick` / `ClientCommand` | 无 Unity 上下行契约；Tick 按 SimActorId 排序 |
-| `ReplicationSnapshotBuilder` / `ReplicationCodec` / `ReplicationPoseApplier` | Motor+Action+数值 → 快照；小端往返；位姿写回 MotorSim |
-| `RoomCodec` / `RoomIdleTracker` / `RoomRemoteInputMerge` | 房间信封（命令批，不改 Tick 布局）；空闲 10s 剔除；未应用 Hint 边沿合并 |
+| `ReplicationSnapshotBuilder` / `ReplicationCodec` / `ReplicationPoseApplier` | Motor+Action+数值 → 快照；复用 `ACTNet.Core.NetBufferReader/Writer` 小端往返；位姿写回 MotorSim |
+| `RoomCodec` / `RoomIdleTracker` / `RoomRemoteInputMerge` | 房间信封复用 Core 有界 Buffer（Golden Bytes 布局不变）；空闲 10s 剔除；未应用 Hint 边沿合并 |
+| `SimActorNetIdAdapter` | 在 ACTGame 边界显式映射 `SimActorId ↔ NetEntityId`；首版数值相同 |
 | `IReplicationTransport` / `LoopbackReplicationTransport` / `UdpReplicationTransport` | 只传字节；Loopback 同进程；UDP 为 NS5 第二实现 |
 | `ActionReplicationCatalog` / `CharacterReplicationCapture` | 资产名稳定 Id（含 VariantResolver 变体）；从权威 Actor 填快照 |
 | `RemoteCharacterProxy` / `RemoteCharacterProxyFactory` / `ReplicationPresentationAlign` | 他人 Seek；本机走跑只 Sync Motor；过渡相位硬切在 Align |

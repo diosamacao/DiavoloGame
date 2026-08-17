@@ -77,4 +77,36 @@ public sealed class RoomCodecTests
         Assert.That(restored[1].FrameHint, Is.EqualTo(11));
         Assert.That(restored[1].Input.MoveX, Is.EqualTo((sbyte)20));
     }
+
+    /// <summary>负 Actor count 必须在数组分配前被协议边界拒绝。</summary>
+    [Test]
+    public void AuthorityTick_NegativeActorCount_ThrowsProtocolError()
+    {
+        byte[] payload =
+        {
+            1,
+            0, 0, 0, 0, 0, 0, 0, 0,
+            0xFF, 0xFF, 0xFF, 0xFF,
+        };
+
+        Assert.Catch<InvalidOperationException>(
+            () => ReplicationCodec.ReadAuthorityTick(payload));
+    }
+
+    /// <summary>单条 ClientCommand 解码后必须拒绝额外尾随字节。</summary>
+    [Test]
+    public void ClientCommand_TrailingByte_ThrowsProtocolError()
+    {
+        var id = new SimActorId(2);
+        var command = new ClientCommand(
+            10,
+            2,
+            new InputFrame(10, id, 0, 0, 0ul, 0ul, 0ul));
+        byte[] valid = ReplicationCodec.WriteClientCommand(in command);
+        var malformed = new byte[valid.Length + 1];
+        Buffer.BlockCopy(valid, 0, malformed, 0, valid.Length);
+
+        Assert.Catch<InvalidOperationException>(
+            () => ReplicationCodec.ReadClientCommand(malformed));
+    }
 }

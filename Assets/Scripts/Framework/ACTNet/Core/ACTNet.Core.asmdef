@@ -1,10 +1,7 @@
 {
-    "name": "ACTGame.Net",
+    "name": "ACTNet.Core",
     "rootNamespace": "",
-    "references": [
-        "ACTGame.Simulation",
-        "ACTNet.Core"
-    ],
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

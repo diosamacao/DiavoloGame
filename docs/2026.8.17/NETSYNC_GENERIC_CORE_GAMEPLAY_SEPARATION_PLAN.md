@@ -870,22 +870,22 @@ Assets/Tests/PlayMode/Networking/
 
 **任务**
 
-- [ ] 创建 `ACTNet.Core` 程序集。  
-- [ ] 增加 `NetConnectionId`、`NetPlayerId`、`NetEntityId`、`NetArchetypeId`、`NetTick`。  
-- [ ] 增加边界检查的 `NetBufferReader/Writer`。  
-- [ ] 定义 `NetworkProtocolVersion` 与 `ContentFingerprint`。  
-- [ ] 当前 `SimActorId` 通过 ACT Adapter 映射 `NetEntityId`；首版允许数值相同。  
-- [ ] 当前 Codec 改为复用 Core Reader/Writer，但字节结果不得改变。  
-- [ ] **删除**各 Codec 内重复的私有 Reader/Writer。  
+- [x] 创建 `ACTNet.Core` 程序集。（2026-08-17：纯 C# asmdef 已建立）
+- [x] 增加 `NetConnectionId`、`NetPlayerId`、`NetEntityId`、`NetArchetypeId`、`NetTick`、`NetSequence`。
+- [x] 增加边界检查的 `NetBufferReader/Writer`。
+- [x] 定义 `NetworkProtocolVersion` 与 `ContentFingerprint`，并补 `NetResult` / `DisconnectReason` / `NetMetricsSnapshot`。
+- [x] 当前 `SimActorId` 通过 ACT Adapter 映射 `NetEntityId`；首版数值相同。
+- [x] 当前 Codec 改为复用 Core Reader/Writer，但字节结果不得改变。
+- [x] **删除**各 Codec 内重复的私有 Reader/Writer。
 
 **验收**
 
-- [ ] `ACTNet.Core` 不引用 Unity 与 ACTGame。  
+- [x] `ACTNet.Core` 不引用 Unity 与 ACTGame。（asmdef 零引用 + `noEngineReferences`）
 - [ ] Golden Bytes 与 GF0 完全一致。  
 - [ ] 非法长度、负 count、超上限 payload 被拒绝。  
 - [ ] Id 的 Invalid / Equality / Hash 测试通过。  
 
-**出口：** 纯 C# 网络基础类型形成。→ **未达成**
+**出口：** 纯 C# 网络基础类型形成。→ **代码完成，待 Unity Test Runner**
 
 ### GF2 — Transport 与 Session 分离
 

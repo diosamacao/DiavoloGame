@@ -1,9 +1,7 @@
 {
-    "name": "ACTGame.Simulation.EditModeTests",
+    "name": "ACTNet.Core.EditModeTests",
     "rootNamespace": "",
     "references": [
-        "ACTGame.Simulation",
-        "ACTGame.Net",
         "ACTNet.Core"
     ],
     "includePlatforms": [
