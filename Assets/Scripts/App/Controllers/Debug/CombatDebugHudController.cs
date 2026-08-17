@@ -92,7 +92,7 @@ public sealed class CombatDebugHudController : AppControllerBase
         GUI.Label(new Rect(16f, 16f, width - 16f, height - 16f), _sb.ToString(), _labelStyle);
     }
 
-    /// <summary>房间角色、权威帧与 RTT；客机无本地 Actor 时仍显示。</summary>
+    /// <summary>房间角色、权威帧与 W0 网络基线；客机无本地 Actor 时仍显示。</summary>
     static void AppendRoomLine(StringBuilder sb, in ReplicationRoomHudInfo room)
     {
         if (!room.Active)
@@ -106,6 +106,17 @@ public sealed class CombatDebugHudController : AppControllerBase
         if (room.HealthMilli >= 0)
             sb.Append(" | hpMilli=").Append(room.HealthMilli);
         sb.AppendLine();
+
+        if (room.TickBytes >= 0 || room.CommandBytes >= 0)
+        {
+            sb.Append("Net: tickB=").Append(room.TickBytes)
+                .Append(" | cmdB=").Append(room.CommandBytes);
+            if (room.ProxyCount >= 0)
+                sb.Append(" | proxies=").Append(room.ProxyCount);
+            if (room.PredictionPendingCount >= 0)
+                sb.Append(" | pending=").Append(room.PredictionPendingCount);
+            sb.AppendLine();
+        }
     }
 
     /// <summary>把角色逻辑快照与本地 CameraLock 状态格式化为只读 HUD。</summary>

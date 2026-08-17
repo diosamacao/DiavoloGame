@@ -26,6 +26,8 @@ public sealed class ReplicationRoomClient : AppControllerBase
     long _nextHeartbeatMs;
     int _rttMs = -1;
     int _selfHealthMilli = -1;
+    int _lastTickBytes = -1;
+    int _lastCommandBytes = -1;
     ActorReplicationSnapshot _lastSelfSnapshot;
     bool _hasSelfSnapshot;
     InputFrameBuffer _inputFrames;
@@ -126,7 +128,9 @@ public sealed class ReplicationRoomClient : AppControllerBase
         // 最近 N 条命令冗余上行，供 Host 丢包补齐
         var command = new ClientCommand(_predictFrame, _accept.AssignedPlayerId, in input);
         RememberCommand(in command);
-        _transport.SendClientToAuthority(RoomCodec.WriteClientCommandBatch(_recentCommands));
+        byte[] payload = RoomCodec.WriteClientCommandBatch(_recentCommands);
+        _lastCommandBytes = payload.Length;
+        _transport.SendClientToAuthority(payload);
 
         CharacterActor actor = _localPlayer != null ? _localPlayer.Actor : null;
         if (!_hasSelfSnapshot || _driver == null || actor == null)
@@ -281,6 +285,8 @@ public sealed class ReplicationRoomClient : AppControllerBase
         if (!_joined)
             return;
 
+        // body 已由 RoomCodec 去掉两字节信封头；基线记录完整 UDP payload。
+        _lastTickBytes = body != null ? body.Length + 2 : -1;
         RoomCodec.ReadAuthorityTickEnvelope(body, out long appliedHint, out byte[] tickBytes);
         AuthorityTick tick = ReplicationCodec.ReadAuthorityTick(tickBytes);
         _lastAuthorityFrame = tick.AuthorityFrame;
@@ -669,7 +675,11 @@ public sealed class ReplicationRoomClient : AppControllerBase
             status,
             _lastAuthorityFrame,
             _rttMs,
-            _selfHealthMilli);
+            _selfHealthMilli,
+            _lastTickBytes,
+            _lastCommandBytes,
+            _proxies.Count,
+            (_driver?.PendingCount ?? 0) + _actionAck.PendingCount);
     }
 
     void SubscribeHost()

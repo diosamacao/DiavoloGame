@@ -21,6 +21,8 @@ public sealed class ReplicationRoomHost : AppControllerBase
     readonly List<EnemyController> _enemies = new();
     readonly List<ActorReplicationSnapshot> _snapshots = new();
     bool _bindFailed;
+    int _lastTickBytes = -1;
+    int _lastCommandBytes = -1;
 
     /// <summary>由战斗世界在 Awake 注入；可重复调用。</summary>
     public void Configure(CombatWorldController world)
@@ -84,10 +86,11 @@ public sealed class ReplicationRoomHost : AppControllerBase
         // CarryForward 必须下发 0；仅本步真正灌入远端命令时非 0
         long appliedHintThisTick = _guest.AppliedHintThisTick;
         _guest.AppliedHintThisTick = 0;
-        _transport.SendAuthorityToClients(
-            RoomCodec.WriteAuthorityTickEnvelope(
-                appliedHintThisTick,
-                ReplicationCodec.WriteAuthorityTick(tick)));
+        byte[] payload = RoomCodec.WriteAuthorityTickEnvelope(
+            appliedHintThisTick,
+            ReplicationCodec.WriteAuthorityTick(tick));
+        _lastTickBytes = payload.Length;
+        _transport.SendAuthorityToClients(payload);
         RefreshHud("ClientJoined");
     }
 
@@ -116,6 +119,8 @@ public sealed class ReplicationRoomHost : AppControllerBase
             try
             {
                 RoomCodec.ReadEnvelope(payload, out RoomMessageKind kind, out byte[] body);
+                if (kind == RoomMessageKind.ClientCommand)
+                    _lastCommandBytes = payload.Length;
                 HandleMessage(kind, body, from);
             }
             catch (Exception ex)
@@ -451,7 +456,11 @@ public sealed class ReplicationRoomHost : AppControllerBase
             _bindFailed ? "BindFailed" : status,
             frame,
             rttMs: -1,
-            health);
+            health,
+            _lastTickBytes,
+            _lastCommandBytes,
+            proxyCount: -1,
+            predictionPendingCount: -1);
     }
 
     void SubscribeHost()

@@ -8,7 +8,11 @@ public readonly struct ReplicationRoomHudInfo
         string status,
         long authorityFrame,
         int rttMs,
-        int healthMilli)
+        int healthMilli,
+        int tickBytes,
+        int commandBytes,
+        int proxyCount,
+        int predictionPendingCount)
     {
         Active = active;
         Role = role;
@@ -16,6 +20,10 @@ public readonly struct ReplicationRoomHudInfo
         AuthorityFrame = authorityFrame;
         RttMs = rttMs;
         HealthMilli = healthMilli;
+        TickBytes = tickBytes;
+        CommandBytes = commandBytes;
+        ProxyCount = proxyCount;
+        PredictionPendingCount = predictionPendingCount;
     }
 
     /// <summary>房间控制器是否已启动。</summary>
@@ -35,4 +43,16 @@ public readonly struct ReplicationRoomHudInfo
 
     /// <summary>本机最近生命毫值；未知为 -1。</summary>
     public int HealthMilli { get; }
+
+    /// <summary>最近一包完整 AuthorityTick 房间载荷字节数；未知为 -1。</summary>
+    public int TickBytes { get; }
+
+    /// <summary>最近一包完整 ClientCommandBatch 房间载荷字节数；未知为 -1。</summary>
+    public int CommandBytes { get; }
+
+    /// <summary>Client 当前 RemoteCharacterProxy 数量；Host 为 -1。</summary>
+    public int ProxyCount { get; }
+
+    /// <summary>Client 当前 Locomotion 与 Action 待确认记录总数；Host 为 -1。</summary>
+    public int PredictionPendingCount { get; }
 }
