@@ -1,0 +1,17 @@
+{
+    "name": "ACTNet.Session",
+    "rootNamespace": "",
+    "references": [
+        "ACTNet.Core",
+        "ACTNet.Transport"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

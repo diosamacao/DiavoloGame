@@ -1,10 +1,9 @@
 {
-    "name": "ACTGame.Simulation.EditModeTests",
+    "name": "ACTNet.Session.EditModeTests",
     "rootNamespace": "",
     "references": [
-        "ACTGame.Simulation",
-        "ACTGame.Net",
         "ACTNet.Core",
+        "ACTNet.Transport",
         "ACTNet.Session"
     ],
     "includePlatforms": [

@@ -23,17 +23,19 @@ public sealed class ProtocolGoldenBytesTests
     [Test]
     public void JoinRequest_GoldenBytes_FreezesEnvelopeAndVersionFields()
     {
-        var request = new RoomJoinRequest(0x01020304, 0x0A0B0C0D);
+        var request = new SessionJoinRequest(
+            0x01020304,
+            new NetworkProtocolVersion(0x0A0B0C0D));
         byte[] expected = ParseHex(JoinRequestGolden);
 
-        byte[] actual = RoomCodec.WriteJoinRequest(in request);
+        byte[] actual = SessionCodec.WriteJoinRequest(in request);
 
         Assert.That(actual, Is.EqualTo(expected));
-        RoomCodec.ReadEnvelope(expected, out RoomMessageKind kind, out byte[] body);
-        RoomJoinRequest restored = RoomCodec.ReadJoinRequest(body);
-        Assert.That(kind, Is.EqualTo(RoomMessageKind.JoinRequest));
+        SessionCodec.ReadEnvelope(expected, out byte kind, out byte[] body);
+        SessionJoinRequest restored = SessionCodec.ReadJoinRequest(body);
+        Assert.That(kind, Is.EqualTo((byte)SessionMessageKind.JoinRequest));
         Assert.That(restored.ContentVersion, Is.EqualTo(0x01020304));
-        Assert.That(restored.ProtocolVersion, Is.EqualTo(0x0A0B0C0D));
+        Assert.That(restored.ProtocolVersion.Value, Is.EqualTo(0x0A0B0C0D));
     }
 
     /// <summary>命令批信封、条目长度与 InputFrame 的完整固定布局保持不变。</summary>
@@ -55,12 +57,14 @@ public sealed class ProtocolGoldenBytesTests
             in input);
         byte[] expected = ParseHex(ClientCommandBatchGolden);
 
-        byte[] actual = RoomCodec.WriteClientCommandBatch(new[] { command });
+        byte[] actual = SessionCodec.WriteEnvelope(
+            (byte)RoomMessageKind.ClientCommand,
+            RoomCodec.WriteClientCommandBatch(new[] { command }));
 
         Assert.That(actual, Is.EqualTo(expected));
-        RoomCodec.ReadEnvelope(expected, out RoomMessageKind kind, out byte[] body);
+        SessionCodec.ReadEnvelope(expected, out byte kind, out byte[] body);
         ClientCommand[] restored = RoomCodec.ReadClientCommandBatch(body);
-        Assert.That(kind, Is.EqualTo(RoomMessageKind.ClientCommand));
+        Assert.That(kind, Is.EqualTo((byte)RoomMessageKind.ClientCommand));
         Assert.That(restored, Has.Length.EqualTo(1));
         Assert.That(restored[0].Equals(command), Is.True);
     }

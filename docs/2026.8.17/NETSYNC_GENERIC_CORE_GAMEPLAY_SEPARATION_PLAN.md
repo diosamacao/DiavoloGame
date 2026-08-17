@@ -893,13 +893,13 @@ Assets/Tests/PlayMode/Networking/
 
 - [x] 用 `INetTransport` 替代当前方向固化的 `IReplicationTransport`。（2026-08-17：旧接口/实现已删除）
 - [x] 引入 `NetConnectionId` 和定向 `Send`。
-- [ ] 创建 `ServerSession` / `ClientSession` / `ConnectionRegistry`。  
-- [ ] Join、Accept、Reject、Heartbeat、Kick 从 RoomHost/Client 移入 Session。  
-- [ ] `ReplicationRoomProtocol.MaxPlayers` 变为 Session 配置。  
-- [ ] `CombatWorldController` 通过 Composition Root 注入 Session。  
+- [x] 创建 `ServerSession` / `ClientSession` / `ConnectionRegistry`。
+- [x] Join、Accept、Reject、Heartbeat、Kick 从 RoomHost/Client 移入 Session。
+- [x] `ReplicationRoomProtocol.MaxPlayers` 变为 Session 配置。
+- [x] `CombatWorldController` 通过 Composition Root 注入 Session。
 - [x] LoopbackTransport 支持至少三条模拟连接。（测试已写，待 Test Runner）
 - [x] UDP 适配器保持当前行为；可靠通道可在 GF6 接入成熟网库。（代码已切换，待双进程 Play）
-- [ ] **删除** RoomHost/Client 内 Endpoint 列表和握手 switch。  
+- [x] **删除** RoomHost/Client 内 Endpoint、握手 switch、IdleTracker 和旧控制 DTO。
 
 **验收**
 
@@ -908,7 +908,7 @@ Assets/Tests/PlayMode/Networking/
 - [ ] Host 可区分两条 Loopback connection。  
 - [ ] 当前双人 UDP 入房行为不变。  
 
-**出口：** 房间连接与 ACT Gameplay 解耦。→ **Transport 切片完成；Session 迁移未达成**
+**出口：** 房间连接与 ACT Gameplay 解耦。→ **代码完成，待 Session Test Runner 与双进程 UDP 验收**
 
 ### GF3 — Replication Runtime 与实体生命周期
 

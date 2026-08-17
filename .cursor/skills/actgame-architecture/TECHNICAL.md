@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-17（NetSync W2 通用 Transport 切片）
+> Last updated: 2026-08-17（NetSync W2 Transport + Session 分离）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -410,11 +410,11 @@ Listen Host 创建一人房间并可接纳第二人；客机预测自己的位�
 | 项 | 方案 |
 |----|------|
 | 角色 | 默认 Listen Host；ParrelSync 克隆自动 Client；无克隆时菜单写 EditorPrefs |
-| 传输 | `UdpTransport` 实现 `INetTransport`；按 `NetConnectionId` 定向收发，房间信封 `RoomCodec` 不改 Tick 布局 |
+| 传输 / Session | `UdpTransport` 按 `NetConnectionId` 定向收发；`ServerSession/ClientSession` 独占信封、Join、Heartbeat、Kick，`RoomCodec` 只编 ACT 应用正文 |
 | Host | `ReplicationRoomHost` 生成 `RemotePlayerSeat`；命令批按 Hint 合并未应用边沿写入下一帧；无新命令时 `appliedHint=0` |
 | Client | 每渲染帧 `MergeLocalSample`；本机 `CharacterActor.Step`；他人 Proxy Seek |
 | 动作 Id | `ActionReplicationCatalog` 按资产名稳定哈希，两端 Prefill Graph 节点、`VariantResolver` 变体与反应 |
-| 掉线 | `RoomIdleTracker` 10s 无包剔除客机；Host 可继续 |
+| 掉线 | `ServerSession.ConnectionRegistry` 按连接记录活动时刻；10s 超时仅 Kick 对应连接 |
 | HUD | F3 Room 行：角色 / 状态 / authorityFrame / RTT；W0 基线追加完整 Tick/Command 字节、Proxy 数、预测 pending |
 
 ### 关键参数
@@ -430,8 +430,8 @@ Listen Host 创建一人房间并可接纳第二人；客机预测自己的位�
 ### 运行时流程
 
 ```
-Host：Pump → 合并未应用命令批 → SimulationWorld.Step → Capture 全员 → UDP Tick（仅本步有新命令才带 appliedHint）
-Client：Update 合并按键边沿 → 逻辑步 Resolve 上行命令批 → Runner.Tick（闪避后 SprintAfterDodge）或出招贴齐 → 收 Tick Restore+Replay 并 Proxy 他人/敌人
+Host：ServerSession.Poll → Gameplay 接纳/合并命令批 → SimulationWorld.Step → Capture 全员 → Session Tick（仅本步有新命令才带 appliedHint）
+Client：ClientSession.Poll/Join/Heartbeat → Update 合并按键边沿 → 逻辑步 Resolve 上行命令批 → Actor.Step → 收 Tick Restore+Replay 并 Proxy 他人/敌人
 ```
 
 ### 已知限制
@@ -459,7 +459,7 @@ Client：Update 合并按键边沿 → 逻辑步 Resolve 上行命令批 → Run
 - `Assets/Scripts/Domain/Combat/VFX/HitImpactCuePlayer.cs`
 - `Assets/Scripts/Editor/Net/ReplicationRoomMenu.cs`
 - `Assets/Tests/EditMode/Simulation/RoomCodecTests.cs`
-- `Assets/Tests/EditMode/Simulation/RoomIdleTrackerTests.cs`
+- `Assets/Tests/EditMode/ACTNet/Session/SessionIntegrationTests.cs`
 - `Assets/Tests/EditMode/ACTNet/Transport/UdpTransportTests.cs`
 
 ---
@@ -1258,6 +1258,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-17 | NetSync W0：新增 Codec Golden Bytes / Room 执行顺序测试；F3 HUD 增加 Tick/Command 字节、Proxy 与预测 pending 基线观测 |
 | 2026-08-17 | NetSync W1：新增零依赖 `ACTNet.Core` 身份/版本/结果/Metrics/有界小端 Buffer；Room/Replication Codec 切换 Core 并删除重复私有 Reader/Writer |
 | 2026-08-17 | NetSync W2 Transport：新增 `ACTNet.Transport`、多连接 Loopback 与 ConnectionId UDP；Host/Client 单轨切换 `INetTransport`，删除方向固化旧接口与实现 |
+| 2026-08-17 | NetSync W2 Session：新增 `ACTNet.Session`、连接/玩家注册表、Join/Heartbeat/Kick 状态机与 FakeGame 三连接测试；Composition Root 注入 Session，删除 Room 控制 DTO、握手 switch 与 IdleTracker |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

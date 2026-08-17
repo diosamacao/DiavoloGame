@@ -112,7 +112,7 @@
 
 **客机装配：** [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md) — **CA0～CA2 代码已切（2026-08-15）**：同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。Play 待 Editor。纠偏合同仍见 [`UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
 
-**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W1 已验收，W2 Transport 切片完成（2026-08-17）**：`ACTNet.Transport` 已提供 ConnectionId 定向接口、多连接 Loopback 与 UDP Adapter；Host/Client 已单轨切换，方向固化的 `IReplicationTransport` 与旧实现已删除。下一切片迁 Join/Heartbeat/Kick 到 ServerSession/ClientSession；W0 正式 60 秒指标仍待补齐，Dedicated 须等 W4 出口。
+**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W2 代码完成待验收（2026-08-17）**：`ACTNet.Transport` 与 `ACTNet.Session` 已形成纯 C# 连接/会话层；Composition Root 注入 Session，Room 只保留 ACT Gameplay 接纳、命令与 Tick，旧 Transport、控制 DTO、握手 switch、Endpoint/IdleTracker 已删除。Session/FakeGame/Golden Bytes 与双进程 UDP 通过后进入 W3；Dedicated 仍须等 W4 出口。
 
 ### [P1] Lockstep 模拟核迁移
 

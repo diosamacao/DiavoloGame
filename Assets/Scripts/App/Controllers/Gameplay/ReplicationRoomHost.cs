@@ -10,24 +10,27 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public sealed class ReplicationRoomHost : AppControllerBase
 {
-    const int GuestPlayerId = 2;
-
     CombatWorldController _world;
-    INetTransport _transport;
+    ServerSession _session;
     ActionReplicationCatalog _catalog;
     GuestSeat _guest;
-    readonly List<PendingJoin> _pendingJoins = new();
     readonly List<EnemyController> _enemies = new();
     readonly List<ActorReplicationSnapshot> _snapshots = new();
     bool _bindFailed;
     int _lastTickBytes = -1;
     int _lastCommandBytes = -1;
 
-    /// <summary>由战斗世界在 Awake 注入；可重复调用。</summary>
-    public void Configure(CombatWorldController world)
+    /// <summary>由 Composition Root 注入战斗世界与已启动的服务端 Session。</summary>
+    public void Configure(CombatWorldController world, ServerSession session)
     {
         UnsubscribeHost();
+        if (_session != null)
+            _session.Disconnected -= OnSessionDisconnected;
         _world = world;
+        _session = session;
+        _bindFailed = session == null;
+        if (_session != null)
+            _session.Disconnected += OnSessionDisconnected;
         if (isActiveAndEnabled)
             SubscribeHost();
     }
@@ -37,24 +40,19 @@ public sealed class ReplicationRoomHost : AppControllerBase
     void Start()
     {
         _catalog = new ActionReplicationCatalog();
-        TryBindTransport();
         RefreshHud("Listening");
     }
 
     void Update()
     {
-        // 绑定失败或尚未监听：本帧不收包
-        if (_transport == null)
+        // 绑定失败或 Session 尚未监听：本帧不收包
+        if (_session == null)
             return;
 
-        // 把套接字收包泵进权威收件箱
-        _transport.Poll();
-        // 处理 Join/Command/Heartbeat
-        DrainAuthorityInbox();
-        // 待接纳队列：座位空时发 Accept
-        TryAcceptPendingJoins();
-        // 客机心跳超时则踢人
-        CheckGuestIdle();
+        // Session 独占握手、心跳和超时；Room 只处理 Gameplay 接纳与命令。
+        _session.Poll(NowMs());
+        DrainPlayerRequests();
+        DrainApplicationMessages();
     }
 
     void OnDisable() => UnsubscribeHost();
@@ -62,15 +60,17 @@ public sealed class ReplicationRoomHost : AppControllerBase
     void OnDestroy()
     {
         UnsubscribeHost();
-        KickGuest(RoomKickReason.HostEnded, notify: true);
-        _transport?.Dispose();
-        _transport = null;
+        if (_session != null)
+            _session.Disconnected -= OnSessionDisconnected;
+        _session?.Dispose();
+        _session = null;
+        CleanupGuest(DisconnectReason.ServerShutdown);
     }
 
     /// <summary>权威步前已在 Update 写入远端输入；步后打包全员快照。无新命令时 appliedHint=0。</summary>
     void OnAfterLogicStep(long authorityFrame)
     {
-        if (_transport == null || _guest == null || !_guest.Actor.SimulationId.IsValid)
+        if (_session == null || _guest == null || !_guest.Actor.SimulationId.IsValid)
         {
             RefreshHud(_guest != null ? "ClientJoined" : "Listening");
             return;
@@ -85,133 +85,63 @@ public sealed class ReplicationRoomHost : AppControllerBase
         // CarryForward 必须下发 0；仅本步真正灌入远端命令时非 0
         long appliedHintThisTick = _guest.AppliedHintThisTick;
         _guest.AppliedHintThisTick = 0;
-        byte[] payload = RoomCodec.WriteAuthorityTickEnvelope(
+        byte[] body = RoomCodec.WriteAuthorityTickEnvelope(
             appliedHintThisTick,
             ReplicationCodec.WriteAuthorityTick(tick));
-        _lastTickBytes = payload.Length;
-        _transport.Send(
+        _lastTickBytes = body.Length + 2;
+        _session.SendApplication(
             _guest.ConnectionId,
+            (byte)RoomMessageKind.AuthorityTick,
             NetChannel.SnapshotUnreliableSequenced,
-            payload);
+            body);
         RefreshHud("ClientJoined");
     }
 
-    void TryBindTransport()
+    /// <summary>把已通过 Session 校验的玩家请求交给 ACT Gameplay 创建 Authority Actor。</summary>
+    void DrainPlayerRequests()
     {
-        int port = _world != null ? _world.ListenPort : ReplicationRoomProtocol.DefaultPort;
-        _transport = new UdpTransport();
-        try
+        while (_session.TryDequeuePlayerRequest(out SessionPlayerRequest request))
         {
-            _transport.StartServer(
-                new NetEndpoint("0.0.0.0", port, allowEphemeralPort: true));
-            Debug.Log($"ReplicationRoomHost: 监听 UDP {_transport.LocalEndpoint}。", this);
-        }
-        catch (Exception ex)
-        {
-            _bindFailed = true;
-            Debug.LogError($"ReplicationRoomHost: 绑定端口 {port} 失败，房间不可加入。{ex.Message}", this);
-            _transport.Dispose();
-            _transport = null;
+            ILocalPlayer local = SendQuery(new GetLocalPlayerQuery());
+            CharacterActor hostActor = local?.Actor;
+            if (_guest != null
+                || hostActor == null
+                || !hostActor.SimulationId.IsValid
+                || !TrySpawnGuest(local, hostActor, in request))
+            {
+                _session.RejectPlayer(request.ConnectionId, SessionRejectReason.GameRejected);
+            }
         }
     }
 
-    void DrainAuthorityInbox()
+    /// <summary>只消费 Session 已鉴权连接的 ClientCommand 应用消息。</summary>
+    void DrainApplicationMessages()
     {
-        while (_transport.TryReceive(out NetPacket packet))
+        while (_session.TryDequeueApplication(out SessionApplicationPacket packet))
         {
+            if (packet.MessageType != (byte)RoomMessageKind.ClientCommand
+                || _guest == null
+                || _guest.ConnectionId != packet.ConnectionId)
+            {
+                continue;
+            }
+
             try
             {
-                byte[] payload = packet.Payload;
-                RoomCodec.ReadEnvelope(payload, out RoomMessageKind kind, out byte[] body);
-                if (kind == RoomMessageKind.ClientCommand)
-                    _lastCommandBytes = payload.Length;
-                HandleMessage(kind, body, packet.ConnectionId);
+                _lastCommandBytes = packet.Payload.Length + 2;
+                ApplyGuestCommands(RoomCodec.ReadClientCommandBatch(packet.Payload));
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"ReplicationRoomHost: 丢弃非法包。{ex.Message}", this);
+                Debug.LogWarning($"ReplicationRoomHost: 丢弃非法命令正文。{ex.Message}", this);
             }
         }
-    }
-
-    void HandleMessage(RoomMessageKind kind, byte[] body, NetConnectionId connectionId)
-    {
-        switch (kind)
-        {
-            case RoomMessageKind.JoinRequest:
-                _pendingJoins.Add(new PendingJoin(
-                    connectionId,
-                    RoomCodec.ReadJoinRequest(body)));
-                break;
-            case RoomMessageKind.Heartbeat:
-                if (!IsGuestConnection(connectionId))
-                    return;
-                _guest.Idle.Touch(NowMs());
-                RoomHeartbeat request = RoomCodec.ReadHeartbeat(body);
-                _transport.Send(
-                    connectionId,
-                    NetChannel.ControlReliableOrdered,
-                    RoomCodec.WriteHeartbeat(new RoomHeartbeat(request.SendTimeMs, request.SendTimeMs)));
-                break;
-            case RoomMessageKind.ClientCommand:
-                if (!IsGuestConnection(connectionId))
-                    return;
-                _guest.Idle.Touch(NowMs());
-                ApplyGuestCommands(RoomCodec.ReadClientCommandBatch(body));
-                break;
-        }
-    }
-
-    void TryAcceptPendingJoins()
-    {
-        if (_pendingJoins.Count == 0 || _transport == null)
-            return;
-
-        ILocalPlayer local = SendQuery(new GetLocalPlayerQuery());
-        CharacterActor hostActor = local?.Actor;
-        if (hostActor == null || !hostActor.SimulationId.IsValid)
-            return;
-
-        for (int i = 0; i < _pendingJoins.Count; i++)
-        {
-            PendingJoin pending = _pendingJoins[i];
-            if (_guest != null)
-            {
-                _transport.Send(
-                    pending.ConnectionId,
-                    NetChannel.ControlReliableOrdered,
-                    RoomCodec.WriteJoinReject(new RoomJoinReject(RoomRejectReason.RoomFull)));
-                continue;
-            }
-
-            int contentVersion = _world != null ? _world.ContentVersion : 1;
-            if (pending.Request.ProtocolVersion != ReplicationRoomProtocol.ProtocolVersion
-                || pending.Request.ContentVersion != contentVersion)
-            {
-                _transport.Send(
-                    pending.ConnectionId,
-                    NetChannel.ControlReliableOrdered,
-                    RoomCodec.WriteJoinReject(new RoomJoinReject(RoomRejectReason.VersionMismatch)));
-                continue;
-            }
-
-            if (!TrySpawnGuest(local, hostActor, pending.ConnectionId, contentVersion))
-            {
-                _transport.Send(
-                    pending.ConnectionId,
-                    NetChannel.ControlReliableOrdered,
-                    RoomCodec.WriteJoinReject(new RoomJoinReject(RoomRejectReason.RoomFull)));
-            }
-        }
-
-        _pendingJoins.Clear();
     }
 
     bool TrySpawnGuest(
         ILocalPlayer hostPlayer,
         CharacterActor hostActor,
-        NetConnectionId connectionId,
-        int contentVersion)
+        in SessionPlayerRequest request)
     {
         CharacterConfig config = hostPlayer is PlayerController player
             ? player.CharacterConfig
@@ -269,25 +199,19 @@ public sealed class ReplicationRoomHost : AppControllerBase
         PrefillEnemyCatalog();
 
         _guest = new GuestSeat(
-            connectionId,
+            request.ConnectionId,
             seat,
             actor,
             registration,
             reactions,
             hurtbox);
-        _guest.Idle.Touch(NowMs());
-        var accept = new RoomJoinAccept(
-            GuestPlayerId,
-            actor.SimulationId.Value,
-            hostActor.SimulationId.Value,
-            contentVersion,
-            host.CurrentFrame);
-        _transport.Send(
-            connectionId,
-            NetChannel.ControlReliableOrdered,
-            RoomCodec.WriteJoinAccept(in accept));
+        _session.AcceptPlayer(
+            request.ConnectionId,
+            new NetEntityId(actor.SimulationId.Value),
+            new NetEntityId(hostActor.SimulationId.Value),
+            new NetTick(host.CurrentFrame));
         Debug.Log(
-            $"ReplicationRoomHost: 客机加入 actor={actor.SimulationId.Value} connection={connectionId}。",
+            $"ReplicationRoomHost: 客机加入 player={request.PlayerId.Value} actor={actor.SimulationId.Value} connection={request.ConnectionId}。",
             this);
         return true;
     }
@@ -321,40 +245,22 @@ public sealed class ReplicationRoomHost : AppControllerBase
         _guest.AppliedHintThisTick = newestHint;
     }
 
-    void CheckGuestIdle()
+    /// <summary>Session 断开后清理由该连接创建的全部 ACT Gameplay 对象。</summary>
+    void OnSessionDisconnected(SessionDisconnected disconnected)
     {
-        if (_guest == null)
+        if (_guest == null || _guest.ConnectionId != disconnected.ConnectionId)
             return;
-        if (_guest.Idle.IsTimedOut(NowMs()))
-            KickGuest(RoomKickReason.IdleTimeout, notify: true);
+        CleanupGuest(disconnected.Reason);
     }
 
-    void KickGuest(RoomKickReason reason, bool notify)
+    /// <summary>只负责 Gameplay 注销与销毁；网络通知和连接表由 ServerSession 独占。</summary>
+    void CleanupGuest(DisconnectReason reason)
     {
         if (_guest == null)
             return;
 
         GuestSeat guest = _guest;
         _guest = null;
-        if (notify && _transport != null)
-        {
-            try
-            {
-                _transport.Send(
-                    guest.ConnectionId,
-                    NetChannel.ControlReliableOrdered,
-                    RoomCodec.WriteKick(new RoomKick(reason)));
-            }
-            catch (Exception)
-            {
-            }
-        }
-
-        _transport?.Disconnect(
-            guest.ConnectionId,
-            reason == RoomKickReason.IdleTimeout
-                ? DisconnectReason.Timeout
-                : DisconnectReason.ServerShutdown);
         SimulationHost host = _world != null ? _world.SimulationHost : null;
         GetSystem<LocalPlayerService>()?.Unregister(guest.Seat);
         GetSystem<TargetSystem>()?.Unregister(guest.Hurtbox);
@@ -366,7 +272,7 @@ public sealed class ReplicationRoomHost : AppControllerBase
         if (guest.Seat != null)
             Destroy(guest.Seat.gameObject);
 
-        Debug.Log($"ReplicationRoomHost: 客机已剔除 reason={reason}。", this);
+        Debug.Log($"ReplicationRoomHost: 客机 Gameplay 已清理 reason={reason}。", this);
         RefreshHud("Listening");
     }
 
@@ -458,9 +364,6 @@ public sealed class ReplicationRoomHost : AppControllerBase
         }
     }
 
-    bool IsGuestConnection(NetConnectionId connectionId) =>
-        _guest != null && _guest.ConnectionId == connectionId;
-
     void RefreshHud(string status)
     {
         if (_world == null)
@@ -501,6 +404,7 @@ public sealed class ReplicationRoomHost : AppControllerBase
 
     static long NowMs() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
+    /// <summary>单个远端玩家当前绑定的 ACT Gameplay 对象集合；连接生命周期归 Session。</summary>
     sealed class GuestSeat
     {
         public GuestSeat(
@@ -517,7 +421,6 @@ public sealed class ReplicationRoomHost : AppControllerBase
             Registration = registration;
             Reactions = reactions;
             Hurtbox = hurtbox;
-            Idle = new RoomIdleTracker();
         }
 
         /// <summary>Transport 本地作用域内的客机连接。</summary>
@@ -527,23 +430,10 @@ public sealed class ReplicationRoomHost : AppControllerBase
         public SimActorRegistration Registration { get; }
         public CharacterReactionService Reactions { get; }
         public CharacterHurtboxTarget Hurtbox { get; }
-        public RoomIdleTracker Idle { get; }
         public long LastAppliedFrameHint { get; set; }
 
         /// <summary>本逻辑步真正灌入的最新 Hint；无新命令时下行 0，避免 CarryForward 用旧 Hint 错位纠偏。</summary>
         public long AppliedHintThisTick { get; set; }
     }
 
-    readonly struct PendingJoin
-    {
-        public PendingJoin(NetConnectionId connectionId, RoomJoinRequest request)
-        {
-            ConnectionId = connectionId;
-            Request = request;
-        }
-
-        /// <summary>发起 Join 的 Transport 连接。</summary>
-        public NetConnectionId ConnectionId { get; }
-        public RoomJoinRequest Request { get; }
-    }
 }

@@ -12,20 +12,16 @@ using UnityEngine;
 public sealed class ReplicationRoomClient : AppControllerBase
 {
     CombatWorldController _world;
-    INetTransport _transport;
-    NetConnectionId _serverConnection;
+    ClientSession _session;
     ActionReplicationCatalog _catalog;
     PlayerController _localPlayer;
     PredictedLocomotionDriver _driver;
     readonly PredictedActionAckQueue _actionAck = new();
-    RoomIdleTracker _hostIdle;
-    RoomJoinAccept _accept;
+    SessionJoinAccept _accept;
     bool _joined;
     bool _ended;
     long _predictFrame;
     long _lastAuthorityFrame = -1;
-    long _nextHeartbeatMs;
-    int _rttMs = -1;
     int _selfHealthMilli = -1;
     int _lastTickBytes = -1;
     int _lastCommandBytes = -1;
@@ -46,11 +42,12 @@ public sealed class ReplicationRoomClient : AppControllerBase
     int _lastPredictedActionId;
     int _lastPresentedHitStopFrames;
 
-    /// <summary>由战斗世界在 Awake 注入。</summary>
-    public void Configure(CombatWorldController world)
+    /// <summary>由 Composition Root 注入战斗世界与已启动的客户端 Session。</summary>
+    public void Configure(CombatWorldController world, ClientSession session)
     {
         UnsubscribeHost();
         _world = world;
+        _session = session;
         if (isActiveAndEnabled)
             SubscribeHost();
     }
@@ -60,28 +57,23 @@ public sealed class ReplicationRoomClient : AppControllerBase
     void Start()
     {
         _catalog = new ActionReplicationCatalog();
-        _hostIdle = new RoomIdleTracker();
         CollectEnemyConfigs();
-        TryConnectAndJoin();
+        PrepareContentCatalog();
         RefreshHud("Connecting");
     }
 
     void Update()
     {
-        // 传输未就绪或房间已结束：本渲染帧不再收包/采样
-        if (_transport == null || _ended)
+        // Session 未就绪或房间已结束：本渲染帧不再收包/采样
+        if (_session == null || _ended)
             return;
 
-        // 把套接字收包泵进客机收件箱
-        _transport.Poll();
-        // 按消息类型处理 Accept/Reject/Tick/Kick
-        DrainClientInbox();
+        _session.Poll(NowMs());
+        SyncSessionState();
+        DrainApplicationMessages();
         // 已入房：每渲染帧合并本机按键边沿，避免无逻辑步时丢掉 WasPressed
         if (_joined && !_ended)
             SampleRenderInput();
-        // Host 心跳超时则关房
-        if (_joined && _hostIdle.IsTimedOut(NowMs()))
-            EndRoom("HostIdle");
     }
 
     void LateUpdate()
@@ -105,8 +97,8 @@ public sealed class ReplicationRoomClient : AppControllerBase
     {
         UnsubscribeHost();
         DisposeViews();
-        _transport?.Dispose();
-        _transport = null;
+        _session?.Dispose();
+        _session = null;
     }
 
     /// <summary>
@@ -117,24 +109,22 @@ public sealed class ReplicationRoomClient : AppControllerBase
         if (!_joined || _ended || _localPlayer?.InputSampler == null)
             return;
 
-        // Host 空闲检测用：定期上行心跳
-        MaybeSendHeartbeat();
         EnsureInputBuffer();
         // 本机预测钟 +1；边沿已在 Update.SampleRenderInput 合并
         _predictFrame++;
-        var actorId = new SimActorId(_accept.AssignedActorId);
+        var actorId = new SimActorId(_accept.EntityId.Value);
         InputFrame input = _inputFrames.ResolveLocal(_predictFrame, actorId);
         _inputFrames.TrimBefore(_predictFrame - 32);
 
         // 最近 N 条命令冗余上行，供 Host 丢包补齐
-        var command = new ClientCommand(_predictFrame, _accept.AssignedPlayerId, in input);
+        var command = new ClientCommand(_predictFrame, _accept.PlayerId.Value, in input);
         RememberCommand(in command);
-        byte[] payload = RoomCodec.WriteClientCommandBatch(_recentCommands);
-        _lastCommandBytes = payload.Length;
-        _transport.Send(
-            _serverConnection,
+        byte[] body = RoomCodec.WriteClientCommandBatch(_recentCommands);
+        _lastCommandBytes = body.Length + 2;
+        _session.SendApplication(
+            (byte)RoomMessageKind.ClientCommand,
             NetChannel.CommandUnreliableRedundant,
-            payload);
+            body);
 
         CharacterActor actor = _localPlayer != null ? _localPlayer.Actor : null;
         if (!_hasSelfSnapshot || _driver == null || actor == null)
@@ -160,11 +150,11 @@ public sealed class ReplicationRoomClient : AppControllerBase
     /// <summary>每个渲染帧把 WasPressed 合并进下一逻辑帧，避免逻辑步之间的边沿永远丢失。</summary>
     void SampleRenderInput()
     {
-        if (_localPlayer?.InputSampler == null || _accept.AssignedActorId <= 0)
+        if (_localPlayer?.InputSampler == null || !_accept.EntityId.IsValid)
             return;
 
         EnsureInputBuffer();
-        var actorId = new SimActorId(_accept.AssignedActorId);
+        var actorId = new SimActorId(_accept.EntityId.Value);
         // 写入「下一预测帧」槽；Pressed 与已有样本做 OR
         InputFrame sample = _localPlayer.InputSampler.Sample(_predictFrame + 1, actorId);
         _inputFrames.MergeLocalSample(in sample);
@@ -181,85 +171,41 @@ public sealed class ReplicationRoomClient : AppControllerBase
 
     void EnsureInputBuffer() => _inputFrames ??= new InputFrameBuffer();
 
-    void TryConnectAndJoin()
+    /// <summary>预填本机与敌人内容目录；握手由已注入的 ClientSession 自动完成。</summary>
+    void PrepareContentCatalog()
     {
-        string host = _world != null ? _world.JoinHost : "127.0.0.1";
-        int port = _world != null ? _world.ListenPort : ReplicationRoomProtocol.DefaultPort;
-        _transport = new UdpTransport();
-        try
-        {
-            _transport.StartClient(new NetEndpoint(host, port));
-            if (_transport.Connections.Count == 0)
-                throw new InvalidOperationException("Transport 未创建服务端连接。");
-            _serverConnection = _transport.Connections[0];
-        }
-        catch (Exception ex)
-        {
-            Debug.LogError($"ReplicationRoomClient: 连接 {host}:{port} 失败。{ex.Message}", this);
-            _transport.Dispose();
-            _transport = null;
-            RefreshHud("ConnectFailed");
-            return;
-        }
-
         _localPlayer = SendQuery(new GetLocalPlayerQuery()) as PlayerController;
         if (_localPlayer != null)
             _catalog.Prefill(_localPlayer.CharacterConfig);
         for (int i = 0; i < _enemyConfigs.Count; i++)
             _catalog.Prefill(_enemyConfigs[i]);
-
-        int contentVersion = _world != null ? _world.ContentVersion : 1;
-        _transport.Send(
-            _serverConnection,
-            NetChannel.ControlReliableOrdered,
-            RoomCodec.WriteJoinRequest(
-                new RoomJoinRequest(contentVersion, ReplicationRoomProtocol.ProtocolVersion)));
-        Debug.Log($"ReplicationRoomClient: 已请求加入 {host}:{port}。", this);
     }
 
-    void DrainClientInbox()
+    /// <summary>把纯 C# ClientSession 状态映射到本机预测体初始化与 HUD。</summary>
+    void SyncSessionState()
     {
-        while (_transport.TryReceive(out NetPacket packet))
+        if (!_joined && _session.State == ClientSessionState.Joined)
         {
-            try
-            {
-                if (packet.ConnectionId != _serverConnection)
-                    continue;
-                byte[] payload = packet.Payload;
-                RoomCodec.ReadEnvelope(payload, out RoomMessageKind kind, out byte[] body);
-                HandleMessage(kind, body);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"ReplicationRoomClient: 丢弃非法包。{ex.Message}", this);
-            }
+            OnSessionJoined(_session.JoinAccept);
+            return;
+        }
+
+        if (_session.State == ClientSessionState.Ended && !_ended)
+            EndRoom($"SessionEnded:{_session.LastDisconnectReason}");
+    }
+
+    /// <summary>只消费 ClientSession 已鉴权并拆信封的 AuthorityTick 应用消息。</summary>
+    void DrainApplicationMessages()
+    {
+        while (_session.TryDequeueApplication(out SessionApplicationPacket packet))
+        {
+            if (packet.MessageType == (byte)RoomMessageKind.AuthorityTick)
+                OnAuthorityTick(packet.Payload);
         }
     }
 
-    void HandleMessage(RoomMessageKind kind, byte[] body)
-    {
-        _hostIdle.Touch(NowMs());
-        switch (kind)
-        {
-            case RoomMessageKind.JoinAccept:
-                OnJoinAccept(RoomCodec.ReadJoinAccept(body));
-                break;
-            case RoomMessageKind.JoinReject:
-                OnJoinReject(RoomCodec.ReadJoinReject(body));
-                break;
-            case RoomMessageKind.Heartbeat:
-                OnHeartbeatEcho(RoomCodec.ReadHeartbeat(body));
-                break;
-            case RoomMessageKind.AuthorityTick:
-                OnAuthorityTick(body);
-                break;
-            case RoomMessageKind.Kick:
-                EndRoom($"Kicked:{RoomCodec.ReadKick(body).Reason}");
-                break;
-        }
-    }
-
-    void OnJoinAccept(in RoomJoinAccept accept)
+    /// <summary>Session Join 成功后初始化预测时钟和本地玩家身份。</summary>
+    void OnSessionJoined(in SessionJoinAccept accept)
     {
         if (_joined)
             return;
@@ -267,29 +213,15 @@ public sealed class ReplicationRoomClient : AppControllerBase
         _accept = accept;
         _joined = true;
         _lastPredictedActionId = 0;
-        _predictFrame = accept.AuthorityFrame;
-        _lastAuthorityFrame = accept.AuthorityFrame;
+        _predictFrame = accept.AuthorityTick.Value;
+        _lastAuthorityFrame = accept.AuthorityTick.Value;
         EnsureInputBuffer();
         _recentCommands.Clear();
         _localPlayer = SendQuery(new GetLocalPlayerQuery()) as PlayerController;
         Debug.Log(
-            $"ReplicationRoomClient: 入房成功 player={accept.AssignedPlayerId} actor={accept.AssignedActorId}。",
+            $"ReplicationRoomClient: 入房成功 player={accept.PlayerId.Value} actor={accept.EntityId.Value}。",
             this);
         RefreshHud("Joined");
-    }
-
-    void OnJoinReject(in RoomJoinReject reject)
-    {
-        Debug.LogWarning($"ReplicationRoomClient: 入房被拒 {reject.Reason}。", this);
-        EndRoom($"Rejected:{reject.Reason}");
-    }
-
-    void OnHeartbeatEcho(in RoomHeartbeat heartbeat)
-    {
-        if (heartbeat.EchoTimeMs <= 0)
-            return;
-        int rtt = (int)Math.Max(0L, NowMs() - heartbeat.EchoTimeMs);
-        _rttMs = rtt;
     }
 
     void OnAuthorityTick(byte[] body)
@@ -359,7 +291,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
                 continue;
 
             int id = snapshot.ActorId.Value;
-            if (id == _accept.AssignedActorId)
+            if (id == _accept.EntityId.Value)
                 continue;
 
             _seenIds.Add(id);
@@ -414,7 +346,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
 
         CharacterActor actor = _localPlayer.Actor;
         CharacterConfig config = _localPlayer.CharacterConfig;
-        actor.BindSimulationInput(new SimActorId(_accept.AssignedActorId), _inputFrames);
+        actor.BindSimulationInput(new SimActorId(_accept.EntityId.Value), _inputFrames);
         actor.MotorSim.TeleportMm(self.PosXMm, self.PosYMm, self.PosZMm);
         actor.MotorSim.SetFacingMilliDeg(self.FacingMilliDeg);
         // MotorSim 与 Transform 必须同帧对齐；只 Snap 插值会把 +2m 客机出生点拖进第一击位移
@@ -592,7 +524,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
     {
         if (!actorId.IsValid)
             return null;
-        if (actorId.Value == _accept.AssignedActorId)
+        if (actorId.Value == _accept.EntityId.Value)
             return _localPlayer != null && _localPlayer.Actor != null
                 ? _localPlayer.Actor.PresentationRoot
                 : _localPlayer != null ? _localPlayer.Root : null;
@@ -603,7 +535,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
 
     bool TryFindSelf(AuthorityTick tick, out ActorReplicationSnapshot self)
     {
-        int id = _accept.AssignedActorId;
+        int id = _accept.EntityId.Value;
         for (int i = 0; i < tick.Actors.Length; i++)
         {
             if (tick.Actors[i].ActorId.Value == id)
@@ -615,18 +547,6 @@ public sealed class ReplicationRoomClient : AppControllerBase
 
         self = default;
         return false;
-    }
-
-    void MaybeSendHeartbeat()
-    {
-        long now = NowMs();
-        if (now < _nextHeartbeatMs)
-            return;
-        _nextHeartbeatMs = now + ReplicationRoomProtocol.HeartbeatIntervalMs;
-        _transport.Send(
-            _serverConnection,
-            NetChannel.ControlReliableOrdered,
-            RoomCodec.WriteHeartbeat(new RoomHeartbeat(now, 0)));
     }
 
     void CollectEnemyConfigs()
@@ -689,7 +609,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
             ReplicationRole.Client,
             status,
             _lastAuthorityFrame,
-            _rttMs,
+            _session?.RttMs ?? -1,
             _selfHealthMilli,
             _lastTickBytes,
             _lastCommandBytes,
