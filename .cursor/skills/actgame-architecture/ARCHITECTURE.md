@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-18（W3 Character Schema 与 Archetype Catalog）
+> Last audited: 2026-08-18（W4 Authority Replication Adapter 首切片）
 
 ## 项目概述
 
@@ -42,6 +42,7 @@ Assets/
 │   ├── App/
 │   │   ├── Architecture/      # QFramework 风格强类型 Architecture / 能力接口 / 基类
 │   │   ├── Controllers/       # Player / Enemy / Camera / Combat / SimulationHost Unity 入口
+│   │   ├── Networking/        # ACT Unity 内容绑定与 Authority / Owner / Observer Adapter
 │   │   ├── Systems/           # Combat / Enemy / Player（LocalPlayerService）
 │   │   ├── Commands/          # 跨系统业务行为
 │   │   ├── Queries/           # 无副作用读取请求（含 GetLocalPlayer / GetPlayerRoots）
@@ -100,6 +101,7 @@ flowchart TB
 | `ACTNet.Session` | 只依赖 Core/Transport：多连接 Join、Player 分配、Heartbeat/RTT、超时/Kick 与已鉴权应用消息透传 |
 | `ACTNet.Replication` | 只依赖 Core：显式 Spawn/Update/Despawn、Schema Registry、Frame Codec、Server full-set 差分与 Client Sequence 丢旧 |
 | `ACTGame.Networking` | 依赖 Simulation 与 ACTNet Core/Replication：`CharacterSnapshotSchemaV1`、稳定 Character Archetype 映射；不含 Unity 资产引用 |
+| `ActAuthorityReplicationAdapter` | App/Networking 的 ACT 权威映射：远端输入灌入、Character Capture 与 FrameHits 补 ActionId；RoomHost 不再实现这些 Gameplay 细节 |
 | `IRenderFrameSampler` | 可选渲染帧输入汇聚契约，避免高 FPS 无逻辑 Step 时丢 Pressed/Released |
 | `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
 | `CharacterPresentationBridge` | 保留前后权威 Pose，只移动运行时模型锚点，不回写模拟根 |

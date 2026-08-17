@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-18（NetSync W3 Character Schema 与 Archetype）
+> Last updated: 2026-08-18（NetSync W4 Authority Adapter 首切片）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -213,6 +213,7 @@ EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
 | 组装 | `ReplicationSnapshotBuilder.FromAuthority`（Motor + Action 快照 + 传入 healthMilli） |
 | 字节 | `ActorReplicationSnapshotCodec` 是 Snapshot 字段布局唯一真源；`ReplicationFrameCodec` 编码实体记录，`ReplicationCodec` / `RoomCodec` 仅保留上行命令 |
 | W3 业务适配 | `CharacterSnapshotSchemaV1` 接入 Schema Registry；`CharacterReplicationContentRegistry` 将 stableKey Archetype 精确绑定 CharacterConfig |
+| W4 权威适配 | `ActAuthorityReplicationAdapter` 独占远端输入灌入、Gameplay Actor Capture 与 FrameHits ActionId 映射；RoomHost 只调度并构建/发送 Frame |
 | 通用身份 | `NetConnectionId` / `NetPlayerId` / `NetEntityId` / `NetArchetypeId`；`SimActorNetIdAdapter` 显式映射 Simulation Actor |
 | 版本基础 | `NetworkProtocolVersion` + 128 位 `ContentFingerprint` 已定义；握手切换留在 Content Manifest Wave |
 | 传输 | `INetTransport` / `LoopbackTransport` / `UdpTransport`（`ACTNet.Transport`，按 ConnectionId 定向） |
@@ -224,7 +225,10 @@ Loopback `LatencyMs` 默认 0。`actionId` 由 `ActionReplicationCatalog` 按资
 ### 运行时流程
 
 ```
-CharacterReplicationCapture → ReplicationEntityState full set
+ActAuthorityReplicationAdapter
+  → RoomRemoteInputMerge → InputFrameBuffer
+  → CharacterReplicationCapture → ReplicationEntityState full set
+  → FrameHits + Snapshot ActionId → ActReplicationApplicationPayload
   → ReplicationServer.BuildFrame → ReplicationFrameCodec
   → Session/Transport → ReplicationClient.ApplyFrame
   → Spawn/Update/Despawn → Owner reconcile / RemoteProxy
@@ -234,7 +238,7 @@ CharacterReplicationCapture → ReplicationEntityState full set
 
 - 水平速度 P0 可为 0；空闲相位由 Capture 填 `AnimationKey`
 - NS5 已单轨切到 `UdpTransport`；`LoopbackTransport` 支持一服多客和确定性延迟，不再挂 Host 预览
-- W3 生产路径已单轨切换；多敌种 Proxy、双进程 UDP 与现有预测/命中表现待 Editor 验收
+- W3 生产路径及丢帧/乱序/多 Archetype 出口测试已验收；W4 Authority Adapter 首切片待 Editor Test Runner 与双进程回归
 
 ### 相关文件
 
@@ -1267,6 +1271,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-18 | NetSync W3 Character Adapter：Snapshot 字段布局收敛为 `ActorReplicationSnapshotCodec`；新增纯 C# `ACTGame.Networking`、`CharacterSnapshotSchemaV1` 与 stableKey Archetype Catalog；尚未切换 Host/Client |
 | 2026-08-18 | NetSync W3 生产切换：Host/Client 单轨使用 `ReplicationFrame` 显式生命周期与 Sequence；hint/hits 迁入 V1 ApplicationPayload；删除 `AuthorityTick`、缺 Tick 即销毁和首敌配置回退 |
 | 2026-08-18 | NetSync W3 出口测试：Replication Runtime 用真实 V1 Frame Codec 覆盖中间 Update 整帧丢失、乱序旧帧和双 Archetype；生产 Play 已验收 |
+| 2026-08-18 | NetSync W4 Authority Adapter 首切片：远端 InputFrame 灌入、权威角色 Capture 与 FrameHits ActionId 补齐迁出 RoomHost；删除 Room 内对应 Gameplay 实现，仅保留单轨调用与 Frame/Session 编排 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
