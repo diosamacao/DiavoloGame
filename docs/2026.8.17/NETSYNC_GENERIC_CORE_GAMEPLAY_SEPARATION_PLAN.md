@@ -4,6 +4,7 @@
 > 角色：**NetSync 通用化重构实施真源**（先分层、后增强；不改变当前服务器权威状态同步产品路线）  
 > 代码基线：`NetSync@3f695f93865a29f92a09fedfe60788a620900419`  
 > 相关：  
+> - 总开发排期：[`NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](./NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)（W0～W4 完成 GF0～GF4；W5 起进入 Dedicated）  
 > - 当前架构分析：[`NETSYNC_ARCHITECTURE_ANALYSIS_AND_FRAMEWORK_COMPARISON.md`](./NETSYNC_ARCHITECTURE_ANALYSIS_AND_FRAMEWORK_COMPARISON.md)  
 > - 当前实现真源：`docs/2026.8.15/NETWORK_SYNC.md`  
 > - 客机预测：`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`  
@@ -1345,14 +1346,21 @@ GF0 必须实测，不以估算作为最终指标。
   ACT Adapter
   ★ 完成“通用层 / 业务层分离”
 
-第四批：GF5 → GF6
+第四批：DS1 → DS6
+  Dedicated Bootstrap / Headless Authority
+  Match / Replication / Dedicated Build
+  ★ 完成 LAN DS-Demo
+
+第五批：GF5 → GF6
   Prediction Runtime
   Channels / Network Time / Jitter Buffer
 
-第五批：GF7 → GF8
+第六批：GF7 → GF8
   Delta / Relevancy / Budget
   Cleanup / FakeActionGame / 接入文档
 ```
+
+> GF4 关闭后已完成“网络层分离”，足以让 Dedicated 复用统一 Session / Replication Runtime；GF5～GF8 属于 DS-Demo 后的能力增强。总排期以 [`NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](./NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) 为准。
 
 最小正确切片不是“先建很多空接口”，而是：
 
