@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-18（NetSync W4 ActContentRegistry 切片）
+> Last updated: 2026-08-18（NetSync W4 Character Schema Capture 切片）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -208,16 +208,17 @@ EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
 
 | 项 | 方案 |
 |----|------|
-| 下行 | `ReplicationFrame`：`CharacterSnapshotSchemaV1` 记录 + 显式生命周期 + Sequence |
+| 下行 | `ReplicationFrame`：`ActCharacterSnapshotSchema` 生产记录（线格式委托 `CharacterSnapshotSchemaV1`）+ 显式生命周期 + Sequence |
 | 上行 | `ClientCommand`（frameHint + playerId + `InputFrame`） |
 | 组装 | `ReplicationSnapshotBuilder.FromAuthority`（Motor + Action 快照 + 传入 healthMilli） |
 | 字节 | `ActorReplicationSnapshotCodec` 是 Snapshot 字段布局唯一真源；`ReplicationFrameCodec` 编码实体记录，`ReplicationCodec` / `RoomCodec` 仅保留上行命令 |
-| W3/W4 业务适配 | `CharacterSnapshotSchemaV1` 接入 Schema Registry；`ActContentRegistry` 将 stableKey Archetype 精确绑定 CharacterConfig 并持有动作 Catalog |
+| W3/W4 业务适配 | `ActCharacterSnapshotSchema` 接入生产 Schema Registry 并复用纯 C# V1 线格式；`ActContentRegistry` 持有 Archetype、配置与动作 Catalog |
 | W4 权威适配 | `ActAuthorityReplicationAdapter` 独占远端输入灌入、Gameplay Actor Capture 与 FrameHits ActionId 映射；RoomHost 只调度并构建/发送 Frame |
 | W4 加入适配 | `ActGameSessionHandler` 创建/销毁 Guest Authority Actor；RoomHost 注入 App 注册委托并独占 `ServerSession.Accept/Reject` |
 | W4 Owner 适配 | `ActOwnerReplicationAdapter` 独占 Owner HP、Action Ack、Locomotion Reconcile、Hit/Death 硬吸和预测历史；Client Room 只转发快照 |
 | W4 Observer 适配 | `ActObserverReplicationAdapter` 独占 Schema/Archetype 校验、Proxy Spawn/Update/Despawn、TargetSystem 与 View 生命周期；`ActRemoteProxyFactory` 是唯一装配入口 |
 | W4 内容真源 | `ActContentRegistry` 唯一持有 Action Catalog、Character Archetype 与 Unity 配置映射；Room/Adapter 禁止另建动作目录 |
+| W4 Capture 真源 | `ActCharacterSnapshotSchema.Capture` 统一 CharacterActor → Snapshot 与 V1 编解码；独立 `CharacterReplicationCapture` 已删除 |
 | 通用身份 | `NetConnectionId` / `NetPlayerId` / `NetEntityId` / `NetArchetypeId`；`SimActorNetIdAdapter` 显式映射 Simulation Actor |
 | 版本基础 | `NetworkProtocolVersion` + 128 位 `ContentFingerprint` 已定义；握手切换留在 Content Manifest Wave |
 | 传输 | `INetTransport` / `LoopbackTransport` / `UdpTransport`（`ACTNet.Transport`，按 ConnectionId 定向） |
@@ -231,7 +232,7 @@ Loopback `LatencyMs` 默认 0。`actionId` 由 `ActionReplicationCatalog` 按资
 ```
 ActAuthorityReplicationAdapter
   → RoomRemoteInputMerge → InputFrameBuffer
-  → CharacterReplicationCapture → ReplicationEntityState full set
+  → ActCharacterSnapshotSchema.Capture/Encode → ReplicationEntityState full set
   → FrameHits + Snapshot ActionId → ActReplicationApplicationPayload
   → ReplicationServer.BuildFrame → ReplicationFrameCodec
   → Session/Transport → ReplicationClient.ApplyFrame
@@ -242,7 +243,7 @@ ActAuthorityReplicationAdapter
 
 - 水平速度 P0 可为 0；空闲相位由 Capture 填 `AnimationKey`
 - NS5 已单轨切到 `UdpTransport`；`LoopbackTransport` 支持一服多客和确定性延迟，不再挂 Host 预览
-- W3、W4 Authority/Session/Owner/Observer 已验收；W4 ActContentRegistry 切片待 Editor Test Runner 与双进程内容解析回归
+- W3、W4 Authority/Session/Owner/Observer/Content 已验收；W4 Character Schema Capture 切片待 Editor Test Runner 与双进程回归
 
 ### 相关文件
 
@@ -266,12 +267,12 @@ ActAuthorityReplicationAdapter
 
 | 项 | 方案 |
 |----|------|
-| 捕获 | Host `CharacterReplicationCapture.FromActor` + 共享 `ActionReplicationCatalog` |
+| 捕获 | `ActCharacterSnapshotSchema.Capture` + `ActContentRegistry.Actions` |
 | 传输 | 房间 `UdpTransport`；Loopback 仅单测 |
 | 应用 | `RemoteCharacterProxy`：位姿写 Motor；招式切段 Seek；Locomotion 硬切 + `SeekLocomotionNormalized`；关掉 Animator RM |
 | 朝向调试 | 客机幽灵挂同一套黄/品红箭；wish 走快照 `moveV*`，与延迟位姿成对 |
 | 插值 | 复用 `CharacterPresentationBridge.Render(alpha)` |
-| 装配 | `RemoteCharacterProxyFactory`，**不**走 `CharacterActorFactory` |
+| 装配 | `ActRemoteProxyFactory`，**不**走 `CharacterActorFactory` |
 | 入口 | `ReplicationRoomClient` 收 Tick 后 `ApplySnapshot` |
 
 ### 关键参数
@@ -1280,6 +1281,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-18 | NetSync W4 Owner Adapter 切片：Owner ActorId 门禁、HP 覆盖、Action Ack、Locomotion Reconcile、Hit/Death 硬吸和预测历史迁出 RoomClient；Adapter 边界使用 SimActorId，避免网络身份类型泄漏到 ACT 预测接口 |
 | 2026-08-18 | NetSync W4 Observer/Proxy 切片：Schema/Archetype 校验、Proxy 显式生命周期、TargetSystem 与 View 清理迁出 RoomClient；删除 Domain 旧 Factory 类型/文件，App 层 `ActRemoteProxyFactory` 成为唯一装配入口 |
 | 2026-08-18 | NetSync W4 ActContentRegistry 切片：动作 Catalog、角色 Archetype 与 Unity 配置映射合并为唯一内容真源；删除 `CharacterReplicationContentRegistry`，Host/Client 与 Adapter 不再独立持有 Action Catalog |
+| 2026-08-18 | NetSync W4 Character Schema Capture 切片：`ActCharacterSnapshotSchema` 统一 CharacterActor Capture 与 V1 编解码并注册到生产 Schema Registry；删除独立 `CharacterReplicationCapture` |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

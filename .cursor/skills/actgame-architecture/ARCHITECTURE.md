@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-18（W4 ActContentRegistry 切片）
+> Last audited: 2026-08-18（W4 Character Schema Capture 切片）
 
 ## 项目概述
 
@@ -19,7 +19,7 @@ Assets/
 │   │   │   ├── Animation/     # 动画播放与 Profile
 │   │   │   ├── Locomotion/    # 相位 FSM、FootCycle、脚步
 │   │   │   ├── Reactions/     # 受击/死亡请求解析与事件桥接
-│   │   │   ├── Replication/   # RemoteProxy / Catalog / Capture / AutonomousRunner
+│   │   │   ├── Replication/   # RemoteProxy 与 Prediction/Presentation 辅助
 │   │   │   └── StateMachine/  # 角色状态机基类与共享 State
 │   │   ├── Enemy/             # Definition、AI FSM、生命值、工厂与句柄
 │   │   ├── Combat/
@@ -106,6 +106,7 @@ flowchart TB
 | `ActOwnerReplicationAdapter` | App/Networking 的 Autonomous 映射：Owner HP、Action Ack、Locomotion Reconcile、Hit/Death 硬吸与预测历史；以 SimActorId 对接 ACT Actor |
 | `ActObserverReplicationAdapter` / `ActRemoteProxyFactory` | App/Networking 的 Observer 映射与唯一装配入口：Schema/Archetype 校验、只读 Proxy 显式生命周期、TargetSystem 与 View 清理；不创建 CharacterActor |
 | `ActContentRegistry` | App/Networking 的 ACT 内容唯一真源：集中持有 Action Catalog、Character Archetype 与 Unity CharacterConfig/EnemyDefinition 映射 |
+| `ActCharacterSnapshotSchema` | App/Networking 的角色生产 Schema：统一 CharacterActor Capture 与 V1 编解码；纯 C# `CharacterSnapshotSchemaV1` 仍是线格式实现 |
 | `IRenderFrameSampler` | 可选渲染帧输入汇聚契约，避免高 FPS 无逻辑 Step 时丢 Pressed/Released |
 | `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
 | `CharacterPresentationBridge` | 保留前后权威 Pose，只移动运行时模型锚点，不回写模拟根 |
@@ -255,8 +256,8 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `RoomCodec` / `RoomRemoteInputMerge` | 只编码 ACT 上行命令批；未应用 Hint 边沿合并，不处理 Session 或下行 Frame |
 | `SimActorNetIdAdapter` | 在 ACTGame 边界显式映射 `SimActorId ↔ NetEntityId`；首版数值相同 |
 | `INetTransport` / `LoopbackTransport` / `UdpTransport` | 通用多连接字节传输；Loopback 一服多客；UDP 以本地 `NetConnectionId` 映射远端端点 |
-| `ActionReplicationCatalog` / `CharacterReplicationCapture` | 资产名稳定 Id（含 VariantResolver 变体）；从权威 Actor 填快照 |
-| `RemoteCharacterProxy` / `RemoteCharacterProxyFactory` / `ReplicationPresentationAlign` | 他人 Seek；本机走跑只 Sync Motor；过渡相位硬切在 Align |
+| `ActContentRegistry.Actions` / `ActCharacterSnapshotSchema.Capture` | 资产名稳定 Id（含 VariantResolver 变体）；从权威 Actor 填充并编码快照 |
+| `RemoteCharacterProxy` / `ActRemoteProxyFactory` / `ReplicationPresentationAlign` | 他人 Seek；本机走跑只 Sync Motor；过渡相位硬切在 Align |
 | `ReplicationSeat` | Authority / Autonomous 工厂能力图；Autonomous 不 Collect、不进 World |
 | `CharacterActor`（Autonomous） | 客机本机同一类实例；实现 `IPredictedLocomotionReplay`；表现走 `CharacterActionPresentationBridge` |
 | `PredictedActionAckQueue` | 出招预测 Ack；未起手/变体分叉/Hit 则 Stop；连招超前只 Ack |

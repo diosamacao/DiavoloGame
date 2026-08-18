@@ -5,7 +5,7 @@ using System.Collections.Generic;
 public sealed class ActAuthorityReplicationAdapter
 {
     readonly ActContentRegistry _content;
-    readonly CharacterSnapshotSchemaV1 _characterSchema;
+    readonly ActCharacterSnapshotSchema _characterSchema;
     readonly List<EnemyController> _enemies = new();
     readonly List<ActorReplicationSnapshot> _snapshots = new();
     readonly List<ReplicationEntityState> _entityStates = new();
@@ -14,7 +14,7 @@ public sealed class ActAuthorityReplicationAdapter
     public ActAuthorityReplicationAdapter(ActContentRegistry content)
     {
         _content = content ?? throw new ArgumentNullException(nameof(content));
-        _characterSchema = new CharacterSnapshotSchemaV1();
+        _characterSchema = new ActCharacterSnapshotSchema(_content);
     }
 
     /// <summary>最近一次 Capture 生成的完整权威实体集；仅供同一逻辑步构建 ReplicationFrame。</summary>
@@ -64,18 +64,16 @@ public sealed class ActAuthorityReplicationAdapter
         _entityStates.Clear();
         if (local is PlayerController player && local.Actor != null)
         {
-            ActorReplicationSnapshot snapshot = CharacterReplicationCapture.FromActor(
+            ActorReplicationSnapshot snapshot = _characterSchema.Capture(
                 local.Actor,
-                _content.Actions,
                 ReplicationActorKind.Player);
             AddEntityState(in snapshot, _content.RegisterPlayer(player.CharacterConfig));
         }
 
         if (guestActor != null)
         {
-            ActorReplicationSnapshot snapshot = CharacterReplicationCapture.FromActor(
+            ActorReplicationSnapshot snapshot = _characterSchema.Capture(
                 guestActor,
-                _content.Actions,
                 ReplicationActorKind.Player);
             AddEntityState(in snapshot, guestArchetypeId);
         }
@@ -95,9 +93,8 @@ public sealed class ActAuthorityReplicationAdapter
 
             // 动态生成的 Definition 允许幂等登记；相同 key 指向不同资产时 Registry 会明确拒绝。
             NetArchetypeId archetypeId = _content.RegisterEnemy(definition);
-            ActorReplicationSnapshot snapshot = CharacterReplicationCapture.FromActor(
+            ActorReplicationSnapshot snapshot = _characterSchema.Capture(
                 enemy,
-                _content.Actions,
                 ReplicationActorKind.Enemy);
             AddEntityState(in snapshot, archetypeId);
         }
@@ -131,7 +128,7 @@ public sealed class ActAuthorityReplicationAdapter
         _entityStates.Add(new ReplicationEntityState(
             new NetEntityId(snapshot.ActorId.Value),
             archetypeId,
-            CharacterSnapshotSchemaV1.Id,
+            ActCharacterSnapshotSchema.Id,
             _characterSchema.Encode(in snapshot)));
     }
 
