@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-/// <summary>场景级战斗世界入口：Listen Host / Client 房间与固定帧宿主。</summary>
+/// <summary>场景级战斗世界入口：Listen Host / Client 挂 Room；Dedicated 只移交 Bootstrap。</summary>
 [DefaultExecutionOrder(-200)]
 [DisallowMultipleComponent]
 public class CombatWorldController : AppControllerBase
@@ -26,7 +26,11 @@ public class CombatWorldController : AppControllerBase
     public ReplicationRole Role { get; private set; }
 
     /// <summary>是否由本机推进权威 SimulationWorld。</summary>
-    public bool IsAuthority => Role == ReplicationRole.ListenHost;
+    public bool IsAuthority =>
+        Role == ReplicationRole.ListenHost || Role == ReplicationRole.DedicatedServer;
+
+    /// <summary>Session 远端容量；Listen 仍为 1 客，Dedicated 为 N。</summary>
+    public int MaxRemotePlayers => Role == ReplicationRole.DedicatedServer ? 4 : 1;
 
     /// <summary>关卡内容版本；入房双方必须一致。</summary>
     public int ContentVersion => contentVersion;
@@ -53,6 +57,12 @@ public class CombatWorldController : AppControllerBase
         ResolveRoleFromEditorPrefs();
         EnsureSimulationHost();
         ApplyStaticCollisionBake();
+        if (Role == ReplicationRole.DedicatedServer)
+        {
+            EnsureDedicatedBootstrap();
+            return;
+        }
+
         EnsureFeedbackController();
         EnsureRoomController();
     }
@@ -118,11 +128,21 @@ public class CombatWorldController : AppControllerBase
             this);
     }
 
+    /// <summary>Dedicated 只移交给 Bootstrap，本类不装配 Session / Match。</summary>
+    void EnsureDedicatedBootstrap()
+    {
+        DedicatedServerBootstrap bootstrap = GetComponent<DedicatedServerBootstrap>();
+        if (bootstrap == null)
+            bootstrap = gameObject.AddComponent<DedicatedServerBootstrap>();
+        bootstrap.Configure(
+            ServerLaunchConfig.CreateDefault(listenPort, contentVersion, MaxRemotePlayers));
+    }
+
     /// <summary>按角色挂 Host 或 Client；单机也是 Listen Host，不走旧旁路。</summary>
     void EnsureRoomController()
     {
         SessionConfig sessionConfig = CreateSessionConfig();
-        if (IsAuthority)
+        if (Role == ReplicationRole.ListenHost)
         {
             ReplicationRoomHost host = GetComponent<ReplicationRoomHost>();
             if (host == null)
@@ -141,7 +161,7 @@ public class CombatWorldController : AppControllerBase
     SessionConfig CreateSessionConfig() => new(
         new NetworkProtocolVersion(ReplicationRoomProtocol.ProtocolVersion),
         contentVersion,
-        maxRemotePlayers: 1,
+        maxRemotePlayers: MaxRemotePlayers,
         idleTimeoutMs: ReplicationRoomProtocol.IdleTimeoutMs,
         heartbeatIntervalMs: ReplicationRoomProtocol.HeartbeatIntervalMs);
 

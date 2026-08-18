@@ -19,29 +19,27 @@ public sealed class ActGameSessionHandler
 
     /// <summary>
     /// 为加入连接创建并注册权威 Guest Actor。
-    /// 网络 Accept/Reject 仍由调用方的 ServerSession 独占。
+    /// 出生位姿由 Match 提供，不再等待 Host Local Actor。
     /// </summary>
     public bool TryCreateGuest(
-        ILocalPlayer hostPlayer,
+        CharacterConfig config,
+        in MatchSpawnPose spawn,
         SimulationHost host,
         NetConnectionId connectionId,
         Action prefillEnemyCatalog,
         out ActGameGuest guest)
     {
         guest = null;
-        CharacterConfig config = hostPlayer is PlayerController player
-            ? player.CharacterConfig
-            : null;
         if (config == null || host == null || !connectionId.IsValid)
             return false;
 
-        Vector3 spawn = hostPlayer.Root != null
-            ? hostPlayer.Root.position + new Vector3(2f, 0f, 0f)
-            : new Vector3(2f, 0f, 0f);
+        Vector3 position = new(
+            MotionQuantization.MmToMeters(spawn.XMm),
+            MotionQuantization.MmToMeters(spawn.YMm),
+            MotionQuantization.MmToMeters(spawn.ZMm));
+        Quaternion rotation = Quaternion.Euler(0f, spawn.FacingMilliDeg / 1000f, 0f);
         var gameObject = new GameObject("RemotePlayer");
-        gameObject.transform.SetPositionAndRotation(
-            spawn,
-            hostPlayer.Root != null ? hostPlayer.Root.rotation : Quaternion.identity);
+        gameObject.transform.SetPositionAndRotation(position, rotation);
 
         RemotePlayerSeat seat = gameObject.AddComponent<RemotePlayerSeat>();
         CharacterActor actor = CharacterActorFactory.Create(

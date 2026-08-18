@@ -10,7 +10,7 @@ public readonly struct SessionConfig
         int maxRemotePlayers,
         int idleTimeoutMs,
         int heartbeatIntervalMs,
-        int firstPlayerId = 2)
+        int firstPlayerId = 1)
     {
         if (protocolVersion.Value <= 0)
             throw new ArgumentOutOfRangeException(nameof(protocolVersion));
@@ -46,6 +46,6 @@ public readonly struct SessionConfig
     /// <summary>客户端自动发送心跳的间隔毫秒数。</summary>
     public int HeartbeatIntervalMs { get; }
 
-    /// <summary>玩家 Id 分配起点；Listen Host 默认从 2 开始。</summary>
+    /// <summary>远端玩家 Id 分配起点；Dedicated / 远端连接从 1 起，不再预留 Guest=2。</summary>
     public int FirstPlayerId { get; }
 }

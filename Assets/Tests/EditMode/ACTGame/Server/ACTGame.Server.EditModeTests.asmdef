@@ -1,0 +1,26 @@
+{
+    "name": "ACTGame.Server.EditModeTests",
+    "rootNamespace": "",
+    "references": [
+        "ACTNet.Core",
+        "ACTNet.Transport",
+        "ACTNet.Session",
+        "ACTNet.Replication",
+        "ACTGame.Simulation",
+        "ACTGame.Server"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

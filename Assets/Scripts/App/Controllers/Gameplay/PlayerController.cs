@@ -90,6 +90,13 @@ public class PlayerController : AppControllerBase, ILocalPlayer
         }
 
         CombatWorldController combatWorld = EnsureCombatWorldController();
+        // Dedicated 进程禁止装配本机玩家座位；权威角色只由远端 Join 创建。
+        if (combatWorld != null && combatWorld.Role == ReplicationRole.DedicatedServer)
+        {
+            enabled = false;
+            return;
+        }
+
         if (combatWorld != null && !combatWorld.IsAuthority)
         {
             BuildClientSeat(inputActions);

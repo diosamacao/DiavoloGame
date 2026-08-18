@@ -1,0 +1,20 @@
+{
+    "name": "ACTGame.Server",
+    "rootNamespace": "",
+    "references": [
+        "ACTNet.Core",
+        "ACTNet.Transport",
+        "ACTNet.Session",
+        "ACTNet.Replication",
+        "ACTGame.Simulation"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

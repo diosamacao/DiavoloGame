@@ -1,6 +1,6 @@
 # ACTGame 网络同步方案（实现说明）
 
-> **M1（2026-08-18）之后请先读：** [`../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)。本文保留 NS5 座位/预测合同说明；生产下行已是 `ReplicationFrame`，不再使用 `AuthorityTick`。
+> **M1（2026-08-18）之后请先读：** [`../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)。**W5 Dedicated：** [`../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`](../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md)。本文保留 NS5 座位/预测合同说明；生产下行已是 `ReplicationFrame`，不再使用 `AuthorityTick`。
 >
 > 撰写：2026-08-15  
 > 角色：**NS5 时期结构说明**（对照代码，不是下一阶段实施计划）  

@@ -67,6 +67,19 @@ public sealed class ActContentRegistry
         return id;
     }
 
+    /// <summary>取任意已登记玩家配置，供 Join 在无 Host Actor 时解析角色。</summary>
+    public bool TryGetAnyPlayerConfig(out CharacterConfig config)
+    {
+        foreach (CharacterConfig registered in _players.Keys)
+        {
+            config = registered;
+            return true;
+        }
+
+        config = null;
+        return false;
+    }
+
     /// <summary>按已登记玩家配置取得网络原型；未知配置明确失败。</summary>
     public NetArchetypeId GetArchetypeId(CharacterConfig config)
     {

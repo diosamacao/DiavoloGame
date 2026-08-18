@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-18（NetSync W4 / M1 验收关闭）
+> Last audited: 2026-08-19（NetSync W5 Dedicated Bootstrap / N 玩家 Session 代码落地）
 
 ## 项目概述
 
@@ -43,6 +43,7 @@ Assets/
 │   │   ├── Architecture/      # QFramework 风格强类型 Architecture / 能力接口 / 基类
 │   │   ├── Controllers/       # Player / Enemy / Camera / Combat / SimulationHost Unity 入口
 │   │   ├── Networking/        # ACT 内容/Schema、Authority/Owner/Observer Adapter 与 Room Gameplay Services
+│   │   ├── Server/            # Dedicated 独立运行时（ACTGame.Server）：Bootstrap / Match / 每连接 Replication
 │   │   ├── Systems/           # Combat / Enemy / Player（LocalPlayerService）
 │   │   ├── Commands/          # 跨系统业务行为
 │   │   ├── Queries/           # 无副作用读取请求（含 GetLocalPlayer / GetPlayerRoots）
@@ -96,7 +97,7 @@ flowchart TB
 | `ISimulationActor` | 玩家 `CharacterActor` 与敌人 `EnemyHandle` 的固定帧契约 |
 | `FixedStepAccumulator` | 把可变渲染时间转换为有追帧上限但不丢欠账的固定步数 |
 | `ActionSim` | `ACTGame.Simulation` 内无 Unity 依赖的 60Hz 动作核：帧推进、Cancel、Graph 衔接、命中确认与 Snapshot/Event |
-| `ACTNet.Core` | 零依赖纯 C# 网络基础：稳定 Id/Tick/Sequence、协议/内容版本、结果、Metrics 与有界小端 Reader/Writer |
+| `ACTNet.Core` | 零依赖纯 C# 网络基础：稳定 Id/Tick/Sequence、`NetProcessRole`、协议/内容版本、结果、Metrics 与有界小端 Reader/Writer |
 | `ACTNet.Transport` | 只依赖 Core：按 `NetConnectionId` 定向收发；统一 Server/Client 启动、Poll、Disconnect 与 Metrics |
 | `ACTNet.Session` | 只依赖 Core/Transport：多连接 Join、Player 分配、Heartbeat/RTT、超时/Kick 与已鉴权应用消息透传 |
 | `ACTNet.Replication` | 只依赖 Core：显式 Spawn/Update/Despawn、Schema Registry、Frame Codec、Server full-set 差分与 Client Sequence 丢旧 |
@@ -108,8 +109,10 @@ flowchart TB
 | `ActContentRegistry` | App/Networking 的 ACT 内容唯一真源：集中持有 Action Catalog、Character Archetype 与 Unity CharacterConfig/EnemyDefinition 映射 |
 | `ActCharacterSnapshotSchema` | App/Networking 的角色生产 Schema：统一 CharacterActor Capture 与 V1 编解码；纯 C# `CharacterSnapshotSchemaV1` 仍是线格式实现 |
 | `ActContentPrefillService` | App 场景内容接缝：唯一扫描 Player/Enemy 配置并幂等预填 `ActContentRegistry`；Room 不再查找 Gameplay 组件 |
-| `ActHostRoomGameplay` / `ActClientRoomGameplay` | App 的 Host/Client Gameplay 编排：前者管理 Guest/Input/Capture，后者管理 Owner 预测、Observer、Hit Cue/HitStop/软碰撞；网络 Room 只转发 |
-| `ReplicationRoomHost` / `ReplicationRoomClient` | 薄 Unity 网络 Facade：只驱动 Session Poll/应用消息收发、固定帧回调、Gameplay Service 调度与 HUD |
+| `ActHostRoomGameplay` / `ActClientRoomGameplay` | App 的 Host/Client Gameplay 编排：前者管理 N Guest/独立 ACK/Capture，后者管理 Owner 预测、Observer、Hit Cue/HitStop/软碰撞；网络 Room 只转发 |
+| `ReplicationRoomHost` / `ReplicationRoomClient` | 薄 Unity 网络 Facade：只驱动 Session Poll/应用消息收发、固定帧回调、Gameplay Service 调度与 HUD；Dedicated 不走此路径 |
+| `DedicatedServerBootstrap` / `DedicatedServerRuntime` | Dedicated 独立宿主：装配 Transport/Session/Match/每连接 Replication；不创建玩家、输入、相机或 HUD |
+| `MatchCoordinator` | 房间身份与出生：PlayerId/Entity/Team/Spawn/Archetype；出生为槽位 × 2000mm，不读 Host Root |
 | `IRenderFrameSampler` | 可选渲染帧输入汇聚契约，避免高 FPS 无逻辑 Step 时丢 Pressed/Released |
 | `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
 | `CharacterPresentationBridge` | 保留前后权威 Pose，只移动运行时模型锚点，不回写模拟根 |
@@ -126,7 +129,7 @@ flowchart TB
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只负责装配和注册，不再实现 Actor `Update` Tick。
 
-NetSync M1 已于 2026-08-18 关闭：`ACTNet.*` 对 ACT/Unity 零反向依赖，Room 为薄 Facade，Authority/Owner/Observer 映射位于 App Adapter/Service。W5 Dedicated Bootstrap 尚未开始。
+NetSync M1 已于 2026-08-18 关闭：`ACTNet.*` 对 ACT/Unity 零反向依赖，Room 为薄 Facade，Authority/Owner/Observer 映射位于 App Adapter/Service。W5（2026-08-19）已切 Dedicated 独立运行时与 Listen N Guest；权威 World 步进仍属 W6。阅读：[`docs/2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`](../../docs/2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md)。
 
 ### 2. 泛型状态机（Core）
 
@@ -268,9 +271,11 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `PredictedActionAckQueue` | 出招预测 Ack；未起手/变体分叉/Hit 则 Stop；连招超前只 Ack |
 | `LocomotionSavedState` | 内层机 Capture/Restore；权威 FromAuthority |
 | `PredictedLocomotionDriver` | 走跑记账；超阈 Restore+Replay |
-| `ReplicationRoomHost` / `ReplicationRoomClient` | 最小 2 人房间的薄 Session Facade；Gameplay 由 `ActHostRoomGameplay` / `ActClientRoomGameplay` 单轨承接 |
+| `ReplicationRoomHost` / `ReplicationRoomClient` | Listen Host / Client 薄 Session Facade；Gameplay 由 `ActHostRoomGameplay` / `ActClientRoomGameplay` 单轨承接 |
+| `NetProcessRole` | 进程拓扑：Client / ListenServer / DedicatedServer；不得用 Listen 开关冒充 Dedicated |
+| `DedicatedServerBootstrap` / `MatchCoordinator` | Dedicated 独立宿主与 N 玩家身份/出生；JoinAccept 无房主时 `AuthorityEntityId` 为 Invalid |
 
-权威进程写法：同一份 `ACTGame.Simulation`，不另写服务器战斗。对照与禁区见 CONVENTIONS「服务器 / 权威进程」与方案 §13。实现级阅读入口：[`docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../../docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)。
+权威进程写法：同一份 `ACTGame.Simulation`，不另写服务器战斗。对照与禁区见 CONVENTIONS「服务器 / 权威进程」与方案 §13。实现级阅读入口：[`docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../../docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)；W5：[`docs/2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`](../../docs/2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md)。
 
 ### 10. 敌人（Enemy）
 

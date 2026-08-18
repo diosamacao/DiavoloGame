@@ -32,8 +32,6 @@ public readonly struct SessionJoinAccept
             throw new ArgumentException("JoinAccept 必须包含有效 PlayerId。", nameof(playerId));
         if (!entityId.IsValid)
             throw new ArgumentException("JoinAccept 必须包含有效 EntityId。", nameof(entityId));
-        if (!authorityEntityId.IsValid)
-            throw new ArgumentException("JoinAccept 必须包含有效权威 EntityId。", nameof(authorityEntityId));
         if (!authorityTick.IsValid)
             throw new ArgumentException("JoinAccept 必须包含有效权威 Tick。", nameof(authorityTick));
 
@@ -50,7 +48,7 @@ public readonly struct SessionJoinAccept
     /// <summary>该客户端拥有的应用层实体。</summary>
     public NetEntityId EntityId { get; }
 
-    /// <summary>权威本地玩家或主实体。</summary>
+    /// <summary>Listen 本机权威实体；Dedicated 无房主时为 Invalid，客户端不得依赖此字段入房。</summary>
     public NetEntityId AuthorityEntityId { get; }
 
     /// <summary>服务端确认的内容版本。</summary>

@@ -93,4 +93,14 @@ public sealed class NetIdentityTests
         Assert.Throws<ArgumentException>(
             () => NetResult.Failure(DisconnectReason.None));
     }
+
+    /// <summary>进程角色必须能区分 Client / Listen / Dedicated，禁止用 Listen 冒充 Dedicated。</summary>
+    [Test]
+    public void NetProcessRole_HasDistinctDedicatedValue()
+    {
+        Assert.That((byte)NetProcessRole.Client, Is.EqualTo(0));
+        Assert.That((byte)NetProcessRole.ListenServer, Is.EqualTo(1));
+        Assert.That((byte)NetProcessRole.DedicatedServer, Is.EqualTo(2));
+        Assert.That(NetProcessRole.DedicatedServer, Is.Not.EqualTo(NetProcessRole.ListenServer));
+    }
 }
