@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-18（NetSync W4 Session Handler 切片）
+> Last updated: 2026-08-18（NetSync W4 Owner Adapter 切片）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -215,6 +215,7 @@ EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
 | W3 业务适配 | `CharacterSnapshotSchemaV1` 接入 Schema Registry；`CharacterReplicationContentRegistry` 将 stableKey Archetype 精确绑定 CharacterConfig |
 | W4 权威适配 | `ActAuthorityReplicationAdapter` 独占远端输入灌入、Gameplay Actor Capture 与 FrameHits ActionId 映射；RoomHost 只调度并构建/发送 Frame |
 | W4 加入适配 | `ActGameSessionHandler` 创建/销毁 Guest Authority Actor；RoomHost 注入 App 注册委托并独占 `ServerSession.Accept/Reject` |
+| W4 Owner 适配 | `ActOwnerReplicationAdapter` 独占 Owner HP、Action Ack、Locomotion Reconcile、Hit/Death 硬吸和预测历史；Client Room 只转发快照 |
 | 通用身份 | `NetConnectionId` / `NetPlayerId` / `NetEntityId` / `NetArchetypeId`；`SimActorNetIdAdapter` 显式映射 Simulation Actor |
 | 版本基础 | `NetworkProtocolVersion` + 128 位 `ContentFingerprint` 已定义；握手切换留在 Content Manifest Wave |
 | 传输 | `INetTransport` / `LoopbackTransport` / `UdpTransport`（`ACTNet.Transport`，按 ConnectionId 定向） |
@@ -239,7 +240,7 @@ ActAuthorityReplicationAdapter
 
 - 水平速度 P0 可为 0；空闲相位由 Capture 填 `AnimationKey`
 - NS5 已单轨切到 `UdpTransport`；`LoopbackTransport` 支持一服多客和确定性延迟，不再挂 Host 预览
-- W3 与 W4 Authority Adapter 已验收；W4 Session Handler 切片待 Editor Test Runner 与双进程 Join/Disconnect 回归
+- W3、W4 Authority Adapter 与 Session Handler 已验收；W4 Owner Adapter 切片待 Editor Test Runner 与双进程预测/和解回归
 
 ### 相关文件
 
@@ -1274,6 +1275,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-18 | NetSync W3 出口测试：Replication Runtime 用真实 V1 Frame Codec 覆盖中间 Update 整帧丢失、乱序旧帧和双 Archetype；生产 Play 已验收 |
 | 2026-08-18 | NetSync W4 Authority Adapter 首切片：远端 InputFrame 灌入、权威角色 Capture 与 FrameHits ActionId 补齐迁出 RoomHost；删除 Room 内对应 Gameplay 实现，仅保留单轨调用与 Frame/Session 编排 |
 | 2026-08-18 | NetSync W4 Session Handler 切片：Guest Authority Actor 创建、App/Simulation 注册及断线逆序清理迁出 RoomHost；Room 通过最小服务委托注入 Architecture 能力，仍独占 Session Accept/Reject |
+| 2026-08-18 | NetSync W4 Owner Adapter 切片：Owner ActorId 门禁、HP 覆盖、Action Ack、Locomotion Reconcile、Hit/Death 硬吸和预测历史迁出 RoomClient；Adapter 边界使用 SimActorId，避免网络身份类型泄漏到 ACT 预测接口 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

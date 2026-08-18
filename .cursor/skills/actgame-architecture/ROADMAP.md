@@ -112,7 +112,7 @@
 
 **客机装配：** [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md) — **CA0～CA2 代码已切（2026-08-15）**：同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。Play 待 Editor。纠偏合同仍见 [`UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
 
-**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W4 Session Handler 切片待验收（2026-08-18）**：Authority Adapter 已验收；`ActGameSessionHandler` 已接管 Guest Authority Actor 创建、App/Simulation 注册、断线逆序注销与销毁。`ReplicationRoomHost` 仅注入 Architecture 能力，并保留 `ServerSession.Accept/Reject`；后续继续拆 Owner 与 Observer，Dedicated 仍须等 W4 出口。
+**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W4 Owner Adapter 切片待验收（2026-08-18）**：Authority Adapter 与 Session Handler 已验收；`ActOwnerReplicationAdapter` 已接管 Owner ActorId 门禁、HP 覆盖、Action Ack、Locomotion Reconcile、Hit/Death 硬吸与预测历史。后续继续拆 Observer/Proxy 与内容注册，Dedicated 仍须等 W4 出口。
 
 ### [P1] Lockstep 模拟核迁移
 
