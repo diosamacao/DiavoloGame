@@ -942,8 +942,8 @@ Assets/Tests/PlayMode/Networking/
 
 - [x] 创建 `ActGameSessionHandler`，负责玩家加入后生成 Authority Actor。（2026-08-18 Test Runner / 双进程 Play 已验收）
 - [x] 创建 `ActAuthorityReplicationAdapter`，封装 InputFrame 灌入、Snapshot Capture、FrameHits。（2026-08-18 Test Runner / 双进程 Play 已验收）
-- [ ] 创建 `ActOwnerReplicationAdapter`，封装 self Snapshot 应用和 HP 权威覆盖。（2026-08-18 代码完成，待 Test Runner / 双进程 Play）
-- [ ] 创建 `ActRemoteProxyFactory`，封装 Proxy、TargetSystem、配置和 View 生命周期。  
+- [x] 创建 `ActOwnerReplicationAdapter`，封装 self Snapshot 应用和 HP 权威覆盖。（2026-08-18 Test Runner / 双进程 Play 已验收）
+- [ ] 创建 `ActRemoteProxyFactory`，封装 Proxy、TargetSystem、配置和 View 生命周期。（2026-08-18 `ActObserverReplicationAdapter` + Factory 代码完成，待 Test Runner / 双进程 Play）
 - [ ] `ActionReplicationCatalog` 迁入 `ActContentRegistry`。  
 - [ ] `CharacterReplicationCapture` 迁入 `CharacterSnapshotSchema`。  
 - [ ] Hit Cue、PredictedHitStop、CameraLock 接缝留在 ACT / App。  

@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-18（W4 Owner Replication Adapter 切片）
+> Last audited: 2026-08-18（W4 Observer / Proxy Adapter 切片）
 
 ## 项目概述
 
@@ -104,6 +104,7 @@ flowchart TB
 | `ActAuthorityReplicationAdapter` | App/Networking 的 ACT 权威映射：远端输入灌入、Character Capture 与 FrameHits 补 ActionId；RoomHost 不再实现这些 Gameplay 细节 |
 | `ActGameSessionHandler` | App/Networking 的加入生命周期映射：创建 Guest Authority Actor、注册 App/Simulation 并在断线时逆序清理；不调用 ServerSession Accept/Reject |
 | `ActOwnerReplicationAdapter` | App/Networking 的 Autonomous 映射：Owner HP、Action Ack、Locomotion Reconcile、Hit/Death 硬吸与预测历史；以 SimActorId 对接 ACT Actor |
+| `ActObserverReplicationAdapter` / `ActRemoteProxyFactory` | App/Networking 的 Observer 映射与唯一装配入口：Schema/Archetype 校验、只读 Proxy 显式生命周期、TargetSystem 与 View 清理；不创建 CharacterActor |
 | `IRenderFrameSampler` | 可选渲染帧输入汇聚契约，避免高 FPS 无逻辑 Step 时丢 Pressed/Released |
 | `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
 | `CharacterPresentationBridge` | 保留前后权威 Pose，只移动运行时模型锚点，不回写模拟根 |

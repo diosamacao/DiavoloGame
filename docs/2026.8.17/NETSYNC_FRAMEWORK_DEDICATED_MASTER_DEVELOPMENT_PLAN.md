@@ -240,8 +240,8 @@ W5 起额外要求：
 
 - [x] 建 `ActGameSessionHandler`，玩家加入后创建 Authority Actor。（2026-08-18 Test Runner / 双进程 Play 已验收）
 - [x] 建 `ActAuthorityReplicationAdapter`：InputFrame 灌入、Snapshot Capture、FrameHits。（2026-08-18 Test Runner / 双进程 Play 已验收）
-- [ ] 建 `ActOwnerReplicationAdapter`：Owner HP、Action Ack、Locomotion Reconcile。（2026-08-18 代码完成，待 Test Runner / 双进程 Play）
-- [ ] 建 `ActRemoteProxyFactory`：Proxy、TargetSystem、Archetype 与 View 生命周期。
+- [x] 建 `ActOwnerReplicationAdapter`：Owner HP、Action Ack、Locomotion Reconcile。（2026-08-18 Test Runner / 双进程 Play 已验收）
+- [ ] 建 `ActRemoteProxyFactory`：Proxy、TargetSystem、Archetype 与 View 生命周期。（2026-08-18 `ActObserverReplicationAdapter` + Factory 代码完成，待 Test Runner / 双进程 Play）
 - [ ] `ActionReplicationCatalog` 迁入 `ActContentRegistry`。
 - [ ] `CharacterReplicationCapture` 迁入 Character Schema。
 - [ ] Hit Cue、PredictedHitStop、CameraLock 只留 ACT/App。

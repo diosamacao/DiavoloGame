@@ -311,7 +311,8 @@ public sealed class RemoteCharacterProxyTests
         string[] relativePaths =
         {
             "Assets/Scripts/Domain/Character/Replication/RemoteCharacterProxy.cs",
-            "Assets/Scripts/Domain/Character/Replication/RemoteCharacterProxyFactory.cs"
+            "Assets/Scripts/App/Networking/Adapters/ActRemoteProxyFactory.cs",
+            "Assets/Scripts/App/Networking/Adapters/ActObserverReplicationAdapter.cs"
         };
 
         for (int i = 0; i < relativePaths.Length; i++)
@@ -322,6 +323,12 @@ public sealed class RemoteCharacterProxyTests
             Assert.That(text, Does.Not.Contain("HitboxFrameConsumer"));
             Assert.That(text, Does.Not.Contain("hitPipeline.Collect"));
             Assert.That(text, Does.Not.Contain("EnemyBrain"));
+            Assert.That(text, Does.Not.Contain("CharacterActorFactory"));
+            if (relativePaths[i].EndsWith("ActRemoteProxyFactory.cs"))
+            {
+                Assert.That(text, Does.Contain("public static class ActRemoteProxyFactory"));
+                Assert.That(text, Does.Not.Contain("class RemoteCharacterProxyFactory"));
+            }
         }
     }
 

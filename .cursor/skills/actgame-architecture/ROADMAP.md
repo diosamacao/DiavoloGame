@@ -112,7 +112,7 @@
 
 **客机装配：** [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md) — **CA0～CA2 代码已切（2026-08-15）**：同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。Play 待 Editor。纠偏合同仍见 [`UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
 
-**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W4 Owner Adapter 切片待验收（2026-08-18）**：Authority Adapter 与 Session Handler 已验收；`ActOwnerReplicationAdapter` 已接管 Owner ActorId 门禁、HP 覆盖、Action Ack、Locomotion Reconcile、Hit/Death 硬吸与预测历史。后续继续拆 Observer/Proxy 与内容注册，Dedicated 仍须等 W4 出口。
+**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W4 Observer/Proxy 切片待验收（2026-08-18）**：Authority、Session Handler 与 Owner Adapter 已验收；`ActObserverReplicationAdapter` 已接管 Schema/Archetype 校验、Proxy 显式生命周期、TargetSystem 和 View 清理，唯一装配入口迁为 App 层 `ActRemoteProxyFactory`。后续收敛内容注册与 Room Facade，Dedicated 仍须等 W4 出口。
 
 ### [P1] Lockstep 模拟核迁移
 
