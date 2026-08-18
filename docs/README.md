@@ -1,6 +1,6 @@
 # ACTGame 文档索引
 
-> 更新：2026-08-17 — 新增网络层分离 + Dedicated Server 总开发计划。
+> 更新：2026-08-18 — 新增 NetSync M1 阶段性总结（当前实现阅读入口）。
 > **一页总览先读：** [PROJECT_CHECKLIST.md](./PROJECT_CHECKLIST.md)  
 > **排期真源：** [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md)  
 > **架构运行时：** `.cursor/skills/actgame-architecture/`（ARCHITECTURE / TECHNICAL / ROADMAP）
@@ -20,7 +20,8 @@
 | [2026.8.6/CHARACTER_MOVEMENT_ANCHOR_OPTIMIZATION_PLAN.md](./2026.8.6/CHARACTER_MOVEMENT_ANCHOR_OPTIMIZATION_PLAN.md) | Gameplay/Residual 锚点 |
 | [2026.8.6/CAMERA_SYSTEM_PLAN.md](./2026.8.6/CAMERA_SYSTEM_PLAN.md) | 相机 / Lock-On / SkillShot |
 | [2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md](./2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md) | **Camera C1 前置**：MoveReferenceYaw 输入闭包、唯一 SelectedTarget 权威与纯表现 CameraLock |
-| [2026.8.15/NETWORK_SYNC.md](./2026.8.15/NETWORK_SYNC.md) | **网络同步实现说明（先读）**：三种座位、房间协议、上下行、预测纠偏、命中复制；以代码为准 |
+| [2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md](./2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md) | **网络同步实现阅读入口（M1 关闭后先读）**：W0～W4 结论、分层、入房、每帧序、玩家操作往返、线格式 |
+| [2026.8.15/NETWORK_SYNC.md](./2026.8.15/NETWORK_SYNC.md) | NS5 时期结构说明；下行已改为 `ReplicationFrame`，生产路径以 8.18 总结为准 |
 | [2026.8.16/NETWORK_SYNC_STUDY_QA.md](./2026.8.16/NETWORK_SYNC_STUDY_QA.md) | **自学问答备忘（第 0～6 已收束）**：含框架分层与数据流图；不是实现真源 |
 | [2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md](./2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) | **网络重构总排期真源**：W0～W4 分离通用网络层，W5～W8 交付 DS-Demo，W9～W12 完成 Listen 收敛、公网、规模与运维 |
 | [2026.8.17/NETSYNC_W0_BASELINE_AND_DEPENDENCY_AUDIT.md](./2026.8.17/NETSYNC_W0_BASELINE_AND_DEPENDENCY_AUDIT.md) | **W0 执行记录**：Golden Bytes、Host/Client 帧序、Dedicated 阻塞依赖、指标与双进程回归 |
