@@ -16,7 +16,8 @@ public sealed class ReplicationRoomHost : AppControllerBase
     ReplicationServer _replicationServer;
     CharacterReplicationContentRegistry _content;
     ActAuthorityReplicationAdapter _authority;
-    GuestSeat _guest;
+    ActGameSessionHandler _gameSession;
+    ActGameGuest _guest;
     readonly List<EnemyDefinition> _enemyDefinitions = new();
     bool _bindFailed;
     int _lastTickBytes = -1;
@@ -45,6 +46,10 @@ public sealed class ReplicationRoomHost : AppControllerBase
         _replicationServer = new ReplicationServer();
         _content = new CharacterReplicationContentRegistry();
         _authority = new ActAuthorityReplicationAdapter(_catalog, _content);
+        _gameSession = new ActGameSessionHandler(
+            _catalog,
+            _content,
+            CreateGameSessionServices());
         RegisterStaticReplicationContent();
         RefreshHud("Listening");
     }
@@ -155,79 +160,28 @@ public sealed class ReplicationRoomHost : AppControllerBase
         CharacterActor hostActor,
         in SessionPlayerRequest request)
     {
-        CharacterConfig config = hostPlayer is PlayerController player
-            ? player.CharacterConfig
-            : null;
         SimulationHost host = _world != null ? _world.SimulationHost : null;
-        if (config == null || host == null)
+        if (_gameSession == null
+            || !_gameSession.TryCreateGuest(
+                hostPlayer,
+                host,
+                request.ConnectionId,
+                PrefillEnemyCatalog,
+                out ActGameGuest guest))
+        {
             return false;
-
-        Vector3 spawn = hostPlayer.Root != null
-            ? hostPlayer.Root.position + new Vector3(2f, 0f, 0f)
-            : new Vector3(2f, 0f, 0f);
-        var go = new GameObject("RemotePlayer");
-        go.transform.SetPositionAndRotation(spawn, hostPlayer.Root != null
-            ? hostPlayer.Root.rotation
-            : Quaternion.identity);
-
-        RemotePlayerSeat seat = go.AddComponent<RemotePlayerSeat>();
-        CharacterActor actor = CharacterActorFactory.Create(
-            go,
-            go.transform,
-            config,
-            config.Combat.TeamId,
-            localInput: null,
-            () => SendQuery(new GetActiveTargetsQuery()),
-            host.CombatHits,
-            out ActionSim _,
-            out CharacterAnimationService animation,
-            host.CollisionWorld);
-        seat.Bind(actor);
-
-        var reactions = new CharacterReactionService(
-            actor.Vitality,
-            actor,
-            new CharacterReactionResolver(config.Combat.Reactions));
-        var hurtbox = new CharacterHurtboxTarget(
-            go.transform,
-            go.transform,
-            config.Combat.TeamId,
-            config.Combat.Hurtbox,
-            actor.Vitality,
-            actor.ActionSim,
-            () => actor.SimulationId,
-            actor.MotorSim,
-            id => host.LookupNumeric(id));
-
-        GetSystem<CombatActorSystem>()?.Register(go.transform, actor, animation);
-        GetSystem<TargetSystem>()?.Register(hurtbox);
-        GetSystem<LocalPlayerService>()?.Register(seat, isLocalOwner: false);
-
-        actor.Enable();
-        SimActorRegistration registration = host.RegisterPlayer(actor);
-        host.RegisterNumeric(actor.SimulationId, actor.Numeric);
-
-        _catalog.Prefill(config);
-        PrefillEnemyCatalog();
-        NetArchetypeId guestArchetypeId = _content.RegisterPlayer(config);
+        }
 
         // ReplicationServer 的 Registry/Sequence 属于连接；新客机必须从全量 Spawn 开始，不能继承上一连接 baseline。
         _replicationServer = new ReplicationServer();
-        _guest = new GuestSeat(
-            request.ConnectionId,
-            seat,
-            actor,
-            registration,
-            reactions,
-            hurtbox,
-            guestArchetypeId);
+        _guest = guest;
         _session.AcceptPlayer(
             request.ConnectionId,
-            new NetEntityId(actor.SimulationId.Value),
+            new NetEntityId(guest.Actor.SimulationId.Value),
             new NetEntityId(hostActor.SimulationId.Value),
             new NetTick(host.CurrentFrame));
         Debug.Log(
-            $"ReplicationRoomHost: 客机加入 player={request.PlayerId.Value} actor={actor.SimulationId.Value} connection={request.ConnectionId}。",
+            $"ReplicationRoomHost: 客机加入 player={request.PlayerId.Value} actor={guest.Actor.SimulationId.Value} connection={request.ConnectionId}。",
             this);
         return true;
     }
@@ -269,18 +223,10 @@ public sealed class ReplicationRoomHost : AppControllerBase
         if (_guest == null)
             return;
 
-        GuestSeat guest = _guest;
+        ActGameGuest guest = _guest;
         _guest = null;
         SimulationHost host = _world != null ? _world.SimulationHost : null;
-        GetSystem<LocalPlayerService>()?.Unregister(guest.Seat);
-        GetSystem<TargetSystem>()?.Unregister(guest.Hurtbox);
-        GetSystem<CombatActorSystem>()?.Unregister(guest.Seat != null ? guest.Seat.transform : null);
-        if (host != null)
-            host.Unregister(guest.Registration);
-        guest.Reactions?.Dispose();
-        guest.Actor?.Dispose();
-        if (guest.Seat != null)
-            Destroy(guest.Seat.gameObject);
+        _gameSession?.DestroyGuest(guest, host);
 
         Debug.Log($"ReplicationRoomHost: 客机 Gameplay 已清理 reason={reason}。", this);
         RefreshHud("Listening");
@@ -346,6 +292,22 @@ public sealed class ReplicationRoomHost : AppControllerBase
         }
     }
 
+    /// <summary>把受保护的 Architecture 能力收敛为 Handler 可注入的最小 App 服务。</summary>
+    ActGameSessionServices CreateGameSessionServices()
+    {
+        return new ActGameSessionServices(
+            () => SendQuery(new GetActiveTargetsQuery()),
+            (root, actor, animation) =>
+                GetSystem<CombatActorSystem>()?.Register(root, actor, animation),
+            root => GetSystem<CombatActorSystem>()?.Unregister(root),
+            target => GetSystem<TargetSystem>()?.Register(target),
+            target => GetSystem<TargetSystem>()?.Unregister(target),
+            (player, isLocalOwner) =>
+                GetSystem<LocalPlayerService>()?.Register(player, isLocalOwner),
+            player => GetSystem<LocalPlayerService>()?.Unregister(player),
+            gameObject => Destroy(gameObject));
+    }
+
     void RefreshHud(string status)
     {
         if (_world == null)
@@ -385,41 +347,5 @@ public sealed class ReplicationRoomHost : AppControllerBase
     }
 
     static long NowMs() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
-    /// <summary>单个远端玩家当前绑定的 ACT Gameplay 对象集合；连接生命周期归 Session。</summary>
-    sealed class GuestSeat
-    {
-        public GuestSeat(
-            NetConnectionId connectionId,
-            RemotePlayerSeat seat,
-            CharacterActor actor,
-            SimActorRegistration registration,
-            CharacterReactionService reactions,
-            CharacterHurtboxTarget hurtbox,
-            NetArchetypeId archetypeId)
-        {
-            ConnectionId = connectionId;
-            Seat = seat;
-            Actor = actor;
-            Registration = registration;
-            Reactions = reactions;
-            Hurtbox = hurtbox;
-            ArchetypeId = archetypeId;
-        }
-
-        /// <summary>Transport 本地作用域内的客机连接。</summary>
-        public NetConnectionId ConnectionId { get; }
-        public RemotePlayerSeat Seat { get; }
-        public CharacterActor Actor { get; }
-        public SimActorRegistration Registration { get; }
-        public CharacterReactionService Reactions { get; }
-        public CharacterHurtboxTarget Hurtbox { get; }
-        /// <summary>Guest 复用 Host 玩家配置得到的稳定玩家网络原型。</summary>
-        public NetArchetypeId ArchetypeId { get; }
-        public long LastAppliedFrameHint { get; set; }
-
-        /// <summary>本逻辑步真正灌入的最新 Hint；无新命令时下行 0，避免 CarryForward 用旧 Hint 错位纠偏。</summary>
-        public long AppliedHintThisTick { get; set; }
-    }
 
 }

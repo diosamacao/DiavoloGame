@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-18（W4 Authority Replication Adapter 首切片）
+> Last audited: 2026-08-18（W4 Session Handler 切片）
 
 ## 项目概述
 
@@ -102,6 +102,7 @@ flowchart TB
 | `ACTNet.Replication` | 只依赖 Core：显式 Spawn/Update/Despawn、Schema Registry、Frame Codec、Server full-set 差分与 Client Sequence 丢旧 |
 | `ACTGame.Networking` | 依赖 Simulation 与 ACTNet Core/Replication：`CharacterSnapshotSchemaV1`、稳定 Character Archetype 映射；不含 Unity 资产引用 |
 | `ActAuthorityReplicationAdapter` | App/Networking 的 ACT 权威映射：远端输入灌入、Character Capture 与 FrameHits 补 ActionId；RoomHost 不再实现这些 Gameplay 细节 |
+| `ActGameSessionHandler` | App/Networking 的加入生命周期映射：创建 Guest Authority Actor、注册 App/Simulation 并在断线时逆序清理；不调用 ServerSession Accept/Reject |
 | `IRenderFrameSampler` | 可选渲染帧输入汇聚契约，避免高 FPS 无逻辑 Step 时丢 Pressed/Released |
 | `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
 | `CharacterPresentationBridge` | 保留前后权威 Pose，只移动运行时模型锚点，不回写模拟根 |

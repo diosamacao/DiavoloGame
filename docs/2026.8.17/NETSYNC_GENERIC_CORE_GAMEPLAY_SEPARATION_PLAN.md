@@ -940,8 +940,8 @@ Assets/Tests/PlayMode/Networking/
 
 **任务**
 
-- [ ] 创建 `ActGameSessionHandler`，负责玩家加入后生成 Authority Actor。  
-- [ ] 创建 `ActAuthorityReplicationAdapter`，封装 InputFrame 灌入、Snapshot Capture、FrameHits。（2026-08-18 首切片代码完成，待 Test Runner / 双进程 Play）
+- [ ] 创建 `ActGameSessionHandler`，负责玩家加入后生成 Authority Actor。（2026-08-18 代码完成，待 Test Runner / 双进程 Play）
+- [x] 创建 `ActAuthorityReplicationAdapter`，封装 InputFrame 灌入、Snapshot Capture、FrameHits。（2026-08-18 Test Runner / 双进程 Play 已验收）
 - [ ] 创建 `ActOwnerReplicationAdapter`，封装 self Snapshot 应用和 HP 权威覆盖。  
 - [ ] 创建 `ActRemoteProxyFactory`，封装 Proxy、TargetSystem、配置和 View 生命周期。  
 - [ ] `ActionReplicationCatalog` 迁入 `ActContentRegistry`。  

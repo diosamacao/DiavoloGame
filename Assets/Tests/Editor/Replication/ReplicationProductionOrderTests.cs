@@ -14,6 +14,7 @@ public sealed class ReplicationProductionOrderTests
     {
         string room = ReadScript("App/Controllers/Gameplay/ReplicationRoomHost.cs");
         string authority = ReadScript("App/Networking/Adapters/ActAuthorityReplicationAdapter.cs");
+        string gameSession = ReadScript("App/Networking/Adapters/ActGameSessionHandler.cs");
         string simulation = ReadScript("App/Controllers/Gameplay/SimulationHost.cs");
 
         string roomUpdate = Slice(room, "    void Update()", "    void OnDisable()");
@@ -69,9 +70,41 @@ public sealed class ReplicationProductionOrderTests
             "    void ApplyGuestCommands(ClientCommand[] commands)");
         AssertInOrder(
             spawnGuest,
+            "_gameSession.TryCreateGuest(",
             "_replicationServer = new ReplicationServer();",
-            "_guest = new GuestSeat(",
+            "_guest = guest;",
             "_session.AcceptPlayer(");
+        Assert.That(room, Does.Not.Contain("CharacterActorFactory.Create("));
+        Assert.That(room, Does.Not.Contain("new GameObject(\"RemotePlayer\")"));
+
+        string createGuest = Slice(
+            gameSession,
+            "    public bool TryCreateGuest(",
+            "    public void DestroyGuest(");
+        AssertInOrder(
+            createGuest,
+            "new GameObject(\"RemotePlayer\")",
+            "CharacterActorFactory.Create(",
+            "_services.RegisterCombatActor?.Invoke(",
+            "_services.RegisterTarget?.Invoke(",
+            "_services.RegisterPlayer?.Invoke(",
+            "actor.Enable();",
+            "host.RegisterPlayer(actor);",
+            "guest = new ActGameGuest(");
+
+        string destroyGuest = Slice(
+            gameSession,
+            "    public void DestroyGuest(",
+            "public sealed class ActGameSessionServices");
+        AssertInOrder(
+            destroyGuest,
+            "_services.UnregisterPlayer?.Invoke(",
+            "_services.UnregisterTarget?.Invoke(",
+            "_services.UnregisterCombatActor?.Invoke(",
+            "host.Unregister(guest.Registration);",
+            "guest.Reactions?.Dispose();",
+            "guest.Actor?.Dispose();",
+            "_services.DestroyGameObject?.Invoke(");
     }
 
     /// <summary>Client 必须先收权威并采样，再于逻辑步回调中先上行、后预测。</summary>
