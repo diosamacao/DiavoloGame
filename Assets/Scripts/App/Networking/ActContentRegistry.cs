@@ -2,16 +2,29 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>把稳定角色网络原型与 Unity CharacterConfig、EnemyDefinition 内容精确绑定。</summary>
-public sealed class CharacterReplicationContentRegistry
+/// <summary>ACT 联机内容唯一注册表：集中持有动作 Catalog、角色 Archetype 与 Unity 配置绑定。</summary>
+public sealed class ActContentRegistry
 {
-    readonly CharacterArchetypeCatalog _catalog = new();
+    readonly ActionReplicationCatalog _actions = new();
+    readonly CharacterArchetypeCatalog _archetypes = new();
     readonly Dictionary<CharacterConfig, NetArchetypeId> _players = new();
     readonly Dictionary<EnemyDefinition, NetArchetypeId> _enemies = new();
     readonly Dictionary<string, UnityEngine.Object> _ownersByKey =
         new(StringComparer.Ordinal);
     readonly Dictionary<NetArchetypeId, CharacterConfig> _configsById = new();
     readonly Dictionary<NetArchetypeId, ReplicationActorKind> _kindsById = new();
+
+    /// <summary>
+    /// 当前房间动作 Id 与资产映射。
+    /// 仅供 ACT Capture、Owner/Observer 表现依赖注入；Room 不再单独创建 Catalog。
+    /// </summary>
+    public ActionReplicationCatalog Actions => _actions;
+
+    /// <summary>当前已登记动作数，不含 Id=0。</summary>
+    public int ActionCount => _actions.Count;
+
+    /// <summary>从角色配置预填动作 Graph、变体与受击反应。</summary>
+    public void PrefillActions(CharacterConfig config) => _actions.Prefill(config);
 
     /// <summary>登记玩家配置；stableKey 固定为 player/{CharacterConfig.name}。</summary>
     public NetArchetypeId RegisterPlayer(CharacterConfig config)
@@ -90,7 +103,7 @@ public sealed class CharacterReplicationContentRegistry
         return kind;
     }
 
-    // 先锁定 key 所属 Unity 对象，再交给纯 C# Catalog 检测确定性哈希碰撞。
+    /// <summary>锁定 stableKey 所属 Unity 资产，并交给纯 C# Archetype Catalog 检测哈希碰撞。</summary>
     NetArchetypeId Register(
         string stableKey,
         ReplicationActorKind kind,
@@ -105,16 +118,16 @@ public sealed class CharacterReplicationContentRegistry
                 $"角色原型 stableKey '{stableKey}' 已由另一资产 '{existingOwner.name}' 占用。");
         }
 
-        CharacterArchetype archetype = _catalog.Register(stableKey, kind);
+        CharacterArchetype archetype = _archetypes.Register(stableKey, kind);
         _ownersByKey.Add(stableKey, owner);
         _configsById.Add(archetype.NetArchetypeId, config);
         _kindsById.Add(archetype.NetArchetypeId, kind);
         return archetype.NetArchetypeId;
     }
 
+    /// <summary>按 Unity 资产原始名称构造 Ordinal stableKey；禁止 Trim 产生隐式别名。</summary>
     static string BuildStableKey(string prefix, string assetName, string parameterName)
     {
-        // 名称必须按 Unity 资产原值参与 Ordinal key；禁止 Trim 产生隐式别名。
         if (string.IsNullOrEmpty(assetName))
             throw new ArgumentException("角色内容资产 name 不能为空。", parameterName);
         return $"{prefix}/{assetName}";

@@ -5,17 +5,14 @@ using UnityEngine;
 /// <summary>把已通过网络 Session 校验的玩家请求映射为 ACT 权威 Guest Actor 生命周期。</summary>
 public sealed class ActGameSessionHandler
 {
-    readonly ActionReplicationCatalog _catalog;
-    readonly CharacterReplicationContentRegistry _content;
+    readonly ActContentRegistry _content;
     readonly ActGameSessionServices _services;
 
     /// <summary>创建使用指定内容目录与 App 注册服务的 Gameplay Session Handler。</summary>
     public ActGameSessionHandler(
-        ActionReplicationCatalog catalog,
-        CharacterReplicationContentRegistry content,
+        ActContentRegistry content,
         ActGameSessionServices services)
     {
-        _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _content = content ?? throw new ArgumentNullException(nameof(content));
         _services = services ?? throw new ArgumentNullException(nameof(services));
     }
@@ -83,7 +80,7 @@ public sealed class ActGameSessionHandler
         SimActorRegistration registration = host.RegisterPlayer(actor);
         host.RegisterNumeric(actor.SimulationId, actor.Numeric);
 
-        _catalog.Prefill(config);
+        _content.PrefillActions(config);
         prefillEnemyCatalog?.Invoke();
         NetArchetypeId archetypeId = _content.RegisterPlayer(config);
         guest = new ActGameGuest(

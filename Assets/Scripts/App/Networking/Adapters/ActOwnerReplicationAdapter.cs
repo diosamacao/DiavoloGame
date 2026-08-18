@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>ACT Owner 复制适配器：维护预测历史，并应用 HP、Action 与 Locomotion 权威和解。</summary>
 public sealed class ActOwnerReplicationAdapter
 {
-    readonly ActionReplicationCatalog _catalog;
+    readonly ActContentRegistry _content;
     PredictedActionAckQueue _actionAck = new();
     PredictedLocomotionDriver _driver;
     SimActorId _ownerActorId;
@@ -13,9 +13,9 @@ public sealed class ActOwnerReplicationAdapter
     int _selfHealthMilli = -1;
 
     /// <summary>创建绑定当前房间动作目录的 Owner 适配器。</summary>
-    public ActOwnerReplicationAdapter(ActionReplicationCatalog catalog)
+    public ActOwnerReplicationAdapter(ActContentRegistry content)
     {
-        _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
+        _content = content ?? throw new ArgumentNullException(nameof(content));
     }
 
     /// <summary>首份 Owner 快照已到达且预测 Driver 已完成绑定时为 true。</summary>
@@ -81,7 +81,7 @@ public sealed class ActOwnerReplicationAdapter
             if (PredictedActionAckQueue.ShouldStopAutonomousAction(actionResult, in self))
                 actor.StopAutonomousAction();
 
-            _catalog.TryGet(self.ActionId, out ActionDefinition authorityAction);
+            _content.Actions.TryGet(self.ActionId, out ActionDefinition authorityAction);
             PredictedReconcileResult locomotionResult = _driver.Reconcile(
                 appliedHint,
                 in self,
@@ -154,7 +154,7 @@ public sealed class ActOwnerReplicationAdapter
         if (actor?.ActionSim == null || !actor.ActionSim.IsActive)
             return 0;
         if (actor.ActionSim.Snapshot.Content is ActionDefinition definition)
-            return _catalog.GetOrAdd(definition);
+            return _content.Actions.GetOrAdd(definition);
         return 0;
     }
 

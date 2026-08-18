@@ -13,11 +13,10 @@ public sealed class ReplicationRoomClient : AppControllerBase
 {
     CombatWorldController _world;
     ClientSession _session;
-    ActionReplicationCatalog _catalog;
     ReplicationSchemaRegistry _schemaRegistry;
     ReplicationClient _replicationClient;
     CharacterSnapshotSchemaV1 _characterSchema;
-    CharacterReplicationContentRegistry _content;
+    ActContentRegistry _content;
     PlayerController _localPlayer;
     ActOwnerReplicationAdapter _owner;
     ActObserverReplicationAdapter _observer;
@@ -53,17 +52,15 @@ public sealed class ReplicationRoomClient : AppControllerBase
 
     void Start()
     {
-        _catalog = new ActionReplicationCatalog();
         _characterSchema = new CharacterSnapshotSchemaV1();
         _schemaRegistry = new ReplicationSchemaRegistry();
         _schemaRegistry.Register(_characterSchema);
         _replicationClient = new ReplicationClient(_schemaRegistry);
-        _content = new CharacterReplicationContentRegistry();
-        _owner = new ActOwnerReplicationAdapter(_catalog);
+        _content = new ActContentRegistry();
+        _owner = new ActOwnerReplicationAdapter(_content);
         _observer = new ActObserverReplicationAdapter(
             _content,
             _characterSchema,
-            _catalog,
             () => _world != null ? _world.SimulationHost : null,
             transform,
             target => GetSystem<TargetSystem>()?.Register(target),
@@ -186,7 +183,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
         _localPlayer = SendQuery(new GetLocalPlayerQuery()) as PlayerController;
         if (_localPlayer != null)
         {
-            _catalog.Prefill(_localPlayer.CharacterConfig);
+            _content.PrefillActions(_localPlayer.CharacterConfig);
             _content.RegisterPlayer(_localPlayer.CharacterConfig);
         }
 
@@ -199,7 +196,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
             {
                 EnemyDefinition definition = _enemyDefinitions[d];
                 _content.RegisterEnemy(definition);
-                _catalog.Prefill(definition.CharacterConfig);
+                _content.PrefillActions(definition.CharacterConfig);
             }
         }
     }
@@ -425,7 +422,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
 
             Transform attackerRoot = ResolveProxyRoot(hit.Key.AttackerId);
             HitImpactCuePlayer.TryPlay(
-                _catalog,
+                _content.Actions,
                 hit.ActionId,
                 hit.Key.HitboxIndex,
                 new Vector3(

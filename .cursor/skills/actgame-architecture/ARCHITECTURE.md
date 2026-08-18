@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-18（W4 Observer / Proxy Adapter 切片）
+> Last audited: 2026-08-18（W4 ActContentRegistry 切片）
 
 ## 项目概述
 
@@ -105,6 +105,7 @@ flowchart TB
 | `ActGameSessionHandler` | App/Networking 的加入生命周期映射：创建 Guest Authority Actor、注册 App/Simulation 并在断线时逆序清理；不调用 ServerSession Accept/Reject |
 | `ActOwnerReplicationAdapter` | App/Networking 的 Autonomous 映射：Owner HP、Action Ack、Locomotion Reconcile、Hit/Death 硬吸与预测历史；以 SimActorId 对接 ACT Actor |
 | `ActObserverReplicationAdapter` / `ActRemoteProxyFactory` | App/Networking 的 Observer 映射与唯一装配入口：Schema/Archetype 校验、只读 Proxy 显式生命周期、TargetSystem 与 View 清理；不创建 CharacterActor |
+| `ActContentRegistry` | App/Networking 的 ACT 内容唯一真源：集中持有 Action Catalog、Character Archetype 与 Unity CharacterConfig/EnemyDefinition 映射 |
 | `IRenderFrameSampler` | 可选渲染帧输入汇聚契约，避免高 FPS 无逻辑 Step 时丢 Pressed/Released |
 | `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
 | `CharacterPresentationBridge` | 保留前后权威 Pose，只移动运行时模型锚点，不回写模拟根 |
@@ -261,7 +262,7 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `PredictedActionAckQueue` | 出招预测 Ack；未起手/变体分叉/Hit 则 Stop；连招超前只 Ack |
 | `LocomotionSavedState` | 内层机 Capture/Restore；权威 FromAuthority |
 | `PredictedLocomotionDriver` | 走跑记账；超阈 Restore+Replay |
-| `ReplicationRoomHost` / `ReplicationRoomClient` / `CharacterReplicationContentRegistry` | 最小 2 人房间；按稳定 Archetype 精确创建 Proxy，显式 Despawn；无默认敌种回退 |
+| `ReplicationRoomHost` / `ReplicationRoomClient` / `ActContentRegistry` | 最小 2 人房间；统一动作与 Archetype 内容真源，精确创建 Proxy，显式 Despawn；无默认敌种回退 |
 
 权威进程写法：同一份 `ACTGame.Simulation`，不另写服务器战斗。对照与禁区见 CONVENTIONS「服务器 / 权威进程」与方案 §13。实现级阅读入口：[`docs/2026.8.15/NETWORK_SYNC.md`](../../docs/2026.8.15/NETWORK_SYNC.md)。
 

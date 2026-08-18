@@ -4,19 +4,15 @@ using System.Collections.Generic;
 /// <summary>ACT 权威侧复制适配器：灌入远端输入，并把 Gameplay Actor 与命中映射为通用复制数据。</summary>
 public sealed class ActAuthorityReplicationAdapter
 {
-    readonly ActionReplicationCatalog _catalog;
-    readonly CharacterReplicationContentRegistry _content;
+    readonly ActContentRegistry _content;
     readonly CharacterSnapshotSchemaV1 _characterSchema;
     readonly List<EnemyController> _enemies = new();
     readonly List<ActorReplicationSnapshot> _snapshots = new();
     readonly List<ReplicationEntityState> _entityStates = new();
 
     /// <summary>创建绑定当前房间 ACT 内容目录的权威适配器。</summary>
-    public ActAuthorityReplicationAdapter(
-        ActionReplicationCatalog catalog,
-        CharacterReplicationContentRegistry content)
+    public ActAuthorityReplicationAdapter(ActContentRegistry content)
     {
-        _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _content = content ?? throw new ArgumentNullException(nameof(content));
         _characterSchema = new CharacterSnapshotSchemaV1();
     }
@@ -70,7 +66,7 @@ public sealed class ActAuthorityReplicationAdapter
         {
             ActorReplicationSnapshot snapshot = CharacterReplicationCapture.FromActor(
                 local.Actor,
-                _catalog,
+                _content.Actions,
                 ReplicationActorKind.Player);
             AddEntityState(in snapshot, _content.RegisterPlayer(player.CharacterConfig));
         }
@@ -79,7 +75,7 @@ public sealed class ActAuthorityReplicationAdapter
         {
             ActorReplicationSnapshot snapshot = CharacterReplicationCapture.FromActor(
                 guestActor,
-                _catalog,
+                _content.Actions,
                 ReplicationActorKind.Player);
             AddEntityState(in snapshot, guestArchetypeId);
         }
@@ -101,7 +97,7 @@ public sealed class ActAuthorityReplicationAdapter
             NetArchetypeId archetypeId = _content.RegisterEnemy(definition);
             ActorReplicationSnapshot snapshot = CharacterReplicationCapture.FromActor(
                 enemy,
-                _catalog,
+                _content.Actions,
                 ReplicationActorKind.Enemy);
             AddEntityState(in snapshot, archetypeId);
         }
