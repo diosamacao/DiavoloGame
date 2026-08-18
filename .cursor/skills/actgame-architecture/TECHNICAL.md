@@ -444,6 +444,8 @@ Listen Host 创建一人房间并可接纳第二人；客机预测自己的位�
 
 ### 运行时流程
 
+完整往返（入房、每帧序、客机攻击、线格式）见 [`docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../../docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)。
+
 ```
 Host：ReplicationRoomHost Poll → ActHostRoomGameplay 接纳/合并命令 → SimulationWorld.Step → Gameplay Capture/构帧 → Room 发送
 Client：ReplicationRoomClient Poll → ActClientRoomGameplay 合并按键 → 逻辑步构命令 → Room 发送 → Gameplay Actor.Step → 收帧 Restore+Replay/Proxy
@@ -479,6 +481,7 @@ Client：ReplicationRoomClient Poll → ActClientRoomGameplay 合并按键 → �
 - `Assets/Tests/EditMode/Simulation/RoomCodecTests.cs`
 - `Assets/Tests/EditMode/ACTNet/Session/SessionIntegrationTests.cs`
 - `Assets/Tests/EditMode/ACTNet/Transport/UdpTransportTests.cs`
+- `docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`
 
 ---
 
@@ -1289,6 +1292,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-18 | NetSync W4 Character Schema Capture 切片：`ActCharacterSnapshotSchema` 统一 CharacterActor Capture 与 V1 编解码并注册到生产 Schema Registry；删除独立 `CharacterReplicationCapture` |
 | 2026-08-18 | NetSync W4 Room Facade：新增 Host/Client Gameplay 与内容预填 Service；Room 删除 Character/Config/Proxy/Hit Cue/HitStop 具体实现，仅保留 Session 收发、固定帧调度与 HUD；新增 W4 架构边界守卫 |
 | 2026-08-18 | NetSync W4/M1 验收关闭：Authority/Owner/Observer、Room 架构守卫、Golden Bytes 与双进程移动/战斗/CameraLock/断线回归通过；网络层分离完成，下一阶段为尚未开始的 W5 Dedicated |
+| 2026-08-18 | 新增 `docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`：M1 阶段性总结与当前实现阅读入口 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

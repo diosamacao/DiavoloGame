@@ -1,7 +1,9 @@
 # ACTGame 网络同步方案（实现说明）
 
+> **M1（2026-08-18）之后请先读：** [`../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)。本文保留 NS5 座位/预测合同说明；生产下行已是 `ReplicationFrame`，不再使用 `AuthorityTick`。
+>
 > 撰写：2026-08-15  
-> 角色：**已落地实现的阅读入口**（对照代码，不是下一阶段实施计划）  
+> 角色：**NS5 时期结构说明**（对照代码，不是下一阶段实施计划）  
 > 方案真源（设计决策 / 阶段勾选）：  
 > - 房间、权威 World、命中契约：[`../2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md`](../2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md)（NS0～NS5 已关闭）  
 > - 客机本机预测纠偏合同：[`UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](./UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)  
@@ -14,7 +16,7 @@
 
 ## 0. 一句话
 
-组队 PVE 是 **Listen Host 权威状态同步**：玩家只上行量化 `InputFrame`，权威进程独跑现有 `SimulationWorld`（60Hz），下行 `AuthorityTick`（角色快照 + 命中边沿）。客机本机用 **同一份 `CharacterActor`（`ReplicationSeat.Autonomous`）** 先演走跑和招式，权威只纠正结果。**命中、HP、硬直只认 Host 的 `CombatHitPipeline`。** 禁止全端同构重演（锁步 L5），禁止客户端上报伤害 / 坐标 / 招式名。
+组队 PVE 是 **Listen Host 权威状态同步**：玩家只上行量化 `InputFrame`，权威进程独跑现有 `SimulationWorld`（60Hz），下行 `ReplicationFrame`（角色快照 + 显式生命周期 + 命中边沿）。客机本机用 **同一份 `CharacterActor`（`ReplicationSeat.Autonomous`）** 先演走跑和招式，权威只纠正结果。**命中、HP、硬直只认 Host 的 `CombatHitPipeline`。** 禁止全端同构重演（锁步 L5），禁止客户端上报伤害 / 坐标 / 招式名。
 
 单机一人进关也是 Listen Host，不另开 Offline 模拟核。
 
@@ -700,3 +702,4 @@ Host 不再生成右侧 +2m 延迟幽灵或左侧 -2m 预测体。`RemoteGhostVi
 |------|------|
 | 2026-08-15 | 初版：按 NS0～NS5 + UE1～UE4 已落地代码整理网络同步说明；与方案文档分离，本文对实现负责 |
 | 2026-08-15 | 删除 Host 同机预览（±2m Ghost / Predicted Client）；Loopback 仅留单测 |
+| 2026-08-18 | 文头改为指向 M1 总结；§0 下行口径改为 `ReplicationFrame`。生产往返以 `docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md` 为准 |

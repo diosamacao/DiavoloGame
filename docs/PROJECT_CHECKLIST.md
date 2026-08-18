@@ -29,7 +29,7 @@
 
 **明确不做（Demo）：** 装备、任务对话、大地图、完整存档、正式联机上线、独立 SkillExecutor、第二套血量/资源口袋。
 
-**长期：** Action Editor 持续增强；联网 = Host 权威状态同步 + 客机 Autonomous 预测（见 8.13 / 8.15 方案）。
+**长期：** Action Editor 持续增强；联网 = Host 权威状态同步 + 客机 Autonomous 预测（见 8.18 M1 总结 / 8.13 方案）。
 
 ---
 
@@ -60,8 +60,9 @@
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项：** NetSync W5 Dedicated Bootstrap（无本地玩家 Server + N 玩家 Session）；W5 尚未开始
-→ [`2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](./2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)
+**下一项：** NetSync W5 Dedicated Bootstrap（无本地玩家 Server + N 玩家 Session）；W5 尚未开始  
+实现阅读：[`2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](./2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)  
+排期：[`2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](./2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)
 
 
 
