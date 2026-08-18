@@ -10,7 +10,7 @@
 > - 当前实现真源：[`../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`](../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md)（W5）；[`../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)（M1）  
 > 目标部署链：`DedicatedServerBootstrap → ServerSession → MatchCoordinator → AuthoritySimulation → ReplicationServer → Transport`  
 > **约束：** Dedicated Server 无本地玩家、无 Input System、无 Camera、无动画/VFX/SFX 权威依赖；所有玩家均通过 Connection 加入，服务器只接受 Command / Request / ACK，不接受客户端状态覆盖
-> **当前前置状态（2026-08-19）：** DS1/DS2（W5）代码已切：独立 `DedicatedServerRuntime`、N 玩家 Session、每连接 ACK。Editor Headless Play 待确认。权威 World 属 DS3/W6。Listen Host 仍保留为回归路径，直至 W9。
+> **当前前置状态（2026-08-19）：** DS1/DS2 已验收。DS3/DS4 首版代码已切（Headless World、指纹 Join；Action Bake 后置）。Editor Play 待确认。下行对局属 DS5/W7。Listen Host 仍保留至 W9。
 
 ---
 
@@ -1355,11 +1355,11 @@ Release Server 禁止输出敏感 token 和完整用户输入历史。
 **验收**
 
 - [x] EditMode：不同 ProcessRole 生成正确 Composition。  
-- [ ] Headless Play：无本地玩家也可到 Listening。  
+- [x] Headless Play：无本地玩家也可到 Listening。（2026-08-19 用户验收）  
 - [x] 配置/绑定失败返回明确错误和退出码。  
 - [x] Server Bootstrap 程序集不引用 Client HUD/Input/Camera。
 
-**出口：** Dedicated Server 成为独立宿主，而不是 Host 开关。→ **代码已切（2026-08-19）；Editor Play 待确认**
+**出口：** Dedicated Server 成为独立宿主，而不是 Host 开关。→ **已达成（2026-08-19）**
 
 ### DS2 — ServerSession 与 N 玩家
 
@@ -1388,15 +1388,15 @@ Release Server 禁止输出敏感 token 和完整用户输入历史。
 
 **任务**
 
-- [ ] 创建 `ServerSimulationRunner`。  
-- [ ] 使用单调时间和固定 60Hz Tick。  
-- [ ] 删除服务器 Render / LateUpdate。  
-- [ ] 创建 Headless Authority Character 装配。  
-- [ ] Gameplay Notify / Presentation Notify 分类。  
-- [ ] 服务器不创建 PlayableGraph、VFX、SFX、HitStop Presentation。  
-- [ ] AI、Motor、Action、Numeric、Hitbox、Hurtbox 完整运行。  
-- [ ] 增加 Tick duration / overrun / backlog 指标。  
-- [ ] **禁止**服务器使用 PredictedLocomotionDriver。
+- [x] 创建 `ServerSimulationRunner`。  
+- [x] 使用单调时间和固定 60Hz Tick。  
+- [x] 删除服务器 Render / LateUpdate。（`DriveFromExternalClock` 跳过）  
+- [x] 创建 Headless Authority Character 装配。  
+- [x] Gameplay Notify / Presentation Notify 分类。  
+- [x] 服务器不创建 PlayableGraph、VFX、SFX、HitStop Presentation。  
+- [x] AI、Motor、Action、Numeric、Hitbox、Hurtbox 完整运行。  
+- [x] 增加 Tick duration / overrun / backlog 指标。  
+- [x] **禁止**服务器使用 PredictedLocomotionDriver。
 
 **验收**
 
@@ -1405,29 +1405,29 @@ Release Server 禁止输出敏感 token 和完整用户输入历史。
 - [ ] 关掉全部 Presentation 后 AI 仍能完成战斗。  
 - [ ] 持续运行 10 分钟无逻辑 Tick 漂移或空引用。
 
-**出口：** 服务器权威玩法与表现解耦。→ **未达成**
+**出口：** 服务器权威玩法与表现解耦。→ **代码已切（2026-08-19）；Editor Play 待确认**
 
 ### DS4 — Server Content Manifest
 
 **任务**
 
-- [ ] 定义 `ServerContentManifest`。  
-- [ ] Character 使用 `NetArchetypeId` 创建。  
-- [ ] 拆 Gameplay / Presentation 内容引用。  
-- [ ] Action Gameplay Bake 包含帧数、位移、Hitbox、Cancel、Cost。  
-- [ ] StaticCollisionBake 进入 Server Map Manifest。  
-- [ ] 生成 ContentFingerprint。  
-- [ ] 未知 Archetype / Action / GraphNode 明确失败。  
-- [ ] **删除**客户端/服务器回退 `_enemyConfigs[0]`。
+- [x] 定义 `ServerContentManifest`。  
+- [x] Character 使用 `NetArchetypeId` 创建。（沿用 Registry）  
+- [x] 拆 Gameplay / Presentation 内容引用。（Headless 不装表现；指纹不含 VFX 名）  
+- [ ] Action Gameplay Bake 包含帧数、位移、Hitbox、Cancel、Cost。（后置，现用 SO 闭包）  
+- [x] StaticCollisionBake 进入 Server Map Manifest。（bake 资产名进指纹）  
+- [x] 生成 ContentFingerprint。  
+- [x] 未知 Archetype 明确失败。  
+- [x] **删除**客户端/服务器回退 `_enemyConfigs[0]`。（生产路径本就不存在）
 
 **验收**
 
-- [ ] Server 不加载 Model/Texture/Audio/VFX 即可完整模拟。  
-- [ ] Server 与 Client Gameplay Fingerprint 一致才可 Join。  
-- [ ] 修改 Gameplay Bake 会改变 Fingerprint。  
-- [ ] 修改纯 VFX 不应改变 Gameplay Fingerprint（若产品允许表现热更）。
+- [ ] Server 不加载 Model/Texture/Audio/VFX 即可完整模拟。（需 Editor Play）  
+- [x] Server 与 Client Gameplay Fingerprint 一致才可 Join。  
+- [x] 修改 Gameplay Bake 会改变 Fingerprint。（动作 Id 集合）  
+- [x] 修改纯 VFX 不应改变 Gameplay Fingerprint（指纹不含 VFX 名）。
 
-**出口：** Server Build 内容闭包明确。→ **未达成**
+**出口：** Server Build 内容闭包明确。→ **首版已切（Bake 后置）；Editor Play 待确认**
 
 ### DS5 — Match / Replication / Client 接入
 

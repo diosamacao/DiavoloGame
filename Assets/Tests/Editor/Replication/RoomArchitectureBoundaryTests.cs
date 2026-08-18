@@ -113,6 +113,18 @@ public sealed class RoomArchitectureBoundaryTests
         }
     }
 
+    /// <summary>Headless 工厂必须走 Null 播放后端，且不得在该分支实例化 Model。</summary>
+    [Test]
+    public void CharacterActorFactory_HeadlessPath_UsesNullPlaybackWithoutModelSpawn()
+    {
+        string factory = ReadScript("Domain/Character/CharacterActorFactory.cs");
+        Assert.That(factory, Does.Contain("CharacterPresentationMode.AuthorityHeadless"));
+        Assert.That(factory, Does.Contain("new NullAnimationPlayback()"));
+        Assert.That(factory, Does.Contain("if (!headless)"));
+        Assert.That(factory, Does.Contain("SpawnModelInstance("));
+        Assert.That(factory, Does.Contain("presentationEnabled: !headless"));
+    }
+
     /// <summary>从 Assets 相对路径读取真实生产脚本。</summary>
     static string ReadScript(string relativePath)
     {

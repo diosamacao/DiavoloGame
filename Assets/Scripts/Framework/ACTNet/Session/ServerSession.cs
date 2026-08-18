@@ -231,6 +231,13 @@ public sealed class ServerSession : IDisposable
             return;
         }
 
+        if (_config.GameplayFingerprint.IsValid
+            && request.GameplayFingerprint != _config.GameplayFingerprint)
+        {
+            SendJoinReject(connectionId, SessionRejectReason.ContentMismatch);
+            return;
+        }
+
         if (_connections.Count >= _config.MaxRemotePlayers)
         {
             SendJoinReject(connectionId, SessionRejectReason.ServerFull);

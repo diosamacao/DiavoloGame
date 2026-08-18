@@ -33,12 +33,12 @@ public sealed class ReplicationProductionOrderTests
             "buffer.Set(in merged);",
             "new ActAuthorityInputApplyResult(true, newestHint);");
 
-        string simulationUpdate = Slice(
+        string simulationStep = Slice(
             simulation,
-            "    void Update()",
-            "    void LateUpdate()");
+            "    public void StepOnce()",
+            "    void Update()");
         AssertInOrder(
-            simulationUpdate,
+            simulationStep,
             "_combatHits.BeginFrame(",
             "_world.Step();",
             "_combatHits.ResolveBeforePostCombat(",

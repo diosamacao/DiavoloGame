@@ -2,12 +2,13 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>角色实例工厂；按 <see cref="ReplicationSeat"/> 装配能力图，禁止身份 if 开双套 Actor。</summary>
+/// <summary>角色实例工厂；按座位与 <see cref="CharacterPresentationMode"/> 装配能力图，禁止身份 if 开双套 Actor。</summary>
 public static class CharacterActorFactory
 {
     /// <summary>
     /// 按配置创建角色。Authority 必须带命中流水线并注册 Hitbox；
     /// Autonomous 不挂 Collect；预测卡肉 + Adhesion / Relocate 读只读花名册。
+    /// AuthorityHeadless 不创建 Model / PlayableGraph / VFX / SFX。
     /// </summary>
     public static CharacterActor Create(
         GameObject owner,
@@ -22,17 +23,24 @@ public static class CharacterActorFactory
         ISimCollisionWorld collisionWorld = null,
         IMoveIntentSource moveIntentSource = null,
         IActionEntryRequestSource actionEntryRequests = null,
-        ReplicationSeat seat = ReplicationSeat.Authority)
+        ReplicationSeat seat = ReplicationSeat.Authority,
+        CharacterPresentationMode presentation = CharacterPresentationMode.Full)
     {
         CharacterActor actor = null;
         CharacterMotorConfig motorConfig = config.Motor;
+        bool headless = presentation == CharacterPresentationMode.AuthorityHeadless;
         Transform presentationRoot = CreatePresentationRoot(root);
         // Wave 2：模型挂在 VisualMotionRoot，横摆残差不进 SimulationRoot / CameraRoot
-        Transform visualMotionRoot = CreateVisualMotionRoot(presentationRoot);
-        Transform modelRoot = SpawnModelInstance(config, visualMotionRoot);
-        Animator animator = modelRoot.GetComponentInChildren<Animator>();
-        if (animator == null)
-            throw new MissingComponentException("CharacterActorFactory: ModelPrefab 中找不到 Animator。");
+        Transform visualMotionRoot = headless ? presentationRoot : CreateVisualMotionRoot(presentationRoot);
+        Transform modelRoot = root;
+        Animator animator = null;
+        if (!headless)
+        {
+            modelRoot = SpawnModelInstance(config, visualMotionRoot);
+            animator = modelRoot.GetComponentInChildren<Animator>();
+            if (animator == null)
+                throw new MissingComponentException("CharacterActorFactory: ModelPrefab 中找不到 Animator。");
+        }
 
         CharacterController controller = GetOrAddCharacterController(owner);
         motorConfig.ApplyTo(controller);
@@ -68,7 +76,9 @@ public static class CharacterActorFactory
             MotionQuantization.MetersToMm(config.Combat.TargetAcquireRangeMeters),
             MotionQuantization.MetersToMm(config.Combat.TargetRetainRangeMeters),
             activeTargetsProvider);
-        IAnimationPlayback playback = new PlayableAnimationPlayback(animator);
+        IAnimationPlayback playback = headless
+            ? new NullAnimationPlayback()
+            : new PlayableAnimationPlayback(animator);
         if (config.CombatProfile == null
             || !config.CombatProfile.TryGetLocomotionProfile(
                 config.CombatProfile.DefaultMode,
@@ -83,11 +93,15 @@ public static class CharacterActorFactory
             playback,
             animator,
             locomotionProfile.AnimationProfile);
-        var rootMotion = new CharacterRootMotionDriver(motor, animator);
+        CharacterRootMotionDriver rootMotion = headless
+            ? null
+            : new CharacterRootMotionDriver(motor, animator);
         var combatMode = new CombatModeService(config.CombatProfile, animation);
 
         var context = new CharacterContext(root, animation, controller, motor);
-        var footstepPlayer = new LocomotionFootstepPlayer(root, locomotionProfile);
+        LocomotionFootstepPlayer footstepPlayer = headless
+            ? LocomotionFootstepPlayer.CreateSilent()
+            : new LocomotionFootstepPlayer(root, locomotionProfile);
         var locomotionStateMachine = new LocomotionStateMachine(
             root,
             motor,
@@ -130,7 +144,9 @@ public static class CharacterActorFactory
             actionSim,
             hasPerfectDodgeCounter: () => numeric.Flags.HasPerfectDodgeCounter);
 
-        Transform defaultAttach = ResolveModelPoint(config.Combat.AttachPointName, modelRoot, root);
+        Transform defaultAttach = headless
+            ? root
+            : ResolveModelPoint(config.Combat.AttachPointName, modelRoot, root);
         var attachPoints = new CharacterAttachPointResolver(modelRoot, defaultAttach);
         // L-DIR3：Locomotion FaceTarget 只读角色唯一 SelectedTarget。
         locomotionStateMachine.Context.BindFacingTargetSource(
@@ -140,9 +156,11 @@ public static class CharacterActorFactory
         if (seat == ReplicationSeat.Authority && combatHitPipeline == null)
             throw new ArgumentNullException(nameof(combatHitPipeline), "Authority 座位必须绑定 CombatHitPipeline。");
 
-        var vfxPlayer = new ActionVfxPlayer(root, attachPoints);
-        var sfxPlayer = new ActionSfxPlayer(root);
-        var visualMotion = new CharacterVisualMotionBridge(visualMotionRoot);
+        ActionVfxPlayer vfxPlayer = headless ? null : new ActionVfxPlayer(root, attachPoints);
+        ActionSfxPlayer sfxPlayer = headless ? null : new ActionSfxPlayer(root);
+        CharacterVisualMotionBridge visualMotion = headless
+            ? null
+            : new CharacterVisualMotionBridge(visualMotionRoot);
         // 两端都注入 WorldQuery：Adhesion / Relocate / SnapFacing 读花名册逻辑 Pose。
         // Autonomous 花名册是只读 Proxy；仍不挂 Hitbox，不进 World。
         var motionWorldQuery = new ActionMotionWorldQuery(activeTargetsProvider);
@@ -158,7 +176,8 @@ public static class CharacterActorFactory
             defaultAttach,
             visualMotion,
             targetingState,
-            motionWorldQuery);
+            motionWorldQuery,
+            presentationEnabled: !headless);
         if (seat == ReplicationSeat.Authority)
         {
             var hitboxFrameConsumer = new HitboxFrameConsumer(
@@ -186,8 +205,11 @@ public static class CharacterActorFactory
                     () => actor?.SimulationId ?? SimActorId.Invalid));
         }
 
-        actionPresentation.RegisterNotifyConsumer(vfxPlayer);
-        actionPresentation.RegisterNotifyConsumer(sfxPlayer);
+        if (!headless)
+        {
+            actionPresentation.RegisterNotifyConsumer(vfxPlayer);
+            actionPresentation.RegisterNotifyConsumer(sfxPlayer);
+        }
 
         var actionDriver = new CharacterActionDriver(
             effectiveMoveIntent,

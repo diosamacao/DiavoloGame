@@ -1,6 +1,6 @@
 # ACTGame 项目总清单
 
-> 更新：2026-08-19 — NetSync W5 Dedicated Bootstrap / N 玩家 Session 代码已切；Editor Play 待确认；下一阶段 W6 Headless Authority
+> 更新：2026-08-19 — NetSync W6 Headless Authority / 指纹握手代码已切；Editor Play 待确认；下一阶段 W7 Match Replication
 
 > 角色：**一页总览**（进度 / 下一步 / 明确不做）  
 > 细节真源勿与本文抢权威：
@@ -60,9 +60,9 @@
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项：** NetSync W6 Headless Authority World（Dedicated 步进同一份 `SimulationWorld`）  
+**下一项：** NetSync W7 Match / per-connection Replication（Dedicated + 两客户端可玩）  
+W6 备忘：[`2026.8.19/NETSYNC_W6_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W6_STAGE_SUMMARY.md)  
 W5 备忘：[`2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md)  
-M1 阅读：[`2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](./2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)  
 排期：[`2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](./2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)
 
 
@@ -128,7 +128,8 @@ M1 阅读：[`2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](./2026.8.18/NETSYNC_M1_STA
 | L3 可导出复制快照（纠偏用，非 GGPO） | ⬜ |
 | 组队 PVE 状态同步 NS0～NS5 | ✅ 2026-08-15 |
 | 客机预测对齐 UE（当前 Listen 产品链） | ✅ 2026-08-18 Owner 预测/和解与双进程 Play 已验收；通用 GF5 另排 |
-| NetSync W5 Dedicated Bootstrap / N Session | 🟡 2026-08-19 代码已切；Editor Play 待确认 |
+| NetSync W5 Dedicated Bootstrap / N Session | ✅ 2026-08-19 用户验收 |
+| NetSync W6 Headless Authority / 指纹 | 🟡 2026-08-19 代码已切；Editor Play 待确认 |
 | L5 全员输入广播 + 完整回滚 | ❌ 2026-08-13 取消产品主路径 |
 
 ---

@@ -16,6 +16,8 @@ public class CombatWorldController : AppControllerBase
     [SerializeField] string joinHost = "127.0.0.1";
     [SerializeField] int contentVersion = 1;
 
+    ContentFingerprint _gameplayFingerprint;
+
     /// <summary>当前场景战斗世界；系统查询只把它作为生命周期锚点，不作为业务单例入口。</summary>
     public static CombatWorldController Current { get; private set; }
 
@@ -57,9 +59,10 @@ public class CombatWorldController : AppControllerBase
         ResolveRoleFromEditorPrefs();
         EnsureSimulationHost();
         ApplyStaticCollisionBake();
+        ActContentRegistry roomContent = CreateRoomContent(out _gameplayFingerprint);
         if (Role == ReplicationRole.DedicatedServer)
         {
-            EnsureDedicatedBootstrap();
+            EnsureDedicatedBootstrap(roomContent);
             return;
         }
 
@@ -128,14 +131,31 @@ public class CombatWorldController : AppControllerBase
             this);
     }
 
-    /// <summary>Dedicated 只移交给 Bootstrap，本类不装配 Session / Match。</summary>
-    void EnsureDedicatedBootstrap()
+    /// <summary>扫描场景玩法配置并计算 Gameplay 指纹；Listen 与 Dedicated 使用同一算法。</summary>
+    ActContentRegistry CreateRoomContent(out ContentFingerprint fingerprint)
     {
+        var content = new ActContentRegistry();
+        ActServerContentProbe.PrefillFromScene(content);
+        string bakeId = staticCollisionBake != null ? staticCollisionBake.name : string.Empty;
+        fingerprint = ServerContentManifest.FromRegistry(content, contentVersion, bakeId).Fingerprint;
+        return content;
+    }
+
+    /// <summary>Dedicated 只移交给 Bootstrap，本类不装配 Session / Match。</summary>
+    void EnsureDedicatedBootstrap(ActContentRegistry content)
+    {
+        SimulationHost host = EnsureSimulationHost();
+        var authority = new DedicatedAuthorityWorld(host, GetArchitecture(), content);
         DedicatedServerBootstrap bootstrap = GetComponent<DedicatedServerBootstrap>();
         if (bootstrap == null)
             bootstrap = gameObject.AddComponent<DedicatedServerBootstrap>();
         bootstrap.Configure(
-            ServerLaunchConfig.CreateDefault(listenPort, contentVersion, MaxRemotePlayers));
+            ServerLaunchConfig.CreateDefault(
+                listenPort,
+                contentVersion,
+                MaxRemotePlayers,
+                _gameplayFingerprint),
+            authority);
     }
 
     /// <summary>按角色挂 Host 或 Client；单机也是 Listen Host，不走旧旁路。</summary>
@@ -163,7 +183,8 @@ public class CombatWorldController : AppControllerBase
         contentVersion,
         maxRemotePlayers: MaxRemotePlayers,
         idleTimeoutMs: ReplicationRoomProtocol.IdleTimeoutMs,
-        heartbeatIntervalMs: ReplicationRoomProtocol.HeartbeatIntervalMs);
+        heartbeatIntervalMs: ReplicationRoomProtocol.HeartbeatIntervalMs,
+        gameplayFingerprint: _gameplayFingerprint);
 
     /// <summary>Composition Root 创建具体 UDP 服务端并处理绑定失败。</summary>
     ServerSession TryCreateServerSession(SessionConfig config)

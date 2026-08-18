@@ -46,9 +46,11 @@ public static class SessionCodec
     /// <summary>编码 Join 请求。</summary>
     public static byte[] WriteJoinRequest(in SessionJoinRequest request)
     {
-        var writer = new NetBufferWriter(8);
+        var writer = new NetBufferWriter(24);
         writer.WriteInt32(request.ContentVersion);
         writer.WriteInt32(request.ProtocolVersion.Value);
+        writer.WriteUInt64(request.GameplayFingerprint.High);
+        writer.WriteUInt64(request.GameplayFingerprint.Low);
         return WriteEnvelope((byte)SessionMessageKind.JoinRequest, writer.ToArray());
     }
 
@@ -58,8 +60,9 @@ public static class SessionCodec
         var reader = new NetBufferReader(body);
         int contentVersion = reader.ReadInt32();
         var protocolVersion = new NetworkProtocolVersion(reader.ReadInt32());
+        ContentFingerprint fingerprint = ReadOptionalFingerprint(reader);
         reader.EnsureComplete();
-        return new SessionJoinRequest(contentVersion, protocolVersion);
+        return new SessionJoinRequest(contentVersion, protocolVersion, fingerprint);
     }
 
     /// <summary>编码 Join 成功消息。</summary>
@@ -91,6 +94,16 @@ public static class SessionCodec
             authorityEntityId,
             contentVersion,
             authorityTick);
+    }
+
+    /// <summary>读取 128 位指纹；全 0 还原为 Invalid。</summary>
+    static ContentFingerprint ReadOptionalFingerprint(NetBufferReader reader)
+    {
+        ulong high = reader.ReadUInt64();
+        ulong low = reader.ReadUInt64();
+        return high == 0ul && low == 0ul
+            ? ContentFingerprint.Invalid
+            : new ContentFingerprint(high, low);
     }
 
     /// <summary>读取可空实体 Id；0 还原为 Invalid。</summary>

@@ -224,6 +224,9 @@ App/Server/                      # Dedicated 独立运行时（ACTGame.Server）
 - **Dedicated 不是 Listen 开关**：禁止在 `ReplicationRoomHost` 上堆 `if Dedicated`。Dedicated 由 `DedicatedServerBootstrap` 启动；`NetProcessRole.DedicatedServer` 与 `ListenServer` 取值不同
 - **N 玩家身份**：`MatchCoordinator` 分配 PlayerId / EntityId / Spawn；删除固定 `GuestPlayerId=2` 与 Host Root +2m 出生
 - **JoinAccept 无房主**：Dedicated 的 `AuthorityEntityId` 为 Invalid；客户端不得依赖该字段入房
+- **Headless 装配**：权威无头走 `CharacterPresentationMode.AuthorityHeadless` + `NullAnimationPlayback`；禁止第二套 Dedicated Actor 工厂
+- **外部时钟**：Dedicated 设 `SimulationHost.DriveFromExternalClock`，由 `ServerSimulationRunner` 调 `StepOnce`；禁止再写一套 Step 顺序
+- **Gameplay 指纹**：`ServerContentManifest` 只哈希版本 / 碰撞 Id / Archetype / Action Id；VFX 名不进指纹
 
 ### 明确不搬进本项目的 DemoServer 战斗写法
 

@@ -52,6 +52,39 @@ public sealed class LocomotionContext
     /// <summary>L-DIR4 Sprint 倾身状态；Visual 只读 Roll。</summary>
     public SprintLeanModel SprintLean { get; }
 
+    /// <summary>模拟相位归一化时间；权威 Capture 只读此值，不读 Animator。</summary>
+    public float SimulationNormalizedTime { get; private set; }
+
+    /// <summary>相位切换时清零模拟时钟。</summary>
+    public void ResetSimulationClock() => SimulationNormalizedTime = 0f;
+
+    /// <summary>纠偏恢复模拟时钟。</summary>
+    public void SetSimulationClock(float normalizedTime)
+    {
+        float wrapped = normalizedTime - Mathf.Floor(normalizedTime);
+        SimulationNormalizedTime = wrapped < 0f ? 0f : wrapped;
+    }
+
+    /// <summary>相位采样：有播放后端时跟 Clip，否则跟模拟时钟。</summary>
+    public float SamplePhaseNormalized() =>
+        Animation != null && Animation.HasPlayback
+            ? Animation.NormalizedTime
+            : SimulationNormalizedTime;
+
+    /// <summary>按逻辑步推进模拟时钟；有播放后端时对齐 Clip，否则 0～1 循环。</summary>
+    public void AdvanceSimulationClock(float deltaTime)
+    {
+        if (Animation != null && Animation.HasPlayback)
+        {
+            SimulationNormalizedTime = Animation.NormalizedTime;
+            return;
+        }
+
+        SimulationNormalizedTime += Mathf.Max(0f, deltaTime);
+        if (SimulationNormalizedTime >= 1f)
+            SimulationNormalizedTime -= Mathf.Floor(SimulationNormalizedTime);
+    }
+
     /// <summary>当前视觉倾身 Roll（度）；权威根不受影响。</summary>
     public float SprintLeanRollDegrees =>
         SprintLeanModel.ToRollDegrees(
@@ -452,13 +485,16 @@ public sealed class LocomotionContext
     }
 
     /// <summary>当前相位 Clip 是否播完。</summary>
-    public bool IsCurrentPhaseClipFinished() => Animation.HasFinishedCurrent;
+    public bool IsCurrentPhaseClipFinished() =>
+        Animation != null && Animation.HasPlayback
+            ? Animation.HasFinishedCurrent
+            : SimulationNormalizedTime >= 0.999f;
 
     /// <summary>Start→Gait 归一化门槛或 Clip 结束。</summary>
     public bool IsStartFinished()
     {
         float gate = Profile != null ? Profile.StartToGaitNormalized : 1f;
-        if (gate < 0.999f && Animation.NormalizedTime >= gate)
+        if (gate < 0.999f && SamplePhaseNormalized() >= gate)
             return true;
         return IsCurrentPhaseClipFinished();
     }

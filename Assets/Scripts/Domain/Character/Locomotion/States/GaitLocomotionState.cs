@@ -80,7 +80,7 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
     public override void ExecuteFrame(float deltaTime)
     {
         Context.FootCycle.Unfreeze();
-        Context.FootCycle.Tick(Context.Animation.NormalizedTime);
+        Context.FootCycle.Tick(Context.SamplePhaseNormalized());
         AnimationKey key = Context.ResolveLocomotionAnimationKey();
         // 降档用短淡入（非 0）：既避免长时间停在 Run，又比硬切自然
         if (Context.PendingGaitHardCutPlay)

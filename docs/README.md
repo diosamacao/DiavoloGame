@@ -1,6 +1,6 @@
 # ACTGame 文档索引
 
-> 更新：2026-08-19 — W5 Dedicated Bootstrap 代码落地；实现备忘见 8.19 总结。
+> 更新：2026-08-19 — W6 Headless Authority 代码落地；实现备忘见 8.19 W6 总结。
 > **一页总览先读：** [PROJECT_CHECKLIST.md](./PROJECT_CHECKLIST.md)  
 > **排期真源：** [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md)  
 > **架构运行时：** `.cursor/skills/actgame-architecture/`（ARCHITECTURE / TECHNICAL / ROADMAP）
@@ -21,7 +21,8 @@
 | [2026.8.6/CAMERA_SYSTEM_PLAN.md](./2026.8.6/CAMERA_SYSTEM_PLAN.md) | 相机 / Lock-On / SkillShot |
 | [2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md](./2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md) | **Camera C1 前置**：MoveReferenceYaw 输入闭包、唯一 SelectedTarget 权威与纯表现 CameraLock |
 | [2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md](./2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md) | **网络同步实现阅读入口（M1 关闭后先读）**：W0～W4 结论、分层、入房、每帧序、玩家操作往返、线格式 |
-| [2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md) | **W5 Dedicated Bootstrap / N 玩家 Session**：独立 Runtime、Match、每连接 ACK；权威 World 属 W6 |
+| [2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md) | **W5 Dedicated Bootstrap / N 玩家 Session**：独立 Runtime、Match、每连接 ACK |
+| [2026.8.19/NETSYNC_W6_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W6_STAGE_SUMMARY.md) | **W6 Headless Authority / 指纹握手**：外部时钟、无头工厂、Join ContentFingerprint |
 | [2026.8.15/NETWORK_SYNC.md](./2026.8.15/NETWORK_SYNC.md) | NS5 时期结构说明；下行已改为 `ReplicationFrame`，生产路径以 8.18 总结为准 |
 | [2026.8.16/NETWORK_SYNC_STUDY_QA.md](./2026.8.16/NETWORK_SYNC_STUDY_QA.md) | **自学问答备忘（第 0～6 已收束）**：含框架分层与数据流图；不是实现真源 |
 | [2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md](./2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) | **网络重构总排期真源**：W0～W4 分离通用网络层，W5～W8 交付 DS-Demo，W9～W12 完成 Listen 收敛、公网、规模与运维 |

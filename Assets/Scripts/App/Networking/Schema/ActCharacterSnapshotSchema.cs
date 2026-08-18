@@ -38,11 +38,11 @@ public sealed class ActCharacterSnapshotSchema : IReplicationSchema
         // 有招时 Locomotion 相位无意义；空闲才复制 AnimationKey 与归一化时间。
         byte locomotionPhase = 0;
         ushort locomotionNormalizedMilli = 0;
-        if (!action.IsActive && actor.Animation != null)
+        if (!action.IsActive && actor.Locomotion != null)
         {
-            if (actor.Animation.CurrentKey.HasValue)
-                locomotionPhase = (byte)actor.Animation.CurrentKey.Value;
-            locomotionNormalizedMilli = PackNormalizedTime(actor.Animation.NormalizedTime);
+            LocomotionSavedState locomotion = actor.Locomotion.Capture();
+            locomotionPhase = (byte)locomotion.AnimationKey;
+            locomotionNormalizedMilli = PackNormalizedTime(locomotion.NormalizedTime);
         }
 
         int healthMilli = actor.Numeric != null

@@ -10,6 +10,9 @@ public sealed class CharacterAnimationService : IDisposable, ILocomotionAnimClip
     AnimationKey? _currentKey;
     bool _locked;
 
+    /// <summary>是否存在可推进的播放后端；Headless Null 后端为 false。</summary>
+    public bool HasPlayback => playback != null && playback.IsValid;
+
     public AnimationKey? CurrentKey => _currentKey;
     public bool IsLocked => _locked;
 

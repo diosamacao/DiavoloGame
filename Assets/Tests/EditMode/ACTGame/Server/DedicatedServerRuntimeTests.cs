@@ -25,6 +25,7 @@ public sealed class DedicatedServerRuntimeTests
         DedicatedServerRuntime runtime = DedicatedServerRuntime.TryStart(
             transport,
             config,
+            new StubAuthorityWorld(),
             out ServerExitCode exit);
 
         Assert.That(runtime, Is.Null);
@@ -39,6 +40,7 @@ public sealed class DedicatedServerRuntimeTests
         DedicatedServerRuntime runtime = DedicatedServerRuntime.TryStart(
             new ThrowingBindTransport(),
             config,
+            new StubAuthorityWorld(),
             out ServerExitCode exit);
 
         Assert.That(runtime, Is.Null);
@@ -157,6 +159,7 @@ public sealed class DedicatedServerRuntimeTests
             Runtime = DedicatedServerRuntime.TryStart(
                 new LoopbackTransport(_network),
                 launch,
+                new StubAuthorityWorld(),
                 out ServerExitCode exit);
             Assert.That(Runtime, Is.Not.Null);
             Assert.That(exit, Is.EqualTo(ServerExitCode.Success));
@@ -216,6 +219,30 @@ public sealed class DedicatedServerRuntimeTests
             for (int i = 0; i < _clients.Count; i++)
                 _clients[i].Dispose();
             Runtime?.Dispose();
+        }
+    }
+
+    /// <summary>测试用权威世界：接受 Join 但不创建 Actor。</summary>
+    sealed class StubAuthorityWorld : IDedicatedAuthorityWorld
+    {
+        public long CurrentFrame => -1;
+
+        public bool TryAcceptPlayer(in MatchPlayerSlot slot) => slot.ConnectionId.IsValid;
+
+        public void ApplyCommands(NetConnectionId connectionId, ClientCommand[] commands)
+        {
+        }
+
+        public void RemovePlayer(NetConnectionId connectionId)
+        {
+        }
+
+        public void Advance(long nowMs)
+        {
+        }
+
+        public void Dispose()
+        {
         }
     }
 

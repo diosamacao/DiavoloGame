@@ -23,11 +23,12 @@ public sealed class ActGameSessionHandler
     /// </summary>
     public bool TryCreateGuest(
         CharacterConfig config,
-        in MatchSpawnPose spawn,
+        MatchSpawnPose spawn,
         SimulationHost host,
         NetConnectionId connectionId,
         Action prefillEnemyCatalog,
-        out ActGameGuest guest)
+        out ActGameGuest guest,
+        CharacterPresentationMode presentation = CharacterPresentationMode.Full)
     {
         guest = null;
         if (config == null || host == null || !connectionId.IsValid)
@@ -52,7 +53,8 @@ public sealed class ActGameSessionHandler
             host.CombatHits,
             out ActionSim _,
             out CharacterAnimationService animation,
-            host.CollisionWorld);
+            host.CollisionWorld,
+            presentation: presentation);
         seat.Bind(actor);
 
         var reactions = new CharacterReactionService(

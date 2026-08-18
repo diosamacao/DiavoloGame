@@ -18,6 +18,7 @@ public sealed class CharacterActionPresentationBridge
     readonly CharacterVisualMotionBridge _visualMotion;
     readonly CharacterTargetingState _targetingState;
     readonly IActionMotionWorldQuery _worldQuery;
+    readonly bool _presentationEnabled;
     readonly List<ActionSimEvent> _events = new(16);
     Transform _defaultAttachPoint;
     ActionDefinition _animationAction;
@@ -38,7 +39,8 @@ public sealed class CharacterActionPresentationBridge
         Transform defaultAttachPoint,
         CharacterVisualMotionBridge visualMotion = null,
         CharacterTargetingState targetingState = null,
-        IActionMotionWorldQuery worldQuery = null)
+        IActionMotionWorldQuery worldQuery = null,
+        bool presentationEnabled = true)
     {
         _actionSim = actionSim ?? throw new ArgumentNullException(nameof(actionSim));
         _actorRoot = actorRoot;
@@ -52,6 +54,7 @@ public sealed class CharacterActionPresentationBridge
         _visualMotion = visualMotion;
         _targetingState = targetingState;
         _worldQuery = worldQuery;
+        _presentationEnabled = presentationEnabled;
     }
 
     /// <summary>注册整数动作帧消费者；同一实例不会重复注册。</summary>
@@ -95,7 +98,8 @@ public sealed class CharacterActionPresentationBridge
 
         ActionSimSnapshot snapshot = _actionSim.Snapshot;
         // 骨骼冻结跟随 ActionSim.freezeFrames；VFX 卡肉由 HitStopController 按逻辑帧递减
-        SyncHitStopPresentation(snapshot.IsFrozen);
+        if (_presentationEnabled)
+            SyncHitStopPresentation(snapshot.IsFrozen);
 
         if (snapshot.IsActive
             && !snapshot.IsComplete
@@ -106,7 +110,8 @@ public sealed class CharacterActionPresentationBridge
             if (!snapshot.IsFrozen)
             {
                 // 未冻结：对齐 Clip 相位并应用查表位移
-                SyncAnimation(current, snapshot.CurrentFrame);
+                if (_presentationEnabled)
+                    SyncAnimation(current, snapshot.CurrentFrame);
                 ApplyDisplacementForAction(current, snapshot.CurrentFrame, stepDelta);
             }
         }
@@ -135,7 +140,8 @@ public sealed class CharacterActionPresentationBridge
     public void ApplyPostCombat()
     {
         // 命中结算可能刚写入 freezeFrames，同帧立即冻结骨骼
-        SyncHitStopPresentation(_actionSim.Snapshot.IsFrozen);
+        if (_presentationEnabled)
+            SyncHitStopPresentation(_actionSim.Snapshot.IsFrozen);
 
         // PostCombat 可能刚排队切招/停止，再排一次事件
         _events.Clear();
@@ -184,7 +190,8 @@ public sealed class CharacterActionPresentationBridge
         _motor.Sim.ClearSoftBodySuppress();
         _animationAction = null;
         _animationSegmentIndex = -1;
-        SyncHitStopPresentation(frozen: false);
+        if (_presentationEnabled)
+            SyncHitStopPresentation(frozen: false);
         // 取消/受击/自然结束统一短时回锚，避免模型停在偏移处
         _visualMotion?.EndAction(VisualResidualExitPolicy.BlendToZero);
     }
