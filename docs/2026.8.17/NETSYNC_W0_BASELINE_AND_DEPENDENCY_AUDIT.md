@@ -11,15 +11,15 @@
 
 | 项 | 状态 | 证据 / 待办 |
 |---|---|---|
-| Codec Golden Bytes | 🟡 测试已写，待 Unity Test Runner | `ProtocolGoldenBytesTests` |
-| Host 固定帧顺序 | 🟡 ExecutionOrder + 生产源码编排测试已写，待 Test Runner | `ReplicationFrameOrderTests`、`ReplicationProductionOrderTests` |
-| Client 固定帧顺序 | 🟡 ExecutionOrder + 生产源码编排测试已写，待 Test Runner | `ReplicationFrameOrderTests`、`ReplicationProductionOrderTests` |
+| Codec Golden Bytes | ✅ 2026-08-18 Test Runner 已验收 | `ProtocolGoldenBytesTests` |
+| Host 固定帧顺序 | ✅ 2026-08-18 Test Runner 已验收 | `ReplicationFrameOrderTests`、`ReplicationProductionOrderTests` |
+| Client 固定帧顺序 | ✅ 2026-08-18 Test Runner 已验收 | `ReplicationFrameOrderTests`、`ReplicationProductionOrderTests` |
 | Host / Dedicated 耦合 | ✅ 静态审计完成 | §4 |
-| 双进程玩法回归 | ⬜ 待 Editor | §6 |
-| Tick bytes / GC / Proxy / pending / RTT | 🟡 HUD 观测已接，待 Profiler + 双进程采样 | §5 |
+| 双进程玩法回归 | ✅ 2026-08-18 已验收 | §6 |
+| Tick bytes / GC / Proxy / pending / RTT | ✅ HUD 与双进程基线已验收 | §5；典型 tickB≈250、cmdB=177、proxy=2、pending=0～2 |
 | DS-Demo 范围 | ✅ 冻结 | 2～4 玩家、LAN、一场一进程、无重连 |
 
-W0 尚未关闭。按总计划并行规则，允许推进 W1/GF1 的 Core Id 与 Reader/Writer，并以 Golden Bytes 约束线上布局不变；W2、Dedicated、纠偏阈值、动作与命中语义仍不得提前改动。
+W0 已于 2026-08-18 随 M1 验收正式关闭；W1～W4 搬迁均受 Golden Bytes、生产帧序与双进程基线保护。Dedicated 从 W5 开始，仍不得修改既有纠偏阈值、动作或命中语义来掩盖架构问题。
 
 ---
 
