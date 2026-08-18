@@ -10,6 +10,7 @@
 > - 当前实现真源：`docs/2026.8.15/NETWORK_SYNC.md`  
 > 目标部署链：`DedicatedServerBootstrap → ServerSession → MatchCoordinator → AuthoritySimulation → ReplicationServer → Transport`  
 > **约束：** Dedicated Server 无本地玩家、无 Input System、无 Camera、无动画/VFX/SFX 权威依赖；所有玩家均通过 Connection 加入，服务器只接受 Command / Request / ACK，不接受客户端状态覆盖
+> **当前前置状态（2026-08-18）：** GF4/W4 结构代码已完成（ACTNet 零反向依赖、Room 薄 Facade、ACT Gameplay Services 单轨）；待 W4 Test Runner 与双进程 Play 关闭 M1 后再启动 W5/DS1，不提前建立 Dedicated 旁路。
 
 ---
 

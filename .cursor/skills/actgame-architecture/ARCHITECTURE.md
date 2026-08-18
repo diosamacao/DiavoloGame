@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-18（W4 Character Schema Capture 切片）
+> Last audited: 2026-08-18（NetSync W4 Room Facade 收敛）
 
 ## 项目概述
 
@@ -42,7 +42,7 @@ Assets/
 │   ├── App/
 │   │   ├── Architecture/      # QFramework 风格强类型 Architecture / 能力接口 / 基类
 │   │   ├── Controllers/       # Player / Enemy / Camera / Combat / SimulationHost Unity 入口
-│   │   ├── Networking/        # ACT Unity 内容绑定与 Authority / Owner / Observer Adapter
+│   │   ├── Networking/        # ACT 内容/Schema、Authority/Owner/Observer Adapter 与 Room Gameplay Services
 │   │   ├── Systems/           # Combat / Enemy / Player（LocalPlayerService）
 │   │   ├── Commands/          # 跨系统业务行为
 │   │   ├── Queries/           # 无副作用读取请求（含 GetLocalPlayer / GetPlayerRoots）
@@ -107,6 +107,9 @@ flowchart TB
 | `ActObserverReplicationAdapter` / `ActRemoteProxyFactory` | App/Networking 的 Observer 映射与唯一装配入口：Schema/Archetype 校验、只读 Proxy 显式生命周期、TargetSystem 与 View 清理；不创建 CharacterActor |
 | `ActContentRegistry` | App/Networking 的 ACT 内容唯一真源：集中持有 Action Catalog、Character Archetype 与 Unity CharacterConfig/EnemyDefinition 映射 |
 | `ActCharacterSnapshotSchema` | App/Networking 的角色生产 Schema：统一 CharacterActor Capture 与 V1 编解码；纯 C# `CharacterSnapshotSchemaV1` 仍是线格式实现 |
+| `ActContentPrefillService` | App 场景内容接缝：唯一扫描 Player/Enemy 配置并幂等预填 `ActContentRegistry`；Room 不再查找 Gameplay 组件 |
+| `ActHostRoomGameplay` / `ActClientRoomGameplay` | App 的 Host/Client Gameplay 编排：前者管理 Guest/Input/Capture，后者管理 Owner 预测、Observer、Hit Cue/HitStop/软碰撞；网络 Room 只转发 |
+| `ReplicationRoomHost` / `ReplicationRoomClient` | 薄 Unity 网络 Facade：只驱动 Session Poll/应用消息收发、固定帧回调、Gameplay Service 调度与 HUD |
 | `IRenderFrameSampler` | 可选渲染帧输入汇聚契约，避免高 FPS 无逻辑 Step 时丢 Pressed/Released |
 | `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
 | `CharacterPresentationBridge` | 保留前后权威 Pose，只移动运行时模型锚点，不回写模拟根 |
@@ -263,7 +266,7 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `PredictedActionAckQueue` | 出招预测 Ack；未起手/变体分叉/Hit 则 Stop；连招超前只 Ack |
 | `LocomotionSavedState` | 内层机 Capture/Restore；权威 FromAuthority |
 | `PredictedLocomotionDriver` | 走跑记账；超阈 Restore+Replay |
-| `ReplicationRoomHost` / `ReplicationRoomClient` / `ActContentRegistry` | 最小 2 人房间；统一动作与 Archetype 内容真源，精确创建 Proxy，显式 Despawn；无默认敌种回退 |
+| `ReplicationRoomHost` / `ReplicationRoomClient` | 最小 2 人房间的薄 Session Facade；Gameplay 由 `ActHostRoomGameplay` / `ActClientRoomGameplay` 单轨承接 |
 
 权威进程写法：同一份 `ACTGame.Simulation`，不另写服务器战斗。对照与禁区见 CONVENTIONS「服务器 / 权威进程」与方案 §13。实现级阅读入口：[`docs/2026.8.15/NETWORK_SYNC.md`](../../docs/2026.8.15/NETWORK_SYNC.md)。
 

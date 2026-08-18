@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-18（NetSync W4 Character Schema Capture 切片）
+> Last updated: 2026-08-18（NetSync W4 Room Facade 收敛）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,7 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
-| 组队 PVE 状态同步 / 权威进程 | ✅ NS0～NS5；🟡 CA1 代码 | `ReplicationRoomHost` / Autonomous `CharacterActor` | 客机同一 Actor；不 Collect；命中仍只 Host |
+| 组队 PVE 状态同步 / 权威进程 | ✅ NS0～NS5；🟡 W4 出口待 Editor | 薄 `ReplicationRoomHost/Client` + `Act*RoomGameplay` | 客机同一 Actor；不 Collect；W4 结构代码已完成 |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -219,6 +219,8 @@ EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
 | W4 Observer 适配 | `ActObserverReplicationAdapter` 独占 Schema/Archetype 校验、Proxy Spawn/Update/Despawn、TargetSystem 与 View 生命周期；`ActRemoteProxyFactory` 是唯一装配入口 |
 | W4 内容真源 | `ActContentRegistry` 唯一持有 Action Catalog、Character Archetype 与 Unity 配置映射；Room/Adapter 禁止另建动作目录 |
 | W4 Capture 真源 | `ActCharacterSnapshotSchema.Capture` 统一 CharacterActor → Snapshot 与 V1 编解码；独立 `CharacterReplicationCapture` 已删除 |
+| W4 Room 边界 | `ReplicationRoomHost/Client` 仅做 Session 收发、固定帧回调、Gameplay Service 调度与 HUD；不再引用 Character/配置/Proxy/Hit Cue 具体类型 |
+| W4 Gameplay Service | `ActHostRoomGameplay` 承接 Guest/Input/Capture；`ActClientRoomGameplay` 承接 Owner 预测、Observer、Hit Cue/HitStop/软碰撞；`ActContentPrefillService` 是场景内容扫描唯一入口 |
 | 通用身份 | `NetConnectionId` / `NetPlayerId` / `NetEntityId` / `NetArchetypeId`；`SimActorNetIdAdapter` 显式映射 Simulation Actor |
 | 版本基础 | `NetworkProtocolVersion` + 128 位 `ContentFingerprint` 已定义；握手切换留在 Content Manifest Wave |
 | 传输 | `INetTransport` / `LoopbackTransport` / `UdpTransport`（`ACTNet.Transport`，按 ConnectionId 定向） |
@@ -236,14 +238,14 @@ ActAuthorityReplicationAdapter
   → FrameHits + Snapshot ActionId → ActReplicationApplicationPayload
   → ReplicationServer.BuildFrame → ReplicationFrameCodec
   → Session/Transport → ReplicationClient.ApplyFrame
-  → Spawn/Update/Despawn → Owner reconcile / RemoteProxy
+  → ActClientRoomGameplay → Owner reconcile / Observer Proxy / ACT 表现
 ```
 
 ### 已知限制
 
 - 水平速度 P0 可为 0；空闲相位由 Capture 填 `AnimationKey`
 - NS5 已单轨切到 `UdpTransport`；`LoopbackTransport` 支持一服多客和确定性延迟，不再挂 Host 预览
-- W3、W4 Authority/Session/Owner/Observer/Content 已验收；W4 Character Schema Capture 切片待 Editor Test Runner 与双进程回归
+- W3 与 W4 既有 Adapter 切片已验收；W4 Room Facade/架构守卫代码完成，完整 Test Runner 与双进程回归待 Editor
 
 ### 相关文件
 
@@ -273,7 +275,7 @@ ActAuthorityReplicationAdapter
 | 朝向调试 | 客机幽灵挂同一套黄/品红箭；wish 走快照 `moveV*`，与延迟位姿成对 |
 | 插值 | 复用 `CharacterPresentationBridge.Render(alpha)` |
 | 装配 | `ActRemoteProxyFactory`，**不**走 `CharacterActorFactory` |
-| 入口 | `ReplicationRoomClient` 收 Tick 后 `ApplySnapshot` |
+| 入口 | `ReplicationRoomClient` 收帧后交 `ActClientRoomGameplay.ApplyReplicationFrame`，再由 Observer Adapter 应用 |
 
 ### 关键参数
 
@@ -298,7 +300,7 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 ### 相关文件
 
 - `Assets/Scripts/Domain/Character/Replication/*`
-- `Assets/Scripts/App/Controllers/Gameplay/ReplicationRoomClient.cs`
+- `Assets/Scripts/App/Networking/Services/ActClientRoomGameplay.cs`
 - `Assets/Scripts/App/Controllers/Gameplay/SimulationHost.cs`
 - `Assets/Tests/EditMode/Simulation/ReplicationPoseApplierTests.cs`
 - `Assets/Tests/Editor/Replication/ActionReplicationCatalogTests.cs`
@@ -359,7 +361,7 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 ### 相关文件
 
 - `Assets/Scripts/Domain/Simulation/Prediction/*`
-- `Assets/Scripts/App/Controllers/Gameplay/ReplicationRoomClient.cs`
+- `Assets/Scripts/App/Networking/Services/ActClientRoomGameplay.cs`
 - `Assets/Tests/EditMode/Simulation/PredictedLocomotionReconcileTests.cs`
 
 ---
@@ -407,7 +409,7 @@ AfterLogicStep → Capture 全员 + Hits → UDP
 
 - `Assets/Scripts/Domain/Character/CharacterActor.cs`
 - `Assets/Scripts/Domain/Simulation/Prediction/PredictedActionAckQueue.cs`
-- `Assets/Scripts/App/Controllers/Gameplay/ReplicationRoomClient.cs`
+- `Assets/Scripts/App/Networking/Services/ActClientRoomGameplay.cs`
 - `Assets/Tests/EditMode/Simulation/PredictedActionReconcileTests.cs`
 
 ---
@@ -424,8 +426,8 @@ Listen Host 创建一人房间并可接纳第二人；客机预测自己的位�
 |----|------|
 | 角色 | 默认 Listen Host；ParrelSync 克隆自动 Client；无克隆时菜单写 EditorPrefs |
 | 传输 / Session | `UdpTransport` 按 `NetConnectionId` 定向收发；`ServerSession/ClientSession` 独占信封、Join、Heartbeat、Kick，`RoomCodec` 只编 ACT 应用正文 |
-| Host | `ReplicationRoomHost` 生成 `RemotePlayerSeat`；命令批按 Hint 合并未应用边沿写入下一帧；无新命令时 `appliedHint=0` |
-| Client | 每渲染帧 `MergeLocalSample`；本机 `CharacterActor.Step`；他人 Proxy Seek |
+| Host | 薄 `ReplicationRoomHost` 驱动 Session；`ActHostRoomGameplay` 创建 Guest、按 Hint 合并输入并构建权威帧 |
+| Client | 薄 `ReplicationRoomClient` 收发；`ActClientRoomGameplay` 每渲染帧合并输入、本机 `CharacterActor.Step`、他人 Proxy Seek |
 | 动作 Id | `ActionReplicationCatalog` 按资产名稳定哈希，两端 Prefill Graph 节点、`VariantResolver` 变体与反应 |
 | 掉线 | `ServerSession.ConnectionRegistry` 按连接记录活动时刻；10s 超时仅 Kick 对应连接 |
 | HUD | F3 Room 行：角色 / 状态 / authorityFrame / RTT；W0 基线追加完整 Tick/Command 字节、Proxy 数、预测 pending |
@@ -443,8 +445,8 @@ Listen Host 创建一人房间并可接纳第二人；客机预测自己的位�
 ### 运行时流程
 
 ```
-Host：ServerSession.Poll → Gameplay 接纳/合并命令批 → SimulationWorld.Step → Capture 全员 → Session Tick（仅本步有新命令才带 appliedHint）
-Client：ClientSession.Poll/Join/Heartbeat → Update 合并按键边沿 → 逻辑步 Resolve 上行命令批 → Actor.Step → 收 Tick Restore+Replay 并 Proxy 他人/敌人
+Host：ReplicationRoomHost Poll → ActHostRoomGameplay 接纳/合并命令 → SimulationWorld.Step → Gameplay Capture/构帧 → Room 发送
+Client：ReplicationRoomClient Poll → ActClientRoomGameplay 合并按键 → 逻辑步构命令 → Room 发送 → Gameplay Actor.Step → 收帧 Restore+Replay/Proxy
 ```
 
 ### 已知限制
@@ -469,6 +471,9 @@ Client：ClientSession.Poll/Join/Heartbeat → Update 合并按键边沿 → 逻
 - `Assets/Scripts/Domain/Character/Replication/ReplicationPresentationAlign.cs`
 - `Assets/Scripts/App/Controllers/Gameplay/ReplicationRoomHost.cs`
 - `Assets/Scripts/App/Controllers/Gameplay/ReplicationRoomClient.cs`
+- `Assets/Scripts/App/Networking/Services/ActHostRoomGameplay.cs`
+- `Assets/Scripts/App/Networking/Services/ActClientRoomGameplay.cs`
+- `Assets/Scripts/App/Networking/Services/ActContentPrefillService.cs`
 - `Assets/Scripts/Domain/Combat/VFX/HitImpactCuePlayer.cs`
 - `Assets/Scripts/Editor/Net/ReplicationRoomMenu.cs`
 - `Assets/Tests/EditMode/Simulation/RoomCodecTests.cs`
@@ -1282,6 +1287,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-18 | NetSync W4 Observer/Proxy 切片：Schema/Archetype 校验、Proxy 显式生命周期、TargetSystem 与 View 清理迁出 RoomClient；删除 Domain 旧 Factory 类型/文件，App 层 `ActRemoteProxyFactory` 成为唯一装配入口 |
 | 2026-08-18 | NetSync W4 ActContentRegistry 切片：动作 Catalog、角色 Archetype 与 Unity 配置映射合并为唯一内容真源；删除 `CharacterReplicationContentRegistry`，Host/Client 与 Adapter 不再独立持有 Action Catalog |
 | 2026-08-18 | NetSync W4 Character Schema Capture 切片：`ActCharacterSnapshotSchema` 统一 CharacterActor Capture 与 V1 编解码并注册到生产 Schema Registry；删除独立 `CharacterReplicationCapture` |
+| 2026-08-18 | NetSync W4 Room Facade：新增 Host/Client Gameplay 与内容预填 Service；Room 删除 Character/Config/Proxy/Hit Cue/HitStop 具体实现，仅保留 Session 收发、固定帧调度与 HUD；新增 W4 架构边界守卫 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
