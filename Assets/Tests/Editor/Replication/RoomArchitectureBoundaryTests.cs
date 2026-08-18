@@ -87,6 +87,32 @@ public sealed class RoomArchitectureBoundaryTests
         }
     }
 
+    /// <summary>Dedicated Server 程序集不得引用客户端 HUD / Input / Camera / 本机玩家。</summary>
+    [Test]
+    public void DedicatedServerSources_DoNotReferenceClientPresentationTypes()
+    {
+        string root = Path.Combine(Application.dataPath, "Scripts", "App", "Server");
+        string[] files = Directory.GetFiles(root, "*.cs", SearchOption.AllDirectories);
+        string[] forbidden =
+        {
+            "PlayerController",
+            "InputReader",
+            "CameraManager",
+            "CombatDebugHud",
+            "FeedbackController",
+            "ReplicationRoomHost",
+            "ReplicationRoomClient",
+        };
+
+        Assert.That(files.Length, Is.GreaterThan(0));
+        for (int f = 0; f < files.Length; f++)
+        {
+            string source = File.ReadAllText(files[f]);
+            for (int i = 0; i < forbidden.Length; i++)
+                Assert.That(source, Does.Not.Contain(forbidden[i]), files[f]);
+        }
+    }
+
     /// <summary>从 Assets 相对路径读取真实生产脚本。</summary>
     static string ReadScript(string relativePath)
     {

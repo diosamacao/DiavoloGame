@@ -27,6 +27,26 @@ public sealed class SessionCodecTests
         Assert.That(restored.AuthorityTick.Value, Is.EqualTo(42));
     }
 
+    /// <summary>Dedicated 无房主时 AuthorityEntityId 可为 Invalid，线格式写 0。</summary>
+    [Test]
+    public void JoinAccept_InvalidAuthorityEntity_RoundTrips()
+    {
+        var accept = new SessionJoinAccept(
+            new NetPlayerId(1),
+            new NetEntityId(3),
+            NetEntityId.Invalid,
+            1,
+            new NetTick(0));
+
+        byte[] payload = SessionCodec.WriteJoinAccept(in accept);
+        SessionCodec.ReadEnvelope(payload, out _, out byte[] body);
+        SessionJoinAccept restored = SessionCodec.ReadJoinAccept(body);
+
+        Assert.That(restored.AuthorityEntityId.IsValid, Is.False);
+        Assert.That(restored.EntityId.Value, Is.EqualTo(3));
+        Assert.That(restored.PlayerId.Value, Is.EqualTo(1));
+    }
+
     /// <summary>不支持的信封版本必须在读取正文前被拒绝。</summary>
     [Test]
     public void ReadEnvelope_UnsupportedVersion_Throws()

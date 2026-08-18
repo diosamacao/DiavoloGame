@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>Listen Host 网络薄 Facade：驱动 Session，并转发 ACT Gameplay 构帧结果。</summary>
@@ -9,6 +10,7 @@ public sealed class ReplicationRoomHost : AppControllerBase
     CombatWorldController _world;
     ServerSession _session;
     ActHostRoomGameplay _gameplay;
+    readonly List<NetConnectionId> _guestConnections = new();
     bool _bindFailed;
     int _lastTickBytes = -1;
 
@@ -32,7 +34,10 @@ public sealed class ReplicationRoomHost : AppControllerBase
     void Start()
     {
         if (_world != null)
-            _gameplay = new ActHostRoomGameplay(_world, GetArchitecture());
+            _gameplay = new ActHostRoomGameplay(
+                _world,
+                GetArchitecture(),
+                _world.MaxRemotePlayers);
         RefreshHud("Listening");
     }
 
@@ -62,23 +67,33 @@ public sealed class ReplicationRoomHost : AppControllerBase
     /// <summary>权威逻辑步后发送 Gameplay Facade 构建的唯一 ReplicationFrame。</summary>
     void OnAfterLogicStep(long authorityFrame)
     {
-        if (_session == null
-            || _gameplay == null
-            || !_gameplay.TryBuildReplicationFrame(
-                authorityFrame,
-                out NetConnectionId connectionId,
-                out byte[] body))
+        if (_session == null || _gameplay == null)
         {
             RefreshHud(_gameplay?.HasGuest == true ? "ClientJoined" : "Listening");
             return;
         }
 
-        _lastTickBytes = body.Length + 2;
-        _session.SendApplication(
-            connectionId,
-            (byte)RoomMessageKind.ReplicationFrame,
-            NetChannel.SnapshotUnreliableSequenced,
-            body);
+        _gameplay.CopyGuestConnections(_guestConnections);
+        if (_guestConnections.Count == 0)
+        {
+            RefreshHud("Listening");
+            return;
+        }
+
+        for (int i = 0; i < _guestConnections.Count; i++)
+        {
+            NetConnectionId connectionId = _guestConnections[i];
+            if (!_gameplay.TryBuildReplicationFrame(authorityFrame, connectionId, out byte[] body))
+                continue;
+
+            _lastTickBytes = body.Length + 2;
+            _session.SendApplication(
+                connectionId,
+                (byte)RoomMessageKind.ReplicationFrame,
+                NetChannel.SnapshotUnreliableSequenced,
+                body);
+        }
+
         RefreshHud("ClientJoined");
     }
 

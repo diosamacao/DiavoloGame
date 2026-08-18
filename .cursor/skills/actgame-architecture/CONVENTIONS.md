@@ -169,7 +169,7 @@ public class MyBehaviour : MonoBehaviour
 
 ## 服务器 / 权威进程
 
-权威进程 = 独跑 `SimulationWorld` 的 Listen Host 或日后 Dedicated，不是另一套战斗工程。对照：Valve Source `game/shared` + `CUserCmd`、守望 command frame、Unity Netcode Entities Ghost、以及 `D:\Projects\DemoServer` 的 Handler/Room。细则与「学 / 不学」表见方案 §13。
+权威进程 = 独跑 `SimulationWorld` 的 Listen Host，或独立 `DedicatedServerRuntime`（W5 已切宿主；权威 World 属 W6），不是另一套战斗工程。对照：Valve Source `game/shared` + `CUserCmd`、守望 command frame、Unity Netcode Entities Ghost、以及 `D:\Projects\DemoServer` 的 Handler/Room。细则与「学 / 不学」表见方案 §13。
 
 ### 共享模拟核
 
@@ -218,7 +218,12 @@ Framework/ACTNet/Replication/    # Frame / Schema / Entity Registry / Server / C
 Infrastructure/Net/              # 预留 Unity Transport；不得被 ACTGame.Simulation 引用
 App/Controllers/Gameplay/        # ReplicationRoomHost / Client / RemotePlayerSeat
 App/Networking/Services/         # ACT 内容扫描、Host/Client Gameplay 编排；Room 不实现具体 Gameplay
+App/Server/                      # Dedicated 独立运行时（ACTGame.Server）；禁止引用 HUD/Input/Camera/Room Facade
 ```
+
+- **Dedicated 不是 Listen 开关**：禁止在 `ReplicationRoomHost` 上堆 `if Dedicated`。Dedicated 由 `DedicatedServerBootstrap` 启动；`NetProcessRole.DedicatedServer` 与 `ListenServer` 取值不同
+- **N 玩家身份**：`MatchCoordinator` 分配 PlayerId / EntityId / Spawn；删除固定 `GuestPlayerId=2` 与 Host Root +2m 出生
+- **JoinAccept 无房主**：Dedicated 的 `AuthorityEntityId` 为 Invalid；客户端不得依赖该字段入房
 
 ### 明确不搬进本项目的 DemoServer 战斗写法
 

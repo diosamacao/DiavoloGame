@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>场景刷怪入口；仅权威端按出生点发送 SpawnEnemyCommand。</summary>
+/// <summary>场景刷怪入口；仅 Listen Host 按出生点发送 SpawnEnemyCommand。</summary>
 public sealed class EnemySpawnController : AppControllerBase
 {
     [SerializeField] Transform target = null;
@@ -10,8 +10,9 @@ public sealed class EnemySpawnController : AppControllerBase
 
     void Start()
     {
-        // 敌人只在权威端生成；客机只跟 Snapshot。
-        if (CombatWorldController.Current != null && !CombatWorldController.Current.IsAuthority)
+        // 敌人只在 Listen Host 生成；客机跟 Snapshot；Dedicated 刷怪属 W6/W7。
+        if (CombatWorldController.Current != null
+            && CombatWorldController.Current.Role != ReplicationRole.ListenHost)
             return;
 
         // target 仅作可选钉死；为空时敌人感知读 LocalPlayerService 花名册。

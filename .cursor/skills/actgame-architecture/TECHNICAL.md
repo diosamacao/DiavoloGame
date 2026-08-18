@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-18（NetSync W4 / M1 验收关闭）
+> Last updated: 2026-08-19（NetSync W5 Dedicated Bootstrap / N 玩家 Session）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,7 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
-| 组队 PVE 状态同步 / 权威进程 | ✅ NS0～NS5 + W0～W4/M1 已验收 | 薄 `ReplicationRoomHost/Client` + `Act*RoomGameplay` | 客机同一 Actor；不 Collect；下一阶段 W5 Dedicated |
+| 组队 PVE 状态同步 / 权威进程 | ✅ Listen 产品基线；🟡 Dedicated Bootstrap | 薄 `ReplicationRoomHost/Client` + `Act*RoomGameplay`；Dedicated 走 `DedicatedServerRuntime` | Listen N Guest；Dedicated Listening/Session 已切，权威 World 属 W6 |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -245,7 +245,8 @@ ActAuthorityReplicationAdapter
 
 - 水平速度 P0 可为 0；空闲相位由 Capture 填 `AnimationKey`
 - NS5 已单轨切到 `UdpTransport`；`LoopbackTransport` 支持一服多客和确定性延迟，不再挂 Host 预览
-- W0～W4、GF0～GF4 与 M1 已于 2026-08-18 完成 Test Runner、架构守卫和双进程回归；W5 Dedicated 尚未开始
+- W0～W4、GF0～GF4 与 M1 已于 2026-08-18 完成 Test Runner、架构守卫和双进程回归
+- W5 Dedicated Bootstrap / N 玩家 Session 已于 2026-08-19 代码落地；Editor Headless Play 待确认；权威 World 属 W6
 
 ### 相关文件
 
@@ -418,15 +419,16 @@ AfterLogicStep → Capture 全员 + Hits → UDP
 
 ### 功能说明
 
-Listen Host 创建一人房间并可接纳第二人；客机预测自己的位移、用 RemoteProxy 看队友与敌人；敌人与命中只在 Host 权威世界。
+Listen Host 创建一人房间并可接纳多名远端玩家；客机预测自己的位移、用 RemoteProxy 看队友与敌人；敌人与命中只在 Host 权威世界。Dedicated 为独立运行时，当前只 Listening / Accept，不步进权威 World。
 
 ### 实现方案
 
 | 项 | 方案 |
 |----|------|
-| 角色 | 默认 Listen Host；ParrelSync 克隆自动 Client；无克隆时菜单写 EditorPrefs |
+| 角色 | 默认 Listen Host；ParrelSync 克隆自动 Client；菜单可切 Dedicated（`Use Dedicated Server`） |
 | 传输 / Session | `UdpTransport` 按 `NetConnectionId` 定向收发；`ServerSession/ClientSession` 独占信封、Join、Heartbeat、Kick，`RoomCodec` 只编 ACT 应用正文 |
-| Host | 薄 `ReplicationRoomHost` 驱动 Session；`ActHostRoomGameplay` 创建 Guest、按 Hint 合并输入并构建权威帧 |
+| Host | 薄 `ReplicationRoomHost` 驱动 Session；`ActHostRoomGameplay` 按连接管理 N Guest、独立 ACK 并逐连接构帧 |
+| Dedicated | `DedicatedServerBootstrap` → `DedicatedServerRuntime`；`MatchCoordinator` 分配身份与出生；JoinAccept 无房主实体 |
 | Client | 薄 `ReplicationRoomClient` 收发；`ActClientRoomGameplay` 每渲染帧合并输入、本机 `CharacterActor.Step`、他人 Proxy Seek |
 | 动作 Id | `ActionReplicationCatalog` 按资产名稳定哈希，两端 Prefill Graph 节点、`VariantResolver` 变体与反应 |
 | 掉线 | `ServerSession.ConnectionRegistry` 按连接记录活动时刻；10s 超时仅 Kick 对应连接 |
@@ -456,6 +458,7 @@ Client：ReplicationRoomClient Poll → ActClientRoomGameplay 合并按键 → �
 - 客机连招下一段在本机 Cancel 窗起手；权威未起手则 Stop
 - 客机 CameraLock：Proxy 只读进 TargetSystem，范围内自动选中后可开；2026-08-18 双进程 Play 已验收
 - 多种敌人按稳定 Archetype 精确生成对应幽灵，不使用首敌配置回退
+- Dedicated 尚未步进 `SimulationWorld`、不刷怪、不下发 `ReplicationFrame`（W6/W7）
 - 未做匹配、排位、Host 迁移
 - UDP 仍不可靠；冗余 3 条降低丢边沿，不能保证 0 丢包
 - 客机刀光/音效由本机表现桥按预测帧派发；跟权威卡肉招时禁止重派点事件
@@ -482,6 +485,57 @@ Client：ReplicationRoomClient Poll → ActClientRoomGameplay 合并按键 → �
 - `Assets/Tests/EditMode/ACTNet/Session/SessionIntegrationTests.cs`
 - `Assets/Tests/EditMode/ACTNet/Transport/UdpTransportTests.cs`
 - `docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`
+
+---
+
+## 组队 PVE · W5 Dedicated Bootstrap
+
+### 功能说明
+
+无本地玩家的 Dedicated 进程可 Listening 并 Accept 远端玩家；身份与出生由 Match 分配，不再依赖房主 Actor。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 进程角色 | `NetProcessRole.DedicatedServer`；`ReplicationRole.DedicatedServer` 仅作场景入口枚举 |
+| 程序集 | `ACTGame.Server`：不引用 PlayerController / InputReader / Camera / HUD / Room Facade |
+| 启动 | `CombatWorldController` 只 `EnsureDedicatedBootstrap()`；`DedicatedServerRuntime.TryStart` 装配 UDP Session + Match |
+| 退出码 | `ServerExitCode.ConfigFailed=10`、`BindFailed=20`；玩家构建 `Application.Quit` |
+| 身份 | `MatchCoordinator` 分配 PlayerId / EntityId / Team / Spawn（槽位 × 2000mm X） |
+| 每连接 | `DedicatedPlayerRuntime` 持独立 `ReplicationServer` 与 Hint ACK |
+| JoinAccept | `AuthorityEntityId` 可为 Invalid；线格式 0 |
+
+### 关键参数
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `MaxRemotePlayers` | Dedicated 4 / Listen 1 | Dedicated 由 `ServerLaunchConfig`；Listen 仍一人客机容量 |
+| `firstPlayerId` | 1 | 不再预留 Guest=2 |
+| 出生间距 | 2000mm | X 轴；不读 Host Root |
+
+### 运行时流程
+
+```
+CombatWorldController.Awake（Dedicated）
+  → DedicatedServerBootstrap.Configure
+  → DedicatedServerRuntime.TryStart(UdpTransport, ServerLaunchConfig)
+  → Update：Poll Session → Match Accept → 每连接 ACK
+```
+
+### 已知限制
+
+- 不步进 `SimulationWorld`，不创建 Headless Actor，不刷怪，不发送 `ReplicationFrame`（W6/W7）
+- Editor Headless Play 待用户确认
+- Listen Host 仍是当前可玩对局路径
+
+### 相关文件
+
+- `Assets/Scripts/App/Server/DedicatedServerRuntime.cs`
+- `Assets/Scripts/App/Server/DedicatedServerBootstrap.cs`
+- `Assets/Scripts/App/Server/MatchCoordinator.cs`
+- `Assets/Tests/EditMode/ACTGame/Server/DedicatedServerRuntimeTests.cs`
+- `docs/2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`
 
 ---
 
@@ -1293,6 +1347,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-18 | NetSync W4 Room Facade：新增 Host/Client Gameplay 与内容预填 Service；Room 删除 Character/Config/Proxy/Hit Cue/HitStop 具体实现，仅保留 Session 收发、固定帧调度与 HUD；新增 W4 架构边界守卫 |
 | 2026-08-18 | NetSync W4/M1 验收关闭：Authority/Owner/Observer、Room 架构守卫、Golden Bytes 与双进程移动/战斗/CameraLock/断线回归通过；网络层分离完成，下一阶段为尚未开始的 W5 Dedicated |
 | 2026-08-18 | 新增 `docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`：M1 阶段性总结与当前实现阅读入口 |
+| 2026-08-19 | NetSync W5：`ACTGame.Server` Dedicated Bootstrap / Match / 每连接 ACK；Listen Host 改 N Guest；JoinAccept 允许无房主实体；权威 World 仍属 W6 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

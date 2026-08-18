@@ -59,7 +59,7 @@ public sealed class ReplicationProductionOrderTests
             "_authority.CaptureAuthorityActors(",
             "_authority.CopyHits(",
             "ActReplicationApplicationPayloadCodec.Encode(",
-            "_replicationServer.BuildFrame(",
+            "replication.BuildFrame(",
             "ReplicationFrameCodec.Encode(frame);");
 
         string roomAfterStep = Slice(
@@ -68,18 +68,19 @@ public sealed class ReplicationProductionOrderTests
             "    void OnSessionDisconnected(");
         AssertInOrder(
             roomAfterStep,
+            "_gameplay.CopyGuestConnections(",
             "_gameplay.TryBuildReplicationFrame(",
             "_session.SendApplication(");
 
         string spawnGuest = Slice(
             gameplay,
             "    bool TryCreateGuest(",
-            "    void ApplyGuestCommands(ClientCommand[] commands)");
+            "    CharacterConfig ResolveJoinConfig()");
         AssertInOrder(
             spawnGuest,
             "_gameSession.TryCreateGuest(",
-            "_replicationServer = new ReplicationServer();",
-            "_guest = guest;",
+            "_replicationByConnection[request.ConnectionId] = new ReplicationServer();",
+            "_guests.Add(request.ConnectionId, guest);",
             "session.AcceptPlayer(");
 
         string createGuest = Slice(
@@ -113,6 +114,8 @@ public sealed class ReplicationProductionOrderTests
 
         Assert.That(authority, Does.Contain("_characterSchema.Capture("));
         Assert.That(authority, Does.Not.Contain("CharacterReplicationCapture"));
+        Assert.That(gameSession, Does.Not.Contain("hostPlayer.Root"));
+        Assert.That(gameplay, Does.Not.Contain("new Vector3(2f"));
     }
 
     /// <summary>Client 必须先收权威并采样；逻辑步内先发送命令，再推进 Autonomous 预测。</summary>

@@ -53,11 +53,10 @@ public sealed class ActAuthorityReplicationAdapter
         return new ActAuthorityInputApplyResult(true, newestHint);
     }
 
-    /// <summary>捕获本机玩家、Guest 与运行中敌人的完整权威状态，并绑定稳定网络原型。</summary>
+    /// <summary>捕获本机玩家、全部 Guest 与运行中敌人的完整权威状态，并绑定稳定网络原型。</summary>
     public void CaptureAuthorityActors(
         ILocalPlayer local,
-        CharacterActor guestActor,
-        NetArchetypeId guestArchetypeId,
+        IReadOnlyList<ActGameGuest> guests,
         SimulationHost host)
     {
         _snapshots.Clear();
@@ -70,12 +69,18 @@ public sealed class ActAuthorityReplicationAdapter
             AddEntityState(in snapshot, _content.RegisterPlayer(player.CharacterConfig));
         }
 
-        if (guestActor != null)
+        if (guests != null)
         {
-            ActorReplicationSnapshot snapshot = _characterSchema.Capture(
-                guestActor,
-                ReplicationActorKind.Player);
-            AddEntityState(in snapshot, guestArchetypeId);
+            for (int i = 0; i < guests.Count; i++)
+            {
+                ActGameGuest guest = guests[i];
+                if (guest?.Actor == null)
+                    continue;
+                ActorReplicationSnapshot snapshot = _characterSchema.Capture(
+                    guest.Actor,
+                    ReplicationActorKind.Player);
+                AddEntityState(in snapshot, guest.ArchetypeId);
+            }
         }
 
         if (host == null)

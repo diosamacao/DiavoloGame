@@ -4,7 +4,7 @@
 /// </summary>
 public static class ReplicationRoomLaunchSettings
 {
-    /// <summary>0=ListenHost，1=Client。</summary>
+    /// <summary>0=ListenHost，1=Client，2=DedicatedServer。</summary>
     public const string RolePrefsKey = "ACTGame.Room.Role";
 
     /// <summary>客机连接地址。</summary>

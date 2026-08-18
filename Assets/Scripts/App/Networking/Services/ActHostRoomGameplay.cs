@@ -1,7 +1,8 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>Host 房间的 ACT Gameplay 编排：玩家接纳、远端输入、权威 Capture 与 Guest 生命周期。</summary>
+/// <summary>Host 房间的 ACT Gameplay 编排：N 名远端玩家、独立 ACK、权威 Capture。</summary>
 public sealed class ActHostRoomGameplay
 {
     readonly CombatWorldController _world;
@@ -9,13 +10,17 @@ public sealed class ActHostRoomGameplay
     readonly ActContentPrefillService _contentPrefill;
     readonly ActAuthorityReplicationAdapter _authority;
     readonly ActGameSessionHandler _gameSession;
-    ReplicationServer _replicationServer = new();
-    ActGameGuest _guest;
+    readonly MatchCoordinator _match;
+    readonly Dictionary<NetConnectionId, ActGameGuest> _guests = new();
+    readonly Dictionary<NetConnectionId, ReplicationServer> _replicationByConnection = new();
+    readonly List<ActGameGuest> _guestSnapshot = new();
+    readonly List<NetConnectionId> _connectionScratch = new();
 
     /// <summary>创建 Host Gameplay 唯一编排入口，并立即登记场景内容。</summary>
     public ActHostRoomGameplay(
         CombatWorldController world,
-        ACTGameArchitecture architecture)
+        ACTGameArchitecture architecture,
+        int maxRemotePlayers)
     {
         _world = world ?? throw new ArgumentNullException(nameof(world));
         if (architecture == null)
@@ -27,11 +32,15 @@ public sealed class ActHostRoomGameplay
         _gameSession = new ActGameSessionHandler(
             _content,
             CreateGameSessionServices(architecture));
+        _match = new MatchCoordinator(maxRemotePlayers, playerArchetypeId: default);
         _contentPrefill.InitializeFromScene();
     }
 
-    /// <summary>当前是否已有一个已接纳 Guest。</summary>
-    public bool HasGuest => _guest != null;
+    /// <summary>当前是否已有至少一名远端玩家。</summary>
+    public bool HasGuest => _guests.Count > 0;
+
+    /// <summary>已接纳远端玩家数。</summary>
+    public int GuestCount => _guests.Count;
 
     /// <summary>最近收到的完整 ClientCommand 应用消息字节；尚未收到时为 -1。</summary>
     public int LastCommandBytes { get; private set; } = -1;
@@ -48,27 +57,34 @@ public sealed class ActHostRoomGameplay
         }
     }
 
-    /// <summary>消费已通过 Session 校验的 Join 请求，并创建/接纳唯一 Guest。</summary>
+    /// <summary>复制当前已接纳连接，供 Room 逐连接构帧发送。</summary>
+    public void CopyGuestConnections(List<NetConnectionId> results)
+    {
+        if (results == null)
+            throw new ArgumentNullException(nameof(results));
+        results.Clear();
+        foreach (NetConnectionId connectionId in _guests.Keys)
+            results.Add(connectionId);
+    }
+
+    /// <summary>消费 Join：只要求已登记角色配置，不再等待 Host Actor。</summary>
     public void DrainPlayerRequests(ServerSession session)
     {
         if (session == null)
             return;
 
+        _contentPrefill.InitializeFromScene();
         while (session.TryDequeuePlayerRequest(out SessionPlayerRequest request))
         {
-            PlayerController hostPlayer = _contentPrefill.LocalPlayer;
-            CharacterActor hostActor = hostPlayer != null ? hostPlayer.Actor : null;
-            if (_guest != null
-                || hostActor == null
-                || !hostActor.SimulationId.IsValid
-                || !TryCreateGuest(session, hostPlayer, hostActor, in request))
+            if (_guests.ContainsKey(request.ConnectionId)
+                || !TryCreateGuest(session, in request))
             {
                 session.RejectPlayer(request.ConnectionId, SessionRejectReason.GameRejected);
             }
         }
     }
 
-    /// <summary>消费已鉴权 ClientCommand 正文，并把新 Hint 合并到下一权威输入帧。</summary>
+    /// <summary>按连接消费 ClientCommand，ACK 不串线。</summary>
     public void DrainApplicationMessages(ServerSession session)
     {
         if (session == null)
@@ -77,8 +93,7 @@ public sealed class ActHostRoomGameplay
         while (session.TryDequeueApplication(out SessionApplicationPacket packet))
         {
             if (packet.MessageType != (byte)RoomMessageKind.ClientCommand
-                || _guest == null
-                || _guest.ConnectionId != packet.ConnectionId)
+                || !_guests.TryGetValue(packet.ConnectionId, out ActGameGuest guest))
             {
                 continue;
             }
@@ -86,7 +101,7 @@ public sealed class ActHostRoomGameplay
             try
             {
                 LastCommandBytes = packet.Payload.Length + 2;
-                ApplyGuestCommands(RoomCodec.ReadClientCommandBatch(packet.Payload));
+                ApplyGuestCommands(guest, RoomCodec.ReadClientCommandBatch(packet.Payload));
             }
             catch (Exception ex)
             {
@@ -95,112 +110,149 @@ public sealed class ActHostRoomGameplay
         }
     }
 
-    /// <summary>权威步后构建当前 Guest 的 ReplicationFrame；无 Guest 时返回 false。</summary>
+    /// <summary>为指定连接构建 ReplicationFrame；无此 Guest 时返回 false。</summary>
     public bool TryBuildReplicationFrame(
         long authorityFrame,
-        out NetConnectionId connectionId,
+        NetConnectionId connectionId,
         out byte[] body)
     {
-        connectionId = default;
         body = null;
-        if (_guest == null || !_guest.Actor.SimulationId.IsValid)
+        if (!_guests.TryGetValue(connectionId, out ActGameGuest guest)
+            || guest.Actor == null
+            || !guest.Actor.SimulationId.IsValid
+            || !_replicationByConnection.TryGetValue(connectionId, out ReplicationServer replication))
+        {
             return false;
+        }
 
         _contentPrefill.EnsureActionsReady();
         SimulationHost host = _world.SimulationHost;
-        _authority.CaptureAuthorityActors(
-            _contentPrefill.LocalPlayer,
-            _guest.Actor,
-            _guest.ArchetypeId,
-            host);
+        CopyGuests(_guestSnapshot);
+        _authority.CaptureAuthorityActors(_contentPrefill.LocalPlayer, _guestSnapshot, host);
         ReplicatedHitEvent[] hits = _authority.CopyHits(host?.FrameHits);
-        long appliedHint = _guest.AppliedHintThisTick;
-        _guest.AppliedHintThisTick = 0;
+        long appliedHint = guest.AppliedHintThisTick;
+        guest.AppliedHintThisTick = 0;
         byte[] applicationBytes = ActReplicationApplicationPayloadCodec.Encode(
             new ActReplicationApplicationPayload(appliedHint, hits));
-        ReplicationFrame frame = _replicationServer.BuildFrame(
+        ReplicationFrame frame = replication.BuildFrame(
             new NetTick(authorityFrame),
             _authority.EntityStates,
             applicationBytes);
-
-        connectionId = _guest.ConnectionId;
         body = ReplicationFrameCodec.Encode(frame);
         return true;
     }
 
-    /// <summary>Session 断开时只清理匹配连接创建的 ACT Gameplay 对象。</summary>
+    /// <summary>Session 断开时只清理对应连接的 Guest。</summary>
     public void OnSessionDisconnected(SessionDisconnected disconnected)
     {
-        if (_guest == null || _guest.ConnectionId != disconnected.ConnectionId)
-            return;
-        CleanupGuest(disconnected.Reason);
+        CleanupGuest(disconnected.ConnectionId, disconnected.Reason);
     }
 
-    /// <summary>房间销毁时清理 Guest；重复调用安全。</summary>
-    public void Shutdown() => CleanupGuest(DisconnectReason.ServerShutdown);
-
-    /// <summary>创建 Guest、重置连接复制 baseline，并由 ServerSession 发出 Accept。</summary>
-    bool TryCreateGuest(
-        ServerSession session,
-        PlayerController hostPlayer,
-        CharacterActor hostActor,
-        in SessionPlayerRequest request)
+    /// <summary>房间销毁时清理全部 Guest。</summary>
+    public void Shutdown()
     {
+        _connectionScratch.Clear();
+        foreach (NetConnectionId connectionId in _guests.Keys)
+            _connectionScratch.Add(connectionId);
+        for (int i = 0; i < _connectionScratch.Count; i++)
+            CleanupGuest(_connectionScratch[i], DisconnectReason.ServerShutdown);
+    }
+
+    /// <summary>创建 Guest、按连接重置复制 baseline，并由 ServerSession 发出 Accept。</summary>
+    bool TryCreateGuest(ServerSession session, in SessionPlayerRequest request)
+    {
+        if (!_match.TryAccept(in request, out MatchPlayerSlot slot))
+            return false;
+
+        CharacterConfig config = ResolveJoinConfig();
         SimulationHost host = _world.SimulationHost;
-        if (!_gameSession.TryCreateGuest(
-                hostPlayer,
+        MatchSpawnPose spawn = slot.Spawn;
+        if (config == null
+            || !_gameSession.TryCreateGuest(
+                config,
+                in spawn,
                 host,
                 request.ConnectionId,
                 _contentPrefill.EnsureActionsReady,
                 out ActGameGuest guest))
         {
+            _match.Release(request.ConnectionId);
             return false;
         }
 
         // Sequence/Registry baseline 属于连接；新 Guest 必须从完整 Spawn 开始。
-        _replicationServer = new ReplicationServer();
-        _guest = guest;
+        _replicationByConnection[request.ConnectionId] = new ReplicationServer();
+        _guests.Add(request.ConnectionId, guest);
+        NetEntityId hostEntity = TryResolveHostEntityId();
         session.AcceptPlayer(
             request.ConnectionId,
             new NetEntityId(guest.Actor.SimulationId.Value),
-            new NetEntityId(hostActor.SimulationId.Value),
-            new NetTick(host.CurrentFrame));
+            hostEntity,
+            new NetTick(host.CurrentFrame < 0 ? 0 : host.CurrentFrame));
         Debug.Log(
             $"ActHostRoomGameplay: 客机加入 player={request.PlayerId.Value} "
             + $"actor={guest.Actor.SimulationId.Value} connection={request.ConnectionId}。");
         return true;
     }
 
-    /// <summary>把本批未应用命令灌入下一权威帧，并更新 Guest Hint 状态。</summary>
-    void ApplyGuestCommands(ClientCommand[] commands)
+    /// <summary>Join 用已预填或本机配置，不要求 Host Actor 已注册进 World。</summary>
+    CharacterConfig ResolveJoinConfig()
+    {
+        PlayerController local = _contentPrefill.LocalPlayer;
+        if (local != null && local.CharacterConfig != null)
+            return local.CharacterConfig;
+        return _content.TryGetAnyPlayerConfig(out CharacterConfig config) ? config : null;
+    }
+
+    /// <summary>Listen 若有本机 Actor 则写入 Accept；否则 Invalid，客户端不得依赖。</summary>
+    NetEntityId TryResolveHostEntityId()
+    {
+        CharacterActor actor = _contentPrefill.LocalPlayer != null
+            ? _contentPrefill.LocalPlayer.Actor
+            : null;
+        if (actor != null && actor.SimulationId.IsValid)
+            return new NetEntityId(actor.SimulationId.Value);
+        return NetEntityId.Invalid;
+    }
+
+    /// <summary>把本批未应用命令灌入下一权威帧，并更新该 Guest 的 Hint。</summary>
+    void ApplyGuestCommands(ActGameGuest guest, ClientCommand[] commands)
     {
         SimulationHost host = _world.SimulationHost;
-        if (_guest == null || host?.World == null)
+        if (guest == null || host?.World == null)
             return;
 
         ActAuthorityInputApplyResult result = _authority.ApplyGuestCommands(
             host.World.InputFrames,
             host.CurrentFrame,
-            _guest.Actor.SimulationId,
+            guest.Actor.SimulationId,
             commands,
-            _guest.LastAppliedFrameHint);
+            guest.LastAppliedFrameHint);
         if (!result.Applied)
             return;
 
-        _guest.LastAppliedFrameHint = result.NewestHint;
-        _guest.AppliedHintThisTick = result.NewestHint;
+        guest.LastAppliedFrameHint = result.NewestHint;
+        guest.AppliedHintThisTick = result.NewestHint;
     }
 
-    /// <summary>注销并销毁 Guest Gameplay；Session 连接表由调用方管理。</summary>
-    void CleanupGuest(DisconnectReason reason)
+    /// <summary>注销并销毁指定连接的 Guest；不影响其他连接。</summary>
+    void CleanupGuest(NetConnectionId connectionId, DisconnectReason reason)
     {
-        if (_guest == null)
+        if (!_guests.TryGetValue(connectionId, out ActGameGuest guest))
             return;
 
-        ActGameGuest guest = _guest;
-        _guest = null;
+        _guests.Remove(connectionId);
+        _replicationByConnection.Remove(connectionId);
+        _match.Release(connectionId);
         _gameSession.DestroyGuest(guest, _world.SimulationHost);
-        Debug.Log($"ActHostRoomGameplay: 客机 Gameplay 已清理 reason={reason}。");
+        Debug.Log($"ActHostRoomGameplay: 客机 Gameplay 已清理 connection={connectionId} reason={reason}。");
+    }
+
+    void CopyGuests(List<ActGameGuest> results)
+    {
+        results.Clear();
+        foreach (ActGameGuest guest in _guests.Values)
+            results.Add(guest);
     }
 
     /// <summary>把 Architecture 系统能力收敛为 Guest Handler 的最小服务集合。</summary>

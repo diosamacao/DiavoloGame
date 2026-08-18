@@ -3,11 +3,12 @@
 > 制定：2026-08-17  
 > 角色：**NetSync 两份方案的总排期与阶段出口真源**；具体类型契约仍以下列专项方案为准  
 > 设计真源：  
-> - [`NETSYNC_GENERIC_CORE_GAMEPLAY_SEPARATION_PLAN.md`](./NETSYNC_GENERIC_CORE_GAMEPLAY_SEPARATION_PLAN.md) — GF0～GF8  
-> - [`NETSYNC_DEDICATED_SERVER_SEPARATION_PLAN.md`](./NETSYNC_DEDICATED_SERVER_SEPARATION_PLAN.md) — DS0～DS8  
-> - [`NETSYNC_ARCHITECTURE_ANALYSIS_AND_FRAMEWORK_COMPARISON.md`](./NETSYNC_ARCHITECTURE_ANALYSIS_AND_FRAMEWORK_COMPARISON.md) — 现状分析  
-> 当前实现：[`../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)  
-> NS5 结构备忘：[`../2026.8.15/NETWORK_SYNC.md`](../2026.8.15/NETWORK_SYNC.md)  
+>
+> - `[NETSYNC_GENERIC_CORE_GAMEPLAY_SEPARATION_PLAN.md](./NETSYNC_GENERIC_CORE_GAMEPLAY_SEPARATION_PLAN.md)` — GF0～GF8  
+> - `[NETSYNC_DEDICATED_SERVER_SEPARATION_PLAN.md](./NETSYNC_DEDICATED_SERVER_SEPARATION_PLAN.md)` — DS0～DS8  
+> - `[NETSYNC_ARCHITECTURE_ANALYSIS_AND_FRAMEWORK_COMPARISON.md](./NETSYNC_ARCHITECTURE_ANALYSIS_AND_FRAMEWORK_COMPARISON.md)` — 现状分析  
+> 当前实现：`[../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md](../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)`（M1）；`[../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md](../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md)`（W5）  
+> NS5 结构备忘：`[../2026.8.15/NETWORK_SYNC.md](../2026.8.15/NETWORK_SYNC.md)`  
 > **执行决策：** GF4 是“网络层分离完成”门槛；GF8 不是 Dedicated 前置。先交付 DS-Demo，再做 Listen 组合收敛、公网与规模优化。
 
 ---
@@ -22,11 +23,13 @@
 
 ### 1.1 三个交付里程碑
 
-| 里程碑 | 条件 | 可宣称 |
-|---|---|---|
-| M1 — 网络层分离 | W0～W4；对应 GF0～GF4 | `ACTNet.*` 与 ACT 业务单向依赖，Room 不再兼任 Gameplay Driver |
-| M2 — DS-Demo | W5～W8；对应 DS0～DS6 主路径 | 无本地玩家 Server + 两个远端客户端可完成一局 |
-| M3 — DS-Full / R2 | W9～W12 | Listen 组合收敛、公网基线、规模能力、包化与运维闭环 |
+
+| 里程碑               | 条件                   | 可宣称                                               |
+| ----------------- | -------------------- | ------------------------------------------------- |
+| M1 — 网络层分离        | W0～W4；对应 GF0～GF4     | `ACTNet.*` 与 ACT 业务单向依赖，Room 不再兼任 Gameplay Driver |
+| M2 — DS-Demo      | W5～W8；对应 DS0～DS6 主路径 | 无本地玩家 Server + 两个远端客户端可完成一局                       |
+| M3 — DS-Full / R2 | W9～W12               | Listen 组合收敛、公网基线、规模能力、包化与运维闭环                     |
+
 
 ### 1.2 本计划明确不做
 
@@ -66,23 +69,27 @@ flowchart LR
     M2 --> W9 --> W10 --> W11 --> W12 --> M3
 ```
 
+
+
 ### 2.1 阶段映射
 
-| 总 Wave | GF / DS 来源 | 主交付 |
-|---|---|---|
-| W0 | GF0 + DS0 | 行为、协议、依赖、指标冻结 |
-| W1 | GF1 | Core Id / Buffer / Version / Fingerprint |
-| W2 | GF2 | Transport + Session，ConnectionId 与 N 连接 |
-| W3 | GF3 | Replication Runtime、实体生命周期、Archetype |
-| W4 | GF4 | ACT Authority / Owner / Observer Adapter |
-| W5 | DS1 + DS2 | Dedicated Bootstrap、无 Host 玩家、N 玩家 |
-| W6 | DS3 + DS4 | Headless Authority、Server Content |
-| W7 | DS5 | Match + per-connection Replication + Client 接入 |
-| W8 | DS6 | Unity Dedicated Build、CI Smoke、DS-Demo |
-| W9 | Listen 组合收敛 | `ServerRuntime + LocalClientRuntime + Loopback` |
-| W10 | GF5 + GF6 | Prediction 骨架、可靠通道、网络时间、事件可靠性 |
-| W11 | GF7 + GF8 | Delta / Relevancy / Budget / 包化 / FakeActionGame |
-| W12 | DS7 + DS8 | 公网安全、重连、容器、指标、压测、Runbook |
+
+| 总 Wave | GF / DS 来源  | 主交付                                              |
+| ------ | ----------- | ------------------------------------------------ |
+| W0     | GF0 + DS0   | 行为、协议、依赖、指标冻结                                    |
+| W1     | GF1         | Core Id / Buffer / Version / Fingerprint         |
+| W2     | GF2         | Transport + Session，ConnectionId 与 N 连接          |
+| W3     | GF3         | Replication Runtime、实体生命周期、Archetype             |
+| W4     | GF4         | ACT Authority / Owner / Observer Adapter         |
+| W5     | DS1 + DS2   | Dedicated Bootstrap、无 Host 玩家、N 玩家               |
+| W6     | DS3 + DS4   | Headless Authority、Server Content                |
+| W7     | DS5         | Match + per-connection Replication + Client 接入   |
+| W8     | DS6         | Unity Dedicated Build、CI Smoke、DS-Demo           |
+| W9     | Listen 组合收敛 | `ServerRuntime + LocalClientRuntime + Loopback`  |
+| W10    | GF5 + GF6   | Prediction 骨架、可靠通道、网络时间、事件可靠性                    |
+| W11    | GF7 + GF8   | Delta / Relevancy / Budget / 包化 / FakeActionGame |
+| W12    | DS7 + DS8   | 公网安全、重连、容器、指标、压测、Runbook                         |
+
 
 ### 2.2 可并行但不得合并为同一风险面
 
@@ -191,7 +198,7 @@ W5 起额外要求：
 - [x] 容量由 Session 配置，不再写死 `MaxPlayers=2`。
 - [x] UDP Adapter 保持当前行为；本 Wave 不接可靠 UDP。（代码已单轨切换，待双进程 Play）
 - [x] `LoopbackTransport` 支持至少三条独立连接。（多连接测试已写，待 Test Runner）
-- [x] 删除 Room 中 Endpoint、握手 switch、IdleTracker 与固定 Session Guest 状态。（Gameplay 单 Guest Actor 留待 W5）
+- [x] 删除 Room 中 Endpoint、握手 switch、IdleTracker 与固定 Session Guest 状态。（Gameplay 已于 W5 改为 N Guest）
 
 **验收**
 
@@ -217,7 +224,7 @@ W5 起额外要求：
 - [x] `Spawn/Despawn` 成为生命周期真源。（2026-08-18 双进程 Play 已验收）
 - [x] 建立稳定 Character Archetype Catalog：调用方 stableKey 经 FNV-1a 映射 `NetArchetypeId`，拒绝重复键与哈希碰撞。（2026-08-18 已验收）
 - [x] 将 `NetArchetypeId` 接入生产 Spawn/Proxy，删除客户端 `_enemyConfigs[0]` 模型回退主路径。（2026-08-18 已验收）
-- [x] 当前单客机按连接持有 `ReplicationServer` baseline；重连重建 Server，禁止继承上一连接 ACK。（N 连接扩展仍属 W5）
+- [x] 当前单客机按连接持有 `ReplicationServer` baseline；重连重建 Server，禁止继承上一连接 ACK。（W5 已扩到 N 连接）
 - [x] 旧 Sequence 不得覆盖新状态。（Runtime 与生产切换均完成）
 - [x] 删除 `ApplyRemoteActors` 中“本 Tick 未见即销毁”的生命周期主逻辑。
 
@@ -268,25 +275,26 @@ W5 起额外要求：
 
 **任务**
 
-- [ ] 定义 `NetProcessRole.Client / ListenServer / DedicatedServer`。
-- [ ] 建 `DedicatedServerBootstrap` 与 `ServerLaunchConfig`。
-- [ ] Bootstrap 装配 Transport、ServerSession、Match、Simulation、Replication。
-- [ ] `CombatWorldController` 不负责 Dedicated 启动。
-- [ ] Dedicated 不创建 PlayerController、Input、Camera、HUD、Feedback。
-- [ ] 删除 `GuestPlayerId=2`、单 `_guest`、Join 等 HostActor 的假设。
-- [ ] 每连接独立 CommandStream / ACK / Idle。
-- [ ] `MatchCoordinator` 负责 PlayerId、Team、Spawn、Archetype。
-- [ ] 增加配置失败、Bind 失败退出码。
+- [x] 定义 `NetProcessRole.Client / ListenServer / DedicatedServer`。（2026-08-19）
+- [x] 建 `DedicatedServerBootstrap` 与 `ServerLaunchConfig`。（2026-08-19）
+- [x] Bootstrap 装配 Transport、ServerSession、Match、每连接 Replication；权威 World 步进仍属 W6。（2026-08-19）
+- [x] `CombatWorldController` 只移交 Dedicated，不装配 Session / Match。（2026-08-19）
+- [x] Dedicated 不创建 PlayerController、Input、Camera、HUD、Feedback。（2026-08-19）
+- [x] 删除 `GuestPlayerId=2`、单 `_guest`、Join 等 HostActor 的假设。（2026-08-19）
+- [x] 每连接独立 CommandStream / ACK / Idle。（2026-08-19）
+- [x] `MatchCoordinator` 负责 PlayerId、Team、Spawn、Archetype。（2026-08-19）
+- [x] 增加配置失败、Bind 失败退出码。（2026-08-19）
 
 **验收**
 
-- [ ] 无 LocalPlayer 的 Server 可到 Listening 并 Accept 第一名玩家。
-- [ ] 三个 Loopback Client 分配不同 PlayerId / EntityId。
-- [ ] 一人断开不影响其他人。
-- [ ] 每连接 ACK 不串线。
-- [ ] Server Bootstrap 程序集不引用 Client HUD / Input / Camera。
+- [x] 无 LocalPlayer 的 Server 可到 Listening 并 Accept 第一名玩家。（2026-08-19：`DedicatedServerRuntimeTests`）
+- [x] 三个 Loopback Client 分配不同 PlayerId / EntityId。（2026-08-19）
+- [x] 一人断开不影响其他人。（2026-08-19）
+- [x] 每连接 ACK 不串线。（2026-08-19）
+- [x] Server Bootstrap 程序集不引用 Client HUD / Input / Camera。（2026-08-19：架构守卫）
+- [ ] Editor Headless Play：菜单 `Use Dedicated Server` 无本机玩家即可 Listening（需用户确认）
 
-**出口：** Dedicated 成为独立宿主，不是 Listen Host 开关。→ **未达成**
+**出口：** Dedicated 成为独立宿主，不是 Listen Host 开关。→ **代码已切；Editor Play 待确认**
 
 ---
 
@@ -505,32 +513,36 @@ W5 起额外要求：
 
 ## 6. 回归矩阵
 
-| 能力 | W0～W4 | W5～W7 | W8 | W9～W12 |
-|---|---|---|---|---|
-| 单人 Listen | 每 Wave | 每 Wave | 必测 | 组合路径 |
-| Host + Client | 每 Wave | 回归对照 | 必测 | 删除特殊 Host 后重验 |
-| Dedicated + 2 Client | — | W7 起 | 完整对局 | 公网/负载 |
-| Codec Golden Bytes | 锁定 | 协议升级需新基线 | Build Smoke | 按版本维护 |
-| FakeGame / FakeEntity | W2 起 | 每层单测 | — | W11 成为接入证明 |
-| Headless Authority | — | W6 起 | 10 分钟 + Build | 压测 |
-| 丢包 / jitter | 不改语义 | 仅诊断 | LAN 基线 | W10 强制 |
+
+| 能力                    | W0～W4  | W5～W7    | W8            | W9～W12        |
+| --------------------- | ------ | -------- | ------------- | ------------- |
+| 单人 Listen             | 每 Wave | 每 Wave   | 必测            | 组合路径          |
+| Host + Client         | 每 Wave | 回归对照     | 必测            | 删除特殊 Host 后重验 |
+| Dedicated + 2 Client  | —      | W7 起     | 完整对局          | 公网/负载         |
+| Codec Golden Bytes    | 锁定     | 协议升级需新基线 | Build Smoke   | 按版本维护         |
+| FakeGame / FakeEntity | W2 起   | 每层单测     | —             | W11 成为接入证明    |
+| Headless Authority    | —      | W6 起     | 10 分钟 + Build | 压测            |
+| 丢包 / jitter           | 不改语义   | 仅诊断      | LAN 基线        | W10 强制        |
+
 
 ---
 
 ## 7. 风险与停线条件
 
-| 风险 | 对策 / 停线条件 |
-|---|---|
-| GF 抽象过度 | 当前 ACT + FakeEntity 未共同使用的抽象不进 Core |
-| 搬家与协议同时改 | W1～W4 Golden Bytes 不变；否则停线拆 PR |
-| Session 仍读 LocalPlayer | W2 架构守卫失败即不得进 W3 |
-| Replication 仍靠 Actors 全量差集销毁 | W3 出口失败，不得开 W4 |
-| ACTNet 反向依赖 Character/Unity | W4 出口失败，不得开 Dedicated |
-| Headless 仍靠 Animation 产 Locomotion 状态 | W6 固定脚本不一致即停线 |
-| DS 能监听但不能打 | 不以 Listening 为完成，必须通过 W7 完整战斗 |
-| Listen 双实例过早扰动手感 | W9 固定在 DS-Demo 后 |
-| 公网裸 UDP 丢关键事件 | W10 前只称 LAN Demo；不得称公网可用 |
-| Scope 扩到平台服务 | Matchmaking/Auth 只留 Adapter |
+
+| 风险                                    | 对策 / 停线条件                           |
+| ------------------------------------- | ----------------------------------- |
+| GF 抽象过度                               | 当前 ACT + FakeEntity 未共同使用的抽象不进 Core |
+| 搬家与协议同时改                              | W1～W4 Golden Bytes 不变；否则停线拆 PR      |
+| Session 仍读 LocalPlayer                | W2 架构守卫失败即不得进 W3                    |
+| Replication 仍靠 Actors 全量差集销毁          | W3 出口失败，不得开 W4                      |
+| ACTNet 反向依赖 Character/Unity           | W4 出口失败，不得开 Dedicated               |
+| Headless 仍靠 Animation 产 Locomotion 状态 | W6 固定脚本不一致即停线                       |
+| DS 能监听但不能打                            | 不以 Listening 为完成，必须通过 W7 完整战斗       |
+| Listen 双实例过早扰动手感                      | W9 固定在 DS-Demo 后                    |
+| 公网裸 UDP 丢关键事件                         | W10 前只称 LAN Demo；不得称公网可用            |
+| Scope 扩到平台服务                          | Matchmaking/Auth 只留 Adapter         |
+
 
 ---
 
@@ -547,7 +559,7 @@ Codec Golden Bytes
 ```
 
 W0 已于 2026-08-18 关闭，W1～W4 搬迁均受其基线保护。
-W4/M1 已于 2026-08-18 关闭，可开始 W5 Dedicated 主路径；W5 本身仍未开始。
+W4/M1 已于 2026-08-18 关闭。W5 Dedicated Bootstrap / N 玩家 Session 已于 2026-08-19 代码落地（Editor Play 待确认）。下一阶段 W6 Headless Authority World。
 W8 出口关闭前，不宣称 Dedicated Server 已完成。  
 W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 
@@ -582,7 +594,10 @@ W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 
 ## 10. 变更日志
 
-| 日期 | 说明 |
-|---|---|
+
+| 日期         | 说明                                                                                |
+| ---------- | --------------------------------------------------------------------------------- |
 | 2026-08-17 | 初版：整合 GF0～GF8 与 DS0～DS8；定案 GF4 为网络层分离门槛、DS6 为 LAN DS-Demo、Listen 组合后置到 DS-Demo 之后 |
-| 2026-08-18 | W0～W4 / M1 验收关闭；实现阅读入口改为 `docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md` |
+| 2026-08-18 | W0～W4 / M1 验收关闭；实现阅读入口改为 `docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`             |
+
+

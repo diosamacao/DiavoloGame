@@ -7,10 +7,10 @@
 > - 总开发排期：[`NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](./NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)（GF4 后启动 Dedicated 主路径；DS6 关闭 DS-Demo）  
 > - 通用层 / 业务层分离：[`NETSYNC_GENERIC_CORE_GAMEPLAY_SEPARATION_PLAN.md`](./NETSYNC_GENERIC_CORE_GAMEPLAY_SEPARATION_PLAN.md)  
 > - 当前架构分析：[`NETSYNC_ARCHITECTURE_ANALYSIS_AND_FRAMEWORK_COMPARISON.md`](./NETSYNC_ARCHITECTURE_ANALYSIS_AND_FRAMEWORK_COMPARISON.md)  
-> - 当前实现真源：`docs/2026.8.15/NETWORK_SYNC.md`  
+> - 当前实现真源：[`../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`](../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md)（W5）；[`../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)（M1）  
 > 目标部署链：`DedicatedServerBootstrap → ServerSession → MatchCoordinator → AuthoritySimulation → ReplicationServer → Transport`  
 > **约束：** Dedicated Server 无本地玩家、无 Input System、无 Camera、无动画/VFX/SFX 权威依赖；所有玩家均通过 Connection 加入，服务器只接受 Command / Request / ACK，不接受客户端状态覆盖
-> **当前前置状态（2026-08-18）：** GF4/W4/M1 已完成 Test Runner 与双进程 Play 验收并正式关闭；可启动 W5/DS1 Dedicated 主路径。Dedicated 运行时本身仍未开始，不提前建立 Listen Host 兼容旁路。
+> **当前前置状态（2026-08-19）：** DS1/DS2（W5）代码已切：独立 `DedicatedServerRuntime`、N 玩家 Session、每连接 ACK。Editor Headless Play 待确认。权威 World 属 DS3/W6。Listen Host 仍保留为回归路径，直至 W9。
 
 ---
 
@@ -1344,45 +1344,45 @@ Release Server 禁止输出敏感 token 和完整用户输入历史。
 
 **任务**
 
-- [ ] 定义 `NetProcessRole.Client / ListenServer / DedicatedServer`。  
-- [ ] 创建 `DedicatedServerBootstrap` 与 `ServerLaunchConfig`。  
-- [ ] Bootstrap 装配 Transport、Session、Match、Simulation、Replication。  
-- [ ] `CombatWorldController` 不再承担 DS 启动。  
-- [ ] Dedicated 进程不创建 `PlayerController`、HUD、Feedback、Camera。  
-- [ ] 增加启动失败退出码。  
-- [ ] **禁止**以 `ReplicationRole.ListenHost` 冒充 Dedicated。
+- [x] 定义 `NetProcessRole.Client / ListenServer / DedicatedServer`。  
+- [x] 创建 `DedicatedServerBootstrap` 与 `ServerLaunchConfig`。  
+- [x] Bootstrap 装配 Transport、Session、Match、每连接 Replication。  
+- [x] `CombatWorldController` 不再承担 DS 启动。  
+- [x] Dedicated 进程不创建 `PlayerController`、HUD、Feedback、Camera。  
+- [x] 增加启动失败退出码。  
+- [x] **禁止**以 `ReplicationRole.ListenHost` 冒充 Dedicated。
 
 **验收**
 
-- [ ] EditMode：不同 ProcessRole 生成正确 Composition。  
+- [x] EditMode：不同 ProcessRole 生成正确 Composition。  
 - [ ] Headless Play：无本地玩家也可到 Listening。  
-- [ ] 端口冲突返回明确错误和退出码。  
-- [ ] Server Bootstrap 程序集不引用 Client HUD/Input/Camera。
+- [x] 配置/绑定失败返回明确错误和退出码。  
+- [x] Server Bootstrap 程序集不引用 Client HUD/Input/Camera。
 
-**出口：** Dedicated Server 成为独立宿主，而不是 Host 开关。→ **未达成**
+**出口：** Dedicated Server 成为独立宿主，而不是 Host 开关。→ **代码已切（2026-08-19）；Editor Play 待确认**
 
 ### DS2 — ServerSession 与 N 玩家
 
 **任务**
 
-- [ ] 依赖 GF2 ServerSession / ConnectionRegistry / PlayerRegistry。  
-- [ ] 删除固定 `GuestPlayerId = 2`。  
-- [ ] 删除单 `_guest`，改 per-player collection。  
-- [ ] Join 不再等待 Host Local Actor。  
-- [ ] JoinAccept 删除 HostActorId 依赖。  
-- [ ] 每连接独立 CommandStream / ACK / Idle。  
-- [ ] `MaxPlayers` 改 ServerLaunchConfig。  
-- [ ] MatchCoordinator 负责角色、队伍和出生点。  
-- [ ] **删除**“从 Host Root +2m 生成客机”。
+- [x] 依赖 GF2 ServerSession / ConnectionRegistry / PlayerRegistry。  
+- [x] 删除固定 `GuestPlayerId = 2`。  
+- [x] 删除单 `_guest`，改 per-player collection。  
+- [x] Join 不再等待 Host Local Actor。  
+- [x] JoinAccept 删除 HostActorId 依赖（字段可 Invalid）。  
+- [x] 每连接独立 CommandStream / ACK / Idle。  
+- [x] `MaxPlayers` 改 ServerLaunchConfig。  
+- [x] MatchCoordinator 负责角色、队伍和出生点。  
+- [x] **删除**“从 Host Root +2m 生成客机”。
 
 **验收**
 
-- [ ] Loopback 三个 Client 可分配不同 PlayerId。  
-- [ ] 无 LocalPlayer 的 Server 可 Accept 第一名玩家。  
-- [ ] 一名玩家断开不移除其他玩家。  
-- [ ] 每连接 ACK 不串线。  
+- [x] Loopback 三个 Client 可分配不同 PlayerId。  
+- [x] 无 LocalPlayer 的 Server 可 Accept 第一名玩家。  
+- [x] 一名玩家断开不移除其他玩家。  
+- [x] 每连接 ACK 不串线。  
 
-**出口：** 服务器身份模型不再等同于“房主 + Guest”。→ **未达成**
+**出口：** 服务器身份模型不再等同于“房主 + Guest”。→ **已达成（2026-08-19：EditMode）**
 
 ### DS3 — Headless Authority World
 

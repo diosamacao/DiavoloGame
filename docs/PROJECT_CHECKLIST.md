@@ -1,6 +1,6 @@
 # ACTGame 项目总清单
 
-> 更新：2026-08-18 — NetSync W0～W4 / GF0～GF4 / M1 已验收关闭；下一阶段 W5 Dedicated
+> 更新：2026-08-19 — NetSync W5 Dedicated Bootstrap / N 玩家 Session 代码已切；Editor Play 待确认；下一阶段 W6 Headless Authority
 
 > 角色：**一页总览**（进度 / 下一步 / 明确不做）  
 > 细节真源勿与本文抢权威：
@@ -51,7 +51,7 @@
 | 相机 | 🟡 | 跟随 + 滤左右；Lock-On / SkillShot 未做 |
 | 正式 UI / 血条 | ⬜ | 仅 Debug HUD；目标 MVVM |
 | 吸附 / 绕背 | ✅ | Wave 4 位移出口（2026-08-09） |
-| 预测回滚 / 联网 | ✅ 当前 Listen 产品基线 | NS0～NS5 + NetSync M1 已验收；通用 Prediction Runtime GF5 尚未开始 |
+| 预测回滚 / 联网 | ✅ Listen 基线；🟡 Dedicated Bootstrap | NS0～NS5 + M1 已验收；W5 独立 Server 已切；W6 权威 World 未开始 |
 | 打击感木桩验收台 | ✅ | Monster_EDF + 关行动 + Hit_Shake；Play 验收 2026-08-08 |
 | 命中 VFX/SFX（A2） | ✅ | HitFeedback + Cue；打击感验收 2026-08-09 |
 | 学习/工程实践轨 | ⬜ | BT 编辑器、A*、AB/Lua、SDK、剧情等（§6.4） |
@@ -60,8 +60,9 @@
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项：** NetSync W5 Dedicated Bootstrap（无本地玩家 Server + N 玩家 Session）；W5 尚未开始  
-实现阅读：[`2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](./2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)  
+**下一项：** NetSync W6 Headless Authority World（Dedicated 步进同一份 `SimulationWorld`）  
+W5 备忘：[`2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md)  
+M1 阅读：[`2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](./2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)  
 排期：[`2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](./2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)
 
 
@@ -127,6 +128,7 @@
 | L3 可导出复制快照（纠偏用，非 GGPO） | ⬜ |
 | 组队 PVE 状态同步 NS0～NS5 | ✅ 2026-08-15 |
 | 客机预测对齐 UE（当前 Listen 产品链） | ✅ 2026-08-18 Owner 预测/和解与双进程 Play 已验收；通用 GF5 另排 |
+| NetSync W5 Dedicated Bootstrap / N Session | 🟡 2026-08-19 代码已切；Editor Play 待确认 |
 | L5 全员输入广播 + 完整回滚 | ❌ 2026-08-13 取消产品主路径 |
 
 ---

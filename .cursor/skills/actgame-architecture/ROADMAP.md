@@ -112,7 +112,7 @@
 
 **客机装配：** [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md) — **CA0～CA2 代码已切（2026-08-15）**：同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。Play 待 Editor。纠偏合同仍见 [`UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
 
-**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W0～W4 / GF0～GF4 / M1 已于 2026-08-18 全部验收关闭**：ACTNet 零反向依赖，Host/Client Room 为薄 Session Facade，Authority/Owner/Observer 与内容/Schema 均已迁入 App Adapter/Service。下一阶段为尚未开始的 W5 Dedicated Bootstrap，不保留 Listen Host 兼容旁路。
+**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W0～W4 / M1 已于 2026-08-18 关闭**；**W5 Dedicated Bootstrap / N 玩家 Session 已于 2026-08-19 代码落地**（独立 `DedicatedServerRuntime`，不是 Listen 开关）。Editor Play 待确认。下一阶段为 W6 Headless Authority World。备忘：[`docs/2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`](../../docs/2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md)。
 
 ### [P1] Lockstep 模拟核迁移
 
@@ -191,6 +191,7 @@
 - [ ] 仅 `Domain/Simulation` 已拆 asmdef；其余业务仍在单一 Assembly-CSharp
 - [x] 2026-08-13：MoveReferenceYaw 输入闭包；唯一 SelectedTarget + 动作中切敌；删除 PlanarBasis/CombatTargetLock/ActionTargetId/Presentation late-bind
 - [x] 2026-08-18：NetSync W4/M1——ACTNet 零反向依赖；Host/Client Room 薄 Facade；Character/内容/预测/Proxy/Hit Cue 迁入 App Gameplay Services；Test Runner 与双进程 Play 已验收关闭
+- [x] 2026-08-19：NetSync W5——Dedicated 独立 Bootstrap / Match / 每连接 ACK；Listen Host 改 N Guest；Join 不再等 Host Actor；权威 World 仍属 W6
 
 ## 已完成
 

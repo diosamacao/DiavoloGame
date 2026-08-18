@@ -8,6 +8,7 @@ public static class ReplicationRoomMenu
 {
     const string HostMenu = "ACTGame/Room/Use Listen Host";
     const string ClientMenu = "ACTGame/Room/Use Client (127.0.0.1)";
+    const string DedicatedMenu = "ACTGame/Room/Use Dedicated Server";
     const string ClearMenu = "ACTGame/Room/Clear Role Override";
 
     /// <summary>勾选本机为 Listen Host；默认一人房间。</summary>
@@ -43,6 +44,26 @@ public static class ReplicationRoomMenu
     public static bool UseClientValidate()
     {
         Menu.SetChecked(ClientMenu, GetRole() == ReplicationRole.Client);
+        return true;
+    }
+
+    /// <summary>勾选本机为无本地玩家的 Dedicated；由 DedicatedServerBootstrap 监听。</summary>
+    [MenuItem(DedicatedMenu)]
+    public static void UseDedicatedServer()
+    {
+        EditorPrefs.SetInt(
+            ReplicationRoomLaunchSettings.RolePrefsKey,
+            (int)ReplicationRole.DedicatedServer);
+        EditorPrefs.SetString(ReplicationRoomLaunchSettings.HostPrefsKey, "0.0.0.0");
+        EditorPrefs.SetInt(ReplicationRoomLaunchSettings.PortPrefsKey, ReplicationRoomProtocol.DefaultPort);
+        Debug.Log("[Room] 下次 Play 以 Dedicated Server 监听 0.0.0.0:7777，不创建本机玩家。");
+    }
+
+    /// <summary>Dedicated 菜单勾选状态。</summary>
+    [MenuItem(DedicatedMenu, true)]
+    public static bool UseDedicatedServerValidate()
+    {
+        Menu.SetChecked(DedicatedMenu, GetRole() == ReplicationRole.DedicatedServer);
         return true;
     }
 

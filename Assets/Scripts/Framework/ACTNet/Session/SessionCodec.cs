@@ -80,7 +80,8 @@ public static class SessionCodec
         var reader = new NetBufferReader(body);
         var playerId = new NetPlayerId(reader.ReadInt32());
         var entityId = new NetEntityId(reader.ReadInt32());
-        var authorityEntityId = new NetEntityId(reader.ReadInt32());
+        // Dedicated 无房主实体，线格式 0 表示 Invalid，不得 new NetEntityId(0)。
+        NetEntityId authorityEntityId = ReadOptionalEntityId(reader);
         int contentVersion = reader.ReadInt32();
         var authorityTick = new NetTick(reader.ReadInt64());
         reader.EnsureComplete();
@@ -90,6 +91,13 @@ public static class SessionCodec
             authorityEntityId,
             contentVersion,
             authorityTick);
+    }
+
+    /// <summary>读取可空实体 Id；0 还原为 Invalid。</summary>
+    static NetEntityId ReadOptionalEntityId(NetBufferReader reader)
+    {
+        int value = reader.ReadInt32();
+        return value <= 0 ? NetEntityId.Invalid : new NetEntityId(value);
     }
 
     /// <summary>编码一字节 Join 拒绝原因。</summary>

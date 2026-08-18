@@ -14,7 +14,7 @@
 
 组队 PVE 是 **Listen Host 权威状态同步**：玩家只上行量化 `InputFrame`（`ClientCommand`），权威独跑现有 `SimulationWorld`（60Hz），下行 `ReplicationFrame`（显式 Spawn/Update/Despawn + appliedHint + 命中事件）。客机本机用同一份 `CharacterActor`（`ReplicationSeat.Autonomous`）先演走跑和招式；**命中、HP、硬直只认 Host 的 `CombatHitPipeline`。** `ACTNet.*` 不引用 Unity / ACT 玩法；Room 只驱动 Session，Gameplay 在 `Act*RoomGameplay`。
 
-单机一人进关也是 Listen Host，不另开 Offline 模拟核。Dedicated（W5）尚未开始。
+单机一人进关也是 Listen Host，不另开 Offline 模拟核。W5 Dedicated Bootstrap 已切独立运行时，见 [`../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`](../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md)；权威 World 仍属 W6。
 
 ---
 
@@ -558,7 +558,7 @@ Listen Host 本地 **不预测**（0 RTT）。`ILocalPlayer.IsLocalPredicted` �
 
 ## 10. 下一阶段（未开始）
 
-**W5 Dedicated Bootstrap**：无本地玩家的 Server + N 玩家 Session。禁止在现有 Listen Host 上加 `if Dedicated` 旁路。
+**W5 Dedicated Bootstrap（2026-08-19 代码已切）**：独立 `DedicatedServerRuntime`，不是 Listen 开关。Listening / N 玩家 Session / 每连接 ACK 已落地；权威 World 属 W6。见 [`../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`](../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md)。
 
 之后：W6 Headless Content → W7 Match Replication → W8 Dedicated Build（M2 DS-Demo）。
 
@@ -593,3 +593,4 @@ Listen Host 本地 **不预测**（0 RTT）。`ILocalPlayer.IsLocalPredicted` �
 |------|------|
 | 2026-08-18 | 初版：按 M1 验收后的代码整理阶段结论、分层、入房、每帧序、客机攻击往返与线格式 |
 | 2026-08-18 | §2.1 / §3 补 Poll-Send 套接字图与 Awake 进关图；边上标文件行号并附实现摘录 |
+| 2026-08-19 | 指向 W5 独立 Runtime 备忘；Dedicated 不再写「尚未开始」 |
