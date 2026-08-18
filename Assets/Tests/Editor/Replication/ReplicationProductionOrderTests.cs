@@ -2,17 +2,15 @@ using System.IO;
 using NUnit.Framework;
 using UnityEngine;
 
-/// <summary>
-/// App 生产编排特征测试：冻结 Session 收包、Gameplay 消费与 Simulation 步进顺序。
-/// 纯 Session 状态转换由 ACTNet.Session.EditModeTests 覆盖。
-/// </summary>
+/// <summary>冻结薄 Room、ACT Gameplay Facade 与 Simulation 的生产调用顺序。</summary>
 public sealed class ReplicationProductionOrderTests
 {
-    /// <summary>Host 必须先收包写输入，再按 Combat/PostCombat/Commit/Capture/Send 顺序完成一格。</summary>
+    /// <summary>Host 必须先 Poll/消费输入，再于权威步末 Capture、构帧并发送。</summary>
     [Test]
     public void HostFrame_ProductionSource_PreservesReceiveStepCaptureSendOrder()
     {
         string room = ReadScript("App/Controllers/Gameplay/ReplicationRoomHost.cs");
+        string gameplay = ReadScript("App/Networking/Services/ActHostRoomGameplay.cs");
         string authority = ReadScript("App/Networking/Adapters/ActAuthorityReplicationAdapter.cs");
         string gameSession = ReadScript("App/Networking/Adapters/ActGameSessionHandler.cs");
         string simulation = ReadScript("App/Controllers/Gameplay/SimulationHost.cs");
@@ -21,8 +19,8 @@ public sealed class ReplicationProductionOrderTests
         AssertInOrder(
             roomUpdate,
             "_session.Poll(NowMs());",
-            "DrainPlayerRequests();",
-            "DrainApplicationMessages();");
+            "_gameplay?.DrainPlayerRequests(_session);",
+            "_gameplay?.DrainApplicationMessages(_session);");
 
         string applyCommands = Slice(
             authority,
@@ -51,35 +49,38 @@ public sealed class ReplicationProductionOrderTests
             "AfterLogicStep?.Invoke(",
             "_frameHits.Clear();");
 
-        string afterStep = Slice(
-            room,
-            "    void OnAfterLogicStep(long authorityFrame)",
-            "    void DrainPlayerRequests()");
+        string buildFrame = Slice(
+            gameplay,
+            "    public bool TryBuildReplicationFrame(",
+            "    public void OnSessionDisconnected(");
         AssertInOrder(
-            afterStep,
-            "CaptureAuthorityActors();",
-            "CopyHits();",
+            buildFrame,
+            "_contentPrefill.EnsureActionsReady();",
+            "_authority.CaptureAuthorityActors(",
+            "_authority.CopyHits(",
             "ActReplicationApplicationPayloadCodec.Encode(",
             "_replicationServer.BuildFrame(",
-            "ReplicationFrameCodec.Encode(frame);",
+            "ReplicationFrameCodec.Encode(frame);");
+
+        string roomAfterStep = Slice(
+            room,
+            "    void OnAfterLogicStep(long authorityFrame)",
+            "    void OnSessionDisconnected(");
+        AssertInOrder(
+            roomAfterStep,
+            "_gameplay.TryBuildReplicationFrame(",
             "_session.SendApplication(");
 
         string spawnGuest = Slice(
-            room,
-            "    bool TrySpawnGuest(",
+            gameplay,
+            "    bool TryCreateGuest(",
             "    void ApplyGuestCommands(ClientCommand[] commands)");
         AssertInOrder(
             spawnGuest,
             "_gameSession.TryCreateGuest(",
             "_replicationServer = new ReplicationServer();",
             "_guest = guest;",
-            "_session.AcceptPlayer(");
-        Assert.That(room, Does.Not.Contain("CharacterActorFactory.Create("));
-        Assert.That(room, Does.Not.Contain("new GameObject(\"RemotePlayer\")"));
-        Assert.That(room, Does.Not.Contain("ActionReplicationCatalog"));
-        Assert.That(room, Does.Not.Contain("CharacterReplicationContentRegistry"));
-        Assert.That(authority, Does.Contain("_characterSchema.Capture("));
-        Assert.That(authority, Does.Not.Contain("CharacterReplicationCapture"));
+            "session.AcceptPlayer(");
 
         string createGuest = Slice(
             gameSession,
@@ -109,53 +110,77 @@ public sealed class ReplicationProductionOrderTests
             "guest.Reactions?.Dispose();",
             "guest.Actor?.Dispose();",
             "_services.DestroyGameObject?.Invoke(");
+
+        Assert.That(authority, Does.Contain("_characterSchema.Capture("));
+        Assert.That(authority, Does.Not.Contain("CharacterReplicationCapture"));
     }
 
-    /// <summary>Client 必须先收权威并采样，再于逻辑步回调中先上行、后预测。</summary>
+    /// <summary>Client 必须先收权威并采样；逻辑步内先发送命令，再推进 Autonomous 预测。</summary>
     [Test]
     public void ClientFrame_ProductionSource_PreservesReceiveSampleSendPredictOrder()
     {
-        string client = ReadScript("App/Controllers/Gameplay/ReplicationRoomClient.cs");
+        string room = ReadScript("App/Controllers/Gameplay/ReplicationRoomClient.cs");
+        string gameplay = ReadScript("App/Networking/Services/ActClientRoomGameplay.cs");
         string owner = ReadScript("App/Networking/Adapters/ActOwnerReplicationAdapter.cs");
         string observer = ReadScript("App/Networking/Adapters/ActObserverReplicationAdapter.cs");
 
-        string update = Slice(client, "    void Update()", "    void LateUpdate()");
+        string update = Slice(room, "    void Update()", "    void LateUpdate()");
         AssertInOrder(
             update,
             "_session.Poll(NowMs());",
             "SyncSessionState();",
             "DrainApplicationMessages();",
             "if (_joined && !_ended)",
-            "SampleRenderInput();");
+            "_gameplay?.SampleRenderInput();");
 
-        string replicationFrame = Slice(
-            client,
-            "    void OnReplicationFrame(byte[] body)",
-            "    void ApplySpawns(");
-        AssertInOrder(
-            replicationFrame,
-            "ReplicationFrameCodec.Decode(body);",
-            "_replicationClient.ApplyFrame(frame);",
-            "ActReplicationApplicationPayloadCodec.Decode(",
-            "ApplySpawns(",
-            "ApplyUpdates(",
-            "ApplyDespawns(",
-            "ApplyOwnerSnapshot(",
-            "PlayReplicatedHits(application.Hits);");
-
-        string afterStep = Slice(
-            client,
+        string roomAfterStep = Slice(
+            room,
             "    void OnAfterLogicStep(long _)",
-            "    void SampleRenderInput()");
+            "    void SyncSessionState()");
         AssertInOrder(
-            afterStep,
+            roomAfterStep,
+            "_gameplay.TryBuildCommand(out byte[] body)",
+            "_session.SendApplication(",
+            "_gameplay.StepPrediction();");
+
+        string buildCommand = Slice(
+            gameplay,
+            "    public bool TryBuildCommand(",
+            "    public void StepPrediction()");
+        AssertInOrder(
+            buildCommand,
             "_predictFrame++;",
             "_inputFrames.ResolveLocal(",
             "RememberCommand(in command);",
-            "_session.SendApplication(",
+            "RoomCodec.WriteClientCommandBatch(",
+            "_pendingPredictionInput = input;");
+
+        string prediction = Slice(
+            gameplay,
+            "    public void StepPrediction()",
+            "    public ActClientFrameApplyStatus ApplyReplicationFrame(");
+        AssertInOrder(
+            prediction,
             "actor.Step(",
             "actor.ResolvePostCombat(",
-            "_owner.RecordAutonomous(actor, _predictFrame, in input);");
+            "PresentPredictedHitStop(actor);",
+            "ResolveAutonomousSoftBody(actor);",
+            "_owner.RecordAutonomous(");
+
+        string applyFrame = Slice(
+            gameplay,
+            "    public ActClientFrameApplyStatus ApplyReplicationFrame(",
+            "    public void Render()");
+        AssertInOrder(
+            applyFrame,
+            "ReplicationFrameCodec.Decode(body);",
+            "_replicationClient.ApplyFrame(frame);",
+            "ActReplicationApplicationPayloadCodec.Decode(",
+            "_observer.ApplySpawns(",
+            "_observer.ApplyUpdates(",
+            "_observer.ApplyDespawns(",
+            "_owner.ApplySnapshot(",
+            "PlayReplicatedHits(application.Hits);");
 
         string applyOwner = Slice(
             owner,
@@ -168,9 +193,6 @@ public sealed class ReplicationProductionOrderTests
             "_driver.Reconcile(",
             "ApplyAuthorityVitalityEdge(",
             "_driver?.SnapToSnapshot(in self);");
-        Assert.That(client, Does.Not.Contain("_actionAck.Reconcile("));
-        Assert.That(client, Does.Not.Contain("_driver.Reconcile("));
-        Assert.That(client, Does.Not.Contain("ApplyAuthorityHealthMilli("));
 
         string applyObserverSpawns = Slice(
             observer,
@@ -194,14 +216,9 @@ public sealed class ReplicationProductionOrderTests
             "_unregisterTarget?.Invoke(proxy);",
             "proxy.Dispose();",
             "_proxies.Remove(id);");
-        Assert.That(client, Does.Not.Contain("_proxies."));
-        Assert.That(client, Does.Not.Contain("ActRemoteProxyFactory.Create("));
-        Assert.That(client, Does.Not.Contain("ActionReplicationCatalog"));
-        Assert.That(client, Does.Not.Contain("CharacterReplicationContentRegistry"));
-        Assert.That(client, Does.Contain("new ActCharacterSnapshotSchema(_content)"));
     }
 
-    /// <summary>从 Assets 相对路径读取当前生产脚本，确保测试锁定真实调用点。</summary>
+    /// <summary>从 Assets 相对路径读取真实生产脚本。</summary>
     static string ReadScript(string relativePath)
     {
         string path = Path.Combine(Application.dataPath, "Scripts", relativePath);
@@ -209,7 +226,7 @@ public sealed class ReplicationProductionOrderTests
         return File.ReadAllText(path);
     }
 
-    /// <summary>截取两个唯一方法签名之间的源码，避免同名调用干扰顺序断言。</summary>
+    /// <summary>截取两个唯一方法签名之间的源码。</summary>
     static string Slice(string source, string startMarker, string endMarker)
     {
         int start = source.IndexOf(startMarker, System.StringComparison.Ordinal);
@@ -219,7 +236,7 @@ public sealed class ReplicationProductionOrderTests
         return source.Substring(start, end - start);
     }
 
-    /// <summary>要求所有关键调用标记按给定次序出现，任一缺失或逆序都失败。</summary>
+    /// <summary>要求所有关键标记按给定次序出现。</summary>
     static void AssertInOrder(string source, params string[] markers)
     {
         int cursor = 0;

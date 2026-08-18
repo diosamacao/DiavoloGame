@@ -112,7 +112,7 @@
 
 **客机装配：** [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md) — **CA0～CA2 代码已切（2026-08-15）**：同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。Play 待 Editor。纠偏合同仍见 [`UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
 
-**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W4 Character Schema Capture 切片待验收（2026-08-18）**：Content Registry 已验收；`ActCharacterSnapshotSchema` 已统一 CharacterActor Capture 与 V1 编解码，并替代独立 `CharacterReplicationCapture`。后续收敛 Room Facade 与 W4 架构出口，Dedicated 仍须等 W4 出口。
+**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W4 结构代码完成，待整体 Editor 出口（2026-08-18）**：`ActCharacterSnapshotSchema` 已替代独立 Capture；新增 `ActHostRoomGameplay` / `ActClientRoomGameplay` / `ActContentPrefillService`，Host/Client Room 已缩为薄 Session Facade，且架构测试冻结 ACTNet、Room、Owner、Observer 边界。完整 Test Runner 与双进程 Play 通过后关闭 M1，再启动 Dedicated W5。
 
 ### [P1] Lockstep 模拟核迁移
 
@@ -190,6 +190,7 @@
 - [x] 2026-06-29：新增 Editor 架构边界校验，检查 `System` / `Controller` / `Event` 契约和 Domain 单例访问
 - [ ] 仅 `Domain/Simulation` 已拆 asmdef；其余业务仍在单一 Assembly-CSharp
 - [x] 2026-08-13：MoveReferenceYaw 输入闭包；唯一 SelectedTarget + 动作中切敌；删除 PlanarBasis/CombatTargetLock/ActionTargetId/Presentation late-bind
+- [x] 2026-08-18：NetSync W4 结构代码——ACTNet 零反向依赖；Host/Client Room 薄 Facade；Character/内容/预测/Proxy/Hit Cue 迁入 App Gameplay Services；架构守卫已补
 
 ## 已完成
 

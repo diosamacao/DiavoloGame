@@ -945,20 +945,20 @@ Assets/Tests/PlayMode/Networking/
 - [x] 创建 `ActOwnerReplicationAdapter`，封装 self Snapshot 应用和 HP 权威覆盖。（2026-08-18 Test Runner / 双进程 Play 已验收）
 - [x] 创建 `ActRemoteProxyFactory`，封装 Proxy、TargetSystem、配置和 View 生命周期。（2026-08-18 Test Runner / 双进程 Play 已验收）
 - [x] `ActionReplicationCatalog` 迁入 `ActContentRegistry`。（2026-08-18 Test Runner / 双进程 Play 已验收）
-- [ ] `CharacterReplicationCapture` 迁入 `CharacterSnapshotSchema`。（2026-08-18 `ActCharacterSnapshotSchema` 代码完成并删除旧 Capture，待 Test Runner / 双进程 Play）
-- [ ] Hit Cue、PredictedHitStop、CameraLock 接缝留在 ACT / App。  
-- [ ] RoomHost/Client 缩成薄 Unity Facade，或由新的 `NetGameController` 取代。  
-- [ ] **删除**通用 Session / Replication 对 CharacterConfig、PlayerController、EnemySpawnController 的引用。  
+- [x] `CharacterReplicationCapture` 迁入 `CharacterSnapshotSchema`。（2026-08-18 `ActCharacterSnapshotSchema` 已验收，旧 Capture 已删除）
+- [x] Hit Cue、PredictedHitStop、CameraLock 接缝留在 ACT / App。（2026-08-18 收敛到 `ActClientRoomGameplay`）
+- [x] RoomHost/Client 缩成薄 Unity Facade，或由新的 `NetGameController` 取代。（2026-08-18 Room 只负责 Session 收发、固定帧调度与 HUD）
+- [x] **删除**通用 Session / Replication 对 CharacterConfig、PlayerController、EnemySpawnController 的引用。（ACTNet 零匹配；内容扫描唯一位于 `ActContentPrefillService`）
 
 **验收**
 
-- [ ] `ACTNet.*` 全局搜索无 `CharacterActor|ActionDefinition|CharacterConfig|CombatHitPipeline|RemoteCharacterProxy`。  
-- [ ] Authority / Owner / Observer 映射测试通过。  
-- [ ] Observer 永不创建完整 CharacterActor。  
-- [ ] Autonomous 永不注册权威 Hitbox Consumer。  
+- [x] `ACTNet.*` 全局搜索无 `CharacterActor|ActionDefinition|CharacterConfig|CombatHitPipeline|RemoteCharacterProxy|UnityEngine`。（2026-08-18 源码扫描通过并新增守卫）
+- [ ] Authority / Owner / Observer 映射测试通过。（既有 Adapter 测试已验收；新增 Room 架构守卫待 Test Runner）
+- [ ] Observer 永不创建完整 CharacterActor。（源码边界成立并已补测试，待 Test Runner）
+- [ ] Autonomous 永不注册权威 Hitbox Consumer。（源码边界成立并已补测试，待 Test Runner）
 - [ ] 人工：移动、出招、连招、受击、死亡、CameraLock 全回归。  
 
-**出口：** 通用层与 ACT 业务层完成结构性分离。→ **未达成**
+**出口：** 通用层与 ACT 业务层完成结构性分离。→ **结构代码完成；待 Test Runner 与人工联机回归后关闭**
 
 ### GF5 — Prediction Runtime 分离
 

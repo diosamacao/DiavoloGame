@@ -50,6 +50,7 @@
 - **客机本机走跑**：真源 [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md)。本机 Autonomous `CharacterActor` 跑同一套 `LocomotionStateMachine`；纠偏 Restore+Replay；他人仍 Snapshot。禁止猜片 / 摇杆硬映射 Idle/Walk/Run。已废止 Runner/CreateAutonomous
 - **客机表现节拍**：本机 Clip/VFX 由 `CharacterActor.Step` + `CharacterActionPresentationBridge` 推进。禁止对自角色 `ApplySnapshot` Seek。权威 Tick 只更新纠偏与 HP/受击边沿。禁止同一逻辑帧 Tick 两次 Clip。走跑 Replay 外禁止每帧 `SyncRootPoseFromSim`（会清零转向阻尼）
 - **复制目录 Prefill**：必须收录 Graph 节点 `Action` 与 `VariantResolver` 变体（六向闪避）。只预填 `node.Action` 时客机侧/后闪 `TryGet` 失败，只有位移没有 Clip
+- **网络 Room 薄 Facade**：`ReplicationRoomHost/Client` 只做 Session Poll/应用消息收发、固定帧回调、Gameplay Service 调度与 HUD；CharacterConfig/PlayerController/EnemySpawnController/RemoteProxy/Hit Cue/HitStop 实现必须留在 `App/Networking` Service/Adapter，禁止迁回 Room 或保留双轨
 - **预测位移**：`PredictedLocomotionDriver` 只做 SavedMove 队列与纠偏编排。走跑带 `IPredictedLocomotionReplay` 时默认硬吸阈 `AutonomousHardSnapMm`（2m），禁止房间再传 50mm：内层机与 Host 常态偏差就会每包 Restore+Replay+表现硬切，客机走跑卡顿。无 replay 的旧 Predict 单测仍用 50mm。超 2m：`RestoreFromAuthority` + `ReplayTick`，禁止对走跑步 `ApplyInput`。Listen Host 本地禁止把预测写进 `CharacterActor.Step`。纠偏可改预测电机，禁止把表现 Pose 写回权威 Motor。Lean 不进 Snapshot
 - **纠偏后表现**：仅走跑真正 `Snapped`（≥ 2m）或权威 **Hit/Death** 才 `SnapPresentationToSimulation`。出招/闪避禁止每包硬切表现，否则插值被掐死、位移和相机一起跳。刚吸附后 8 包内 ≤ 150mm 只 Ack
 - **出招中相机**：`CameraManager` 在 `ILocalPlayer.IsPresentingAction` 时暂停 L-DIR5 跟朝向，避免连闪 yaw 追权威朝向台阶
@@ -174,7 +175,7 @@ public class MyBehaviour : MonoBehaviour
 
 - **一份战斗逻辑**：`ACTGame.Simulation`（`Assets/Scripts/Domain/Simulation/ACTGame.Simulation.asmdef`，`noEngineReferences`）等价 Source 的 `game/shared`。Listen Host、Dedicated、客户端预测位移必须调用同一 `CharacterMotorSim` / `ActionSim`，禁止 `ServerMotor` / `ClientMotor` 双份
 - **输入即命令**：`InputFrame` 等价 Source `CUserCmd`（`game/shared/usercmd.h`）。权威 `InputFrameBuffer.SetRemote` 后 `SimulationWorld.Step`；禁止把「放 LightAttack1」RPC 当战斗上行
-- **状态下行**：`CharacterReplicationCapture` + `ReplicationSnapshotBuilder` 从权威 Actor 填 `ActorReplicationSnapshot`（`Domain/Simulation/Replication/`）。客户端 PredictedLocal 纠偏、RemoteProxy 插值；禁止再广播全员输入让各端重演
+- **状态下行**：`ActCharacterSnapshotSchema.Capture` + `ReplicationSnapshotBuilder` 从权威 Actor 填 `ActorReplicationSnapshot`；客户端 Owner 纠偏、RemoteProxy 插值；禁止恢复已删除的独立 `CharacterReplicationCapture`，也禁止广播全员输入让各端重演
 - **命中只在权威**：`CombatHitPipeline` 仅 Authority 装配 Collect。客户端刀光不得改 Numeric / Vitality
 
 ### 两套管线（不可混）
@@ -216,6 +217,7 @@ Framework/ACTNet/Session/        # ServerSession / ClientSession / Registry / Se
 Framework/ACTNet/Replication/    # Frame / Schema / Entity Registry / Server / Client；只引用 Core
 Infrastructure/Net/              # 预留 Unity Transport；不得被 ACTGame.Simulation 引用
 App/Controllers/Gameplay/        # ReplicationRoomHost / Client / RemotePlayerSeat
+App/Networking/Services/         # ACT 内容扫描、Host/Client Gameplay 编排；Room 不实现具体 Gameplay
 ```
 
 ### 明确不搬进本项目的 DemoServer 战斗写法

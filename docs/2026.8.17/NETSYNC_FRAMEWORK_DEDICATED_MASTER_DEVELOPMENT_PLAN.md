@@ -243,21 +243,21 @@ W5 起额外要求：
 - [x] 建 `ActOwnerReplicationAdapter`：Owner HP、Action Ack、Locomotion Reconcile。（2026-08-18 Test Runner / 双进程 Play 已验收）
 - [x] 建 `ActRemoteProxyFactory`：Proxy、TargetSystem、Archetype 与 View 生命周期。（2026-08-18 Test Runner / 双进程 Play 已验收）
 - [x] `ActionReplicationCatalog` 迁入 `ActContentRegistry`。（2026-08-18 Test Runner / 双进程 Play 已验收）
-- [ ] `CharacterReplicationCapture` 迁入 Character Schema。（2026-08-18 `ActCharacterSnapshotSchema` 代码完成并删除旧 Capture，待 Test Runner / 双进程 Play）
-- [ ] Hit Cue、PredictedHitStop、CameraLock 只留 ACT/App。
-- [ ] `ReplicationRoomHost/Client` 缩为薄 Facade，或切到 `NetGameController`。
-- [ ] 删除 Session / Replication 对 `CharacterConfig`、`PlayerController`、`EnemySpawnController`、`RemoteCharacterProxy` 的引用。
-- [ ] 删除已迁出的旧 Room Gameplay 路径；不得保留两套运行入口。
+- [x] `CharacterReplicationCapture` 迁入 Character Schema。（2026-08-18 `ActCharacterSnapshotSchema` 已验收，旧 Capture 已删除）
+- [x] Hit Cue、PredictedHitStop、CameraLock 只留 ACT/App。（2026-08-18 表现与预测接缝迁入 `ActClientRoomGameplay`）
+- [x] `ReplicationRoomHost/Client` 缩为薄 Facade，或切到 `NetGameController`。（2026-08-18 Room 仅保留 Session 收发、固定帧调度与 HUD）
+- [x] 删除 Session / Replication 对 `CharacterConfig`、`PlayerController`、`EnemySpawnController`、`RemoteCharacterProxy` 的引用。（2026-08-18 ACTNet 搜索零匹配；场景内容由 `ActContentPrefillService` 承接）
+- [x] 删除已迁出的旧 Room Gameplay 路径；不得保留两套运行入口。（2026-08-18 Host/Client Gameplay 单轨切入 `Act*RoomGameplay`）
 
 **验收**
 
-- [ ] `ACTNet.*` 搜索无 `CharacterActor|ActionDefinition|CharacterConfig|CombatHitPipeline|RemoteCharacterProxy|UnityEngine`。
-- [ ] Authority / Owner / Observer 映射测试通过。
-- [ ] Observer 不创建完整 `CharacterActor`。
-- [ ] Owner 不注册权威 Hitbox Consumer。
+- [x] `ACTNet.*` 搜索无 `CharacterActor|ActionDefinition|CharacterConfig|CombatHitPipeline|RemoteCharacterProxy|UnityEngine`。（2026-08-18 源码扫描通过，并新增边界守卫）
+- [ ] Authority / Owner / Observer 映射测试通过。（既有 Adapter 测试已验收；新增 W4 Room 架构守卫待 Test Runner）
+- [ ] Observer 不创建完整 `CharacterActor`。（源码边界成立并已补测试，待 Test Runner）
+- [ ] Owner 不注册权威 Hitbox Consumer。（源码边界成立并已补测试，待 Test Runner）
 - [ ] 双人联机移动、出招、连招、受击、死亡、CameraLock 全回归。
 
-**出口：** M1 达成；网络层 / ACT 业务层结构性分离完成，可启动 Dedicated 主路径。→ **未达成**
+**出口：** M1 达成；网络层 / ACT 业务层结构性分离完成，可启动 Dedicated 主路径。→ **结构代码完成；待 Test Runner 与双人 Play 后关闭**
 
 ---
 
@@ -557,8 +557,8 @@ W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 ### M1 — 网络层分离
 
 - [ ] GF0～GF4 出口全部达成。
-- [ ] `ACTNet.*` 无 ACT / Unity 反向引用。
-- [ ] Session 不知道 Character，Replication 不知道 Action。
+- [x] `ACTNet.*` 无 ACT / Unity 反向引用。（2026-08-18 源码扫描 + 架构守卫）
+- [x] Session 不知道 Character，Replication 不知道 Action。（2026-08-18 W4 边界扫描）
 - [ ] 当前双人 Listen 行为回归通过。
 
 ### M2 — DS-Demo
