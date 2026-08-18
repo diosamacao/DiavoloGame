@@ -19,18 +19,14 @@ public sealed class ReplicationRoomClient : AppControllerBase
     CharacterSnapshotSchemaV1 _characterSchema;
     CharacterReplicationContentRegistry _content;
     PlayerController _localPlayer;
-    PredictedLocomotionDriver _driver;
-    readonly PredictedActionAckQueue _actionAck = new();
+    ActOwnerReplicationAdapter _owner;
     SessionJoinAccept _accept;
     bool _joined;
     bool _ended;
     long _predictFrame;
     long _lastAuthorityFrame = -1;
-    int _selfHealthMilli = -1;
     int _lastTickBytes = -1;
     int _lastCommandBytes = -1;
-    ActorReplicationSnapshot _lastSelfSnapshot;
-    bool _hasSelfSnapshot;
     InputFrameBuffer _inputFrames;
 
     readonly List<ClientCommand> _recentCommands = new();
@@ -41,7 +37,6 @@ public sealed class ReplicationRoomClient : AppControllerBase
     readonly List<RemoteCharacterProxy> _softBlockers = new();
     SimVec2[] _softBlockerPosMm = Array.Empty<SimVec2>();
     int[] _softBlockerRadiiMm = Array.Empty<int>();
-    int _lastPredictedActionId;
     int _lastPresentedHitStopFrames;
 
     /// <summary>由 Composition Root 注入战斗世界与已启动的客户端 Session。</summary>
@@ -64,6 +59,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
         _schemaRegistry.Register(_characterSchema);
         _replicationClient = new ReplicationClient(_schemaRegistry);
         _content = new CharacterReplicationContentRegistry();
+        _owner = new ActOwnerReplicationAdapter(_catalog);
         PrepareContentCatalog();
         RefreshHud("Connecting");
     }
@@ -134,7 +130,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
             body);
 
         CharacterActor actor = _localPlayer != null ? _localPlayer.Actor : null;
-        if (!_hasSelfSnapshot || _driver == null || actor == null)
+        if (_owner == null || !_owner.CanPredict || actor == null)
             return;
 
         // 本机 Autonomous：同一套 Actor.Step，不进权威 World
@@ -144,13 +140,8 @@ public sealed class ReplicationRoomClient : AppControllerBase
         PresentPredictedHitStop(actor);
         ResolveAutonomousSoftBody(actor);
 
-        int actionId = ResolveLocalActionId(actor);
-        if (actionId != 0)
-            _lastPredictedActionId = actionId;
-        _actionAck.Record(_predictFrame, actionId);
-
-        // 记下 SavedMove，权威包到达时 Replay
-        _driver.RecordAutonomous(in input);
+        // Owner Adapter 同时记录动作 ACK 与 SavedMove，权威包到达时统一和解。
+        _owner.RecordAutonomous(actor, _predictFrame, in input);
         RefreshHud("Joined");
     }
 
@@ -233,10 +224,10 @@ public sealed class ReplicationRoomClient : AppControllerBase
 
         _accept = accept;
         _joined = true;
-        _lastPredictedActionId = 0;
         _predictFrame = accept.AuthorityTick.Value;
         _lastAuthorityFrame = accept.AuthorityTick.Value;
         EnsureInputBuffer();
+        _owner.BeginSession(new SimActorId(accept.EntityId.Value), _inputFrames);
         _recentCommands.Clear();
         _localPlayer = SendQuery(new GetLocalPlayerQuery()) as PlayerController;
         Debug.Log(
@@ -416,76 +407,14 @@ public sealed class ReplicationRoomClient : AppControllerBase
             transform);
     }
 
-    /// <summary>应用本帧最后一条 Owner 快照，并保持预测和解与受击硬吸语义。</summary>
+    /// <summary>把本帧最后一条 Owner 快照交给 ACT Owner Adapter 原子应用。</summary>
     void ApplyOwnerSnapshot(
         in ActorReplicationSnapshot self,
         long appliedHint)
     {
-        if (self.Kind != ReplicationActorKind.Player)
-            throw new InvalidOperationException("Owner Snapshot Kind 必须为 Player。");
-
-        _lastSelfSnapshot = self;
-        _hasSelfSnapshot = true;
-        _selfHealthMilli = self.HealthMilli;
-        EnsurePredictedDriver(in self);
-        CharacterActor actor = _localPlayer != null ? _localPlayer.Actor : null;
-        if (actor != null)
-            actor.Vitality.ApplyAuthorityHealthMilli(self.HealthMilli);
-
-        // CarryForward hint=0 只更新状态，不拿旧预测位姿对当前权威帧做和解。
-        if (appliedHint > 0 && actor != null && _driver != null)
-        {
-            PredictedActionReconcileResult actionResult = _actionAck.Reconcile(appliedHint, in self);
-            if (PredictedActionAckQueue.ShouldStopAutonomousAction(actionResult, in self))
-                actor.StopAutonomousAction();
-
-            _catalog.TryGet(self.ActionId, out ActionDefinition authorityAction);
-            PredictedReconcileResult loco = _driver.Reconcile(
-                appliedHint,
-                in self,
-                actor,
-                ActionMotionReconcileGate.ResolveSnapThresholdMm(
-                    actor,
-                    in self,
-                    authorityAction));
-            if (loco.Snapped)
-                actor.SnapPresentationToSimulation();
-        }
-
-        if (IsAuthorityHitOrDeath(in self) && actor != null)
-        {
-            ApplyAuthorityVitalityEdge(actor, in self);
-            _driver?.SnapToSnapshot(in self);
-            actor.SnapPresentationToSimulation();
-        }
-    }
-
-    /// <summary>首份 self 快照：绑定 ActorId、对齐位姿、建纠偏 Driver。不另建 Proxy。</summary>
-    void EnsurePredictedDriver(in ActorReplicationSnapshot self)
-    {
-        if (_driver != null)
-            return;
-        if (_localPlayer == null || _localPlayer.CharacterConfig == null || _localPlayer.Actor == null)
-            return;
-
-        CharacterActor actor = _localPlayer.Actor;
-        CharacterConfig config = _localPlayer.CharacterConfig;
-        actor.BindSimulationInput(new SimActorId(_accept.EntityId.Value), _inputFrames);
-        actor.MotorSim.TeleportMm(self.PosXMm, self.PosYMm, self.PosZMm);
-        actor.MotorSim.SetFacingMilliDeg(self.FacingMilliDeg);
-        // MotorSim 与 Transform 必须同帧对齐；只 Snap 插值会把 +2m 客机出生点拖进第一击位移
-        actor.AlignSimulationRootToMotor();
-        actor.SnapPresentationToSimulation();
-
-        var predictConfig = new PredictedLocomotionConfig(
-            MotionQuantization.MetersToMm(config.Motor.WalkSpeed),
-            MotionQuantization.MetersToMm(config.Motor.RunSpeed),
-            Mathf.RoundToInt(config.Motor.RunThreshold * 1000f),
-            SimulationConfig.DefaultLogicHz,
-            PredictedLocomotionConfig.Default.ReconcileThresholdMm,
-            config.Motor.RotationSmoothTime,
-            MotionQuantization.MetersToMm(config.Motor.SprintSpeed));
-        _driver = new PredictedLocomotionDriver(actor.MotorSim, predictConfig);
+        if (_owner == null)
+            throw new InvalidOperationException("Owner Adapter 尚未初始化。");
+        _owner.ApplySnapshot(_localPlayer, in self, appliedHint);
     }
 
     /// <summary>
@@ -556,32 +485,6 @@ public sealed class ReplicationRoomClient : AppControllerBase
         _lastPresentedHitStopFrames = freeze;
     }
 
-    /// <summary>本机预测招 Catalog Id；无招为 0。</summary>
-    int ResolveLocalActionId(CharacterActor actor)
-    {
-        if (actor?.ActionSim == null || !actor.ActionSim.IsActive)
-            return 0;
-        if (actor.ActionSim.Snapshot.Content is ActionDefinition definition)
-            return _catalog.GetOrAdd(definition);
-        return 0;
-    }
-
-    /// <summary>权威 Hit/Death 边沿写入本机状态机；不经 Pipeline。</summary>
-    void ApplyAuthorityVitalityEdge(CharacterActor actor, in ActorReplicationSnapshot self)
-    {
-        CharacterConfig config = _localPlayer != null ? _localPlayer.CharacterConfig : null;
-        var resolver = new CharacterReactionResolver(config != null ? config.Combat.Reactions : null);
-        if (self.VitalityEdge == VitalityReplicationEdge.Death)
-            actor.EnterDeath(resolver.ResolveDeath(default));
-        else if (self.VitalityEdge == VitalityReplicationEdge.Hit)
-            actor.EnterHit(resolver.ResolveHit(default));
-    }
-
-    /// <summary>受击/死亡才硬切位姿；普通出招不得走这条。</summary>
-    static bool IsAuthorityHitOrDeath(in ActorReplicationSnapshot snapshot) =>
-        snapshot.VitalityEdge == VitalityReplicationEdge.Hit
-        || snapshot.VitalityEdge == VitalityReplicationEdge.Death;
-
     /// <summary>按复制落点播受击 Cue；同一 SimHitKey 只播一次。</summary>
     void PlayReplicatedHits(ReplicatedHitEvent[] hits)
     {
@@ -644,7 +547,6 @@ public sealed class ReplicationRoomClient : AppControllerBase
 
     void DisposeViews()
     {
-        _driver = null;
         TargetSystem targets = GetSystem<TargetSystem>();
         foreach (RemoteCharacterProxy proxy in _proxies.Values)
         {
@@ -673,8 +575,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
         _schemaRegistry = null;
         _characterSchema = null;
         _content = null;
-        _hasSelfSnapshot = false;
-        _lastSelfSnapshot = default;
+        _owner?.Reset();
     }
 
     void RefreshHud(string status)
@@ -687,11 +588,11 @@ public sealed class ReplicationRoomClient : AppControllerBase
             status,
             _lastAuthorityFrame,
             _session?.RttMs ?? -1,
-            _selfHealthMilli,
+            _owner?.SelfHealthMilli ?? -1,
             _lastTickBytes,
             _lastCommandBytes,
             _proxies.Count,
-            (_driver?.PendingCount ?? 0) + _actionAck.PendingCount);
+            _owner?.PendingCount ?? 0);
     }
 
     void SubscribeHost()

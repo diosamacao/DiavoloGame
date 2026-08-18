@@ -112,6 +112,7 @@ public sealed class ReplicationProductionOrderTests
     public void ClientFrame_ProductionSource_PreservesReceiveSampleSendPredictOrder()
     {
         string client = ReadScript("App/Controllers/Gameplay/ReplicationRoomClient.cs");
+        string owner = ReadScript("App/Networking/Adapters/ActOwnerReplicationAdapter.cs");
 
         string update = Slice(client, "    void Update()", "    void LateUpdate()");
         AssertInOrder(
@@ -149,7 +150,22 @@ public sealed class ReplicationProductionOrderTests
             "_session.SendApplication(",
             "actor.Step(",
             "actor.ResolvePostCombat(",
-            "_driver.RecordAutonomous(in input);");
+            "_owner.RecordAutonomous(actor, _predictFrame, in input);");
+
+        string applyOwner = Slice(
+            owner,
+            "    public void ApplySnapshot(",
+            "    public void Reset()");
+        AssertInOrder(
+            applyOwner,
+            "ApplyAuthorityHealthMilli(self.HealthMilli);",
+            "_actionAck.Reconcile(",
+            "_driver.Reconcile(",
+            "ApplyAuthorityVitalityEdge(",
+            "_driver?.SnapToSnapshot(in self);");
+        Assert.That(client, Does.Not.Contain("_actionAck.Reconcile("));
+        Assert.That(client, Does.Not.Contain("_driver.Reconcile("));
+        Assert.That(client, Does.Not.Contain("ApplyAuthorityHealthMilli("));
     }
 
     /// <summary>从 Assets 相对路径读取当前生产脚本，确保测试锁定真实调用点。</summary>
