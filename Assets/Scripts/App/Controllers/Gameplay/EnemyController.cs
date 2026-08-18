@@ -121,6 +121,10 @@ public sealed class EnemyController : AppControllerBase
 
         CombatWorldController combatWorld = EnsureCombatWorldController();
         _simulationHost = combatWorld.EnsureSimulationHost();
+        CharacterPresentationMode presentation =
+            combatWorld.Role == ReplicationRole.DedicatedServer
+                ? CharacterPresentationMode.AuthorityHeadless
+                : CharacterPresentationMode.Full;
         _handle = EnemyActorFactory.Create(
             gameObject,
             transform,
@@ -129,7 +133,8 @@ public sealed class EnemyController : AppControllerBase
             () => SendQuery(new GetActiveTargetsQuery()),
             _simulationHost.CombatHits,
             new CharacterReactionResolver(enemyDefinition.CharacterConfig.Combat.Reactions),
-            _simulationHost.CollisionWorld);
+            _simulationHost.CollisionWorld,
+            presentation);
 
         GetSystem<CombatActorSystem>()?.Register(
             transform,

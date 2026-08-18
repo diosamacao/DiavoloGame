@@ -65,7 +65,8 @@ public sealed class ClientSession : IDisposable
         _nextHeartbeatMs = nowMs + _config.HeartbeatIntervalMs;
         var request = new SessionJoinRequest(
             _config.ContentVersion,
-            _config.ProtocolVersion);
+            _config.ProtocolVersion,
+            _config.GameplayFingerprint);
         _transport.Send(
             _serverConnection,
             NetChannel.ControlReliableOrdered,
@@ -184,6 +185,7 @@ public sealed class ClientSession : IDisposable
         {
             SessionRejectReason reason = SessionCodec.ReadJoinReject(body);
             End(reason == SessionRejectReason.VersionMismatch
+                || reason == SessionRejectReason.ContentMismatch
                 ? DisconnectReason.ProtocolMismatch
                 : reason == SessionRejectReason.ServerFull
                     ? DisconnectReason.ServerFull

@@ -47,6 +47,20 @@ public sealed class SessionCodecTests
         Assert.That(restored.PlayerId.Value, Is.EqualTo(1));
     }
 
+    /// <summary>JoinRequest 的 Gameplay 指纹必须原样往返。</summary>
+    [Test]
+    public void JoinRequest_GameplayFingerprint_RoundTrips()
+    {
+        var fingerprint = new ContentFingerprint(0x1122334455667788ul, 0x99AABBCCDDEEFF00ul);
+        var request = new SessionJoinRequest(4, new NetworkProtocolVersion(1), fingerprint);
+        byte[] payload = SessionCodec.WriteJoinRequest(in request);
+        SessionCodec.ReadEnvelope(payload, out _, out byte[] body);
+        SessionJoinRequest restored = SessionCodec.ReadJoinRequest(body);
+
+        Assert.That(restored.GameplayFingerprint, Is.EqualTo(fingerprint));
+        Assert.That(restored.ContentVersion, Is.EqualTo(4));
+    }
+
     /// <summary>不支持的信封版本必须在读取正文前被拒绝。</summary>
     [Test]
     public void ReadEnvelope_UnsupportedVersion_Throws()

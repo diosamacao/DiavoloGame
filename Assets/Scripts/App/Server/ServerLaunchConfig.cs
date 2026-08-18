@@ -12,7 +12,8 @@ public readonly struct ServerLaunchConfig
         int idleTimeoutMs,
         int heartbeatIntervalMs,
         NetworkProtocolVersion protocolVersion,
-        NetArchetypeId playerArchetypeId)
+        NetArchetypeId playerArchetypeId,
+        ContentFingerprint gameplayFingerprint = default)
     {
         BindHost = bindHost ?? string.Empty;
         BindPort = bindPort;
@@ -22,10 +23,15 @@ public readonly struct ServerLaunchConfig
         HeartbeatIntervalMs = heartbeatIntervalMs;
         ProtocolVersion = protocolVersion;
         PlayerArchetypeId = playerArchetypeId;
+        GameplayFingerprint = gameplayFingerprint;
     }
 
     /// <summary>按房间默认协议创建 LAN Dedicated 配置。</summary>
-    public static ServerLaunchConfig CreateDefault(int bindPort, int contentVersion, int maxPlayers = 4) =>
+    public static ServerLaunchConfig CreateDefault(
+        int bindPort,
+        int contentVersion,
+        int maxPlayers = 4,
+        ContentFingerprint gameplayFingerprint = default) =>
         new(
             "0.0.0.0",
             bindPort,
@@ -34,7 +40,8 @@ public readonly struct ServerLaunchConfig
             ReplicationRoomProtocol.IdleTimeoutMs,
             ReplicationRoomProtocol.HeartbeatIntervalMs,
             new NetworkProtocolVersion(ReplicationRoomProtocol.ProtocolVersion),
-            playerArchetypeId: default);
+            playerArchetypeId: default,
+            gameplayFingerprint);
 
     /// <summary>监听主机；Dedicated 通常为 0.0.0.0。</summary>
     public string BindHost { get; }
@@ -59,6 +66,9 @@ public readonly struct ServerLaunchConfig
 
     /// <summary>Match 为加入玩家选择的默认角色原型；未指定时由后续 Content 填充。</summary>
     public NetArchetypeId PlayerArchetypeId { get; }
+
+    /// <summary>Gameplay 指纹；Valid 时 Join 必须一致。</summary>
+    public ContentFingerprint GameplayFingerprint { get; }
 
     /// <summary>校验启动参数；失败时写出退出码。</summary>
     public bool Validate(out ServerExitCode exitCode)
@@ -89,7 +99,8 @@ public readonly struct ServerLaunchConfig
             MaxPlayers,
             IdleTimeoutMs,
             HeartbeatIntervalMs,
-            firstPlayerId: 1);
+            firstPlayerId: 1,
+            gameplayFingerprint: GameplayFingerprint);
 
     /// <summary>Transport 绑定端点。</summary>
     public NetEndpoint BindEndpoint => new(BindHost, BindPort, allowEphemeralPort: BindPort == 0);

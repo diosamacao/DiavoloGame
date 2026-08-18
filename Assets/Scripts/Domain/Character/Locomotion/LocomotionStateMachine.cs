@@ -61,6 +61,7 @@ public sealed class LocomotionStateMachine
         Context.FootCycle.Unfreeze();
         Context.FootCycle.SetMarkers(System.Array.Empty<FootPlantMarker>());
         Context.SprintLean.Reset();
+        Context.ResetSimulationClock();
 
         bool canResume = resumeRequest.IsValid
             && (!resumeRequest.RequireMoveIntent || Context.Input.HasMoveIntent);
@@ -101,7 +102,7 @@ public sealed class LocomotionStateMachine
         AnimationKey animKey = Context.Animation != null && Context.Animation.CurrentKey.HasValue
             ? Context.Animation.CurrentKey.Value
             : AnimationKey.Idle;
-        float normalized = Context.Animation != null ? Context.Animation.NormalizedTime : 0f;
+        float normalized = Context.SimulationNormalizedTime;
         return new LocomotionSavedState(
             Phase,
             Context.Gait,
@@ -169,6 +170,7 @@ public sealed class LocomotionStateMachine
             state.RootMotionBasisYaw);
 
         _machine.RestoreCurrent(Context, state.Phase);
+        Context.SetSimulationClock(state.NormalizedTime);
 
         if (Context.Animation != null)
         {
@@ -192,6 +194,7 @@ public sealed class LocomotionStateMachine
         // 再执行当前相位的位移/动画/脚步
         if (_phases.TryGetValue(_machine.CurrentStateId, out LocomotionPhaseState phase))
             phase.ExecuteFrame(Context.DeltaTime);
+        Context.AdvanceSimulationClock(Context.DeltaTime);
         // 冲刺倾身只写视觉 Roll
         UpdateSprintLean(Context.DeltaTime);
     }
@@ -216,8 +219,14 @@ public sealed class LocomotionStateMachine
     }
 
     /// <summary>供 Context / 各态请求相位切换。</summary>
-    public bool TryChangePhase(LocomotionPhase next, bool force = false) =>
-        _machine.TryChangeState(next, force);
+    public bool TryChangePhase(LocomotionPhase next, bool force = false)
+    {
+        LocomotionPhase before = Phase;
+        bool changed = _machine.TryChangeState(next, force);
+        if (changed && Phase != before)
+            Context.ResetSimulationClock();
+        return changed;
+    }
 
     void Register(LocomotionPhaseState state)
     {

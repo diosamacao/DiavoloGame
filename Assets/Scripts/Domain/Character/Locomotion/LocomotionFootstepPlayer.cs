@@ -15,6 +15,15 @@ public sealed class LocomotionFootstepPlayer
             _audioSource = actorRoot.gameObject.AddComponent<AudioSource>();
     }
 
+    /// <summary>无 AudioSource 的静默脚步；Headless Authority 使用。</summary>
+    public static LocomotionFootstepPlayer CreateSilent() => new();
+
+    LocomotionFootstepPlayer()
+    {
+        _profile = null;
+        _audioSource = null;
+    }
+
     /// <summary>若本帧有落脚则播放对应脚步音。</summary>
     public void PlayIfPlanted(FootSide? planted)
     {

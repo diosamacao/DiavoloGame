@@ -9,4 +9,7 @@ public enum SessionRejectReason : byte
 
     /// <summary>Gameplay 无法为连接创建玩家实体。</summary>
     GameRejected = 3,
+
+    /// <summary>Gameplay ContentFingerprint 不一致。</summary>
+    ContentMismatch = 4,
 }

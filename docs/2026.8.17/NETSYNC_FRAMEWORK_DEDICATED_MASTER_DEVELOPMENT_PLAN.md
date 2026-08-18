@@ -292,9 +292,9 @@ W5 起额外要求：
 - [x] 一人断开不影响其他人。（2026-08-19）
 - [x] 每连接 ACK 不串线。（2026-08-19）
 - [x] Server Bootstrap 程序集不引用 Client HUD / Input / Camera。（2026-08-19：架构守卫）
-- [ ] Editor Headless Play：菜单 `Use Dedicated Server` 无本机玩家即可 Listening（需用户确认）
+- [x] Editor Headless Play：菜单 `Use Dedicated Server` 无本机玩家即可 Listening（2026-08-19 用户验收）
 
-**出口：** Dedicated 成为独立宿主，不是 Listen Host 开关。→ **代码已切；Editor Play 待确认**
+**出口：** Dedicated 成为独立宿主，不是 Listen Host 开关。→ **已达成（2026-08-19）**
 
 ---
 
@@ -304,25 +304,25 @@ W5 起额外要求：
 
 **任务**
 
-- [ ] 建 `ServerSimulationRunner`：单调时间、固定 60Hz、catch-up 上限、overrun 指标。
-- [ ] 建 Headless Authority Character 装配。
-- [ ] Server 不创建 PlayableGraph、Animator、Model、VFX、SFX、HitStop Presentation。
-- [ ] AI、Motor、Action、Numeric、Targeting、Hitbox、Hurtbox 完整运行。
-- [ ] 将权威 Locomotion 相位/时间采集从 `CharacterAnimationService` 移到模拟状态真源。
-- [ ] 分类 Gameplay Notify 与 Presentation Notify。
-- [ ] 定义 `ServerContentManifest`、`NetArchetypeId`、Gameplay `ContentFingerprint`。
-- [ ] 首版允许使用现有 Gameplay ScriptableObject 闭包；完整 Action Gameplay Bake 后置，除非 Server Build 被 Clip 依赖阻塞。
-- [ ] 删除 Server 对 `_enemyConfigs[0]`、ModelPrefab 和表现资源的运行时回退。
+- [x] 建 `ServerSimulationRunner`：单调时间、固定 60Hz、catch-up 上限、overrun 指标。（2026-08-19）
+- [x] 建 Headless Authority Character 装配。（2026-08-19）
+- [x] Server 不创建 PlayableGraph、Animator、Model、VFX、SFX、HitStop Presentation。（2026-08-19）
+- [x] AI、Motor、Action、Numeric、Targeting、Hitbox、Hurtbox 完整运行。（2026-08-19：Headless 工厂 + Dedicated 刷怪）
+- [x] 将权威 Locomotion 相位/时间采集从 `CharacterAnimationService` 移到模拟状态真源。（2026-08-19）
+- [x] 分类 Gameplay Notify 与 Presentation Notify。（2026-08-19）
+- [x] 定义 `ServerContentManifest`、Gameplay `ContentFingerprint`。（2026-08-19；Archetype 沿用既有 `NetArchetypeId`）
+- [x] 首版允许使用现有 Gameplay ScriptableObject 闭包；完整 Action Gameplay Bake 后置。（2026-08-19）
+- [x] Headless 不再回退 ModelPrefab / 表现资源；未知 Archetype 明确失败。（2026-08-19）
 
 **验收**
 
-- [ ] 无 Camera、Animator、Model 的 Authority Actor 可移动、出招、命中、死亡。
-- [ ] 固定输入脚本与普通 Host Authority 的最终 Pose / HP / Action 一致。
-- [ ] 关闭全部 Presentation 后 AI 仍能完成战斗。
-- [ ] 不同 Gameplay Content Fingerprint 明确拒绝 Join。
+- [ ] 无 Camera、Animator、Model 的 Authority Actor 可移动、出招、命中、死亡。（需 Editor Play）
+- [ ] 固定输入脚本与普通 Host Authority 的最终 Pose / HP / Action 一致。（需 Editor Play）
+- [ ] 关闭全部 Presentation 后 AI 仍能完成战斗。（需 Editor Play）
+- [x] 不同 Gameplay Content Fingerprint 明确拒绝 Join。（2026-08-19：`SessionIntegrationTests`）
 - [ ] 持续运行 10 分钟无 Tick 漂移、持续积压或空引用。
 
-**出口：** 权威玩法与表现、客户端内容闭包分离。→ **未达成**
+**出口：** 权威玩法与表现、客户端内容闭包分离。→ **代码已切；Editor Play 待确认**
 
 ---
 
@@ -559,7 +559,7 @@ Codec Golden Bytes
 ```
 
 W0 已于 2026-08-18 关闭，W1～W4 搬迁均受其基线保护。
-W4/M1 已于 2026-08-18 关闭。W5 Dedicated Bootstrap / N 玩家 Session 已于 2026-08-19 代码落地（Editor Play 待确认）。下一阶段 W6 Headless Authority World。
+W5 已于 2026-08-19 用户验收。W6 Headless Authority / 指纹握手已于 2026-08-19 代码落地（Editor Play 待确认）。下一阶段 W7 Match Replication。
 W8 出口关闭前，不宣称 Dedicated Server 已完成。  
 W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 

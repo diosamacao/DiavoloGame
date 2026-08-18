@@ -170,7 +170,7 @@ public sealed class ActHostRoomGameplay
         if (config == null
             || !_gameSession.TryCreateGuest(
                 config,
-                in spawn,
+                spawn,
                 host,
                 request.ConnectionId,
                 _contentPrefill.EnsureActionsReady,

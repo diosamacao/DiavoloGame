@@ -12,6 +12,16 @@ public sealed class ActionReplicationCatalog
     /// <summary>已登记的动作条数（不含 Id=0）。</summary>
     public int Count => _toId.Count;
 
+    /// <summary>复制已登记动作 Id，供 Gameplay 指纹哈希。</summary>
+    public void CopyActionIds(List<int> results)
+    {
+        if (results == null)
+            throw new ArgumentNullException(nameof(results));
+        results.Clear();
+        foreach (int id in _fromId.Keys)
+            results.Add(id);
+    }
+
     /// <summary>按角色配置预填 Graph 节点、VariantResolver 变体与受击反应，保证 Host/Client 同名同 Id。</summary>
     public void Prefill(CharacterConfig config)
     {

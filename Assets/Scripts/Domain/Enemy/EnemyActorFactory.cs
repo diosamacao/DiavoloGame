@@ -14,7 +14,8 @@ public static class EnemyActorFactory
         Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider,
         CombatHitPipeline combatHitPipeline,
         CharacterReactionResolver reactionResolver,
-        ISimCollisionWorld collisionWorld = null)
+        ISimCollisionWorld collisionWorld = null,
+        CharacterPresentationMode presentation = CharacterPresentationMode.Full)
     {
         CharacterConfig config = definition.CharacterConfig;
         var actionEntryRequests = new ActionEntryRequestBuffer();
@@ -41,7 +42,9 @@ public static class EnemyActorFactory
             out CharacterAnimationService animation,
             collisionWorld,
             locomotionDesires,
-            actionEntryRequests);
+            actionEntryRequests,
+            ReplicationSeat.Authority,
+            presentation);
 
         // 敌人 MaxHp 以 Definition 为准，覆盖 Config 默认
         actor.Vitality.ResetMaxHealthPoints(Mathf.RoundToInt(definition.MaxHp));

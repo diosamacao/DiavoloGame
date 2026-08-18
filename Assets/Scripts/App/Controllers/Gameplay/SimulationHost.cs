@@ -13,7 +13,7 @@ public sealed class SimulationHost : AppControllerBase
     readonly List<ReplicatedHitEvent> _frameHits = new();
 
     SimulationConfig _config;
-    FixedStepAccumulator _accumulator;
+    SimulationStepKernel _kernel;
     SimulationWorld _world;
     CombatHitPipeline _combatHits;
     ISimCollisionWorld _collisionWorld = OpenFieldSimCollisionWorld.Instance;
@@ -35,7 +35,10 @@ public sealed class SimulationHost : AppControllerBase
     public ISimCollisionWorld CollisionWorld => _collisionWorld;
 
     /// <summary>当前渲染帧相对上一逻辑步的插值比例，供幽灵与权威表现共用。</summary>
-    public float InterpolationAlpha => _accumulator != null ? _accumulator.InterpolationAlpha : 0f;
+    public float InterpolationAlpha => _kernel != null ? _kernel.InterpolationAlpha : 0f;
+
+    /// <summary>为 true 时 Update/LateUpdate 不自动步进；由 ServerSimulationRunner 调 StepOnce。</summary>
+    public bool DriveFromExternalClock { get; set; }
 
     /// <summary>每个逻辑步在 Combat/PostCombat/生命周期提交之后触发；参数为权威帧号。</summary>
     public event Action<long> AfterLogicStep;
@@ -46,9 +49,7 @@ public sealed class SimulationHost : AppControllerBase
     void Awake()
     {
         _config = new SimulationConfig();
-        _accumulator = new FixedStepAccumulator(
-            _config.FixedDeltaSeconds,
-            _config.MaxFrameCatchUp);
+        _kernel = new SimulationStepKernel(_config);
         _world = new SimulationWorld(_config);
         _combatHits = new CombatHitPipeline(PublishResolvedHit);
         _combatHits.BindNumericLookup(LookupNumeric);
@@ -94,46 +95,52 @@ public sealed class SimulationHost : AppControllerBase
         _collisionWorld = collisionWorld ?? OpenFieldSimCollisionWorld.Instance;
     }
 
+    /// <summary>汇聚本渲染帧设备边沿；Dedicated 外部时钟每拍调用一次。</summary>
+    public void SampleRenderInputs() => _world?.SampleRenderFrame();
+
+    /// <summary>按 Input/Actor/Combat/PostCombat/Commit 推进恰好一个逻辑步。</summary>
+    public void StepOnce()
+    {
+        if (_world == null || _combatHits == null)
+            return;
+
+        _combatHits.BeginFrame(_world.CurrentFrame + 1);
+        _world.Step();
+        _combatHits.ResolveBeforePostCombat(_world.CurrentFrame);
+        _world.ResolvePostCombat();
+        _combatHits.CompleteFrame(_world.CurrentFrame);
+        CommitEnemyLifecycle();
+        GetArchitecture().SendEvent(SimulationLogicStepEvent.Instance);
+        AfterLogicStep?.Invoke(_world.CurrentFrame);
+        _frameHits.Clear();
+    }
+
     /// <summary>按 Input/Actor/Combat/PostCombat/Commit 单轨顺序推进本渲染帧内的全部逻辑步。</summary>
     void Update()
     {
-        // 先汇聚本渲染帧设备边沿，再决定本帧要追几步逻辑
-        _world.SampleRenderFrame();
-        int stepCount = _accumulator.ConsumeSteps(Time.deltaTime);
+        if (DriveFromExternalClock)
+            return;
+
+        SampleRenderInputs();
+        int stepCount = _kernel.ConsumeSteps(Time.deltaTime, out _);
         for (int i = 0; i < stepCount; i++)
-        {
-            // 打开本逻辑帧的命中收集窗口
-            _combatHits.BeginFrame(_world.CurrentFrame + 1);
-            // 输入生产 → Actor.Step → 软弹开
-            _world.Step();
-            // 全体 Step 完成后统一结算伤害/Reaction
-            _combatHits.ResolveBeforePostCombat(_world.CurrentFrame);
-            // 依赖命中结果的 OnHitConfirm/自然结束
-            _world.ResolvePostCombat();
-            // 关闭命中窗口并发布只读结果
-            _combatHits.CompleteFrame(_world.CurrentFrame);
-            // 死亡敌人在帧末统一注销，避免 Step 中改集合
-            CommitEnemyLifecycle();
-            // 表现层按逻辑帧递减 VFX HitStop 等，禁止用 unscaled 秒倒计时
-            GetArchitecture().SendEvent(SimulationLogicStepEvent.Instance);
-            // 每个逻辑步都通知，避免追帧时漏打包复制 Tick
-            AfterLogicStep?.Invoke(_world.CurrentFrame);
-            // 本步命中列表只活到 AfterLogicStep 结束
-            _frameHits.Clear();
-        }
+            StepOnce();
     }
 
     void LateUpdate()
     {
+        if (DriveFromExternalClock)
+            return;
+
         // 模型先完成 Pose 插值，默认顺序的 CameraManager.LateUpdate 再读取同一表现帧。
-        _world.Render(_accumulator.InterpolationAlpha);
+        _world.Render(_kernel.InterpolationAlpha);
     }
 
     void OnDestroy()
     {
         _enemyStepSnapshot.Clear();
         _enemyControllers.Clear();
-        _accumulator?.Reset();
+        _kernel?.Reset();
         _combatHits = null;
         _world = null;
     }

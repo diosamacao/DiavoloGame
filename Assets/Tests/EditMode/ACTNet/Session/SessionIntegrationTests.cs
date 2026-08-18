@@ -27,6 +27,39 @@ public sealed class SessionIntegrationTests
         Assert.That(entityIds, Has.Count.EqualTo(3));
     }
 
+    /// <summary>双方 Gameplay 指纹都有效但不同时必须拒绝 Join。</summary>
+    [Test]
+    public void Join_MismatchedGameplayFingerprint_IsRejected()
+    {
+        var serverFingerprint = new ContentFingerprint(1, 2);
+        var clientFingerprint = new ContentFingerprint(3, 4);
+        var serverConfig = new SessionConfig(
+            new NetworkProtocolVersion(1),
+            contentVersion: 7,
+            maxRemotePlayers: 2,
+            idleTimeoutMs: 10000,
+            heartbeatIntervalMs: 500,
+            gameplayFingerprint: serverFingerprint);
+        var clientConfig = new SessionConfig(
+            new NetworkProtocolVersion(1),
+            contentVersion: 7,
+            maxRemotePlayers: 2,
+            idleTimeoutMs: 10000,
+            heartbeatIntervalMs: 500,
+            gameplayFingerprint: clientFingerprint);
+        var network = new LoopbackNetwork();
+        using var server = new ServerSession(new LoopbackTransport(network), serverConfig, Endpoint);
+        using var client = new ClientSession(new LoopbackTransport(network), clientConfig);
+
+        client.Start(Endpoint, 0);
+        server.Poll(0);
+        client.Poll(0);
+
+        Assert.That(client.State, Is.EqualTo(ClientSessionState.Ended));
+        Assert.That(client.LastDisconnectReason, Is.EqualTo(DisconnectReason.ProtocolMismatch));
+        Assert.That(server.ConnectionCount, Is.EqualTo(0));
+    }
+
     /// <summary>服务端断开一个客户端后，其余连接仍可独立发送应用消息。</summary>
     [Test]
     public void DisconnectOneOfThree_OthersRemainConnected()

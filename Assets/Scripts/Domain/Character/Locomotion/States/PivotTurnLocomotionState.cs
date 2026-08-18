@@ -78,8 +78,8 @@ public sealed class PivotTurnLocomotionState : LocomotionPhaseState
             float handoff = Context.Profile != null
                 ? Context.Profile.PivotAnimAuthNormalized
                 : 0.5f;
-            // 用动画归一化时间切段（方案定案）；位移仍由 RootMotionPlayer 逻辑帧消费
-            if (Context.Animation.NormalizedTime >= handoff)
+            // 切段读模拟时钟；位移仍由 RootMotionPlayer 逻辑帧消费
+            if (Context.SamplePhaseNormalized() >= handoff)
                 EnterInputAuth();
         }
 

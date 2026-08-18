@@ -436,7 +436,7 @@ public sealed class CharacterActor :
             _visualMotion?.SetLeanRollDegrees(_stateMachine.SprintLeanRollDegrees);
             // Manual Playable：同帧末推进时间与 CrossFade。
             // 未烘焙招式仍可能由此 Evaluate 产生 Native RM delta；已烘焙招式 RM 在 ApplyStep 已关闭。
-            _animation.Tick(fixedDeltaSeconds);
+            _animation?.Tick(fixedDeltaSeconds);
             // Wave 0：记录招式横摆峰峰值，对照是否进了逻辑根
             UpdateActionLateralPeakSample();
 
@@ -554,8 +554,8 @@ public sealed class CharacterActor :
         _inputManager.IngestFrame(input);
         _motor.TickGravity(_fixedDeltaSeconds);
         Locomotion?.Tick(_fixedDeltaSeconds);
-        _animation.SetSpeed(1f);
-        _animation.Tick(_fixedDeltaSeconds);
+        _animation?.SetSpeed(1f);
+        _animation?.Tick(_fixedDeltaSeconds);
     }
 
     /// <summary>推进 ActionSim：起手/取消后推一帧。卡肉由本机 RequestHitStop 写入 freeze。</summary>

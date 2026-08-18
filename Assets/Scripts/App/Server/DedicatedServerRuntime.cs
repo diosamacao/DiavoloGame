@@ -1,23 +1,26 @@
 using System;
 using System.Collections.Generic;
 
-/// <summary>无本地玩家的 Dedicated 运行时：装配 Transport / Session / Match / 每连接 Replication。</summary>
+/// <summary>无本地玩家的 Dedicated 运行时：Session / Match / 每连接 ACK，并驱动权威 World。</summary>
 public sealed class DedicatedServerRuntime : IDisposable
 {
     readonly ServerLaunchConfig _config;
     readonly ServerSession _session;
     readonly MatchCoordinator _match;
+    readonly IDedicatedAuthorityWorld _authority;
     readonly Dictionary<NetConnectionId, DedicatedPlayerRuntime> _players = new();
     bool _disposed;
 
     DedicatedServerRuntime(
         ServerLaunchConfig config,
         ServerSession session,
-        MatchCoordinator match)
+        MatchCoordinator match,
+        IDedicatedAuthorityWorld authority)
     {
         _config = config;
         _session = session;
         _match = match;
+        _authority = authority ?? throw new ArgumentNullException(nameof(authority));
         _session.Disconnected += OnSessionDisconnected;
         ExitCode = ServerExitCode.Success;
         IsListening = true;
@@ -51,10 +54,13 @@ public sealed class DedicatedServerRuntime : IDisposable
     public static DedicatedServerRuntime TryStart(
         INetTransport transport,
         ServerLaunchConfig config,
+        IDedicatedAuthorityWorld authority,
         out ServerExitCode exitCode)
     {
         if (transport == null)
             throw new ArgumentNullException(nameof(transport));
+        if (authority == null)
+            throw new ArgumentNullException(nameof(authority));
         if (!config.Validate(out exitCode))
         {
             transport.Dispose();
@@ -66,7 +72,7 @@ public sealed class DedicatedServerRuntime : IDisposable
             var session = new ServerSession(transport, config.CreateSessionConfig(), config.BindEndpoint);
             var match = new MatchCoordinator(config.MaxPlayers, config.PlayerArchetypeId);
             exitCode = ServerExitCode.Success;
-            return new DedicatedServerRuntime(config, session, match);
+            return new DedicatedServerRuntime(config, session, match, authority);
         }
         catch (Exception)
         {
@@ -84,6 +90,7 @@ public sealed class DedicatedServerRuntime : IDisposable
         _session.Poll(nowMs);
         DrainJoins();
         DrainCommands();
+        _authority.Advance(nowMs);
     }
 
     /// <summary>按连接读取 ACK 状态；未知连接返回 false。</summary>
@@ -129,6 +136,7 @@ public sealed class DedicatedServerRuntime : IDisposable
         _disposed = true;
         _session.Disconnected -= OnSessionDisconnected;
         _players.Clear();
+        _authority.Dispose();
         _session.Dispose();
     }
 
@@ -143,8 +151,10 @@ public sealed class DedicatedServerRuntime : IDisposable
     {
         while (_session.TryDequeuePlayerRequest(out SessionPlayerRequest request))
         {
-            if (!_match.TryAccept(in request, out MatchPlayerSlot slot))
+            if (!_match.TryAccept(in request, out MatchPlayerSlot slot)
+                || !_authority.TryAcceptPlayer(in slot))
             {
+                _match.Release(request.ConnectionId);
                 _session.RejectPlayer(request.ConnectionId, SessionRejectReason.GameRejected);
                 continue;
             }
@@ -170,7 +180,9 @@ public sealed class DedicatedServerRuntime : IDisposable
 
             try
             {
-                player.ApplyUnappliedHints(RoomCodec.ReadClientCommandBatch(packet.Payload));
+                ClientCommand[] commands = RoomCodec.ReadClientCommandBatch(packet.Payload);
+                player.ApplyUnappliedHints(commands);
+                _authority.ApplyCommands(packet.ConnectionId, commands);
             }
             catch (Exception)
             {
@@ -184,6 +196,7 @@ public sealed class DedicatedServerRuntime : IDisposable
     {
         _players.Remove(disconnected.ConnectionId);
         _match.Release(disconnected.ConnectionId);
+        _authority.RemovePlayer(disconnected.ConnectionId);
     }
 
     void EnsureNotDisposed()

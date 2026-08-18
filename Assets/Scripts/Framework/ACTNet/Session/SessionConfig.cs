@@ -10,7 +10,8 @@ public readonly struct SessionConfig
         int maxRemotePlayers,
         int idleTimeoutMs,
         int heartbeatIntervalMs,
-        int firstPlayerId = 1)
+        int firstPlayerId = 1,
+        ContentFingerprint gameplayFingerprint = default)
     {
         if (protocolVersion.Value <= 0)
             throw new ArgumentOutOfRangeException(nameof(protocolVersion));
@@ -29,6 +30,7 @@ public readonly struct SessionConfig
         IdleTimeoutMs = idleTimeoutMs;
         HeartbeatIntervalMs = heartbeatIntervalMs;
         FirstPlayerId = firstPlayerId;
+        GameplayFingerprint = gameplayFingerprint;
     }
 
     /// <summary>握手要求的线协议版本。</summary>
@@ -48,4 +50,7 @@ public readonly struct SessionConfig
 
     /// <summary>远端玩家 Id 分配起点；Dedicated / 远端连接从 1 起，不再预留 Guest=2。</summary>
     public int FirstPlayerId { get; }
+
+    /// <summary>Gameplay 内容指纹；双方 Valid 且不同时拒绝 Join。</summary>
+    public ContentFingerprint GameplayFingerprint { get; }
 }

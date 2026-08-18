@@ -5,7 +5,7 @@ using NUnit.Framework;
 public sealed class ProtocolGoldenBytesTests
 {
     const string JoinRequestGolden =
-        "0101040302010D0C0B0A";
+        "0101040302010D0C0B0A00000000000000000000000000000000";
 
     const string ClientCommandBatchGolden =
         "0105010000003500000001080706050403020144332211181716151413121104030201FE7F"
@@ -32,6 +32,7 @@ public sealed class ProtocolGoldenBytesTests
         Assert.That(kind, Is.EqualTo((byte)SessionMessageKind.JoinRequest));
         Assert.That(restored.ContentVersion, Is.EqualTo(0x01020304));
         Assert.That(restored.ProtocolVersion.Value, Is.EqualTo(0x0A0B0C0D));
+        Assert.That(restored.GameplayFingerprint.IsValid, Is.False);
     }
 
     /// <summary>命令批信封、条目长度与 InputFrame 的完整固定布局保持不变。</summary>

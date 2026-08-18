@@ -23,6 +23,16 @@ public sealed class ActContentRegistry
     /// <summary>当前已登记动作数，不含 Id=0。</summary>
     public int ActionCount => _actions.Count;
 
+    /// <summary>复制已登记网络原型 Id，供 Gameplay 指纹哈希。</summary>
+    public void CopyArchetypeIds(List<int> results)
+    {
+        if (results == null)
+            throw new ArgumentNullException(nameof(results));
+        results.Clear();
+        foreach (NetArchetypeId id in _configsById.Keys)
+            results.Add(id.Value);
+    }
+
     /// <summary>从角色配置预填动作 Graph、变体与受击反应。</summary>
     public void PrefillActions(CharacterConfig config) => _actions.Prefill(config);
 

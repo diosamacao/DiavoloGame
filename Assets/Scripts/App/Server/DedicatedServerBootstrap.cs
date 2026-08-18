@@ -8,6 +8,7 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
 {
     DedicatedServerRuntime _runtime;
     ServerLaunchConfig _config;
+    IDedicatedAuthorityWorld _authority;
     bool _configured;
 
     /// <summary>当前运行时；配置失败时为 null。</summary>
@@ -16,11 +17,12 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
     /// <summary>最近一次启动退出码。</summary>
     public ServerExitCode ExitCode { get; private set; } = ServerExitCode.ConfigFailed;
 
-    /// <summary>由 Composition Root 注入启动配置；重复调用会先释放旧运行时。</summary>
-    public void Configure(ServerLaunchConfig config)
+    /// <summary>由 Composition Root 注入启动配置与权威世界；重复调用会先释放旧运行时。</summary>
+    public void Configure(ServerLaunchConfig config, IDedicatedAuthorityWorld authority)
     {
         ShutdownRuntime();
         _config = config;
+        _authority = authority;
         _configured = true;
         if (!isActiveAndEnabled)
             return;
@@ -33,7 +35,7 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
             StartRuntime();
     }
 
-    /// <summary>只泵 Session / Match / 每连接 ACK；权威 World 步进属 W6。</summary>
+    /// <summary>泵 Session / Match / 命令，并由权威世界按单调时间步进。</summary>
     void Update()
     {
         if (_runtime == null)
@@ -51,7 +53,11 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
         if (_runtime != null)
             return;
 
-        _runtime = DedicatedServerRuntime.TryStart(new UdpTransport(), _config, out ServerExitCode exitCode);
+        _runtime = DedicatedServerRuntime.TryStart(
+            new UdpTransport(),
+            _config,
+            _authority,
+            out ServerExitCode exitCode);
         ExitCode = exitCode;
         if (_runtime != null)
         {

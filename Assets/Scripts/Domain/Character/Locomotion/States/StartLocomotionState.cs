@@ -60,7 +60,7 @@ public sealed class StartLocomotionState : LocomotionPhaseState
     public override void ExecuteFrame(float deltaTime)
     {
         Context.FootCycle.Unfreeze();
-        Context.FootCycle.Tick(Context.Animation.NormalizedTime);
+        Context.FootCycle.Tick(Context.SamplePhaseNormalized());
         Context.Animation.Play(Context.ActiveStartKey);
         Context.Motor.ApplyLocomotion(
             new LocomotionMotorCommand(

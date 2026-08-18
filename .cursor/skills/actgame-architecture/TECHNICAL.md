@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-19（NetSync W5 Dedicated Bootstrap / N 玩家 Session）
+> Last updated: 2026-08-19（NetSync W6 Headless Authority / Content Fingerprint）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,7 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
-| 组队 PVE 状态同步 / 权威进程 | ✅ Listen 产品基线；🟡 Dedicated Bootstrap | 薄 `ReplicationRoomHost/Client` + `Act*RoomGameplay`；Dedicated 走 `DedicatedServerRuntime` | Listen N Guest；Dedicated Listening/Session 已切，权威 World 属 W6 |
+| 组队 PVE 状态同步 / 权威进程 | ✅ Listen 基线；🟡 Dedicated Headless World | `DedicatedAuthorityWorld` + Headless 工厂 + 指纹握手 | Dedicated 可步进权威世界；下行 Frame 属 W7 |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -246,7 +246,8 @@ ActAuthorityReplicationAdapter
 - 水平速度 P0 可为 0；空闲相位由 Capture 填 `AnimationKey`
 - NS5 已单轨切到 `UdpTransport`；`LoopbackTransport` 支持一服多客和确定性延迟，不再挂 Host 预览
 - W0～W4、GF0～GF4 与 M1 已于 2026-08-18 完成 Test Runner、架构守卫和双进程回归
-- W5 Dedicated Bootstrap / N 玩家 Session 已于 2026-08-19 代码落地；Editor Headless Play 待确认；权威 World 属 W6
+- W5 Dedicated Bootstrap 已于 2026-08-19 用户验收
+- W6 Headless Authority / Content Fingerprint 已于 2026-08-19 代码落地；Editor Play 待确认；下行 Frame 属 W7
 
 ### 相关文件
 
@@ -419,7 +420,7 @@ AfterLogicStep → Capture 全员 + Hits → UDP
 
 ### 功能说明
 
-Listen Host 创建一人房间并可接纳多名远端玩家；客机预测自己的位移、用 RemoteProxy 看队友与敌人；敌人与命中只在 Host 权威世界。Dedicated 为独立运行时，当前只 Listening / Accept，不步进权威 World。
+Listen Host 创建一人房间并可接纳多名远端玩家；客机预测自己的位移、用 RemoteProxy 看队友与敌人；敌人与命中只在 Host 权威世界。Dedicated 为独立运行时：W6 起用 Headless Actor + 外部时钟步进权威 World；下行 Frame 仍属 W7。
 
 ### 实现方案
 
@@ -458,7 +459,7 @@ Client：ReplicationRoomClient Poll → ActClientRoomGameplay 合并按键 → �
 - 客机连招下一段在本机 Cancel 窗起手；权威未起手则 Stop
 - 客机 CameraLock：Proxy 只读进 TargetSystem，范围内自动选中后可开；2026-08-18 双进程 Play 已验收
 - 多种敌人按稳定 Archetype 精确生成对应幽灵，不使用首敌配置回退
-- Dedicated 尚未步进 `SimulationWorld`、不刷怪、不下发 `ReplicationFrame`（W6/W7）
+- Dedicated 已步进 `SimulationWorld` 并可刷怪；仍不下发 `ReplicationFrame`（W7）
 - 未做匹配、排位、Host 迁移
 - UDP 仍不可靠；冗余 3 条降低丢边沿，不能保证 0 丢包
 - 客机刀光/音效由本机表现桥按预测帧派发；跟权威卡肉招时禁止重派点事件
@@ -1348,6 +1349,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-18 | NetSync W4/M1 验收关闭：Authority/Owner/Observer、Room 架构守卫、Golden Bytes 与双进程移动/战斗/CameraLock/断线回归通过；网络层分离完成，下一阶段为尚未开始的 W5 Dedicated |
 | 2026-08-18 | 新增 `docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`：M1 阶段性总结与当前实现阅读入口 |
 | 2026-08-19 | NetSync W5：`ACTGame.Server` Dedicated Bootstrap / Match / 每连接 ACK；Listen Host 改 N Guest；JoinAccept 允许无房主实体；权威 World 仍属 W6 |
+| 2026-08-19 | NetSync W6：`ServerSimulationRunner` + Headless `CharacterPresentationMode`；Capture 改读模拟 Locomotion 时钟；`ServerContentManifest` 指纹加入 Join；Dedicated 创建权威 Actor 并步进 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
