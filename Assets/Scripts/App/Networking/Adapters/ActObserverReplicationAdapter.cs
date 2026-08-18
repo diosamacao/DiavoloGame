@@ -5,9 +5,8 @@ using UnityEngine;
 /// <summary>ACT Observer 复制适配器：解析角色生命周期记录并管理只读 Remote Proxy 与 TargetSystem 注册。</summary>
 public sealed class ActObserverReplicationAdapter
 {
-    readonly CharacterReplicationContentRegistry _content;
+    readonly ActContentRegistry _content;
     readonly CharacterSnapshotSchemaV1 _characterSchema;
-    readonly ActionReplicationCatalog _catalog;
     readonly Func<SimulationHost> _getSimulationHost;
     readonly Transform _parent;
     readonly Action<IHurtboxTarget> _registerTarget;
@@ -16,9 +15,8 @@ public sealed class ActObserverReplicationAdapter
 
     /// <summary>创建绑定内容目录、Schema、Proxy 父节点和 TargetSystem 接缝的 Observer 适配器。</summary>
     public ActObserverReplicationAdapter(
-        CharacterReplicationContentRegistry content,
+        ActContentRegistry content,
         CharacterSnapshotSchemaV1 characterSchema,
-        ActionReplicationCatalog catalog,
         Func<SimulationHost> getSimulationHost,
         Transform parent,
         Action<IHurtboxTarget> registerTarget,
@@ -26,7 +24,6 @@ public sealed class ActObserverReplicationAdapter
     {
         _content = content ?? throw new ArgumentNullException(nameof(content));
         _characterSchema = characterSchema ?? throw new ArgumentNullException(nameof(characterSchema));
-        _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _getSimulationHost = getSimulationHost
             ?? throw new ArgumentNullException(nameof(getSimulationHost));
         _parent = parent;
@@ -190,7 +187,7 @@ public sealed class ActObserverReplicationAdapter
 
         return ActRemoteProxyFactory.Create(
             config,
-            _catalog,
+            _content,
             host.CollisionWorld,
             Vector3.zero,
             host.FixedDeltaSeconds,

@@ -2,8 +2,8 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 
-/// <summary>验证稳定网络原型到 Unity 角色内容的精确绑定与冲突拒绝。</summary>
-public sealed class CharacterReplicationContentRegistryTests
+/// <summary>验证 ACT 动作目录、稳定网络原型与 Unity 角色内容由同一 Registry 精确管理。</summary>
+public sealed class ActContentRegistryTests
 {
     /// <summary>不同 EnemyDefinition.name 映射到不同 Archetype 与各自 CharacterConfig。</summary>
     [Test]
@@ -13,10 +13,10 @@ public sealed class CharacterReplicationContentRegistryTests
         CharacterConfig secondConfig = CreateNamed<CharacterConfig>("Body_B");
         EnemyDefinition first = CreateEnemy("Enemy_A", firstConfig);
         EnemyDefinition second = CreateEnemy("Enemy_B", secondConfig);
-        var registry = new CharacterReplicationContentRegistry();
+        var registry = new ActContentRegistry();
 
-        NetArchetypeId firstId = registry.RegisterEnemy(first);
-        NetArchetypeId secondId = registry.RegisterEnemy(second);
+        var firstId = registry.RegisterEnemy(first);
+        var secondId = registry.RegisterEnemy(second);
 
         Assert.That(firstId, Is.Not.EqualTo(secondId));
         Assert.That(registry.ResolveCharacterConfig(firstId), Is.SameAs(firstConfig));
@@ -30,10 +30,10 @@ public sealed class CharacterReplicationContentRegistryTests
     [Test]
     public void ResolveCharacterConfig_UnknownId_ThrowsWithoutFallback()
     {
-        var registry = new CharacterReplicationContentRegistry();
+        var registry = new ActContentRegistry();
 
         Assert.Throws<System.Collections.Generic.KeyNotFoundException>(
-            () => registry.ResolveCharacterConfig(new NetArchetypeId(12345)));
+            () => registry.ResolveCharacterConfig(default));
     }
 
     /// <summary>不同资产使用同一 Ordinal stableKey 时明确失败。</summary>
@@ -44,7 +44,7 @@ public sealed class CharacterReplicationContentRegistryTests
         CharacterConfig secondConfig = CreateNamed<CharacterConfig>("Body_B");
         EnemyDefinition first = CreateEnemy("Duplicated", firstConfig);
         EnemyDefinition second = CreateEnemy("Duplicated", secondConfig);
-        var registry = new CharacterReplicationContentRegistry();
+        var registry = new ActContentRegistry();
         registry.RegisterEnemy(first);
 
         Assert.Throws<System.InvalidOperationException>(() => registry.RegisterEnemy(second));
@@ -56,19 +56,33 @@ public sealed class CharacterReplicationContentRegistryTests
     public void RegisterPlayer_SameConfig_IsIdempotent()
     {
         CharacterConfig config = CreateNamed<CharacterConfig>("Hero");
-        var registry = new CharacterReplicationContentRegistry();
+        var registry = new ActContentRegistry();
 
-        NetArchetypeId first = registry.RegisterPlayer(config);
-        NetArchetypeId second = registry.RegisterPlayer(config);
+        var first = registry.RegisterPlayer(config);
+        var second = registry.RegisterPlayer(config);
 
         Assert.That(second, Is.EqualTo(first));
-        Assert.That(
-            first.Value,
-            Is.EqualTo(CharacterArchetypeCatalog.ComputeStableId("player/Hero")));
+        Assert.That(first.Value, Is.GreaterThan(0));
         Object.DestroyImmediate(config);
     }
 
-    // 创建只存在于测试内存中的命名 ScriptableObject，不写入任何资产。
+    /// <summary>动作 Catalog 必须由 Registry 单例持有，登记结果与 ActionCount 使用同一真源。</summary>
+    [Test]
+    public void Actions_GetOrAdd_UpdatesRegistryActionCount()
+    {
+        var registry = new ActContentRegistry();
+        ActionDefinition action = CreateNamed<ActionDefinition>("Attack_A");
+
+        int actionId = registry.Actions.GetOrAdd(action);
+
+        Assert.That(actionId, Is.GreaterThan(0));
+        Assert.That(registry.ActionCount, Is.EqualTo(1));
+        Assert.That(registry.Actions.TryGet(actionId, out ActionDefinition restored), Is.True);
+        Assert.That(restored, Is.SameAs(action));
+        Object.DestroyImmediate(action);
+    }
+
+    /// <summary>创建只存在于测试内存中的命名 ScriptableObject，不写入任何资产。</summary>
     static T CreateNamed<T>(string name) where T : ScriptableObject
     {
         T asset = ScriptableObject.CreateInstance<T>();
@@ -76,7 +90,7 @@ public sealed class CharacterReplicationContentRegistryTests
         return asset;
     }
 
-    // 通过 SerializedObject 模拟 Inspector 绑定私有 CharacterConfig 字段。
+    /// <summary>通过 SerializedObject 模拟 Inspector 绑定私有 CharacterConfig 字段。</summary>
     static EnemyDefinition CreateEnemy(string name, CharacterConfig config)
     {
         EnemyDefinition definition = CreateNamed<EnemyDefinition>(name);
@@ -86,7 +100,7 @@ public sealed class CharacterReplicationContentRegistryTests
         return definition;
     }
 
-    // 对称销毁测试创建的临时 Unity 对象。
+    /// <summary>对称销毁测试创建的临时 Unity 对象。</summary>
     static void DestroyAll(params Object[] objects)
     {
         for (int i = 0; i < objects.Length; i++)

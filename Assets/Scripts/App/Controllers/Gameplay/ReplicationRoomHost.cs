@@ -12,9 +12,8 @@ public sealed class ReplicationRoomHost : AppControllerBase
 {
     CombatWorldController _world;
     ServerSession _session;
-    ActionReplicationCatalog _catalog;
     ReplicationServer _replicationServer;
-    CharacterReplicationContentRegistry _content;
+    ActContentRegistry _content;
     ActAuthorityReplicationAdapter _authority;
     ActGameSessionHandler _gameSession;
     ActGameGuest _guest;
@@ -42,12 +41,10 @@ public sealed class ReplicationRoomHost : AppControllerBase
 
     void Start()
     {
-        _catalog = new ActionReplicationCatalog();
         _replicationServer = new ReplicationServer();
-        _content = new CharacterReplicationContentRegistry();
-        _authority = new ActAuthorityReplicationAdapter(_catalog, _content);
+        _content = new ActContentRegistry();
+        _authority = new ActAuthorityReplicationAdapter(_content);
         _gameSession = new ActGameSessionHandler(
-            _catalog,
             _content,
             CreateGameSessionServices());
         RegisterStaticReplicationContent();
@@ -254,11 +251,11 @@ public sealed class ReplicationRoomHost : AppControllerBase
     /// <summary>动作目录为空时，从本机与场景敌人配置一次性补齐动作及变体。</summary>
     void PrefillCatalogIfNeeded()
     {
-        if (_catalog.Count > 0)
+        if (_content.ActionCount > 0)
             return;
         ILocalPlayer local = SendQuery(new GetLocalPlayerQuery());
         if (local is PlayerController player)
-            _catalog.Prefill(player.CharacterConfig);
+            _content.PrefillActions(player.CharacterConfig);
         PrefillEnemyCatalog();
     }
 
@@ -271,7 +268,7 @@ public sealed class ReplicationRoomHost : AppControllerBase
             _enemyDefinitions.Clear();
             spawns[i].CollectDefinitions(_enemyDefinitions);
             for (int c = 0; c < _enemyDefinitions.Count; c++)
-                _catalog.Prefill(_enemyDefinitions[c].CharacterConfig);
+                _content.PrefillActions(_enemyDefinitions[c].CharacterConfig);
         }
     }
 

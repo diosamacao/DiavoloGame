@@ -8,7 +8,7 @@ public sealed class ActOwnerReplicationAdapterTests
     [Test]
     public void ApplySnapshot_WithoutLocalActor_StoresHealthWithoutCreatingDriver()
     {
-        var adapter = new ActOwnerReplicationAdapter(new ActionReplicationCatalog());
+        var adapter = new ActOwnerReplicationAdapter(new ActContentRegistry());
         adapter.BeginSession(new SimActorId(5), new InputFrameBuffer());
         ActorReplicationSnapshot snapshot = CreateSnapshot(
             actorId: 5,
@@ -26,7 +26,7 @@ public sealed class ActOwnerReplicationAdapterTests
     [Test]
     public void ApplySnapshot_MismatchedOwnerEntity_Throws()
     {
-        var adapter = new ActOwnerReplicationAdapter(new ActionReplicationCatalog());
+        var adapter = new ActOwnerReplicationAdapter(new ActContentRegistry());
         adapter.BeginSession(new SimActorId(5), new InputFrameBuffer());
         ActorReplicationSnapshot snapshot = CreateSnapshot(
             actorId: 6,
@@ -41,7 +41,7 @@ public sealed class ActOwnerReplicationAdapterTests
     [Test]
     public void Reset_ClearsOwnerState()
     {
-        var adapter = new ActOwnerReplicationAdapter(new ActionReplicationCatalog());
+        var adapter = new ActOwnerReplicationAdapter(new ActContentRegistry());
         adapter.BeginSession(new SimActorId(5), new InputFrameBuffer());
         ActorReplicationSnapshot snapshot = CreateSnapshot(
             actorId: 5,

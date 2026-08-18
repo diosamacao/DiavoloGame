@@ -76,6 +76,8 @@ public sealed class ReplicationProductionOrderTests
             "_session.AcceptPlayer(");
         Assert.That(room, Does.Not.Contain("CharacterActorFactory.Create("));
         Assert.That(room, Does.Not.Contain("new GameObject(\"RemotePlayer\")"));
+        Assert.That(room, Does.Not.Contain("ActionReplicationCatalog"));
+        Assert.That(room, Does.Not.Contain("CharacterReplicationContentRegistry"));
 
         string createGuest = Slice(
             gameSession,
@@ -192,6 +194,8 @@ public sealed class ReplicationProductionOrderTests
             "_proxies.Remove(id);");
         Assert.That(client, Does.Not.Contain("_proxies."));
         Assert.That(client, Does.Not.Contain("ActRemoteProxyFactory.Create("));
+        Assert.That(client, Does.Not.Contain("ActionReplicationCatalog"));
+        Assert.That(client, Does.Not.Contain("CharacterReplicationContentRegistry"));
     }
 
     /// <summary>从 Assets 相对路径读取当前生产脚本，确保测试锁定真实调用点。</summary>
