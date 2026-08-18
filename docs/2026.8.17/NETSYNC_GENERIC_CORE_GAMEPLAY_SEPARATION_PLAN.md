@@ -849,22 +849,22 @@ Assets/Tests/PlayMode/Networking/
 
 **任务**
 
-- [x] 为当前 `RoomCodec`、`ReplicationCodec` 建 Golden Bytes 测试。（2026-08-17：`ProtocolGoldenBytesTests`，待 Unity Test Runner）  
+- [x] 为当前 `RoomCodec`、`ReplicationCodec` 建 Golden Bytes 测试。（2026-08-18：`ProtocolGoldenBytesTests` 已验收）
 - [x] 固定当前 Join、CommandBatch、AuthorityTick 往返测试。（2026-08-17：含独立 Hit 布局样本）  
-- [x] 固定 Host 一帧调用顺序：收输入 → World.Step → Capture → Send。（2026-08-17：生产编排特征测试待 Test Runner）  
-- [x] 固定 Client 一帧调用顺序：收 Tick → Reconcile → 采样 → Send → 预测。（2026-08-17：按当前生产代码冻结，待 Test Runner）  
+- [x] 固定 Host 一帧调用顺序：收输入 → World.Step → Capture → Send。（2026-08-18 Test Runner 已验收）
+- [x] 固定 Client 一帧调用顺序：收 Tick → Reconcile → 采样 → Send → 预测。（2026-08-18 Test Runner 已验收）
 - [x] 记录当前类依赖图和程序集引用。（2026-08-17：[`NETSYNC_W0_BASELINE_AND_DEPENDENCY_AUDIT.md`](./NETSYNC_W0_BASELINE_AND_DEPENDENCY_AUDIT.md)）  
-- [x] 建双进程人工回归脚本：移动、出招、连招、受击、死亡、CameraLock、断线。（2026-08-17：待 Editor 执行）  
-- [ ] 记录基准指标：Tick bytes、GC alloc、Proxy count、prediction pending。  
-- [ ] **禁止**本阶段修改线格式、阈值和战斗语义。
+- [x] 建双进程人工回归脚本：移动、出招、连招、受击、死亡、CameraLock、断线。（2026-08-18 双进程 Play 已验收）
+- [x] 记录基准指标：Tick bytes、GC alloc、Proxy count、prediction pending。（典型 tickB≈250、cmdB=177、proxy=2、pending=0～2）
+- [x] 本阶段未修改基线线格式、纠偏阈值和战斗语义。
 
 **验收**
 
-- [ ] EditMode：所有 Codec Golden Bytes 通过。  
-- [ ] PlayMode：Host/Client 相同行为脚本最终 Pose/HP/Action 一致。  
-- [ ] 人工：现有已验收功能全部通过。  
+- [x] EditMode：所有 Codec Golden Bytes 通过。（2026-08-18）
+- [x] PlayMode：Host/Client 相同行为脚本最终 Pose/HP/Action 一致。（2026-08-18）
+- [x] 人工：现有已验收功能全部通过。（2026-08-18）
 
-**出口：** 后续重构有可比较基线。→ **未达成**
+**出口：** 后续重构有可比较基线。→ **已达成（2026-08-18）**
 
 ### GF1 — ACTNet.Core 与稳定身份
 
@@ -897,8 +897,8 @@ Assets/Tests/PlayMode/Networking/
 - [x] Join、Accept、Reject、Heartbeat、Kick 从 RoomHost/Client 移入 Session。
 - [x] `ReplicationRoomProtocol.MaxPlayers` 变为 Session 配置。
 - [x] `CombatWorldController` 通过 Composition Root 注入 Session。
-- [x] LoopbackTransport 支持至少三条模拟连接。（测试已写，待 Test Runner）
-- [x] UDP 适配器保持当前行为；可靠通道可在 GF6 接入成熟网库。（代码已切换，待双进程 Play）
+- [x] LoopbackTransport 支持至少三条模拟连接。（2026-08-17 Test Runner 已验收）
+- [x] UDP 适配器保持当前行为；可靠通道可在 GF6 接入成熟网库。（2026-08-17 双进程 Play 已验收）
 - [x] **删除** RoomHost/Client 内 Endpoint、握手 switch、IdleTracker 和旧控制 DTO。
 
 **验收**
@@ -953,12 +953,12 @@ Assets/Tests/PlayMode/Networking/
 **验收**
 
 - [x] `ACTNet.*` 全局搜索无 `CharacterActor|ActionDefinition|CharacterConfig|CombatHitPipeline|RemoteCharacterProxy|UnityEngine`。（2026-08-18 源码扫描通过并新增守卫）
-- [ ] Authority / Owner / Observer 映射测试通过。（既有 Adapter 测试已验收；新增 Room 架构守卫待 Test Runner）
-- [ ] Observer 永不创建完整 CharacterActor。（源码边界成立并已补测试，待 Test Runner）
-- [ ] Autonomous 永不注册权威 Hitbox Consumer。（源码边界成立并已补测试，待 Test Runner）
-- [ ] 人工：移动、出招、连招、受击、死亡、CameraLock 全回归。  
+- [x] Authority / Owner / Observer 映射测试通过。（2026-08-18 Test Runner 已验收）
+- [x] Observer 永不创建完整 CharacterActor。（2026-08-18 架构守卫已验收）
+- [x] Autonomous 永不注册权威 Hitbox Consumer。（2026-08-18 架构守卫已验收）
+- [x] 人工：移动、出招、连招、受击、死亡、CameraLock 全回归。（2026-08-18 双进程 Play 已验收）
 
-**出口：** 通用层与 ACT 业务层完成结构性分离。→ **结构代码完成；待 Test Runner 与人工联机回归后关闭**
+**出口：** 通用层与 ACT 业务层完成结构性分离。→ **已达成（2026-08-18：GF4/M1 已关闭）**
 
 ### GF5 — Prediction Runtime 分离
 

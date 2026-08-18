@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-18（NetSync W4 Room Facade 收敛）
+> Last audited: 2026-08-18（NetSync W4 / M1 验收关闭）
 
 ## 项目概述
 
@@ -125,6 +125,8 @@ flowchart TB
 | 复制契约（NS1～NS5 / W3） | `ClientCommand` 上行；`ReplicationFrame` 下行显式生命周期与 Sequence 门禁；Loopback/UDP；`RemoteCharacterProxy` 跟状态 |
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只负责装配和注册，不再实现 Actor `Update` Tick。
+
+NetSync M1 已于 2026-08-18 关闭：`ACTNet.*` 对 ACT/Unity 零反向依赖，Room 为薄 Facade，Authority/Owner/Observer 映射位于 App Adapter/Service。W5 Dedicated Bootstrap 尚未开始。
 
 ### 2. 泛型状态机（Core）
 

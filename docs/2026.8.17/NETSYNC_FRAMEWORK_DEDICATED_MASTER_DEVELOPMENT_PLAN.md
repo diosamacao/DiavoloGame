@@ -130,25 +130,25 @@ W5 起额外要求：
 
 **任务**
 
-- [x] 为 `RoomCodec`、`ReplicationCodec` 建 Golden Bytes 测试。（2026-08-17：`ProtocolGoldenBytesTests`，待 Test Runner）
+- [x] 为 `RoomCodec`、`ReplicationCodec` 建 Golden Bytes 测试。（2026-08-18：`ProtocolGoldenBytesTests` 已验收）
 - [x] 固定 Join、CommandBatch、AuthorityTick、Hit 的往返字节。（2026-08-17）
-- [x] 用测试固定 Host 一格顺序：Receive → Set Input → World.Step → Hit Resolve → Capture → Send。（2026-08-17：待 Test Runner）
-- [x] 用测试固定 Client 一格顺序：Receive Tick → Reconcile → Sample → Send → Predict。（2026-08-17：按当前生产代码冻结，待 Test Runner）
-- [x] 建双进程人工回归脚本：移动、急停、折返、攻击、连招、闪避、受击、死亡、CameraLock、断线。（2026-08-17：待 Editor 执行）
-- [ ] 记录 Tick bytes、GC alloc、Proxy 数、pending command、RTT 基线。
+- [x] 用测试固定 Host 一格顺序：Receive → Set Input → World.Step → Hit Resolve → Capture → Send。（2026-08-18 Test Runner 已验收）
+- [x] 用测试固定 Client 一格顺序：Receive Tick → Reconcile → Sample → Send → Predict。（2026-08-18 Test Runner 已验收）
+- [x] 建双进程人工回归脚本：移动、急停、折返、攻击、连招、闪避、受击、死亡、CameraLock、断线。（2026-08-18 双进程 Play 已验收）
+- [x] 记录 Tick bytes、GC alloc、Proxy 数、pending command、RTT 基线。（2026-08-18 HUD/双进程基线已验收；典型 tickB≈250、cmdB=177、proxy=2、pending=0～2）
 - [x] 列出 `ReplicationRoomHost` 中所有 Host LocalPlayer、固定 Guest、HostRoot Spawn 假设。（2026-08-17：见 W0 审计）
 - [x] 列出 Authority Actor 对 Animator、Playable、Model、VFX/SFX、Transform 的依赖。（2026-08-17：见 W0 审计）
 - [x] 定案 DS-Demo：一场一进程、2～4 玩家、LAN、无重连。
-- [ ] 禁止修改协议布局、阈值和玩法语义。
+- [x] 搬迁期间未修改基线协议布局、纠偏阈值和玩法语义。
 
 **验收**
 
-- [ ] Codec Golden Bytes 全部通过。
-- [ ] 固定输入脚本在 Host / Client 最终 Pose、HP、Action 一致。
-- [ ] 能从依赖图定位 LocalPlayer → Host Room 与 Presentation → Authority 路径。
-- [ ] 当前双人联机人工回归通过。
+- [x] Codec Golden Bytes 全部通过。（2026-08-18）
+- [x] 固定输入脚本在 Host / Client 最终 Pose、HP、Action 一致。（2026-08-18）
+- [x] 能从依赖图定位 LocalPlayer → Host Room 与 Presentation → Authority 路径。（2026-08-18 W0 审计）
+- [x] 当前双人联机人工回归通过。（2026-08-18）
 
-**出口：** 后续搬迁有可比较基线，Dedicated 范围可证明。→ **未达成**
+**出口：** 后续搬迁有可比较基线，Dedicated 范围可证明。→ **已达成（2026-08-18）**
 
 ---
 
@@ -252,12 +252,12 @@ W5 起额外要求：
 **验收**
 
 - [x] `ACTNet.*` 搜索无 `CharacterActor|ActionDefinition|CharacterConfig|CombatHitPipeline|RemoteCharacterProxy|UnityEngine`。（2026-08-18 源码扫描通过，并新增边界守卫）
-- [ ] Authority / Owner / Observer 映射测试通过。（既有 Adapter 测试已验收；新增 W4 Room 架构守卫待 Test Runner）
-- [ ] Observer 不创建完整 `CharacterActor`。（源码边界成立并已补测试，待 Test Runner）
-- [ ] Owner 不注册权威 Hitbox Consumer。（源码边界成立并已补测试，待 Test Runner）
-- [ ] 双人联机移动、出招、连招、受击、死亡、CameraLock 全回归。
+- [x] Authority / Owner / Observer 映射测试通过。（2026-08-18 Test Runner 已验收）
+- [x] Observer 不创建完整 `CharacterActor`。（2026-08-18 架构守卫已验收）
+- [x] Owner 不注册权威 Hitbox Consumer。（2026-08-18 架构守卫已验收）
+- [x] 双人联机移动、出招、连招、受击、死亡、CameraLock 全回归。（2026-08-18 双进程 Play 已验收）
 
-**出口：** M1 达成；网络层 / ACT 业务层结构性分离完成，可启动 Dedicated 主路径。→ **结构代码完成；待 Test Runner 与双人 Play 后关闭**
+**出口：** M1 达成；网络层 / ACT 业务层结构性分离完成，可启动 Dedicated 主路径。→ **已达成（2026-08-18：M1 网络层分离完成）**
 
 ---
 
@@ -545,8 +545,8 @@ Codec Golden Bytes
 → Dedicated 依赖审计
 ```
 
-W0 出口未关闭，不开始 W2 或 Dedicated 实现。  
-W4 出口未关闭，不开始 W5 Dedicated 主路径。  
+W0 已于 2026-08-18 关闭，W1～W4 搬迁均受其基线保护。
+W4/M1 已于 2026-08-18 关闭，可开始 W5 Dedicated 主路径；W5 本身仍未开始。
 W8 出口关闭前，不宣称 Dedicated Server 已完成。  
 W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 
@@ -556,10 +556,10 @@ W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 
 ### M1 — 网络层分离
 
-- [ ] GF0～GF4 出口全部达成。
+- [x] GF0～GF4 出口全部达成。（2026-08-18 已验收）
 - [x] `ACTNet.*` 无 ACT / Unity 反向引用。（2026-08-18 源码扫描 + 架构守卫）
 - [x] Session 不知道 Character，Replication 不知道 Action。（2026-08-18 W4 边界扫描）
-- [ ] 当前双人 Listen 行为回归通过。
+- [x] 当前双人 Listen 行为回归通过。（2026-08-18 已验收）
 
 ### M2 — DS-Demo
 

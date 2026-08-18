@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-18（NetSync W4 Room Facade 收敛）
+> Last updated: 2026-08-18（NetSync W4 / M1 验收关闭）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,7 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
-| 组队 PVE 状态同步 / 权威进程 | ✅ NS0～NS5；🟡 W4 出口待 Editor | 薄 `ReplicationRoomHost/Client` + `Act*RoomGameplay` | 客机同一 Actor；不 Collect；W4 结构代码已完成 |
+| 组队 PVE 状态同步 / 权威进程 | ✅ NS0～NS5 + W0～W4/M1 已验收 | 薄 `ReplicationRoomHost/Client` + `Act*RoomGameplay` | 客机同一 Actor；不 Collect；下一阶段 W5 Dedicated |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -184,7 +184,7 @@ EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
 
 ### 已知限制
 
-- Play / Unity 编译待 Editor 确认
+- 2026-08-18 Unity 编译、Test Runner 与双进程 Play 已确认
 - Host 花名册只有本机；远端玩家只在客机 `RemoteCharacterProxy` 上可见
 
 ### 相关文件
@@ -245,7 +245,7 @@ ActAuthorityReplicationAdapter
 
 - 水平速度 P0 可为 0；空闲相位由 Capture 填 `AnimationKey`
 - NS5 已单轨切到 `UdpTransport`；`LoopbackTransport` 支持一服多客和确定性延迟，不再挂 Host 预览
-- W3 与 W4 既有 Adapter 切片已验收；W4 Room Facade/架构守卫代码完成，完整 Test Runner 与双进程回归待 Editor
+- W0～W4、GF0～GF4 与 M1 已于 2026-08-18 完成 Test Runner、架构守卫和双进程回归；W5 Dedicated 尚未开始
 
 ### 相关文件
 
@@ -295,7 +295,7 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 - PivotTurn 根朝向仍只跟快照 facing（不在幽灵侧重跑 AnimAuth）；Clip 已按权威归一化时间 Seek
 - Catalog 已改为资产名稳定 Id（NS5）
 - 幽灵不进权威花名册、无 Hurtbox Collect；可按 ActionFrame 过点派发 VFX/SFX
-- 多种敌人时客机暂用第一条刷怪配置的模型
+- 多种敌人通过 `NetArchetypeId` 精确解析各自配置；未知 Archetype 明确拒绝，不做首敌回退
 
 ### 相关文件
 
@@ -452,8 +452,8 @@ Client：ReplicationRoomClient Poll → ActClientRoomGameplay 合并按键 → �
 ### 已知限制
 
 - 客机连招下一段在本机 Cancel 窗起手；权威未起手则 Stop
-- 客机 CameraLock：Proxy 只读进 TargetSystem，范围内自动选中后可开；Play 待确认
-- 多种敌人时客机幽灵暂用第一条刷怪配置的模型
+- 客机 CameraLock：Proxy 只读进 TargetSystem，范围内自动选中后可开；2026-08-18 双进程 Play 已验收
+- 多种敌人按稳定 Archetype 精确生成对应幽灵，不使用首敌配置回退
 - 未做匹配、排位、Host 迁移
 - UDP 仍不可靠；冗余 3 条降低丢边沿，不能保证 0 丢包
 - 客机刀光/音效由本机表现桥按预测帧派发；跟权威卡肉招时禁止重派点事件
@@ -1288,6 +1288,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-18 | NetSync W4 ActContentRegistry 切片：动作 Catalog、角色 Archetype 与 Unity 配置映射合并为唯一内容真源；删除 `CharacterReplicationContentRegistry`，Host/Client 与 Adapter 不再独立持有 Action Catalog |
 | 2026-08-18 | NetSync W4 Character Schema Capture 切片：`ActCharacterSnapshotSchema` 统一 CharacterActor Capture 与 V1 编解码并注册到生产 Schema Registry；删除独立 `CharacterReplicationCapture` |
 | 2026-08-18 | NetSync W4 Room Facade：新增 Host/Client Gameplay 与内容预填 Service；Room 删除 Character/Config/Proxy/Hit Cue/HitStop 具体实现，仅保留 Session 收发、固定帧调度与 HUD；新增 W4 架构边界守卫 |
+| 2026-08-18 | NetSync W4/M1 验收关闭：Authority/Owner/Observer、Room 架构守卫、Golden Bytes 与双进程移动/战斗/CameraLock/断线回归通过；网络层分离完成，下一阶段为尚未开始的 W5 Dedicated |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
