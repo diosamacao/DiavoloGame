@@ -20,6 +20,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
     CharacterReplicationContentRegistry _content;
     PlayerController _localPlayer;
     ActOwnerReplicationAdapter _owner;
+    ActObserverReplicationAdapter _observer;
     SessionJoinAccept _accept;
     bool _joined;
     bool _ended;
@@ -32,7 +33,6 @@ public sealed class ReplicationRoomClient : AppControllerBase
     readonly List<ClientCommand> _recentCommands = new();
     readonly HashSet<SimHitKey> _playedHits = new();
     readonly List<SimHitKey> _playedHitOrder = new();
-    readonly Dictionary<int, RemoteCharacterProxy> _proxies = new();
     readonly List<EnemyDefinition> _enemyDefinitions = new();
     readonly List<RemoteCharacterProxy> _softBlockers = new();
     SimVec2[] _softBlockerPosMm = Array.Empty<SimVec2>();
@@ -60,6 +60,14 @@ public sealed class ReplicationRoomClient : AppControllerBase
         _replicationClient = new ReplicationClient(_schemaRegistry);
         _content = new CharacterReplicationContentRegistry();
         _owner = new ActOwnerReplicationAdapter(_catalog);
+        _observer = new ActObserverReplicationAdapter(
+            _content,
+            _characterSchema,
+            _catalog,
+            () => _world != null ? _world.SimulationHost : null,
+            transform,
+            target => GetSystem<TargetSystem>()?.Register(target),
+            target => GetSystem<TargetSystem>()?.Unregister(target));
         PrepareContentCatalog();
         RefreshHud("Connecting");
     }
@@ -89,8 +97,11 @@ public sealed class ReplicationRoomClient : AppControllerBase
         // 本机预测体：逻辑 Pose → 表现锚点
         _localPlayer?.Actor?.Render(alpha);
         // 他人/敌人幽灵：快照 Pose → 表现锚点
-        foreach (RemoteCharacterProxy proxy in _proxies.Values)
-            proxy.Render(alpha);
+        if (_observer != null)
+        {
+            foreach (RemoteCharacterProxy proxy in _observer.Proxies)
+                proxy.Render(alpha);
+        }
     }
 
     void OnDisable() => UnsubscribeHost();
@@ -280,131 +291,44 @@ public sealed class ReplicationRoomClient : AppControllerBase
         }
     }
 
-    /// <summary>按顺序处理 Spawn；远端必须精准解析 Archetype，本机只记录最后一条快照。</summary>
+    /// <summary>把 Spawn 交给 Observer Adapter；Owner 记录只回填本帧 self 快照。</summary>
     void ApplySpawns(
         SpawnRecord[] records,
         ref ActorReplicationSnapshot self,
         ref bool hasSelf)
     {
-        for (int i = 0; i < records.Length; i++)
-        {
-            SpawnRecord record = records[i];
-            ActorReplicationSnapshot snapshot = DecodeRecord(
-                record.EntityId,
-                record.SchemaId,
-                record.Payload);
-            ReplicationActorKind archetypeKind = _content.ResolveKind(record.ArchetypeId);
-            if (archetypeKind != snapshot.Kind)
-            {
-                throw new InvalidOperationException(
-                    $"Spawn {record.EntityId.Value} 的 Archetype Kind={archetypeKind} "
-                    + $"与 Snapshot Kind={snapshot.Kind} 不一致。");
-            }
-
-            if (record.EntityId.Value == _accept.EntityId.Value)
-            {
-                if (snapshot.Kind != ReplicationActorKind.Player)
-                    throw new InvalidOperationException("Owner Spawn 必须是 Player 原型。");
-                self = snapshot;
-                hasSelf = true;
-                continue;
-            }
-
-            if (_proxies.ContainsKey(record.EntityId.Value))
-                throw new InvalidOperationException($"远端实体 {record.EntityId.Value} 重复创建 Proxy。");
-
-            CharacterConfig config = _content.ResolveCharacterConfig(record.ArchetypeId);
-            RemoteCharacterProxy proxy = CreateProxy(config);
-            _proxies.Add(record.EntityId.Value, proxy);
-            GetSystem<TargetSystem>()?.Register(proxy);
-            proxy.ApplySnapshot(in snapshot);
-        }
+        _observer.ApplySpawns(
+            records,
+            new SimActorId(_accept.EntityId.Value),
+            ref self,
+            ref hasSelf);
     }
 
-    /// <summary>按顺序处理 Update；未知远端实体明确失败，禁止静默创建默认 Proxy。</summary>
+    /// <summary>把 Update 交给 Observer Adapter；未知实体由 Adapter 明确拒绝。</summary>
     void ApplyUpdates(
         EntityRecord[] records,
         ref ActorReplicationSnapshot self,
         ref bool hasSelf)
     {
-        for (int i = 0; i < records.Length; i++)
-        {
-            EntityRecord record = records[i];
-            ActorReplicationSnapshot snapshot = DecodeRecord(
-                record.EntityId,
-                record.SchemaId,
-                record.Payload);
-            if (record.EntityId.Value == _accept.EntityId.Value)
-            {
-                self = snapshot;
-                hasSelf = true;
-                continue;
-            }
-
-            if (!_proxies.TryGetValue(record.EntityId.Value, out RemoteCharacterProxy proxy))
-            {
-                throw new InvalidOperationException(
-                    $"远端 Update {record.EntityId.Value} 没有已存在的 Proxy。");
-            }
-            proxy.ApplySnapshot(in snapshot);
-        }
+        _observer.ApplyUpdates(
+            records,
+            new SimActorId(_accept.EntityId.Value),
+            ref self,
+            ref hasSelf);
     }
 
-    /// <summary>按显式 Despawn 精确释放单个 Proxy；Owner 被移除时立即结束房间。</summary>
+    /// <summary>把 Despawn 交给 Observer Adapter；Owner 被移除时结束房间。</summary>
     bool ApplyDespawns(DespawnRecord[] records)
     {
-        for (int i = 0; i < records.Length; i++)
+        if (_observer.ApplyDespawns(
+                records,
+                new SimActorId(_accept.EntityId.Value)))
         {
-            int id = records[i].EntityId.Value;
-            if (id == _accept.EntityId.Value)
-            {
-                EndRoom("OwnerDespawned");
-                return false;
-            }
-
-            if (!_proxies.TryGetValue(id, out RemoteCharacterProxy proxy))
-                throw new InvalidOperationException($"远端 Despawn {id} 没有已存在的 Proxy。");
-
-            GetSystem<TargetSystem>()?.Unregister(proxy);
-            proxy.Dispose();
-            _proxies.Remove(id);
+            return true;
         }
 
-        return true;
-    }
-
-    /// <summary>校验 Schema 与 EntityId 后解码唯一角色快照布局。</summary>
-    ActorReplicationSnapshot DecodeRecord(
-        NetEntityId entityId,
-        ushort schemaId,
-        byte[] payload)
-    {
-        if (schemaId != CharacterSnapshotSchemaV1.Id)
-            throw new InvalidOperationException($"角色实体 {entityId.Value} 使用未知 Schema {schemaId}。");
-
-        ActorReplicationSnapshot snapshot = _characterSchema.DecodeSnapshot(payload);
-        if (!snapshot.ActorId.IsValid || snapshot.ActorId.Value != entityId.Value)
-        {
-            throw new InvalidOperationException(
-                $"角色记录 EntityId={entityId.Value} 与 Snapshot ActorId={snapshot.ActorId.Value} 不一致。");
-        }
-        return snapshot;
-    }
-
-    /// <summary>按精准 CharacterConfig 创建远端 Proxy；缺模型或战斗世界时明确失败。</summary>
-    RemoteCharacterProxy CreateProxy(CharacterConfig config)
-    {
-        SimulationHost host = _world != null ? _world.SimulationHost : null;
-        if (config == null || config.ModelPrefab == null || host == null)
-            throw new InvalidOperationException("远端原型缺少 CharacterConfig、ModelPrefab 或 SimulationHost。");
-
-        return RemoteCharacterProxyFactory.Create(
-            config,
-            _catalog,
-            host.CollisionWorld,
-            Vector3.zero,
-            host.FixedDeltaSeconds,
-            transform);
+        EndRoom("OwnerDespawned");
+        return false;
     }
 
     /// <summary>把本帧最后一条 Owner 快照交给 ACT Owner Adapter 原子应用。</summary>
@@ -427,7 +351,9 @@ public sealed class ReplicationRoomClient : AppControllerBase
             return;
 
         _softBlockers.Clear();
-        foreach (RemoteCharacterProxy proxy in _proxies.Values)
+        if (_observer == null)
+            return;
+        foreach (RemoteCharacterProxy proxy in _observer.Proxies)
         {
             if (proxy == null || !proxy.IsAlive || proxy.MotorSim == null)
                 continue;
@@ -539,7 +465,8 @@ public sealed class ReplicationRoomClient : AppControllerBase
             return _localPlayer != null && _localPlayer.Actor != null
                 ? _localPlayer.Actor.PresentationRoot
                 : _localPlayer != null ? _localPlayer.Root : null;
-        return _proxies.TryGetValue(actorId.Value, out RemoteCharacterProxy proxy)
+        return _observer != null
+            && _observer.TryGetProxy(actorId, out RemoteCharacterProxy proxy)
             ? proxy.Root
             : null;
     }
@@ -547,13 +474,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
 
     void DisposeViews()
     {
-        TargetSystem targets = GetSystem<TargetSystem>();
-        foreach (RemoteCharacterProxy proxy in _proxies.Values)
-        {
-            targets?.Unregister(proxy);
-            proxy.Dispose();
-        }
-        _proxies.Clear();
+        _observer?.DisposeViews();
     }
 
     void EndRoom(string status)
@@ -575,6 +496,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
         _schemaRegistry = null;
         _characterSchema = null;
         _content = null;
+        _observer = null;
         _owner?.Reset();
     }
 
@@ -591,7 +513,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
             _owner?.SelfHealthMilli ?? -1,
             _lastTickBytes,
             _lastCommandBytes,
-            _proxies.Count,
+            _observer?.Count ?? 0,
             _owner?.PendingCount ?? 0);
     }
 

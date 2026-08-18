@@ -1,10 +1,8 @@
 using System;
 using UnityEngine;
 
-/// <summary>
-/// 装配他人/敌人幽灵表现图。本机预测改走 <see cref="CharacterActorFactory"/> Autonomous 座位。
-/// </summary>
-public static class RemoteCharacterProxyFactory
+/// <summary>装配 ACT 他人/敌人 Observer 表现图；Owner 继续使用 Autonomous CharacterActor。</summary>
+public static class ActRemoteProxyFactory
 {
     /// <summary>按与权威相同的模型/动画配置生成 RemoteProxy；不注册 World、不挂 Hurtbox。</summary>
     public static RemoteCharacterProxy Create(
@@ -39,7 +37,7 @@ public static class RemoteCharacterProxyFactory
         if (catalog == null)
             throw new ArgumentNullException(nameof(catalog));
         if (config.ModelPrefab == null)
-            throw new InvalidOperationException("RemoteCharacterProxyFactory: CharacterConfig 未绑定 ModelPrefab。");
+            throw new InvalidOperationException("ActRemoteProxyFactory: CharacterConfig 未绑定 ModelPrefab。");
 
         if (config.CombatProfile == null
             || !config.CombatProfile.TryGetLocomotionProfile(
@@ -48,7 +46,7 @@ public static class RemoteCharacterProxyFactory
             || locomotionProfile.AnimationProfile == null)
         {
             throw new InvalidOperationException(
-                "RemoteCharacterProxyFactory: CombatModeProfile 默认模式缺少 LocomotionProfile（须含 AnimationProfile）。");
+                "ActRemoteProxyFactory: CombatModeProfile 默认模式缺少 LocomotionProfile（须含 AnimationProfile）。");
         }
 
         var owner = new GameObject("RemoteCharacterGhost");
@@ -63,7 +61,7 @@ public static class RemoteCharacterProxyFactory
         if (animator == null)
         {
             UnityEngine.Object.Destroy(owner);
-            throw new MissingComponentException("RemoteCharacterProxyFactory: ModelPrefab 中找不到 Animator。");
+            throw new MissingComponentException("ActRemoteProxyFactory: ModelPrefab 中找不到 Animator。");
         }
 
         CharacterController controller = owner.AddComponent<CharacterController>();
@@ -90,7 +88,7 @@ public static class RemoteCharacterProxyFactory
             playback,
             animator,
             locomotionProfile.AnimationProfile);
-        // 与权威工厂相同：默认关掉 Animator RM 并复位局部，避免 Clip 根曲线叠在快照朝向上
+        // 与权威工厂相同：禁用 Animator Root Motion 并复位局部，避免 Clip 根曲线叠加到快照朝向。
         _ = new CharacterRootMotionDriver(motor, animator);
         var presentation = new CharacterPresentationBridge(owner.transform, presentationRoot);
 
@@ -120,8 +118,10 @@ public static class RemoteCharacterProxyFactory
         return new BuiltGhost(proxy, motor, animation, locomotionProfile);
     }
 
+    /// <summary>Factory 内部装配结果，保留 Motor/Animation/Profile 便于完整构造图校验。</summary>
     readonly struct BuiltGhost
     {
+        /// <summary>创建一次完整 Observer 表现图装配结果。</summary>
         public BuiltGhost(
             RemoteCharacterProxy proxy,
             CharacterMotor motor,
@@ -134,9 +134,13 @@ public static class RemoteCharacterProxyFactory
             LocomotionProfile = locomotionProfile;
         }
 
+        /// <summary>对外应用快照的只读 Proxy。</summary>
         public RemoteCharacterProxy Proxy { get; }
+        /// <summary>Proxy 使用的表现 Motor。</summary>
         public CharacterMotor Motor { get; }
+        /// <summary>Proxy 使用的动画服务。</summary>
         public CharacterAnimationService Animation { get; }
+        /// <summary>Proxy 使用的 Locomotion 配置。</summary>
         public CharacterLocomotionProfile LocomotionProfile { get; }
     }
 
@@ -150,6 +154,7 @@ public static class RemoteCharacterProxyFactory
         return point != null ? point : fallback;
     }
 
+    /// <summary>实例化模型并应用 CharacterConfig 声明的局部偏移。</summary>
     static Transform SpawnModelInstance(CharacterConfig config, Transform parent)
     {
         GameObject modelInstance = UnityEngine.Object.Instantiate(config.ModelPrefab, parent);
@@ -160,6 +165,7 @@ public static class RemoteCharacterProxyFactory
         return modelTransform;
     }
 
+    /// <summary>创建只承接逻辑根插值的表现根。</summary>
     static Transform CreatePresentationRoot(Transform simulationRoot)
     {
         var presentationObject = new GameObject("CharacterPresentationRoot");
@@ -168,6 +174,7 @@ public static class RemoteCharacterProxyFactory
         return presentationRoot;
     }
 
+    /// <summary>创建动作视觉残差根，避免快照逻辑位姿被动画位移污染。</summary>
     static Transform CreateVisualMotionRoot(Transform presentationRoot)
     {
         var visualObject = new GameObject("CharacterVisualMotionRoot");
@@ -178,15 +185,21 @@ public static class RemoteCharacterProxyFactory
         return visualRoot;
     }
 
-    /// <summary>幽灵不读输入；Motor 构造仍需要空意图源。</summary>
+    /// <summary>Observer 不读输入；Motor 构造仍需要稳定空意图源。</summary>
     sealed class IdleMoveIntentSource : IMoveIntentSource
     {
+        /// <summary>全局无输入意图实例。</summary>
         public static readonly IdleMoveIntentSource Instance = new();
 
+        /// <summary>Observer 永远没有移动轴。</summary>
         public Vector2 MoveIntent => Vector2.zero;
+        /// <summary>Observer 移动强度恒为 0。</summary>
         public float MoveMagnitude => 0f;
+        /// <summary>Observer 永远没有移动意图。</summary>
         public bool HasMoveIntent => false;
+        /// <summary>Observer 不缓存移动轴。</summary>
         public Vector2 BufferedMoveIntent => Vector2.zero;
+        /// <summary>Observer 不使用本机相机偏航。</summary>
         public ushort MoveReferenceYawQuantized => 0;
     }
 }

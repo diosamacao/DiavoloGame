@@ -113,6 +113,7 @@ public sealed class ReplicationProductionOrderTests
     {
         string client = ReadScript("App/Controllers/Gameplay/ReplicationRoomClient.cs");
         string owner = ReadScript("App/Networking/Adapters/ActOwnerReplicationAdapter.cs");
+        string observer = ReadScript("App/Networking/Adapters/ActObserverReplicationAdapter.cs");
 
         string update = Slice(client, "    void Update()", "    void LateUpdate()");
         AssertInOrder(
@@ -166,6 +167,31 @@ public sealed class ReplicationProductionOrderTests
         Assert.That(client, Does.Not.Contain("_actionAck.Reconcile("));
         Assert.That(client, Does.Not.Contain("_driver.Reconcile("));
         Assert.That(client, Does.Not.Contain("ApplyAuthorityHealthMilli("));
+
+        string applyObserverSpawns = Slice(
+            observer,
+            "    public void ApplySpawns(",
+            "    public void ApplyUpdates(");
+        AssertInOrder(
+            applyObserverSpawns,
+            "DecodeRecord(",
+            "_content.ResolveKind(",
+            "CreateProxy(config);",
+            "_proxies.Add(",
+            "_registerTarget?.Invoke(proxy);",
+            "proxy.ApplySnapshot(in snapshot);");
+
+        string applyObserverDespawns = Slice(
+            observer,
+            "    public bool ApplyDespawns(",
+            "    public bool TryGetProxy(");
+        AssertInOrder(
+            applyObserverDespawns,
+            "_unregisterTarget?.Invoke(proxy);",
+            "proxy.Dispose();",
+            "_proxies.Remove(id);");
+        Assert.That(client, Does.Not.Contain("_proxies."));
+        Assert.That(client, Does.Not.Contain("ActRemoteProxyFactory.Create("));
     }
 
     /// <summary>从 Assets 相对路径读取当前生产脚本，确保测试锁定真实调用点。</summary>
