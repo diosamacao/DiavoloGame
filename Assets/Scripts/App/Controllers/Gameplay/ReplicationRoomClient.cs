@@ -15,7 +15,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
     ClientSession _session;
     ReplicationSchemaRegistry _schemaRegistry;
     ReplicationClient _replicationClient;
-    CharacterSnapshotSchemaV1 _characterSchema;
+    ActCharacterSnapshotSchema _characterSchema;
     ActContentRegistry _content;
     PlayerController _localPlayer;
     ActOwnerReplicationAdapter _owner;
@@ -52,11 +52,11 @@ public sealed class ReplicationRoomClient : AppControllerBase
 
     void Start()
     {
-        _characterSchema = new CharacterSnapshotSchemaV1();
+        _content = new ActContentRegistry();
+        _characterSchema = new ActCharacterSnapshotSchema(_content);
         _schemaRegistry = new ReplicationSchemaRegistry();
         _schemaRegistry.Register(_characterSchema);
         _replicationClient = new ReplicationClient(_schemaRegistry);
-        _content = new ActContentRegistry();
         _owner = new ActOwnerReplicationAdapter(_content);
         _observer = new ActObserverReplicationAdapter(
             _content,

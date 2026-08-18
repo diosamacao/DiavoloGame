@@ -242,8 +242,8 @@ W5 起额外要求：
 - [x] 建 `ActAuthorityReplicationAdapter`：InputFrame 灌入、Snapshot Capture、FrameHits。（2026-08-18 Test Runner / 双进程 Play 已验收）
 - [x] 建 `ActOwnerReplicationAdapter`：Owner HP、Action Ack、Locomotion Reconcile。（2026-08-18 Test Runner / 双进程 Play 已验收）
 - [x] 建 `ActRemoteProxyFactory`：Proxy、TargetSystem、Archetype 与 View 生命周期。（2026-08-18 Test Runner / 双进程 Play 已验收）
-- [ ] `ActionReplicationCatalog` 迁入 `ActContentRegistry`。（2026-08-18 代码完成，待 Test Runner / 双进程 Play）
-- [ ] `CharacterReplicationCapture` 迁入 Character Schema。
+- [x] `ActionReplicationCatalog` 迁入 `ActContentRegistry`。（2026-08-18 Test Runner / 双进程 Play 已验收）
+- [ ] `CharacterReplicationCapture` 迁入 Character Schema。（2026-08-18 `ActCharacterSnapshotSchema` 代码完成并删除旧 Capture，待 Test Runner / 双进程 Play）
 - [ ] Hit Cue、PredictedHitStop、CameraLock 只留 ACT/App。
 - [ ] `ReplicationRoomHost/Client` 缩为薄 Facade，或切到 `NetGameController`。
 - [ ] 删除 Session / Replication 对 `CharacterConfig`、`PlayerController`、`EnemySpawnController`、`RemoteCharacterProxy` 的引用。

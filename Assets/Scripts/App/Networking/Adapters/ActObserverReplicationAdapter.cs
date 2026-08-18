@@ -6,7 +6,7 @@ using UnityEngine;
 public sealed class ActObserverReplicationAdapter
 {
     readonly ActContentRegistry _content;
-    readonly CharacterSnapshotSchemaV1 _characterSchema;
+    readonly ActCharacterSnapshotSchema _characterSchema;
     readonly Func<SimulationHost> _getSimulationHost;
     readonly Transform _parent;
     readonly Action<IHurtboxTarget> _registerTarget;
@@ -16,7 +16,7 @@ public sealed class ActObserverReplicationAdapter
     /// <summary>创建绑定内容目录、Schema、Proxy 父节点和 TargetSystem 接缝的 Observer 适配器。</summary>
     public ActObserverReplicationAdapter(
         ActContentRegistry content,
-        CharacterSnapshotSchemaV1 characterSchema,
+        ActCharacterSnapshotSchema characterSchema,
         Func<SimulationHost> getSimulationHost,
         Transform parent,
         Action<IHurtboxTarget> registerTarget,
@@ -166,7 +166,7 @@ public sealed class ActObserverReplicationAdapter
         ushort schemaId,
         byte[] payload)
     {
-        if (schemaId != CharacterSnapshotSchemaV1.Id)
+        if (schemaId != ActCharacterSnapshotSchema.Id)
             throw new InvalidOperationException($"角色实体 {entityId.Value} 使用未知 Schema {schemaId}。");
 
         ActorReplicationSnapshot snapshot = _characterSchema.DecodeSnapshot(payload);

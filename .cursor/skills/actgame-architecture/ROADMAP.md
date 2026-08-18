@@ -112,7 +112,7 @@
 
 **客机装配：** [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md) — **CA0～CA2 代码已切（2026-08-15）**：同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。Play 待 Editor。纠偏合同仍见 [`UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
 
-**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W4 ActContentRegistry 切片待验收（2026-08-18）**：Authority、Session、Owner 与 Observer/Proxy 已验收；`ActContentRegistry` 已成为动作 Catalog、角色 Archetype 与 Unity 配置映射唯一真源，Room/Adapter 不再单独创建 Action Catalog。后续迁移 Character Capture 并收敛 Room Facade，Dedicated 仍须等 W4 出口。
+**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W4 Character Schema Capture 切片待验收（2026-08-18）**：Content Registry 已验收；`ActCharacterSnapshotSchema` 已统一 CharacterActor Capture 与 V1 编解码，并替代独立 `CharacterReplicationCapture`。后续收敛 Room Facade 与 W4 架构出口，Dedicated 仍须等 W4 出口。
 
 ### [P1] Lockstep 模拟核迁移
 
