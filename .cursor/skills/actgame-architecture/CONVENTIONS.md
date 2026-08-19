@@ -232,6 +232,9 @@ App/Server/                      # Dedicated 独立运行时（ACTGame.Server）
 - **Dedicated 构帧**：`DedicatedAuthorityWorld` 在 `AfterLogicStep` 按连接 `ReplicationServer.BuildFrame`；Runtime 只发送。禁止在 `ReplicationRoomHost` 上分支
 - **MatchEnd**：应用消息类型 8（避开 Session Kick=7）；先 Drain 再 Sync Session，避免 Kick 丢掉同拍 MatchEnd
 - **JoinAccept 实体**：Dedicated 必须写 World `SimulationId`，禁止只回 Match 槽位占位 Id
+- **启动覆盖**：Dedicated 只认 `ServerLaunchConfigResolver`，优先级 CLI > Env > File > Default；密钥键忽略且不得打进日志
+- **进程退出**：玩家 Dedicated 构建可 `ExitOnMatchEnd` / 空 Lobby 超时后 `Application.Quit(0)`；**Editor 不得 Quit**，且强制 `ExitOnMatchEnd=false`，空房后回 Lobby 可再入
+- **READY**：监听成功只打 `DedicatedServerBootstrap: READY port=… role=DedicatedServer。`，烟测按此匹配
 
 ### 明确不搬进本项目的 DemoServer 战斗写法
 

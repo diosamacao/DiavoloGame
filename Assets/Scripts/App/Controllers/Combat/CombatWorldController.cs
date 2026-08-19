@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using UnityEngine;
 
 /// <summary>场景级战斗世界入口：Listen Host / Client 挂 Room；Dedicated 只移交 Bootstrap。</summary>
@@ -141,21 +142,71 @@ public class CombatWorldController : AppControllerBase
         return content;
     }
 
-    /// <summary>Dedicated 只移交给 Bootstrap，本类不装配 Session / Match。</summary>
+    /// <summary>Dedicated 只移交给 Bootstrap；启动覆盖 CLI &gt; Env &gt; File &gt; Inspector。Editor 强制不退出进程。</summary>
     void EnsureDedicatedBootstrap(ActContentRegistry content)
     {
         SimulationHost host = EnsureSimulationHost();
         var authority = new DedicatedAuthorityWorld(host, GetArchitecture(), content);
+        ServerLaunchConfig defaults = ServerLaunchConfig.CreateDefault(
+            listenPort,
+            contentVersion,
+            MaxRemotePlayers,
+            _gameplayFingerprint,
+            emptyLobbyTimeoutMs: 0,
+            exitOnMatchEnd: !Application.isEditor);
+
+        if (!ServerLaunchConfigResolver.TryResolve(
+                defaults,
+                Environment.GetEnvironmentVariable,
+                Environment.GetCommandLineArgs(),
+                TryReadLaunchConfigFile,
+                out ServerLaunchConfig config,
+                out ServerExitCode resolveExit))
+        {
+            Debug.LogError($"CombatWorldController: Dedicated 配置解析失败 exit={resolveExit}。", this);
+            config = ServerLaunchConfigResolver.CreateInvalidSentinel();
+        }
+
+#if UNITY_EDITOR
+        // Editor Play 必须能回到 Lobby 再入房；玩家构建才按 ExitOnMatchEnd 停进程。
+        config = config.WithLifetimePolicy(emptyLobbyTimeoutMs: 0, exitOnMatchEnd: false);
+#endif
+        if (config.ContentVersion != contentVersion)
+        {
+            contentVersion = config.ContentVersion;
+            _gameplayFingerprint = ServerContentManifest.FromRegistry(
+                content,
+                contentVersion,
+                staticCollisionBake != null ? staticCollisionBake.name : string.Empty).Fingerprint;
+            config = config.WithGameplayFingerprint(_gameplayFingerprint);
+        }
+
+        listenPort = config.BindPort;
+        Debug.Log(
+            $"CombatWorldController: Dedicated launch bind={config.BindHost} port={config.BindPort} "
+            + $"max={config.MaxPlayers} content={config.ContentVersion} "
+            + $"exitOnMatchEnd={config.ExitOnMatchEnd} emptyLobbyMs={config.EmptyLobbyTimeoutMs}。",
+            this);
+
         DedicatedServerBootstrap bootstrap = GetComponent<DedicatedServerBootstrap>();
         if (bootstrap == null)
             bootstrap = gameObject.AddComponent<DedicatedServerBootstrap>();
-        bootstrap.Configure(
-            ServerLaunchConfig.CreateDefault(
-                listenPort,
-                contentVersion,
-                MaxRemotePlayers,
-                _gameplayFingerprint),
-            authority);
+        bootstrap.Configure(config, authority);
+    }
+
+    /// <summary>只读配置文件正文；缺失或读失败返回 null，由解析器记 ConfigFailed。不把正文打进日志。</summary>
+    static string TryReadLaunchConfigFile(string path)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return null;
+            return File.ReadAllText(path);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     /// <summary>按角色挂 Host 或 Client；单机也是 Listen Host，不走旧旁路。</summary>

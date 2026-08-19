@@ -13,7 +13,9 @@ public readonly struct ServerLaunchConfig
         int heartbeatIntervalMs,
         NetworkProtocolVersion protocolVersion,
         NetArchetypeId playerArchetypeId,
-        ContentFingerprint gameplayFingerprint = default)
+        ContentFingerprint gameplayFingerprint = default,
+        int emptyLobbyTimeoutMs = 0,
+        bool exitOnMatchEnd = false)
     {
         BindHost = bindHost ?? string.Empty;
         BindPort = bindPort;
@@ -24,14 +26,18 @@ public readonly struct ServerLaunchConfig
         ProtocolVersion = protocolVersion;
         PlayerArchetypeId = playerArchetypeId;
         GameplayFingerprint = gameplayFingerprint;
+        EmptyLobbyTimeoutMs = emptyLobbyTimeoutMs;
+        ExitOnMatchEnd = exitOnMatchEnd;
     }
 
-    /// <summary>按房间默认协议创建 LAN Dedicated 配置。</summary>
+    /// <summary>按房间默认协议创建 LAN Dedicated 配置；默认不因空房或对局结束退出进程。</summary>
     public static ServerLaunchConfig CreateDefault(
         int bindPort,
         int contentVersion,
         int maxPlayers = 4,
-        ContentFingerprint gameplayFingerprint = default) =>
+        ContentFingerprint gameplayFingerprint = default,
+        int emptyLobbyTimeoutMs = 0,
+        bool exitOnMatchEnd = false) =>
         new(
             "0.0.0.0",
             bindPort,
@@ -41,7 +47,9 @@ public readonly struct ServerLaunchConfig
             ReplicationRoomProtocol.HeartbeatIntervalMs,
             new NetworkProtocolVersion(ReplicationRoomProtocol.ProtocolVersion),
             playerArchetypeId: default,
-            gameplayFingerprint);
+            gameplayFingerprint,
+            emptyLobbyTimeoutMs,
+            exitOnMatchEnd);
 
     /// <summary>监听主机；Dedicated 通常为 0.0.0.0。</summary>
     public string BindHost { get; }
@@ -70,6 +78,42 @@ public readonly struct ServerLaunchConfig
     /// <summary>Gameplay 指纹；Valid 时 Join 必须一致。</summary>
     public ContentFingerprint GameplayFingerprint { get; }
 
+    /// <summary>无人加入时的 Lobby 等待上限；0 表示不因空房超时退出。</summary>
+    public int EmptyLobbyTimeoutMs { get; }
+
+    /// <summary>对局结束或 Playing 空房后是否请求进程退出；Editor 入口必须为 false。</summary>
+    public bool ExitOnMatchEnd { get; }
+
+    /// <summary>只改进程生命周期策略，其它绑定参数保持不变。</summary>
+    public ServerLaunchConfig WithLifetimePolicy(int emptyLobbyTimeoutMs, bool exitOnMatchEnd) =>
+        new(
+            BindHost,
+            BindPort,
+            ContentVersion,
+            MaxPlayers,
+            IdleTimeoutMs,
+            HeartbeatIntervalMs,
+            ProtocolVersion,
+            PlayerArchetypeId,
+            GameplayFingerprint,
+            emptyLobbyTimeoutMs,
+            exitOnMatchEnd);
+
+    /// <summary>Join 指纹与场景扫描结果对齐；内容版本被 CLI 覆盖后必须重算再写入。</summary>
+    public ServerLaunchConfig WithGameplayFingerprint(ContentFingerprint gameplayFingerprint) =>
+        new(
+            BindHost,
+            BindPort,
+            ContentVersion,
+            MaxPlayers,
+            IdleTimeoutMs,
+            HeartbeatIntervalMs,
+            ProtocolVersion,
+            PlayerArchetypeId,
+            gameplayFingerprint,
+            EmptyLobbyTimeoutMs,
+            ExitOnMatchEnd);
+
     /// <summary>校验启动参数；失败时写出退出码。</summary>
     public bool Validate(out ServerExitCode exitCode)
     {
@@ -81,7 +125,8 @@ public readonly struct ServerLaunchConfig
             || IdleTimeoutMs < 1
             || HeartbeatIntervalMs < 1
             || HeartbeatIntervalMs >= IdleTimeoutMs
-            || ProtocolVersion.Value <= 0)
+            || ProtocolVersion.Value <= 0
+            || EmptyLobbyTimeoutMs < 0)
         {
             exitCode = ServerExitCode.ConfigFailed;
             return false;

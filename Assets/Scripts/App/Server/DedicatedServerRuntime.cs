@@ -15,6 +15,9 @@ public sealed class DedicatedServerRuntime : IDisposable
     bool _disposed;
     bool _pendingCompletedEnd;
     bool _endingMatch;
+    bool _shouldExit;
+    bool _hadPlayers;
+    long _listenStartedMs = -1;
 
     DedicatedServerRuntime(
         ServerLaunchConfig config,
@@ -40,6 +43,12 @@ public sealed class DedicatedServerRuntime : IDisposable
 
     /// <summary>Transport 已绑定并可 Accept。</summary>
     public bool IsListening { get; }
+
+    /// <summary>已监听且尚未请求进程退出；Bootstrap 用它打 READY。</summary>
+    public bool IsReady => IsListening && !_shouldExit && !_disposed;
+
+    /// <summary>空房超时或对局结束且 ExitOnMatchEnd 时为 true；玩家构建应退出进程。</summary>
+    public bool ShouldExit => _shouldExit;
 
     /// <summary>启动或运行失败时的退出码。</summary>
     public ServerExitCode ExitCode { get; private set; }
@@ -95,6 +104,11 @@ public sealed class DedicatedServerRuntime : IDisposable
     public void Poll(long nowMs)
     {
         EnsureNotDisposed();
+        if (_shouldExit)
+            return;
+        if (_listenStartedMs < 0)
+            _listenStartedMs = nowMs;
+
         BeginPlayerTicks();
         _session.Poll(nowMs);
         DrainJoins();
@@ -104,6 +118,7 @@ public sealed class DedicatedServerRuntime : IDisposable
         _authority.Advance(nowMs);
         FlushReplication();
         FinishPendingMatchEnd();
+        CheckEmptyLobbyTimeout(nowMs);
     }
 
     /// <summary>请求结束对局；下一 Poll 向仍在线连接可靠下发 MatchEnd。</summary>
@@ -189,6 +204,7 @@ public sealed class DedicatedServerRuntime : IDisposable
 
             var player = new DedicatedPlayerRuntime(in slot, entityId);
             _players.Add(request.ConnectionId, player);
+            _hadPlayers = true;
             if (MatchPhase == DedicatedMatchPhase.Lobby)
                 MatchPhase = DedicatedMatchPhase.Starting;
 
@@ -337,6 +353,8 @@ public sealed class DedicatedServerRuntime : IDisposable
         _players.Clear();
         MatchPhase = DedicatedMatchPhase.Lobby;
         _endingMatch = false;
+        if (_config.ExitOnMatchEnd)
+            RequestProcessExit();
     }
 
     void BroadcastMatchEnd(MatchEndReason reason)
@@ -368,9 +386,28 @@ public sealed class DedicatedServerRuntime : IDisposable
     }
 
     bool CanAcceptJoin() =>
-        MatchPhase == DedicatedMatchPhase.Lobby
-        || MatchPhase == DedicatedMatchPhase.Starting
-        || MatchPhase == DedicatedMatchPhase.Playing;
+        !_shouldExit
+        && (MatchPhase == DedicatedMatchPhase.Lobby
+            || MatchPhase == DedicatedMatchPhase.Starting
+            || MatchPhase == DedicatedMatchPhase.Playing);
+
+    /// <summary>无人到访过的 Lobby 超过配置后请求退出；已有过玩家则只走 ExitOnMatchEnd。</summary>
+    void CheckEmptyLobbyTimeout(long nowMs)
+    {
+        if (_shouldExit || _hadPlayers || _config.EmptyLobbyTimeoutMs <= 0)
+            return;
+        if (MatchPhase != DedicatedMatchPhase.Lobby || _players.Count > 0)
+            return;
+        if (nowMs - _listenStartedMs >= _config.EmptyLobbyTimeoutMs)
+            RequestProcessExit();
+    }
+
+    /// <summary>请求进程级退出；退出码保持 Success，由 Bootstrap 在玩家构建里 Quit。</summary>
+    void RequestProcessExit()
+    {
+        _shouldExit = true;
+        ExitCode = ServerExitCode.Success;
+    }
 
     /// <summary>只清理断开连接的 Match/复制状态，其余玩家保留。</summary>
     void OnSessionDisconnected(SessionDisconnected disconnected)

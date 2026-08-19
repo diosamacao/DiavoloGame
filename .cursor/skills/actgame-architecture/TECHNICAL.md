@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-19（Dedicated Play：合并进下一帧 + 首 Hint 和解）
+> Last updated: 2026-08-19（W8 Dedicated 启动解析 / Ready / 进程退出）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,7 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
-| 组队 PVE 状态同步 / 权威进程 | ✅ Listen 基线；🟡 Dedicated 对局 | `DedicatedServerRuntime` + `DedicatedAuthorityWorld` | W7 已下发 ReplicationFrame；Editor Play 待确认 |
+| 组队 PVE 状态同步 / 权威进程 | ✅ Listen + Dedicated 对局；🟡 Dedicated Build | `DedicatedServerRuntime` + `ServerLaunchConfigResolver` | W7 已验收；W8 启动/退出已切，出包待 Editor |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -248,7 +248,8 @@ ActAuthorityReplicationAdapter
 - W0～W4、GF0～GF4 与 M1 已于 2026-08-18 完成 Test Runner、架构守卫和双进程回归
 - W5 Dedicated Bootstrap 已于 2026-08-19 用户验收
 - W6 Headless Authority / Content Fingerprint 已于 2026-08-19 用户验收
-- W7 Match / 每连接 Replication 已于 2026-08-19 代码落地；Editor Play 待确认
+- W7 Match / 每连接 Replication 已于 2026-08-19 用户验收
+- W8 Dedicated 启动覆盖 / READY / 空房与对局结束退出已于 2026-08-19 代码落地；Unity Dedicated Build 待 Editor
 
 ### 相关文件
 
@@ -460,8 +461,8 @@ Client：ReplicationRoomClient Poll → ActClientRoomGameplay 合并按键 → �
 - 客机连招下一段在本机 Cancel 窗起手；权威未起手则 Stop
 - 客机 CameraLock：Proxy 只读进 TargetSystem，范围内自动选中后可开；2026-08-18 双进程 Play 已验收
 - 多种敌人按稳定 Archetype 精确生成对应幽灵，不使用首敌配置回退
-- Dedicated 已下发 `ReplicationFrame` / `MatchEnd`；双 Client 对局手感待 Editor Play
-- Unity Dedicated Server Build 属 W8
+- Dedicated Editor Play 对局已验收；玩家 Dedicated Build 与 H-DS-D 待 Editor
+- Unity Dedicated Server 出包属 W8 剩余人工项
 - 未做匹配、排位、Host 迁移
 - UDP 仍不可靠；冗余 3 条降低丢边沿，不能保证 0 丢包
 - 客机刀光/音效由本机表现桥按预测帧派发；跟权威卡肉招时禁止重派点事件
@@ -503,7 +504,7 @@ Client：ReplicationRoomClient Poll → ActClientRoomGameplay 合并按键 → �
 |----|------|
 | 进程角色 | `NetProcessRole.DedicatedServer`；`ReplicationRole.DedicatedServer` 仅作场景入口枚举 |
 | 程序集 | `ACTGame.Server`：不引用 PlayerController / InputReader / Camera / HUD / Room Facade |
-| 启动 | `CombatWorldController` 只 `EnsureDedicatedBootstrap()`；`DedicatedServerRuntime.TryStart` 装配 UDP Session + Match |
+| 启动 | `CombatWorldController` 只 `EnsureDedicatedBootstrap()`；先 `ServerLaunchConfigResolver` 再 `TryStart` |
 | 退出码 | `ServerExitCode.ConfigFailed=10`、`BindFailed=20`；玩家构建 `Application.Quit` |
 | 身份 | `MatchCoordinator` 分配 PlayerId / EntityId / Team / Spawn（槽位 × 2000mm X） |
 | 每连接 | `DedicatedPlayerRuntime` 持 Hint ACK；`ReplicationServer` 在 `DedicatedAuthorityWorld` 按连接持有 |
@@ -545,7 +546,7 @@ CombatWorldController.Awake（Dedicated）
 
 ### 功能说明
 
-无本地玩家的 Dedicated 进入 Playing 后，按连接下发与 Listen 相同的 `ReplicationFrame`；Owner 预测、Observer Proxy 复用 W4 Client Adapter。对局可结束并回到 Lobby。
+无本地玩家的 Dedicated 进入 Playing 后，按连接下发与 Listen 相同的 `ReplicationFrame`；Owner 预测、Observer Proxy 复用 W4 Client Adapter。对局可结束并回到 Lobby；玩家构建在 `ExitOnMatchEnd` 时接着退出进程。
 
 ### 实现方案
 
@@ -578,8 +579,7 @@ DedicatedServerRuntime.Poll
 
 ### 已知限制
 
-- 双 Client 移动/出招/打同一敌人待 Editor Play 复验
-- 未做 Unity Dedicated Server Build（W8）
+- Editor Play 已验收；Unity Dedicated Server Build 仍待 Editor（W8 剩余）
 - 命中仍走不可靠帧内冗余，不是可靠事件通道
 
 ### 相关文件
@@ -589,6 +589,56 @@ DedicatedServerRuntime.Poll
 - `Assets/Scripts/Domain/Simulation/Replication/RoomCodec.cs`
 - `Assets/Tests/EditMode/ACTGame/Server/DedicatedServerRuntimeTests.cs`
 - `docs/2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md`
+
+---
+
+## 组队 PVE · W8 Dedicated 启动与进程生命周期
+
+### 功能说明
+
+Dedicated 进程按 CLI / 环境变量 / 配置文件覆盖监听与生命周期；监听成功打 READY；空 Lobby 超时或对局结束后可退出。Editor Play 不退出 Unity，并保持回 Lobby 再入房。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 覆盖 | `ServerLaunchConfigResolver`：CLI > Env > File > Default |
+| 空房 | `EmptyLobbyTimeoutMs`；仅从未有人加入的 Lobby；0=不超时 |
+| 对局结束 | `ExitOnMatchEnd` 时 EmptyRoom / Completed 后 `ShouldExit` |
+| Ready | `IsReady`；日志 `READY port=… role=DedicatedServer` |
+| Editor | `CombatWorldController` 强制超时 0 且不退出进程 |
+| 玩家构建 | 默认 `ExitOnMatchEnd=true`；Bootstrap `Application.Quit` |
+
+### 关键参数
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `EmptyLobbyTimeoutMs` | 0 | 无人到访才计时 |
+| `ExitOnMatchEnd` | Editor false / 玩家构建 true | Editor 不可被 CLI 打开 |
+| 退出码 | 0 / 10 / 20 | 正常 / 配置 / 绑定 |
+
+### 运行时流程
+
+```
+CreateDefault → TryResolve → Bootstrap.TryStart → READY
+Poll → 空房超时或 ExitOnMatchEnd → ShouldExit
+玩家构建 Application.Quit(0)；Editor 只 Dispose
+```
+
+### 已知限制
+
+- 未在本环境打出 Dedicated Server 包；H-DS-D-1～10 需人工
+- 烟测脚本只断言 READY，不断言双 Client 对局
+- 内容指纹仍由场景扫描；CLI 改 `contentVersion` 后会重算指纹
+
+### 相关文件
+
+- `Assets/Scripts/App/Server/ServerLaunchConfigResolver.cs`
+- `Assets/Scripts/App/Server/DedicatedServerRuntime.cs`
+- `Assets/Scripts/App/Server/DedicatedServerBootstrap.cs`
+- `Assets/Tests/EditMode/ACTGame/Server/ServerLaunchConfigResolverTests.cs`
+- `docs/2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md`
+- `docs/2026.8.19/DEDICATED_SERVER_LAUNCH.md`
 
 ---
 
@@ -1406,6 +1456,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-19 | 修复 Dedicated 客机无法操作：Join 先于 Drain；入房立刻发首帧 Spawn，避免 Owner 被建成 Proxy 导致 `CanPredict` 不开 |
 | 2026-08-19 | Dedicated Play：命令按 Hint 逐步灌入；Headless `Play` 仍记 CurrentKey；Dodge 期间推迟 2m 硬吸 |
 | 2026-08-19 | Dedicated Play 复验：取消逐步灌入（观察者延迟）；Merge 进下一帧 + 首 Hint 和解；吸附/闪避整段推迟硬吸且不掐本机招 |
+| 2026-08-19 | W7 Editor Play 用户验收；W8：`ServerLaunchConfigResolver` CLI/Env/File、READY、空房超时与对局结束退出（Editor 不 Quit） |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

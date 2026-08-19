@@ -1,14 +1,14 @@
 # NetSync W7 阶段性说明（DS5）
 
 > 撰写：2026-08-19  
-> 角色：**W7 代码落地备忘**（Editor Play 待确认）  
+> 角色：**W7 代码落地备忘**（Editor Play 已于 2026-08-19 用户验收）  
 > 排期：[`../2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)
 
 ---
 
 ## 0. 一句话
 
-Dedicated 在权威步末按连接构 `ReplicationFrame`（复用 Listen 的 Capture / `ReplicationServer` / Owner 预测），并带 Lobby→Playing→Ending Match 状态机与可靠 `MatchEnd`。完整 Unity Dedicated Build 属 **W8**。
+Dedicated 在权威步末按连接构 `ReplicationFrame`（复用 Listen 的 Capture / `ReplicationServer` / Owner 预测），并带 Lobby→Playing→Ending Match 状态机与可靠 `MatchEnd`。Unity Dedicated Build / CLI / 进程退出属 **W8**（见 [`NETSYNC_W8_STAGE_SUMMARY.md`](./NETSYNC_W8_STAGE_SUMMARY.md)）。
 
 ---
 
