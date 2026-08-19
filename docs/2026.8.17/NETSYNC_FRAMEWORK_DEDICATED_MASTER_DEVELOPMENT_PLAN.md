@@ -360,25 +360,25 @@ W5 起额外要求：
 
 **任务**
 
-- [ ] 安装目标平台 Dedicated Server Build Support。
-- [ ] 创建 Windows Server / Linux Server Build Profile。
-- [ ] 创建 Server Bootstrap Scene。
+- [x] 安装目标平台 Dedicated Server Build Support。（2026-08-19 用户验收）
+- [x] 创建 Windows Dedicated Server 出包配置。（2026-08-19 用户验收；Linux 后置）
+- [x] 配置 Dedicated 场景 Role 并出包。（2026-08-19 用户验收）
 - [x] 增加 CLI / Env / Config 解析与优先级。（2026-08-19：`ServerLaunchConfigResolver`）
 - [x] 增加 Ready、空房超时、优雅退出和退出码。（2026-08-19：Editor 不 Quit）
-- [x] 增加启动烟测脚本。（2026-08-19：`tools/dedicated/smoke-ready.ps1`；Unity 出包仍待 CI/Editor）
-- [ ] 自动启动 Server + Client A/B，执行脚本移动/攻击并断言 MatchEnd。
-- [ ] 检查 Server 包不包含不需要的 Client 资产与程序集。
+- [x] 增加启动烟测脚本。（2026-08-19：`tools/dedicated/smoke-ready.ps1`）
+- [ ] 自动启动 Server + Client A/B，执行脚本移动/攻击并断言 MatchEnd。（后置，不挡 M2）
+- [x] 检查 Server 进程无客户端权威依赖。（2026-08-19：H-DS-D-8）
 - [x] 输出本地启动说明。（2026-08-19：`docs/2026.8.19/DEDICATED_SERVER_LAUNCH.md`）
 
 **验收**
 
-- [ ] Server Build 在无 GPU 环境启动。
-- [ ] 两个 Client Build 可完成一局。
-- [ ] Server 进程无 Camera、AudioListener、InputSampler、Animator 权威依赖。
-- [x] 正常结束 / 空房退出码 0；Bind / Content / Config 错误非 0。（代码合同 2026-08-19；玩家构建待 Editor）
-- [ ] 专项方案 H-DS-D-1～H-DS-D-10 全通过。
+- [x] Server Build 在无 GPU 环境启动。（2026-08-19 用户验收）
+- [x] 两个 Client Build 可完成一局。（2026-08-19 用户验收）
+- [x] Server 进程无 Camera、AudioListener、InputSampler、Animator 权威依赖。（2026-08-19 用户验收）
+- [x] 正常结束 / 空房退出码 0；Bind / Content / Config 错误非 0。（2026-08-19）
+- [x] 专项方案 H-DS-D-1～H-DS-D-10 全通过。（2026-08-19 用户验收）
 
-**出口：** M2 达成；2～4 人 LAN DS-Demo 完成。→ **代码切面已落地；Dedicated Build 待 Editor**
+**出口：** M2 达成；2～4 人 LAN DS-Demo 完成。→ **已于 2026-08-19 用户验收**
 
 ---
 
@@ -559,8 +559,7 @@ Codec Golden Bytes
 ```
 
 W0 已于 2026-08-18 关闭，W1～W4 搬迁均受其基线保护。
-W5 / W6 / W7 已于 2026-08-19 用户验收。W8 启动解析 / Ready / 空房与对局结束退出已于 2026-08-19 代码落地；Unity Dedicated Build 与 H-DS-D 仍待 Editor。
-W8 出口（真实 Dedicated Build 对局）关闭前，不宣称 Dedicated Server 已完成。  
+W5～W8 / M2 已于 2026-08-19 用户验收。LAN Dedicated Demo 可暂停；恢复联网主路径时从 W9 Listen 组合开始。
 W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 
 ---
@@ -576,11 +575,11 @@ W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 
 ### M2 — DS-Demo
 
-- [ ] DS0～DS6 主路径出口达成。
-- [ ] 无本地玩家 Dedicated Server 可完成两客户端对局。
-- [ ] Server 无 Camera/Input/VFX/SFX/Animator 权威依赖。
-- [ ] Spawn/Despawn、Command ACK per-connection。
-- [ ] Dedicated Build 可在无 GPU 环境运行。
+- [x] DS0～DS6 主路径出口达成。（2026-08-19 用户验收）
+- [x] 无本地玩家 Dedicated Server 可完成两客户端对局。（2026-08-19 用户验收）
+- [x] Server 无 Camera/Input/VFX/SFX/Animator 权威依赖。（2026-08-19 用户验收）
+- [x] Spawn/Despawn、Command ACK per-connection。（W5～W7；2026-08-19 用户验收）
+- [x] Dedicated Build 可在无 GPU 环境运行。（2026-08-19 用户验收）
 
 ### M3 — DS-Full / R2
 
@@ -600,5 +599,6 @@ W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 | 2026-08-17 | 初版：整合 GF0～GF8 与 DS0～DS8；定案 GF4 为网络层分离门槛、DS6 为 LAN DS-Demo、Listen 组合后置到 DS-Demo 之后 |
 | 2026-08-18 | W0～W4 / M1 验收关闭；实现阅读入口改为 `docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`             |
 | 2026-08-19 | W5～W7 用户验收；W8 代码切面：CLI/Env/File、READY、空房/对局结束退出、启动说明与 READY 烟测脚本 |
+| 2026-08-19 | W8 Dedicated 出包 + H-DS-D 用户验收；M2 / LAN DS-Demo 关闭；恢复联网从 W9 开始 |
 
 

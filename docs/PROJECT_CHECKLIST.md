@@ -1,6 +1,6 @@
 # ACTGame 项目总清单
 
-> 更新：2026-08-19 — W7 Editor Play 已验收；W8 Dedicated 启动/Ready/退出代码已切；Unity Dedicated Build 待 Editor 出包
+> 更新：2026-08-19 — NetSync W5～W8 / M2 LAN DS-Demo 已验收；联网主路径可暂停，恢复时从 W9 Listen 组合开始
 
 > 角色：**一页总览**（进度 / 下一步 / 明确不做）  
 > 细节真源勿与本文抢权威：
@@ -51,7 +51,7 @@
 | 相机 | 🟡 | 跟随 + 滤左右；Lock-On / SkillShot 未做 |
 | 正式 UI / 血条 | ⬜ | 仅 Debug HUD；目标 MVVM |
 | 吸附 / 绕背 | ✅ | Wave 4 位移出口（2026-08-09） |
-| 预测回滚 / 联网 | ✅ Listen 基线；🟡 Dedicated Build | NS0～NS5 + M1 + W5～W7 已验收；W8 启动/Ready/退出已切，Dedicated 出包待 Editor |
+| 预测回滚 / 联网 | ✅ Listen 基线 + Dedicated LAN Demo | NS0～NS5 + M1 + W5～W8 / M2 已验收；W9 Listen 组合与公网后置 |
 | 打击感木桩验收台 | ✅ | Monster_EDF + 关行动 + Hit_Shake；Play 验收 2026-08-08 |
 | 命中 VFX/SFX（A2） | ✅ | HitFeedback + Cue；打击感验收 2026-08-09 |
 | 学习/工程实践轨 | ⬜ | BT 编辑器、A*、AB/Lua、SDK、剧情等（§6.4） |
@@ -60,7 +60,7 @@
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项：** Unity Dedicated Server 出包 + H-DS-D-1～10（W8 出口）；代码下一阶段 W9 Listen 组合  
+**下一项（联网）：** 可暂停。恢复时从 NetSync W9 Listen = ServerRuntime + LocalClient 开始  
 W8 备忘：[`2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md)  
 启动：[`2026.8.19/DEDICATED_SERVER_LAUNCH.md`](./2026.8.19/DEDICATED_SERVER_LAUNCH.md)  
 W7 备忘：[`2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md)  
@@ -134,7 +134,7 @@ W5 备忘：[`2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W5_STA
 | NetSync W5 Dedicated Bootstrap / N Session | ✅ 2026-08-19 用户验收 |
 | NetSync W6 Headless Authority / 指纹 | ✅ 2026-08-19 用户验收 |
 | NetSync W7 Match / 每连接 Replication | ✅ 2026-08-19 用户验收 |
-| NetSync W8 Dedicated Build / DS-Demo | 🟡 2026-08-19 启动/Ready/退出已切；Build + H-DS-D 待 Editor |
+| NetSync W8 Dedicated Build / DS-Demo | ✅ 2026-08-19 用户验收（M2 关闭） |
 | L5 全员输入广播 + 完整回滚 | ❌ 2026-08-13 取消产品主路径 |
 
 ---

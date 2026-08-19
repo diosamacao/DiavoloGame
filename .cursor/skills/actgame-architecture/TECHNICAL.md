@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-19（W8 Dedicated 启动解析 / Ready / 进程退出）
+> Last updated: 2026-08-19（W8 / M2 Dedicated LAN Demo 已验收）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,7 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
-| 组队 PVE 状态同步 / 权威进程 | ✅ Listen + Dedicated 对局；🟡 Dedicated Build | `DedicatedServerRuntime` + `ServerLaunchConfigResolver` | W7 已验收；W8 启动/退出已切，出包待 Editor |
+| 组队 PVE 状态同步 / 权威进程 | ✅ Listen + Dedicated LAN Demo | `DedicatedServerRuntime` + `ServerLaunchConfigResolver` | W5～W8 / M2 已验收；W9 Listen 组合后置 |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -249,7 +249,7 @@ ActAuthorityReplicationAdapter
 - W5 Dedicated Bootstrap 已于 2026-08-19 用户验收
 - W6 Headless Authority / Content Fingerprint 已于 2026-08-19 用户验收
 - W7 Match / 每连接 Replication 已于 2026-08-19 用户验收
-- W8 Dedicated 启动覆盖 / READY / 空房与对局结束退出已于 2026-08-19 代码落地；Unity Dedicated Build 待 Editor
+- W8 Dedicated 启动覆盖 / READY / 出包已于 2026-08-19 用户验收；M2 关闭
 
 ### 相关文件
 
@@ -461,8 +461,8 @@ Client：ReplicationRoomClient Poll → ActClientRoomGameplay 合并按键 → �
 - 客机连招下一段在本机 Cancel 窗起手；权威未起手则 Stop
 - 客机 CameraLock：Proxy 只读进 TargetSystem，范围内自动选中后可开；2026-08-18 双进程 Play 已验收
 - 多种敌人按稳定 Archetype 精确生成对应幽灵，不使用首敌配置回退
-- Dedicated Editor Play 对局已验收；玩家 Dedicated Build 与 H-DS-D 待 Editor
-- Unity Dedicated Server 出包属 W8 剩余人工项
+- Dedicated Editor Play 与玩家 Dedicated Build 均已验收（M2）
+- Listen 仍为独立 Host 路径，W9 再收成 ServerRuntime + LocalClient
 - 未做匹配、排位、Host 迁移
 - UDP 仍不可靠；冗余 3 条降低丢边沿，不能保证 0 丢包
 - 客机刀光/音效由本机表现桥按预测帧派发；跟权威卡肉招时禁止重派点事件
@@ -579,8 +579,7 @@ DedicatedServerRuntime.Poll
 
 ### 已知限制
 
-- Editor Play 已验收；Unity Dedicated Server Build 仍待 Editor（W8 剩余）
-- 命中仍走不可靠帧内冗余，不是可靠事件通道
+- Dedicated Build 已验收；命中仍走不可靠帧内冗余，不是可靠事件通道（W10）
 
 ### 相关文件
 
@@ -627,9 +626,9 @@ Poll → 空房超时或 ExitOnMatchEnd → ShouldExit
 
 ### 已知限制
 
-- 未在本环境打出 Dedicated Server 包；H-DS-D-1～10 需人工
-- 烟测脚本只断言 READY，不断言双 Client 对局
+- CI 自动出包、脚本化双 Client MatchEnd 烟测后置，不挡 M2
 - 内容指纹仍由场景扫描；CLI 改 `contentVersion` 后会重算指纹
+- Listen 尚未改成 ServerRuntime + LocalClient（W9）
 
 ### 相关文件
 
@@ -1457,6 +1456,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-19 | Dedicated Play：命令按 Hint 逐步灌入；Headless `Play` 仍记 CurrentKey；Dodge 期间推迟 2m 硬吸 |
 | 2026-08-19 | Dedicated Play 复验：取消逐步灌入（观察者延迟）；Merge 进下一帧 + 首 Hint 和解；吸附/闪避整段推迟硬吸且不掐本机招 |
 | 2026-08-19 | W7 Editor Play 用户验收；W8：`ServerLaunchConfigResolver` CLI/Env/File、READY、空房超时与对局结束退出（Editor 不 Quit） |
+| 2026-08-19 | W8 Dedicated 出包 + H-DS-D 用户验收；M2 / LAN DS-Demo 关闭 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
