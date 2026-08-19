@@ -54,7 +54,7 @@ public sealed class ActOwnerReplicationAdapter
         _driver.RecordAutonomous(in input);
     }
 
-    /// <summary>应用 Owner 权威快照：覆盖 HP，并按 appliedHint 执行动作 ACK 与位移和解。</summary>
+    /// <summary>应用 Owner 权威快照：覆盖 HP，并按 appliedHint 执行动作 ACK 与位移和解。吸附/闪避招在权威空闲时不掐。</summary>
     public void ApplySnapshot(
         PlayerController localPlayer,
         in ActorReplicationSnapshot self,
@@ -78,10 +78,16 @@ public sealed class ActOwnerReplicationAdapter
             PredictedActionReconcileResult actionResult = _actionAck.Reconcile(
                 appliedHint,
                 in self);
-            if (PredictedActionAckQueue.ShouldStopAutonomousAction(actionResult, in self))
-                actor.StopAutonomousAction();
-
+            ActionMotionReconcileGate.TryReadLocalAction(actor, out ActionDefinition localAction, out _);
             _content.Actions.TryGet(self.ActionId, out ActionDefinition authorityAction);
+            if (PredictedActionAckQueue.ShouldStopAutonomousAction(
+                    actionResult,
+                    in self,
+                    ActionMotionReconcileGate.HasCorrectiveDisplacement(localAction)))
+            {
+                actor.StopAutonomousAction();
+            }
+
             PredictedReconcileResult locomotionResult = _driver.Reconcile(
                 appliedHint,
                 in self,

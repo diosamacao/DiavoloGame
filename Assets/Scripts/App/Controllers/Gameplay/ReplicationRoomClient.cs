@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-/// <summary>Client 网络薄 Facade：驱动 Session、上行命令，并转发 ReplicationFrame 给 ACT Gameplay。</summary>
+/// <summary>Client 网络薄 Facade：驱动 Session、上行命令，并转发 ReplicationFrame / MatchEnd 给 ACT Gameplay。</summary>
 [DefaultExecutionOrder(-150)]
 [DisallowMultipleComponent]
 public sealed class ReplicationRoomClient : AppControllerBase
@@ -37,8 +37,10 @@ public sealed class ReplicationRoomClient : AppControllerBase
             return;
 
         _session.Poll(NowMs());
-        SyncSessionState();
+        // Join 必须先于 Drain：Dedicated 同拍会带首帧 Spawn，Owner 身份未绑定会把自己建成 Proxy。
+        AcceptJoinIfReady();
         DrainApplicationMessages();
+        EndIfSessionEnded();
         if (_joined && !_ended)
             _gameplay?.SampleRenderInput();
     }
@@ -76,24 +78,32 @@ public sealed class ReplicationRoomClient : AppControllerBase
         RefreshHud("Joined");
     }
 
-    /// <summary>把 ClientSession 状态转换为房间 Join/End 生命周期。</summary>
-    void SyncSessionState()
+    /// <summary>JoinAccept 到达后立刻绑定 Owner，再允许 Drain 复制帧。</summary>
+    void AcceptJoinIfReady()
     {
         if (!_joined && _session.State == ClientSessionState.Joined)
-        {
             OnSessionJoined(_session.JoinAccept);
-            return;
-        }
+    }
 
+    /// <summary>Kick / 超时在 Drain 之后收口，避免同拍 MatchEnd 被提前 Shutdown。</summary>
+    void EndIfSessionEnded()
+    {
         if (_session.State == ClientSessionState.Ended && !_ended)
             EndRoom($"SessionEnded:{_session.LastDisconnectReason}");
     }
 
-    /// <summary>只消费 ClientSession 已鉴权并拆信封的 ReplicationFrame。</summary>
+    /// <summary>消费 ReplicationFrame；MatchEnd 立即结束房间 Gameplay。</summary>
     void DrainApplicationMessages()
     {
         while (_session.TryDequeueApplication(out SessionApplicationPacket packet))
         {
+            // Dedicated W7：可靠 MatchEnd 优先于复制帧，避免结束后仍 Apply。
+            if (packet.MessageType == (byte)RoomMessageKind.MatchEnd)
+            {
+                EndRoom("MatchEnded");
+                return;
+            }
+
             if (packet.MessageType != (byte)RoomMessageKind.ReplicationFrame)
                 continue;
 

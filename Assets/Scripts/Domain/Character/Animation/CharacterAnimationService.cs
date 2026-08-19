@@ -63,13 +63,23 @@ public sealed class CharacterAnimationService : IDisposable, ILocomotionAnimClip
     public bool HasClip(AnimationKey key) =>
         profile != null && profile.TryGetClip(key, out AnimationClip clip) && clip != null;
 
+    /// <summary>
+    /// 切换 Locomotion 逻辑键。Headless 无 Graph 时仍记录 CurrentKey，供权威 Capture 复制走跑相位。
+    /// </summary>
     public void Play(AnimationKey key, float? fadeDuration = null)
     {
-        if (_locked || profile == null || playback == null || !playback.IsValid)
+        if (_locked || profile == null)
             return;
 
         if (_currentKey == key)
             return;
+
+        // Headless Null 后端 IsValid=false：禁止因无骨骼而丢掉逻辑键，否则快照永远是 Idle。
+        if (playback == null || !playback.IsValid)
+        {
+            _currentKey = key;
+            return;
+        }
 
         if (!profile.TryGetClip(key, out AnimationClip clip))
         {

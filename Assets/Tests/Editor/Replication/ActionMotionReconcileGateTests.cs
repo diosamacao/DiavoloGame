@@ -2,7 +2,7 @@ using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 
-/// <summary>穿敌吸附/关碰撞窗与权威卡肉时，客机纠偏不得硬吸位姿。</summary>
+/// <summary>穿敌吸附/关碰撞/闪避整段与权威卡肉时，客机纠偏不得硬吸位姿。</summary>
 public sealed class ActionMotionReconcileGateTests
 {
     /// <summary>走跑空闲：走默认 2m 阈。</summary>
@@ -59,17 +59,52 @@ public sealed class ActionMotionReconcileGateTests
                 ActionMotionReconcileGate.HasPassThroughWindow(action, 25),
                 Is.True);
             Assert.That(
+                ActionMotionReconcileGate.HasPassThroughWindow(action, 10),
+                Is.False);
+            Assert.That(
                 ActionMotionReconcileGate.ShouldDeferLocomotionSnap(
                     false, action, 25, in idle, null),
                 Is.True);
+            // 整段招都推迟：窗前帧也不得 2m 硬吸。
             Assert.That(
                 ActionMotionReconcileGate.ShouldDeferLocomotionSnap(
                     false, action, 10, in idle, null),
-                Is.False);
+                Is.True);
         }
         finally
         {
             Object.DestroyImmediate(action);
+        }
+    }
+
+    /// <summary>本机或权威正在 Dodge：连续闪避不得 2m 硬吸拉回。</summary>
+    [Test]
+    public void Dodge_DefersSnap()
+    {
+        ActionDefinition dodge = ScriptableObject.CreateInstance<ActionDefinition>();
+        try
+        {
+            SetField(typeof(ActionDefinition), dodge, "actionType", CombatActionType.Dodge);
+            ActorReplicationSnapshot idle = CreateSnapshot(actionId: 0, actionFrame: 0, freezeFrames: 0);
+            Assert.That(
+                ActionMotionReconcileGate.ShouldDeferLocomotionSnap(
+                    false, dodge, 4, in idle, null),
+                Is.True);
+
+            ActorReplicationSnapshot authorityDodge = CreateSnapshot(
+                actionId: 5, actionFrame: 6, freezeFrames: 0);
+            Assert.That(
+                ActionMotionReconcileGate.ShouldDeferLocomotionSnap(
+                    false, null, 0, in authorityDodge, dodge),
+                Is.True);
+            Assert.That(
+                ActionMotionReconcileGate.ResolveSnapThresholdMm(
+                    false, dodge, 4, in idle, null),
+                Is.EqualTo(int.MaxValue));
+        }
+        finally
+        {
+            Object.DestroyImmediate(dodge);
         }
     }
 
@@ -92,6 +127,12 @@ public sealed class ActionMotionReconcileGateTests
             Assert.That(
                 ActionMotionReconcileGate.ShouldDeferLocomotionSnap(
                     false, null, 40, in afterDash, action),
+                Is.True);
+            ActorReplicationSnapshot finished = CreateSnapshot(
+                actionId: 0, actionFrame: 0, freezeFrames: 0);
+            Assert.That(
+                ActionMotionReconcileGate.ShouldDeferLocomotionSnap(
+                    false, null, 0, in finished, action),
                 Is.False);
         }
         finally

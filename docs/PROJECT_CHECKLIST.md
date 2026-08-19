@@ -1,6 +1,6 @@
 # ACTGame 项目总清单
 
-> 更新：2026-08-19 — NetSync W6 Headless Authority / 指纹握手代码已切；Editor Play 待确认；下一阶段 W7 Match Replication
+> 更新：2026-08-19 — NetSync W7 Match / 每连接 Replication 代码已切；Editor Play 待确认；下一阶段 W8 Dedicated Build
 
 > 角色：**一页总览**（进度 / 下一步 / 明确不做）  
 > 细节真源勿与本文抢权威：
@@ -51,7 +51,7 @@
 | 相机 | 🟡 | 跟随 + 滤左右；Lock-On / SkillShot 未做 |
 | 正式 UI / 血条 | ⬜ | 仅 Debug HUD；目标 MVVM |
 | 吸附 / 绕背 | ✅ | Wave 4 位移出口（2026-08-09） |
-| 预测回滚 / 联网 | ✅ Listen 基线；🟡 Dedicated Bootstrap | NS0～NS5 + M1 已验收；W5 独立 Server 已切；W6 权威 World 未开始 |
+| 预测回滚 / 联网 | ✅ Listen 基线；🟡 Dedicated 对局 | NS0～NS5 + M1 + W5/W6 已验收；W7 下行 Frame 已切，Editor Play 待确认 |
 | 打击感木桩验收台 | ✅ | Monster_EDF + 关行动 + Hit_Shake；Play 验收 2026-08-08 |
 | 命中 VFX/SFX（A2） | ✅ | HitFeedback + Cue；打击感验收 2026-08-09 |
 | 学习/工程实践轨 | ⬜ | BT 编辑器、A*、AB/Lua、SDK、剧情等（§6.4） |
@@ -60,7 +60,8 @@
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项：** NetSync W7 Match / per-connection Replication（Dedicated + 两客户端可玩）  
+**下一项：** NetSync W8 Dedicated Build / DS-Demo  
+W7 备忘：[`2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md)  
 W6 备忘：[`2026.8.19/NETSYNC_W6_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W6_STAGE_SUMMARY.md)  
 W5 备忘：[`2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md)  
 排期：[`2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](./2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)
@@ -129,7 +130,8 @@ W5 备忘：[`2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W5_STA
 | 组队 PVE 状态同步 NS0～NS5 | ✅ 2026-08-15 |
 | 客机预测对齐 UE（当前 Listen 产品链） | ✅ 2026-08-18 Owner 预测/和解与双进程 Play 已验收；通用 GF5 另排 |
 | NetSync W5 Dedicated Bootstrap / N Session | ✅ 2026-08-19 用户验收 |
-| NetSync W6 Headless Authority / 指纹 | 🟡 2026-08-19 代码已切；Editor Play 待确认 |
+| NetSync W6 Headless Authority / 指纹 | ✅ 2026-08-19 用户验收 |
+| NetSync W7 Match / 每连接 Replication | 🟡 2026-08-19 代码已切；Editor Play 待确认 |
 | L5 全员输入广播 + 完整回滚 | ❌ 2026-08-13 取消产品主路径 |
 
 ---

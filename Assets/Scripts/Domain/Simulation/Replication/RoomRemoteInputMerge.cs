@@ -9,6 +9,7 @@ public static class RoomRemoteInputMerge
     /// <summary>
     /// 按 FrameHint 升序合并未应用命令到 targetFrame。
     /// 无新 Hint 时返回 false，不得清空已写入的下一帧输入。
+    /// firstAppliedHint 是本批第一条新 Hint，供客机按该帧位姿和解，禁止用 newest 对 3 帧压缩结果。
     /// </summary>
     public static bool TryMergeUnapplied(
         ClientCommand[] commands,
@@ -16,10 +17,12 @@ public static class RoomRemoteInputMerge
         long targetFrame,
         SimActorId actorId,
         out InputFrame merged,
-        out long newestHint)
+        out long newestHint,
+        out long firstAppliedHint)
     {
         merged = default;
         newestHint = lastAppliedHint;
+        firstAppliedHint = lastAppliedHint;
         if (commands == null || commands.Length == 0 || !actorId.IsValid || targetFrame < 0)
             return false;
 
@@ -42,6 +45,7 @@ public static class RoomRemoteInputMerge
             if (!any)
             {
                 accumulated = identified;
+                firstAppliedHint = command.FrameHint;
                 any = true;
             }
             else

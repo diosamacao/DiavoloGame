@@ -320,6 +320,23 @@ public class ActionTimeline
         IsSoftBodySuppressActiveAtFrame(frame)
         || GetActiveTargetAdhesionAtFrame(frame) != null;
 
+    /// <summary>时间轴上是否配置过吸附或关碰撞窗；纠偏整段推迟时不看当前帧。</summary>
+    public bool HasAdhesionOrSoftBodySuppressWindow()
+    {
+        foreach (MotionModifierNotifyState state in MotionModifierStates)
+        {
+            if (state == null)
+                continue;
+            if (state.Mode == MotionModifierMode.SoftBodySuppress
+                || state.Mode == MotionModifierMode.TargetAdhesion)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>验证所有时间轴条目帧范围，保持编辑器拖拽后的数据有效。</summary>
     public void ClampToTotalFrames(int totalFrames)
     {

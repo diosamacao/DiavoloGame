@@ -1,18 +1,18 @@
-/// <summary>单连接权威运行时：独立复制 baseline 与命令 Hint / ACK。</summary>
+/// <summary>单连接权威运行时：独立命令 Hint / ACK；复制差分机在权威世界按连接持有。</summary>
 public sealed class DedicatedPlayerRuntime
 {
-    /// <summary>用 Match 槽位创建连接运行时。</summary>
-    public DedicatedPlayerRuntime(in MatchPlayerSlot slot)
+    /// <summary>用 Match 槽位与 World 分配的实体 Id 创建连接运行时。</summary>
+    public DedicatedPlayerRuntime(in MatchPlayerSlot slot, NetEntityId entityId)
     {
         Slot = slot;
-        Replication = new ReplicationServer();
+        EntityId = entityId;
     }
 
     /// <summary>Match 分配结果。</summary>
     public MatchPlayerSlot Slot { get; }
 
-    /// <summary>该连接独占的复制差分机；重连必须新建，禁止继承上一连接 ACK。</summary>
-    public ReplicationServer Replication { get; }
+    /// <summary>JoinAccept 使用的权威实体 Id，等于 World SimulationId。</summary>
+    public NetEntityId EntityId { get; }
 
     /// <summary>已灌入权威输入的最新客户端 FrameHint。</summary>
     public long LastAppliedFrameHint { get; private set; }

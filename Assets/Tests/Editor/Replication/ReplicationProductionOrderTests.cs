@@ -31,7 +31,7 @@ public sealed class ReplicationProductionOrderTests
             "currentFrame + 1",
             "RoomRemoteInputMerge.TryMergeUnapplied(",
             "buffer.Set(in merged);",
-            "new ActAuthorityInputApplyResult(true, newestHint);");
+            "new ActAuthorityInputApplyResult(true, newestHint, firstAppliedHint);");
 
         string simulationStep = Slice(
             simulation,
@@ -118,6 +118,47 @@ public sealed class ReplicationProductionOrderTests
         Assert.That(gameplay, Does.Not.Contain("new Vector3(2f"));
     }
 
+    /// <summary>Dedicated 必须先灌命令再步进，步内 Capture 后由 Runtime 按连接发送。</summary>
+    [Test]
+    public void DedicatedFrame_ProductionSource_PreservesCommandStepCaptureSendOrder()
+    {
+        string runtime = ReadScript("App/Server/DedicatedServerRuntime.cs");
+        string world = ReadScript("App/Networking/Services/DedicatedAuthorityWorld.cs");
+
+        string poll = Slice(runtime, "    public void Poll(long nowMs)", "    public void RequestMatchEnd()");
+        AssertInOrder(
+            poll,
+            "BeginPlayerTicks();",
+            "_session.Poll(nowMs);",
+            "DrainJoins();",
+            "_authority.PublishImmediateReplication();",
+            "DrainCommands();",
+            "_authority.Advance(nowMs);",
+            "FlushReplication();");
+
+        string applyWorld = Slice(
+            world,
+            "    public void ApplyCommands(",
+            "    public void RemovePlayer(");
+        AssertInOrder(
+            applyWorld,
+            "ApplyGuestCommands(",
+            "LastAppliedFrameHint = result.NewestHint",
+            "AppliedHintThisTick = result.FirstAppliedHint");
+
+        string afterStep = Slice(
+            world,
+            "    void OnAfterLogicStep(long authorityFrame)",
+            "    void RememberHits(");
+        AssertInOrder(
+            afterStep,
+            "_authority.CaptureAuthorityActors(",
+            "RememberHits(",
+            "ActReplicationApplicationPayloadCodec.Encode(",
+            "replication.BuildFrame(",
+            "ReplicationFrameCodec.Encode(frame)");
+    }
+
     /// <summary>Client 必须先收权威并采样；逻辑步内先发送命令，再推进 Autonomous 预测。</summary>
     [Test]
     public void ClientFrame_ProductionSource_PreservesReceiveSampleSendPredictOrder()
@@ -131,8 +172,9 @@ public sealed class ReplicationProductionOrderTests
         AssertInOrder(
             update,
             "_session.Poll(NowMs());",
-            "SyncSessionState();",
+            "AcceptJoinIfReady();",
             "DrainApplicationMessages();",
+            "EndIfSessionEnded();",
             "if (_joined && !_ended)",
             "_gameplay?.SampleRenderInput();");
 

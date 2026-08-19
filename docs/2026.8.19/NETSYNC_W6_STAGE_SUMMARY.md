@@ -1,7 +1,7 @@
 # NetSync W6 阶段性说明（DS3 + DS4 首版）
 
 > 撰写：2026-08-19  
-> 角色：**W6 代码落地备忘**（Editor Play 待确认）  
+> 角色：**W6 代码落地备忘**（Editor Play 已于 2026-08-19 用户验收）  
 > 排期：[`../2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)
 
 ---
@@ -28,8 +28,7 @@ Dedicated 用同一份 `SimulationHost.StepOnce` + `ServerSimulationRunner` 单�
 **明确后置**
 
 - 完整 ActionGameplayBake（仍用现有 SO 闭包）
-- 向客户端发送 `ReplicationFrame` / Match 状态机（W7）
-- 10 分钟浸泡与双端固定脚本对照（Editor Play）
+- Unity Dedicated Build（W8）
 
 ---
 

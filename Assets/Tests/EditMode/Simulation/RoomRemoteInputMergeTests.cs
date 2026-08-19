@@ -22,9 +22,11 @@ public sealed class RoomRemoteInputMergeTests
             targetFrame: 40,
             actorId,
             out InputFrame input,
-            out long newestHint);
+            out long newestHint,
+            out long firstAppliedHint);
 
         Assert.That(merged, Is.True);
+        Assert.That(firstAppliedHint, Is.EqualTo(11));
         Assert.That(newestHint, Is.EqualTo(12));
         Assert.That(input.Frame, Is.EqualTo(40));
         Assert.That(input.ActorId, Is.EqualTo(actorId));
@@ -49,9 +51,11 @@ public sealed class RoomRemoteInputMergeTests
             targetFrame: 9,
             actorId,
             out _,
-            out long newestHint);
+            out long newestHint,
+            out long firstAppliedHint);
 
         Assert.That(merged, Is.False);
         Assert.That(newestHint, Is.EqualTo(4));
+        Assert.That(firstAppliedHint, Is.EqualTo(4));
     }
 }

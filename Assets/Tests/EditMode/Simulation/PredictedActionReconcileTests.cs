@@ -160,7 +160,7 @@ public sealed class PredictedActionReconcileTests
             Is.False);
     }
 
-    /// <summary>权威未起手或已收招：取消后应回走跑。</summary>
+    /// <summary>权威未起手或已收招：普通招取消后应回走跑。</summary>
     [Test]
     public void ShouldStopAutonomousAction_AuthorityIdle_Stops()
     {
@@ -170,6 +170,21 @@ public sealed class PredictedActionReconcileTests
         Assert.That(
             PredictedActionAckQueue.ShouldStopAutonomousAction(result, in authority),
             Is.True);
+    }
+
+    /// <summary>本机吸附/闪避进行中：权威空闲不得掐招，避免延迟快照拉回 Branch_02。</summary>
+    [Test]
+    public void ShouldStopAutonomousAction_AuthorityIdle_KeepsCorrectiveAction()
+    {
+        var result = new PredictedActionReconcileResult(cancelled: true, actionId: 0, actionFrame: 0);
+        ActorReplicationSnapshot authority = ActionSnapshot(new SimActorId(1), actionId: 0, actionFrame: 0);
+
+        Assert.That(
+            PredictedActionAckQueue.ShouldStopAutonomousAction(
+                result,
+                in authority,
+                keepLocalCorrectiveAction: true),
+            Is.False);
     }
 
     /// <summary>未 Cancel 时即使权威空闲也不 Stop。</summary>
