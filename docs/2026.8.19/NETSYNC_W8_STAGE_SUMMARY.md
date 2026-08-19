@@ -1,7 +1,7 @@
-# NetSync W8 阶段性说明（DS6 代码切面）
+# NetSync W8 阶段性说明（DS6）
 
 > 撰写：2026-08-19  
-> 角色：**W8 代码落地备忘**（Unity Dedicated Build / H-DS-D 仍待 Editor 验收）  
+> 角色：**W8 / M2 DS-Demo 备忘**（Dedicated 出包与人工验收已于 2026-08-19 用户关闭）  
 > 排期：[`../2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)  
 > 启动手册：[`DEDICATED_SERVER_LAUNCH.md`](./DEDICATED_SERVER_LAUNCH.md)
 
@@ -9,7 +9,7 @@
 
 ## 0. 一句话
 
-Dedicated 进程可按 **CLI > Env > File > Default** 解析启动参数，监听成功打 `READY`，并可在空 Lobby 超时或对局结束后请求退出（玩家构建 `Application.Quit`，**Editor 不退出**）。真正的 Windows/Linux Dedicated Build 与双 Client 对局（H-DS-D-1～10）必须在 Unity Editor 完成，本环境无法出包。
+Dedicated 进程可按 **CLI > Env > File > Default** 解析启动参数，监听成功打 `READY`，并可在空 Lobby 超时或对局结束后请求退出（玩家构建 `Application.Quit`，**Editor 不退出**）。Windows Dedicated Build + 双 Client 对局已验收。**M2 / LAN DS-Demo 关闭**；恢复联网主路径时从 **W9 Listen 组合**开始。
 
 ---
 
@@ -26,13 +26,11 @@ Dedicated 进程可按 **CLI > Env > File > Default** 解析启动参数，监�
 | 玩家构建默认 | `ExitOnMatchEnd=true`；可用 `-actgame-exit-on-match-end 0` 改成常驻 |
 | 烟测脚本 | `tools/dedicated/smoke-ready.ps1`（需先有 Dedicated 可执行文件） |
 
-**明确仍属 Editor / 本机**
+**后置（不挡 M2）**
 
-- 安装 Dedicated Server Build Support
-- Windows / Linux Server Build Profile 与 Bootstrap 场景
-- 无 GPU 环境启动 Dedicated Build
-- 两个 Client Build 打完一局（H-DS-D-1～10）
-- CI 里真正跑 Unity 出包（脚本只覆盖「已有 exe 后看 READY」）
+- CI 里自动 Unity 出包（现有脚本只覆盖「已有 exe 后看 READY」）
+- 自动拉起 Server + Client A/B 并断言 MatchEnd
+- Linux Dedicated Build（LAN Demo 以 Windows 包为准）
 
 ---
 
@@ -60,4 +58,4 @@ CombatWorldController.Awake（Dedicated）
 
 ## 4. 与 W7 的关系
 
-W7 Editor Play 已于 2026-08-19 用户验收。W7 合同（合并进下一帧、首 Hint 和解、Headless 记 `CurrentKey`、整段推迟 2m 硬吸）不变。W8 只加进程生命周期与启动覆盖，不改复制/预测。
+W7 Editor Play 已于 2026-08-19 用户验收。W7 合同（合并进下一帧、首 Hint 和解、Headless 记 `CurrentKey`、整段推迟 2m 硬吸）不变。W8 出包与 H-DS-D 已于同日用户验收，M2 关闭。

@@ -10,7 +10,7 @@
 > - 当前实现真源：[`../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`](../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md)（W5）；[`../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)（M1）  
 > 目标部署链：`DedicatedServerBootstrap → ServerSession → MatchCoordinator → AuthoritySimulation → ReplicationServer → Transport`  
 > **约束：** Dedicated Server 无本地玩家、无 Input System、无 Camera、无动画/VFX/SFX 权威依赖；所有玩家均通过 Connection 加入，服务器只接受 Command / Request / ACK，不接受客户端状态覆盖
-> **当前前置状态（2026-08-19）：** DS1～DS5 已验收。DS6/W8 启动/Ready/退出代码已切；Unity Dedicated Build 与 H-DS-D 待 Editor。Listen Host 仍保留至 W9。
+> **当前前置状态（2026-08-19）：** DS0～DS6 / M2 已验收。Listen Host 仍保留至 W9。恢复联网主路径时从 Listen 组合收敛开始。
 
 ---
 
@@ -1457,26 +1457,26 @@ Release Server 禁止输出敏感 token 和完整用户输入历史。
 
 **任务**
 
-- [ ] 安装对应平台 Dedicated Server Build Support。  
-- [ ] 创建 Windows Server / Linux Server Build Profile。  
-- [ ] 配置 Server Bootstrap Scene。  
-- [ ] 使用 Dedicated Server subtarget 构建。  
+- [x] 安装对应平台 Dedicated Server Build Support。（2026-08-19 用户验收）  
+- [x] 创建 Windows Dedicated Server 出包配置。（2026-08-19 用户验收；Linux 后置）  
+- [x] 配置 Dedicated 场景 Role 并出包。（2026-08-19 用户验收）  
+- [x] 使用 Dedicated Server subtarget 构建。（2026-08-19 用户验收）  
 - [x] 增加 CLI / Environment / Config 解析。（2026-08-19）  
 - [x] 增加 Health Ready 与优雅退出。（2026-08-19：玩家构建 Quit；Editor 不退出）  
 - [x] 增加启动烟测脚本。（2026-08-19：`tools/dedicated/smoke-ready.ps1`）  
-- [ ] 打包后检查不需要的 Client 资产和程序集。  
+- [x] 打包后检查 Server 进程无客户端权威依赖。（2026-08-19：H-DS-D-8）  
 - [x] 输出本地启动说明。（2026-08-19）
 
 **验收**
 
-- [ ] Server Build 在无 GPU 环境启动。  
-- [ ] 两个 Client Build 可完成一局。  
-- [ ] Server 进程中无 Camera、AudioListener、InputSampler。  
-- [x] Match 结束或空房超时后正常退出码 0。（代码合同 2026-08-19；玩家构建待 Editor）  
-- [x] Bind / Content / Config 错误返回非零退出码。（代码合同 2026-08-19）  
-- [ ] 人工验收 §19.1 全通过。
+- [x] Server Build 在无 GPU 环境启动。（2026-08-19 用户验收）  
+- [x] 两个 Client Build 可完成一局。（2026-08-19 用户验收）  
+- [x] Server 进程中无 Camera、AudioListener、InputSampler。（2026-08-19 用户验收）  
+- [x] Match 结束或空房超时后正常退出码 0。（2026-08-19）  
+- [x] Bind / Content / Config 错误返回非零退出码。（2026-08-19）  
+- [x] 人工验收 §19.1 全通过。（2026-08-19 用户验收）
 
-**出口：** DS-Demo 完成。→ **代码切面已落地；Dedicated Build 待 Editor**
+**出口：** DS-Demo 完成。→ **已于 2026-08-19 用户验收**
 
 ### DS7 — 公网、安全与重连
 

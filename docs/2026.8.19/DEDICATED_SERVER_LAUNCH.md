@@ -1,7 +1,7 @@
 # Dedicated Server 本地启动说明（W8）
 
 > 对照代码：`ServerLaunchConfigResolver`、`DedicatedServerBootstrap`  
-> 人工验收表：专项方案 H-DS-D-1～H-DS-D-10
+> H-DS-D-1～10 已于 2026-08-19 用户验收；本文保留作出包与启动手册。
 
 覆盖优先级：**命令行 > 环境变量 > 配置文件 > Inspector / `CreateDefault`**。解析器不打印文件正文或密钥值。
 
@@ -81,7 +81,7 @@ Dedicated 运行时程序集是 `ACTGame.Server`，不引用 Camera / Input / HU
 
 ---
 
-## 5. H-DS-D 人工表
+## 5. H-DS-D 人工表（2026-08-19 已通过）
 
 | 编号 | 操作 | 期望 |
 |------|------|------|

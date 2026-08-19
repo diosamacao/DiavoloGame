@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-19（W8 Dedicated 启动解析 / Ready / 进程退出）
+> Last audited: 2026-08-19（W8 / M2 Dedicated LAN Demo 已验收）
 
 ## 项目概述
 
@@ -132,7 +132,7 @@ flowchart TB
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只负责装配和注册，不再实现 Actor `Update` Tick。
 
-NetSync M1 已于 2026-08-18 关闭。W5～W7 已于 2026-08-19 验收。W8（2026-08-19）已切启动覆盖、READY 与空房/对局结束退出；Unity Dedicated Build 待 Editor。阅读：[`docs/2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md`](../../docs/2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md)。
+NetSync M1 已于 2026-08-18 关闭。W5～W8 / M2 已于 2026-08-19 验收。LAN Dedicated Demo 可暂停；恢复联网从 W9 Listen 组合开始。阅读：[`docs/2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md`](../../docs/2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md)。
 
 ### 2. 泛型状态机（Core）
 
