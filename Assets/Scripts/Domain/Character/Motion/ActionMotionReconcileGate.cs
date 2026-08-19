@@ -1,11 +1,12 @@
 /// <summary>
-/// 客机穿敌吸附 / 关碰撞窗内禁止走跑纠偏硬吸。
-/// Branch_02/03 本机比权威卡肉更早穿过敌人，2m 阈会把人拽回敌前。
+/// 客机穿敌吸附 / 关碰撞 / 闪避 / 烘焙大位移进行中禁止走跑纠偏硬吸。
+/// 本机已到敌后或连闪落点、延迟快照还停在旧位时，2m 阈会把人拽回。
 /// </summary>
 public static class ActionMotionReconcileGate
 {
     /// <summary>
-    /// 本机或权威仍在吸附/关碰撞窗，或权威卡肉时，纠偏只 Ack 不改位姿。
+    /// 本机或权威仍在修正位移、权威卡肉时，纠偏只 Ack 不改位姿。
+    /// 吸附/关碰撞看整段招，不看当前帧是否刚好落在窗口里。
     /// </summary>
     public static bool ShouldDeferLocomotionSnap(
         bool localSoftBodySuppressed,
@@ -19,6 +20,12 @@ public static class ActionMotionReconcileGate
 
         // 权威卡肉时位姿停在窗前/窗中；本机若已吸到背后，硬吸即拉回。
         if (authority.ActionId != 0 && authority.FreezeFrames > 0)
+            return true;
+
+        if (HasCorrectiveDisplacement(localAction))
+            return true;
+
+        if (authority.ActionId != 0 && HasCorrectiveDisplacement(authorityAction))
             return true;
 
         if (HasPassThroughWindow(localAction, localActionFrame))
@@ -50,23 +57,48 @@ public static class ActionMotionReconcileGate
         in ActorReplicationSnapshot authority,
         ActionDefinition authorityAction)
     {
+        TryReadLocalAction(actor, out ActionDefinition localAction, out int localFrame);
         bool suppressed = actor?.MotorSim != null && actor.MotorSim.IsSoftBodySuppressed;
-        ActionDefinition localAction = null;
-        int localFrame = 0;
-        if (actor?.ActionSim != null
-            && actor.ActionSim.IsActive
-            && actor.ActionSim.Snapshot.Content is ActionDefinition definition)
-        {
-            localAction = definition;
-            localFrame = actor.ActionSim.Snapshot.CurrentFrame;
-        }
-
         return ResolveSnapThresholdMm(
             suppressed,
             localAction,
             localFrame,
             in authority,
             authorityAction);
+    }
+
+    /// <summary>读取本机当前招；空闲时 action 为 null。</summary>
+    public static bool TryReadLocalAction(
+        CharacterActor actor,
+        out ActionDefinition action,
+        out int actionFrame)
+    {
+        action = null;
+        actionFrame = 0;
+        if (actor?.ActionSim == null
+            || !actor.ActionSim.IsActive
+            || actor.ActionSim.Snapshot.Content is not ActionDefinition definition)
+        {
+            return false;
+        }
+
+        action = definition;
+        actionFrame = actor.ActionSim.Snapshot.CurrentFrame;
+        return true;
+    }
+
+    /// <summary>
+    /// 闪避、吸附/关碰撞窗、或烘焙位移招：中途误差不当走跑分叉。
+    /// </summary>
+    public static bool HasCorrectiveDisplacement(ActionDefinition action)
+    {
+        if (action == null)
+            return false;
+        if (action.ActionType == CombatActionType.Dodge)
+            return true;
+        if (action.Timeline.HasAdhesionOrSoftBodySuppressWindow())
+            return true;
+        return action.ExecutionPolicy.BaseMotionMode == ActionBaseMotionMode.BakedMotion;
     }
 
     /// <summary>指定招的当前帧是否有 TargetAdhesion 或 SoftBodySuppress。</summary>

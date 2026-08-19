@@ -62,4 +62,32 @@ public static class RoomCodec
         return writer.ToArray();
     }
 
+    /// <summary>编码 MatchEnd：reason 一字节 + tick int64。</summary>
+    public static byte[] WriteMatchEnd(in MatchEndMessage message)
+    {
+        var writer = new NetBufferWriter();
+        writer.WriteByte((byte)message.Reason);
+        writer.WriteInt64(message.Tick);
+        return writer.ToArray();
+    }
+
+    /// <summary>解码 MatchEnd；拒绝空正文、未知原因与尾随字节。</summary>
+    public static MatchEndMessage ReadMatchEnd(byte[] body)
+    {
+        if (body == null || body.Length == 0)
+            throw new InvalidOperationException("MatchEnd 正文不能为空。");
+
+        var reader = new NetBufferReader(body);
+        byte reasonByte = reader.ReadByte();
+        if (reasonByte < (byte)MatchEndReason.EmptyRoom
+            || reasonByte > (byte)MatchEndReason.ServerShutdown)
+        {
+            throw new InvalidOperationException($"未知 MatchEnd 原因：{reasonByte}。");
+        }
+
+        long tick = reader.ReadInt64();
+        reader.EnsureComplete();
+        return new MatchEndMessage((MatchEndReason)reasonByte, tick);
+    }
+
 }

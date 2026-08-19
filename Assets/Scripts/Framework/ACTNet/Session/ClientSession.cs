@@ -226,7 +226,7 @@ public sealed class ClientSession : IDisposable
     {
         LastDisconnectReason = reason;
         State = ClientSessionState.Ended;
-        _applicationPackets.Clear();
+        // 同拍已入队的 MatchEnd 仍需交给 Gameplay；Dispose 时再丢弃。
         if (_serverConnection.IsValid)
             _transport.Disconnect(_serverConnection, reason);
     }

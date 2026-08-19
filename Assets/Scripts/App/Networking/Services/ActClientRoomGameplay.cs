@@ -25,6 +25,7 @@ public sealed class ActClientRoomGameplay
     int _lastPresentedHitStopFrames;
     InputFrame _pendingPredictionInput;
     bool _hasPendingPredictionStep;
+    bool _loggedOwnerPredict;
 
     /// <summary>创建 Client Gameplay 唯一编排入口，并装配内容、Schema、Owner 与 Observer。</summary>
     public ActClientRoomGameplay(
@@ -87,6 +88,7 @@ public sealed class ActClientRoomGameplay
         _owner.BeginSession(new SimActorId(accept.EntityId.Value), _inputFrames);
         _recentCommands.Clear();
         _localPlayer = _contentPrefill.LocalPlayer;
+        _loggedOwnerPredict = false;
     }
 
     /// <summary>渲染帧采样下一预测帧输入，并合并按钮边沿。</summary>
@@ -146,6 +148,12 @@ public sealed class ActClientRoomGameplay
     public ActClientFrameApplyStatus ApplyReplicationFrame(byte[] body)
     {
         LastTickBytes = body != null ? body.Length + 2 : -1;
+        if (!_accept.EntityId.IsValid)
+        {
+            throw new InvalidOperationException(
+                "复制帧到达时 Owner Session 尚未 Begin，不能识别 Owner Spawn。");
+        }
+
         ReplicationFrame frame = ReplicationFrameCodec.Decode(body);
         ReplicationClientApplyResult result = _replicationClient.ApplyFrame(frame);
         if (result.Status == ReplicationClientApplyStatus.StaleSequence)
@@ -169,6 +177,14 @@ public sealed class ActClientRoomGameplay
         LastAuthorityFrame = frame.Tick.Value;
         if (hasSelf)
             _owner.ApplySnapshot(_localPlayer, in self, application.AppliedClientFrameHint);
+        if (!_loggedOwnerPredict && _owner.CanPredict)
+        {
+            _loggedOwnerPredict = true;
+            Debug.Log(
+                $"ActClientRoomGameplay: Owner 预测已开闸 tick={LastAuthorityFrame} "
+                + $"actor={_accept.EntityId.Value}。");
+        }
+
         PlayReplicatedHits(application.Hits);
         return ActClientFrameApplyStatus.Applied;
     }

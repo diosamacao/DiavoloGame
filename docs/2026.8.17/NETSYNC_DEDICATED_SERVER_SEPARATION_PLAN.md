@@ -10,7 +10,7 @@
 > - 当前实现真源：[`../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`](../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md)（W5）；[`../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)（M1）  
 > 目标部署链：`DedicatedServerBootstrap → ServerSession → MatchCoordinator → AuthoritySimulation → ReplicationServer → Transport`  
 > **约束：** Dedicated Server 无本地玩家、无 Input System、无 Camera、无动画/VFX/SFX 权威依赖；所有玩家均通过 Connection 加入，服务器只接受 Command / Request / ACK，不接受客户端状态覆盖
-> **当前前置状态（2026-08-19）：** DS1/DS2 已验收。DS3/DS4 首版代码已切（Headless World、指纹 Join；Action Bake 后置）。Editor Play 待确认。下行对局属 DS5/W7。Listen Host 仍保留至 W9。
+> **当前前置状态（2026-08-19）：** DS1～DS4 已验收。DS5/W7 Match + 每连接 Replication 已切（Editor Play 待确认）。Listen Host 仍保留至 W9。下一阶段 DS6/W8 Dedicated Build。
 
 ---
 
@@ -1400,12 +1400,12 @@ Release Server 禁止输出敏感 token 和完整用户输入历史。
 
 **验收**
 
-- [ ] 无 Camera、Animator、Model 的 Authority Actor 可移动、出招、命中、死亡。  
-- [ ] 固定输入脚本与普通 Host Authority 的最终 Pose/HP/Action 一致。  
-- [ ] 关掉全部 Presentation 后 AI 仍能完成战斗。  
-- [ ] 持续运行 10 分钟无逻辑 Tick 漂移或空引用。
+- [x] 无 Camera、Animator、Model 的 Authority Actor 可移动、出招、命中、死亡。（2026-08-19 用户验收）  
+- [x] 固定输入脚本与普通 Host Authority 的最终 Pose/HP/Action 一致。（2026-08-19 用户验收）  
+- [x] 关掉全部 Presentation 后 AI 仍能完成战斗。（2026-08-19 用户验收）  
+- [x] 持续运行 10 分钟无逻辑 Tick 漂移或空引用。（2026-08-19 用户验收）
 
-**出口：** 服务器权威玩法与表现解耦。→ **代码已切（2026-08-19）；Editor Play 待确认**
+**出口：** 服务器权威玩法与表现解耦。→ **已达成（2026-08-19）**
 
 ### DS4 — Server Content Manifest
 
@@ -1422,36 +1422,36 @@ Release Server 禁止输出敏感 token 和完整用户输入历史。
 
 **验收**
 
-- [ ] Server 不加载 Model/Texture/Audio/VFX 即可完整模拟。（需 Editor Play）  
+- [x] Server 不加载 Model/Texture/Audio/VFX 即可完整模拟。（2026-08-19 用户验收）  
 - [x] Server 与 Client Gameplay Fingerprint 一致才可 Join。  
 - [x] 修改 Gameplay Bake 会改变 Fingerprint。（动作 Id 集合）  
 - [x] 修改纯 VFX 不应改变 Gameplay Fingerprint（指纹不含 VFX 名）。
 
-**出口：** Server Build 内容闭包明确。→ **首版已切（Bake 后置）；Editor Play 待确认**
+**出口：** Server Build 内容闭包明确。→ **首版已达成（Bake 后置；2026-08-19）**
 
 ### DS5 — Match / Replication / Client 接入
 
 **任务**
 
-- [ ] 建 Lobby → Starting → Playing → Ending 状态机。  
-- [ ] Spawn/Despawn 成为可靠生命周期真源。  
-- [ ] ReplicationServer per-connection 构造 Frame。  
-- [ ] 每名玩家 Authority Actor 接收自己的 CommandStream。  
-- [ ] 客户端 Owner 走 Prediction / Reconcile。  
-- [ ] 其他玩家和敌人走 RemoteProxy。  
-- [ ] Hit / Death 事件选择可靠事件或冗余序列。  
-- [ ] Match End 可靠下发。  
-- [ ] Listen Server 改为 ServerRuntime + LocalClientRuntime，或明确排入 DS6。
+- [x] 建 Lobby → Starting → Playing → Ending 状态机。（2026-08-19）  
+- [x] Spawn/Despawn 成为可靠生命周期真源。（2026-08-19：ReplicationServer 显式差分）  
+- [x] ReplicationServer per-connection 构造 Frame。（2026-08-19）  
+- [x] 每名玩家 Authority Actor 接收自己的 CommandStream。（2026-08-19）  
+- [x] 客户端 Owner 走 Prediction / Reconcile。（2026-08-19：既有 W4 Adapter）  
+- [x] 其他玩家和敌人走 RemoteProxy。（2026-08-19）  
+- [x] Hit / Death 事件选择可靠事件或冗余序列。（2026-08-19：最近 8 条 + SimHitKey 去重）  
+- [x] Match End 可靠下发。（2026-08-19）  
+- [ ] Listen Server 改为 ServerRuntime + LocalClientRuntime，或明确排入 DS6。（排入 W9）
 
 **验收**
 
-- [ ] 两个独立 Client 连接无本地玩家 Server。  
-- [ ] 双方可移动、出招、打同一敌人。  
-- [ ] HP、死亡、敌人生命周期最终一致。  
-- [ ] 客户端修改本地 HP 会被 Server 覆盖。  
-- [ ] 服务器日志能按 Connection/Player/Entity 追踪一条命令。
+- [ ] 两个独立 Client 连接无本地玩家 Server。（需 Editor Play）  
+- [ ] 双方可移动、出招、打同一敌人。（需 Editor Play）  
+- [ ] HP、死亡、敌人生命周期最终一致。（需 Editor Play）  
+- [ ] 客户端修改本地 HP 会被 Server 覆盖。（需 Editor Play）  
+- [x] 服务器日志能按 Connection/Player/Entity 追踪一条命令。（2026-08-19）
 
-**出口：** 真 Dedicated Authority 对局成立。→ **未达成**
+**出口：** 真 Dedicated Authority 对局成立。→ **代码已切；Editor Play 待确认**
 
 ### DS6 — Unity Dedicated Build 与 DS-Demo 验收
 

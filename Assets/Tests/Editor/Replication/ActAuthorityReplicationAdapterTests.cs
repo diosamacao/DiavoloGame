@@ -26,6 +26,7 @@ public sealed class ActAuthorityReplicationAdapterTests
             lastAppliedHint: 10);
 
         Assert.That(result.Applied, Is.True);
+        Assert.That(result.FirstAppliedHint, Is.EqualTo(11));
         Assert.That(result.NewestHint, Is.EqualTo(12));
         Assert.That(buffer.TryGetExact(40, actorId, out InputFrame input), Is.True);
         Assert.That(input.WasPressed(InputButton.Attack), Is.True);

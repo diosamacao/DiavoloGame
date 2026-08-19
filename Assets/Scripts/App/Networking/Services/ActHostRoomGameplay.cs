@@ -215,7 +215,7 @@ public sealed class ActHostRoomGameplay
         return NetEntityId.Invalid;
     }
 
-    /// <summary>把本批未应用命令灌入下一权威帧，并更新该 Guest 的 Hint。</summary>
+    /// <summary>把本批未应用命令灌入下一权威帧；LastApplied=newest，下行 appliedHint=第一条新 Hint。</summary>
     void ApplyGuestCommands(ActGameGuest guest, ClientCommand[] commands)
     {
         SimulationHost host = _world.SimulationHost;
@@ -232,7 +232,7 @@ public sealed class ActHostRoomGameplay
             return;
 
         guest.LastAppliedFrameHint = result.NewestHint;
-        guest.AppliedHintThisTick = result.NewestHint;
+        guest.AppliedHintThisTick = result.FirstAppliedHint;
     }
 
     /// <summary>注销并销毁指定连接的 Guest；不影响其他连接。</summary>

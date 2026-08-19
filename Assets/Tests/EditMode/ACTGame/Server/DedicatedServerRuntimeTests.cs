@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 
-/// <summary>W5 Dedicated Runtime：无本地玩家、N 连接身份、断开隔离与每连接 ACK。</summary>
+/// <summary>W5/W7 Dedicated Runtime：无本地玩家、Match 生命周期、每连接 Frame 与 ACK。</summary>
 public sealed class DedicatedServerRuntimeTests
 {
     static readonly NetEndpoint Endpoint = new("dedicated-loopback", 7777);
@@ -62,6 +62,7 @@ public sealed class DedicatedServerRuntimeTests
         Assert.That(client.JoinAccept.AuthorityEntityId.IsValid, Is.False);
         Assert.That(client.JoinAccept.EntityId.IsValid, Is.True);
         Assert.That(harness.Runtime.JoinedPlayerCount, Is.EqualTo(1));
+        Assert.That(harness.Runtime.MatchPhase, Is.EqualTo(DedicatedMatchPhase.Playing));
     }
 
     /// <summary>三个 Loopback Client 获得不同 PlayerId / EntityId。</summary>
@@ -145,6 +146,127 @@ public sealed class DedicatedServerRuntimeTests
         Assert.That(tickB, Is.EqualTo(0));
     }
 
+    /// <summary>非 Owner PlayerId 的命令不得灌入该连接 ACK。</summary>
+    [Test]
+    public void CommandFromOtherPlayerId_IsIgnored()
+    {
+        using var harness = new DedicatedHarness(maxPlayers: 2);
+        ClientSession client = harness.JoinClients(1)[0];
+        NetConnectionId connection = harness.ConnectionOf(client);
+
+        var actorId = new SimActorId(client.JoinAccept.EntityId.Value);
+        InputFrame input = InputFrame.Empty(3, actorId);
+        var command = new ClientCommand(3, senderPlayerId: 99, in input);
+        client.SendApplication(
+            (byte)RoomMessageKind.ClientCommand,
+            NetChannel.CommandUnreliableRedundant,
+            RoomCodec.WriteClientCommandBatch(new[] { command }));
+        harness.Runtime.Poll(1);
+
+        Assert.That(harness.Runtime.TryGetAck(connection, out long last, out long tick), Is.True);
+        Assert.That(last, Is.EqualTo(0));
+        Assert.That(tick, Is.EqualTo(0));
+    }
+
+    /// <summary>第二拍起每连接独立下发 ReplicationFrame，Sequence 不串线。</summary>
+    [Test]
+    public void Playing_SendsPerConnectionReplicationFrames()
+    {
+        using var harness = new DedicatedHarness(maxPlayers: 2, new FramingAuthorityWorld());
+        ClientSession[] clients = harness.JoinClients(2);
+
+        harness.Runtime.Poll(20);
+        clients[0].Poll(20);
+        clients[1].Poll(20);
+
+        ReplicationFrame frameA = DequeueFrame(clients[0]);
+        ReplicationFrame frameB = DequeueFrame(clients[1]);
+        Assert.That(frameA.Sequence.Value, Is.EqualTo(0));
+        Assert.That(frameB.Sequence.Value, Is.EqualTo(0));
+        Assert.That(frameA.Tick, Is.EqualTo(frameB.Tick));
+
+        harness.Runtime.Poll(40);
+        clients[0].Poll(40);
+        clients[1].Poll(40);
+        Assert.That(DequeueFrame(clients[0]).Sequence.Value, Is.EqualTo(1));
+        Assert.That(DequeueFrame(clients[1]).Sequence.Value, Is.EqualTo(1));
+    }
+
+    /// <summary>RequestMatchEnd 向仍在线连接下发 MatchEnd 并结束 Session。</summary>
+    [Test]
+    public void RequestMatchEnd_SendsMatchEndAndEndsClients()
+    {
+        using var harness = new DedicatedHarness(maxPlayers: 2);
+        ClientSession[] clients = harness.JoinClients(2);
+
+        harness.Runtime.RequestMatchEnd();
+        harness.Runtime.Poll(1);
+        clients[0].Poll(1);
+        clients[1].Poll(1);
+
+        Assert.That(TryDequeueMatchEnd(clients[0], out MatchEndMessage endA), Is.True);
+        Assert.That(endA.Reason, Is.EqualTo(MatchEndReason.Completed));
+        Assert.That(clients[0].State, Is.EqualTo(ClientSessionState.Ended));
+        Assert.That(clients[1].State, Is.EqualTo(ClientSessionState.Ended));
+        Assert.That(harness.Runtime.MatchPhase, Is.EqualTo(DedicatedMatchPhase.Lobby));
+        Assert.That(harness.Runtime.JoinedPlayerCount, Is.EqualTo(0));
+    }
+
+    /// <summary>最后一名玩家离开后回到 Lobby，随后可再次 Join。</summary>
+    [Test]
+    public void LastDisconnect_ReturnsToLobbyAndAllowsRejoin()
+    {
+        using var harness = new DedicatedHarness(maxPlayers: 2);
+        ClientSession first = harness.JoinClients(1)[0];
+        NetConnectionId dropped = harness.ConnectionOf(first);
+
+        harness.Runtime.Session.Disconnect(dropped, DisconnectReason.Requested);
+        first.Poll(1);
+        harness.Runtime.Poll(1);
+
+        Assert.That(harness.Runtime.MatchPhase, Is.EqualTo(DedicatedMatchPhase.Lobby));
+        Assert.That(harness.Runtime.JoinedPlayerCount, Is.EqualTo(0));
+
+        ClientSession second = harness.JoinClients(1)[0];
+        Assert.That(second.State, Is.EqualTo(ClientSessionState.Joined));
+        Assert.That(harness.Runtime.MatchPhase, Is.EqualTo(DedicatedMatchPhase.Playing));
+    }
+
+    /// <summary>JoinAccept 实体 Id 必须来自权威 World，而不是仅 Match 槽位占位。</summary>
+    [Test]
+    public void JoinAccept_UsesAuthorityEntityId()
+    {
+        using var harness = new DedicatedHarness(maxPlayers: 1, new StubAuthorityWorld(entityOffset: 40));
+        ClientSession client = harness.JoinClients(1)[0];
+
+        Assert.That(client.JoinAccept.EntityId.Value, Is.EqualTo(40));
+        Assert.That(
+            harness.Runtime.TryGetPlayer(harness.ConnectionOf(client), out DedicatedPlayerRuntime player),
+            Is.True);
+        Assert.That(player.EntityId.Value, Is.EqualTo(40));
+    }
+
+    static ReplicationFrame DequeueFrame(ClientSession client)
+    {
+        Assert.That(client.TryDequeueApplication(out SessionApplicationPacket packet), Is.True);
+        Assert.That(packet.MessageType, Is.EqualTo((byte)RoomMessageKind.ReplicationFrame));
+        return ReplicationFrameCodec.Decode(packet.Payload);
+    }
+
+    static bool TryDequeueMatchEnd(ClientSession client, out MatchEndMessage message)
+    {
+        message = default;
+        while (client.TryDequeueApplication(out SessionApplicationPacket packet))
+        {
+            if (packet.MessageType != (byte)RoomMessageKind.MatchEnd)
+                continue;
+            message = RoomCodec.ReadMatchEnd(packet.Payload);
+            return true;
+        }
+
+        return false;
+    }
+
     /// <summary>Loopback Dedicated 与多个 ClientSession 的测试夹具。</summary>
     sealed class DedicatedHarness : IDisposable
     {
@@ -153,13 +275,13 @@ public sealed class DedicatedServerRuntimeTests
         readonly SessionConfig _clientConfig;
         readonly Dictionary<NetPlayerId, NetConnectionId> _connections = new();
 
-        public DedicatedHarness(int maxPlayers)
+        public DedicatedHarness(int maxPlayers, IDedicatedAuthorityWorld authority = null)
         {
             ServerLaunchConfig launch = ServerLaunchConfig.CreateDefault(7777, contentVersion: 1, maxPlayers);
             Runtime = DedicatedServerRuntime.TryStart(
                 new LoopbackTransport(_network),
                 launch,
-                new StubAuthorityWorld(),
+                authority ?? new StubAuthorityWorld(),
                 out ServerExitCode exit);
             Assert.That(Runtime, Is.Not.Null);
             Assert.That(exit, Is.EqualTo(ServerExitCode.Success));
@@ -225,9 +347,22 @@ public sealed class DedicatedServerRuntimeTests
     /// <summary>测试用权威世界：接受 Join 但不创建 Actor。</summary>
     sealed class StubAuthorityWorld : IDedicatedAuthorityWorld
     {
+        readonly int _entityOffset;
+
+        public StubAuthorityWorld(int entityOffset = 0)
+        {
+            _entityOffset = entityOffset;
+        }
+
         public long CurrentFrame => -1;
 
-        public bool TryAcceptPlayer(in MatchPlayerSlot slot) => slot.ConnectionId.IsValid;
+        public bool TryAcceptPlayer(in MatchPlayerSlot slot, out NetEntityId entityId)
+        {
+            entityId = _entityOffset > 0
+                ? new NetEntityId(_entityOffset)
+                : slot.EntityId;
+            return slot.ConnectionId.IsValid && entityId.IsValid;
+        }
 
         public void ApplyCommands(NetConnectionId connectionId, ClientCommand[] commands)
         {
@@ -241,8 +376,89 @@ public sealed class DedicatedServerRuntimeTests
         {
         }
 
+        public void PublishImmediateReplication()
+        {
+        }
+
+        public void DrainOutboundReplication(List<DedicatedReplicationSend> results)
+        {
+            results?.Clear();
+        }
+
         public void Dispose()
         {
+        }
+    }
+
+    /// <summary>第二拍起为每个已接纳连接编一帧空 ReplicationFrame。</summary>
+    sealed class FramingAuthorityWorld : IDedicatedAuthorityWorld
+    {
+        readonly Dictionary<NetConnectionId, ReplicationServer> _servers = new();
+        readonly List<DedicatedReplicationSend> _queued = new();
+        readonly byte[] _emptyApplication =
+        {
+            1,
+            0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0
+        };
+        bool _hasClock;
+        long _frame = -1;
+
+        public long CurrentFrame => _frame;
+
+        public bool TryAcceptPlayer(in MatchPlayerSlot slot, out NetEntityId entityId)
+        {
+            entityId = slot.EntityId;
+            if (!slot.ConnectionId.IsValid || !entityId.IsValid)
+                return false;
+            _servers[slot.ConnectionId] = new ReplicationServer();
+            return true;
+        }
+
+        public void ApplyCommands(NetConnectionId connectionId, ClientCommand[] commands)
+        {
+        }
+
+        public void RemovePlayer(NetConnectionId connectionId) => _servers.Remove(connectionId);
+
+        public void Advance(long nowMs)
+        {
+            if (!_hasClock)
+            {
+                _hasClock = true;
+                return;
+            }
+
+            _frame = _frame < 0 ? 0 : _frame + 1;
+            _queued.Clear();
+            foreach (KeyValuePair<NetConnectionId, ReplicationServer> pair in _servers)
+            {
+                ReplicationFrame frame = pair.Value.BuildFrame(
+                    new NetTick(_frame),
+                    Array.Empty<ReplicationEntityState>(),
+                    _emptyApplication);
+                _queued.Add(new DedicatedReplicationSend(
+                    pair.Key,
+                    ReplicationFrameCodec.Encode(frame)));
+            }
+        }
+
+        public void PublishImmediateReplication()
+        {
+        }
+
+        public void DrainOutboundReplication(List<DedicatedReplicationSend> results)
+        {
+            results.Clear();
+            for (int i = 0; i < _queued.Count; i++)
+                results.Add(_queued[i]);
+            _queued.Clear();
+        }
+
+        public void Dispose()
+        {
+            _servers.Clear();
+            _queued.Clear();
         }
     }
 

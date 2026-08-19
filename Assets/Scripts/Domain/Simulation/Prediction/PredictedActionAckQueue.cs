@@ -78,12 +78,14 @@ public sealed class PredictedActionAckQueue
 
     /// <summary>
     /// 客机是否应掐掉本机招回 Idle。
-    /// 权威仍在出招（卡肉 / OnHit 换招）时不得 Stop——旧 Proxy 会跟权威招，Actor 路径若只 Stop 会只剩伤害没有 Clip。
-    /// 仅权威未起手/已收招，或本机被打/死亡，才回走跑。
+    /// 权威仍在出招（卡肉 / OnHit 换招）时不得 Stop。
+    /// 权威空闲且本机在吸附/闪避/烘焙大位移中时不得 Stop——延迟快照会把 Branch_02 中途拉回。
+    /// 仅普通招被权威明确否决，或本机被打/死亡，才回走跑。
     /// </summary>
     public static bool ShouldStopAutonomousAction(
         in PredictedActionReconcileResult result,
-        in ActorReplicationSnapshot authority)
+        in ActorReplicationSnapshot authority,
+        bool keepLocalCorrectiveAction = false)
     {
         if (!result.Cancelled)
             return false;
@@ -94,7 +96,10 @@ public sealed class PredictedActionAckQueue
             return true;
         }
 
-        return authority.ActionId == 0;
+        if (authority.ActionId != 0)
+            return false;
+
+        return !keepLocalCorrectiveAction;
     }
 
     /// <summary>

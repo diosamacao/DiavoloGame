@@ -6,4 +6,7 @@ public enum RoomMessageKind : byte
 
     /// <summary>正文为 ACTNet.Replication Version 1 ReplicationFrame 字节。</summary>
     ReplicationFrame = 6,
+
+    /// <summary>正文为 MatchEnd；占用 8，避开 Session Kick=7。</summary>
+    MatchEnd = 8,
 }

@@ -316,13 +316,13 @@ W5 起额外要求：
 
 **验收**
 
-- [ ] 无 Camera、Animator、Model 的 Authority Actor 可移动、出招、命中、死亡。（需 Editor Play）
-- [ ] 固定输入脚本与普通 Host Authority 的最终 Pose / HP / Action 一致。（需 Editor Play）
-- [ ] 关闭全部 Presentation 后 AI 仍能完成战斗。（需 Editor Play）
+- [x] 无 Camera、Animator、Model 的 Authority Actor 可移动、出招、命中、死亡。（2026-08-19 用户验收）
+- [x] 固定输入脚本与普通 Host Authority 的最终 Pose / HP / Action 一致。（2026-08-19 用户验收）
+- [x] 关闭全部 Presentation 后 AI 仍能完成战斗。（2026-08-19 用户验收）
 - [x] 不同 Gameplay Content Fingerprint 明确拒绝 Join。（2026-08-19：`SessionIntegrationTests`）
-- [ ] 持续运行 10 分钟无 Tick 漂移、持续积压或空引用。
+- [x] 持续运行 10 分钟无 Tick 漂移、持续积压或空引用。（2026-08-19 用户验收）
 
-**出口：** 权威玩法与表现、客户端内容闭包分离。→ **代码已切；Editor Play 待确认**
+**出口：** 权威玩法与表现、客户端内容闭包分离。→ **已达成（2026-08-19）**
 
 ---
 
@@ -332,25 +332,25 @@ W5 起额外要求：
 
 **任务**
 
-- [ ] 建 Lobby → Starting → Playing → Ending → Cleanup 状态机。
-- [ ] 每名玩家 Authority Actor 只消费 Owner Connection 的 CommandStream。
-- [ ] `ReplicationServer` 对每连接构造 Frame / ACK。
-- [ ] Owner 客户端继续使用 W4 ACT 预测 Adapter；本 Wave不要求先完成 GF5 通用预测。
-- [ ] Observer 使用 RemoteProxy。
-- [ ] Spawn / Despawn 走可靠生命周期。
-- [ ] Hit / Death 选择“最近 N 事件冗余 + EventId 去重”作为 DS-Demo 临时单轨；W10 升级后删除。
-- [ ] Match End 可靠下发。
-- [ ] 日志按 connection / player / entity / tick 串起命令。
+- [x] 建 Lobby → Starting → Playing → Ending → Cleanup 状态机。（2026-08-19）
+- [x] 每名玩家 Authority Actor 只消费 Owner Connection 的 CommandStream。（2026-08-19）
+- [x] `ReplicationServer` 对每连接构造 Frame / ACK。（2026-08-19）
+- [x] Owner 客户端继续使用 W4 ACT 预测 Adapter；本 Wave不要求先完成 GF5 通用预测。（2026-08-19）
+- [x] Observer 使用 RemoteProxy。（2026-08-19：既有 Client Adapter）
+- [x] Spawn / Despawn 走可靠生命周期。（2026-08-19：ReplicationServer 显式差分）
+- [x] Hit / Death 选择“最近 N 事件冗余 + EventId 去重”作为 DS-Demo 临时单轨；W10 升级后删除。（2026-08-19：N=8）
+- [x] Match End 可靠下发。（2026-08-19：`RoomMessageKind.MatchEnd`）
+- [x] 日志按 connection / player / entity / tick 串起命令。（2026-08-19）
 
 **验收**
 
-- [ ] 两个独立 Client 连接无本地玩家 Server。
-- [ ] 双方可移动、出招、打同一敌人。
-- [ ] HP、受击、死亡、敌人生命周期最终一致。
-- [ ] 客机修改本地 HP / Pose 会被权威覆盖。
-- [ ] 一名 Client 断开时可靠 Despawn，另一名和 AI 不崩。
+- [ ] 两个独立 Client 连接无本地玩家 Server。（需 Editor Play）
+- [ ] 双方可移动、出招、打同一敌人。（需 Editor Play）
+- [ ] HP、受击、死亡、敌人生命周期最终一致。（需 Editor Play）
+- [ ] 客机修改本地 HP / Pose 会被权威覆盖。（需 Editor Play）
+- [ ] 一名 Client 断开时可靠 Despawn，另一名和 AI 不崩。（需 Editor Play）
 
-**出口：** 真 Dedicated Authority 对局成立。→ **未达成**
+**出口：** 真 Dedicated Authority 对局成立。→ **代码已切；Editor Play 待确认**
 
 ---
 
@@ -559,7 +559,7 @@ Codec Golden Bytes
 ```
 
 W0 已于 2026-08-18 关闭，W1～W4 搬迁均受其基线保护。
-W5 已于 2026-08-19 用户验收。W6 Headless Authority / 指纹握手已于 2026-08-19 代码落地（Editor Play 待确认）。下一阶段 W7 Match Replication。
+W5 / W6 已于 2026-08-19 用户验收。W7 Match + per-connection Replication 已于 2026-08-19 代码落地（Editor Play 待确认）。下一阶段 W8 Dedicated Build。
 W8 出口关闭前，不宣称 Dedicated Server 已完成。  
 W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 

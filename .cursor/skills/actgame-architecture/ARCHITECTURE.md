@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-19（NetSync W6 Headless Authority / Content Fingerprint 代码落地）
+> Last audited: 2026-08-19（Dedicated Play：合并进下一帧 + 首 Hint 和解）
 
 ## 项目概述
 
@@ -111,9 +111,9 @@ flowchart TB
 | `ActContentPrefillService` | App 场景内容接缝：唯一扫描 Player/Enemy 配置并幂等预填 `ActContentRegistry`；Room 不再查找 Gameplay 组件 |
 | `ActHostRoomGameplay` / `ActClientRoomGameplay` | App 的 Host/Client Gameplay 编排：前者管理 N Guest/独立 ACK/Capture，后者管理 Owner 预测、Observer、Hit Cue/HitStop/软碰撞；网络 Room 只转发 |
 | `ReplicationRoomHost` / `ReplicationRoomClient` | 薄 Unity 网络 Facade：只驱动 Session Poll/应用消息收发、固定帧回调、Gameplay Service 调度与 HUD；Dedicated 不走此路径 |
-| `DedicatedServerBootstrap` / `DedicatedServerRuntime` | Dedicated 独立宿主：Session/Match/每连接 ACK，并驱动 `DedicatedAuthorityWorld` |
+| `DedicatedServerBootstrap` / `DedicatedServerRuntime` | Dedicated 独立宿主：Session/Match 生命周期、每连接 ACK，并发送 `ReplicationFrame` / `MatchEnd` |
 | `ServerSimulationRunner` / `SimulationStepKernel` | 单调时钟 + 固定 60Hz 追帧；Listen 与 Dedicated 共用 `SimulationHost.StepOnce` |
-| `DedicatedAuthorityWorld` | Dedicated 权威世界：Headless Actor、命令灌入、外部时钟步进 |
+| `DedicatedAuthorityWorld` | Dedicated 权威世界：Headless Actor、命令合并进下一权威帧、外部时钟步进、步末每连接构帧 |
 | `MatchCoordinator` | 房间身份与出生：PlayerId/Entity/Team/Spawn/Archetype；出生为槽位 × 2000mm，不读 Host Root |
 | `IRenderFrameSampler` | 可选渲染帧输入汇聚契约，避免高 FPS 无逻辑 Step 时丢 Pressed/Released |
 | `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
@@ -131,7 +131,7 @@ flowchart TB
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只负责装配和注册，不再实现 Actor `Update` Tick。
 
-NetSync M1 已于 2026-08-18 关闭。W5 Dedicated 宿主已验收。W6（2026-08-19）已切 Headless Authority 装配、外部时钟步进与 Gameplay 指纹；下行 Frame / 完整对局属 W7。阅读：[`docs/2026.8.19/NETSYNC_W6_STAGE_SUMMARY.md`](../../docs/2026.8.19/NETSYNC_W6_STAGE_SUMMARY.md)。
+NetSync M1 已于 2026-08-18 关闭。W5/W6 已于 2026-08-19 验收。W7（2026-08-19）已切 Match 状态机与每连接 `ReplicationFrame`；Editor Play 待确认。阅读：[`docs/2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md`](../../docs/2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md)。
 
 ### 2. 泛型状态机（Core）
 

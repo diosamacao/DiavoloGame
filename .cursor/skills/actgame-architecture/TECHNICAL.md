@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-19（NetSync W6 Headless Authority / Content Fingerprint）
+> Last updated: 2026-08-19（Dedicated Play：合并进下一帧 + 首 Hint 和解）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,7 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
-| 组队 PVE 状态同步 / 权威进程 | ✅ Listen 基线；🟡 Dedicated Headless World | `DedicatedAuthorityWorld` + Headless 工厂 + 指纹握手 | Dedicated 可步进权威世界；下行 Frame 属 W7 |
+| 组队 PVE 状态同步 / 权威进程 | ✅ Listen 基线；🟡 Dedicated 对局 | `DedicatedServerRuntime` + `DedicatedAuthorityWorld` | W7 已下发 ReplicationFrame；Editor Play 待确认 |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -247,7 +247,8 @@ ActAuthorityReplicationAdapter
 - NS5 已单轨切到 `UdpTransport`；`LoopbackTransport` 支持一服多客和确定性延迟，不再挂 Host 预览
 - W0～W4、GF0～GF4 与 M1 已于 2026-08-18 完成 Test Runner、架构守卫和双进程回归
 - W5 Dedicated Bootstrap 已于 2026-08-19 用户验收
-- W6 Headless Authority / Content Fingerprint 已于 2026-08-19 代码落地；Editor Play 待确认；下行 Frame 属 W7
+- W6 Headless Authority / Content Fingerprint 已于 2026-08-19 用户验收
+- W7 Match / 每连接 Replication 已于 2026-08-19 代码落地；Editor Play 待确认
 
 ### 相关文件
 
@@ -420,7 +421,7 @@ AfterLogicStep → Capture 全员 + Hits → UDP
 
 ### 功能说明
 
-Listen Host 创建一人房间并可接纳多名远端玩家；客机预测自己的位移、用 RemoteProxy 看队友与敌人；敌人与命中只在 Host 权威世界。Dedicated 为独立运行时：W6 起用 Headless Actor + 外部时钟步进权威 World；下行 Frame 仍属 W7。
+Listen Host 创建一人房间并可接纳多名远端玩家；客机预测自己的位移、用 RemoteProxy 看队友与敌人；敌人与命中只在 Host 权威世界。Dedicated 为独立运行时：Headless Actor + 外部时钟步进，并按连接下发 `ReplicationFrame`。
 
 ### 实现方案
 
@@ -459,7 +460,8 @@ Client：ReplicationRoomClient Poll → ActClientRoomGameplay 合并按键 → �
 - 客机连招下一段在本机 Cancel 窗起手；权威未起手则 Stop
 - 客机 CameraLock：Proxy 只读进 TargetSystem，范围内自动选中后可开；2026-08-18 双进程 Play 已验收
 - 多种敌人按稳定 Archetype 精确生成对应幽灵，不使用首敌配置回退
-- Dedicated 已步进 `SimulationWorld` 并可刷怪；仍不下发 `ReplicationFrame`（W7）
+- Dedicated 已下发 `ReplicationFrame` / `MatchEnd`；双 Client 对局手感待 Editor Play
+- Unity Dedicated Server Build 属 W8
 - 未做匹配、排位、Host 迁移
 - UDP 仍不可靠；冗余 3 条降低丢边沿，不能保证 0 丢包
 - 客机刀光/音效由本机表现桥按预测帧派发；跟权威卡肉招时禁止重派点事件
@@ -504,7 +506,7 @@ Client：ReplicationRoomClient Poll → ActClientRoomGameplay 合并按键 → �
 | 启动 | `CombatWorldController` 只 `EnsureDedicatedBootstrap()`；`DedicatedServerRuntime.TryStart` 装配 UDP Session + Match |
 | 退出码 | `ServerExitCode.ConfigFailed=10`、`BindFailed=20`；玩家构建 `Application.Quit` |
 | 身份 | `MatchCoordinator` 分配 PlayerId / EntityId / Team / Spawn（槽位 × 2000mm X） |
-| 每连接 | `DedicatedPlayerRuntime` 持独立 `ReplicationServer` 与 Hint ACK |
+| 每连接 | `DedicatedPlayerRuntime` 持 Hint ACK；`ReplicationServer` 在 `DedicatedAuthorityWorld` 按连接持有 |
 | JoinAccept | `AuthorityEntityId` 可为 Invalid；线格式 0 |
 
 ### 关键参数
@@ -526,9 +528,8 @@ CombatWorldController.Awake（Dedicated）
 
 ### 已知限制
 
-- 不步进 `SimulationWorld`，不创建 Headless Actor，不刷怪，不发送 `ReplicationFrame`（W6/W7）
-- Editor Headless Play 待用户确认
-- Listen Host 仍是当前可玩对局路径
+- W5 当时不步进 World；W6 已步进，W7 已下发 Frame
+- Listen Host 仍保留至 W9
 
 ### 相关文件
 
@@ -537,6 +538,57 @@ CombatWorldController.Awake（Dedicated）
 - `Assets/Scripts/App/Server/MatchCoordinator.cs`
 - `Assets/Tests/EditMode/ACTGame/Server/DedicatedServerRuntimeTests.cs`
 - `docs/2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`
+
+---
+
+## 组队 PVE · W7 Dedicated Match / Replication
+
+### 功能说明
+
+无本地玩家的 Dedicated 进入 Playing 后，按连接下发与 Listen 相同的 `ReplicationFrame`；Owner 预测、Observer Proxy 复用 W4 Client Adapter。对局可结束并回到 Lobby。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| Match | `DedicatedMatchPhase`：Lobby → Starting → Playing → Ending → Cleanup → Lobby |
+| Join | Playing 可晚加入；Ending 之后拒收 |
+| 实体 Id | JoinAccept 写 World `SimulationId`，供 Client `CanPredict` 对齐 |
+| 命令 | 只灌本连接 PlayerId；冗余批合并进下一权威帧；下行 appliedHint=本批第一条 Hint |
+| 构帧 | `AfterLogicStep` Capture + 每连接 `ReplicationServer.BuildFrame`；Runtime 发送 |
+| 命中 | 最近 8 条 `SimHitKey` 冗余；Client 既有去重 |
+| 结束 | `RoomMessageKind.MatchEnd=8` + Kick；Client 先 Drain 再 Sync Session |
+
+### 关键参数
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| Hit 冗余 | 8 | DS-Demo 临时单轨；W10 改可靠事件后删除 |
+| MatchEnd 类型 | 8 | 避开 Session Kick=7 |
+
+### 运行时流程
+
+```
+DedicatedServerRuntime.Poll
+  → DrainJoins / DrainCommands（Merge 进下一权威帧）
+  → Advance → StepOnce → AfterLogicStep Capture/构帧（appliedHint=FirstAppliedHint）
+  → FlushReplication
+  → 空房或 RequestMatchEnd → MatchEnd + Kick → Lobby
+```
+
+### 已知限制
+
+- 双 Client 移动/出招/打同一敌人待 Editor Play 复验
+- 未做 Unity Dedicated Server Build（W8）
+- 命中仍走不可靠帧内冗余，不是可靠事件通道
+
+### 相关文件
+
+- `Assets/Scripts/App/Server/DedicatedServerRuntime.cs`
+- `Assets/Scripts/App/Networking/Services/DedicatedAuthorityWorld.cs`
+- `Assets/Scripts/Domain/Simulation/Replication/RoomCodec.cs`
+- `Assets/Tests/EditMode/ACTGame/Server/DedicatedServerRuntimeTests.cs`
+- `docs/2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md`
 
 ---
 
@@ -1350,6 +1402,10 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-18 | 新增 `docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`：M1 阶段性总结与当前实现阅读入口 |
 | 2026-08-19 | NetSync W5：`ACTGame.Server` Dedicated Bootstrap / Match / 每连接 ACK；Listen Host 改 N Guest；JoinAccept 允许无房主实体；权威 World 仍属 W6 |
 | 2026-08-19 | NetSync W6：`ServerSimulationRunner` + Headless `CharacterPresentationMode`；Capture 改读模拟 Locomotion 时钟；`ServerContentManifest` 指纹加入 Join；Dedicated 创建权威 Actor 并步进 |
+| 2026-08-19 | NetSync W7：Dedicated Match 状态机、每连接 `ReplicationFrame`、`MatchEnd`、JoinAccept 改写 SimulationId；Owner 预测复用 W4 Adapter |
+| 2026-08-19 | 修复 Dedicated 客机无法操作：Join 先于 Drain；入房立刻发首帧 Spawn，避免 Owner 被建成 Proxy 导致 `CanPredict` 不开 |
+| 2026-08-19 | Dedicated Play：命令按 Hint 逐步灌入；Headless `Play` 仍记 CurrentKey；Dodge 期间推迟 2m 硬吸 |
+| 2026-08-19 | Dedicated Play 复验：取消逐步灌入（观察者延迟）；Merge 进下一帧 + 首 Hint 和解；吸附/闪避整段推迟硬吸且不掐本机招 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
@@ -1385,7 +1441,7 @@ ApplyStep：SoftBodySuppress 刷新（含卡肉帧）
   → SyncRootPoseFromSim
 SimulationWorld 帧末 SoftBodySeparation（抑制者不参与）
 客机：同一 Bridge；WorldQuery 读 Proxy.GetLogicalCombatPose；帧末 AutonomousSoftBodySolver（抑制者不参与）
-客机纠偏：窗内 / 权威卡肉走 ActionMotionReconcileGate，禁止 2m 硬吸
+客机纠偏：窗内 / 权威卡肉 / Dodge 进行中走 ActionMotionReconcileGate，禁止 2m 硬吸
 ```
 
 ### 已知限制
@@ -1395,7 +1451,7 @@ SimulationWorld 帧末 SoftBodySeparation（抑制者不参与）
 - 共线退化（玩家与敌人水平重合）本帧不吸
 - **打击感吸附已验收；Relocate 需在招上配 MotionCommand 点事件后 Play 验**
 - 客机 Adhesion desired 读 Proxy MotorSim（有 Tick 延迟），落点相对 Host 可能有 RTT 级偏差
-- 客机不 Collect；卡肉由本机几何预测，伤害只信权威下行；穿敌窗内禁止 2m 硬吸（`ActionMotionReconcileGate`）
+- 客机不 Collect；卡肉由本机几何预测，伤害只信权威下行；穿敌窗 / Dodge 进行中禁止 2m 硬吸（`ActionMotionReconcileGate`）
 
 ### 相关文件
 

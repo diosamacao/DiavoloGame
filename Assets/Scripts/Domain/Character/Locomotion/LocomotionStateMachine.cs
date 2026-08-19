@@ -91,7 +91,7 @@ public sealed class LocomotionStateMachine
         Context.SprintLean.Reset();
     }
 
-    /// <summary>捕获当前内层机可恢复字段，供 SavedMove。</summary>
+    /// <summary>捕获当前内层机可恢复字段，供 SavedMove 与权威复制。走跑键不得因无 Graph 回退 Idle。</summary>
     public LocomotionSavedState Capture()
     {
         Context.RootMotionPlayer.Capture(
@@ -99,9 +99,7 @@ public sealed class LocomotionStateMachine
             out AnimationKey rmKey,
             out int rmFrame,
             out float rmYaw);
-        AnimationKey animKey = Context.Animation != null && Context.Animation.CurrentKey.HasValue
-            ? Context.Animation.CurrentKey.Value
-            : AnimationKey.Idle;
+        AnimationKey animKey = ResolveCaptureAnimationKey();
         float normalized = Context.SimulationNormalizedTime;
         return new LocomotionSavedState(
             Phase,
@@ -216,6 +214,22 @@ public sealed class LocomotionStateMachine
         Vector3 facing = Context.Root.forward;
         Vector3 wish = Context.FrameSnapshot.WorldMoveDirection;
         Context.SprintLean.Tick(settings, facing, wish, allowLean, deltaTime);
+    }
+
+    /// <summary>
+    /// Capture 用逻辑键：优先 Animation.CurrentKey；Headless 未 Play 时按相位回退，禁止默认 Idle 让远端只平移。
+    /// </summary>
+    AnimationKey ResolveCaptureAnimationKey()
+    {
+        if (Context.Animation != null && Context.Animation.CurrentKey.HasValue)
+            return Context.Animation.CurrentKey.Value;
+
+        if (Phase == LocomotionPhase.Gait)
+            return Context.ResolveLocomotionAnimationKey();
+        if (Phase == LocomotionPhase.Start)
+            return Context.ActiveStartKey;
+
+        return AnimationKey.Idle;
     }
 
     /// <summary>供 Context / 各态请求相位切换。</summary>

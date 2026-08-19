@@ -11,6 +11,25 @@ public sealed class RoomCodecTests
         Assert.That((byte)RoomMessageKind.ReplicationFrame, Is.EqualTo(6));
     }
 
+    /// <summary>MatchEnd 占用 8，避开 Session Kick=7，正文可往返。</summary>
+    [Test]
+    public void MatchEnd_MessageKind_IsEightAndRoundTrips()
+    {
+        Assert.That((byte)RoomMessageKind.MatchEnd, Is.EqualTo(8));
+        Assert.That((byte)SessionMessageKind.Kick, Is.EqualTo(7));
+
+        var message = new MatchEndMessage(MatchEndReason.Completed, 42);
+        byte[] payload = SessionCodec.WriteEnvelope(
+            (byte)RoomMessageKind.MatchEnd,
+            RoomCodec.WriteMatchEnd(in message));
+        SessionCodec.ReadEnvelope(payload, out byte kind, out byte[] body);
+        MatchEndMessage restored = RoomCodec.ReadMatchEnd(body);
+
+        Assert.That(kind, Is.EqualTo((byte)RoomMessageKind.MatchEnd));
+        Assert.That(restored.Reason, Is.EqualTo(MatchEndReason.Completed));
+        Assert.That(restored.Tick, Is.EqualTo(42));
+    }
+
     /// <summary>命令批按原序往返，正文仍是 ReplicationCodec 单条命令。</summary>
     [Test]
     public void ClientCommandBatch_Roundtrip_PreservesHintsAndButtons()

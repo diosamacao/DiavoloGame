@@ -22,7 +22,7 @@ public sealed class ActAuthorityReplicationAdapter
 
     /// <summary>
     /// 合并尚未应用的远端命令并写入下一权威帧。
-    /// 返回最新 Hint；无新命令时不覆盖下一帧已有输入。
+    /// NewestHint 跳过冗余；FirstAppliedHint 写入下行和解。无新命令时不覆盖下一帧已有输入。
     /// </summary>
     public ActAuthorityInputApplyResult ApplyGuestCommands(
         InputFrameBuffer buffer,
@@ -32,7 +32,7 @@ public sealed class ActAuthorityReplicationAdapter
         long lastAppliedHint)
     {
         if (buffer == null || !actorId.IsValid)
-            return new ActAuthorityInputApplyResult(false, lastAppliedHint);
+            return new ActAuthorityInputApplyResult(false, lastAppliedHint, lastAppliedHint);
 
         long targetFrame = currentFrame + 1;
         if (!RoomRemoteInputMerge.TryMergeUnapplied(
@@ -41,16 +41,17 @@ public sealed class ActAuthorityReplicationAdapter
                 targetFrame,
                 actorId,
                 out InputFrame merged,
-                out long newestHint))
+                out long newestHint,
+                out long firstAppliedHint))
         {
-            return new ActAuthorityInputApplyResult(false, lastAppliedHint);
+            return new ActAuthorityInputApplyResult(false, lastAppliedHint, lastAppliedHint);
         }
 
         if (buffer.TryGetExact(targetFrame, actorId, out InputFrame existing))
             merged = existing.MergeSample(in merged);
 
         buffer.Set(in merged);
-        return new ActAuthorityInputApplyResult(true, newestHint);
+        return new ActAuthorityInputApplyResult(true, newestHint, firstAppliedHint);
     }
 
     /// <summary>捕获本机玩家、全部 Guest 与运行中敌人的完整权威状态，并绑定稳定网络原型。</summary>
@@ -155,11 +156,12 @@ public sealed class ActAuthorityReplicationAdapter
 /// <summary>远端命令灌入结果；Applied=false 时调用方必须保留原 Hint 状态。</summary>
 public readonly struct ActAuthorityInputApplyResult
 {
-    /// <summary>创建输入灌入结果。</summary>
-    public ActAuthorityInputApplyResult(bool applied, long newestHint)
+    /// <summary>创建输入灌入结果。firstAppliedHint 写入下行 appliedHint；newestHint 用于跳过冗余。</summary>
+    public ActAuthorityInputApplyResult(bool applied, long newestHint, long firstAppliedHint)
     {
         Applied = applied;
         NewestHint = newestHint;
+        FirstAppliedHint = firstAppliedHint;
     }
 
     /// <summary>本批命令是否实际写入权威输入缓冲。</summary>
@@ -167,4 +169,7 @@ public readonly struct ActAuthorityInputApplyResult
 
     /// <summary>成功应用后的最新客户端 FrameHint；未应用时等于调用方传入值。</summary>
     public long NewestHint { get; }
+
+    /// <summary>本批第一条新 Hint；客机按该帧预测位姿和解，避免用 newest 对压缩后的权威步。</summary>
+    public long FirstAppliedHint { get; }
 }

@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
-/// <summary>无本地玩家的 Dedicated 运行时：Session / Match / 每连接 ACK，并驱动权威 World。</summary>
+/// <summary>无本地玩家的 Dedicated 运行时：Match 生命周期、每连接 ACK，并驱动权威 World 与下行复制。</summary>
 public sealed class DedicatedServerRuntime : IDisposable
 {
     readonly ServerLaunchConfig _config;
@@ -9,7 +10,11 @@ public sealed class DedicatedServerRuntime : IDisposable
     readonly MatchCoordinator _match;
     readonly IDedicatedAuthorityWorld _authority;
     readonly Dictionary<NetConnectionId, DedicatedPlayerRuntime> _players = new();
+    readonly List<DedicatedReplicationSend> _outbound = new();
+    readonly List<NetConnectionId> _playerScratch = new();
     bool _disposed;
+    bool _pendingCompletedEnd;
+    bool _endingMatch;
 
     DedicatedServerRuntime(
         ServerLaunchConfig config,
@@ -24,6 +29,7 @@ public sealed class DedicatedServerRuntime : IDisposable
         _session.Disconnected += OnSessionDisconnected;
         ExitCode = ServerExitCode.Success;
         IsListening = true;
+        MatchPhase = DedicatedMatchPhase.Lobby;
     }
 
     /// <summary>本运行时固定为 DedicatedServer，禁止 Listen 冒充。</summary>
@@ -40,6 +46,9 @@ public sealed class DedicatedServerRuntime : IDisposable
 
     /// <summary>已接纳远端玩家数。</summary>
     public int JoinedPlayerCount => _players.Count;
+
+    /// <summary>当前对局阶段。</summary>
+    public DedicatedMatchPhase MatchPhase { get; private set; }
 
     /// <summary>底层 Session，供测试读取连接表。</summary>
     public ServerSession Session => _session;
@@ -82,15 +91,30 @@ public sealed class DedicatedServerRuntime : IDisposable
         }
     }
 
-    /// <summary>泵 Session、接纳玩家、按连接合并命令 Hint。</summary>
+    /// <summary>泵 Session、接纳玩家、灌命令、步进并按连接发送 ReplicationFrame。</summary>
     public void Poll(long nowMs)
     {
         EnsureNotDisposed();
         BeginPlayerTicks();
         _session.Poll(nowMs);
         DrainJoins();
+        _authority.PublishImmediateReplication();
         DrainCommands();
+        PromoteStartingToPlaying();
         _authority.Advance(nowMs);
+        FlushReplication();
+        FinishPendingMatchEnd();
+    }
+
+    /// <summary>请求结束对局；下一 Poll 向仍在线连接可靠下发 MatchEnd。</summary>
+    public void RequestMatchEnd()
+    {
+        EnsureNotDisposed();
+        if (MatchPhase == DedicatedMatchPhase.Playing
+            || MatchPhase == DedicatedMatchPhase.Starting)
+        {
+            _pendingCompletedEnd = true;
+        }
     }
 
     /// <summary>按连接读取 ACK 状态；未知连接返回 false。</summary>
@@ -135,6 +159,8 @@ public sealed class DedicatedServerRuntime : IDisposable
             return;
         _disposed = true;
         _session.Disconnected -= OnSessionDisconnected;
+        if (_players.Count > 0)
+            BroadcastMatchEnd(MatchEndReason.ServerShutdown);
         _players.Clear();
         _authority.Dispose();
         _session.Dispose();
@@ -146,26 +172,35 @@ public sealed class DedicatedServerRuntime : IDisposable
             player.BeginTick();
     }
 
-    /// <summary>Join 只问 Match，不再等待 Host Local Actor。</summary>
+    /// <summary>Join 只问 Match 与权威世界；Ending 之后拒收。</summary>
     void DrainJoins()
     {
         while (_session.TryDequeuePlayerRequest(out SessionPlayerRequest request))
         {
-            if (!_match.TryAccept(in request, out MatchPlayerSlot slot)
-                || !_authority.TryAcceptPlayer(in slot))
+            if (!CanAcceptJoin()
+                || !_match.TryAccept(in request, out MatchPlayerSlot slot)
+                || !_authority.TryAcceptPlayer(in slot, out NetEntityId entityId)
+                || !entityId.IsValid)
             {
                 _match.Release(request.ConnectionId);
                 _session.RejectPlayer(request.ConnectionId, SessionRejectReason.GameRejected);
                 continue;
             }
 
-            var player = new DedicatedPlayerRuntime(in slot);
+            var player = new DedicatedPlayerRuntime(in slot, entityId);
             _players.Add(request.ConnectionId, player);
+            if (MatchPhase == DedicatedMatchPhase.Lobby)
+                MatchPhase = DedicatedMatchPhase.Starting;
+
+            long tick = _authority.CurrentFrame < 0 ? 0 : _authority.CurrentFrame;
             _session.AcceptPlayer(
                 request.ConnectionId,
-                slot.EntityId,
+                entityId,
                 NetEntityId.Invalid,
-                new NetTick(0));
+                new NetTick(tick));
+            Debug.Log(
+                $"DedicatedServerRuntime: join connection={request.ConnectionId} "
+                + $"player={request.PlayerId.Value} entity={entityId.Value} tick={tick}。");
         }
     }
 
@@ -181,8 +216,19 @@ public sealed class DedicatedServerRuntime : IDisposable
             try
             {
                 ClientCommand[] commands = RoomCodec.ReadClientCommandBatch(packet.Payload);
-                player.ApplyUnappliedHints(commands);
-                _authority.ApplyCommands(packet.ConnectionId, commands);
+                ClientCommand[] owned = FilterOwnerCommands(player.Slot.PlayerId, commands);
+                if (owned.Length == 0)
+                    continue;
+
+                player.ApplyUnappliedHints(owned);
+                _authority.ApplyCommands(packet.ConnectionId, owned);
+                long newestHint = player.AppliedHintThisTick > 0
+                    ? player.AppliedHintThisTick
+                    : player.LastAppliedFrameHint;
+                Debug.Log(
+                    $"DedicatedServerRuntime: cmd connection={packet.ConnectionId} "
+                    + $"player={player.Slot.PlayerId.Value} entity={player.EntityId.Value} "
+                    + $"tick={_authority.CurrentFrame} hint={newestHint}。");
             }
             catch (Exception)
             {
@@ -191,12 +237,153 @@ public sealed class DedicatedServerRuntime : IDisposable
         }
     }
 
+    /// <summary>只保留本连接 PlayerId 的命令，禁止代打其他座位。</summary>
+    static ClientCommand[] FilterOwnerCommands(NetPlayerId ownerPlayerId, ClientCommand[] commands)
+    {
+        if (commands == null || commands.Length == 0 || !ownerPlayerId.IsValid)
+            return Array.Empty<ClientCommand>();
+
+        int owner = ownerPlayerId.Value;
+        int keep = 0;
+        for (int i = 0; i < commands.Length; i++)
+        {
+            if (commands[i].SenderPlayerId == owner)
+                keep++;
+        }
+
+        if (keep == 0)
+            return Array.Empty<ClientCommand>();
+        if (keep == commands.Length)
+            return commands;
+
+        var owned = new ClientCommand[keep];
+        int write = 0;
+        for (int i = 0; i < commands.Length; i++)
+        {
+            if (commands[i].SenderPlayerId == owner)
+                owned[write++] = commands[i];
+        }
+
+        return owned;
+    }
+
+    void PromoteStartingToPlaying()
+    {
+        if (MatchPhase == DedicatedMatchPhase.Starting)
+            MatchPhase = DedicatedMatchPhase.Playing;
+    }
+
+    void FlushReplication()
+    {
+        if (MatchPhase != DedicatedMatchPhase.Playing)
+            return;
+
+        _authority.DrainOutboundReplication(_outbound);
+        for (int i = 0; i < _outbound.Count; i++)
+        {
+            DedicatedReplicationSend send = _outbound[i];
+            if (!_players.ContainsKey(send.ConnectionId) || send.Body == null || send.Body.Length == 0)
+                continue;
+
+            try
+            {
+                _session.SendApplication(
+                    send.ConnectionId,
+                    (byte)RoomMessageKind.ReplicationFrame,
+                    NetChannel.SnapshotUnreliableSequenced,
+                    send.Body);
+            }
+            catch (Exception)
+            {
+            }
+        }
+    }
+
+    void FinishPendingMatchEnd()
+    {
+        if (_endingMatch)
+            return;
+
+        if (_pendingCompletedEnd)
+        {
+            EnterEnding(MatchEndReason.Completed);
+            return;
+        }
+
+        if (MatchPhase == DedicatedMatchPhase.Playing && _players.Count == 0)
+            EnterEnding(MatchEndReason.EmptyRoom);
+    }
+
+    /// <summary>向仍在线连接发 MatchEnd，再踢线并回到 Lobby。</summary>
+    void EnterEnding(MatchEndReason reason)
+    {
+        _endingMatch = true;
+        _pendingCompletedEnd = false;
+        MatchPhase = DedicatedMatchPhase.Ending;
+        BroadcastMatchEnd(reason);
+        CopyPlayerIds(_playerScratch);
+        for (int i = 0; i < _playerScratch.Count; i++)
+        {
+            try
+            {
+                _session.Disconnect(_playerScratch[i], DisconnectReason.ServerShutdown);
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        MatchPhase = DedicatedMatchPhase.Cleanup;
+        _players.Clear();
+        MatchPhase = DedicatedMatchPhase.Lobby;
+        _endingMatch = false;
+    }
+
+    void BroadcastMatchEnd(MatchEndReason reason)
+    {
+        long tick = _authority.CurrentFrame < 0 ? 0 : _authority.CurrentFrame;
+        byte[] body = RoomCodec.WriteMatchEnd(new MatchEndMessage(reason, tick));
+        CopyPlayerIds(_playerScratch);
+        for (int i = 0; i < _playerScratch.Count; i++)
+        {
+            try
+            {
+                _session.SendApplication(
+                    _playerScratch[i],
+                    (byte)RoomMessageKind.MatchEnd,
+                    NetChannel.ControlReliableOrdered,
+                    body);
+            }
+            catch (Exception)
+            {
+            }
+        }
+    }
+
+    void CopyPlayerIds(List<NetConnectionId> results)
+    {
+        results.Clear();
+        foreach (NetConnectionId id in _players.Keys)
+            results.Add(id);
+    }
+
+    bool CanAcceptJoin() =>
+        MatchPhase == DedicatedMatchPhase.Lobby
+        || MatchPhase == DedicatedMatchPhase.Starting
+        || MatchPhase == DedicatedMatchPhase.Playing;
+
     /// <summary>只清理断开连接的 Match/复制状态，其余玩家保留。</summary>
     void OnSessionDisconnected(SessionDisconnected disconnected)
     {
         _players.Remove(disconnected.ConnectionId);
         _match.Release(disconnected.ConnectionId);
         _authority.RemovePlayer(disconnected.ConnectionId);
+        if (!_endingMatch
+            && MatchPhase == DedicatedMatchPhase.Playing
+            && _players.Count == 0)
+        {
+            _pendingCompletedEnd = false;
+        }
     }
 
     void EnsureNotDisposed()
