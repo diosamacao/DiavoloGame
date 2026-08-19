@@ -112,7 +112,7 @@
 
 **客机装配：** [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md) — **CA0～CA2 代码已切（2026-08-15）**：同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。Play 待 Editor。纠偏合同仍见 [`UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
 
-**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W5/W6 已验收**；**W7 Match + per-connection Replication 已于 2026-08-19 代码落地**。已修观察者延迟、Branch_02 中途拉回与 Headless 走跑键；Editor Play 待复验。下一阶段为 W8 Dedicated Build。备忘：[`docs/2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md`](../../docs/2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md)。
+**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W5～W7 已验收**；**W8 启动/Ready/退出已于 2026-08-19 代码落地**。Unity Dedicated Build 与 H-DS-D 待 Editor。备忘：[`docs/2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md`](../../docs/2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md)。
 
 ### [P1] Lockstep 模拟核迁移
 
@@ -193,7 +193,8 @@
 - [x] 2026-08-18：NetSync W4/M1——ACTNet 零反向依赖；Host/Client Room 薄 Facade；Character/内容/预测/Proxy/Hit Cue 迁入 App Gameplay Services；Test Runner 与双进程 Play 已验收关闭
 - [x] 2026-08-19：NetSync W5——Dedicated 独立 Bootstrap / Match / 每连接 ACK；Listen Host 改 N Guest；Join 不再等 Host Actor；权威 World 仍属 W6
 - [x] 2026-08-19：NetSync W6——Headless Authority 工厂、外部时钟步进、Gameplay 指纹 Join；下行 Frame 仍属 W7
-- [x] 2026-08-19：NetSync W7——Dedicated Match 状态机、每连接 ReplicationFrame、MatchEnd；Editor Play 待确认
+- [x] 2026-08-19：NetSync W7——Dedicated Match 状态机、每连接 ReplicationFrame、MatchEnd；Editor Play 已验收
+- [x] 2026-08-19：NetSync W8 代码——CLI/Env/File 启动覆盖、READY、空房超时与对局结束退出；Dedicated Build 待 Editor
 
 ## 已完成
 

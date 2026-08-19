@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 
-/// <summary>W5/W7 Dedicated Runtime：无本地玩家、Match 生命周期、每连接 Frame 与 ACK。</summary>
+/// <summary>W5/W7/W8 Dedicated Runtime：Match 生命周期、每连接 Frame，以及空房/对局结束退出。</summary>
 public sealed class DedicatedServerRuntimeTests
 {
     static readonly NetEndpoint Endpoint = new("dedicated-loopback", 7777);
@@ -24,6 +24,24 @@ public sealed class DedicatedServerRuntimeTests
 
         DedicatedServerRuntime runtime = DedicatedServerRuntime.TryStart(
             transport,
+            config,
+            new StubAuthorityWorld(),
+            out ServerExitCode exit);
+
+        Assert.That(runtime, Is.Null);
+        Assert.That(exit, Is.EqualTo(ServerExitCode.ConfigFailed));
+    }
+
+    /// <summary>空房超时不能为负数，否则视为配置失败。</summary>
+    [Test]
+    public void NegativeEmptyLobbyTimeout_ReturnsConfigFailed()
+    {
+        ServerLaunchConfig config = ServerLaunchConfig.CreateDefault(
+            7777,
+            contentVersion: 1,
+            emptyLobbyTimeoutMs: -1);
+        DedicatedServerRuntime runtime = DedicatedServerRuntime.TryStart(
+            new LoopbackTransport(new LoopbackNetwork()),
             config,
             new StubAuthorityWorld(),
             out ServerExitCode exit);
@@ -57,6 +75,8 @@ public sealed class DedicatedServerRuntimeTests
         Assert.That(harness.Runtime.ProcessRole, Is.EqualTo(NetProcessRole.DedicatedServer));
         Assert.That(harness.Runtime.LocalPlayerCount, Is.EqualTo(0));
         Assert.That(harness.Runtime.IsListening, Is.True);
+        Assert.That(harness.Runtime.IsReady, Is.True);
+        Assert.That(harness.Runtime.ShouldExit, Is.False);
         Assert.That(harness.Runtime.ExitCode, Is.EqualTo(ServerExitCode.Success));
         Assert.That(client.State, Is.EqualTo(ClientSessionState.Joined));
         Assert.That(client.JoinAccept.AuthorityEntityId.IsValid, Is.False);
@@ -230,6 +250,97 @@ public sealed class DedicatedServerRuntimeTests
         ClientSession second = harness.JoinClients(1)[0];
         Assert.That(second.State, Is.EqualTo(ClientSessionState.Joined));
         Assert.That(harness.Runtime.MatchPhase, Is.EqualTo(DedicatedMatchPhase.Playing));
+        Assert.That(harness.Runtime.ShouldExit, Is.False);
+    }
+
+    /// <summary>无人加入的 Lobby 到达超时后请求退出，退出码仍为 Success。</summary>
+    [Test]
+    public void EmptyLobbyTimeout_WithoutPlayers_RequestsExit()
+    {
+        ServerLaunchConfig launch = ServerLaunchConfig.CreateDefault(
+            7777,
+            contentVersion: 1,
+            maxPlayers: 2,
+            emptyLobbyTimeoutMs: 50);
+        using var harness = new DedicatedHarness(launch);
+
+        harness.Runtime.Poll(0);
+        Assert.That(harness.Runtime.ShouldExit, Is.False);
+        Assert.That(harness.Runtime.IsReady, Is.True);
+
+        harness.Runtime.Poll(49);
+        Assert.That(harness.Runtime.ShouldExit, Is.False);
+
+        harness.Runtime.Poll(50);
+        Assert.That(harness.Runtime.ShouldExit, Is.True);
+        Assert.That(harness.Runtime.IsReady, Is.False);
+        Assert.That(harness.Runtime.ExitCode, Is.EqualTo(ServerExitCode.Success));
+    }
+
+    /// <summary>曾经有人加入后，空房超时不再触发，默认配置仍可再入房。</summary>
+    [Test]
+    public void EmptyLobbyTimeout_AfterFirstJoin_DoesNotExit()
+    {
+        ServerLaunchConfig launch = ServerLaunchConfig.CreateDefault(
+            7777,
+            contentVersion: 1,
+            maxPlayers: 2,
+            emptyLobbyTimeoutMs: 50);
+        using var harness = new DedicatedHarness(launch);
+        ClientSession first = harness.JoinClients(1)[0];
+
+        harness.Runtime.Session.Disconnect(harness.ConnectionOf(first), DisconnectReason.Requested);
+        first.Poll(1);
+        harness.Runtime.Poll(200);
+
+        Assert.That(harness.Runtime.ShouldExit, Is.False);
+        Assert.That(harness.Runtime.MatchPhase, Is.EqualTo(DedicatedMatchPhase.Lobby));
+
+        ClientSession second = harness.JoinClients(1)[0];
+        Assert.That(second.State, Is.EqualTo(ClientSessionState.Joined));
+    }
+
+    /// <summary>玩家构建策略下，最后一名离开后请求退出且不再 Accept。</summary>
+    [Test]
+    public void ExitOnMatchEnd_LastDisconnect_RequestsExitAndRejectsRejoin()
+    {
+        ServerLaunchConfig launch = ServerLaunchConfig.CreateDefault(
+            7777,
+            contentVersion: 1,
+            maxPlayers: 2,
+            exitOnMatchEnd: true);
+        using var harness = new DedicatedHarness(launch);
+        ClientSession first = harness.JoinClients(1)[0];
+
+        harness.Runtime.Session.Disconnect(harness.ConnectionOf(first), DisconnectReason.Requested);
+        first.Poll(1);
+        harness.Runtime.Poll(1);
+
+        Assert.That(harness.Runtime.ShouldExit, Is.True);
+        Assert.That(harness.Runtime.MatchPhase, Is.EqualTo(DedicatedMatchPhase.Lobby));
+        Assert.That(harness.Runtime.IsReady, Is.False);
+
+        ClientSession rejected = harness.TryJoinOne();
+        Assert.That(rejected.State, Is.Not.EqualTo(ClientSessionState.Joined));
+    }
+
+    /// <summary>RequestMatchEnd 在 ExitOnMatchEnd 时同样请求进程退出。</summary>
+    [Test]
+    public void ExitOnMatchEnd_RequestMatchEnd_RequestsExit()
+    {
+        ServerLaunchConfig launch = ServerLaunchConfig.CreateDefault(
+            7777,
+            contentVersion: 1,
+            maxPlayers: 2,
+            exitOnMatchEnd: true);
+        using var harness = new DedicatedHarness(launch);
+        harness.JoinClients(1);
+
+        harness.Runtime.RequestMatchEnd();
+        harness.Runtime.Poll(1);
+
+        Assert.That(harness.Runtime.ShouldExit, Is.True);
+        Assert.That(harness.Runtime.ExitCode, Is.EqualTo(ServerExitCode.Success));
     }
 
     /// <summary>JoinAccept 实体 Id 必须来自权威 World，而不是仅 Match 槽位占位。</summary>
@@ -276,8 +387,13 @@ public sealed class DedicatedServerRuntimeTests
         readonly Dictionary<NetPlayerId, NetConnectionId> _connections = new();
 
         public DedicatedHarness(int maxPlayers, IDedicatedAuthorityWorld authority = null)
+            : this(ServerLaunchConfig.CreateDefault(7777, contentVersion: 1, maxPlayers), authority)
         {
-            ServerLaunchConfig launch = ServerLaunchConfig.CreateDefault(7777, contentVersion: 1, maxPlayers);
+        }
+
+        /// <summary>用指定启动配置创建 Loopback Dedicated。</summary>
+        public DedicatedHarness(ServerLaunchConfig launch, IDedicatedAuthorityWorld authority = null)
+        {
             Runtime = DedicatedServerRuntime.TryStart(
                 new LoopbackTransport(_network),
                 launch,
@@ -322,6 +438,17 @@ public sealed class DedicatedServerRuntimeTests
         /// <summary>按已 Join 客户端查找连接。</summary>
         public NetConnectionId ConnectionOf(ClientSession client) =>
             _connections[client.JoinAccept.PlayerId];
+
+        /// <summary>发起一次 Join 但不要求成功，用于验证退出后拒收。</summary>
+        public ClientSession TryJoinOne()
+        {
+            var client = new ClientSession(new LoopbackTransport(_network), _clientConfig);
+            _clients.Add(client);
+            client.Start(Endpoint, 0);
+            Runtime.Poll(0);
+            client.Poll(0);
+            return client;
+        }
 
         /// <summary>发送一条只含 FrameHint 的命令批。</summary>
         public void SendCommand(ClientSession client, long frameHint)

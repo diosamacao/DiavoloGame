@@ -35,12 +35,22 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
             StartRuntime();
     }
 
-    /// <summary>泵 Session / Match / 命令，并由权威世界按单调时间步进。</summary>
+    /// <summary>泵 Session / Match / 命令；玩家构建在 ShouldExit 后以退出码停进程，Editor 只释放运行时。</summary>
     void Update()
     {
         if (_runtime == null)
             return;
         _runtime.Poll(NowMs());
+        if (!_runtime.ShouldExit)
+            return;
+
+        ExitCode = _runtime.ExitCode;
+        Debug.Log($"DedicatedServerBootstrap: 退出 exit={(int)ExitCode}。", this);
+#if !UNITY_EDITOR
+        Application.Quit((int)ExitCode);
+#else
+        ShutdownRuntime();
+#endif
     }
 
     void OnDisable() => ShutdownRuntime();
@@ -59,9 +69,11 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
             _authority,
             out ServerExitCode exitCode);
         ExitCode = exitCode;
-        if (_runtime != null)
+        if (_runtime != null && _runtime.IsReady)
         {
-            Debug.Log($"DedicatedServerBootstrap: Listening {_runtime.Session.LocalEndpoint}。", this);
+            NetEndpoint? endpoint = _runtime.Session.LocalEndpoint;
+            int port = endpoint.HasValue ? endpoint.Value.Port : _config.BindPort;
+            Debug.Log($"DedicatedServerBootstrap: READY port={port} role=DedicatedServer。", this);
             return;
         }
 

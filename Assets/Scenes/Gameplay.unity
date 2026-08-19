@@ -894,7 +894,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   staticCollisionBake: {fileID: 11400000, guid: 2d2971dd9d9bbeb469572998070d5937, type: 2}
-  role: 0
+  role: 2
   listenPort: 7777
   joinHost: 127.0.0.1
   contentVersion: 1

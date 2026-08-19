@@ -1,7 +1,7 @@
-/// <summary>Dedicated 进程退出码；0 为正常，非 0 表示配置或绑定失败。</summary>
+/// <summary>Dedicated 进程退出码；0 为正常结束或空房退出，非 0 表示配置或绑定失败。</summary>
 public enum ServerExitCode
 {
-    /// <summary>运行中或正常停服。</summary>
+    /// <summary>运行中、对局结束或空房超时后的正常停服。</summary>
     Success = 0,
 
     /// <summary>ServerLaunchConfig 非法，未尝试绑端口。</summary>

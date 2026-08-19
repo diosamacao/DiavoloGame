@@ -1,6 +1,6 @@
 # ACTGame 文档索引
 
-> 更新：2026-08-19 — W7 Match / 每连接 Replication 代码落地；实现备忘见 8.19 W7 总结。
+> 更新：2026-08-19 — W7 已验收；W8 Dedicated 启动/Ready/退出代码落地；出包见 8.19 W8 总结。
 > **一页总览先读：** [PROJECT_CHECKLIST.md](./PROJECT_CHECKLIST.md)  
 > **排期真源：** [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md)  
 > **架构运行时：** `.cursor/skills/actgame-architecture/`（ARCHITECTURE / TECHNICAL / ROADMAP）
@@ -23,7 +23,9 @@
 | [2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md](./2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md) | **网络同步实现阅读入口（M1 关闭后先读）**：W0～W4 结论、分层、入房、每帧序、玩家操作往返、线格式 |
 | [2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md) | **W5 Dedicated Bootstrap / N 玩家 Session**：独立 Runtime、Match、每连接 ACK |
 | [2026.8.19/NETSYNC_W6_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W6_STAGE_SUMMARY.md) | **W6 Headless Authority / 指纹握手**：外部时钟、无头工厂、Join ContentFingerprint |
-| [2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md) | **W7 Match / 每连接 Replication**：状态机、下行 Frame、MatchEnd |
+| [2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md) | **W7 Match / 每连接 Replication**：状态机、下行 Frame、MatchEnd（已验收） |
+| [2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md) | **W8 Dedicated 启动 / Ready / 退出**：CLI/Env/File；Build 仍待 Editor |
+| [2026.8.19/DEDICATED_SERVER_LAUNCH.md](./2026.8.19/DEDICATED_SERVER_LAUNCH.md) | Dedicated 本地启动、退出码、H-DS-D 表 |
 | [2026.8.15/NETWORK_SYNC.md](./2026.8.15/NETWORK_SYNC.md) | NS5 时期结构说明；下行已改为 `ReplicationFrame`，生产路径以 8.18 总结为准 |
 | [2026.8.16/NETWORK_SYNC_STUDY_QA.md](./2026.8.16/NETWORK_SYNC_STUDY_QA.md) | **自学问答备忘（第 0～6 已收束）**：含框架分层与数据流图；不是实现真源 |
 | [2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md](./2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) | **网络重构总排期真源**：W0～W4 分离通用网络层，W5～W8 交付 DS-Demo，W9～W12 完成 Listen 收敛、公网、规模与运维 |
