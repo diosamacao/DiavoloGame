@@ -5,6 +5,19 @@ public sealed class FixedStepAccumulatorTests
 {
     const double FixedDelta = 1d / 60d;
 
+    /// <summary>Peek 不得改欠账，且与随后 Consume 的步数一致。</summary>
+    [Test]
+    public void PeekSteps_DoesNotMutateAndMatchesConsume()
+    {
+        var accumulator = new FixedStepAccumulator(FixedDelta, 8);
+        accumulator.ConsumeSteps(FixedDelta * 0.5d);
+
+        int peeked = accumulator.PeekSteps(FixedDelta * 0.5d);
+        Assert.That(accumulator.AccumulatedSeconds, Is.EqualTo(FixedDelta * 0.5d).Within(1e-8d));
+        Assert.That(peeked, Is.EqualTo(1));
+        Assert.That(accumulator.ConsumeSteps(FixedDelta * 0.5d), Is.EqualTo(peeked));
+    }
+
     /// <summary>两个半帧时间必须合并为一个完整逻辑步。</summary>
     [Test]
     public void ConsumeSteps_CarriesSubFrameRemainder()

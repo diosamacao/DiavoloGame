@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>无本地玩家的 Dedicated 运行时：Match 生命周期、每连接 ACK，并驱动权威 World 与下行复制。</summary>
+/// <summary>无本地玩家座位的权威运行时：Match、每连接 ACK、World 与下行复制；Listen 与 Dedicated 共用，不在此类型分支角色。</summary>
 public sealed class DedicatedServerRuntime : IDisposable
 {
     readonly ServerLaunchConfig _config;
@@ -119,6 +119,13 @@ public sealed class DedicatedServerRuntime : IDisposable
         FlushReplication();
         FinishPendingMatchEnd();
         CheckEmptyLobbyTimeout(nowMs);
+    }
+
+    /// <summary>只读预览本拍 Advance 步数；Listen 按此发本机命令，避免按渲染帧预测。</summary>
+    public int PeekAdvanceSteps(long nowMs)
+    {
+        EnsureNotDisposed();
+        return _authority.PeekAdvanceSteps(nowMs);
     }
 
     /// <summary>请求结束对局；下一 Poll 向仍在线连接可靠下发 MatchEnd。</summary>

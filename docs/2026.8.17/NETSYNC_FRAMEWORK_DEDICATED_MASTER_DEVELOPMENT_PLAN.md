@@ -388,21 +388,21 @@ W5 起额外要求：
 
 **任务**
 
-- [ ] 建 `ListenServerBootstrap = ServerRuntime + LocalClientRuntime + LoopbackConnection`。
-- [ ] 房主角色在 Server 为 Authority Actor，在 LocalClient 为 Owner/Presentation Actor。
-- [ ] 房主也走 Command / Snapshot / ACK。
-- [ ] 对比旧 Listen 的输入延迟、动作预测、HP 与镜头体验。
-- [ ] 新组合路径验收后删除特殊 Host 本机玩家逻辑。
-- [ ] 删除旧 Listen 专用 Role / Query / Capture 分支。
+- [x] 建 `ListenServerBootstrap = ServerRuntime + LocalClientRuntime + LoopbackConnection`。（2026-08-20：127.0.0.1 UDP）
+- [x] 房主角色在 Server 为 Authority Actor，在 LocalClient 为 Owner/Presentation Actor。
+- [x] 房主也走 Command / Snapshot / ACK。
+- [x] 对比旧 Listen 的输入延迟、动作预测、HP 与镜头体验。（2026-08-20 用户验收；预测按 PeekAdvanceSteps 对齐 60Hz）
+- [x] 新组合路径落地后删除特殊 Host 本机玩家逻辑。
+- [x] 删除旧 Listen 专用 Host Room / Capture 本机玩家分支。
 
 **验收**
 
-- [ ] Listen 与 Dedicated 使用同一 `ServerRuntime`。
-- [ ] Local Client 断开/重连不会销毁 ServerRuntime 的其他连接。
-- [ ] 单人、房主 + 客机、Dedicated + 两客机三种拓扑结果一致。
-- [ ] 仓库只剩一条 ServerRuntime 权威主路径。
+- [x] Listen 与 Dedicated 使用同一 `DedicatedServerRuntime`。
+- [x] Local Client 断开不会销毁 ServerRuntime 的其他连接。（`LocalClientDisconnect_DoesNotDestroyRemainingGuest`）
+- [x] 单人、房主 + 客机、Dedicated + 两客机三种拓扑结果一致。（2026-08-20 用户验收）
+- [x] 仓库只剩一条 ServerRuntime 权威主路径。
 
-**出口：** Listen 不再是特殊服务器实现，新旧 Host 双轨关闭。→ **未达成**
+**出口：** Listen 不再是特殊服务器实现，新旧 Host 双轨关闭。→ **已于 2026-08-20 用户验收**
 
 ---
 
@@ -559,7 +559,7 @@ Codec Golden Bytes
 ```
 
 W0 已于 2026-08-18 关闭，W1～W4 搬迁均受其基线保护。
-W5～W8 / M2 已于 2026-08-19 用户验收。LAN Dedicated Demo 可暂停；恢复联网主路径时从 W9 Listen 组合开始。
+W5～W8 / M2 已于 2026-08-19 用户验收。W9 Listen 组合已于 2026-08-20 用户验收。下一联网切面为 W10。
 W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 
 ---
@@ -583,7 +583,7 @@ W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 
 ### M3 — DS-Full / R2
 
-- [ ] Listen 特殊 Host 主路径已删除。
+- [x] Listen 特殊 Host 主路径已删除。（2026-08-20：删除 `ReplicationRoomHost` / `ActHostRoomGameplay`）
 - [ ] GF5～GF8 与 DS7～DS8 出口达成。
 - [ ] 可靠控制 / 事件、时序快照、网络时间、Delta、Relevancy 成立。
 - [ ] FakeActionGame 证明框架接缝可复用。
@@ -600,5 +600,7 @@ W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 | 2026-08-18 | W0～W4 / M1 验收关闭；实现阅读入口改为 `docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`             |
 | 2026-08-19 | W5～W7 用户验收；W8 代码切面：CLI/Env/File、READY、空房/对局结束退出、启动说明与 READY 烟测脚本 |
 | 2026-08-19 | W8 Dedicated 出包 + H-DS-D 用户验收；M2 / LAN DS-Demo 关闭；恢复联网从 W9 开始 |
+| 2026-08-20 | W9 Listen 组合代码切面：同一 `DedicatedServerRuntime` + `LocalClientRuntime`；旧 Host Room 删除 |
+| 2026-08-20 | W9 Listen 组合用户验收；预测按权威步数；下一联网切面为 W10 |
 
 

@@ -27,6 +27,9 @@ public sealed class SimulationStepKernel
     /// <summary>渲染插值比例；Dedicated 不读此值。</summary>
     public float InterpolationAlpha => _accumulator.InterpolationAlpha;
 
+    /// <summary>只读预览本次 Consume 会推进几步，不改欠账。</summary>
+    public int PeekSteps(double deltaSeconds) => _accumulator.PeekSteps(deltaSeconds);
+
     /// <summary>累积时间并返回本次允许的固定步数；同时给出是否触及追帧上限。</summary>
     public int ConsumeSteps(double deltaSeconds, out bool catchUpClamped)
     {

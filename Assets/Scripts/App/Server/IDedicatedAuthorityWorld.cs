@@ -14,6 +14,12 @@ public interface IDedicatedAuthorityWorld : System.IDisposable
     /// <summary>用单调时间推进权威 World；步进内会排队本步 ReplicationFrame。</summary>
     void Advance(long nowMs);
 
+    /// <summary>只读预览下一次 Advance 会步进几次；Listen 按此次数发命令，禁止按渲染帧预测。</summary>
+    int PeekAdvanceSteps(long nowMs);
+
+    /// <summary>权威追帧核插值比例；DriveFromExternalClock 时 SimulationHost 核不会自己走。</summary>
+    float InterpolationAlpha { get; }
+
     /// <summary>为尚未下发过 Spawn 的新连接立刻编一帧；Join 同拍即可预测。</summary>
     void PublishImmediateReplication();
 

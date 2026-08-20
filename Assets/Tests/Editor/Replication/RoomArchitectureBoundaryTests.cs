@@ -2,7 +2,7 @@ using System.IO;
 using NUnit.Framework;
 using UnityEngine;
 
-/// <summary>W4 架构边界守卫：冻结薄 Room、纯 ACTNet 与 Authority/Owner/Observer 单向映射。</summary>
+/// <summary>架构边界守卫：冻结薄 Facade、纯 ACTNet 与 Authority/Owner/Observer 单向映射。</summary>
 public sealed class RoomArchitectureBoundaryTests
 {
     static readonly string[] RoomForbiddenGameplaySymbols =
@@ -19,20 +19,36 @@ public sealed class RoomArchitectureBoundaryTests
         "ActCharacterSnapshotSchema",
     };
 
-    /// <summary>Host/Client Room 只能调 Session 与 ACT Gameplay Facade，不再实现具体 Gameplay。</summary>
+    /// <summary>旧 Listen Host Room 与特殊 Host Gameplay 必须删除，禁止双轨。</summary>
+    [Test]
+    public void DeletedHostPath_IsRemoved()
+    {
+        Assert.That(
+            File.Exists(ScriptPath("App/Controllers/Gameplay/ReplicationRoomHost.cs")),
+            Is.False);
+        Assert.That(
+            File.Exists(ScriptPath("App/Networking/Services/ActHostRoomGameplay.cs")),
+            Is.False);
+    }
+
+    /// <summary>Listen / Client Facade 只能调 Session 与 Runtime Facade，不再实现具体 Gameplay。</summary>
     [Test]
     public void RoomFacades_DoNotContainGameplayImplementationTypes()
     {
-        string host = ReadScript("App/Controllers/Gameplay/ReplicationRoomHost.cs");
+        string listen = ReadScript("App/Controllers/Gameplay/ListenServerBootstrap.cs");
         string client = ReadScript("App/Controllers/Gameplay/ReplicationRoomClient.cs");
+        string local = ReadScript("App/Networking/Services/LocalClientRuntime.cs");
 
         for (int i = 0; i < RoomForbiddenGameplaySymbols.Length; i++)
         {
-            Assert.That(host, Does.Not.Contain(RoomForbiddenGameplaySymbols[i]));
+            Assert.That(listen, Does.Not.Contain(RoomForbiddenGameplaySymbols[i]));
             Assert.That(client, Does.Not.Contain(RoomForbiddenGameplaySymbols[i]));
         }
-        Assert.That(host, Does.Contain("ActHostRoomGameplay"));
-        Assert.That(client, Does.Contain("ActClientRoomGameplay"));
+
+        Assert.That(listen, Does.Contain("DedicatedServerRuntime"));
+        Assert.That(listen, Does.Contain("LocalClientRuntime"));
+        Assert.That(client, Does.Contain("LocalClientRuntime"));
+        Assert.That(local, Does.Contain("ActClientRoomGameplay"));
     }
 
     /// <summary>Observer 只能创建 Remote Proxy，不得回流 CharacterActor 或权威 Hitbox Consumer。</summary>
@@ -49,14 +65,15 @@ public sealed class RoomArchitectureBoundaryTests
         Assert.That(combined, Does.Not.Contain("RegisterFrameConsumer"));
     }
 
-    /// <summary>Owner 预测入口不得注册权威 Hitbox Consumer；命中仍由 Host Authority 独占。</summary>
+    /// <summary>Owner 预测入口不得注册权威 Hitbox Consumer；命中仍由 Authority 独占。</summary>
     [Test]
     public void OwnerPath_DoesNotRegisterAuthorityHitboxConsumer()
     {
         string room = ReadScript("App/Controllers/Gameplay/ReplicationRoomClient.cs");
+        string local = ReadScript("App/Networking/Services/LocalClientRuntime.cs");
         string gameplay = ReadScript("App/Networking/Services/ActClientRoomGameplay.cs");
         string owner = ReadScript("App/Networking/Adapters/ActOwnerReplicationAdapter.cs");
-        string combined = room + gameplay + owner;
+        string combined = room + local + gameplay + owner;
 
         Assert.That(combined, Does.Not.Contain("HitboxFrameConsumer"));
         Assert.That(combined, Does.Not.Contain("RegisterFrameConsumer"));
@@ -87,7 +104,7 @@ public sealed class RoomArchitectureBoundaryTests
         }
     }
 
-    /// <summary>Dedicated Server 程序集不得引用客户端 HUD / Input / Camera / 本机玩家。</summary>
+    /// <summary>Dedicated Server 程序集不得引用客户端 HUD / Input / Camera / 本机玩家 / Listen Facade。</summary>
     [Test]
     public void DedicatedServerSources_DoNotReferenceClientPresentationTypes()
     {
@@ -102,6 +119,9 @@ public sealed class RoomArchitectureBoundaryTests
             "FeedbackController",
             "ReplicationRoomHost",
             "ReplicationRoomClient",
+            "ListenServerBootstrap",
+            "LocalClientRuntime",
+            "ActClientRoomGameplay",
         };
 
         Assert.That(files.Length, Is.GreaterThan(0));
@@ -128,8 +148,11 @@ public sealed class RoomArchitectureBoundaryTests
     /// <summary>从 Assets 相对路径读取真实生产脚本。</summary>
     static string ReadScript(string relativePath)
     {
-        string path = Path.Combine(Application.dataPath, "Scripts", relativePath);
+        string path = ScriptPath(relativePath);
         Assert.That(File.Exists(path), Is.True, $"生产脚本不存在：{path}");
         return File.ReadAllText(path);
     }
+
+    static string ScriptPath(string relativePath) =>
+        Path.Combine(Application.dataPath, "Scripts", relativePath);
 }

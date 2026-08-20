@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-19（W8 / M2 Dedicated LAN Demo 已验收）
+> Last audited: 2026-08-20（W9 Listen 组合已用户验收）
 
 ## 项目概述
 
@@ -102,16 +102,16 @@ flowchart TB
 | `ACTNet.Session` | 只依赖 Core/Transport：多连接 Join、Player 分配、Heartbeat/RTT、超时/Kick 与已鉴权应用消息透传 |
 | `ACTNet.Replication` | 只依赖 Core：显式 Spawn/Update/Despawn、Schema Registry、Frame Codec、Server full-set 差分与 Client Sequence 丢旧 |
 | `ACTGame.Networking` | 依赖 Simulation 与 ACTNet Core/Replication：`CharacterSnapshotSchemaV1`、稳定 Character Archetype 映射；不含 Unity 资产引用 |
-| `ActAuthorityReplicationAdapter` | App/Networking 的 ACT 权威映射：远端输入灌入、Character Capture 与 FrameHits 补 ActionId；RoomHost 不再实现这些 Gameplay 细节 |
+| `ActAuthorityReplicationAdapter` | App/Networking 的 ACT 权威映射：远端输入灌入、Guest/敌人 Capture 与 FrameHits 补 ActionId；不再拍场景 LocalPlayer |
 | `ActGameSessionHandler` | App/Networking 的加入生命周期映射：创建 Guest Authority Actor、注册 App/Simulation 并在断线时逆序清理；不调用 ServerSession Accept/Reject |
 | `ActOwnerReplicationAdapter` | App/Networking 的 Autonomous 映射：Owner HP、Action Ack、Locomotion Reconcile、Hit/Death 硬吸与预测历史；以 SimActorId 对接 ACT Actor |
 | `ActObserverReplicationAdapter` / `ActRemoteProxyFactory` | App/Networking 的 Observer 映射与唯一装配入口：Schema/Archetype 校验、只读 Proxy 显式生命周期、TargetSystem 与 View 清理；不创建 CharacterActor |
 | `ActContentRegistry` | App/Networking 的 ACT 内容唯一真源：集中持有 Action Catalog、Character Archetype 与 Unity CharacterConfig/EnemyDefinition 映射 |
 | `ActCharacterSnapshotSchema` | App/Networking 的角色生产 Schema：统一 CharacterActor Capture 与 V1 编解码；纯 C# `CharacterSnapshotSchemaV1` 仍是线格式实现 |
 | `ActContentPrefillService` | App 场景内容接缝：唯一扫描 Player/Enemy 配置并幂等预填 `ActContentRegistry`；Room 不再查找 Gameplay 组件 |
-| `ActHostRoomGameplay` / `ActClientRoomGameplay` | App 的 Host/Client Gameplay 编排：前者管理 N Guest/独立 ACK/Capture，后者管理 Owner 预测、Observer、Hit Cue/HitStop/软碰撞；网络 Room 只转发 |
-| `ReplicationRoomHost` / `ReplicationRoomClient` | 薄 Unity 网络 Facade：只驱动 Session Poll/应用消息收发、固定帧回调、Gameplay Service 调度与 HUD；Dedicated 不走此路径 |
-| `DedicatedServerBootstrap` / `DedicatedServerRuntime` | Dedicated 独立宿主：Session/Match、每连接 ACK、`ReplicationFrame` / `MatchEnd`；Ready 与进程退出 |
+| `ActClientRoomGameplay` / `LocalClientRuntime` | Client Gameplay 编排与 Session 运行时：Owner 预测、Observer、Hit Cue；Listen 本机与远端 Client 共用 |
+| `ListenServerBootstrap` / `ReplicationRoomClient` | Listen 组合 ServerRuntime+LocalClient；远端 Client 薄 Facade 只驱动 Runtime 与逻辑步发送 |
+| `DedicatedServerBootstrap` / `DedicatedServerRuntime` | 唯一权威运行时：Session/Match、每连接 ACK、`ReplicationFrame` / `MatchEnd`；Listen 复用，Dedicated 单独启动 |
 | `ServerLaunchConfigResolver` | Dedicated 启动覆盖：CLI > Env > File > Default；不写密钥日志 |
 | `ServerSimulationRunner` / `SimulationStepKernel` | 单调时钟 + 固定 60Hz 追帧；Listen 与 Dedicated 共用 `SimulationHost.StepOnce` |
 | `DedicatedAuthorityWorld` | Dedicated 权威世界：Headless Actor、命令合并进下一权威帧、外部时钟步进、步末每连接构帧 |
@@ -132,7 +132,7 @@ flowchart TB
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只负责装配和注册，不再实现 Actor `Update` Tick。
 
-NetSync M1 已于 2026-08-18 关闭。W5～W8 / M2 已于 2026-08-19 验收。LAN Dedicated Demo 可暂停；恢复联网从 W9 Listen 组合开始。阅读：[`docs/2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md`](../../docs/2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md)。
+NetSync M1 已于 2026-08-18 关闭。W5～W8 / M2 已于 2026-08-19 验收。W9 Listen 组合已于 2026-08-20 用户验收。下一联网切面为 W10。阅读：[`docs/2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md`](../../docs/2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md)。
 
 ### 2. 泛型状态机（Core）
 
@@ -274,7 +274,7 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `PredictedActionAckQueue` | 出招预测 Ack；未起手/变体分叉/Hit 则 Stop；连招超前只 Ack |
 | `LocomotionSavedState` | 内层机 Capture/Restore；权威 FromAuthority |
 | `PredictedLocomotionDriver` | 走跑记账；超阈 Restore+Replay |
-| `ReplicationRoomHost` / `ReplicationRoomClient` | Listen Host / Client 薄 Session Facade；Gameplay 由 `ActHostRoomGameplay` / `ActClientRoomGameplay` 单轨承接 |
+| `ListenServerBootstrap` / `ReplicationRoomClient` | Listen 组合与远端 Client Facade；Gameplay 由 `DedicatedAuthorityWorld` / `LocalClientRuntime` 单轨承接 |
 | `NetProcessRole` | 进程拓扑：Client / ListenServer / DedicatedServer；不得用 Listen 开关冒充 Dedicated |
 | `DedicatedServerBootstrap` / `MatchCoordinator` | Dedicated 独立宿主与 N 玩家身份/出生；JoinAccept 无房主时 `AuthorityEntityId` 为 Invalid |
 | `ServerLaunchConfigResolver` | 启动覆盖 CLI > Env > File；Editor 强制不退出进程 |

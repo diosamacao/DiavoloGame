@@ -128,7 +128,14 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
     {
         _host.SampleRenderInputs();
         _runner.Advance(nowMs);
+        _host.PublishExternalInterpolationAlpha(_runner.InterpolationAlpha);
     }
+
+    /// <inheritdoc />
+    public int PeekAdvanceSteps(long nowMs) => _runner.PeekAdvanceSteps(nowMs);
+
+    /// <inheritdoc />
+    public float InterpolationAlpha => _runner.InterpolationAlpha;
 
     /// <inheritdoc />
     public void PublishImmediateReplication()
@@ -184,7 +191,7 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
     void EnqueueFrames(long authorityFrame, HashSet<NetConnectionId> connections)
     {
         CopyGuests(_guestSnapshot);
-        _authority.CaptureAuthorityActors(local: null, _guestSnapshot, _host);
+        _authority.CaptureAuthorityActors(_guestSnapshot, _host);
         RememberHits(_authority.CopyHits(_host.FrameHits));
         ReplicatedHitEvent[] hits = CopyHitRing();
         long tick = authorityFrame < 0 ? 0 : authorityFrame;

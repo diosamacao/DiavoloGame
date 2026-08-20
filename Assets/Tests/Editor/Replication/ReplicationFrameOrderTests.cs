@@ -2,18 +2,18 @@ using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 
-/// <summary>冻结 Room 收包/采样先于 SimulationHost 固定步消费的 Unity 执行顺序。</summary>
+/// <summary>冻结 Listen / Client 收包先于 SimulationHost 固定步消费的 Unity 执行顺序。</summary>
 public sealed class ReplicationFrameOrderTests
 {
-    /// <summary>Host 必须先写远端输入，再由 SimulationHost 消费下一逻辑帧。</summary>
+    /// <summary>Listen 组合必须先于 SimulationHost 泵本机命令与权威 Poll。</summary>
     [Test]
-    public void HostUpdate_RunsBeforeSimulationHostUpdate()
+    public void ListenUpdate_RunsBeforeSimulationHostUpdate()
     {
-        int roomOrder = GetExecutionOrder<ReplicationRoomHost>();
+        int listenOrder = GetExecutionOrder<ListenServerBootstrap>();
         int simulationOrder = GetExecutionOrder<SimulationHost>();
 
-        Assert.That(roomOrder, Is.LessThan(simulationOrder));
-        Assert.That(roomOrder, Is.EqualTo(-150));
+        Assert.That(listenOrder, Is.LessThan(simulationOrder));
+        Assert.That(listenOrder, Is.EqualTo(-210));
         Assert.That(simulationOrder, Is.EqualTo(-100));
     }
 
