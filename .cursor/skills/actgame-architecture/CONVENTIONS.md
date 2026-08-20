@@ -50,12 +50,12 @@
 - **客机本机走跑**：真源 [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md)。本机 Autonomous `CharacterActor` 跑同一套 `LocomotionStateMachine`；纠偏 Restore+Replay；他人仍 Snapshot。禁止猜片 / 摇杆硬映射 Idle/Walk/Run。已废止 Runner/CreateAutonomous
 - **客机表现节拍**：本机 Clip/VFX 由 `CharacterActor.Step` + `CharacterActionPresentationBridge` 推进。禁止对自角色 `ApplySnapshot` Seek。权威 Tick 只更新纠偏与 HP/受击边沿。禁止同一逻辑帧 Tick 两次 Clip。走跑 Replay 外禁止每帧 `SyncRootPoseFromSim`（会清零转向阻尼）
 - **复制目录 Prefill**：必须收录 Graph 节点 `Action` 与 `VariantResolver` 变体（六向闪避）。只预填 `node.Action` 时客机侧/后闪 `TryGet` 失败，只有位移没有 Clip
-- **网络 Room 薄 Facade**：`ReplicationRoomHost/Client` 只做 Session Poll/应用消息收发、固定帧回调、Gameplay Service 调度与 HUD；CharacterConfig/PlayerController/EnemySpawnController/RemoteProxy/Hit Cue/HitStop 实现必须留在 `App/Networking` Service/Adapter，禁止迁回 Room 或保留双轨
-- **预测位移**：`PredictedLocomotionDriver` 只做 SavedMove 队列与纠偏编排。走跑带 `IPredictedLocomotionReplay` 时默认硬吸阈 `AutonomousHardSnapMm`（2m），禁止房间再传 50mm：内层机与 Host 常态偏差就会每包 Restore+Replay+表现硬切，客机走跑卡顿。无 replay 的旧 Predict 单测仍用 50mm。超 2m：`RestoreFromAuthority` + `ReplayTick`，禁止对走跑步 `ApplyInput`。Listen Host 本地禁止把预测写进 `CharacterActor.Step`。纠偏可改预测电机，禁止把表现 Pose 写回权威 Motor。Lean 不进 Snapshot
+- **网络 Room 薄 Facade**：`ListenServerBootstrap` / `ReplicationRoomClient` 只做组合或 Session 调度与 HUD；CharacterConfig/PlayerController/EnemySpawnController/RemoteProxy/Hit Cue/HitStop 实现必须留在 `App/Networking` Service/Adapter，禁止迁回 Facade 或恢复 `ReplicationRoomHost`
+- **预测位移**：`PredictedLocomotionDriver` 只做 SavedMove 队列与纠偏编排。走跑带 `IPredictedLocomotionReplay` 时默认硬吸阈 `AutonomousHardSnapMm`（2m），禁止房间再传 50mm：内层机与权威常态偏差就会每包 Restore+Replay+表现硬切，客机走跑卡顿。无 replay 的旧 Predict 单测仍用 50mm。超 2m：`RestoreFromAuthority` + `ReplayTick`，禁止对走跑步 `ApplyInput`。Listen 本机与远端客机同一套 Owner 预测。纠偏可改预测电机，禁止把表现 Pose 写回权威 Motor。Lean 不进 Snapshot
 - **纠偏后表现**：仅走跑真正 `Snapped`（≥ 2m）或权威 **Hit/Death** 才 `SnapPresentationToSimulation`。出招/闪避禁止每包硬切表现，否则插值被掐死、位移和相机一起跳。刚吸附后 8 包内 ≤ 150mm 只 Ack
 - **出招中相机**：`CameraManager` 在 `ILocalPlayer.IsPresentingAction` 时暂停 L-DIR5 跟朝向，避免连闪 yaw 追权威朝向台阶
 - **闪避回走跑**：Host `ActionState.Exit` 写 `SprintAfterDodge`；客机 Runner 再 Enter 必须 `LocomotionResumeRequest.AfterAction`，禁止 `Enter(default)` 从 Idle 重计 Sprint
-- **预测出招**：客机本机 Autonomous `CharacterActor` 跑 `ActionSim` + 表现桥（Graph 起手 + Cancel 窗 + 推帧 + 烘焙位移 + Adhesion/Relocate）。禁止 Collect、进 World。Adhesion 读只读 Proxy 逻辑 Pose。卡肉由 `PredictedHitStopConsumer` 几何重叠后 `RequestHitStop`，禁止用延迟权威 `FreezeFrames` 再拖本机时钟。伤害只信权威下行。Ack 用 `PredictedActionAckQueue`：同招不 Seek 回旧帧；权威 `ActionId==0` 或 Hit/Death 则 `StopAutonomousAction`。本机已连到下一招、权威还停在上一招：只 Ack，不 Cancel。穿敌吸附 / SoftBodySuppress 窗、权威卡肉、或本机/权威正在 Dodge：`ActionMotionReconcileGate` 禁止 2m 硬吸位姿。Listen Host 本地仍不预测出招
+- **预测出招**：本机 Autonomous `CharacterActor` 跑 `ActionSim` + 表现桥（Graph 起手 + Cancel 窗 + 推帧 + 烘焙位移 + Adhesion/Relocate）。禁止 Collect、进 World。Adhesion 读只读 Proxy 逻辑 Pose。卡肉由 `PredictedHitStopConsumer` 几何重叠后 `RequestHitStop`，禁止用延迟权威 `FreezeFrames` 再拖本机时钟。伤害只信权威下行。Ack 用 `PredictedActionAckQueue`：同招不 Seek 回旧帧；权威 `ActionId==0` 或 Hit/Death 则 `StopAutonomousAction`。本机已连到下一招、权威还停在上一招：只 Ack，不 Cancel。穿敌吸附 / SoftBodySuppress 窗、权威卡肉、或本机/权威正在 Dodge：`ActionMotionReconcileGate` 禁止 2m 硬吸位姿。Listen 本机也走同一套 Owner 预测
 - **命中复制**：`CombatHitPipeline` 只在权威 Actor 收集；下行 `ReplicatedHitEvent` + `VitalityReplicationEdge`。幽灵/预测不得再跑命中或扣血。边沿由 `CharacterVitality` 记一帧，`CharacterActor.Step` 开头清空
 - **移动参考闭包**：相机相对移动只消费 `InputFrame.MoveReferenceYawQuantized`；CameraManager 只能 staged yaw，禁止把 PlanarBasis/Camera Transform 直接写入 Motor
 - **输入阶段先于 Actor**：World 每帧先调用 `ISimulationInputProducer`，再按 Id 执行 Actor；AI Brain 在该阶段写通用命令槽并为统一时序提交空 `InputFrame`
@@ -216,12 +216,12 @@ Framework/ACTNet/Transport/      # INetTransport / LoopbackTransport / UdpTransp
 Framework/ACTNet/Session/        # ServerSession / ClientSession / Registry / SessionCodec；纯 C#
 Framework/ACTNet/Replication/    # Frame / Schema / Entity Registry / Server / Client；只引用 Core
 Infrastructure/Net/              # 预留 Unity Transport；不得被 ACTGame.Simulation 引用
-App/Controllers/Gameplay/        # ReplicationRoomHost / Client / RemotePlayerSeat
-App/Networking/Services/         # ACT 内容扫描、Host/Client Gameplay 编排；Room 不实现具体 Gameplay
-App/Server/                      # Dedicated 独立运行时（ACTGame.Server）；禁止引用 HUD/Input/Camera/Room Facade
+App/Controllers/Gameplay/        # ListenServerBootstrap / ReplicationRoomClient / RemotePlayerSeat
+App/Networking/Services/         # ACT 内容扫描、LocalClient / Authority World 编排；Facade 不实现具体 Gameplay
+App/Server/                      # Dedicated 独立运行时（ACTGame.Server）；禁止引用 HUD/Input/Camera/Listen Facade
 ```
 
-- **Dedicated 不是 Listen 开关**：禁止在 `ReplicationRoomHost` 上堆 `if Dedicated`。Dedicated 由 `DedicatedServerBootstrap` 启动；`NetProcessRole.DedicatedServer` 与 `ListenServer` 取值不同
+- **Dedicated 不是 Listen 开关**：禁止恢复 `ReplicationRoomHost` 或在 Runtime 上堆 `if Dedicated`。Listen 由 `ListenServerBootstrap` 组合同一 `DedicatedServerRuntime`；Dedicated 由 `DedicatedServerBootstrap` 单独启动
 - **N 玩家身份**：`MatchCoordinator` 分配 PlayerId / EntityId / Spawn；删除固定 `GuestPlayerId=2` 与 Host Root +2m 出生
 - **JoinAccept 无房主**：Dedicated 的 `AuthorityEntityId` 为 Invalid；客户端不得依赖该字段入房
 - **Headless 装配**：权威无头走 `CharacterPresentationMode.AuthorityHeadless` + `NullAnimationPlayback`；禁止第二套 Dedicated Actor 工厂。`CharacterAnimationService.Play` 在无 Graph 时仍必须记下 `CurrentKey`，供 Capture 复制走跑相位；禁止因 `IsValid==false` 丢掉逻辑键导致远端只平移
@@ -229,7 +229,7 @@ App/Server/                      # Dedicated 独立运行时（ACTGame.Server）
 - **修正位移纠偏**：本机或权威处于 Dodge / 吸附/关碰撞招 / 烘焙位移时，`ActionMotionReconcileGate` 整段推迟 2m 硬吸；权威 `ActionId==0` 也不得 `StopAutonomousAction` 这些招
 - **外部时钟**：Dedicated 设 `SimulationHost.DriveFromExternalClock`，由 `ServerSimulationRunner` 调 `StepOnce`；禁止再写一套 Step 顺序
 - **Gameplay 指纹**：`ServerContentManifest` 只哈希版本 / 碰撞 Id / Archetype / Action Id；VFX 名不进指纹
-- **Dedicated 构帧**：`DedicatedAuthorityWorld` 在 `AfterLogicStep` 按连接 `ReplicationServer.BuildFrame`；Runtime 只发送。禁止在 `ReplicationRoomHost` 上分支
+- **Dedicated 构帧**：`DedicatedAuthorityWorld` 在 `AfterLogicStep` 按连接 `ReplicationServer.BuildFrame`；Runtime 只发送。禁止再写一套 Host Room 构帧
 - **MatchEnd**：应用消息类型 8（避开 Session Kick=7）；先 Drain 再 Sync Session，避免 Kick 丢掉同拍 MatchEnd
 - **JoinAccept 实体**：Dedicated 必须写 World `SimulationId`，禁止只回 Match 槽位占位 Id
 - **启动覆盖**：Dedicated 只认 `ServerLaunchConfigResolver`，优先级 CLI > Env > File > Default；密钥键忽略且不得打进日志

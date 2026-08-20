@@ -6,7 +6,7 @@ using UnityEngine;
 /// </summary>
 public interface ILocalPlayer
 {
-    /// <summary>已装配的角色 Actor；客机为 Autonomous，Host 为 Authority。</summary>
+    /// <summary>已装配的角色 Actor；本机座位为 Autonomous，权威 Guest 为 Authority。</summary>
     CharacterActor Actor { get; }
 
     /// <summary>权威根（逻辑 Transform）。</summary>
@@ -23,7 +23,7 @@ public interface ILocalPlayer
 
     /// <summary>
     /// 本机是否对移动/出招做客户端预测。
-    /// Listen Host 本地玩家恒为 false；远端客机为 true。
+    /// Listen / Client 本机座位为 true；权威 RemotePlayerSeat 为 false。
     /// </summary>
     bool IsLocalPredicted { get; }
 

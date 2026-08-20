@@ -54,22 +54,13 @@ public sealed class ActAuthorityReplicationAdapter
         return new ActAuthorityInputApplyResult(true, newestHint, firstAppliedHint);
     }
 
-    /// <summary>捕获本机玩家、全部 Guest 与运行中敌人的完整权威状态，并绑定稳定网络原型。</summary>
+    /// <summary>捕获全部权威 Guest 与运行中敌人；本机玩家不再作为特殊 Capture 入口。</summary>
     public void CaptureAuthorityActors(
-        ILocalPlayer local,
         IReadOnlyList<ActGameGuest> guests,
         SimulationHost host)
     {
         _snapshots.Clear();
         _entityStates.Clear();
-        if (local is PlayerController player && local.Actor != null)
-        {
-            ActorReplicationSnapshot snapshot = _characterSchema.Capture(
-                local.Actor,
-                ReplicationActorKind.Player);
-            AddEntityState(in snapshot, _content.RegisterPlayer(player.CharacterConfig));
-        }
-
         if (guests != null)
         {
             for (int i = 0; i < guests.Count; i++)

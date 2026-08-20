@@ -10,7 +10,7 @@
 > - 当前实现真源：[`../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`](../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md)（W5）；[`../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)（M1）  
 > 目标部署链：`DedicatedServerBootstrap → ServerSession → MatchCoordinator → AuthoritySimulation → ReplicationServer → Transport`  
 > **约束：** Dedicated Server 无本地玩家、无 Input System、无 Camera、无动画/VFX/SFX 权威依赖；所有玩家均通过 Connection 加入，服务器只接受 Command / Request / ACK，不接受客户端状态覆盖
-> **当前前置状态（2026-08-19）：** DS0～DS6 / M2 已验收。Listen Host 仍保留至 W9。恢复联网主路径时从 Listen 组合收敛开始。
+> **当前前置状态（2026-08-20）：** DS0～DS6 / M2 已验收。W9 Listen 组合已用户验收：`DedicatedServerRuntime` + `LocalClientRuntime`。下一联网切面为 W10。
 
 ---
 
@@ -1441,7 +1441,7 @@ Release Server 禁止输出敏感 token 和完整用户输入历史。
 - [x] 其他玩家和敌人走 RemoteProxy。（2026-08-19）  
 - [x] Hit / Death 事件选择可靠事件或冗余序列。（2026-08-19：最近 8 条 + SimHitKey 去重）  
 - [x] Match End 可靠下发。（2026-08-19）  
-- [ ] Listen Server 改为 ServerRuntime + LocalClientRuntime，或明确排入 DS6。（排入 W9）
+- [x] Listen Server 改为 ServerRuntime + LocalClientRuntime。（2026-08-20 W9 用户验收）
 
 **验收**
 

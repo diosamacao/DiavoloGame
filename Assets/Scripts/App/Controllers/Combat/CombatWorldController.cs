@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using UnityEngine;
 
-/// <summary>场景级战斗世界入口：Listen Host / Client 挂 Room；Dedicated 只移交 Bootstrap。</summary>
+/// <summary>场景级战斗世界入口：Listen 组合 ServerRuntime；Client 挂 Room；Dedicated 只移交 Bootstrap。</summary>
 [DefaultExecutionOrder(-200)]
 [DisallowMultipleComponent]
 public class CombatWorldController : AppControllerBase
@@ -32,8 +32,8 @@ public class CombatWorldController : AppControllerBase
     public bool IsAuthority =>
         Role == ReplicationRole.ListenHost || Role == ReplicationRole.DedicatedServer;
 
-    /// <summary>Session 远端容量；Listen 仍为 1 客，Dedicated 为 N。</summary>
-    public int MaxRemotePlayers => Role == ReplicationRole.DedicatedServer ? 4 : 1;
+    /// <summary>Session 玩家容量；Listen 本机也占一席，与 Dedicated 同为 4。</summary>
+    public int MaxRemotePlayers => 4;
 
     /// <summary>关卡内容版本；入房双方必须一致。</summary>
     public int ContentVersion => contentVersion;
@@ -68,6 +68,12 @@ public class CombatWorldController : AppControllerBase
         }
 
         EnsureFeedbackController();
+        if (Role == ReplicationRole.ListenHost)
+        {
+            EnsureListenBootstrap(roomContent);
+            return;
+        }
+
         EnsureRoomController();
     }
 
@@ -194,6 +200,30 @@ public class CombatWorldController : AppControllerBase
         bootstrap.Configure(config, authority);
     }
 
+    /// <summary>Listen 只组合 ServerRuntime + LocalClient；不挂 DedicatedServerBootstrap，避免双 Poll。</summary>
+    void EnsureListenBootstrap(ActContentRegistry content)
+    {
+        SimulationHost host = EnsureSimulationHost();
+        var authority = new DedicatedAuthorityWorld(host, GetArchitecture(), content);
+        ServerLaunchConfig config = ServerLaunchConfig.CreateDefault(
+            listenPort,
+            contentVersion,
+            MaxRemotePlayers,
+            _gameplayFingerprint,
+            emptyLobbyTimeoutMs: 0,
+            exitOnMatchEnd: false);
+
+        Debug.Log(
+            $"CombatWorldController: Listen launch bind={config.BindHost} port={config.BindPort} "
+            + $"max={config.MaxPlayers} content={config.ContentVersion}。",
+            this);
+
+        ListenServerBootstrap bootstrap = GetComponent<ListenServerBootstrap>();
+        if (bootstrap == null)
+            bootstrap = gameObject.AddComponent<ListenServerBootstrap>();
+        bootstrap.Configure(config, authority, this);
+    }
+
     /// <summary>只读配置文件正文；缺失或读失败返回 null，由解析器记 ConfigFailed。不把正文打进日志。</summary>
     static string TryReadLaunchConfigFile(string path)
     {
@@ -209,19 +239,10 @@ public class CombatWorldController : AppControllerBase
         }
     }
 
-    /// <summary>按角色挂 Host 或 Client；单机也是 Listen Host，不走旧旁路。</summary>
+    /// <summary>远端 Client 挂薄 Room Facade；单机 Listen 已走 Bootstrap，不再走旧 Host Room。</summary>
     void EnsureRoomController()
     {
         SessionConfig sessionConfig = CreateSessionConfig();
-        if (Role == ReplicationRole.ListenHost)
-        {
-            ReplicationRoomHost host = GetComponent<ReplicationRoomHost>();
-            if (host == null)
-                host = gameObject.AddComponent<ReplicationRoomHost>();
-            host.Configure(this, TryCreateServerSession(sessionConfig));
-            return;
-        }
-
         ReplicationRoomClient client = GetComponent<ReplicationRoomClient>();
         if (client == null)
             client = gameObject.AddComponent<ReplicationRoomClient>();
@@ -236,29 +257,6 @@ public class CombatWorldController : AppControllerBase
         idleTimeoutMs: ReplicationRoomProtocol.IdleTimeoutMs,
         heartbeatIntervalMs: ReplicationRoomProtocol.HeartbeatIntervalMs,
         gameplayFingerprint: _gameplayFingerprint);
-
-    /// <summary>Composition Root 创建具体 UDP 服务端并处理绑定失败。</summary>
-    ServerSession TryCreateServerSession(SessionConfig config)
-    {
-        var transport = new UdpTransport();
-        try
-        {
-            var session = new ServerSession(
-                transport,
-                config,
-                new NetEndpoint("0.0.0.0", listenPort, allowEphemeralPort: true));
-            Debug.Log($"CombatWorldController: 监听 UDP {session.LocalEndpoint}。", this);
-            return session;
-        }
-        catch (Exception ex)
-        {
-            transport.Dispose();
-            Debug.LogError(
-                $"CombatWorldController: 绑定端口 {listenPort} 失败，房间不可加入。{ex.Message}",
-                this);
-            return null;
-        }
-    }
 
     /// <summary>Composition Root 创建具体 UDP 客户端并立即发起 Session Join。</summary>
     ClientSession TryCreateClientSession(SessionConfig config)

@@ -28,6 +28,17 @@ public sealed class FixedStepAccumulator
         _maxFrameCatchUp = maxFrameCatchUp;
     }
 
+    /// <summary>只读预览本次 Consume 会推进几步，不改欠账。</summary>
+    public int PeekSteps(double renderDeltaSeconds)
+    {
+        if (double.IsNaN(renderDeltaSeconds) || double.IsInfinity(renderDeltaSeconds))
+            throw new ArgumentOutOfRangeException(nameof(renderDeltaSeconds));
+
+        double accumulated = _accumulatedSeconds + Math.Max(0d, renderDeltaSeconds);
+        int availableSteps = (int)Math.Floor((accumulated + StepEpsilon) / _fixedDeltaSeconds);
+        return Math.Min(availableSteps, _maxFrameCatchUp);
+    }
+
     /// <summary>累积渲染时间并返回本次允许推进的固定逻辑帧数。</summary>
     public int ConsumeSteps(double renderDeltaSeconds)
     {

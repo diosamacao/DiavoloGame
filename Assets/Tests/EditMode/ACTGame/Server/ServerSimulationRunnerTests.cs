@@ -20,4 +20,21 @@ public sealed class ServerSimulationRunnerTests
         Assert.That(runner.Metrics.StepsTaken, Is.EqualTo(3));
         Assert.That(runner.Metrics.CatchUpClamped, Is.False);
     }
+
+    /// <summary>Peek 在 Advance 前给出相同步数，且不推动时钟。</summary>
+    [Test]
+    public void PeekAdvanceSteps_MatchesNextAdvanceWithoutStepping()
+    {
+        int stepped = 0;
+        var runner = new ServerSimulationRunner(
+            new SimulationStepKernel(new SimulationConfig(logicHz: 60, maxFrameCatchUp: 8)),
+            () => stepped++);
+
+        runner.Advance(0);
+        Assert.That(runner.PeekAdvanceSteps(50), Is.EqualTo(3));
+        Assert.That(stepped, Is.EqualTo(0));
+
+        runner.Advance(50);
+        Assert.That(stepped, Is.EqualTo(3));
+    }
 }

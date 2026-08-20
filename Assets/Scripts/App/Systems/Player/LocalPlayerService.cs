@@ -68,6 +68,10 @@ public sealed class LocalPlayerService : ArchitectureSystemBase
                 continue;
             }
 
+            // 预测座位只给相机/输入；敌人感知跟权威 RemotePlayerSeat。
+            if (player.IsLocalPredicted)
+                continue;
+
             Transform root = player.Root;
             if (root != null)
                 _playerRoots.Add(root);

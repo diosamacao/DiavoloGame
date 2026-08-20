@@ -2,25 +2,36 @@ using System.IO;
 using NUnit.Framework;
 using UnityEngine;
 
-/// <summary>冻结薄 Room、ACT Gameplay Facade 与 Simulation 的生产调用顺序。</summary>
+/// <summary>冻结 Listen 组合、Dedicated Runtime、Client Runtime 与 Simulation 的生产调用顺序。</summary>
 public sealed class ReplicationProductionOrderTests
 {
-    /// <summary>Host 必须先 Poll/消费输入，再于权威步末 Capture、构帧并发送。</summary>
+    /// <summary>Listen 必须先发本机命令，再泵权威，再收同拍快照。</summary>
     [Test]
-    public void HostFrame_ProductionSource_PreservesReceiveStepCaptureSendOrder()
+    public void ListenFrame_ProductionSource_PreservesLocalSendThenServerPollThenApply()
     {
-        string room = ReadScript("App/Controllers/Gameplay/ReplicationRoomHost.cs");
-        string gameplay = ReadScript("App/Networking/Services/ActHostRoomGameplay.cs");
+        string listen = ReadScript("App/Controllers/Gameplay/ListenServerBootstrap.cs");
+        string update = Slice(listen, "    void Update()", "    void LateUpdate()");
+        AssertInOrder(
+            update,
+            "_local?.PollAndApply(nowMs);",
+            "_local?.SampleRenderInput();",
+            "_server.PeekAdvanceSteps(nowMs);",
+            "_local?.SendCommandAndPredict();",
+            "_server.Poll(nowMs);",
+            "_local?.PollAndApply(nowMs);");
+        Assert.That(listen, Does.Contain("DedicatedServerRuntime.TryStart("));
+        Assert.That(listen, Does.Contain("new LocalClientRuntime("));
+        Assert.That(listen, Does.Not.Contain("AfterLogicStep"));
+    }
+
+    /// <summary>权威灌入、步进、Guest 装配与 Capture 顺序仍由 Adapter / World / SessionHandler 承担。</summary>
+    [Test]
+    public void AuthorityFrame_ProductionSource_PreservesReceiveStepCaptureOrder()
+    {
         string authority = ReadScript("App/Networking/Adapters/ActAuthorityReplicationAdapter.cs");
         string gameSession = ReadScript("App/Networking/Adapters/ActGameSessionHandler.cs");
         string simulation = ReadScript("App/Controllers/Gameplay/SimulationHost.cs");
-
-        string roomUpdate = Slice(room, "    void Update()", "    void OnDisable()");
-        AssertInOrder(
-            roomUpdate,
-            "_session.Poll(NowMs());",
-            "_gameplay?.DrainPlayerRequests(_session);",
-            "_gameplay?.DrainApplicationMessages(_session);");
+        string world = ReadScript("App/Networking/Services/DedicatedAuthorityWorld.cs");
 
         string applyCommands = Slice(
             authority,
@@ -49,39 +60,15 @@ public sealed class ReplicationProductionOrderTests
             "AfterLogicStep?.Invoke(",
             "_frameHits.Clear();");
 
-        string buildFrame = Slice(
-            gameplay,
-            "    public bool TryBuildReplicationFrame(",
-            "    public void OnSessionDisconnected(");
+        string accept = Slice(
+            world,
+            "    public bool TryAcceptPlayer(",
+            "    public void ApplyCommands(");
         AssertInOrder(
-            buildFrame,
-            "_contentPrefill.EnsureActionsReady();",
-            "_authority.CaptureAuthorityActors(",
-            "_authority.CopyHits(",
-            "ActReplicationApplicationPayloadCodec.Encode(",
-            "replication.BuildFrame(",
-            "ReplicationFrameCodec.Encode(frame);");
-
-        string roomAfterStep = Slice(
-            room,
-            "    void OnAfterLogicStep(long authorityFrame)",
-            "    void OnSessionDisconnected(");
-        AssertInOrder(
-            roomAfterStep,
-            "_gameplay.CopyGuestConnections(",
-            "_gameplay.TryBuildReplicationFrame(",
-            "_session.SendApplication(");
-
-        string spawnGuest = Slice(
-            gameplay,
-            "    bool TryCreateGuest(",
-            "    CharacterConfig ResolveJoinConfig()");
-        AssertInOrder(
-            spawnGuest,
+            accept,
             "_gameSession.TryCreateGuest(",
-            "_replicationByConnection[request.ConnectionId] = new ReplicationServer();",
-            "_guests.Add(request.ConnectionId, guest);",
-            "session.AcceptPlayer(");
+            "_replicationByConnection[slot.ConnectionId] = new ReplicationServer();",
+            "_guests[slot.ConnectionId] = guest;");
 
         string createGuest = Slice(
             gameSession,
@@ -114,8 +101,9 @@ public sealed class ReplicationProductionOrderTests
 
         Assert.That(authority, Does.Contain("_characterSchema.Capture("));
         Assert.That(authority, Does.Not.Contain("CharacterReplicationCapture"));
+        Assert.That(authority, Does.Not.Contain("ILocalPlayer local"));
         Assert.That(gameSession, Does.Not.Contain("hostPlayer.Root"));
-        Assert.That(gameplay, Does.Not.Contain("new Vector3(2f"));
+        Assert.That(world, Does.Not.Contain("new Vector3(2f"));
     }
 
     /// <summary>Dedicated 必须先灌命令再步进，步内 Capture 后由 Runtime 按连接发送。</summary>
@@ -164,6 +152,7 @@ public sealed class ReplicationProductionOrderTests
     public void ClientFrame_ProductionSource_PreservesReceiveSampleSendPredictOrder()
     {
         string room = ReadScript("App/Controllers/Gameplay/ReplicationRoomClient.cs");
+        string runtime = ReadScript("App/Networking/Services/LocalClientRuntime.cs");
         string gameplay = ReadScript("App/Networking/Services/ActClientRoomGameplay.cs");
         string owner = ReadScript("App/Networking/Adapters/ActOwnerReplicationAdapter.cs");
         string observer = ReadScript("App/Networking/Adapters/ActObserverReplicationAdapter.cs");
@@ -171,19 +160,34 @@ public sealed class ReplicationProductionOrderTests
         string update = Slice(room, "    void Update()", "    void LateUpdate()");
         AssertInOrder(
             update,
-            "_session.Poll(NowMs());",
-            "AcceptJoinIfReady();",
-            "DrainApplicationMessages();",
-            "EndIfSessionEnded();",
-            "if (_joined && !_ended)",
-            "_gameplay?.SampleRenderInput();");
+            "_runtime.PollAndApply(NowMs());",
+            "_runtime.SampleRenderInput();");
 
         string roomAfterStep = Slice(
             room,
             "    void OnAfterLogicStep(long _)",
-            "    void SyncSessionState()");
+            "    void EnsureRuntime()");
         AssertInOrder(
             roomAfterStep,
+            "_runtime?.SendCommandAndPredict();");
+
+        string pollAndApply = Slice(
+            runtime,
+            "    public void PollAndApply(long nowMs)",
+            "    public void SampleRenderInput()");
+        AssertInOrder(
+            pollAndApply,
+            "_session.Poll(nowMs);",
+            "AcceptJoinIfReady();",
+            "DrainApplicationMessages();",
+            "EndIfSessionEnded();");
+
+        string sendPredict = Slice(
+            runtime,
+            "    public void SendCommandAndPredict()",
+            "    public void SampleSendPredict()");
+        AssertInOrder(
+            sendPredict,
             "_gameplay.TryBuildCommand(out byte[] body)",
             "_session.SendApplication(",
             "_gameplay.StepPrediction();");

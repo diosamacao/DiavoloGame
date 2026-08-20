@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// Host 侧远端玩家入口：有权威 Actor，但不是本机输入/相机拥有者。
+/// 权威侧远端玩家入口：有权威 Actor，但不是本机输入/相机拥有者。
 /// 必须走 AppControllerBase，以满足 App/Controllers 的架构边界。
 /// </summary>
 public sealed class RemotePlayerSeat : AppControllerBase, ILocalPlayer

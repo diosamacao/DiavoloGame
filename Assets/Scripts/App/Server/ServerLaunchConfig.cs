@@ -114,6 +114,21 @@ public readonly struct ServerLaunchConfig
             EmptyLobbyTimeoutMs,
             ExitOnMatchEnd);
 
+    /// <summary>只改绑定端口，供 Listen 端口占用时回退到系统分配端口。</summary>
+    public ServerLaunchConfig WithBindPort(int bindPort) =>
+        new(
+            BindHost,
+            bindPort,
+            ContentVersion,
+            MaxPlayers,
+            IdleTimeoutMs,
+            HeartbeatIntervalMs,
+            ProtocolVersion,
+            PlayerArchetypeId,
+            GameplayFingerprint,
+            EmptyLobbyTimeoutMs,
+            ExitOnMatchEnd);
+
     /// <summary>校验启动参数；失败时写出退出码。</summary>
     public bool Validate(out ServerExitCode exitCode)
     {

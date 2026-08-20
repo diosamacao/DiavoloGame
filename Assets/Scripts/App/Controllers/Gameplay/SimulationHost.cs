@@ -34,11 +34,19 @@ public sealed class SimulationHost : AppControllerBase
     /// <summary>场景共享静态碰撞世界；角色 MotorSim 必须使用同一实例。</summary>
     public ISimCollisionWorld CollisionWorld => _collisionWorld;
 
+    float _externalInterpolationAlpha;
+
     /// <summary>当前渲染帧相对上一逻辑步的插值比例，供幽灵与权威表现共用。</summary>
-    public float InterpolationAlpha => _kernel != null ? _kernel.InterpolationAlpha : 0f;
+    public float InterpolationAlpha => DriveFromExternalClock
+        ? _externalInterpolationAlpha
+        : _kernel != null ? _kernel.InterpolationAlpha : 0f;
 
     /// <summary>为 true 时 Update/LateUpdate 不自动步进；由 ServerSimulationRunner 调 StepOnce。</summary>
     public bool DriveFromExternalClock { get; set; }
+
+    /// <summary>外部时钟步进后写入插值比例；Listen 本机 Render 依赖此值。</summary>
+    public void PublishExternalInterpolationAlpha(float alpha) =>
+        _externalInterpolationAlpha = alpha;
 
     /// <summary>每个逻辑步在 Combat/PostCombat/生命周期提交之后触发；参数为权威帧号。</summary>
     public event Action<long> AfterLogicStep;

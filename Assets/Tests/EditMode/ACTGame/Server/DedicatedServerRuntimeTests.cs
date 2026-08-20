@@ -114,6 +114,25 @@ public sealed class DedicatedServerRuntimeTests
         Assert.That(harness.Runtime.Match.PlayerCount, Is.EqualTo(3));
     }
 
+    /// <summary>W9：本机 Client 断开不得带走其余 Guest（Listen Local 与远端同一 ServerRuntime）。</summary>
+    [Test]
+    public void LocalClientDisconnect_DoesNotDestroyRemainingGuest()
+    {
+        using var harness = new DedicatedHarness(maxPlayers: 3);
+        ClientSession[] clients = harness.JoinClients(2);
+        NetConnectionId local = harness.ConnectionOf(clients[0]);
+        NetConnectionId guest = harness.ConnectionOf(clients[1]);
+
+        clients[0].Dispose();
+        harness.Runtime.Poll(1);
+        clients[1].Poll(1);
+
+        Assert.That(harness.Runtime.TryGetPlayer(local, out _), Is.False);
+        Assert.That(harness.Runtime.TryGetPlayer(guest, out _), Is.True);
+        Assert.That(clients[1].State, Is.EqualTo(ClientSessionState.Joined));
+        Assert.That(harness.Runtime.JoinedPlayerCount, Is.EqualTo(1));
+    }
+
     /// <summary>一人断开不影响其余玩家的 Session 与 Match 槽位。</summary>
     [Test]
     public void DisconnectOne_DoesNotRemoveOthers()
@@ -503,6 +522,10 @@ public sealed class DedicatedServerRuntimeTests
         {
         }
 
+        public int PeekAdvanceSteps(long nowMs) => 0;
+
+        public float InterpolationAlpha => 0f;
+
         public void PublishImmediateReplication()
         {
         }
@@ -547,6 +570,10 @@ public sealed class DedicatedServerRuntimeTests
         }
 
         public void RemovePlayer(NetConnectionId connectionId) => _servers.Remove(connectionId);
+
+        public int PeekAdvanceSteps(long nowMs) => _hasClock ? 1 : 0;
+
+        public float InterpolationAlpha => 0f;
 
         public void Advance(long nowMs)
         {

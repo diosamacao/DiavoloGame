@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-19（W8 / M2 Dedicated LAN Demo 已验收）
+> Last updated: 2026-08-20（W9 Listen 组合已用户验收）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,7 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
-| 组队 PVE 状态同步 / 权威进程 | ✅ Listen + Dedicated LAN Demo | `DedicatedServerRuntime` + `ServerLaunchConfigResolver` | W5～W8 / M2 已验收；W9 Listen 组合后置 |
+| 组队 PVE 状态同步 / 权威进程 | ✅ Listen 组合 + Dedicated LAN Demo | `ListenServerBootstrap` + `DedicatedServerRuntime` | W9 用户验收 2026-08-20；其后 W10 |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -219,8 +219,8 @@ EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
 | W4 Observer 适配 | `ActObserverReplicationAdapter` 独占 Schema/Archetype 校验、Proxy Spawn/Update/Despawn、TargetSystem 与 View 生命周期；`ActRemoteProxyFactory` 是唯一装配入口 |
 | W4 内容真源 | `ActContentRegistry` 唯一持有 Action Catalog、Character Archetype 与 Unity 配置映射；Room/Adapter 禁止另建动作目录 |
 | W4 Capture 真源 | `ActCharacterSnapshotSchema.Capture` 统一 CharacterActor → Snapshot 与 V1 编解码；独立 `CharacterReplicationCapture` 已删除 |
-| W4 Room 边界 | `ReplicationRoomHost/Client` 仅做 Session 收发、固定帧回调、Gameplay Service 调度与 HUD；不再引用 Character/配置/Proxy/Hit Cue 具体类型 |
-| W4 Gameplay Service | `ActHostRoomGameplay` 承接 Guest/Input/Capture；`ActClientRoomGameplay` 承接 Owner 预测、Observer、Hit Cue/HitStop/软碰撞；`ActContentPrefillService` 是场景内容扫描唯一入口 |
+| W4 Room 边界 | `ListenServerBootstrap` / `ReplicationRoomClient` 仅做组合或 Session 调度与 HUD；不再引用 Character/配置/Proxy/Hit Cue 具体类型 |
+| W4 Gameplay Service | `DedicatedAuthorityWorld` 承接 Guest/Input/Capture；`ActClientRoomGameplay` 承接 Owner 预测、Observer、Hit Cue/HitStop/软碰撞；`ActContentPrefillService` 是场景内容扫描唯一入口 |
 | 通用身份 | `NetConnectionId` / `NetPlayerId` / `NetEntityId` / `NetArchetypeId`；`SimActorNetIdAdapter` 显式映射 Simulation Actor |
 | 版本基础 | `NetworkProtocolVersion` + 128 位 `ContentFingerprint` 已定义；握手切换留在 Content Manifest Wave |
 | 传输 | `INetTransport` / `LoopbackTransport` / `UdpTransport`（`ACTNet.Transport`，按 ConnectionId 定向） |
@@ -422,7 +422,7 @@ AfterLogicStep → Capture 全员 + Hits → UDP
 
 ### 功能说明
 
-Listen Host 创建一人房间并可接纳多名远端玩家；客机预测自己的位移、用 RemoteProxy 看队友与敌人；敌人与命中只在 Host 权威世界。Dedicated 为独立运行时：Headless Actor + 外部时钟步进，并按连接下发 `ReplicationFrame`。
+Listen 与 Dedicated 共用 `DedicatedServerRuntime`。Listen 另加本机 `LocalClientRuntime`（127.0.0.1 UDP）；房主场景座位是 Autonomous，权威玩家只在 Guest 座位。客机预测自己、用 RemoteProxy 看队友与敌人；敌人与命中只在权威世界。
 
 ### 实现方案
 
@@ -430,9 +430,9 @@ Listen Host 创建一人房间并可接纳多名远端玩家；客机预测自�
 |----|------|
 | 角色 | 默认 Listen Host；ParrelSync 克隆自动 Client；菜单可切 Dedicated（`Use Dedicated Server`） |
 | 传输 / Session | `UdpTransport` 按 `NetConnectionId` 定向收发；`ServerSession/ClientSession` 独占信封、Join、Heartbeat、Kick，`RoomCodec` 只编 ACT 应用正文 |
-| Host | 薄 `ReplicationRoomHost` 驱动 Session；`ActHostRoomGameplay` 按连接管理 N Guest、独立 ACK 并逐连接构帧 |
-| Dedicated | `DedicatedServerBootstrap` → `DedicatedServerRuntime`；`MatchCoordinator` 分配身份与出生；JoinAccept 无房主实体 |
-| Client | 薄 `ReplicationRoomClient` 收发；`ActClientRoomGameplay` 每渲染帧合并输入、本机 `CharacterActor.Step`、他人 Proxy Seek |
+| Listen | `ListenServerBootstrap` = `DedicatedServerRuntime` + `LocalClientRuntime`；本机也走 Command / Snapshot / ACK |
+| Dedicated | `DedicatedServerBootstrap` → 同一 `DedicatedServerRuntime`；`MatchCoordinator` 分配身份与出生；JoinAccept 无房主实体 |
+| Client | 薄 `ReplicationRoomClient` 驱动 `LocalClientRuntime`；`ActClientRoomGameplay` 每渲染帧合并输入、本机 `CharacterActor.Step`、他人 Proxy Seek |
 | 动作 Id | `ActionReplicationCatalog` 按资产名稳定哈希，两端 Prefill Graph 节点、`VariantResolver` 变体与反应 |
 | 掉线 | `ServerSession.ConnectionRegistry` 按连接记录活动时刻；10s 超时仅 Kick 对应连接 |
 | HUD | F3 Room 行：角色 / 状态 / authorityFrame / RTT；W0 基线追加完整 Tick/Command 字节、Proxy 数、预测 pending |
@@ -452,8 +452,8 @@ Listen Host 创建一人房间并可接纳多名远端玩家；客机预测自�
 完整往返（入房、每帧序、客机攻击、线格式）见 [`docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../../docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)。
 
 ```
-Host：ReplicationRoomHost Poll → ActHostRoomGameplay 接纳/合并命令 → SimulationWorld.Step → Gameplay Capture/构帧 → Room 发送
-Client：ReplicationRoomClient Poll → ActClientRoomGameplay 合并按键 → 逻辑步构命令 → Room 发送 → Gameplay Actor.Step → 收帧 Restore+Replay/Proxy
+Listen：LocalClient Poll/采样 → 按 PeekAdvanceSteps 发命令预测 → DedicatedServerRuntime.Poll → LocalClient 再 Drain 同拍快照
+Client：ReplicationRoomClient Poll → LocalClient 采样 → 逻辑步构命令发送 → Actor.Step → 收帧 Restore+Replay/Proxy
 ```
 
 ### 已知限制
@@ -462,7 +462,8 @@ Client：ReplicationRoomClient Poll → ActClientRoomGameplay 合并按键 → �
 - 客机 CameraLock：Proxy 只读进 TargetSystem，范围内自动选中后可开；2026-08-18 双进程 Play 已验收
 - 多种敌人按稳定 Archetype 精确生成对应幽灵，不使用首敌配置回退
 - Dedicated Editor Play 与玩家 Dedicated Build 均已验收（M2）
-- Listen 仍为独立 Host 路径，W9 再收成 ServerRuntime + LocalClient
+- Listen 本机从场景出生点会被首帧 Snapshot 吸到 Match 槽位（槽位 × 2000mm）
+- 同进程 TargetSystem 可能同时看到 Headless 权威 Hurtbox 与 Observer Proxy；感知根已排除预测座位
 - 未做匹配、排位、Host 迁移
 - UDP 仍不可靠；冗余 3 条降低丢边沿，不能保证 0 丢包
 - 客机刀光/音效由本机表现桥按预测帧派发；跟权威卡肉招时禁止重派点事件
@@ -478,9 +479,9 @@ Client：ReplicationRoomClient Poll → ActClientRoomGameplay 合并按键 → �
 - `Assets/Scripts/Domain/Simulation/Replication/RoomCodec.cs`
 - `Assets/Scripts/Domain/Simulation/Replication/RoomRemoteInputMerge.cs`
 - `Assets/Scripts/Domain/Character/Replication/ReplicationPresentationAlign.cs`
-- `Assets/Scripts/App/Controllers/Gameplay/ReplicationRoomHost.cs`
+- `Assets/Scripts/App/Controllers/Gameplay/ListenServerBootstrap.cs`
 - `Assets/Scripts/App/Controllers/Gameplay/ReplicationRoomClient.cs`
-- `Assets/Scripts/App/Networking/Services/ActHostRoomGameplay.cs`
+- `Assets/Scripts/App/Networking/Services/LocalClientRuntime.cs`
 - `Assets/Scripts/App/Networking/Services/ActClientRoomGameplay.cs`
 - `Assets/Scripts/App/Networking/Services/ActContentPrefillService.cs`
 - `Assets/Scripts/Domain/Combat/VFX/HitImpactCuePlayer.cs`
@@ -514,7 +515,7 @@ Client：ReplicationRoomClient Poll → ActClientRoomGameplay 合并按键 → �
 
 | 参数 | 默认 | 说明 |
 |------|------|------|
-| `MaxRemotePlayers` | Dedicated 4 / Listen 1 | Dedicated 由 `ServerLaunchConfig`；Listen 仍一人客机容量 |
+| `MaxRemotePlayers` | 4 | Listen 本机也占一席；Dedicated / Listen 同一容量 |
 | `firstPlayerId` | 1 | 不再预留 Guest=2 |
 | 出生间距 | 2000mm | X 轴；不读 Host Root |
 
@@ -530,7 +531,7 @@ CombatWorldController.Awake（Dedicated）
 ### 已知限制
 
 - W5 当时不步进 World；W6 已步进，W7 已下发 Frame
-- Listen Host 仍保留至 W9
+- 特殊 Listen Host Room 已删；权威只走 `DedicatedServerRuntime`
 
 ### 相关文件
 
@@ -628,7 +629,7 @@ Poll → 空房超时或 ExitOnMatchEnd → ShouldExit
 
 - CI 自动出包、脚本化双 Client MatchEnd 烟测后置，不挡 M2
 - 内容指纹仍由场景扫描；CLI 改 `contentVersion` 后会重算指纹
-- Listen 尚未改成 ServerRuntime + LocalClient（W9）
+- Listen 已改为同一 `DedicatedServerRuntime` + `LocalClientRuntime`（W9 用户验收 2026-08-20）
 
 ### 相关文件
 
@@ -638,6 +639,56 @@ Poll → 空房超时或 ExitOnMatchEnd → ShouldExit
 - `Assets/Tests/EditMode/ACTGame/Server/ServerLaunchConfigResolverTests.cs`
 - `docs/2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md`
 - `docs/2026.8.19/DEDICATED_SERVER_LAUNCH.md`
+
+---
+
+## 组队 PVE · W9 Listen 组合收敛
+
+### 功能说明
+
+Listen 不再有特殊 Host 本机玩家。本机进程组合同一 `DedicatedServerRuntime` 与 `LocalClientRuntime`；房主在 Server 是 Authority Guest，在本机是 Owner/Presentation。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 组合 | `ListenServerBootstrap` 拥有 Runtime + LocalClient；不挂 `DedicatedServerBootstrap` |
+| 回环 | 本机 `ClientSession` 连 `127.0.0.1:实际绑定端口` |
+| 帧序 | Poll/采样 → 按 `PeekAdvanceSteps` 发命令预测 → `Server.Poll` → 再 Drain |
+| 座位 | `PlayerController` Listen/Client 只装 Autonomous；Dedicated 禁用 |
+| 敌人 | Listen / Dedicated 权威 `AuthorityHeadless`；可见体走 Observer |
+| Capture | 只拍 Guest + 敌人，不再拍场景 LocalPlayer |
+
+### 关键参数
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `MaxRemotePlayers` | 4 | 含本机 Join |
+| `ExitOnMatchEnd` | false | Listen 不因对局结束退 Editor |
+| Bootstrap 执行序 | -210 | 先于 `SimulationHost` -100 |
+
+### 运行时流程
+
+```
+CombatWorldController.Awake（ListenHost）
+  → DedicatedAuthorityWorld + ListenServerBootstrap.Configure
+  → TryStart DedicatedServerRuntime
+  → Start：LocalClient 连 127.0.0.1
+Update：PollAndApply → SampleRenderInput → 按 PeekAdvanceSteps 发命令预测 → Server.Poll → PollAndApply
+```
+
+### 已知限制
+
+- 本机预测必须按权威步数，禁止每个渲染帧 `StepPrediction`（否则连段加速、移动被快照拉回）
+- 同进程 TargetSystem 可能同时登记 Headless Hurtbox 与 Observer Proxy
+- 本机出生先被 Snapshot 吸到 Match 槽位
+
+### 相关文件
+
+- `Assets/Scripts/App/Controllers/Gameplay/ListenServerBootstrap.cs`
+- `Assets/Scripts/App/Networking/Services/LocalClientRuntime.cs`
+- `Assets/Scripts/App/Server/DedicatedServerRuntime.cs`
+- `docs/2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md`
 
 ---
 
@@ -1457,6 +1508,8 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-19 | Dedicated Play 复验：取消逐步灌入（观察者延迟）；Merge 进下一帧 + 首 Hint 和解；吸附/闪避整段推迟硬吸且不掐本机招 |
 | 2026-08-19 | W7 Editor Play 用户验收；W8：`ServerLaunchConfigResolver` CLI/Env/File、READY、空房超时与对局结束退出（Editor 不 Quit） |
 | 2026-08-19 | W8 Dedicated 出包 + H-DS-D 用户验收；M2 / LAN DS-Demo 关闭 |
+| 2026-08-20 | NetSync W9：Listen = `DedicatedServerRuntime` + `LocalClientRuntime`；删除 `ReplicationRoomHost` / `ActHostRoomGameplay` 与 Host 本机 Capture |
+| 2026-08-20 | W9 Listen 组合用户验收；本机预测按 `PeekAdvanceSteps` 对齐 60Hz |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

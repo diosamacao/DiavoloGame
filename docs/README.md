@@ -1,6 +1,6 @@
 # ACTGame 文档索引
 
-> 更新：2026-08-19 — W5～W8 / M2 LAN DS-Demo 已验收；恢复联网从 W9 开始。
+> 更新：2026-08-20 — W9 Listen 组合已用户验收；下一联网切面为 W10。
 > **一页总览先读：** [PROJECT_CHECKLIST.md](./PROJECT_CHECKLIST.md)  
 > **排期真源：** [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md)  
 > **架构运行时：** `.cursor/skills/actgame-architecture/`（ARCHITECTURE / TECHNICAL / ROADMAP）
@@ -25,6 +25,7 @@
 | [2026.8.19/NETSYNC_W6_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W6_STAGE_SUMMARY.md) | **W6 Headless Authority / 指纹握手**：外部时钟、无头工厂、Join ContentFingerprint |
 | [2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md) | **W7 Match / 每连接 Replication**：状态机、下行 Frame、MatchEnd（已验收） |
 | [2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md) | **W8 Dedicated Build / DS-Demo**（已验收）：CLI/Env/File、READY、出包 |
+| [2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md) | **W9 Listen 组合**（已验收）：同一 ServerRuntime + LocalClient；预测按权威步数 |
 | [2026.8.19/DEDICATED_SERVER_LAUNCH.md](./2026.8.19/DEDICATED_SERVER_LAUNCH.md) | Dedicated 本地启动、退出码、H-DS-D 表 |
 | [2026.8.15/NETWORK_SYNC.md](./2026.8.15/NETWORK_SYNC.md) | NS5 时期结构说明；下行已改为 `ReplicationFrame`，生产路径以 8.18 总结为准 |
 | [2026.8.16/NETWORK_SYNC_STUDY_QA.md](./2026.8.16/NETWORK_SYNC_STUDY_QA.md) | **自学问答备忘（第 0～6 已收束）**：含框架分层与数据流图；不是实现真源 |

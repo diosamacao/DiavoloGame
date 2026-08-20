@@ -19,6 +19,19 @@ public sealed class ServerSimulationRunner
     /// <summary>最近一次 Advance 的指标。</summary>
     public SimulationTickMetrics Metrics { get; private set; }
 
+    /// <summary>权威追帧核的渲染插值比例；Listen 本机 Render 读此值。</summary>
+    public float InterpolationAlpha => _kernel.InterpolationAlpha;
+
+    /// <summary>只读预览下一次 Advance 会步进几次；首拍对齐前为 0。不得改时钟。</summary>
+    public int PeekAdvanceSteps(long nowMs)
+    {
+        if (!_hasClock)
+            return 0;
+
+        double deltaSeconds = Math.Max(0d, (nowMs - _lastNowMs) / 1000.0);
+        return _kernel.PeekSteps(deltaSeconds);
+    }
+
     /// <summary>按单调 nowMs 追帧；首拍只对齐时钟不步进。</summary>
     public void Advance(long nowMs)
     {

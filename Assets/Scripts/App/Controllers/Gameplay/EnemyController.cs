@@ -121,8 +121,10 @@ public sealed class EnemyController : AppControllerBase
 
         CombatWorldController combatWorld = EnsureCombatWorldController();
         _simulationHost = combatWorld.EnsureSimulationHost();
+        // Listen / Dedicated 权威敌人无头；本机可见体走 Observer Proxy，避免与权威模型叠画。
         CharacterPresentationMode presentation =
             combatWorld.Role == ReplicationRole.DedicatedServer
+            || combatWorld.Role == ReplicationRole.ListenHost
                 ? CharacterPresentationMode.AuthorityHeadless
                 : CharacterPresentationMode.Full;
         _handle = EnemyActorFactory.Create(
