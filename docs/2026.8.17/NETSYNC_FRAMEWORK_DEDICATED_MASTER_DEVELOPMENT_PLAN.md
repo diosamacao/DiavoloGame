@@ -412,25 +412,25 @@ W5 起额外要求：
 
 **任务**
 
-- [ ] 提取通用 CommandHistory / StateHistory / ACK / Replay 协调。
-- [ ] ACT 的 2m Gate、连招超前、Hit/Death、Action Cancel 留在 `ActCharacterPredictionModel`。
-- [ ] Remote Entity 使用 `SnapshotTimeline`。
-- [ ] Control / Event 使用可靠有序通道。
-- [ ] Command 保留不可靠冗余；Snapshot 使用不可靠时序并丢旧。
-- [ ] 删除 W7 的事件冗余临时路径，只保留可靠事件单轨。
-- [ ] 增加 ServerTime / Tick offset、interpolation delay、RTT / jitter / loss 指标。
-- [ ] 定案 LiteNetLib 或 Unity Transport；若采用成熟库，不自研可靠 UDP。
-- [ ] 增加 MTU、最大 payload、拆包或分组门禁。
+- [x] 提取通用 CommandHistory / StateHistory / ACK / Replay 协调。
+- [x] ACT 的 2m Gate、连招超前、Hit/Death、Action Cancel 留在 `ActCharacterPredictionModel`。
+- [x] Remote Entity 使用 `SnapshotTimeline`。
+- [x] Control / Event 使用可靠有序通道。
+- [x] Command 保留不可靠冗余；Snapshot 使用不可靠时序并丢旧。
+- [x] 删除 W7 的事件冗余临时路径，只保留可靠事件单轨。
+- [x] 增加 ServerTime / Tick offset、interpolation delay、RTT / jitter / loss 指标。
+- [x] 定案 LiteNetLib 或 Unity Transport；若采用成熟库，不自研可靠 UDP。
+- [x] 增加 MTU、最大 payload、拆包或分组门禁。
 
 **验收**
 
-- [ ] Fake linear entity 可预测、注入分歧、Restore + Replay。
-- [ ] ACT 2m Gate、连招超前、Hit/Death 行为与 W0 一致。
+- [x] Fake linear entity 可预测、注入分歧、Restore + Replay。
+- [ ] ACT 2m Gate、连招超前、Hit/Death 行为与 W0 一致。（待 Editor Play）
 - [ ] 100ms RTT、20ms jitter、5% 丢包下可完成对局。
-- [ ] 旧 Snapshot 不回滚 Proxy；死亡/关键事件最终到达且只播一次。
-- [ ] 单包不超过配置 MTU。
+- [ ] 旧 Snapshot 不回滚 Proxy；死亡/关键事件最终到达且只播一次。（乱序丢旧已有单测；Play 未验）
+- [x] 单包不超过配置 MTU。
 
-**出口：** 通用网络基础设施达到公网 Demo 基线。→ **未达成**
+**出口：** 通用网络基础设施达到公网 Demo 基线。→ **未达成（2026-08-20 代码切面；不得称公网可用）**
 
 ---
 
@@ -559,7 +559,7 @@ Codec Golden Bytes
 ```
 
 W0 已于 2026-08-18 关闭，W1～W4 搬迁均受其基线保护。
-W5～W8 / M2 已于 2026-08-19 用户验收。W9 Listen 组合已于 2026-08-20 用户验收。下一联网切面为 W10。
+W5～W8 / M2 已于 2026-08-19 用户验收。W9 Listen 组合已于 2026-08-20 用户验收。W10 代码切面已落地，出口待 Play；下一实现切面为 W11。
 W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 
 ---
@@ -602,5 +602,6 @@ W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 | 2026-08-19 | W8 Dedicated 出包 + H-DS-D 用户验收；M2 / LAN DS-Demo 关闭；恢复联网从 W9 开始 |
 | 2026-08-20 | W9 Listen 组合代码切面：同一 `DedicatedServerRuntime` + `LocalClientRuntime`；旧 Host Room 删除 |
 | 2026-08-20 | W9 Listen 组合用户验收；预测按权威步数；下一联网切面为 W10 |
+| 2026-08-20 | W10 代码切面：ACTNet.Prediction + ChannelMux + 可靠命中事件；出口待 Play |
 
 

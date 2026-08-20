@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 
-/// <summary>服务端 Session 状态机：版本校验、玩家预留、保活、超时和应用消息路由。</summary>
+/// <summary>服务端 Session 状态机：版本校验、玩家预留、保活、超时和应用消息路由。Transport 经 ChannelMux 补可靠控制/事件。</summary>
 public sealed class ServerSession : IDisposable
 {
-    readonly INetTransport _transport;
+    readonly ChannelMuxTransport _transport;
     readonly SessionConfig _config;
     readonly ConnectionRegistry _connections = new();
     readonly PlayerRegistry _players;
@@ -16,7 +16,7 @@ public sealed class ServerSession : IDisposable
     /// <summary>创建并立即启动服务端 Transport 的 Session。</summary>
     public ServerSession(INetTransport transport, SessionConfig config, NetEndpoint endpoint)
     {
-        _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+        _transport = ChannelMuxTransport.Wrap(transport ?? throw new ArgumentNullException(nameof(transport)));
         _config = config;
         _players = new PlayerRegistry(config.FirstPlayerId);
         _transport.StartServer(endpoint);
@@ -35,6 +35,7 @@ public sealed class ServerSession : IDisposable
     public void Poll(long nowMs)
     {
         EnsureNotDisposed();
+        _transport.AdvanceClock(nowMs);
         _transport.Poll();
         while (_transport.TryReceive(out NetPacket packet))
         {

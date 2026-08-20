@@ -2,7 +2,8 @@
     "name": "ACTGame.Simulation",
     "rootNamespace": "",
     "references": [
-        "ACTNet.Core"
+        "ACTNet.Core",
+        "ACTNet.Prediction"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

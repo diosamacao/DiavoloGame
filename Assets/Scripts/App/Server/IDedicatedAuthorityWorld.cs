@@ -26,6 +26,9 @@ public interface IDedicatedAuthorityWorld : System.IDisposable
     /// <summary>取出本拍 AfterLogicStep 编好的下行正文；调用方负责发送后列表可复用。</summary>
     void DrainOutboundReplication(System.Collections.Generic.List<DedicatedReplicationSend> results);
 
+    /// <summary>取出本拍权威命中事件；只含当前帧，禁止再带 W7 冗余窗口。</summary>
+    void DrainOutboundEvents(System.Collections.Generic.List<DedicatedEventSend> results);
+
     /// <summary>最近完成的逻辑帧；尚未步进时为 -1。</summary>
     long CurrentFrame { get; }
 }

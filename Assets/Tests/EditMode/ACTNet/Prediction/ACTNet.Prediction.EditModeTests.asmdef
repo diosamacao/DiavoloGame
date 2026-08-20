@@ -1,0 +1,22 @@
+{
+    "name": "ACTNet.Prediction.EditModeTests",
+    "rootNamespace": "",
+    "references": [
+        "ACTNet.Core",
+        "ACTNet.Prediction"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

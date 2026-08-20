@@ -27,6 +27,12 @@ public sealed class ActOwnerReplicationAdapter
     /// <summary>尚未被权威确认的位移与动作预测总数。</summary>
     public int PendingCount => (_driver?.PendingCount ?? 0) + _actionAck.PendingCount;
 
+    /// <summary>走跑纠偏 snap / replay 计数；尚未绑 Driver 时为 0。</summary>
+    public int LocomotionSnapCount => _driver != null ? _driver.Metrics.SnapCount : 0;
+
+    /// <summary>走跑纠偏累计重放命令数。</summary>
+    public int LocomotionReplayCount => _driver != null ? _driver.Metrics.ReplayCount : 0;
+
     /// <summary>Session Join 后绑定已映射的 Owner SimActorId 与本地输入历史。</summary>
     public void BeginSession(SimActorId ownerActorId, InputFrameBuffer inputFrames)
     {

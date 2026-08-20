@@ -23,7 +23,7 @@ public static class ActReplicationApplicationPayloadCodec
         writer.WriteInt64(payload.AppliedClientFrameHint);
         writer.WriteInt32(hits.Length);
         for (int i = 0; i < hits.Length; i++)
-            WriteHit(writer, in hits[i]);
+            ActReplicatedHitEventCodec.Write(writer, in hits[i]);
         return writer.ToArray();
     }
 
@@ -41,52 +41,8 @@ public static class ActReplicationApplicationPayloadCodec
         int hitCount = reader.ReadLength(MaxHits);
         var hits = new ReplicatedHitEvent[hitCount];
         for (int i = 0; i < hitCount; i++)
-            hits[i] = ReadHit(reader);
+            hits[i] = ActReplicatedHitEventCodec.Read(reader);
         reader.EnsureComplete();
         return new ActReplicationApplicationPayload(appliedClientFrameHint, hits);
-    }
-
-    // 保持已发布命中线布局：EventFrame → SimHitKey → ActionId → 落点 → 水平方向。
-    static void WriteHit(NetBufferWriter writer, in ReplicatedHitEvent hit)
-    {
-        writer.WriteInt64(hit.Frame);
-        writer.WriteInt64(hit.Key.Frame);
-        writer.WriteInt32(hit.Key.AttackerId.Value);
-        writer.WriteInt32(hit.Key.ActionInstanceId);
-        writer.WriteInt32(hit.Key.HitboxIndex);
-        writer.WriteInt32(hit.Key.TargetId.Value);
-        writer.WriteInt32(hit.ActionId);
-        writer.WriteInt32(hit.HitXMm);
-        writer.WriteInt32(hit.HitYMm);
-        writer.WriteInt32(hit.HitZMm);
-        writer.WriteInt32(hit.DirXMm);
-        writer.WriteInt32(hit.DirZMm);
-    }
-
-    // 与 WriteHit 严格对称；SimActorId 构造器保留非正值为 Invalid 的既有语义。
-    static ReplicatedHitEvent ReadHit(NetBufferReader reader)
-    {
-        long frame = reader.ReadInt64();
-        var key = new SimHitKey(
-            reader.ReadInt64(),
-            ReadActorId(reader),
-            reader.ReadInt32(),
-            reader.ReadInt32(),
-            ReadActorId(reader));
-        return new ReplicatedHitEvent(
-            frame,
-            key,
-            reader.ReadInt32(),
-            reader.ReadInt32(),
-            reader.ReadInt32(),
-            reader.ReadInt32(),
-            reader.ReadInt32(),
-            reader.ReadInt32());
-    }
-
-    static SimActorId ReadActorId(NetBufferReader reader)
-    {
-        int value = reader.ReadInt32();
-        return value <= 0 ? SimActorId.Invalid : new SimActorId(value);
     }
 }

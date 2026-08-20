@@ -17,10 +17,10 @@ public enum ClientSessionState : byte
     Ended = 3,
 }
 
-/// <summary>客户端 Session 状态机：Join、自动心跳、RTT、权威超时和应用消息路由。</summary>
+/// <summary>客户端 Session 状态机：Join、自动心跳、RTT/jitter、权威超时和应用消息路由。Transport 经 ChannelMux 补可靠控制/事件。</summary>
 public sealed class ClientSession : IDisposable
 {
-    readonly INetTransport _transport;
+    readonly ChannelMuxTransport _transport;
     readonly SessionConfig _config;
     readonly Queue<SessionApplicationPacket> _applicationPackets = new();
     NetConnectionId _serverConnection;
@@ -31,10 +31,11 @@ public sealed class ClientSession : IDisposable
     /// <summary>创建尚未启动的客户端 Session。</summary>
     public ClientSession(INetTransport transport, SessionConfig config)
     {
-        _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+        _transport = ChannelMuxTransport.Wrap(transport ?? throw new ArgumentNullException(nameof(transport)));
         _config = config;
         State = ClientSessionState.Stopped;
         RttMs = -1;
+        JitterMs = -1;
     }
 
     /// <summary>当前握手或结束状态。</summary>
@@ -45,6 +46,12 @@ public sealed class ClientSession : IDisposable
 
     /// <summary>最近心跳回显计算出的往返毫秒。</summary>
     public int RttMs { get; private set; }
+
+    /// <summary>由连续 RTT 样本估计的 jitter 毫秒；尚未测到为 -1。</summary>
+    public int JitterMs { get; private set; }
+
+    /// <summary>通道层指标，含丢包与 Mux RTT。</summary>
+    public NetMetricsSnapshot TransportMetrics => _transport.Metrics;
 
     /// <summary>Session 结束原因；运行中为 None。</summary>
     public DisconnectReason LastDisconnectReason { get; private set; }
@@ -81,6 +88,7 @@ public sealed class ClientSession : IDisposable
         if (State == ClientSessionState.Stopped || State == ClientSessionState.Ended)
             return;
 
+        _transport.AdvanceClock(nowMs);
         _transport.Poll();
         while (_transport.TryReceive(out NetPacket packet))
         {
@@ -197,7 +205,7 @@ public sealed class ClientSession : IDisposable
         {
             SessionHeartbeat heartbeat = SessionCodec.ReadHeartbeat(body);
             if (heartbeat.EchoTimeMs > 0)
-                RttMs = (int)Math.Max(0L, nowMs - heartbeat.EchoTimeMs);
+                ObserveHeartbeatRtt((int)Math.Max(0L, nowMs - heartbeat.EchoTimeMs));
             return;
         }
 
@@ -219,6 +227,22 @@ public sealed class ClientSession : IDisposable
                 messageType,
                 body));
         }
+    }
+
+    /// <summary>用心跳 RTT 更新 jitter，供 HUD 与插值延迟使用。</summary>
+    void ObserveHeartbeatRtt(int rttMs)
+    {
+        if (JitterMs < 0)
+            JitterMs = 0;
+        else
+        {
+            int delta = rttMs - RttMs;
+            if (delta < 0)
+                delta = -delta;
+            JitterMs += (delta - JitterMs) >> 4;
+        }
+
+        RttMs = rttMs;
     }
 
     /// <summary>统一记录结束原因并关闭客户端本地连接。</summary>

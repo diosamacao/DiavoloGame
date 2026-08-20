@@ -535,6 +535,11 @@ public sealed class DedicatedServerRuntimeTests
             results?.Clear();
         }
 
+        public void DrainOutboundEvents(List<DedicatedEventSend> results)
+        {
+            results?.Clear();
+        }
+
         public void Dispose()
         {
         }
@@ -608,6 +613,8 @@ public sealed class DedicatedServerRuntimeTests
                 results.Add(_queued[i]);
             _queued.Clear();
         }
+
+        public void DrainOutboundEvents(List<DedicatedEventSend> results) => results?.Clear();
 
         public void Dispose()
         {
