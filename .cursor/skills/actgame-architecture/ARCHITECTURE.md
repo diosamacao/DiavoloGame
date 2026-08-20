@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-20（W9 Listen 组合已用户验收）
+> Last audited: 2026-08-20（W10 代码切面：Prediction + ChannelMux；Play 未验收）
 
 ## 项目概述
 
@@ -98,14 +98,16 @@ flowchart TB
 | `FixedStepAccumulator` | 把可变渲染时间转换为有追帧上限但不丢欠账的固定步数 |
 | `ActionSim` | `ACTGame.Simulation` 内无 Unity 依赖的 60Hz 动作核：帧推进、Cancel、Graph 衔接、命中确认与 Snapshot/Event |
 | `ACTNet.Core` | 零依赖纯 C# 网络基础：稳定 Id/Tick/Sequence、`NetProcessRole`、协议/内容版本、结果、Metrics 与有界小端 Reader/Writer |
-| `ACTNet.Transport` | 只依赖 Core：按 `NetConnectionId` 定向收发；统一 Server/Client 启动、Poll、Disconnect 与 Metrics |
-| `ACTNet.Session` | 只依赖 Core/Transport：多连接 Join、Player 分配、Heartbeat/RTT、超时/Kick 与已鉴权应用消息透传 |
+| `ACTNet.Transport` | 只依赖 Core：按 `NetConnectionId` 定向收发；`ChannelMuxTransport` 为 Control/Event 做可靠有序，Snapshot 丢旧；`TransportMtuGate` 拒超 MTU |
+| `ACTNet.Session` | 只依赖 Core/Transport：多连接 Join、Player 分配、Heartbeat/RTT/jitter、超时/Kick；构造时包装 ChannelMux |
 | `ACTNet.Replication` | 只依赖 Core：显式 Spawn/Update/Despawn、Schema Registry、Frame Codec、Server full-set 差分与 Client Sequence 丢旧 |
+| `ACTNet.Prediction` | 只依赖 Core：`CommandHistory` / `PredictedStateHistory` / `PredictionCoordinator` / `SnapshotTimeline` / `NetworkTimeEstimator`；不解读 ActionId 或 Hit/Death |
 | `ACTGame.Networking` | 依赖 Simulation 与 ACTNet Core/Replication：`CharacterSnapshotSchemaV1`、稳定 Character Archetype 映射；不含 Unity 资产引用 |
 | `ActAuthorityReplicationAdapter` | App/Networking 的 ACT 权威映射：远端输入灌入、Guest/敌人 Capture 与 FrameHits 补 ActionId；不再拍场景 LocalPlayer |
 | `ActGameSessionHandler` | App/Networking 的加入生命周期映射：创建 Guest Authority Actor、注册 App/Simulation 并在断线时逆序清理；不调用 ServerSession Accept/Reject |
-| `ActOwnerReplicationAdapter` | App/Networking 的 Autonomous 映射：Owner HP、Action Ack、Locomotion Reconcile、Hit/Death 硬吸与预测历史；以 SimActorId 对接 ACT Actor |
-| `ActObserverReplicationAdapter` / `ActRemoteProxyFactory` | App/Networking 的 Observer 映射与唯一装配入口：Schema/Archetype 校验、只读 Proxy 显式生命周期、TargetSystem 与 View 清理；不创建 CharacterActor |
+| `ActOwnerReplicationAdapter` | App/Networking 的 Autonomous 映射：Owner HP、Action Ack、Locomotion Reconcile、Hit/Death 硬吸；位移历史交给 Coordinator |
+| `ActCharacterPredictionModel` | ACT 走跑策略：2m Gate、宽限、出招/受击禁止走跑 Replay；连招 Cancel 仍在 `PredictedActionAckQueue` |
+| `ActObserverReplicationAdapter` / `ActRemoteProxyFactory` | Observer 映射：`SnapshotTimeline` 丢旧 Tick 并按插值延迟取样；Proxy 只做状态到表现 |
 | `ActContentRegistry` | App/Networking 的 ACT 内容唯一真源：集中持有 Action Catalog、Character Archetype 与 Unity CharacterConfig/EnemyDefinition 映射 |
 | `ActCharacterSnapshotSchema` | App/Networking 的角色生产 Schema：统一 CharacterActor Capture 与 V1 编解码；纯 C# `CharacterSnapshotSchemaV1` 仍是线格式实现 |
 | `ActContentPrefillService` | App 场景内容接缝：唯一扫描 Player/Enemy 配置并幂等预填 `ActContentRegistry`；Room 不再查找 Gameplay 组件 |
@@ -132,7 +134,7 @@ flowchart TB
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只负责装配和注册，不再实现 Actor `Update` Tick。
 
-NetSync M1 已于 2026-08-18 关闭。W5～W8 / M2 已于 2026-08-19 验收。W9 Listen 组合已于 2026-08-20 用户验收。下一联网切面为 W10。阅读：[`docs/2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md`](../../docs/2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md)。
+NetSync M1 已于 2026-08-18 关闭。W5～W8 / M2 已于 2026-08-19 验收。W9 Listen 组合已于 2026-08-20 用户验收。W10 代码切面已落地，出口待 Play。阅读：[`docs/2026.8.20/NETSYNC_W10_STAGE_SUMMARY.md`](../../docs/2026.8.20/NETSYNC_W10_STAGE_SUMMARY.md)。
 
 ### 2. 泛型状态机（Core）
 
@@ -262,18 +264,19 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `ActorReplicationSnapshot` / `ClientCommand` | 无 Unity业务状态与上行命令契约；旧 `AuthorityTick` 已删除 |
 | `ReplicationServer` / `ReplicationFrameCodec` / `ReplicationClient` | Host full set 生成显式 Spawn/Update/Despawn；Client 原子应用并丢弃旧 Sequence |
 | `ActorReplicationSnapshotCodec` / `CharacterSnapshotSchemaV1` / `ReplicationPoseApplier` | Snapshot 字段唯一布局 → Schema payload；客户端解码后写回 MotorSim |
-| `ActReplicationApplicationPayloadCodec` | 帧级 V1 载荷：本步 applied hint + 权威命中事件；Tick 由 ReplicationFrame 承载 |
+| `ActReplicationApplicationPayloadCodec` | 帧级 V1 载荷：本步 applied hint；生产路径 hits 为空，命中改走 `ActReplicationEventCodec` |
+| `ActReplicationEventCodec` / `DedicatedEventSend` | 本帧命中可靠事件包；Runtime 按连接走 `EventReliableOrdered` |
 | `SessionCodec` / `ServerSession` / `ClientSession` | Session 信封与控制消息唯一真源；每连接注册、版本/容量校验、心跳、超时和 Kick |
 | `RoomCodec` / `RoomRemoteInputMerge` | 只编码 ACT 上行命令批；未应用 Hint 边沿合并，不处理 Session 或下行 Frame |
 | `SimActorNetIdAdapter` | 在 ACTGame 边界显式映射 `SimActorId ↔ NetEntityId`；首版数值相同 |
-| `INetTransport` / `LoopbackTransport` / `UdpTransport` | 通用多连接字节传输；Loopback 一服多客；UDP 以本地 `NetConnectionId` 映射远端端点 |
+| `INetTransport` / `LoopbackTransport` / `UdpTransport` / `ChannelMuxTransport` | 通用多连接字节传输；Session 外包 Mux 做可靠控制/事件；UDP 本身仍是数据报 |
 | `ActContentRegistry.Actions` / `ActCharacterSnapshotSchema.Capture` | 资产名稳定 Id（含 VariantResolver 变体）；从权威 Actor 填充并编码快照 |
 | `RemoteCharacterProxy` / `ActRemoteProxyFactory` / `ReplicationPresentationAlign` | 他人 Seek；本机走跑只 Sync Motor；过渡相位硬切在 Align |
 | `ReplicationSeat` | Authority / Autonomous 工厂能力图；Autonomous 不 Collect、不进 World |
 | `CharacterActor`（Autonomous） | 客机本机同一类实例；实现 `IPredictedLocomotionReplay`；表现走 `CharacterActionPresentationBridge` |
 | `PredictedActionAckQueue` | 出招预测 Ack；未起手/变体分叉/Hit 则 Stop；连招超前只 Ack |
 | `LocomotionSavedState` | 内层机 Capture/Restore；权威 FromAuthority |
-| `PredictedLocomotionDriver` | 走跑记账；超阈 Restore+Replay |
+| `PredictedLocomotionDriver` | 走跑门面：电机推进 + Gate；历史与 Replay 交给 `PredictionCoordinator` |
 | `ListenServerBootstrap` / `ReplicationRoomClient` | Listen 组合与远端 Client Facade；Gameplay 由 `DedicatedAuthorityWorld` / `LocalClientRuntime` 单轨承接 |
 | `NetProcessRole` | 进程拓扑：Client / ListenServer / DedicatedServer；不得用 Listen 开关冒充 Dedicated |
 | `DedicatedServerBootstrap` / `MatchCoordinator` | Dedicated 独立宿主与 N 玩家身份/出生；JoinAccept 无房主时 `AuthorityEntityId` 为 Invalid |

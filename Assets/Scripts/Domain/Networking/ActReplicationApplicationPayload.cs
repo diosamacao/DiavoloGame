@@ -1,6 +1,6 @@
 using System;
 
-/// <summary>承载 ACT 复制帧级的客户端应用提示与权威命中表现事件。</summary>
+/// <summary>帧级应用载荷：applied hint。命中改走可靠事件通道；本结构仍能编解码 hits 以保持 V1 布局，生产路径编码为空数组。</summary>
 public sealed class ActReplicationApplicationPayload
 {
     readonly ReplicatedHitEvent[] _hits;

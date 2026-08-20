@@ -15,6 +15,7 @@ public sealed class ActClientRoomGameplay
     readonly HashSet<SimHitKey> _playedHits = new();
     readonly List<SimHitKey> _playedHitOrder = new();
     readonly List<RemoteCharacterProxy> _softBlockers = new();
+    readonly NetworkTimeEstimator _clock = new();
 
     PlayerController _localPlayer;
     SessionJoinAccept _accept;
@@ -72,6 +73,15 @@ public sealed class ActClientRoomGameplay
 
     /// <summary>Owner 尚未确认的动作与位移预测总数。</summary>
     public int PredictionPendingCount => _owner.PendingCount;
+
+    /// <summary>走跑 Restore 次数。</summary>
+    public int PredictionSnapCount => _owner.LocomotionSnapCount;
+
+    /// <summary>走跑 Replay 命令累计。</summary>
+    public int PredictionReplayCount => _owner.LocomotionReplayCount;
+
+    /// <summary>远端插值延迟毫秒。</summary>
+    public int InterpolationDelayMs => _clock.InterpolationDelayMs;
 
     /// <summary>最近一次 ReplicationClient 拒绝原因。</summary>
     public string LastRejectMessage { get; private set; }
@@ -169,8 +179,11 @@ public sealed class ActClientRoomGameplay
         ActorReplicationSnapshot self = default;
         bool hasSelf = false;
         SimActorId ownerId = new(_accept.EntityId.Value);
-        _observer.ApplySpawns(result.Spawns, ownerId, ref self, ref hasSelf);
-        _observer.ApplyUpdates(result.Updates, ownerId, ref self, ref hasSelf);
+        _clock.ObserveAuthorityTick(
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            frame.Tick.Value);
+        _observer.ApplySpawns(result.Spawns, ownerId, frame.Tick.Value, ref self, ref hasSelf);
+        _observer.ApplyUpdates(result.Updates, ownerId, frame.Tick.Value, ref self, ref hasSelf);
         if (!_observer.ApplyDespawns(result.Despawns, ownerId))
             return ActClientFrameApplyStatus.OwnerDespawned;
 
@@ -185,11 +198,24 @@ public sealed class ActClientRoomGameplay
                 + $"actor={_accept.EntityId.Value}。");
         }
 
-        PlayReplicatedHits(application.Hits);
         return ActClientFrameApplyStatus.Applied;
     }
 
-    /// <summary>按 SimulationHost 插值比例渲染 Owner 与全部 Observer Proxy。</summary>
+    /// <summary>应用可靠命中事件；按 SimHitKey 只播一次。</summary>
+    public void ApplyReplicationEvents(byte[] body)
+    {
+        ReplicatedHitEvent[] hits = ActReplicationEventCodec.Decode(body);
+        PlayReplicatedHits(hits);
+    }
+
+    /// <summary>用最近心跳 RTT 刷新插值延迟。</summary>
+    public void ObserveNetworkSample(int rttMs)
+    {
+        if (rttMs >= 0)
+            _clock.ObserveRtt(rttMs);
+    }
+
+    /// <summary>Owner 跟本地固定步 alpha；Observer 走 SnapshotTimeline 延迟。</summary>
     public void Render()
     {
         SimulationHost host = _world.SimulationHost;
@@ -198,8 +224,7 @@ public sealed class ActClientRoomGameplay
 
         float alpha = host.InterpolationAlpha;
         _localPlayer?.Actor?.Render(alpha);
-        foreach (RemoteCharacterProxy proxy in _observer.Proxies)
-            proxy.Render(alpha);
+        _observer.Render(_clock.InterpolationDelayTicks);
     }
 
     /// <summary>注销并释放全部 Observer View 与 Owner 预测状态。</summary>

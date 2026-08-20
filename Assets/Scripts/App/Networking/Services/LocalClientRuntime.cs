@@ -154,6 +154,20 @@ public sealed class LocalClientRuntime : IDisposable
                 return;
             }
 
+            if (packet.MessageType == (byte)RoomMessageKind.ReplicationEvent)
+            {
+                try
+                {
+                    _gameplay.ApplyReplicationEvents(packet.Payload);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"LocalClientRuntime: 非法命中事件。{ex.Message}");
+                }
+
+                continue;
+            }
+
             if (packet.MessageType != (byte)RoomMessageKind.ReplicationFrame)
                 continue;
 
@@ -220,6 +234,13 @@ public sealed class LocalClientRuntime : IDisposable
         if (_world == null)
             return;
 
+        if (_gameplay != null && _session != null)
+            _gameplay.ObserveNetworkSample(_session.RttMs);
+
+        NetMetricsSnapshot metrics = _session != null ? _session.TransportMetrics : default;
+        int lossPermille = metrics.PacketsReceived > 0
+            ? (int)(metrics.PacketsDropped * 1000L / metrics.PacketsReceived)
+            : -1;
         _world.RoomHud = new ReplicationRoomHudInfo(
             true,
             _hudRole,
@@ -230,6 +251,11 @@ public sealed class LocalClientRuntime : IDisposable
             LastTickBytes,
             LastCommandBytes,
             ProxyCount,
-            PredictionPendingCount);
+            PredictionPendingCount,
+            _session?.JitterMs ?? -1,
+            lossPermille,
+            _gameplay != null ? _gameplay.InterpolationDelayMs : -1,
+            _gameplay != null ? _gameplay.PredictionSnapCount : 0,
+            _gameplay != null ? _gameplay.PredictionReplayCount : 0);
     }
 }

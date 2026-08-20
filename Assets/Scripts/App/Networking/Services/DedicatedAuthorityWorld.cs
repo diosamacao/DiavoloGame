@@ -5,8 +5,6 @@ using UnityEngine;
 /// <summary>Dedicated 权威世界：Headless Actor、命令合并进下一权威帧、外部时钟步进与每连接构帧。</summary>
 public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
 {
-    const int HitRedundancy = 8;
-
     readonly SimulationHost _host;
     readonly ActContentRegistry _content;
     readonly ActGameSessionHandler _gameSession;
@@ -16,8 +14,7 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
     readonly Dictionary<NetConnectionId, ReplicationServer> _replicationByConnection = new();
     readonly List<ActGameGuest> _guestSnapshot = new();
     readonly List<DedicatedReplicationSend> _outbound = new();
-    readonly List<ReplicatedHitEvent> _hitRing = new();
-    readonly HashSet<SimHitKey> _hitKeys = new();
+    readonly List<DedicatedEventSend> _outboundEvents = new();
     readonly HashSet<NetConnectionId> _pendingJoinSnapshots = new();
     bool _disposed;
 
@@ -160,6 +157,18 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
     }
 
     /// <inheritdoc />
+    public void DrainOutboundEvents(List<DedicatedEventSend> results)
+    {
+        if (results == null)
+            throw new ArgumentNullException(nameof(results));
+
+        results.Clear();
+        for (int i = 0; i < _outboundEvents.Count; i++)
+            results.Add(_outboundEvents[i]);
+        _outboundEvents.Clear();
+    }
+
+    /// <inheritdoc />
     public void Dispose()
     {
         if (_disposed)
@@ -170,14 +179,13 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
         for (int i = 0; i < ids.Count; i++)
             RemovePlayer(ids[i]);
         _outbound.Clear();
-        _hitRing.Clear();
-        _hitKeys.Clear();
+        _outboundEvents.Clear();
     }
 
     /// <summary>与 Listen Host 同一帧序：BeginFrame → Step → 结算 → PostCombat → 构帧。</summary>
     void StepOnce() => _host.StepOnce();
 
-    /// <summary>在 FrameHits 清空前 Capture 并按连接差分；命中做最近 N 条冗余。</summary>
+    /// <summary>在 FrameHits 清空前 Capture 并按连接差分；命中改走可靠事件单轨。</summary>
     void OnAfterLogicStep(long authorityFrame)
     {
         if (_guests.Count == 0)
@@ -192,8 +200,9 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
     {
         CopyGuests(_guestSnapshot);
         _authority.CaptureAuthorityActors(_guestSnapshot, _host);
-        RememberHits(_authority.CopyHits(_host.FrameHits));
-        ReplicatedHitEvent[] hits = CopyHitRing();
+        ReplicatedHitEvent[] hits = _authority.CopyHits(_host.FrameHits);
+        if (connections == null)
+            EnqueueHitEvents(hits);
         long tick = authorityFrame < 0 ? 0 : authorityFrame;
 
         foreach (KeyValuePair<NetConnectionId, ActGameGuest> pair in _guests)
@@ -210,7 +219,7 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
             long appliedHint = pair.Value.AppliedHintThisTick;
             pair.Value.AppliedHintThisTick = 0;
             byte[] applicationBytes = ActReplicationApplicationPayloadCodec.Encode(
-                new ActReplicationApplicationPayload(appliedHint, hits));
+                new ActReplicationApplicationPayload(appliedHint, null));
             ReplicationFrame frame = replication.BuildFrame(
                 new NetTick(tick),
                 _authority.EntityStates,
@@ -228,37 +237,19 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
         }
     }
 
-    /// <summary>当前帧命中写入环形窗口；已见过的 SimHitKey 不重复占位。</summary>
-    void RememberHits(ReplicatedHitEvent[] hits)
+    /// <summary>本帧命中按连接各发一份可靠事件；不含历史窗口。</summary>
+    void EnqueueHitEvents(ReplicatedHitEvent[] hits)
     {
         if (hits == null || hits.Length == 0)
             return;
 
-        for (int i = 0; i < hits.Length; i++)
+        byte[] body = ActReplicationEventCodec.Encode(hits);
+        foreach (NetConnectionId connectionId in _guests.Keys)
         {
-            ReplicatedHitEvent hit = hits[i];
-            if (!_hitKeys.Add(hit.Key))
+            if (!_replicationByConnection.ContainsKey(connectionId))
                 continue;
-            _hitRing.Add(hit);
+            _outboundEvents.Add(new DedicatedEventSend(connectionId, body));
         }
-
-        while (_hitRing.Count > HitRedundancy)
-        {
-            _hitKeys.Remove(_hitRing[0].Key);
-            _hitRing.RemoveAt(0);
-        }
-    }
-
-    /// <summary>复制当前冗余窗口，供本步所有连接共用同一命中列表。</summary>
-    ReplicatedHitEvent[] CopyHitRing()
-    {
-        if (_hitRing.Count == 0)
-            return null;
-
-        var copy = new ReplicatedHitEvent[_hitRing.Count];
-        for (int i = 0; i < _hitRing.Count; i++)
-            copy[i] = _hitRing[i];
-        return copy;
     }
 
     void CopyGuests(List<ActGameGuest> results)

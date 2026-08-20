@@ -79,7 +79,7 @@ public sealed class RoomArchitectureBoundaryTests
         Assert.That(combined, Does.Not.Contain("RegisterFrameConsumer"));
     }
 
-    /// <summary>ACTNet 四层保持零 Unity 与零 ACT Gameplay 反向依赖。</summary>
+    /// <summary>ACTNet 五层保持零 Unity 与零 ACT Gameplay 反向依赖。</summary>
     [Test]
     public void ActNetSources_DoNotReferenceUnityOrActGameplayTypes()
     {

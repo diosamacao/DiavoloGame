@@ -11,6 +11,7 @@ public sealed class DedicatedServerRuntime : IDisposable
     readonly IDedicatedAuthorityWorld _authority;
     readonly Dictionary<NetConnectionId, DedicatedPlayerRuntime> _players = new();
     readonly List<DedicatedReplicationSend> _outbound = new();
+    readonly List<DedicatedEventSend> _outboundEvents = new();
     readonly List<NetConnectionId> _playerScratch = new();
     bool _disposed;
     bool _pendingCompletedEnd;
@@ -92,10 +93,13 @@ public sealed class DedicatedServerRuntime : IDisposable
             exitCode = ServerExitCode.Success;
             return new DedicatedServerRuntime(config, session, match, authority);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // 端口占用、权限或解析失败都落 BindFailed；必须打出底层原因，否则 Editor 只看到退出码。
             transport.Dispose();
             exitCode = ServerExitCode.BindFailed;
+            Debug.LogError(
+                $"DedicatedServerRuntime: 绑定失败 {config.BindHost}:{config.BindPort}。{ex.Message}");
             return null;
         }
     }
@@ -117,6 +121,7 @@ public sealed class DedicatedServerRuntime : IDisposable
         PromoteStartingToPlaying();
         _authority.Advance(nowMs);
         FlushReplication();
+        FlushEvents();
         FinishPendingMatchEnd();
         CheckEmptyLobbyTimeout(nowMs);
     }
@@ -314,6 +319,33 @@ public sealed class DedicatedServerRuntime : IDisposable
                     send.ConnectionId,
                     (byte)RoomMessageKind.ReplicationFrame,
                     NetChannel.SnapshotUnreliableSequenced,
+                    send.Body);
+            }
+            catch (Exception)
+            {
+            }
+        }
+    }
+
+    /// <summary>本帧命中走可靠事件通道；失败只记该连接，不中断其余下行。</summary>
+    void FlushEvents()
+    {
+        if (MatchPhase != DedicatedMatchPhase.Playing)
+            return;
+
+        _authority.DrainOutboundEvents(_outboundEvents);
+        for (int i = 0; i < _outboundEvents.Count; i++)
+        {
+            DedicatedEventSend send = _outboundEvents[i];
+            if (!_players.ContainsKey(send.ConnectionId) || send.Body == null || send.Body.Length == 0)
+                continue;
+
+            try
+            {
+                _session.SendApplication(
+                    send.ConnectionId,
+                    (byte)RoomMessageKind.ReplicationEvent,
+                    NetChannel.EventReliableOrdered,
                     send.Body);
             }
             catch (Exception)

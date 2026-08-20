@@ -77,7 +77,9 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
             return;
         }
 
-        Debug.LogError($"DedicatedServerBootstrap: 启动失败 exit={exitCode}。", this);
+        Debug.LogError(
+            $"DedicatedServerBootstrap: 启动失败 exit={exitCode} bind={_config.BindHost}:{_config.BindPort}。",
+            this);
 #if !UNITY_EDITOR
         Application.Quit((int)exitCode);
 #endif

@@ -12,7 +12,12 @@ public readonly struct ReplicationRoomHudInfo
         int tickBytes,
         int commandBytes,
         int proxyCount,
-        int predictionPendingCount)
+        int predictionPendingCount,
+        int jitterMs = -1,
+        int lossPermille = -1,
+        int interpolationDelayMs = -1,
+        int snapCount = 0,
+        int replayCount = 0)
     {
         Active = active;
         Role = role;
@@ -24,6 +29,11 @@ public readonly struct ReplicationRoomHudInfo
         CommandBytes = commandBytes;
         ProxyCount = proxyCount;
         PredictionPendingCount = predictionPendingCount;
+        JitterMs = jitterMs;
+        LossPermille = lossPermille;
+        InterpolationDelayMs = interpolationDelayMs;
+        SnapCount = snapCount;
+        ReplayCount = replayCount;
     }
 
     /// <summary>房间控制器是否已启动。</summary>
@@ -55,4 +65,19 @@ public readonly struct ReplicationRoomHudInfo
 
     /// <summary>本机 Client 当前 Locomotion 与 Action 待确认记录总数。</summary>
     public int PredictionPendingCount { get; }
+
+    /// <summary>心跳 jitter 毫秒；尚未测到为 -1。</summary>
+    public int JitterMs { get; }
+
+    /// <summary>通道层估计丢包千分比；未知为 -1。</summary>
+    public int LossPermille { get; }
+
+    /// <summary>远端 Snapshot 插值延迟毫秒。</summary>
+    public int InterpolationDelayMs { get; }
+
+    /// <summary>Owner 走跑 Restore 次数。</summary>
+    public int SnapCount { get; }
+
+    /// <summary>Owner 走跑 Replay 命令累计。</summary>
+    public int ReplayCount { get; }
 }

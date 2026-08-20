@@ -1,4 +1,4 @@
-/// <summary>调用层声明的消息交付语义；当前 UDP Adapter 仍按不可靠数据报发送。</summary>
+/// <summary>调用层声明的消息交付语义；由 ChannelMuxTransport 执行可靠/丢旧，底层 UDP 仍是数据报。</summary>
 public enum NetChannel : byte
 {
     /// <summary>旧 UDP 线格式未携带通道头，接收侧暂时无法还原发送语义。</summary>

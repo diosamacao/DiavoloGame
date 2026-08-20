@@ -9,4 +9,7 @@ public enum RoomMessageKind : byte
 
     /// <summary>正文为 MatchEnd；占用 8，避开 Session Kick=7。</summary>
     MatchEnd = 8,
+
+    /// <summary>正文为可靠命中事件包；与 Snapshot 分轨，禁止再塞进帧内冗余。</summary>
+    ReplicationEvent = 9,
 }

@@ -1,12 +1,12 @@
 # NetSync 网络架构搭建问题回顾
 
 > 撰写：2026-08-20  
-> 范围：NS0～NS5 + W0～W9（至 Listen 组合用户验收）  
+> 范围：NS0～NS5 + W0～W10（W10 为代码切面，Play 未验收）  
 > 角色：**踩坑与合同备忘**，不是排期真源  
 > 排期：[`../2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)  
 > 实现阅读：[`../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)
 
-本文只收录仓库阶段总结、W0 审计与 Play 复验里**实际出现过**的问题。未落地的公网/可靠事件不写成「已踩坑」。
+本文只收录仓库阶段总结、W0 审计与 Play 复验里**实际出现过**的问题。未落地的公网 Play 不写成「已踩坑」。命中 ring / 通用预测 / MTU 门禁已在 W10 代码落地。
 
 ---
 
@@ -33,6 +33,7 @@
 | W5～W6 | 2026-08-19 | 独立 Runtime + Headless | 无 Host 玩家则不 Accept；工厂必 Instantitate 模型 |
 | W7～W8 | 2026-08-19 | Dedicated 可打 + 出包 | Owner 建成 Proxy、命令慢放、Hint 和解、Editor 误 Quit |
 | W9 | 2026-08-20 | Listen = Server + LocalClient | 本机按渲染帧预测；Host 本机仍是特殊座位 |
+| W10 | 2026-08-20 | Prediction + ChannelMux + 可靠命中 | 代码已切；100ms/5% Play 未打穿 |
 
 ---
 
@@ -327,13 +328,15 @@ W0 审计列出的阻塞（后在 W5～W9 逐条拆掉）：
 
 ## 10. 仍开放（不是本文「已踩坑」）
 
-W10 起才做，文档里已标明，尚未用 Play 打穿：
+W10 **代码已落地**、Play 未打穿；其后能力仍开放：
 
-- 可靠控制 / 事件通道（命中目前仍是最近 8 条冗余）
-- 通用 CommandHistory / StateHistory；公网 RTT / jitter / 丢包
-- Delta / Relevancy / MTU
-- 重连、安全、容器、压测
+- 100ms RTT / 20ms jitter / 5% 丢包完整对局（W10 出口）
+- Play 上验证 2m Gate、连招超前、Hit Cue 只播一次
+- Delta / Relevancy / 超 MTU 拆包（W11）
+- 重连、安全、容器、压测（W12）
 - CI 自动出包 + 双 Client 拉起断言（W8 后置）
+
+已从「未做」划出：可靠 Control/Event、通用 CommandHistory / StateHistory / SnapshotTimeline、MTU 拒绝门禁、W7 命中 8 条冗余删除。
 
 W10 出口关闭前只称 **LAN Demo**，不称公网可用。
 
@@ -348,5 +351,6 @@ W10 出口关闭前只称 **LAN Demo**，不称公网可用。
 | Dedicated 可打复验 | [`../2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md`](../2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md) §3 |
 | Editor 不 Quit | [`../2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md`](../2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md) |
 | Listen 组合与 60Hz 预测 | [`../2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md`](../2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md) |
+| W10 预测 / 通道 / 时间 | [`./NETSYNC_W10_STAGE_SUMMARY.md`](./NETSYNC_W10_STAGE_SUMMARY.md) |
 | 走跑 / 出招合同 | [`../2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md) |
 | 帧序问答（当时 Host Room） | [`../2026.8.16/NETWORK_SYNC_STUDY_QA.md`](../2026.8.16/NETWORK_SYNC_STUDY_QA.md) |

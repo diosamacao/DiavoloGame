@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-20（W9 Listen 组合已用户验收）
+> Last updated: 2026-08-20（W10 代码切面已落地；Play 未验收）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,7 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
-| 组队 PVE 状态同步 / 权威进程 | ✅ Listen 组合 + Dedicated LAN Demo | `ListenServerBootstrap` + `DedicatedServerRuntime` | W9 用户验收 2026-08-20；其后 W10 |
+| 组队 PVE 状态同步 / 权威进程 | 🟡 W10 代码切面 / Play 未验收 | `ACTNet.Prediction` + `ChannelMuxTransport` + Listen/Dedicated | W9 已验收；W10 出口待 100ms/5% Play |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -317,7 +317,7 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 
 ### 功能说明
 
-远端客户端用本地 `InputFrame` 立刻推进位移。**房间走跑由 Autonomous `CharacterActor.Step` 写 MotorSim**；`Predict`/`ApplyInput` 仅留单测。Listen Host 本地玩家不预测。已删除 Runner / 猜片 / Host 同机预览。
+Listen 本机与远端客机都用本地 `InputFrame` 立刻推进位移。**房间走跑由 Autonomous `CharacterActor.Step` 写 MotorSim**；`Predict`/`ApplyInput` 仅留单测。历史与 Restore+Replay 由 `PredictionCoordinator` 编排，2m Gate 在 `ActCharacterPredictionModel`。已删除 Runner / 猜片 / Host 同机预览。
 
 ### 实现方案
 
@@ -326,9 +326,9 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 | 走跑步进 | Autonomous `CharacterActor.Step`（同一套内层机） |
 | 互撞 | 不进 World；`AutonomousSoftBodySolver` 把本机从只读幽灵圆盘推出 |
 | 出招位移 | 表现桥烘焙 + TargetAdhesion / Relocate（WorldQuery 读只读 Proxy Pose） |
-| 缓存 | `PredictedLocomotionDriver.RecordAutonomous` 存 (frame, input, pose) |
-| 和解 | 走跑+Actor Replay：≤ 2m 只 Ack；无 replay：≤ 50mm 只 Ack；刚吸附 8 包内 ≤ 150mm 也只 Ack；超阈 Restore 后重放 |
-| Host | `PlayerController.IsLocalPredicted` 恒 false |
+| 缓存 | `PredictionCoordinator.Record` → CommandHistory + StateHistory |
+| 和解 | 模型算策略，Coordinator 执行 Ack / Restore / Replay。≤ 2m 只 Ack；无 replay：≤ 50mm；刚吸附 8 包内 ≤ 150mm 也只 Ack |
+| Listen / Client | 场景 `PlayerController` 为 Autonomous；权威玩家在 Headless Guest |
 
 ### 关键参数
 
@@ -364,8 +364,10 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 
 ### 相关文件
 
+- `Assets/Scripts/Framework/ACTNet/Prediction/*`
 - `Assets/Scripts/Domain/Simulation/Prediction/*`
 - `Assets/Scripts/App/Networking/Services/ActClientRoomGameplay.cs`
+- `Assets/Tests/EditMode/ACTNet/Prediction/FakeLinearEntityPredictionTests.cs`
 - `Assets/Tests/EditMode/Simulation/PredictedLocomotionReconcileTests.cs`
 
 ---
@@ -385,9 +387,9 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 | 表现所有权 | 本机 Clip 由 Actor 桥推进；禁止对自 `ApplySnapshot`；仅受击走 `EnterHit` |
 | 卡肉 | 客机 `PredictedHitStopConsumer` 几何重叠后 `RequestHitStop`；禁止用延迟权威 Freeze 再拖时钟。伤害只信权威下行 |
 | 跟招 | 已删除 `FollowAuthorityAction`；本机 Clip 只跟本地 ActionSim |
-| 命中下行 | `ResolvedCombatHit` → `ReplicatedHitEvent`（Key + 落点毫米 + ActionId）；`CharacterVitality.ReplicationEdge` 写入快照 |
-| 他人/敌人 | `RemoteCharacterProxy` 只 Seek，不 Collect；`VitalityEdge.Hit` 或动作帧回绕时硬切重播受击 |
-| Host | Listen Host 本地仍不预测；`HitboxFrameConsumer` 只挂权威工厂。同机预览已删 |
+| 命中下行 | 本帧 `ReplicatedHitEvent` 走 `RoomMessageKind.ReplicationEvent` 可靠通道；Snapshot 应用载荷不再带 hits。`VitalityReplicationEdge` 仍在角色快照 |
+| 他人/敌人 | `RemoteCharacterProxy` 跟 `SnapshotTimeline` 延迟取样；`VitalityEdge.Hit` 或动作帧回绕时硬切重播受击 |
+| Listen | 本机也走 Owner 预测；`HitboxFrameConsumer` 只挂权威工厂 |
 
 ### 关键参数
 
@@ -396,9 +398,9 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 ### 运行时流程
 
 ```
-权威 Step → Pipeline.Collect/Resolve → Vitality 边沿 + FrameHits
-AfterLogicStep → Capture 全员 + Hits → UDP
-客机：本机 Actor.Step + Ack；他人/敌人 RemoteProxy.ApplySnapshot
+权威 Step → Pipeline.Collect/Resolve → Vitality 边沿
+AfterLogicStep → Capture 全员 → Snapshot UDP；本帧 CopyHits → FlushEvents
+客机：本机 Actor.Step + Ack；他人/敌人 Timeline 取样 + RemoteProxy
 ```
 
 ### 已知限制
@@ -435,7 +437,7 @@ Listen 与 Dedicated 共用 `DedicatedServerRuntime`。Listen 另加本机 `Loca
 | Client | 薄 `ReplicationRoomClient` 驱动 `LocalClientRuntime`；`ActClientRoomGameplay` 每渲染帧合并输入、本机 `CharacterActor.Step`、他人 Proxy Seek |
 | 动作 Id | `ActionReplicationCatalog` 按资产名稳定哈希，两端 Prefill Graph 节点、`VariantResolver` 变体与反应 |
 | 掉线 | `ServerSession.ConnectionRegistry` 按连接记录活动时刻；10s 超时仅 Kick 对应连接 |
-| HUD | F3 Room 行：角色 / 状态 / authorityFrame / RTT；W0 基线追加完整 Tick/Command 字节、Proxy 数、预测 pending |
+| HUD | F3 Room 行：角色 / 状态 / authorityFrame / RTT / jitter；Net 行追加 Tick/Command 字节、Proxy、pending、loss‰、delay、snap、replay |
 
 ### 关键参数
 
@@ -557,16 +559,16 @@ CombatWorldController.Awake（Dedicated）
 | Join | Playing 可晚加入；Ending 之后拒收 |
 | 实体 Id | JoinAccept 写 World `SimulationId`，供 Client `CanPredict` 对齐 |
 | 命令 | 只灌本连接 PlayerId；冗余批合并进下一权威帧；下行 appliedHint=本批第一条 Hint |
-| 构帧 | `AfterLogicStep` Capture + 每连接 `ReplicationServer.BuildFrame`；Runtime 发送 |
-| 命中 | 最近 8 条 `SimHitKey` 冗余；Client 既有去重 |
+| 构帧 | `AfterLogicStep` Capture + 每连接 `ReplicationServer.BuildFrame`；Runtime 发送 Snapshot |
+| 命中 | 本帧事件走 `EventReliableOrdered`；Client `SimHitKey` 去重只播一次 |
 | 结束 | `RoomMessageKind.MatchEnd=8` + Kick；Client 先 Drain 再 Sync Session |
 
 ### 关键参数
 
 | 参数 | 默认 | 说明 |
 |------|------|------|
-| Hit 冗余 | 8 | DS-Demo 临时单轨；W10 改可靠事件后删除 |
 | MatchEnd 类型 | 8 | 避开 Session Kick=7 |
+| ReplicationEvent 类型 | 9 | 可靠命中事件包 |
 
 ### 运行时流程
 
@@ -574,13 +576,13 @@ CombatWorldController.Awake（Dedicated）
 DedicatedServerRuntime.Poll
   → DrainJoins / DrainCommands（Merge 进下一权威帧）
   → Advance → StepOnce → AfterLogicStep Capture/构帧（appliedHint=FirstAppliedHint）
-  → FlushReplication
+  → FlushReplication + FlushEvents
   → 空房或 RequestMatchEnd → MatchEnd + Kick → Lobby
 ```
 
 ### 已知限制
 
-- Dedicated Build 已验收；命中仍走不可靠帧内冗余，不是可靠事件通道（W10）
+- Dedicated Build 已验收；命中已改可靠事件单轨。100ms/5% 公网 Play 仍待 W10 出口验收
 
 ### 相关文件
 
@@ -689,6 +691,57 @@ Update：PollAndApply → SampleRenderInput → 按 PeekAdvanceSteps 发命令�
 - `Assets/Scripts/App/Networking/Services/LocalClientRuntime.cs`
 - `Assets/Scripts/App/Server/DedicatedServerRuntime.cs`
 - `docs/2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md`
+
+---
+
+## 组队 PVE · W10 通用预测 / 可靠通道 / 网络时间
+
+### 功能说明
+
+预测算法骨架可复用；ACT 2m Gate / 连招 / Hit-Death 仍归业务层。Control/Event 可靠有序，命中不再用帧内 8 条冗余。远端 Proxy 按插值延迟取样。公网 Play 未验收。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 通用协调 | `PredictionCoordinator` + Command/State History；不读 ActionId |
+| ACT 策略 | `ActCharacterPredictionModel.ResolvePolicy` |
+| 远端 | `SnapshotTimeline` 丢旧 Tick；`NetworkTimeEstimator` 算 delayTicks |
+| 通道 | Session 包装 `ChannelMuxTransport`；定案不换 LiteNetLib / Unity Transport |
+| 命中 | `ActReplicationEventCodec` + `EventReliableOrdered` |
+| MTU | 默认 1400；超限拒绝 |
+
+### 关键参数
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `TransportMtuGate.DefaultMaxDatagramBytes` | 1400 | 含 9 字节通道头 |
+| Mux 重传间隔 | 50ms | Control/Event |
+| 插值延迟 | RTT/2 + jitter + 16ms | 钳 16～150ms，至少 1 Tick |
+
+### 运行时流程
+
+```
+Owner：Record → PeekError → ResolvePolicy → ReceiveAuthority
+Observer：TryPush → Render(sample delay) → ApplySnapshot → proxy.Render(alpha)
+Hit：CopyHits(本帧) → FlushEvents → ApplyReplicationEvents → 去重播放
+```
+
+### 已知限制
+
+- W10 出口未关：100ms / 20ms jitter / 5% 丢包 Play 未做
+- 超 MTU 只拒绝不拆包（W11）
+- 不得称公网可用
+
+### 相关文件
+
+- `Assets/Scripts/Framework/ACTNet/Prediction/*`
+- `Assets/Scripts/Framework/ACTNet/Transport/ChannelMuxTransport.cs`
+- `Assets/Scripts/Framework/ACTNet/Transport/TransportMtuGate.cs`
+- `Assets/Scripts/Domain/Simulation/Prediction/ActCharacterPredictionModel.cs`
+- `Assets/Scripts/Domain/Networking/ActReplicationEventCodec.cs`
+- `Assets/Scripts/App/Server/DedicatedEventSend.cs`
+- `docs/2026.8.20/NETSYNC_W10_STAGE_SUMMARY.md`
 
 ---
 
@@ -1510,6 +1563,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-19 | W8 Dedicated 出包 + H-DS-D 用户验收；M2 / LAN DS-Demo 关闭 |
 | 2026-08-20 | NetSync W9：Listen = `DedicatedServerRuntime` + `LocalClientRuntime`；删除 `ReplicationRoomHost` / `ActHostRoomGameplay` 与 Host 本机 Capture |
 | 2026-08-20 | W9 Listen 组合用户验收；本机预测按 `PeekAdvanceSteps` 对齐 60Hz |
+| 2026-08-20 | NetSync W10 代码切面：`ACTNet.Prediction`、ChannelMux、可靠命中事件、SnapshotTimeline；出口待 Play |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

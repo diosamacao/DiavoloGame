@@ -964,46 +964,46 @@ Assets/Tests/PlayMode/Networking/
 
 **任务**
 
-- [ ] 提取 `CommandHistory`、`PredictedStateHistory`、ACK 和 Replay 协调。  
-- [ ] 创建 `ActCharacterPredictionModel`。  
-- [ ] `PredictedLocomotionDriver` 只保留 CharacterMotor / Gate / Error 策略。  
-- [ ] `PredictedActionAckQueue` 保留 ACT 变体、连招和 Cancel 语义。  
-- [ ] Remote Entity 使用通用 `SnapshotTimeline`，ACT Proxy 只做状态到表现的映射。  
-- [ ] 增加 prediction error / snap / replay 指标。  
-- [ ] **禁止**把 ActionId、Hit/Death 判断写入通用 PredictionCoordinator。  
+- [x] 提取 `CommandHistory`、`PredictedStateHistory`、ACK 和 Replay 协调。  
+- [x] 创建 `ActCharacterPredictionModel`。  
+- [x] `PredictedLocomotionDriver` 只保留 CharacterMotor / Gate / Error 策略。  
+- [x] `PredictedActionAckQueue` 保留 ACT 变体、连招和 Cancel 语义。  
+- [x] Remote Entity 使用通用 `SnapshotTimeline`，ACT Proxy 只做状态到表现的映射。  
+- [x] 增加 prediction error / snap / replay 指标。  
+- [x] **禁止**把 ActionId、Hit/Death 判断写入通用 PredictionCoordinator。  
 
 **验收**
 
-- [ ] Fake linear entity 可预测、注入分歧、Restore + Replay。  
-- [ ] ACT 走跑 2m Gate 与当前行为一致。  
-- [ ] Action / Hit / Death 不错误 Replay 走跑。  
-- [ ] 连招超前不会被错误取消。  
-- [ ] 人工注入 RTT / jitter 后本机仍即时响应。  
+- [x] Fake linear entity 可预测、注入分歧、Restore + Replay。  
+- [ ] ACT 走跑 2m Gate 与当前行为一致。（代码保持原阈值；待 Editor Play）  
+- [ ] Action / Hit / Death 不错误 Replay 走跑。（待 Editor Play）  
+- [ ] 连招超前不会被错误取消。（待 Editor Play）  
+- [ ] 人工注入 RTT / jitter 后本机仍即时响应。（待 Editor Play）  
 
-**出口：** 预测算法骨架可复用，ACT 决策仍归业务层。→ **未达成**
+**出口：** 预测算法骨架可复用，ACT 决策仍归业务层。→ **未达成（2026-08-20 代码切面已落地，Play 未验收）**
 
 ### GF6 — 通道可靠性与网络时间
 
 **任务**
 
-- [ ] Control 使用可靠有序通道。  
-- [ ] Snapshot 使用不可靠时序通道；按 Sequence 丢旧。  
-- [ ] Command 保留最近 K 条冗余，并增加服务器消费预算。  
-- [ ] 瞬时 Hit / Vitality Event 使用可靠事件序列或最近 N 事件冗余，定案只留一种。  
-- [ ] 增加 ServerTime / Tick offset 估计。  
-- [ ] Remote SnapshotTimeline 使用 interpolation delay，不再只用本地 `InterpolationAlpha`。  
-- [ ] 增加 MTU 门禁、最大 payload 和超限拆包策略。  
-- [ ] 评估并定案 LiteNetLib 或 Unity Transport；若使用成熟库，不重复实现可靠 UDP。  
+- [x] Control 使用可靠有序通道。  
+- [x] Snapshot 使用不可靠时序通道；按 Sequence 丢旧。  
+- [x] Command 保留最近 K 条冗余（服务器消费预算仍是 Merge 进下一权威帧）。  
+- [x] 瞬时 Hit / Vitality Event 使用可靠事件序列或最近 N 事件冗余，定案只留一种。  
+- [x] 增加 ServerTime / Tick offset 估计。  
+- [x] Remote SnapshotTimeline 使用 interpolation delay，不再只用本地 `InterpolationAlpha`。  
+- [x] 增加 MTU 门禁、最大 payload；超限拒绝并计数（W11 再做拆包）。  
+- [x] 评估并定案 LiteNetLib 或 Unity Transport；若使用成熟库，不重复实现可靠 UDP。  
 
 **验收**
 
-- [ ] 100ms RTT、20ms jitter、5% 丢包下 Session 不误断。  
-- [ ] AuthorityTick 乱序不会回滚 Proxy 到旧状态。  
-- [ ] 丢普通 Snapshot 仍平滑；关键死亡 / Hit Cue 最终到达且只播一次。  
-- [ ] 单包不超过配置 MTU；超限有明确分组或拒绝日志。  
-- [ ] 传输层测试不引用 ACT。  
+- [ ] 100ms RTT、20ms jitter、5% 丢包下 Session 不误断。（待 Editor Play）  
+- [x] AuthorityTick 乱序不会回滚 Proxy 到旧状态。（`SnapshotTimeline` / Mux 单测）  
+- [ ] 丢普通 Snapshot 仍平滑；关键死亡 / Hit Cue 最终到达且只播一次。（待 Editor Play）  
+- [x] 单包不超过配置 MTU；超限有明确分组或拒绝日志。  
+- [x] 传输层测试不引用 ACT。  
 
-**出口：** 通用网络基础设施达到公网 Demo 基线。→ **未达成**
+**出口：** 通用网络基础设施达到公网 Demo 基线。→ **未达成（2026-08-20 代码切面已落地，公网 Play 未验收）**
 
 ### GF7 — Delta、Relevancy 与发送预算
 

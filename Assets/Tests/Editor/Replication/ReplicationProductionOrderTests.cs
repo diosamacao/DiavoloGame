@@ -228,8 +228,7 @@ public sealed class ReplicationProductionOrderTests
             "_observer.ApplySpawns(",
             "_observer.ApplyUpdates(",
             "_observer.ApplyDespawns(",
-            "_owner.ApplySnapshot(",
-            "PlayReplicatedHits(application.Hits);");
+            "_owner.ApplySnapshot(");
 
         string applyOwner = Slice(
             owner,

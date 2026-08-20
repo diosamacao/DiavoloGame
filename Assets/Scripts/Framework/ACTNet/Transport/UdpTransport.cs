@@ -108,7 +108,7 @@ public sealed class UdpTransport : INetTransport
         if (!_remoteByConnection.TryGetValue(connectionId, out IPEndPoint remote))
             throw new InvalidOperationException($"连接不存在：{connectionId}。");
 
-        // W2 保持现有 UDP 载荷不变；通道头在可靠传输 Wave 再进入线格式。
+        // 通道头由 ChannelMuxTransport 写入 payload；此处只发数据报。
         _udp.Send(payload, payload.Length, remote);
         _bytesSent += payload.Length;
         _packetsSent++;

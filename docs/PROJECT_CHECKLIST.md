@@ -1,6 +1,6 @@
 # ACTGame 项目总清单
 
-> 更新：2026-08-20 — NetSync W9 Listen 组合已用户验收；下一联网切面为 W10
+> 更新：2026-08-20 — NetSync W10 代码切面已落地；出口待 100ms/5% Play，不得称公网可用
 
 > 角色：**一页总览**（进度 / 下一步 / 明确不做）  
 > 细节真源勿与本文抢权威：
@@ -51,7 +51,7 @@
 | 相机 | 🟡 | 跟随 + 滤左右；Lock-On / SkillShot 未做 |
 | 正式 UI / 血条 | ⬜ | 仅 Debug HUD；目标 MVVM |
 | 吸附 / 绕背 | ✅ | Wave 4 位移出口（2026-08-09） |
-| 预测回滚 / 联网 | ✅ Listen 组合 + Dedicated LAN Demo | NS0～NS5 + M1 + W5～W9 已验收；其后 W10 公网基线 |
+| 预测回滚 / 联网 | 🟡 W10 代码切面 / Play 未验收 | NS0～NS5 + M1 + W5～W9 已验收；W10 预测/通道/时间已落地，出口待公网 Play |
 | 打击感木桩验收台 | ✅ | Monster_EDF + 关行动 + Hit_Shake；Play 验收 2026-08-08 |
 | 命中 VFX/SFX（A2） | ✅ | HitFeedback + Cue；打击感验收 2026-08-09 |
 | 学习/工程实践轨 | ⬜ | BT 编辑器、A*、AB/Lua、SDK、剧情等（§6.4） |
@@ -60,9 +60,10 @@
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项（联网）：** NetSync W10 通用预测 / 可靠通道 / 网络时间  
-W9 备忘：[`2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md)  
+**下一项（联网）：** NetSync W10 Play 验收（100ms RTT / 20ms jitter / 5% 丢包）；通过后再开 W11  
+W10 备忘：[`2026.8.20/NETSYNC_W10_STAGE_SUMMARY.md`](./2026.8.20/NETSYNC_W10_STAGE_SUMMARY.md)  
 踩坑回顾：[`2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md`](./2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md)  
+W9 备忘：[`2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md)  
 W8 备忘：[`2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md)  
 启动：[`2026.8.19/DEDICATED_SERVER_LAUNCH.md`](./2026.8.19/DEDICATED_SERVER_LAUNCH.md)  
 W7 备忘：[`2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md)  

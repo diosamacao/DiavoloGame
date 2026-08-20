@@ -103,6 +103,8 @@ public sealed class CombatDebugHudController : AppControllerBase
             .Append(" | frame=").Append(room.AuthorityFrame);
         if (room.RttMs >= 0)
             sb.Append(" | rtt=").Append(room.RttMs).Append("ms");
+        if (room.JitterMs >= 0)
+            sb.Append(" | jitter=").Append(room.JitterMs).Append("ms");
         if (room.HealthMilli >= 0)
             sb.Append(" | hpMilli=").Append(room.HealthMilli);
         sb.AppendLine();
@@ -115,6 +117,12 @@ public sealed class CombatDebugHudController : AppControllerBase
                 sb.Append(" | proxies=").Append(room.ProxyCount);
             if (room.PredictionPendingCount >= 0)
                 sb.Append(" | pending=").Append(room.PredictionPendingCount);
+            if (room.LossPermille >= 0)
+                sb.Append(" | loss=").Append(room.LossPermille).Append("‰");
+            if (room.InterpolationDelayMs >= 0)
+                sb.Append(" | delay=").Append(room.InterpolationDelayMs).Append("ms");
+            sb.Append(" | snap=").Append(room.SnapCount)
+                .Append(" | replay=").Append(room.ReplayCount);
             sb.AppendLine();
         }
     }

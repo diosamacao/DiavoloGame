@@ -12,6 +12,8 @@ public sealed class ActObserverReplicationAdapter
     readonly Action<IHurtboxTarget> _registerTarget;
     readonly Action<IHurtboxTarget> _unregisterTarget;
     readonly Dictionary<int, RemoteCharacterProxy> _proxies = new();
+    readonly Dictionary<int, SnapshotTimeline<ActorReplicationSnapshot>> _timelines = new();
+    readonly Dictionary<int, long> _appliedTicks = new();
 
     /// <summary>创建绑定内容目录、Schema、Proxy 父节点和 TargetSystem 接缝的 Observer 适配器。</summary>
     public ActObserverReplicationAdapter(
@@ -41,6 +43,7 @@ public sealed class ActObserverReplicationAdapter
     public void ApplySpawns(
         SpawnRecord[] records,
         SimActorId ownerActorId,
+        long authorityTick,
         ref ActorReplicationSnapshot ownerSnapshot,
         ref bool hasOwnerSnapshot)
     {
@@ -76,7 +79,12 @@ public sealed class ActObserverReplicationAdapter
 
             CharacterConfig config = _content.ResolveCharacterConfig(record.ArchetypeId);
             RemoteCharacterProxy proxy = CreateProxy(config);
-            _proxies.Add(record.EntityId.Value, proxy);
+            int id = record.EntityId.Value;
+            _proxies.Add(id, proxy);
+            var timeline = new SnapshotTimeline<ActorReplicationSnapshot>();
+            timeline.TryPush(authorityTick, in snapshot);
+            _timelines.Add(id, timeline);
+            _appliedTicks[id] = authorityTick;
             _registerTarget?.Invoke(proxy);
             proxy.ApplySnapshot(in snapshot);
         }
@@ -86,6 +94,7 @@ public sealed class ActObserverReplicationAdapter
     public void ApplyUpdates(
         EntityRecord[] records,
         SimActorId ownerActorId,
+        long authorityTick,
         ref ActorReplicationSnapshot ownerSnapshot,
         ref bool hasOwnerSnapshot)
     {
@@ -106,12 +115,27 @@ public sealed class ActObserverReplicationAdapter
                 continue;
             }
 
-            if (!_proxies.TryGetValue(record.EntityId.Value, out RemoteCharacterProxy proxy))
+            int id = record.EntityId.Value;
+            if (!_proxies.TryGetValue(id, out RemoteCharacterProxy proxy))
             {
                 throw new InvalidOperationException(
-                    $"远端 Update {record.EntityId.Value} 没有已存在的 Proxy。");
+                    $"远端 Update {id} 没有已存在的 Proxy。");
             }
-            proxy.ApplySnapshot(in snapshot);
+
+            if (!_timelines.TryGetValue(id, out SnapshotTimeline<ActorReplicationSnapshot> timeline))
+            {
+                timeline = new SnapshotTimeline<ActorReplicationSnapshot>();
+                _timelines.Add(id, timeline);
+            }
+
+            // 旧 Tick 不回滚 Proxy；首份仍立即提交以免实体停在出生原点。
+            if (!timeline.TryPush(authorityTick, in snapshot))
+                continue;
+            if (!_appliedTicks.ContainsKey(id))
+            {
+                proxy.ApplySnapshot(in snapshot);
+                _appliedTicks[id] = authorityTick;
+            }
         }
     }
 
@@ -133,6 +157,8 @@ public sealed class ActObserverReplicationAdapter
             _unregisterTarget?.Invoke(proxy);
             proxy.Dispose();
             _proxies.Remove(id);
+            _timelines.Remove(id);
+            _appliedTicks.Remove(id);
         }
 
         return true;
@@ -158,6 +184,39 @@ public sealed class ActObserverReplicationAdapter
             proxy.Dispose();
         }
         _proxies.Clear();
+        _timelines.Clear();
+        _appliedTicks.Clear();
+    }
+
+    /// <summary>按插值延迟取样远端时间线，再用取样 alpha 渲染；不再只用本地 InterpolationAlpha。</summary>
+    public void Render(int interpolationDelayTicks)
+    {
+        foreach (KeyValuePair<int, RemoteCharacterProxy> pair in _proxies)
+        {
+            RemoteCharacterProxy proxy = pair.Value;
+            if (proxy == null)
+                continue;
+            if (!_timelines.TryGetValue(pair.Key, out SnapshotTimeline<ActorReplicationSnapshot> timeline)
+                || !timeline.TrySample(
+                    interpolationDelayTicks,
+                    out _,
+                    out long toTick,
+                    out _,
+                    out ActorReplicationSnapshot to,
+                    out float alpha))
+            {
+                proxy.Render(0f);
+                continue;
+            }
+
+            if (!_appliedTicks.TryGetValue(pair.Key, out long applied) || applied != toTick)
+            {
+                proxy.ApplySnapshot(in to);
+                _appliedTicks[pair.Key] = toTick;
+            }
+
+            proxy.Render(alpha);
+        }
     }
 
     /// <summary>校验角色 Schema 与 EntityId 后解码唯一 Snapshot 布局。</summary>
