@@ -27,7 +27,7 @@ public sealed class CharacterSnapshotSchemaV1Tests
         Assert.That(restored.Gait, Is.EqualTo(source.Gait));
         Assert.That(restored.Cardinal, Is.EqualTo(source.Cardinal));
         Assert.That(restored.ActionId, Is.EqualTo(source.ActionId));
-        Assert.That(restored.GraphNodeId, Is.EqualTo(source.GraphNodeId));
+        Assert.That(restored.GraphNodeKey, Is.EqualTo(source.GraphNodeKey));
         Assert.That(restored.ActionFrame, Is.EqualTo(source.ActionFrame));
         Assert.That(restored.FreezeFrames, Is.EqualTo(source.FreezeFrames));
         Assert.That(restored.SelectedTargetId, Is.EqualTo(source.SelectedTargetId));
@@ -110,7 +110,7 @@ public sealed class CharacterSnapshotSchemaV1Tests
             gait: 7,
             cardinal: 8,
             actionId: 901,
-            graphNodeId: "Enemy/Heavy_二段",
+            graphNodeKey: GraphNodeKey.FromStableName("Enemy/Heavy_二段"),
             actionFrame: 34,
             freezeFrames: 5,
             selectedTargetId: new SimActorId(202),

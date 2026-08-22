@@ -236,6 +236,12 @@ public sealed class DedicatedServerRuntime : IDisposable
     {
         while (_session.TryDequeueApplication(out SessionApplicationPacket packet))
         {
+            if (packet.MessageType == (byte)RoomMessageKind.ReplicationRecover)
+            {
+                _authority.RequestFullRecovery(packet.ConnectionId);
+                continue;
+            }
+
             if (packet.MessageType != (byte)RoomMessageKind.ClientCommand)
                 continue;
             if (!_players.TryGetValue(packet.ConnectionId, out DedicatedPlayerRuntime player))

@@ -215,7 +215,7 @@ public sealed class ActClientRoomGameplay
             _clock.ObserveRtt(rttMs);
     }
 
-    /// <summary>Owner 跟本地固定步 alpha；Observer 走 SnapshotTimeline 延迟。</summary>
+    /// <summary>Owner 跟本地固定步 alpha；Observer 用真实时间推进播放头与 Clip。</summary>
     public void Render()
     {
         SimulationHost host = _world.SimulationHost;
@@ -224,7 +224,16 @@ public sealed class ActClientRoomGameplay
 
         float alpha = host.InterpolationAlpha;
         _localPlayer?.Actor?.Render(alpha);
-        _observer.Render(_clock.InterpolationDelayTicks);
+        _observer.Render(_clock.InterpolationDelayTicks, Time.deltaTime);
+    }
+
+    /// <summary>丢掉 Observer / Registry，保留 Session，等待权威下一帧全量 Spawn。</summary>
+    public void ResetReplicationForRecovery()
+    {
+        _observer.DisposeViews();
+        _owner.Reset();
+        _replicationClient.ResetRegistry();
+        _loggedOwnerPredict = false;
     }
 
     /// <summary>注销并释放全部 Observer View 与 Owner 预测状态。</summary>

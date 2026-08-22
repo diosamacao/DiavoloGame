@@ -3,8 +3,6 @@ using System;
 /// <summary>定义 ActorReplicationSnapshot 的唯一字段布局，并提供独立与嵌入式编解码。</summary>
 public static class ActorReplicationSnapshotCodec
 {
-    const int MaxGraphNodeIdBytes = 256;
-
     /// <summary>把单份快照编码为无版本头、无外层长度的完整独立载荷。</summary>
     public static byte[] Encode(in ActorReplicationSnapshot snapshot)
     {
@@ -41,7 +39,7 @@ public static class ActorReplicationSnapshotCodec
         writer.WriteByte(snapshot.Gait);
         writer.WriteByte(snapshot.Cardinal);
         writer.WriteInt32(snapshot.ActionId);
-        writer.WriteString(snapshot.GraphNodeId, MaxGraphNodeIdBytes);
+        writer.WriteInt32(snapshot.GraphNodeKey);
         writer.WriteInt32(snapshot.ActionFrame);
         writer.WriteInt32(snapshot.FreezeFrames);
         WriteActorId(writer, snapshot.SelectedTargetId);
@@ -71,7 +69,7 @@ public static class ActorReplicationSnapshotCodec
             reader.ReadByte(),
             reader.ReadByte(),
             reader.ReadInt32(),
-            reader.ReadString(MaxGraphNodeIdBytes),
+            reader.ReadInt32(),
             reader.ReadInt32(),
             reader.ReadInt32(),
             ReadActorId(reader),

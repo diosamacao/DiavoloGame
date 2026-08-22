@@ -14,6 +14,9 @@ public sealed class ReplicationEntityState
     /// <summary>解释完整状态载荷的 Schema 标识。</summary>
     public ushort SchemaId { get; }
 
+    /// <summary>出招/受击等必须当 Tick 发出，不受 SnapshotInterval 节拍限制。</summary>
+    public bool Urgent { get; }
+
     /// <summary>返回完整状态载荷的独立副本。</summary>
     public byte[] Payload => Clone(_payload);
 
@@ -22,7 +25,8 @@ public sealed class ReplicationEntityState
         NetEntityId entityId,
         NetArchetypeId archetypeId,
         ushort schemaId,
-        byte[] payload)
+        byte[] payload,
+        bool urgent = false)
     {
         if (!entityId.IsValid)
             throw new ArgumentException("ReplicationEntityState EntityId 必须有效。", nameof(entityId));
@@ -38,6 +42,7 @@ public sealed class ReplicationEntityState
         EntityId = entityId;
         ArchetypeId = archetypeId;
         SchemaId = schemaId;
+        Urgent = urgent;
         _payload = Clone(payload);
     }
 

@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-20（W10 代码切面：Prediction + ChannelMux；Play 未验收）
+> Last audited: 2026-08-22（W11 代码切面：Delta / Relevancy / GraphNodeKey；W10 Play 未验收）
 
 ## 项目概述
 
@@ -100,7 +100,7 @@ flowchart TB
 | `ACTNet.Core` | 零依赖纯 C# 网络基础：稳定 Id/Tick/Sequence、`NetProcessRole`、协议/内容版本、结果、Metrics 与有界小端 Reader/Writer |
 | `ACTNet.Transport` | 只依赖 Core：按 `NetConnectionId` 定向收发；`ChannelMuxTransport` 为 Control/Event 做可靠有序，Snapshot 丢旧；`TransportMtuGate` 拒超 MTU |
 | `ACTNet.Session` | 只依赖 Core/Transport：多连接 Join、Player 分配、Heartbeat/RTT/jitter、超时/Kick；构造时包装 ChannelMux |
-| `ACTNet.Replication` | 只依赖 Core：显式 Spawn/Update/Despawn、Schema Registry、Frame Codec、Server full-set 差分与 Client Sequence 丢旧 |
+| `ACTNet.Replication` | 只依赖 Core：显式 Spawn/Update/Despawn、未变跳过、兴趣/预算/节拍、baseline 恢复；Frame Codec V1 |
 | `ACTNet.Prediction` | 只依赖 Core：`CommandHistory` / `PredictedStateHistory` / `PredictionCoordinator` / `SnapshotTimeline` / `NetworkTimeEstimator`；不解读 ActionId 或 Hit/Death |
 | `ACTGame.Networking` | 依赖 Simulation 与 ACTNet Core/Replication：`CharacterSnapshotSchemaV1`、稳定 Character Archetype 映射；不含 Unity 资产引用 |
 | `ActAuthorityReplicationAdapter` | App/Networking 的 ACT 权威映射：远端输入灌入、Guest/敌人 Capture 与 FrameHits 补 ActionId；不再拍场景 LocalPlayer |
@@ -134,7 +134,7 @@ flowchart TB
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只负责装配和注册，不再实现 Actor `Update` Tick。
 
-NetSync M1 已于 2026-08-18 关闭。W5～W8 / M2 已于 2026-08-19 验收。W9 Listen 组合已于 2026-08-20 用户验收。W10 代码切面已落地，出口待 Play。阅读：[`docs/2026.8.20/NETSYNC_W10_STAGE_SUMMARY.md`](../../docs/2026.8.20/NETSYNC_W10_STAGE_SUMMARY.md)。
+NetSync M1 已于 2026-08-18 关闭。W5～W8 / M2 已于 2026-08-19 验收。W9 Listen 组合已于 2026-08-20 用户验收。W10 代码切面已落地，出口待 Play。W11 代码切面已落地，R2 出口未关。阅读：[`docs/2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md`](../../docs/2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md)。
 
 ### 2. 泛型状态机（Core）
 
@@ -265,6 +265,7 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `ReplicationServer` / `ReplicationFrameCodec` / `ReplicationClient` | Host full set 生成显式 Spawn/Update/Despawn；Client 原子应用并丢弃旧 Sequence |
 | `ActorReplicationSnapshotCodec` / `CharacterSnapshotSchemaV1` / `ReplicationPoseApplier` | Snapshot 字段唯一布局 → Schema payload；客户端解码后写回 MotorSim |
 | `ActReplicationApplicationPayloadCodec` | 帧级 V1 载荷：本步 applied hint；生产路径 hits 为空，命中改走 `ActReplicationEventCodec` |
+| `GraphNodeKey` / `ReplicationBuildOptions` | 节点稳定整数；Compact 节拍/预算；Recover 重置 baseline |
 | `ActReplicationEventCodec` / `DedicatedEventSend` | 本帧命中可靠事件包；Runtime 按连接走 `EventReliableOrdered` |
 | `SessionCodec` / `ServerSession` / `ClientSession` | Session 信封与控制消息唯一真源；每连接注册、版本/容量校验、心跳、超时和 Kick |
 | `RoomCodec` / `RoomRemoteInputMerge` | 只编码 ACT 上行命令批；未应用 Hint 边沿合并，不处理 Session 或下行 Frame |

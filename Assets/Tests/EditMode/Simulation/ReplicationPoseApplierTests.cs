@@ -25,7 +25,7 @@ public sealed class ReplicationPoseApplierTests
             gait: 0,
             cardinal: 0,
             actionId: 0,
-            graphNodeId: string.Empty,
+            graphNodeKey: 0,
             actionFrame: 0,
             freezeFrames: 0,
             selectedTargetId: SimActorId.Invalid,

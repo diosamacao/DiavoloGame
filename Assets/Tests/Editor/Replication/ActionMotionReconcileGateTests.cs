@@ -188,7 +188,7 @@ public sealed class ActionMotionReconcileGateTests
             0,
             0,
             actionId,
-            string.Empty,
+            0,
             actionFrame,
             freezeFrames,
             SimActorId.Invalid,

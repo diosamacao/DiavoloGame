@@ -14,6 +14,7 @@ public sealed class ActObserverReplicationAdapter
     readonly Dictionary<int, RemoteCharacterProxy> _proxies = new();
     readonly Dictionary<int, SnapshotTimeline<ActorReplicationSnapshot>> _timelines = new();
     readonly Dictionary<int, long> _appliedTicks = new();
+    readonly Dictionary<int, double> _playbackTicks = new();
 
     /// <summary>创建绑定内容目录、Schema、Proxy 父节点和 TargetSystem 接缝的 Observer 适配器。</summary>
     public ActObserverReplicationAdapter(
@@ -87,6 +88,7 @@ public sealed class ActObserverReplicationAdapter
             _appliedTicks[id] = authorityTick;
             _registerTarget?.Invoke(proxy);
             proxy.ApplySnapshot(in snapshot);
+            _playbackTicks[id] = authorityTick;
         }
     }
 
@@ -128,14 +130,13 @@ public sealed class ActObserverReplicationAdapter
                 _timelines.Add(id, timeline);
             }
 
-            // 旧 Tick 不回滚 Proxy；首份仍立即提交以免实体停在出生原点。
+            // 旧 Tick 不回滚。每份到达的快照立刻写判定/受击/Notify，禁止等播放头。
             if (!timeline.TryPush(authorityTick, in snapshot))
                 continue;
-            if (!_appliedTicks.ContainsKey(id))
-            {
-                proxy.ApplySnapshot(in snapshot);
-                _appliedTicks[id] = authorityTick;
-            }
+            proxy.ApplySnapshot(in snapshot, simulationTicks: 0, updatePresentation: false);
+            _appliedTicks[id] = authorityTick;
+            if (!_playbackTicks.ContainsKey(id))
+                _playbackTicks[id] = authorityTick;
         }
     }
 
@@ -159,6 +160,7 @@ public sealed class ActObserverReplicationAdapter
             _proxies.Remove(id);
             _timelines.Remove(id);
             _appliedTicks.Remove(id);
+            _playbackTicks.Remove(id);
         }
 
         return true;
@@ -186,22 +188,41 @@ public sealed class ActObserverReplicationAdapter
         _proxies.Clear();
         _timelines.Clear();
         _appliedTicks.Clear();
+        _playbackTicks.Clear();
     }
 
-    /// <summary>按插值延迟取样远端时间线，再用取样 alpha 渲染；不再只用本地 InterpolationAlpha。</summary>
-    public void Render(int interpolationDelayTicks)
+    /// <summary>
+    /// 播放头只驱动模型锚点插值。判定、受击和 Notify 在 ApplyUpdates 到达时已提交。
+    /// </summary>
+    public void Render(int interpolationDelayTicks, float deltaTimeSeconds)
     {
         foreach (KeyValuePair<int, RemoteCharacterProxy> pair in _proxies)
         {
             RemoteCharacterProxy proxy = pair.Value;
             if (proxy == null)
                 continue;
-            if (!_timelines.TryGetValue(pair.Key, out SnapshotTimeline<ActorReplicationSnapshot> timeline)
-                || !timeline.TrySample(
-                    interpolationDelayTicks,
+            if (!_timelines.TryGetValue(pair.Key, out SnapshotTimeline<ActorReplicationSnapshot> timeline))
+            {
+                proxy.Render(0f);
+                continue;
+            }
+
+            bool hasPlayback = _playbackTicks.TryGetValue(pair.Key, out double playback);
+            playback = RemotePlaybackClock.Advance(
+                playback,
+                hasPlayback,
+                timeline.FirstTick,
+                timeline.LatestTick,
+                interpolationDelayTicks,
+                deltaTimeSeconds,
+                SimulationConfig.DefaultLogicHz);
+            _playbackTicks[pair.Key] = playback;
+
+            if (!timeline.TrySampleAt(
+                    playback,
                     out _,
-                    out long toTick,
                     out _,
+                    out ActorReplicationSnapshot from,
                     out ActorReplicationSnapshot to,
                     out float alpha))
             {
@@ -209,12 +230,8 @@ public sealed class ActObserverReplicationAdapter
                 continue;
             }
 
-            if (!_appliedTicks.TryGetValue(pair.Key, out long applied) || applied != toTick)
-            {
-                proxy.ApplySnapshot(in to);
-                _appliedTicks[pair.Key] = toTick;
-            }
-
+            proxy.SetPresentationBracket(in from, in to);
+            proxy.TickAnimation(deltaTimeSeconds);
             proxy.Render(alpha);
         }
     }

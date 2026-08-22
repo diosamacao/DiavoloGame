@@ -28,6 +28,12 @@ public sealed class ReplicationClient
     /// <summary>最后一个成功应用的帧序列；尚未应用时为 Invalid。</summary>
     public NetSequence LatestSequence => _latestSequence;
 
+    /// <summary>丢掉已应用实体，保留 LatestSequence，供 baseline 恢复后重新 Spawn。</summary>
+    public void ResetRegistry()
+    {
+        _registry.ReplaceWith(new ReplicatedEntityRegistry());
+    }
+
     /// <summary>应用严格更新的帧；旧或重复 Sequence 整帧丢弃且不触发事件。</summary>
     public ReplicationClientApplyResult ApplyFrame(ReplicationFrame frame)
     {

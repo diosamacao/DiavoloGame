@@ -440,25 +440,25 @@ W5 起额外要求：
 
 **任务**
 
-- [ ] Snapshot 发送频率与 60Hz Simulation 解耦。
-- [ ] 每连接维护 baseline ACK、change mask、full recovery。
-- [ ] `GraphNodeId` 迁为稳定整数。
-- [ ] 增加 Visibility / Priority / per-connection byte budget。
-- [ ] 删除旧 `IReplicationTransport`、混合 RoomCodec 入口、Actors diff 生命周期和重复 Role/Id。
-- [ ] 建 FakeActionGame：移动 Entity + Owner 预测 + Observer 插值。
-- [ ] 输出程序集依赖图、接入说明、协议说明、调试指南。
-- [ ] 稳定前保持项目内 Framework；达到出口后再决定 Unity Package。
+- [x] Snapshot 发送频率与 60Hz Simulation 解耦。（2026-08-22：Compact 间隔 2 Tick；Owner 优先）
+- [x] 每连接维护 baseline ACK、change mask、full recovery。（实体级 payload 相等即跳过；Recover 重置 baseline）
+- [x] `GraphNodeId` 迁为稳定整数。
+- [x] 增加 Visibility / Priority / per-connection byte budget。
+- [x] 删除旧 `IReplicationTransport`、混合 RoomCodec 入口、Actors diff 生命周期和重复 Role/Id。（Transport/Host/隐式销毁已在前序删除；RoomCodec 仍留 Simulation）
+- [x] 建 FakeActionGame：移动 Entity + Owner 预测 + Observer 插值。
+- [x] 输出程序集依赖图、接入说明、协议说明、调试指南。（`docs/2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md`）
+- [x] 稳定前保持项目内 Framework；达到出口后再决定 Unity Package。
 
 **验收**
 
-- [ ] 10+ Actor 平均下行显著低于 W0 全量 60Hz 基线。
-- [ ] 不相关 Entity 不发给连接；Owner 关键状态不被饿死。
-- [ ] baseline 丢失后可恢复 full state。
-- [ ] FakeActionGame 不引用 ACT Character 即可跑 Loopback。
+- [x] 10+ Actor 平均下行显著低于 W0 全量 60Hz 基线。（`FakeActionGameLoopbackTests.Compact_TenPlusIdleActors_BeatsFullRateBytes`；Play 未验）
+- [ ] 不相关 Entity 不发给连接；Owner 关键状态不被饿死。（代码已裁兴趣；待 Editor Play）
+- [x] baseline 丢失后可恢复 full state。（`ReplicationDeltaTests.ResetBaseline_RespawnsLivingEntities`）
+- [x] FakeActionGame 不引用 ACT Character 即可跑 Loopback。
 - [ ] 当前游戏只通过 `ACTGame.Networking` Adapter 接框架。
-- [ ] 无新旧 Controller 双轨。
+- [x] 无新旧 Controller 双轨。
 
-**出口：** R2 级可复用 ACT 网络框架形成。→ **未达成**
+**出口：** R2 级可复用 ACT 网络框架形成。→ **未达成（2026-08-22 代码切面；W10 Play 仍开放）**
 
 ---
 
@@ -559,7 +559,7 @@ Codec Golden Bytes
 ```
 
 W0 已于 2026-08-18 关闭，W1～W4 搬迁均受其基线保护。
-W5～W8 / M2 已于 2026-08-19 用户验收。W9 Listen 组合已于 2026-08-20 用户验收。W10 代码切面已落地，出口待 Play；下一实现切面为 W11。
+W5～W8 / M2 已于 2026-08-19 用户验收。W9 Listen 组合已于 2026-08-20 用户验收。W10 代码切面已落地，出口待 Play（用户暂缓 Clumsy 验收）。W11 代码切面已落地，R2 出口未关。
 W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 
 ---
@@ -603,5 +603,6 @@ W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 | 2026-08-20 | W9 Listen 组合代码切面：同一 `DedicatedServerRuntime` + `LocalClientRuntime`；旧 Host Room 删除 |
 | 2026-08-20 | W9 Listen 组合用户验收；预测按权威步数；下一联网切面为 W10 |
 | 2026-08-20 | W10 代码切面：ACTNet.Prediction + ChannelMux + 可靠命中事件；出口待 Play |
+| 2026-08-22 | W11 代码切面：Delta/兴趣/预算、GraphNodeKey、Recover、FakeActionGame；R2 出口未关 |
 
 

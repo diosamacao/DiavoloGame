@@ -32,7 +32,7 @@ public static class ReplicationSnapshotBuilder
 
         SimVec2 pos = motor.PositionMm;
         int resolvedActionId = action.IsActive ? actionId : 0;
-        string nodeId = action.IsActive ? action.NodeId ?? string.Empty : string.Empty;
+        int nodeKey = action.IsActive ? GraphNodeKey.FromStableName(action.NodeId) : 0;
         int actionFrame = action.IsActive ? action.CurrentFrame : 0;
         int freeze = action.IsActive ? action.FreezeFrames : 0;
 
@@ -50,7 +50,7 @@ public static class ReplicationSnapshotBuilder
             gait,
             cardinal,
             resolvedActionId,
-            nodeId,
+            nodeKey,
             actionFrame,
             freeze,
             selectedTargetId,

@@ -1,6 +1,6 @@
 # ACTGame 项目总清单
 
-> 更新：2026-08-20 — NetSync W10 代码切面已落地；出口待 100ms/5% Play，不得称公网可用
+> 更新：2026-08-22 — NetSync W11 代码切面已落地；W10 Play 暂缓，不得称公网可用
 
 > 角色：**一页总览**（进度 / 下一步 / 明确不做）  
 > 细节真源勿与本文抢权威：
@@ -51,7 +51,7 @@
 | 相机 | 🟡 | 跟随 + 滤左右；Lock-On / SkillShot 未做 |
 | 正式 UI / 血条 | ⬜ | 仅 Debug HUD；目标 MVVM |
 | 吸附 / 绕背 | ✅ | Wave 4 位移出口（2026-08-09） |
-| 预测回滚 / 联网 | 🟡 W10 代码切面 / Play 未验收 | NS0～NS5 + M1 + W5～W9 已验收；W10 预测/通道/时间已落地，出口待公网 Play |
+| 预测回滚 / 联网 | 🟡 W11 代码切面 / Play 未验收 | W10 出口暂缓；W11 Delta/兴趣/FakeActionGame 已落地，R2 未关 |
 | 打击感木桩验收台 | ✅ | Monster_EDF + 关行动 + Hit_Shake；Play 验收 2026-08-08 |
 | 命中 VFX/SFX（A2） | ✅ | HitFeedback + Cue；打击感验收 2026-08-09 |
 | 学习/工程实践轨 | ⬜ | BT 编辑器、A*、AB/Lua、SDK、剧情等（§6.4） |
@@ -60,7 +60,8 @@
 
 ## 3. 当前焦点（立刻做什么）
 
-**下一项（联网）：** NetSync W10 Play 验收（100ms RTT / 20ms jitter / 5% 丢包）；通过后再开 W11  
+**下一项（联网）：** W11 Play（远敌裁剪 / Owner 不被饿死）或用户指定的 W12；W10 Clumsy 验收仍开放  
+W11 备忘：[`2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md`](./2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md)  
 W10 备忘：[`2026.8.20/NETSYNC_W10_STAGE_SUMMARY.md`](./2026.8.20/NETSYNC_W10_STAGE_SUMMARY.md)  
 踩坑回顾：[`2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md`](./2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md)  
 W9 备忘：[`2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md)  

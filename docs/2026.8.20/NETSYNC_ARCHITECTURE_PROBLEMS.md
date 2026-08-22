@@ -1,7 +1,7 @@
 # NetSync 网络架构搭建问题回顾
 
 > 撰写：2026-08-20  
-> 范围：NS0～NS5 + W0～W10（W10 为代码切面，Play 未验收）  
+> 范围：NS0～NS5 + W0～W11（W10/W11 为代码切面，Play 未验收）  
 > 角色：**踩坑与合同备忘**，不是排期真源  
 > 排期：[`../2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)  
 > 实现阅读：[`../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)
@@ -34,6 +34,7 @@
 | W7～W8 | 2026-08-19 | Dedicated 可打 + 出包 | Owner 建成 Proxy、命令慢放、Hint 和解、Editor 误 Quit |
 | W9 | 2026-08-20 | Listen = Server + LocalClient | 本机按渲染帧预测；Host 本机仍是特殊座位 |
 | W10 | 2026-08-20 | Prediction + ChannelMux + 可靠命中 | 代码已切；100ms/5% Play 未打穿 |
+| W11 | 2026-08-22 | Delta / Relevancy / GraphNodeKey | 代码已切；远敌裁剪 Play 未打穿 |
 
 ---
 
@@ -332,7 +333,8 @@ W10 **代码已落地**、Play 未打穿；其后能力仍开放：
 
 - 100ms RTT / 20ms jitter / 5% 丢包完整对局（W10 出口）
 - Play 上验证 2m Gate、连招超前、Hit Cue 只播一次
-- Delta / Relevancy / 超 MTU 拆包（W11）
+- Delta / Relevancy（W11 代码已切；Play 未验）
+- 超 MTU 拆包（仍拒绝，未做）
 - 重连、安全、容器、压测（W12）
 - CI 自动出包 + 双 Client 拉起断言（W8 后置）
 
@@ -352,5 +354,6 @@ W10 出口关闭前只称 **LAN Demo**，不称公网可用。
 | Editor 不 Quit | [`../2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md`](../2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md) |
 | Listen 组合与 60Hz 预测 | [`../2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md`](../2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md) |
 | W10 预测 / 通道 / 时间 | [`./NETSYNC_W10_STAGE_SUMMARY.md`](./NETSYNC_W10_STAGE_SUMMARY.md) |
+| W11 Delta / Relevancy | [`../2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md`](../2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md) |
 | 走跑 / 出招合同 | [`../2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md) |
 | 帧序问答（当时 Host Room） | [`../2026.8.16/NETWORK_SYNC_STUDY_QA.md`](../2026.8.16/NETWORK_SYNC_STUDY_QA.md) |

@@ -16,6 +16,7 @@ public sealed class RoomCodecTests
     public void MatchEnd_MessageKind_IsEightAndRoundTrips()
     {
         Assert.That((byte)RoomMessageKind.MatchEnd, Is.EqualTo(8));
+        Assert.That((byte)RoomMessageKind.ReplicationRecover, Is.EqualTo(10));
         Assert.That((byte)SessionMessageKind.Kick, Is.EqualTo(7));
 
         var message = new MatchEndMessage(MatchEndReason.Completed, 42);

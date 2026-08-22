@@ -16,6 +16,8 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
     readonly List<DedicatedReplicationSend> _outbound = new();
     readonly List<DedicatedEventSend> _outboundEvents = new();
     readonly HashSet<NetConnectionId> _pendingJoinSnapshots = new();
+    readonly HashSet<NetConnectionId> _pendingFullRecovery = new();
+    readonly List<ReplicationEntityState> _relevantStates = new();
     bool _disposed;
 
     /// <summary>绑定已关闭自动 Tick 的 SimulationHost 与场景内容 Registry。</summary>
@@ -118,6 +120,14 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
 
         _replicationByConnection.Remove(connectionId);
         _pendingJoinSnapshots.Remove(connectionId);
+        _pendingFullRecovery.Remove(connectionId);
+    }
+
+    /// <inheritdoc />
+    public void RequestFullRecovery(NetConnectionId connectionId)
+    {
+        if (_replicationByConnection.ContainsKey(connectionId))
+            _pendingFullRecovery.Add(connectionId);
     }
 
     /// <inheritdoc />
@@ -216,14 +226,29 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
                 continue;
             }
 
+            // W11：Join/恢复强制全量 Spawn；平时按连接兴趣 + Compact 节拍/预算。
             long appliedHint = pair.Value.AppliedHintThisTick;
             pair.Value.AppliedHintThisTick = 0;
             byte[] applicationBytes = ActReplicationApplicationPayloadCodec.Encode(
                 new ActReplicationApplicationPayload(appliedHint, null));
+            bool forceFull = connections != null
+                || _pendingFullRecovery.Remove(pair.Key);
+            if (forceFull)
+                replication.ResetBaseline();
+
+            SimActorId observerId = pair.Value.Actor.SimulationId;
+            _authority.CopyRelevantStates(
+                observerId,
+                ReplicationInterest.DefaultRadiusMm,
+                _relevantStates);
+            ReplicationBuildOptions options = ReplicationBuildOptions.Compact
+                .WithPreferred(new NetEntityId(observerId.Value))
+                .WithForceFull(forceFull);
             ReplicationFrame frame = replication.BuildFrame(
                 new NetTick(tick),
-                _authority.EntityStates,
-                applicationBytes);
+                _relevantStates,
+                applicationBytes,
+                options);
             _outbound.Add(new DedicatedReplicationSend(
                 pair.Key,
                 ReplicationFrameCodec.Encode(frame)));

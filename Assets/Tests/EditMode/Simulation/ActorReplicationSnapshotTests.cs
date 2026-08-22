@@ -22,7 +22,7 @@ public sealed class ActorReplicationSnapshotTests
             gait: 1,
             cardinal: 5,
             actionId: 12,
-            graphNodeId: "Graph/Node",
+            graphNodeKey: GraphNodeKey.FromStableName("Graph/Node"),
             actionFrame: 9,
             freezeFrames: 4,
             selectedTargetId: SimActorId.Invalid,
@@ -52,8 +52,18 @@ public sealed class ActorReplicationSnapshotTests
         Assert.That(snapshot.ActorId.IsValid, Is.False);
         Assert.That(snapshot.SelectedTargetId.IsValid, Is.False);
         Assert.That(snapshot.ActionId, Is.Zero);
-        Assert.That(snapshot.GraphNodeId, Is.Null.Or.Empty);
+        Assert.That(snapshot.GraphNodeKey, Is.Zero);
         Assert.That(snapshot.VitalityEdge, Is.EqualTo(VitalityReplicationEdge.None));
+    }
+
+    /// <summary>空节点名为 0；非空名哈希为稳定正整数。</summary>
+    [Test]
+    public void GraphNodeKey_EmptyIsZero_NamedIsStable()
+    {
+        Assert.That(GraphNodeKey.FromStableName(""), Is.Zero);
+        int first = GraphNodeKey.FromStableName("Graph/Node");
+        Assert.That(first, Is.GreaterThan(0));
+        Assert.That(GraphNodeKey.FromStableName("Graph/Node"), Is.EqualTo(first));
     }
 
     /// <summary>Builder 从 Motor 与空闲 Action 快照取毫米位姿，idle 时 actionId 置 0。</summary>
@@ -82,7 +92,7 @@ public sealed class ActorReplicationSnapshotTests
         Assert.That(snapshot.PosYMm, Is.EqualTo(100));
         Assert.That(snapshot.FacingMilliDeg, Is.EqualTo(45000));
         Assert.That(snapshot.ActionId, Is.Zero);
-        Assert.That(snapshot.GraphNodeId, Is.Empty);
+        Assert.That(snapshot.GraphNodeKey, Is.Zero);
         Assert.That(snapshot.ActionFrame, Is.Zero);
         Assert.That(snapshot.LocomotionNormalizedMilli, Is.Zero);
     }

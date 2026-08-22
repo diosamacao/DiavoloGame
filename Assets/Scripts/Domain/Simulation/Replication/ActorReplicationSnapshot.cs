@@ -20,7 +20,7 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
         byte gait,
         byte cardinal,
         int actionId,
-        string graphNodeId,
+        int graphNodeKey,
         int actionFrame,
         int freezeFrames,
         SimActorId selectedTargetId,
@@ -43,7 +43,7 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
         Cardinal = cardinal;
         LocomotionNormalizedMilli = locomotionNormalizedMilli;
         ActionId = actionId;
-        GraphNodeId = graphNodeId ?? string.Empty;
+        GraphNodeKey = graphNodeKey;
         ActionFrame = actionFrame < 0 ? 0 : actionFrame;
         FreezeFrames = freezeFrames < 0 ? 0 : freezeFrames;
         SelectedTargetId = selectedTargetId;
@@ -94,8 +94,8 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
     /// <summary>权威动作定义 Id；0 表示无活动动作。</summary>
     public int ActionId { get; }
 
-    /// <summary>当前 Graph 节点稳定 Id；无动作时为空串。</summary>
-    public string GraphNodeId { get; }
+    /// <summary>当前 Graph 节点稳定整数键；无动作时为 0。</summary>
+    public int GraphNodeKey { get; }
 
     /// <summary>权威动作帧。</summary>
     public int ActionFrame { get; }
@@ -132,7 +132,7 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
             Gait,
             Cardinal,
             actionId,
-            GraphNodeId,
+            GraphNodeKey,
             actionFrame < 0 ? 0 : actionFrame,
             freezeFrames < 0 ? 0 : freezeFrames,
             SelectedTargetId,
@@ -159,7 +159,7 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
             Gait,
             Cardinal,
             ActionId,
-            GraphNodeId,
+            GraphNodeKey,
             ActionFrame,
             FreezeFrames,
             SelectedTargetId,
@@ -189,7 +189,7 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
             Gait,
             Cardinal,
             ActionId,
-            GraphNodeId,
+            GraphNodeKey,
             ActionFrame,
             FreezeFrames,
             SelectedTargetId,
@@ -215,7 +215,7 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
         && Cardinal == other.Cardinal
         && LocomotionNormalizedMilli == other.LocomotionNormalizedMilli
         && ActionId == other.ActionId
-        && string.Equals(GraphNodeId, other.GraphNodeId, StringComparison.Ordinal)
+        && GraphNodeKey == other.GraphNodeKey
         && ActionFrame == other.ActionFrame
         && FreezeFrames == other.FreezeFrames
         && SelectedTargetId == other.SelectedTargetId
@@ -241,7 +241,7 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
             hash = (hash * 397) ^ FacingMilliDeg;
             hash = (hash * 397) ^ LocomotionNormalizedMilli;
             hash = (hash * 397) ^ ActionId;
-            hash = (hash * 397) ^ (GraphNodeId != null ? GraphNodeId.GetHashCode() : 0);
+            hash = (hash * 397) ^ GraphNodeKey;
             hash = (hash * 397) ^ ActionFrame;
             hash = (hash * 397) ^ HealthMilli;
             return hash;
