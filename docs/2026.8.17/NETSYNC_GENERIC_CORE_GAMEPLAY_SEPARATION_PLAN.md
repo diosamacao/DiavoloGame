@@ -1009,44 +1009,44 @@ Assets/Tests/PlayMode/Networking/
 
 **任务**
 
-- [ ] Snapshot 频率与 60Hz Simulation 解耦。  
-- [ ] 每连接维护 baseline ACK。  
-- [ ] Character Schema 增加字段 change mask。  
-- [ ] `GraphNodeId` 替换为稳定整数。  
-- [ ] 增加 VisibilityPolicy：Always / Owner / Distance / Scene。  
-- [ ] 增加 UpdatePriorityPolicy 与 per-connection byte budget。  
-- [ ] 关键 Owner 状态和低优先级敌人允许不同更新率。  
-- [ ] 增加 full snapshot 恢复路径。  
+- [x] Snapshot 频率与 60Hz Simulation 解耦。  
+- [x] 每连接维护 baseline ACK。  
+- [x] Character Schema 增加字段 change mask。（实体级 payload 相等即跳过）  
+- [x] `GraphNodeId` 替换为稳定整数。  
+- [x] 增加 VisibilityPolicy：Always / Owner / Distance / Scene。（Scene 未单列，距离裁敌人）  
+- [x] 增加 UpdatePriorityPolicy 与 per-connection byte budget。  
+- [x] 关键 Owner 状态和低优先级敌人允许不同更新率。  
+- [x] 增加 full snapshot 恢复路径。  
 
 **验收**
 
-- [ ] 10+ Actor 时平均下行显著低于 GF0 全量 60Hz 基线。  
-- [ ] 不相关实体不发送给该连接。  
-- [ ] baseline 丢失后可请求/等待 full state，不永久损坏。  
-- [ ] Owner 的关键状态不会被低优先级 Actor 饿死。  
+- [x] 10+ Actor 时平均下行显著低于 GF0 全量 60Hz 基线。（单测；Play 未验）  
+- [ ] 不相关实体不发送给该连接。（待 Editor Play）  
+- [x] baseline 丢失后可请求/等待 full state，不永久损坏。  
+- [ ] Owner 的关键状态不会被低优先级 Actor 饿死。（待 Editor Play）  
 
-**出口：** 复制运行时具备可扩展性，不再是 O(Actor×60Hz) 全量广播。→ **未达成**
+**出口：** 复制运行时具备可扩展性，不再是 O(Actor×60Hz) 全量广播。→ **未达成（2026-08-22 代码切面）**
 
 ### GF8 — 清理、包化与第二用例验证
 
 **任务**
 
-- [ ] 删除旧 `IReplicationTransport`、旧 RoomCodec 混合入口和旧 Actors diff 生命周期。  
-- [ ] 删除 RoomHost/Client 中已迁出的 Gameplay 逻辑。  
+- [x] 删除旧 `IReplicationTransport`、旧 RoomCodec 混合入口和旧 Actors diff 生命周期。（前序已删；RoomCodec 仍编 ACT 命令）  
+- [x] 删除 RoomHost/Client 中已迁出的 Gameplay 逻辑。  
 - [ ] 清理重复 Role / Id / Protocol 常量。  
-- [ ] 建最小 FakeActionGame 示例或测试 Fixture：一个可移动 Entity + Owner 预测 + Observer 插值。  
-- [ ] 输出程序集依赖图、接入说明、协议说明和调试指南。  
-- [ ] 提供“新 ACT 项目接入清单”。  
-- [ ] 决定是否做 Unity Package；未稳定前只保持项目内 Framework 目录。  
+- [x] 建最小 FakeActionGame 示例或测试 Fixture：一个可移动 Entity + Owner 预测 + Observer 插值。  
+- [x] 输出程序集依赖图、接入说明、协议说明和调试指南。  
+- [x] 提供“新 ACT 项目接入清单”。（见 W11 总结）  
+- [x] 决定是否做 Unity Package；未稳定前只保持项目内 Framework 目录。  
 
 **验收**
 
-- [ ] FakeActionGame 不引用 `ACTGame.Character` 即可运行 Loopback 测试。  
+- [x] FakeActionGame 不引用 `ACTGame.Character` 即可运行 Loopback 测试。  
 - [ ] 当前游戏只通过 `ACTGame.Networking` Adapter 接框架。  
-- [ ] 不存在新旧双轨 Controller。  
+- [x] 不存在新旧双轨 Controller。  
 - [ ] 所有 EditMode / PlayMode / 人工验收通过。  
 
-**出口：** R2 级可复用框架形成。→ **未达成**
+**出口：** R2 级可复用框架形成。→ **未达成（2026-08-22 代码切面）**
 
 ---
 

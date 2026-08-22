@@ -32,7 +32,7 @@ public sealed class ActCharacterSnapshotSchemaTests
             gait: 2,
             cardinal: 3,
             actionId: 9,
-            graphNodeId: "Attack/A",
+            graphNodeKey: GraphNodeKey.FromStableName("Attack/A"),
             actionFrame: 4,
             freezeFrames: 1,
             selectedTargetId: new SimActorId(8),

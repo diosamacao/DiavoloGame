@@ -26,6 +26,7 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     int _lastActionFrame;
     AnimationKey? _locomotionKey;
     bool _visualActionActive;
+    bool _animationFrozen;
     Vector3 _debugWishWorld;
     SimActorId _simulationId;
     int _teamId;
@@ -127,20 +128,38 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     /// 应用一帧权威快照：写 Motor、同步根、Seek/播 Locomotion；不 Dispatch 判定帧。
     /// leanRollDegrees 仅预测预览传入（Lean 不进 Snapshot）；幽灵默认 0。
     /// seekLocomotion=false 时走跑只 Tick，避免本机预测每逻辑帧 Seek 抽帧。
+    /// simulationTicks≤0 时只切片段/写 Pose，不推进 Clip；远端由 TickAnimation 按真实时间走表。
+    /// updatePresentation=false 时不改模型锚点端点，判定盒仍立即跟随 Motor。
     /// </summary>
     public void ApplySnapshot(
         in ActorReplicationSnapshot snapshot,
         float leanRollDegrees = 0f,
-        bool seekLocomotion = true)
+        bool seekLocomotion = true,
+        int simulationTicks = 1,
+        bool updatePresentation = true)
     {
         BindReplicationIdentity(in snapshot);
-        _presentation.BeginSimulationStep();
+        if (updatePresentation)
+            _presentation.BeginSimulationStep();
         ReplicationPoseApplier.ApplyToMotor(_motor.Sim, in snapshot);
         ApplyWorldOffset();
         _motor.SyncRootPoseFromSim();
         ApplyDebugWish(in snapshot);
-        ApplyPresentation(in snapshot, leanRollDegrees, seekLocomotion);
-        _presentation.EndSimulationStep();
+        ApplyPresentation(in snapshot, leanRollDegrees, seekLocomotion, simulationTicks);
+        if (updatePresentation)
+            _presentation.EndSimulationStep();
+    }
+
+    /// <summary>按播放头两端快照设置模型锚点插值，不改 Motor / 判定盒。</summary>
+    public void SetPresentationBracket(
+        in ActorReplicationSnapshot from,
+        in ActorReplicationSnapshot to)
+    {
+        _presentation.SetInterpolationEnds(
+            SnapshotWorldPosition(in from),
+            SnapshotWorldRotation(in from),
+            SnapshotWorldPosition(in to),
+            SnapshotWorldRotation(in to));
     }
 
     /// <summary>
@@ -201,6 +220,20 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     {
     }
 
+    /// <summary>按真实时间推进 Clip；卡肉时停表。快照到达不再突发 Tick。</summary>
+    public void TickAnimation(float deltaTimeSeconds)
+    {
+        if (_animation == null || _animationFrozen)
+            return;
+
+        float dt = deltaTimeSeconds;
+        if (dt <= 0f)
+            return;
+        if (dt > 0.05f)
+            dt = 0.05f;
+        _animation.Tick(dt);
+    }
+
     /// <summary>按 Host 插值比例更新模型锚点与视觉残差/倾身；邻近 Pose 走 lerp，禁止每渲染帧硬切。</summary>
     public void Render(float interpolationAlpha)
     {
@@ -238,6 +271,17 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         _motor.Sim.TeleportMm(x, y, z);
     }
 
+    Vector3 SnapshotWorldPosition(in ActorReplicationSnapshot snapshot)
+    {
+        float x = MotionQuantization.MmToMeters(snapshot.PosXMm) + _worldOffset.x;
+        float y = MotionQuantization.MmToMeters(snapshot.PosYMm) + _worldOffset.y;
+        float z = MotionQuantization.MmToMeters(snapshot.PosZMm) + _worldOffset.z;
+        return new Vector3(x, y, z);
+    }
+
+    static Quaternion SnapshotWorldRotation(in ActorReplicationSnapshot snapshot) =>
+        Quaternion.Euler(0f, MotionQuantization.MilliDegToDegrees(snapshot.FacingMilliDeg), 0f);
+
     /// <summary>从同 Tick 的 moveV* 还原 wish，保证幽灵黄箭与延迟位姿成对。</summary>
     void ApplyDebugWish(in ActorReplicationSnapshot snapshot)
     {
@@ -250,13 +294,18 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     /// <summary>
     /// 有招则切段时 Play+Seek，并按跨帧规则只派发 VFX/SFX。
     /// 走跑切键后 Tick，禁止每帧 Seek。禁止派发 Hitbox。
+    /// simulationTicks 大于 0 时仍按固定步 Tick（本机预测预览）；远端 Observer 传 0，改走 TickAnimation。
     /// </summary>
     void ApplyPresentation(
         in ActorReplicationSnapshot snapshot,
         float leanRollDegrees,
-        bool seekLocomotion)
+        bool seekLocomotion,
+        int simulationTicks)
     {
         bool frozen = snapshot.FreezeFrames > 0;
+        _animationFrozen = frozen;
+        int ticks = simulationTicks < 1 ? 0 : simulationTicks;
+        float tickDelta = _fixedDeltaSeconds * ticks;
         // 先声明再 out：短路时编译器不认为 action 已赋值（CS0165）
         ActionDefinition action = null;
         bool actionActive = snapshot.ActionId != 0
@@ -278,8 +327,8 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
                 _locomotionKey = null;
                 SeekActionIfSegmentChanged(action, snapshot.ActionFrame, forceRestart);
                 _animation.SetSpeed(frozen ? 0f : 1f);
-                if (!frozen)
-                    _animation.Tick(_fixedDeltaSeconds);
+                if (!frozen && ticks > 0)
+                    _animation.Tick(tickDelta);
             }
             else
             {
@@ -301,8 +350,8 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
                 }
 
                 // 同键只 Tick：远端也不再每 Tick Seek，避免抽帧
-                if (!frozen && !keyChanged)
-                    _animation.Tick(_fixedDeltaSeconds);
+                if (!frozen && !keyChanged && ticks > 0)
+                    _animation.Tick(tickDelta);
             }
         }
 

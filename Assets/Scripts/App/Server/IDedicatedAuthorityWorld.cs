@@ -29,6 +29,9 @@ public interface IDedicatedAuthorityWorld : System.IDisposable
     /// <summary>取出本拍权威命中事件；只含当前帧，禁止再带 W7 冗余窗口。</summary>
     void DrainOutboundEvents(System.Collections.Generic.List<DedicatedEventSend> results);
 
+    /// <summary>该连接下一帧重置 baseline 并重新 Spawn，用于 Client 拒绝帧后的全量恢复。</summary>
+    void RequestFullRecovery(NetConnectionId connectionId);
+
     /// <summary>最近完成的逻辑帧；尚未步进时为 -1。</summary>
     long CurrentFrame { get; }
 }

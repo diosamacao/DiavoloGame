@@ -180,9 +180,13 @@ public sealed class LocalClientRuntime : IDisposable
                 if (status == ActClientFrameApplyStatus.Rejected)
                 {
                     Debug.LogWarning(
-                        $"LocalClientRuntime: 复制帧被拒绝。{_gameplay.LastRejectMessage}");
-                    EndRoom("ReplicationRejected");
-                    return;
+                        $"LocalClientRuntime: 复制帧被拒绝，请求全量恢复。{_gameplay.LastRejectMessage}");
+                    _gameplay.ResetReplicationForRecovery();
+                    _session.SendApplication(
+                        (byte)RoomMessageKind.ReplicationRecover,
+                        NetChannel.EventReliableOrdered,
+                        Array.Empty<byte>());
+                    continue;
                 }
 
                 if (status == ActClientFrameApplyStatus.OwnerDespawned)

@@ -21,6 +21,45 @@ public sealed class ActAuthorityReplicationAdapter
     public IReadOnlyList<ReplicationEntityState> EntityStates => _entityStates;
 
     /// <summary>
+    /// 按观察者兴趣复制子集：Owner 与玩家始终留下，敌人超出半径则不发。
+    /// snapshots 与 entityStates 必须是同一次 Capture 的对齐列表。
+    /// </summary>
+    public void CopyRelevantStates(
+        SimActorId observerId,
+        int radiusMm,
+        List<ReplicationEntityState> results)
+    {
+        if (results == null)
+            throw new ArgumentNullException(nameof(results));
+
+        results.Clear();
+        int originX = 0;
+        int originZ = 0;
+        bool hasOrigin = false;
+        for (int i = 0; i < _snapshots.Count; i++)
+        {
+            if (_snapshots[i].ActorId != observerId)
+                continue;
+            originX = _snapshots[i].PosXMm;
+            originZ = _snapshots[i].PosZMm;
+            hasOrigin = true;
+            break;
+        }
+
+        for (int i = 0; i < _entityStates.Count && i < _snapshots.Count; i++)
+        {
+            ActorReplicationSnapshot snapshot = _snapshots[i];
+            bool isOwner = snapshot.ActorId == observerId;
+            bool isPlayer = snapshot.Kind == ReplicationActorKind.Player;
+            int dx = hasOrigin ? snapshot.PosXMm - originX : 0;
+            int dz = hasOrigin ? snapshot.PosZMm - originZ : 0;
+            if (!ReplicationInterest.IsRelevant(isOwner, isPlayer, dx, dz, radiusMm))
+                continue;
+            results.Add(_entityStates[i]);
+        }
+    }
+
+    /// <summary>
     /// 合并尚未应用的远端命令并写入下一权威帧。
     /// NewestHint 跳过冗余；FirstAppliedHint 写入下行和解。无新命令时不覆盖下一帧已有输入。
     /// </summary>
@@ -122,11 +161,14 @@ public sealed class ActAuthorityReplicationAdapter
             throw new InvalidOperationException("权威角色尚无有效 SimActorId，不能进入复制 full set。");
 
         _snapshots.Add(snapshot);
+        bool urgent = snapshot.ActionId != 0
+            || snapshot.VitalityEdge != VitalityReplicationEdge.None;
         _entityStates.Add(new ReplicationEntityState(
             new NetEntityId(snapshot.ActorId.Value),
             archetypeId,
             ActCharacterSnapshotSchema.Id,
-            _characterSchema.Encode(in snapshot)));
+            _characterSchema.Encode(in snapshot),
+            urgent));
     }
 
     /// <summary>从同帧复制 full set 查找命中攻击者的 ActionId；缺失表示权威 Capture 不完整。</summary>

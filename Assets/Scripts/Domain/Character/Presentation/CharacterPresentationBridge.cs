@@ -77,6 +77,19 @@ public sealed class CharacterPresentationBridge
         _currentRotation = _simulationRoot.rotation;
     }
 
+    /// <summary>用两份世界 Pose 作为插值端点，不改逻辑根。供 Observer 播放头取样。</summary>
+    public void SetInterpolationEnds(
+        Vector3 fromPosition,
+        Quaternion fromRotation,
+        Vector3 toPosition,
+        Quaternion toRotation)
+    {
+        _previousPosition = fromPosition;
+        _previousRotation = fromRotation;
+        _currentPosition = toPosition;
+        _currentRotation = toRotation;
+    }
+
     /// <summary>按 accumulator 比例更新模型锚点；传送时直接吸附以避免跨场景扫过。</summary>
     public void Render(float interpolationAlpha)
     {

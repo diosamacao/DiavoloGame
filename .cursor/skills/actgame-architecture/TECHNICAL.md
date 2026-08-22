@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-20（W10 代码切面已落地；Play 未验收）
+> Last updated: 2026-08-22（W11 代码切面已落地；W10/W11 Play 未验收）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,7 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
-| 组队 PVE 状态同步 / 权威进程 | 🟡 W10 代码切面 / Play 未验收 | `ACTNet.Prediction` + `ChannelMuxTransport` + Listen/Dedicated | W9 已验收；W10 出口待 100ms/5% Play |
+| 组队 PVE 状态同步 / 权威进程 | 🟡 W11 代码切面 / Play 未验收 | `ReplicationBuildOptions` + `GraphNodeKey` + FakeActionGame | W10 出口仍待 Clumsy Play；W11 R2 未关 |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -742,6 +742,60 @@ Hit：CopyHits(本帧) → FlushEvents → ApplyReplicationEvents → 去重播�
 - `Assets/Scripts/Domain/Networking/ActReplicationEventCodec.cs`
 - `Assets/Scripts/App/Server/DedicatedEventSend.cs`
 - `docs/2026.8.20/NETSYNC_W10_STAGE_SUMMARY.md`
+
+---
+
+## 组队 PVE · W11 Delta / Relevancy / FakeActionGame
+
+### 功能说明
+
+复制不再每连接每 Tick 全量 Update。未变实体跳过；敌人按 40m 兴趣裁剪；Update 有字节预算；Owner 优先刷新。Graph 节点线上改为稳定整数。FakeActionGame 证明框架可不引用 ACT Character。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 未变跳过 | `ReplicationServer` 对比上次已发送 payload |
+| 节拍 / 预算 | `ReplicationBuildOptions.Compact`：间隔 2 Tick、1200 字节、Owner 优先 |
+| 兴趣 | `ReplicationInterest`：Owner/玩家 Always；敌人平面距离 |
+| 恢复 | `ReplicationRecover` → `ResetBaseline` → 全量 Spawn |
+| 节点 | `GraphNodeKey.FromStableName`（FNV-1a） |
+| 第二用例 | `Assets/Tests/EditMode/ACTNet/FakeActionGame/` |
+
+### 关键参数
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `SnapshotIntervalTicks` | 2 | 非 Owner 刷新间隔 |
+| `MaxUpdateBytes` | 1200 | 仅约束 Update |
+| `DefaultRadiusMm` | 40000 | 敌人兴趣半径 |
+| `GraphNodeKey` | int32 | 空名=0 |
+
+### 运行时流程
+
+```
+Capture → CopyRelevantStates → BuildFrame(Compact)
+Rejected → ResetReplicationForRecovery → ReplicationRecover → ResetBaseline
+ApplyUpdates → ApplySnapshot(立即写判定/受击/Notify)
+Observer.Render → RemotePlaybackClock → SetPresentationBracket → TickAnimation → Render(alpha)
+```
+
+### 已知限制
+
+- W10 / W11 Play 均未用户验收
+- 无字段级 change mask、无超 MTU 拆包
+- `RoomCodec` 仍在 Simulation；未宣称只经 Networking Adapter
+- 远端隔步快照：播放头只插值锚点；出招/受击 `Urgent` 每 Tick 下发；Notify 随快照到达立即派发
+- 不得称 R2 完成或公网可用
+
+### 相关文件
+
+- `Assets/Scripts/Framework/ACTNet/Replication/ReplicationBuildOptions.cs`
+- `Assets/Scripts/Framework/ACTNet/Replication/ReplicationInterest.cs`
+- `Assets/Scripts/Framework/ACTNet/Prediction/RemotePlaybackClock.cs`
+- `Assets/Scripts/Domain/Character/Replication/RemoteCharacterProxy.cs`
+- `Assets/Scripts/Domain/Simulation/Replication/GraphNodeKey.cs`
+- `docs/2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md`
 
 ---
 
@@ -1564,6 +1618,10 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-20 | NetSync W9：Listen = `DedicatedServerRuntime` + `LocalClientRuntime`；删除 `ReplicationRoomHost` / `ActHostRoomGameplay` 与 Host 本机 Capture |
 | 2026-08-20 | W9 Listen 组合用户验收；本机预测按 `PeekAdvanceSteps` 对齐 60Hz |
 | 2026-08-20 | NetSync W10 代码切面：`ACTNet.Prediction`、ChannelMux、可靠命中事件、SnapshotTimeline；出口待 Play |
+| 2026-08-22 | NetSync W11 代码切面：Delta/兴趣/预算、`GraphNodeKey`、Recover、FakeActionGame；R2 出口未关 |
+| 2026-08-22 | 远端隔步快照：时间线改为向后括号取样；Proxy 按跳过 Tick 补动画时间 |
+| 2026-08-22 | 方案 B：`RemotePlaybackClock` + `TickAnimation`；不再用本机 InterpolationAlpha 取样远端 |
+| 2026-08-22 | 远端战斗立即提交：判定/受击/Notify 不等播放头；Urgent 破节拍 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

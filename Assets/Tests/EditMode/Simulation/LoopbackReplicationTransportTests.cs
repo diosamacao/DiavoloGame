@@ -63,7 +63,7 @@ public sealed class LoopbackReplicationTransportTests
             0,
             0,
             0,
-            string.Empty,
+            0,
             0,
             0,
             SimActorId.Invalid,

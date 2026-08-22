@@ -12,4 +12,7 @@ public enum RoomMessageKind : byte
 
     /// <summary>正文为可靠命中事件包；与 Snapshot 分轨，禁止再塞进帧内冗余。</summary>
     ReplicationEvent = 9,
+
+    /// <summary>客机请求全量 Spawn 恢复；正文可为空。</summary>
+    ReplicationRecover = 10,
 }

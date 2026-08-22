@@ -112,7 +112,7 @@
 
 **客机装配：** [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md) — **CA0～CA2 代码已切（2026-08-15）**：同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。Play 待 Editor。纠偏合同仍见 [`UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
 
-**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W5～W8 / M2 已于 2026-08-19 验收**。**W9 Listen 组合已于 2026-08-20 用户验收**。**W10 代码切面已落地，出口待 100ms/5% Play**；下一实现切面为 W11。备忘：[`docs/2026.8.20/NETSYNC_W10_STAGE_SUMMARY.md`](../../docs/2026.8.20/NETSYNC_W10_STAGE_SUMMARY.md)。
+**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W5～W8 / M2 已于 2026-08-19 验收**。**W9 Listen 组合已于 2026-08-20 用户验收**。**W10 代码切面已落地，出口待 Play（暂缓）**。**W11 代码切面已落地，R2 出口未关**。备忘：[`docs/2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md`](../../docs/2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md)。
 
 ### [P1] Lockstep 模拟核迁移
 
@@ -197,6 +197,7 @@
 - [x] 2026-08-19：NetSync W8 / M2——Dedicated 启动覆盖、READY、出包与 H-DS-D 用户验收；LAN DS-Demo 关闭
 - [x] 2026-08-20：NetSync W9——Listen = `DedicatedServerRuntime` + `LocalClientRuntime`；删除特殊 Host Room / Capture；用户验收关闭
 - [x] 2026-08-20：NetSync W10 代码切面——`ACTNet.Prediction`、ChannelMux、可靠命中事件、SnapshotTimeline；出口待 Play，不得称公网可用
+- [x] 2026-08-22：NetSync W11 代码切面——Delta/兴趣/预算、`GraphNodeKey`、Recover、FakeActionGame；R2 出口未关
 
 ## 已完成
 

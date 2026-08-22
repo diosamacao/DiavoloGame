@@ -540,6 +540,10 @@ public sealed class DedicatedServerRuntimeTests
             results?.Clear();
         }
 
+        public void RequestFullRecovery(NetConnectionId connectionId)
+        {
+        }
+
         public void Dispose()
         {
         }
@@ -615,6 +619,12 @@ public sealed class DedicatedServerRuntimeTests
         }
 
         public void DrainOutboundEvents(List<DedicatedEventSend> results) => results?.Clear();
+
+        public void RequestFullRecovery(NetConnectionId connectionId)
+        {
+            if (_servers.TryGetValue(connectionId, out ReplicationServer server))
+                server.ResetBaseline();
+        }
 
         public void Dispose()
         {

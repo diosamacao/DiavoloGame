@@ -33,7 +33,7 @@ public sealed class LocomotionSavedStateTests
             (byte)LocomotionGait.Walk,
             (byte)MoveCardinal.Forward,
             0,
-            string.Empty,
+            0,
             0,
             0,
             SimActorId.Invalid,

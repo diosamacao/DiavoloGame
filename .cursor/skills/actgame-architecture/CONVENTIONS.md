@@ -191,6 +191,13 @@ public class MyBehaviour : MonoBehaviour
 - Handler **禁止**：`MotorSim.Step`、`ActionSim.Step`、`CombatHitPipeline.Collect`、写 HP、写世界坐标
 - 房间时钟 = `SimulationWorld.Step`（60Hz 整数帧），不是 `Room.Update(float dt)` 里手写怪 AI。AI 仍走权威端 `EnemyBrain`（`Assets/Scripts/Domain/Enemy/EnemyBrain.cs`）
 - 下行走 `ReplicationFrame`；命中走可靠事件通道，HP 在 Character Snapshot 里。不要为攻击者单独发「你打中了」作为唯一血量通道
+- 复制 Update 默认可跳过未变 payload；敌人按兴趣半径裁剪；Owner 优先占预算。禁止再每 Tick 全量广播
+- Graph 节点线上只发 `GraphNodeKey` 整数，禁止再写 UTF-8 节点名
+- 复制帧被拒绝时请求 `ReplicationRecover` 并重置 Client Registry，禁止直接结束房间
+- 远端动画同键只 Tick、禁止每份快照 Seek。Observer 用 `TickAnimation(deltaTime)` 连续走表；快照 `simulationTicks=0`，禁止隔步一次 `Tick(n/60)`
+- Observer 播放头只插值模型锚点。判定盒、受击、VFX/SFX Notify 在快照到达时立即 `ApplySnapshot`，禁止等播放头
+- 出招或 Vitality 边沿必须 `Urgent`，不受 SnapshotInterval 节拍限制
+- Observer 播放头用 `RemotePlaybackClock` 按真实时间单调推进，钳在 `latest-delay`。禁止再用会每逻辑步清零的 `InterpolationAlpha` 当远端取样比例
 
 ### 线程与入队
 

@@ -37,7 +37,7 @@ public sealed class ReplicationPresentationAlignTests
             0,
             0,
             0,
-            string.Empty,
+            0,
             0,
             0,
             SimActorId.Invalid,
