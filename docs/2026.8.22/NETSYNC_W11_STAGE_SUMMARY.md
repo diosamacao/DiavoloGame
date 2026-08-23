@@ -10,7 +10,8 @@
 
 复制不再每连接每 Tick 全量 Update。通用层按 **载荷未变跳过 + 兴趣裁剪 + 30Hz 节拍 + Update 预算** 构帧；baseline 丢失走 `ReplicationRecover` 全量 Spawn。`GraphNodeKey` 以稳定整数替换线上 UTF-8 节点名。FakeActionGame 只引用 ACTNet，不引用 ACT Character。
 
-W10 出口仍未关。本切面不得称公网可用，也不得称 R2 框架已完成。
+W10 出口仍未关。本切面不得称公网可用，也不得称 R2 框架已完成。  
+端到端调用链（含本文之后的播放头 / Urgent / 战斗立刻 Apply）：[`../2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)
 
 ---
 

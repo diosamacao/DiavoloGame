@@ -108,7 +108,7 @@
 
 **状态：✅ NS0～NS5 已验收（2026-08-15）**。单机即 Listen Host。房间 / 权威 World 以该方案为准。命中 **P0 仍 Host Collect**；终态以 PVP 为真源（攻击方申报几何、权威入账），PVE 同一条链，见方案 §3.3。`NS-PVP` 未开，禁止现在分叉两套盒。
 
-**实现说明（先读）：** [`docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../../docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)（M1 关闭后的分层与往返）。NS5 结构备忘：[`docs/2026.8.15/NETWORK_SYNC.md`](../../docs/2026.8.15/NETWORK_SYNC.md)
+**实现说明（先读）：** [`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)（Join → 命中现行调用链）。M1 历史：[`docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../../docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)。NS5 结构备忘：[`docs/2026.8.15/NETWORK_SYNC.md`](../../docs/2026.8.15/NETWORK_SYNC.md)
 
 **客机装配：** [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md) — **CA0～CA2 代码已切（2026-08-15）**：同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。Play 待 Editor。纠偏合同仍见 [`UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
 

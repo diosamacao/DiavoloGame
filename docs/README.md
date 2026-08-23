@@ -1,6 +1,6 @@
 # ACTGame 文档索引
 
-> 更新：2026-08-22 — W11 代码切面已落地；W10 Play 暂缓，不得称公网可用。
+> 更新：2026-08-23 — 现行联网阅读入口改为「从入房到命中」；W11 代码切面已落地；W10 Play 暂缓，不得称公网可用。
 > **一页总览先读：** [PROJECT_CHECKLIST.md](./PROJECT_CHECKLIST.md)  
 > **排期真源：** [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md)  
 > **架构运行时：** `.cursor/skills/actgame-architecture/`（ARCHITECTURE / TECHNICAL / ROADMAP）
@@ -20,7 +20,8 @@
 | [2026.8.6/CHARACTER_MOVEMENT_ANCHOR_OPTIMIZATION_PLAN.md](./2026.8.6/CHARACTER_MOVEMENT_ANCHOR_OPTIMIZATION_PLAN.md) | Gameplay/Residual 锚点 |
 | [2026.8.6/CAMERA_SYSTEM_PLAN.md](./2026.8.6/CAMERA_SYSTEM_PLAN.md) | 相机 / Lock-On / SkillShot |
 | [2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md](./2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md) | **Camera C1 前置**：MoveReferenceYaw 输入闭包、唯一 SelectedTarget 权威与纯表现 CameraLock |
-| [2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md](./2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md) | **网络同步实现阅读入口（M1 关闭后先读）**：W0～W4 结论、分层、入房、每帧序、玩家操作往返、线格式 |
+| [2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md](./2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md) | **现行网络同步实现阅读入口**：从 Join 到命中的完整调用链（Listen 组合 / Compact / 播放头 / Urgent / 可靠事件） |
+| [2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md](./2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md) | **M1（W0～W4）历史备忘**：分层与线格式；Host Facade 已删除，勿当现行入口 |
 | [2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md) | **W5 Dedicated Bootstrap / N 玩家 Session**：独立 Runtime、Match、每连接 ACK |
 | [2026.8.19/NETSYNC_W6_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W6_STAGE_SUMMARY.md) | **W6 Headless Authority / 指纹握手**：外部时钟、无头工厂、Join ContentFingerprint |
 | [2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md) | **W7 Match / 每连接 Replication**：状态机、下行 Frame、MatchEnd（已验收） |
@@ -74,3 +75,4 @@
 - [2026.8.10/README.md](./2026.8.10/README.md)
 - [2026.8.11/README.md](./2026.8.11/README.md)
 - [2026.8.12/README.md](./2026.8.12/README.md)
+- [2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md](./2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)
