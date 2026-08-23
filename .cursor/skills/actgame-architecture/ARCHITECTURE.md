@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-22（W11 代码切面：Delta / Relevancy / GraphNodeKey；W10 Play 未验收）
+> Last audited: 2026-08-23（现行联网阅读入口：`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`；W11 代码切面已落地；W10 Play 未验收）
 
 ## 项目概述
 

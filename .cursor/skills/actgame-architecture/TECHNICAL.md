@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-22（W11 代码切面已落地；W10/W11 Play 未验收）
+> Last updated: 2026-08-23（现行联网阅读入口：`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`；W11 代码切面已落地；W10/W11 Play 未验收）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,7 +20,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
-| 组队 PVE 状态同步 / 权威进程 | 🟡 W11 代码切面 / Play 未验收 | `ReplicationBuildOptions` + `GraphNodeKey` + FakeActionGame | W10 出口仍待 Clumsy Play；W11 R2 未关 |
+| 组队 PVE 状态同步 / 权威进程 | 🟡 W11 代码切面 / Play 未验收 | `ReplicationBuildOptions` + `GraphNodeKey` + FakeActionGame | 先读 `docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`；W10 出口仍待 Clumsy Play；W11 R2 未关 |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
 | 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
@@ -796,6 +796,7 @@ Observer.Render → RemotePlaybackClock → SetPresentationBracket → TickAnima
 - `Assets/Scripts/Domain/Character/Replication/RemoteCharacterProxy.cs`
 - `Assets/Scripts/Domain/Simulation/Replication/GraphNodeKey.cs`
 - `docs/2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md`
+- `docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`
 
 ---
 
@@ -1622,6 +1623,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-22 | 远端隔步快照：时间线改为向后括号取样；Proxy 按跳过 Tick 补动画时间 |
 | 2026-08-22 | 方案 B：`RemotePlaybackClock` + `TickAnimation`；不再用本机 InterpolationAlpha 取样远端 |
 | 2026-08-22 | 远端战斗立即提交：判定/受击/Notify 不等播放头；Urgent 破节拍 |
+| 2026-08-23 | 新增现行联网阅读入口 `docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`（Join→命中调用链） |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

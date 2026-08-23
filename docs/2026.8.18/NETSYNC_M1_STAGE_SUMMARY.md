@@ -1,7 +1,7 @@
 # NetSync M1 阶段性总结（W0～W4）
 
 > 撰写：2026-08-18  
-> 角色：**M1 关闭后的实现阅读入口**（对照代码，不是下一阶段实施计划）  
+> 角色：**M1（W0～W4）历史备忘**（Host Facade 已删除）。现行阅读入口：[`../2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)  
 > 排期真源：[`../2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)  
 > 专项方案：[`../2026.8.17/NETSYNC_GENERIC_CORE_GAMEPLAY_SEPARATION_PLAN.md`](../2026.8.17/NETSYNC_GENERIC_CORE_GAMEPLAY_SEPARATION_PLAN.md)（GF0～GF4 已关闭）  
 > NS5 时期结构说明：[`../2026.8.15/NETWORK_SYNC.md`](../2026.8.15/NETWORK_SYNC.md)（下行已改为 `ReplicationFrame`，勿再按 `AuthorityTick` 读生产路径）  
