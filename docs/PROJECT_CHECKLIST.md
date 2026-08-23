@@ -1,16 +1,13 @@
 # ACTGame 项目总清单
 
-> 更新：2026-08-23 — 联网学习入口见 `2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`；W11 代码切面已落地；W10 Play 暂缓，不得称公网可用
+> 更新：2026-08-23 — 一页总览；细节不与架构文档抢权威
 
-> 角色：**一页总览**（进度 / 下一步 / 明确不做）  
-> 细节真源勿与本文抢权威：
->
 > | 主题 | 真源 |
 > |------|------|
 > | 设计方向与重构项 | [`.cursor/skills/actgame-architecture/ROADMAP.md`](../.cursor/skills/actgame-architecture/ROADMAP.md) |
 > | 已实现功能与方案 | [`.cursor/skills/actgame-architecture/TECHNICAL.md`](../.cursor/skills/actgame-architecture/TECHNICAL.md) |
-> | Wave / GAS 排期与验收 | [`2026.8.6/MASTER_IMPLEMENTATION_PLAN.md`](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md) |
-> | 敌人 AI 结构（✅ 8.10 已关闭） | [`2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md) |
+> | 战斗 / 位移 Wave | [`2026.8.6/MASTER_IMPLEMENTATION_PLAN.md`](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md) |
+> | 联网实现 | [`2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](./2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md) |
 > | 文档索引 | [`README.md`](./README.md) |
 
 图例：✅ 完成 · 🟡 代码就绪 / 资产或体验未齐 · ⬜ 未开始 · ⏸ 后置
@@ -29,7 +26,7 @@
 
 **明确不做（Demo）：** 装备、任务对话、大地图、完整存档、正式联机上线、独立 SkillExecutor、第二套血量/资源口袋。
 
-**长期：** Action Editor 持续增强；联网 = Dedicated 权威状态同步 + 客机 Autonomous 预测（见 `2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`）。
+**长期：** Action Editor 持续增强；联网 = Dedicated 权威状态同步 + 客机 Autonomous 预测。
 
 ---
 
@@ -40,107 +37,73 @@
 | 核心框架 / 架构 IOC | ✅ | `ACTGameArchitecture`、Command/Query/Event |
 | 60Hz SimulationHost | ✅ | L0A～L1B 代码；Play 回归仍待 |
 | 输入 → GameplayIntent | ✅ | 量化 `InputFrame` + Intent Profile |
-| Locomotion | ✅ | 相位 + L-DIR1～5 + Pivot 两段式 Play 验收 2026-08-12；旧案 Phase D 减速曲线**不做** |
+| Locomotion | ✅ | 相位 + 方向 AnimSet + Pivot 两段式；急停减速曲线**不做** |
 | ActionSim + Graph + Timeline | ✅ | 整数帧权威；Editor 基础可用 |
-| 位移权威 / VisualResidual | ✅ | Wave 0～2.5（含删 RM/Legacy/ForwardOnly） |
+| 位移权威 / VisualResidual | ✅ | Wave 0～2.5（已删 RM/Legacy/ForwardOnly 回退） |
 | 战斗判定 / Reaction | ✅ | Pipeline 帧末结算；资产受击/死亡待齐 |
 | Numeric / GAS-lite | ✅ | G0～G5；`NumericSystem` 唯一权威 |
 | 资源循环 Special·EX·闪避·Ult | 🟡 | 代码闭环；Graph/Spec 资产持续填表 |
-| 完美闪避反击 | ✅ | 窗轨 + Counter Entry（2026-08-08） |
-| 敌人 AI | ✅ | Desire + Entry Request + 真敌树资产 Play 验收（2026-08-11） |
+| 完美闪避反击 | ✅ | 窗轨 + Counter Entry |
+| 敌人 AI | ✅ | Desire + Entry Request；编辑器待优化见 8.11 Backlog |
 | 相机 | 🟡 | 跟随 + 滤左右；Lock-On / SkillShot 未做 |
 | 正式 UI / 血条 | ⬜ | 仅 Debug HUD；目标 MVVM |
-| 吸附 / 绕背 | ✅ | Wave 4 位移出口（2026-08-09） |
-| 预测回滚 / 联网 | 🟡 W11 代码切面 / Play 未验收 | W10 出口暂缓；W11 Delta/兴趣/FakeActionGame 已落地，R2 未关 |
-| 打击感木桩验收台 | ✅ | Monster_EDF + 关行动 + Hit_Shake；Play 验收 2026-08-08 |
-| 命中 VFX/SFX（A2） | ✅ | HitFeedback + Cue；打击感验收 2026-08-09 |
-| 学习/工程实践轨 | ⬜ | BT 编辑器、A*、AB/Lua、SDK、剧情等（§6.4） |
+| 吸附 / 绕背 | ✅ | Wave 4 位移出口 |
+| 预测 / 联网 | 🟡 | W10/W11 代码切面；Play 未关；不得称公网可用 |
+| 打击感木桩 / 命中 Cue | ✅ | 2026-08-08 / 08-09 验收 |
+| 学习/工程实践轨 | ⬜ | A*、AB/Lua、SDK、剧情等（§6.4） |
 
 ---
 
-## 3. 当前焦点（立刻做什么）
+## 3. 当前焦点
 
-**下一项（联网）：** W11 Play（远敌裁剪 / Owner 不被饿死）或用户指定的 W12；W10 Clumsy 验收仍开放  
-现行实现阅读：[`2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](./2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)  
-W11 备忘：[`2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md`](./2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md)  
-W10 备忘：[`2026.8.20/NETSYNC_W10_STAGE_SUMMARY.md`](./2026.8.20/NETSYNC_W10_STAGE_SUMMARY.md)  
-踩坑回顾：[`2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md`](./2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md)  
-W9 备忘：[`2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md)  
-W8 备忘：[`2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md)  
-启动：[`2026.8.19/DEDICATED_SERVER_LAUNCH.md`](./2026.8.19/DEDICATED_SERVER_LAUNCH.md)  
-W7 备忘：[`2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md)  
-W6 备忘：[`2026.8.19/NETSYNC_W6_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W6_STAGE_SUMMARY.md)  
-W5 备忘：[`2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md)  
-排期：[`2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](./2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)
+**下一项（联网）：** W11 Play（远敌裁剪 / Owner 不被饿死）或用户指定的 W12；W10 Clumsy 验收仍开放。
 
+- 实现阅读：[`2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](./2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)
+- 排期：[`2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](./2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)
+- 启动：[`2026.8.19/DEDICATED_SERVER_LAUNCH.md`](./2026.8.19/DEDICATED_SERVER_LAUNCH.md)
+- 踩坑：[`2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md`](./2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md)
 
-
-
-
-| # | 项 | 状态 |
-|---|------|------|
-| A0 | Editor：PerfectDodge 窗 + Counter Entry + Spec 抽查 | ✅ |
-| A1 | 木桩靶（Numeric + Reaction + HitStop/震屏可观测） | ✅ 2026-08-08 |
-| A2 | 打击 VFX/SFX + HitFeedback | ✅ 2026-08-09 验收 |
-| A3 | 完美闪避子弹时间（表现，不改吞伤权威） | ⬜ 可选 |
-| A4 | 相机轻优化（勿塞完整 Lock-On） | ⬜ 可选 |
-| A5 | AI 行为树 Phase-1（过渡：InputFrame） | ✅ Play 验收 2026-08-09 |
-| E-CFG1 | 配置归属到 BT 节点 | ✅ 代码 + 资产/Play 2026-08-11 |
-| E-ST1 | 对峙/追击滞回 DistanceBand | ✅ 代码 + Play 2026-08-11 |
-| E-REQ1 | CombatRequest 通道骨架 | ✅ 代码 + Play 2026-08-11 |
-| E-REQ2 | 权重池 + 删除攻击 Pulse | ✅ 代码 + Play 2026-08-11 |
-| E-MOVE1 | LocomotionDesire 通道 | ✅ 代码 + Play 2026-08-11 |
-| E-MOVE2 | 删除敌人输入壳 | ✅ 代码 + Play 2026-08-11 |
-| E-REQ3 | 起手确认 / Validator / 文档收口 | ✅ 代码 + EditMode/Play 2026-08-11 |
-
-主排期：**Wave 4 位移 ✅ 已关闭**；Wave 5 仅可选玩法后置（失衡/命中盒烘焙）；相机 LockOn/SkillShot/Finisher 见 [`CAMERA_SYSTEM_PLAN.md`](./2026.8.6/CAMERA_SYSTEM_PLAN.md)。
+战斗主线：Wave 4 位移已关；Wave 5 仅可选后置；相机 LockOn/SkillShot 见 [`CAMERA_SYSTEM_PLAN.md`](./2026.8.6/CAMERA_SYSTEM_PLAN.md)。
 
 ---
 
 ## 4. Wave / GAS 勾选（摘要）
 
-细节与验收以 MASTER 为准；此处只跟踪出口状态。
+细节与验收以 MASTER 为准。
 
 | 阶段 | 状态 | 备注 |
 |------|------|------|
-| Wave 0 观测保护网 | 🟡 | 0.1～0.3 ✅；0.4 人工基线手记可选 |
-| Wave 1 位移止血 | ✅ | ForwardSigned + BaseMotionMode + 滤左右 |
-| Wave 2 锚点闭环 | ✅ | Residual + VisualRoot；**2.5 删 RM 已落地** |
+| Wave 0～2.5 位移 / 锚点 | ✅ | 0.4 人工基线手记可选，不阻塞 |
 | Wave 3 资源循环 | 🟡 | 代码 ✅；Ult/EX 等资产持续绑 |
-| GAS G0～G5 | ✅ | 2026-08-08 零兼容完成 |
-| Wave 4 玩法位移 | ✅ | 吸附/SoftBody/Relocate；**不含相机**（2026-08-09） |
-| Wave 5 可选后置（无镜头） | ⬜ | Daze/HeavyHit 可选；命中盒烘焙后置 |
-| 相机系统（独立） | ⬜ | LockOn/Predict/SkillShot/Finisher → Camera 篇 C1～C4 |
+| GAS G0～G5 | ✅ | 零兼容完成 |
+| Wave 4 玩法位移 | ✅ | 吸附/SoftBody/Relocate；**不含相机** |
+| Wave 5 可选后置 | ⬜ | Daze/HeavyHit 可选；命中盒烘焙后置 |
+| 相机系统（独立） | ⬜ | LockOn/Predict/SkillShot/Finisher → C1～C4 |
 
-**MASTER 整包成功标准（摘录）：**
+**整包仍开放：**
 
-- [x] Numeric 唯一真源（G5）
-- [ ] 正式 Action 单一位移权威且全库校验无 Error（资产侧持续）
+- [ ] 正式 Action 单一位移权威且全库校验无 Error（资产侧）
 - [ ] 同键 EX + 闪避反击 + Ult 资产闭环齐
-- [x] 吸附/绕背管线可重放（Wave 4；资产按需配 Relocate）
-- [ ] Lock-On + 多段 SkillShot 纯表现（排期见 Camera 篇，不挂 Wave 4/5）
+- [ ] Lock-On + 多段 SkillShot 纯表现
 
 ---
 
-## 5. 锁步与模拟剩余
+## 5. 锁步与联网剩余
 
-模拟核真源：[`ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md`](./ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)  
-联网真源：[`2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md`](./2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md)
+模拟核：[`ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md`](./ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)  
+联网：[`2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](./2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md) + [`2026.8.17` 总排期](./2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)
 
 | 项 | 状态 |
 |----|------|
-| L0A～L1B 代码 + 60Hz 资产 | ✅ |
-| L1B Play Mode 回归 + `ActionSim*` 测试 | ⬜ |
-| L2 核心（表位移、HitStop、MotorSim、软分离、静态 AABB） | ✅ |
-| L2 收口：斜坡/网格精确碰撞 | ⬜ |
+| L0A～L2 核心 + 60Hz 资产 | ✅ |
+| L1B Play Mode 回归 + `ActionSim*` | ⬜ |
+| L2 斜坡/网格精确碰撞 | ⬜ |
 | L3 可导出复制快照（纠偏用，非 GGPO） | ⬜ |
-| 组队 PVE 状态同步 NS0～NS5 | ✅ 2026-08-15 |
-| 客机预测对齐 UE（当前 Listen 产品链） | ✅ 2026-08-18 Owner 预测/和解与双进程 Play 已验收；通用 GF5 另排 |
-| NetSync W5 Dedicated Bootstrap / N Session | ✅ 2026-08-19 用户验收 |
-| NetSync W6 Headless Authority / 指纹 | ✅ 2026-08-19 用户验收 |
-| NetSync W7 Match / 每连接 Replication | ✅ 2026-08-19 用户验收 |
-| NetSync W8 Dedicated Build / DS-Demo | ✅ 2026-08-19 用户验收（M2 关闭） |
-| L5 全员输入广播 + 完整回滚 | ❌ 2026-08-13 取消产品主路径 |
+| NS0～NS5 / W0～W9 | ✅ |
+| W10 预测 / 可靠通道 / 网络时间 | 🟡 代码切面；Play 暂缓 |
+| W11 Delta / Relevancy / FakeActionGame | 🟡 代码切面；R2 未关 |
+| W12 公网 / 重连 / 运维 | ⬜ |
+| L5 全员输入广播 + 完整回滚 | ❌ 已取消产品主路径 |
 
 ---
 
@@ -153,87 +116,68 @@ W5 备忘：[`2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`](./2026.8.19/NETSYNC_W5_STA
 - [x] `ActionSim` + PresentationBridge + `ActionFrameQuery`
 - [x] `ActionGraph`（Normal/Perfect、SharedRoute、多 Entry）
 - [x] `CombatHitPipeline` 帧末结算 + `CharacterReactionService`
-- [x] `NumericSystem`（Attribute / Effect / Flags）+ `NumericCostGate` + Vitality
+- [x] `NumericSystem` + `NumericCostGate` + Vitality
 - [x] Action Editor 基础时间轴 / Graph 编辑
 - [x] F3 `CombatDebugHudController`
-- [x] 敌人共享 Actor + BT Runner + Desire/Request（8.10 总出口 2026-08-11）
+- [x] 敌人共享 Actor + BT Runner + Desire/Request
 
 ### 6.2 进行中 / 资产待绑
 
 - [ ] 玩家/敌人受击与死亡 Action 全量配置
-- [ ] Special / EX / Ultimate Graph + `ActionResourceSpec` 填表验收
-- [x] Locomotion 方向/倾身/绕圈/Pivot 两段式（L-DIR1～5 + P-PIV）Play 验收 2026-08-12
-- [x] ~~Locomotion Phase D：急停减速曲线~~ — **不做**（2026-08-12）
+- [ ] Special / EX / Ultimate Graph + `ActionResourceSpec` 填表
 - [ ] Action Editor：SFX 预览、校验强化、GraphView 润色
 - [ ] 敌人 Definition / Graph / 动画资产齐套
-- [x] A1 木桩 Prefab + 测试场景摆放（人工，✅ 2026-08-08）
 
 ### 6.3 待建设（战斗 / Demo 主线）
 
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
-| AI Behavior Tree 运行时 | ✅ | 8.10 Desire + Entry Request 总出口关闭（2026-08-11） |
-| Lock-On / Director | P1 | Camera 篇 C1（不挂 Wave 4） |
-| TargetAdhesion / RelocateBehind | ✅ | Wave 4 已齐；Relocate 资产按需 |
+| Lock-On / Director | P1 | Camera 篇 C1 |
 | 正式 HUD（血条/资源条） | P2 | 替代 F3；实现走 §6.4 MVVM |
-| SkillShot 多段镜头 | P2 | Camera 篇 C3（不挂 Wave 5） |
+| SkillShot 多段镜头 | P2 | Camera 篇 C3 |
 | 对象池 / 伤害数字 | P2 | 表现优化 |
 | 场景胜负流 / Boot 流程 | P2 | Demo 包装 |
 | 斜坡精确碰撞 | P2 | L2 收口 |
-| 预测回滚联网 | P3 | L3→L5 |
+| 联网 Play / W12 | P1 | 见 §3；不得称公网可用 |
 
-### 6.4 学习与工程实践轨（可与主线交错，不阻塞 Wave）
+### 6.4 学习与工程实践轨
 
-> 目标：可演示的最小闭环 + 可替换接口；**不得**绕过 60Hz Sim / Numeric 权威，也不得把热更脚本写成第二套战斗数值口袋。
+不得绕过 60Hz Sim / Numeric 权威，也不得把热更脚本写成第二套战斗数值口袋。
 
-| 模块 | 优先级 | 范围与约束 |
-|------|--------|------------|
-| **MVVM UI 框架** | P2 | View / ViewModel / Model（或 Binder）分层；首版接血条、资源条、简易菜单；跨系统用现有 Command/Query/Event，UI 不直写 Domain 权威状态 |
-| **性能优化学习测试实践** | P2 | 建立可复现基准：Profiler / Frame Debugger / 内存快照；固定测试场景（木桩连打、多敌人、相机）；记录 CPU/GC/DrawCall 基线与优化前后对比；优先验证 Hitbox、动画、VFX、UI 重建热点 |
-| **简单行为树编辑器** | P2 | ✅ GraphView MVP（A1）；待优化见 [`ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md`](./2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md)（建议 A3） |
-| **A\* 寻路** | P2 | 网格或导航点 A\* 学习实现；输出路径供 AI 移动意图；与锁步对齐时路径查询应确定性（或明确「仅表现/非 Hash」边界）；可先单机 Demo，再决定是否进 Sim |
-| **AssetBundle + Lua 热更新** | P3 | AB 打包/加载/依赖与版本清单最小流程；Lua（或等价脚本）热更学习环境：热更 UI/配置/活动逻辑优先，**禁止**热更改写 ActionSim / Numeric 权威；与正式 C# 主循环边界写清 |
-| **SDK 打包流程实践** | P3 | 渠道/平台 SDK 接入演练：登录、支付占位、隐私合规钩子、多渠道打包脚本（CI 或 Editor 菜单）；与热更包产出流水线可衔接 |
-| **剧情编辑器** | P3 | 对话/镜头/标记位时间轴或节点图；播放器与 Gameplay 状态机解耦（暂停输入、切镜头、触发 Action 用事件/Command）；首版单场景线性剧情即可 |
+| 模块 | 优先级 | 范围 |
+|------|--------|------|
+| MVVM UI 框架 | P2 | 首版接血条、资源条、简易菜单 |
+| 性能优化实践 | P2 | 木桩/多敌人基线 + Profiler 对照 |
+| 行为树编辑器 | P2 | GraphView MVP 已有；待优化见 [`ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md`](./2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md) |
+| A\* 寻路 | P2 | 路径 → AI 移动意图；锁步确定性边界待定 |
+| AssetBundle + Lua 热更 | P3 | 禁止热更改写 ActionSim / Numeric |
+| SDK 打包流程 | P3 | 渠道接入演练 |
+| 剧情编辑器 | P3 | 与 Gameplay 用事件解耦 |
 
-**建议依赖顺序（实践轨内部）：**
+勾选：
 
-```text
-MVVM HUD 骨架
-  → 性能基线场景（可与 A1 木桩共用）
-  → BT 运行时接口 + 简易编辑器（可并行 A\* Demo）
-  → 剧情编辑器（复用镜头/UI 事件）
-  → AssetBundle / Lua 热更沙盒
-  → SDK 打包流水线挂接热更产物
-```
-
-勾选进度（摘要）：
-
-- [ ] MVVM UI 框架 + 首屏 HUD
-- [ ] 性能基线场景与优化对照记录
-- [x] BT 抽象接口 + GraphView + 8.10 Desire/Request 总出口（2026-08-11）
-- [ ] A\* Demo（寻路 → 移动意图）
-- [ ] AssetBundle 加载闭环
-- [ ] Lua（或脚本）热更沙盒（非战斗权威）
-- [ ] SDK / 多渠道打包演练
+- [ ] MVVM UI + 首屏 HUD
+- [ ] 性能基线与优化对照
+- [x] BT 抽象 + GraphView + Desire/Request（2026-08-11）
+- [ ] A\* Demo
+- [ ] AssetBundle / Lua 热更沙盒
+- [ ] SDK / 多渠道打包
 - [ ] 剧情编辑器 + 单场景播放器
 
 ---
 
 ## 7. Tech Debt（观察）
 
-摘自 ROADMAP，完成后回写两边：
+完成后回写 ROADMAP：
 
-- [ ] `CharacterActor` 与 `LocomotionState` 双处感知移动输入
 - [ ] 业务程序集仍多在 Assembly-CSharp（仅 `Domain/Simulation` 已拆 asmdef）
-- [ ] Action YAML 可能残留孤儿字段（如旧 `useRootMotion`），需 Editor 重存清洗
-- [ ] TECHNICAL 功能索引部分条目日期需随 Wave 出口回写
+- [ ] Action YAML 可能残留孤儿字段，需 Editor 重存清洗
 
 ---
 
 ## 8. 维护约定
 
-1. **改进度先改真源**：Wave 勾选 → MASTER；重构项 → ROADMAP；功能方案 → TECHNICAL；本文只同步摘要表。  
-2. **完成一大段后**更新本文 §2 / §3 / §4 状态，避免再次变成 2026-06 式过期清单。  
-3. Agent **不改** `Assets/Data/**`、`.prefab`、`.asset`；清单中的 Editor 项由人工勾选。  
-4. 旧版（2026-06-11、`Assets/_Game/` 路径）已废弃，勿恢复为实施入口。
+1. **改进度先改真源**：Wave → MASTER；重构项 → ROADMAP；功能方案 → TECHNICAL；本文只同步摘要表。
+2. **完成一大段后**更新本文 §2 / §3 / §4，避免再次堆过期清单。
+3. Agent **不改** `Assets/Data/**`、`.prefab`、`.asset`；清单中的 Editor 项由人工勾选。
+4. 已关闭方案不再保留归档副本；现行阅读入口见 [`README.md`](./README.md)。

@@ -1,26 +1,13 @@
-# 2026.8.6 优化文档索引
+# 2026.8.6 文档索引
 
-本目录为 2026-08 一批战斗/动作/相机优化方案。**先读总案，再读单篇。**
+本目录只保留仍有效的战斗 / 相机排期与产品方案。
 
 | 文档 | 角色 |
 |------|------|
-| **[MASTER_IMPLEMENTATION_PLAN.md](./MASTER_IMPLEMENTATION_PLAN.md)** | **排期 / 依赖 / 真源裁定（先读）** |
-| [ACTION_DEFINITION_OPTIMIZATION_PLAN.md](./ACTION_DEFINITION_OPTIMIZATION_PLAN.md) | Action 数据权威、BaseMotion、Modifier/Command |
-| [CHARACTER_MOVEMENT_ANCHOR_OPTIMIZATION_PLAN.md](./CHARACTER_MOVEMENT_ANCHOR_OPTIMIZATION_PLAN.md) | Gameplay/Residual 轨迹、VisualMotionRoot |
+| **[MASTER_IMPLEMENTATION_PLAN.md](./MASTER_IMPLEMENTATION_PLAN.md)** | Wave / 依赖 / 真源裁定 |
 | [SKILL_AND_RESOURCE_SYSTEM_PLAN.md](./SKILL_AND_RESOURCE_SYSTEM_PLAN.md) | 技能槽语义与 Graph 路由（字段见 NUMERICS） |
-| [CAMERA_SYSTEM_PLAN.md](./CAMERA_SYSTEM_PLAN.md) | Director / Lock-On / SkillShot |
+| [CAMERA_SYSTEM_PLAN.md](./CAMERA_SYSTEM_PLAN.md) | Director / Lock-On / SkillShot（独立推进） |
 
-关联真源（目录外）：
+关联：[`../COMBAT_NUMERICS_PLAN.md`](../COMBAT_NUMERICS_PLAN.md)、[`../ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md`](../ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)。
 
-- [`../COMBAT_NUMERICS_PLAN.md`](../COMBAT_NUMERICS_PLAN.md) — `ActionResourceSpec` 字段与 N*
-- [`../ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md`](../ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md) — 锁步与 Sim 边界
-- [`../2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md`](../2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md) — **2026-08-09** 表现/AI/木桩日计划大纲
-
-## Wave 速览
-
-```text
-0 观测保护网 → 1 位移止血 → 2 稳定锚点+删RM
-  → 3 资源循环(含同键EX) → 4 吸附/绕背+LockOn → 5 大招镜头(+后置)
-```
-
-细节与验收见总案 §6。
+Wave 0～4 位移出口已关；相机不挂 Wave 4/5。

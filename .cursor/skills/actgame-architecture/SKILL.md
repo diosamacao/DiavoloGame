@@ -125,11 +125,11 @@ description: Maintains ACTGame Unity project architecture docs, technical featur
 Core/          → 与 Unity 场景无关的通用逻辑（状态机泛型等）
 Character/     → 所有可控角色共享（动画、状态、Context）
 Player/        → 玩家专属（Input 桥接、PlayerController）
-Enemy/         → 敌人专属（AI、仇恨等，待建）
-Combat/        → 战斗判定、伤害、Hitbox（待建）
+Enemy/         → 敌人专属（BT / Desire / Request）
+Combat/        → 战斗判定、伤害、Hitbox、Numeric
 Input/         → Input System 封装
-Camera/        → 相机与 Cinemachine
-UI/            → 界面（待建）
+Camera/        → 相机与 Cinemachine（Lock-On 未做）
+UI/            → 界面（未建）
 Editor/        → 编辑器扩展
 Data/          → ScriptableObject、配置（Assets/Data/）
 ```

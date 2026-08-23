@@ -1,41 +1,35 @@
 # 客机预测向 UE AutonomousProxy 对齐 — 实施方案
 
 > 制定：2026-08-15  
-> 角色：**走跑纠偏合同仍有效**；客机**装配**真源已迁 [`UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](./UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md)（同一 `CharacterActor` + `ReplicationSeat`）。房间、权威 World、命中契约仍以 [`TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md`](../2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md) 为准  
-> 相关：  
-> - 组队 PVE 联网（NS0～NS5 已关闭）：[`../2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md`](../2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md)  
-> - 内层走跑真源：`LocomotionStateMachine` + [`../2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md`](../2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md)  
-> - 外部对照：Lyra / `UCharacterMovementComponent`（AutonomousProxy + Saved Move）；出招对照 GAS 预测（本方案 UE4）  
-> 装配链：`InputFrame → AutonomousLocomotionRunner（内层机 + MotorSim 副本）→ 权威 Snapshot 纠偏重放 → RemoteProxy 只呈现`
+> 角色：**走跑纠偏合同仍有效**（2m 硬吸 / Restore+Replay）。客机装配已是同一 `CharacterActor` + `ReplicationSeat`。  
+> 现行联网：[`../2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)  
+> 内层走跑：`LocomotionStateMachine` + [`../2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md`](../2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md)
 
 ---
 
 ## 0. 一句话
 
-客机本机按 UE **AutonomousProxy** 跑与 Host **同一套** `LocomotionStateMachine`（位移 + 选片），权威只纠正结果并重放未确认输入；禁止再猜 Idle/Walk/Run，禁止客机 `CharacterActorFactory` / Collect，禁止锁步双轨，禁止把他人角色改成第二套预测。
+客机本机按 UE **AutonomousProxy** 跑与权威 **同一套** `LocomotionStateMachine`（位移 + 选片），权威只纠正结果并重放未确认输入；禁止再猜 Idle/Walk/Run，禁止客机 Collect，禁止锁步双轨，禁止把他人角色改成第二套预测。
+
+**现行装配：** 本机 `ReplicationSeat.Autonomous` 的 `CharacterActor` + `PredictedLocomotionDriver`；他人 `RemoteCharacterProxy`。下文 UE1 的 `AutonomousLocomotionRunner` 已删除，只保留纠偏阈值与禁止项。
 
 ---
 
 ## 1. 问题与动机
 
-### 1.1 现状基线（NS5 关闭后）
+### 1.1 现行路径（2026-08-23）
 
 ```text
-客机座位（PlayerController.BuildClientSeat）
-  → 只采样 InputReader，不建 CharacterActor
-  → ReplicationRoomClient.OnAfterLogicStep
-       InputFrame 上行（命令批冗余）
-       PredictedLocomotionDriver.Predict（wish / FollowInput）
-         或 PredictAlignedToSnapshot（出招 / Start / Stop / Pivot）
-       TickPredictedGait（本地再跑一份 GaitPolicy）
-       PredictedLocomotionVisual.ResolveSelfKey（猜片）
-       RemoteCharacterProxy.ApplySnapshot（Seek / CrossFade）
+客机 LocalClientRuntime
+  → ActClientRoomGameplay.TryBuildCommand（InputFrame）
+  → PredictedLocomotionDriver / Autonomous CharacterActor
+  → 权威 ReplicationFrame → Restore+Replay（≥2m 硬吸）
+  → 他人 RemoteCharacterProxy（Snapshot + 播放头）
 
-Host
-  → CharacterActor.Step
-       InputManager.IngestFrame
-       LocomotionStateMachine.Tick   // 唯一走跑真源
-       HitboxFrameConsumer.Collect
+权威 DedicatedServerRuntime
+  → SimulationWorld.Step
+  → CombatHitPipeline.Collect
+  → ReplicationServer.BuildFrame
 ```
 
 | 点 | 现状 |
@@ -86,7 +80,7 @@ NS3 曾写「预测不重跑 Locomotion FSM」——那是当时为先走路做�
 
 1. **学 UE 的角色分工，不学复制框架**：本机 Autonomous 先演同一套移动；服务器重演；错了纠偏重放。他人继续吃状态。  
 2. **走跑只有一套码**：`LocomotionStateMachine` 是 Host 与客机本机的唯一相位/选片/烘焙位移入口。  
-3. **装配用座位，不用身份 if**：权威座位走 `CharacterActorFactory`；本机预测座位走 `AutonomousLocomotionRunner`；他人走 `RemoteCharacterProxy`。禁止 `if (isClient) 猜片`。  
+3. **装配用座位，不用身份 if**：权威 / 本机预测都是 `CharacterActor` + `ReplicationSeat`；他人走 `RemoteCharacterProxy`。禁止 `if (isClient) 猜片`。  
 4. **预测核不得 Collect、不得进 `SimulationWorld`、不得写 Numeric**。  
 5. **出招与走跑分轨**（对齐 CMC vs GAS）：走跑由 Runner；出招仍是只读预测，权威可取消。UE4 再加深，不在 UE1 把 ActionSim 和内层机焊成一个 Actor。  
 6. **纠偏只改预测电机与 Runner 状态**，禁止把表现插值 Pose 写回 MotorSim。  
@@ -239,7 +233,7 @@ Reconcile(authoritySnapshot):
 - [x] `IsTransitionPhase` / `ShouldHardCut` / `TryReadPhase` 并入 `ReplicationPresentationAlign`；删除空类  
 - [x] `PredictedClientPreviewController` 走同一 Runner（禁止 Predict + 猜片）  
 - [x] 改 CONVENTIONS：本机 Autonomous 跑内层机；纠偏 Restore+Replay；他人仍 Snapshot  
-- [x] 改 TECHNICAL 客机预测节；`TEAM_PVE` §3.4 指向本文并删除猜片过渡句  
+- [x] 改 TECHNICAL 客机预测节；删除猜片过渡句  
 - [x] `rg "TickPredictedGait|ResolveSelfKey" Assets/Scripts` 无匹配  
 
 **验收**

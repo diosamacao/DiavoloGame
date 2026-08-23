@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-Unity ACT（动作）游戏。当前重点：第三人称移动、状态机驱动动画、Cinemachine 相机、**数据驱动动作系统（ActionEditor 准备中）**。
+Unity ACT（动作）游戏。当前重点：60Hz 模拟核、数据驱动动作 / 数值、Dedicated 权威状态同步；相机 Lock-On 与正式 UI 未做。
 
 > 各功能的实现细节、参数与运行时流程见 [TECHNICAL.md](TECHNICAL.md)。
 
@@ -134,7 +134,7 @@ flowchart TB
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只负责装配和注册，不再实现 Actor `Update` Tick。
 
-NetSync M1 已于 2026-08-18 关闭。W5～W8 / M2 已于 2026-08-19 验收。W9 Listen 组合已于 2026-08-20 用户验收。W10 代码切面已落地，出口待 Play。W11 代码切面已落地，R2 出口未关。阅读：[`docs/2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md`](../../docs/2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md)。
+NetSync W0～W9 已验收。W10/W11 代码切面已落地，Play / R2 未关，不得称公网可用。阅读：[`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)。
 
 ### 2. 泛型状态机（Core）
 
@@ -283,7 +283,7 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `DedicatedServerBootstrap` / `MatchCoordinator` | Dedicated 独立宿主与 N 玩家身份/出生；JoinAccept 无房主时 `AuthorityEntityId` 为 Invalid |
 | `ServerLaunchConfigResolver` | 启动覆盖 CLI > Env > File；Editor 强制不退出进程 |
 
-权威进程写法：同一份 `ACTGame.Simulation`，不另写服务器战斗。对照与禁区见 CONVENTIONS「服务器 / 权威进程」与方案 §13。实现级阅读入口：[`docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../../docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)；W5：[`docs/2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`](../../docs/2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md)。
+权威进程写法：同一份 `ACTGame.Simulation`，不另写服务器战斗。对照与禁区见 CONVENTIONS「服务器 / 权威进程」。实现阅读：[`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)。
 
 ### 10. 敌人（Enemy）
 

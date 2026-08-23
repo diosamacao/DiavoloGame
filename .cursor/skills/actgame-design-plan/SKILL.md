@@ -24,8 +24,8 @@ description: >-
 
 可选对照（同类问题再读）：
 
-- 编辑器/体验向：`docs/2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md`  
 - 契约锁定向：`docs/ENEMY_BEHAVIOR_TREE_PLAN.md`  
+- 编辑器待办：`docs/2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md`  
 
 完整章节骨架见 [TEMPLATE.md](TEMPLATE.md)。
 

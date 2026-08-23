@@ -30,7 +30,7 @@
 - `LocomotionStateMachine` 内层纯状态机：Idle → Start → Gait(Walk/Run/Sprint) →（Sprint 大角度）PivotTurn / Stop
 - Run 持续 `sprintAfterRunSeconds`（默认 3s）后进 Sprint；仅 Sprint 可 Pivot
 - `LocomotionFootCycle` + SO 落脚标记；急停默认右脚；Stop 全程可取消回 Start；Pivot→Stop 用转身目标朝向；Start 急停播 StartEnd
-- 急停减速曲线等 Phase D **明确不做**（2026-08-12；见 `docs/LOCOMOTION_OPTIMIZATION_PLAN.md`）
+- 急停减速曲线等 Phase D **明确不做**（2026-08-12）
 - [x] 2026-07-22：删除手写 `LocomotionService` Phase 袋，改为 Core `StateMachine` 嵌套机
 - [x] 2026-08-12：L-DIR1～5 + Pivot 两段式 Play 验收关闭
 
@@ -80,8 +80,6 @@
 
 ### [P1] Wave 4 玩法位移（吸附）
 
-**真源**：`docs/2026.8.9/WAVE4_GAMEPLAY_MOTION_BRANCH02_PLAN.md`
-
 **状态：✅ Wave 4 位移出口关闭（2026-08-09）**
 
 - [x] TargetAdhesion + SoftBodySuppress；Branch_02 验收（目标已于 2026-08-13 迁为逐帧 SelectedTarget）
@@ -100,19 +98,15 @@
 
 **状态：🟡 C-AT0～C-AT3 代码重构完成（2026-08-13）**；已删除旧权威路径并补确定性 Resolver 测试。待 Editor 绑定 TargetSwitch/CameraLock、Unity 编译/Test Runner/Play 回归后关闭出口，再进入 Camera C1 Director / LockOn VCam。
 
-### [P1] 组队 PVE · 永劫式状态同步
+### [P1] 组队 PVE · Dedicated 权威状态同步
 
-**方案**：`docs/2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md`
+**阅读**：[`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)  
+**排期**：[`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)  
+**纠偏合同**：[`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)
 
-**目标**：Listen Host / 日后 Dedicated 独跑现有 `SimulationWorld`；客户端上行 `InputFrame`、下行角色快照；本地预测移动与出招表现；命中只在权威逻辑盒结算。取代锁步 L5「全员输入广播 + 完整回滚」作为产品联网。
+**目标**：Dedicated 独跑现有 `SimulationWorld`；Listen 只是同进程再开 LocalClient。客户端上行 `InputFrame`、下行 `ReplicationFrame`；本机 Autonomous 预测走跑与出招；命中只在权威逻辑盒结算。
 
-**状态：✅ NS0～NS5 已验收（2026-08-15）**。单机即 Listen Host。房间 / 权威 World 以该方案为准。命中 **P0 仍 Host Collect**；终态以 PVP 为真源（攻击方申报几何、权威入账），PVE 同一条链，见方案 §3.3。`NS-PVP` 未开，禁止现在分叉两套盒。
-
-**实现说明（先读）：** [`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)（Join → 命中现行调用链）。M1 历史：[`docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../../docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)。NS5 结构备忘：[`docs/2026.8.15/NETWORK_SYNC.md`](../../docs/2026.8.15/NETWORK_SYNC.md)
-
-**客机装配：** [`docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md`](../../docs/2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md) — **CA0～CA2 代码已切（2026-08-15）**：同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。Play 待 Editor。纠偏合同仍见 [`UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
-
-**下一阶段网络重构：** [`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) — **W5～W8 / M2 已于 2026-08-19 验收**。**W9 Listen 组合已于 2026-08-20 用户验收**。**W10 代码切面已落地，出口待 Play（暂缓）**。**W11 代码切面已落地，R2 出口未关**。备忘：[`docs/2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md`](../../docs/2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md)。
+**状态**：NS0～NS5 / W0～W9 已验收。W10/W11 代码切面已落地，Play / R2 未关，不得称公网可用。同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。命中 **P0 仍权威 Collect**；`NS-PVP` 未开，禁止现在分叉两套盒。
 
 ### [P1] Lockstep 模拟核迁移
 
@@ -156,7 +150,7 @@
 - [ ] L2 收口：斜坡/网格精确碰撞（当前 AABB 保守）
 - [x] 2026-08-08 Wave 2.5：删除 Action `useRootMotion` / LegacyResolve / ForwardOnly 与 Animator RM→Motor 回退
 - [ ] L3：降级为可导出 `ActorReplicationSnapshot`（组队 PVE 纠偏/重连）；不再为 GGPO 整世界回滚铺路
-- [ ] ~~L5：权威 FramePacket + 客户端完整预测回滚~~ → **2026-08-13 取消为产品主路径**；改 [`TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md`](../../docs/2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md)
+- [ ] ~~L5：权威 FramePacket + 客户端完整预测回滚~~ → **2026-08-13 取消为产品主路径**；现行联网见 [`NETSYNC_FROM_JOIN_TO_HIT.md`](../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)
 
 ## 待建设模块
 
@@ -168,8 +162,8 @@
 | 事件总线 | P2 | 轻量 C# event；定稿前不引入第三方 |
 | 行为树编辑器 | P2 | ✅ MVP（A1）；待打磨见 `docs/2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md`（建议 A3） |
 | 敌人对峙循环 + GaitPolicy | P2 | ✅ 拓扑/秒制落地；对峙表现已验收；见 `docs/2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md` |
-| Locomotion AnimSet / 倾身 / 绕圈 | P1 | ✅ Play 验收 2026-08-12 · `docs/2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md` |
-| PivotTurn 两段式朝向 | P1 | ✅ Play 验收 2026-08-12 · `docs/2026.8.12/PIVOT_TURN_TWO_PHASE_FACING_PLAN.md` |
+| Locomotion AnimSet / 倾身 / 绕圈 | P1 | ✅ Play 验收 2026-08-12 |
+| PivotTurn 两段式朝向 | P1 | ✅ Play 验收 2026-08-12 |
 | A\* 寻路 | P2 | 学习实现；路径 → AI 移动意图；锁步确定性边界待定 |
 | 性能优化实践 | P2 | 木桩/多敌人基线 + Profiler 对照；见 `docs/PROJECT_CHECKLIST.md` §6.4 |
 | 剧情编辑器 | P3 | 对话/镜头节点或时间轴；与 Gameplay 用事件解耦 |
@@ -243,6 +237,7 @@
 | 2026-06-17 | 不用 namespace，用文件夹分层 | 当前规模小，减少样板 |
 | 2026-06-17 | CharacterController 非 Rigidbody | ACT 地面移动更可控 |
 | 2026-06-17 | 状态机 Core 不引用 UnityEngine | 可测试性与分层清晰 |
+| 2026-08-23 | 删除已关闭方案与波次备忘；现行联网阅读改为 `NETSYNC_FROM_JOIN_TO_HIT` | 避免过期文档当生产入口 |
 | 2026-06-21 | 连招保持线性 | 近期无分支图需求 |
 | 2026-07-12 | 自研薄 Playable + `IAnimationPlayback`；不同时引入 Animancer | Action 时序已自研；门面可替换后端 |
 | 2026-06-21 | 输入路由命名 `CharacterActionDriver` | 敌人复用同一组件 |

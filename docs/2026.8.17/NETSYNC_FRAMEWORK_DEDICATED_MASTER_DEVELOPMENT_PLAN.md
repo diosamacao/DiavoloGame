@@ -1,15 +1,11 @@
 # NetSync 通用网络层分离 + Dedicated Server 总开发计划
 
 > 制定：2026-08-17  
-> 角色：**NetSync 两份方案的总排期与阶段出口真源**；具体类型契约仍以下列专项方案为准  
-> 设计真源：  
->
-> - `[NETSYNC_GENERIC_CORE_GAMEPLAY_SEPARATION_PLAN.md](./NETSYNC_GENERIC_CORE_GAMEPLAY_SEPARATION_PLAN.md)` — GF0～GF8  
-> - `[NETSYNC_DEDICATED_SERVER_SEPARATION_PLAN.md](./NETSYNC_DEDICATED_SERVER_SEPARATION_PLAN.md)` — DS0～DS8  
-> - `[NETSYNC_ARCHITECTURE_ANALYSIS_AND_FRAMEWORK_COMPARISON.md](./NETSYNC_ARCHITECTURE_ANALYSIS_AND_FRAMEWORK_COMPARISON.md)` — 现状分析  
-> 当前实现：`[../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md](../2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)`（M1）；`[../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md](../2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md)`（W5）  
-> NS5 结构备忘：`[../2026.8.15/NETWORK_SYNC.md](../2026.8.15/NETWORK_SYNC.md)`  
-> **执行决策：** GF4 是“网络层分离完成”门槛；GF8 不是 Dedicated 前置。先交付 DS-Demo，再做 Listen 组合收敛、公网与规模优化。
+> 角色：**NetSync 总排期与阶段出口真源**  
+> 现行实现：[`../2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)  
+> 纠偏合同：[`../2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)  
+> 启动：[`../2026.8.19/DEDICATED_SERVER_LAUNCH.md`](../2026.8.19/DEDICATED_SERVER_LAUNCH.md)  
+> **执行决策：** W0～W9 已关；先关 W10/W11 Play，再做 W12 公网与运维。不得称公网可用。
 
 ---
 
@@ -120,7 +116,7 @@ flowchart LR
 - [ ] 无 `ACTNet.* → ACTGame.* / UnityEngine` 反向引用。
 - [ ] 无新增长期 `Legacy` / `Compat` / `V1` 双轨。
 - [ ] 新 Session / Replication 热路径有长度、数量和非法 Id 检查。
-- [ ] 变更同时更新两份专项方案的勾选项与出口。
+- [ ] 变更同时更新本文勾选项与 `NETSYNC_FROM_JOIN_TO_HIT` / TECHNICAL。
 
 W5 起额外要求：
 
@@ -446,7 +442,7 @@ W5 起额外要求：
 - [x] 增加 Visibility / Priority / per-connection byte budget。
 - [x] 删除旧 `IReplicationTransport`、混合 RoomCodec 入口、Actors diff 生命周期和重复 Role/Id。（Transport/Host/隐式销毁已在前序删除；RoomCodec 仍留 Simulation）
 - [x] 建 FakeActionGame：移动 Entity + Owner 预测 + Observer 插值。
-- [x] 输出程序集依赖图、接入说明、协议说明、调试指南。（`docs/2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md`）
+- [x] 输出程序集依赖图、接入说明、协议说明、调试指南。（现行阅读：`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`）
 - [x] 稳定前保持项目内 Framework；达到出口后再决定 Unity Package。
 
 **验收**
@@ -597,7 +593,7 @@ W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 | 日期         | 说明                                                                                |
 | ---------- | --------------------------------------------------------------------------------- |
 | 2026-08-17 | 初版：整合 GF0～GF8 与 DS0～DS8；定案 GF4 为网络层分离门槛、DS6 为 LAN DS-Demo、Listen 组合后置到 DS-Demo 之后 |
-| 2026-08-18 | W0～W4 / M1 验收关闭；实现阅读入口改为 `docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`             |
+| 2026-08-18 | W0～W4 / M1 验收关闭；实现阅读入口后迁到 `docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md` |
 | 2026-08-19 | W5～W7 用户验收；W8 代码切面：CLI/Env/File、READY、空房/对局结束退出、启动说明与 READY 烟测脚本 |
 | 2026-08-19 | W8 Dedicated 出包 + H-DS-D 用户验收；M2 / LAN DS-Demo 关闭；恢复联网从 W9 开始 |
 | 2026-08-20 | W9 Listen 组合代码切面：同一 `DedicatedServerRuntime` + `LocalClientRuntime`；旧 Host Room 删除 |

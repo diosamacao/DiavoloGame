@@ -6,8 +6,6 @@
 > 相关：  
 > - [相机系统方案](../2026.8.6/CAMERA_SYSTEM_PLAN.md)  
 > - [锁步模拟重构](../ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)  
-> - [Locomotion 定向 AnimSet / L-DIR5](../2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md)  
-> - [Wave 4 玩法位移](../2026.8.9/WAVE4_GAMEPLAY_MOTION_BRANCH02_PLAN.md)  
 > - [架构 ROADMAP](../../.cursor/skills/actgame-architecture/ROADMAP.md)  
 > - 装配链：`本地 Orbit Yaw → InputFrame → MoveIntent`；`TargetingState → ActionSim / Locomotion / CameraDirector`
 

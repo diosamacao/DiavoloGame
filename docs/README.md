@@ -1,78 +1,49 @@
 # ACTGame 文档索引
 
-> 更新：2026-08-23 — 现行联网阅读入口改为「从入房到命中」；W11 代码切面已落地；W10 Play 暂缓，不得称公网可用。
-> **一页总览先读：** [PROJECT_CHECKLIST.md](./PROJECT_CHECKLIST.md)  
-> **排期真源：** [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md)  
-> **架构运行时：** `.cursor/skills/actgame-architecture/`（ARCHITECTURE / TECHNICAL / ROADMAP）
+> 更新：2026-08-23 — 已关闭的日计划、波次备忘与被替代方案已删除；实现细节以代码 + 架构文档为准。
+
+**先读**
+
+| 文档 | 角色 |
+|------|------|
+| [PROJECT_CHECKLIST.md](./PROJECT_CHECKLIST.md) | 一页总览：进度 / 下一步 / 明确不做 |
+| `.cursor/skills/actgame-architecture/` | 运行时真源：ARCHITECTURE / TECHNICAL / CONVENTIONS / ROADMAP |
 
 ---
 
-## 现行真源
+## 现行方案（仍有未关出口或字段合同）
 
 | 文档 | 角色 |
 |------|------|
-| [PROJECT_CHECKLIST.md](./PROJECT_CHECKLIST.md) | **项目总清单**（进度一页表 / 下一步 / 模块勾选） |
-| [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md) | 跨系统排期 / 依赖 / Wave |
-| [2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md](./2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md) | 数值口袋 Numeric/Effect |
+| [2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md](./2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md) | **联网实现阅读入口**：Join → 命中现行调用链 |
+| [2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md](./2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) | 联网排期：W10/W11 Play 与 W12 未关 |
+| [2026.8.19/DEDICATED_SERVER_LAUNCH.md](./2026.8.19/DEDICATED_SERVER_LAUNCH.md) | Dedicated 本地启动与退出码 |
+| [2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md](./2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md) | 走跑纠偏合同（2m 硬吸 / Restore+Replay） |
+| [2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md](./2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md) | 联网踩坑备忘（不是排期真源） |
+| [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md) | 战斗 / 位移 Wave 排期（0～4 已关；相机独立） |
+| [2026.8.6/CAMERA_SYSTEM_PLAN.md](./2026.8.6/CAMERA_SYSTEM_PLAN.md) | 相机 Lock-On / Director / SkillShot（未做） |
+| [2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md](./2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md) | Camera C1 前置：MoveReferenceYaw + SelectedTarget |
 | [COMBAT_NUMERICS_PLAN.md](./COMBAT_NUMERICS_PLAN.md) | 资源字段与产品语义 |
-| [2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md](./2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md) | 技能槽 / 完美闪避产品 |
-| [2026.8.6/ACTION_DEFINITION_OPTIMIZATION_PLAN.md](./2026.8.6/ACTION_DEFINITION_OPTIMIZATION_PLAN.md) | Action 数据与位移权威 |
-| [2026.8.6/CHARACTER_MOVEMENT_ANCHOR_OPTIMIZATION_PLAN.md](./2026.8.6/CHARACTER_MOVEMENT_ANCHOR_OPTIMIZATION_PLAN.md) | Gameplay/Residual 锚点 |
-| [2026.8.6/CAMERA_SYSTEM_PLAN.md](./2026.8.6/CAMERA_SYSTEM_PLAN.md) | 相机 / Lock-On / SkillShot |
-| [2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md](./2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md) | **Camera C1 前置**：MoveReferenceYaw 输入闭包、唯一 SelectedTarget 权威与纯表现 CameraLock |
-| [2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md](./2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md) | **现行网络同步实现阅读入口**：从 Join 到命中的完整调用链（Listen 组合 / Compact / 播放头 / Urgent / 可靠事件） |
-| [2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md](./2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md) | **M1（W0～W4）历史备忘**：分层与线格式；Host Facade 已删除，勿当现行入口 |
-| [2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md) | **W5 Dedicated Bootstrap / N 玩家 Session**：独立 Runtime、Match、每连接 ACK |
-| [2026.8.19/NETSYNC_W6_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W6_STAGE_SUMMARY.md) | **W6 Headless Authority / 指纹握手**：外部时钟、无头工厂、Join ContentFingerprint |
-| [2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md) | **W7 Match / 每连接 Replication**：状态机、下行 Frame、MatchEnd（已验收） |
-| [2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md) | **W8 Dedicated Build / DS-Demo**（已验收）：CLI/Env/File、READY、出包 |
-| [2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md](./2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md) | **W9 Listen 组合**（已验收）：同一 ServerRuntime + LocalClient；预测按权威步数 |
-| [2026.8.20/NETSYNC_W10_STAGE_SUMMARY.md](./2026.8.20/NETSYNC_W10_STAGE_SUMMARY.md) | **W10 预测 / 可靠通道 / 网络时间**（代码切面）：`ACTNet.Prediction` + ChannelMux + 可靠命中；出口待 Play |
-| [2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md](./2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md) | **W11 Delta / Relevancy / FakeActionGame**（代码切面）：未变跳过、40m 兴趣、Recover、`GraphNodeKey` |
-| [2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md](./2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md) | **网络架构踩坑回顾**（NS0～W10）：分层双轨、Join、时钟、命令 ACK、预测纠偏、Headless、Listen 组合、可靠事件 |
-| [2026.8.19/DEDICATED_SERVER_LAUNCH.md](./2026.8.19/DEDICATED_SERVER_LAUNCH.md) | Dedicated 本地启动、退出码、H-DS-D 表 |
-| [2026.8.15/NETWORK_SYNC.md](./2026.8.15/NETWORK_SYNC.md) | NS5 时期结构说明；下行已改为 `ReplicationFrame`，生产路径以 8.18 总结为准 |
-| [2026.8.16/NETWORK_SYNC_STUDY_QA.md](./2026.8.16/NETWORK_SYNC_STUDY_QA.md) | **自学问答备忘（第 0～6 已收束）**：含框架分层与数据流图；不是实现真源 |
-| [2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md](./2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) | **网络重构总排期真源**：W0～W4 分离通用网络层，W5～W8 交付 DS-Demo，W9～W12 完成 Listen 收敛、公网、规模与运维 |
-| [2026.8.17/NETSYNC_W0_BASELINE_AND_DEPENDENCY_AUDIT.md](./2026.8.17/NETSYNC_W0_BASELINE_AND_DEPENDENCY_AUDIT.md) | **W0 执行记录**：Golden Bytes、Host/Client 帧序、Dedicated 阻塞依赖、指标与双进程回归 |
-| [2026.8.17/NETSYNC_GENERIC_CORE_GAMEPLAY_SEPARATION_PLAN.md](./2026.8.17/NETSYNC_GENERIC_CORE_GAMEPLAY_SEPARATION_PLAN.md) | **通用网络核心 / ACT 业务层分离设计真源**：GF0～GF8 |
-| [2026.8.17/NETSYNC_DEDICATED_SERVER_SEPARATION_PLAN.md](./2026.8.17/NETSYNC_DEDICATED_SERVER_SEPARATION_PLAN.md) | **Dedicated Server 分离设计真源**：DS0～DS8 |
-| [DemoServer `docs/ARCHITECTURE.md`](../../DemoServer/docs/ARCHITECTURE.md) | **DemoClient / DemoServer 对照**：独立 C# 大厅服 + 客户端上报坐标/伤害；学 Handler 壳，不学战斗权威 |
-| [2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md](./2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md) | **组队 PVE 联网设计真源（NS0～NS5 已关闭）**：Host 权威、房间、命中、§13 服务器规范 |
-| [2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md](./2026.8.15/UNIFIED_CHARACTER_ACTOR_SEAT_PLAN.md) | **客机装配真源**：同一 `CharacterActor` + `ReplicationSeat`；CA2 花名册代码已落地 |
-| [2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md](./2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md) | **走跑纠偏合同（UE1～UE4）**：Restore+Replay / 2m 硬吸；装配已迁统一座位方案 |
-| [ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](./ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md) | 模拟核 L0～L2；联网主路径见 8.13 状态同步方案 |
-| [2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md) | 敌人 AI **结构**真源（已关闭；Desire + Entry Request） |
-| [2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md](./2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md) | **BT 待优化真源**（编辑器 A2～A5 + 可选 C1～C4） |
+| [2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md](./2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md) | 技能槽 / 完美闪避产品（资产持续填表） |
+| [ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](./ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md) | 模拟核 L0～L2；剩余 L1B Play / L2 斜坡 / L3 |
 | [ENEMY_BEHAVIOR_TREE_PLAN.md](./ENEMY_BEHAVIOR_TREE_PLAN.md) | BT Runner 契约（§3.4 输出槽） |
-| [2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md](./2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md) | 对峙循环 + GaitPolicy（表现已验收） |
-| [2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md](./2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md) | Locomotion AnimSet / 倾身 / 绕圈（L-DIR1～5）✅ Play 2026-08-12 |
-| [2026.8.12/PIVOT_TURN_TWO_PHASE_FACING_PLAN.md](./2026.8.12/PIVOT_TURN_TWO_PHASE_FACING_PLAN.md) | PivotTurn 两段式朝向 ✅ Play 2026-08-12 |
-| [LOCOMOTION_OPTIMIZATION_PLAN.md](./LOCOMOTION_OPTIMIZATION_PLAN.md) | 旧相位方案：已验收关闭；**Phase D 减速曲线不做** |
-| [ENEMY_SYSTEM_INTEGRATION_PLAN.md](./ENEMY_SYSTEM_INTEGRATION_PLAN.md) | 敌人系统集成（历史；AI I/O 终态见 8.10） |
-| [2026.8.7/BUFF_SYSTEM_PLAN.md](./2026.8.7/BUFF_SYSTEM_PLAN.md) | Buff = Effect 短裁定 |
-| [2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md](./2026.8.8/COMBAT_FEEL_AI_PRESENTATION_DAY_OUTLINE.md) | 表现/木桩/AI 日计划（历史） |
-
-## 编辑器 / 历史实施记录（仍可参考）
-
-| 文档 | 角色 |
-|------|------|
+| [2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md](./2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md) | BT 编辑器待优化（A2～A5） |
 | [ACTION_EDITOR.md](./ACTION_EDITOR.md) | Action Editor 愿景 |
 | [ACTION_EDITOR_IMPLEMENTATION.md](./ACTION_EDITOR_IMPLEMENTATION.md) | Action Editor 实现方案 |
-| [2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md](./2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md) | BT E1～E3（已关闭） |
-| [2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md](./2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md) | BT 编辑器历史（A1）；待办见 8.11 Backlog |
-| [LOCOMOTION_OPTIMIZATION_PLAN.md](./LOCOMOTION_OPTIMIZATION_PLAN.md) | Locomotion 优化（Phase D 等） |
-| [ANIMATION_PLAYABLE_MIGRATION_PLAN.md](./ANIMATION_PLAYABLE_MIGRATION_PLAN.md) | Playable 迁移记录（已实施） |
-| [INPLACE_ROOTMOTION_MOTION_TABLE_PLAN.md](./INPLACE_ROOTMOTION_MOTION_TABLE_PLAN.md) | 运动表烘焙细则 |
-| [2026.8.6/WAVE0_BASELINE_NOTES.md](./2026.8.6/WAVE0_BASELINE_NOTES.md) | Wave0 横摆基线手记 |
+
+## 方案范本（已落地，供新方案对照格式）
+
+| 文档 | 角色 |
+|------|------|
+| [2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md](./2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md) | 结构范本：对峙循环 + GaitPolicy |
+| [2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md](./2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md) | 阶段勾选范本：Numeric / Effect（G0～G5 已关） |
+
+新方案写法见 `.cursor/skills/actgame-design-plan/`。
+
+## 其它
+
+| 文档 | 角色 |
+|------|------|
 | [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md) | 第三方许可 |
 
-## 子目录索引
-
-- [2026.8.6/README.md](./2026.8.6/README.md)
-- [2026.8.8/README.md](./2026.8.8/README.md)
-- [2026.8.9/README.md](./2026.8.9/README.md)
-- [2026.8.10/README.md](./2026.8.10/README.md)
-- [2026.8.11/README.md](./2026.8.11/README.md)
-- [2026.8.12/README.md](./2026.8.12/README.md)
-- [2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md](./2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)
+日期子目录只保留仍被上表引用的文件；已关闭的波次备忘、日计划与被替代方案不再归档。

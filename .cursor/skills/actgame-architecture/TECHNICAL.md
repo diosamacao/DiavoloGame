@@ -28,7 +28,7 @@
 | 架构通信框架 | ✅ 已实现 | `ACTGameArchitecture`、`ArchitectureSystemBase`、`AppControllerBase`、Command / Query / Event | — |
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionStateMachine` + `LocomotionState` | AnimationProfile + `CharacterLocomotionProfile` |
 | Locomotion 起步/急停/转身 | ✅ Play 2026-08-12 | 内层相位 + L-DIR1～5 + Pivot 两段式 | 旧 Phase D 减速曲线不做 |
-| Sprint 倾身 / 相机跟朝向 | 🟡 代码已接、待 Play | `SprintLeanModel` + `CameraManager` Follow Facing | `docs/2026.8.10/LOCOMOTION_DIRECTIONAL_ANIMSET_PLAN.md` L-DIR4/5 |
+| Sprint 倾身 / 相机跟朝向 | ✅ Play 2026-08-12 | `SprintLeanModel` + `CameraManager` Follow Facing | 出招时暂停跟朝向 |
 | 第三人称相机 | 🟡 C-AT 前置完成，C1 构图待做 | `CameraManager` | Orbit yaw 不再写 Motor；本地 CameraLock 契约已接 |
 | 唯一战斗目标 | 🟡 代码完成、输入资产与 Play 待验 | `CharacterTargetingState` + `DeterministicTargetResolver` | 自动最近、滞回保持、Action 中 TargetSwitch |
 | 动作系统（整数帧 / 选招 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ L1B 已实现（Play Mode 待回归） | `ActionSim` + `CharacterActionPresentationBridge` + `ActionFrameQuery` | 60Hz Action + `ActionGraph` |
@@ -133,7 +133,7 @@ SimulationHost.LateUpdate
 - L0B 已切换量化输入与整数帧 Hold/Buffer/AI 冷却；完整脱设备玩法回放仍需 Play Mode 确认。
 - L0C 已删除同步 `ApplyHitCommand` 与 `GetInstanceID()` 去重；真实多命中、互杀及交换注册顺序仍需 Play Mode 验收。
 - L1B：动作权威在纯 `ActionSim`；全部 ActionDefinition 已为 60Hz。剩余为 Play Mode / Test Runner 人工验收；Player 占位 Action 无动画段时 `IsSimulationReady=false`。
-- L2/M0–M1：运动表烘焙 + 运行时查表。`bakeStatus=Ok` 时表现桥按帧取本地 Δ 经 MotorSim 移动并关闭 Animator RM；未烘焙招式仍可走 Animator RM→Motor。
+- L2/M0–M1：运动表烘焙 + 运行时查表。`bakeStatus=Ok` 时表现桥按帧取本地 Δ 经 MotorSim 移动；Wave 2.5 已删除 Animator RM 回退。
 - L2 HitStop：`hitStopFrames` 经 Pipeline 写入 `ActionSim.freezeFrames`；冻结期间不推进动作帧/位移；骨骼由表现桥读 Snapshot，VFX 由 `SimulationLogicStepEvent` 递减。
 - L2 Locomotion：Stop/Pivot 根位移按 `ActionSim.LogicHz` 整数帧取轨，不再用 `NormalizedTime`。
 - L2 MotorSim：水平+竖直毫米权威；`TickVertical` 整数重力/着地；逻辑路径不再 `CharacterController.Move`；CC 保持禁用（禁止 Sync 后 re-enable，否则 PhysX 挤出地面呈悬空）。
@@ -141,8 +141,7 @@ SimulationHost.LateUpdate
 - L2/M2：`Bake All` / `Bake Dirty Only` + Inspector Dirty 黄条 + `ACTGame/Motion/Validate Motion Dirty`。
 - L2 软弹开：`SimulationWorld` 帧末按 Id 序对 `ISimSoftBodyParticipant` 执行 `SoftBodySeparation`（默认 factor=500‰、迭代 3）；按 `softBodyMass` 分配推力，`softBodyImmovable` 像墙；死亡不参与。
 - L2 命中：`SimCombatPose` 从 MotorSim 取水平根；Hitbox 挂点只提供相对根局部 TRS；Hurtbox 用 `GetLogicalHurtbox`；自身排除用 `SimActorId`。
-- 联网定案（方案层，2026-08-13）：Host/DS 权威状态同步；上行 `InputFrame`，下行 `ActorReplicationSnapshot`；命中只在权威 Pipeline。锁步 L5 已取消。服务器写法见 CONVENTIONS「服务器 / 权威进程」与方案 §13。
-- **实现说明（先读）：** [`docs/2026.8.15/NETWORK_SYNC.md`](../../docs/2026.8.15/NETWORK_SYNC.md) — 房间协议、三种座位、预测纠偏与命中复制的代码级说明。设计勾选仍以 `TEAM_PVE_*_PLAN` / `UE_ALIGNED_*_PLAN` 为准。
+- 联网定案：Dedicated 权威状态同步；上行 `InputFrame`，下行 `ReplicationFrame`；命中只在权威 Pipeline。锁步 L5 已取消。阅读：[`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)。纠偏合同：[`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
 
 ### 相关文件
 
@@ -451,7 +450,7 @@ Listen 与 Dedicated 共用 `DedicatedServerRuntime`。Listen 另加本机 `Loca
 
 ### 运行时流程
 
-完整往返（入房、每帧序、客机攻击、线格式）见 [`docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`](../../docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md)。
+完整往返（入房、每帧序、客机攻击、线格式）见 [`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)。
 
 ```
 Listen：LocalClient Poll/采样 → 按 PeekAdvanceSteps 发命令预测 → DedicatedServerRuntime.Poll → LocalClient 再 Drain 同拍快照
@@ -491,7 +490,7 @@ Client：ReplicationRoomClient Poll → LocalClient 采样 → 逻辑步构命�
 - `Assets/Tests/EditMode/Simulation/RoomCodecTests.cs`
 - `Assets/Tests/EditMode/ACTNet/Session/SessionIntegrationTests.cs`
 - `Assets/Tests/EditMode/ACTNet/Transport/UdpTransportTests.cs`
-- `docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`
+- `docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`
 
 ---
 
@@ -541,7 +540,6 @@ CombatWorldController.Awake（Dedicated）
 - `Assets/Scripts/App/Server/DedicatedServerBootstrap.cs`
 - `Assets/Scripts/App/Server/MatchCoordinator.cs`
 - `Assets/Tests/EditMode/ACTGame/Server/DedicatedServerRuntimeTests.cs`
-- `docs/2026.8.19/NETSYNC_W5_STAGE_SUMMARY.md`
 
 ---
 
@@ -590,7 +588,6 @@ DedicatedServerRuntime.Poll
 - `Assets/Scripts/App/Networking/Services/DedicatedAuthorityWorld.cs`
 - `Assets/Scripts/Domain/Simulation/Replication/RoomCodec.cs`
 - `Assets/Tests/EditMode/ACTGame/Server/DedicatedServerRuntimeTests.cs`
-- `docs/2026.8.19/NETSYNC_W7_STAGE_SUMMARY.md`
 
 ---
 
@@ -639,7 +636,6 @@ Poll → 空房超时或 ExitOnMatchEnd → ShouldExit
 - `Assets/Scripts/App/Server/DedicatedServerRuntime.cs`
 - `Assets/Scripts/App/Server/DedicatedServerBootstrap.cs`
 - `Assets/Tests/EditMode/ACTGame/Server/ServerLaunchConfigResolverTests.cs`
-- `docs/2026.8.19/NETSYNC_W8_STAGE_SUMMARY.md`
 - `docs/2026.8.19/DEDICATED_SERVER_LAUNCH.md`
 
 ---
@@ -690,7 +686,6 @@ Update：PollAndApply → SampleRenderInput → 按 PeekAdvanceSteps 发命令�
 - `Assets/Scripts/App/Controllers/Gameplay/ListenServerBootstrap.cs`
 - `Assets/Scripts/App/Networking/Services/LocalClientRuntime.cs`
 - `Assets/Scripts/App/Server/DedicatedServerRuntime.cs`
-- `docs/2026.8.19/NETSYNC_W9_STAGE_SUMMARY.md`
 
 ---
 
@@ -741,7 +736,6 @@ Hit：CopyHits(本帧) → FlushEvents → ApplyReplicationEvents → 去重播�
 - `Assets/Scripts/Domain/Simulation/Prediction/ActCharacterPredictionModel.cs`
 - `Assets/Scripts/Domain/Networking/ActReplicationEventCodec.cs`
 - `Assets/Scripts/App/Server/DedicatedEventSend.cs`
-- `docs/2026.8.20/NETSYNC_W10_STAGE_SUMMARY.md`
 
 ---
 
@@ -795,7 +789,6 @@ Observer.Render → RemotePlaybackClock → SetPresentationBracket → TickAnima
 - `Assets/Scripts/Framework/ACTNet/Prediction/RemotePlaybackClock.cs`
 - `Assets/Scripts/Domain/Character/Replication/RemoteCharacterProxy.cs`
 - `Assets/Scripts/Domain/Simulation/Replication/GraphNodeKey.cs`
-- `docs/2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md`
 - `docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`
 
 ---
@@ -1041,7 +1034,6 @@ Dodge 恢复                            → Gait（PendingGait 经 MaxGait 钳�
 - `Assets/Scripts/Domain/Character/Locomotion/*`
 - `Assets/Scripts/Domain/Character/Animation/*`
 - `Assets/Scripts/Domain/Character/StateMachine/States/LocomotionState.cs`
-- `docs/LOCOMOTION_OPTIMIZATION_PLAN.md`
 
 ---
 
@@ -1343,8 +1335,7 @@ SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSourc
 ### 功能说明
 
 敌人复用玩家的 CharacterActor、Locomotion、ActionGraph 与 Hitbox 管线。`EnemyBrain` 为门闩宿主，决策经 `IEnemyBehaviorRunner`；Hit/Death 不进树。  
-**现状：** EnemyBrain 写 `ActionEntryRequestBuffer` 与 `LocomotionDesireBuffer`；角色服务图通过只读接口消费，`ProduceInput` 仅写空 `InputFrame`。
-见 `docs/2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`。
+**现状：** EnemyBrain 写 `ActionEntryRequestBuffer` 与 `LocomotionDesireBuffer`；角色服务图通过只读接口消费，`ProduceInput` 仅写空 `InputFrame`。契约见 `docs/ENEMY_BEHAVIOR_TREE_PLAN.md` §3.4。
 
 ### 实现方案
 
@@ -1421,9 +1412,8 @@ CombatHitPipeline（全体 Actor Step 后）
 - `Assets/Scripts/Domain/Character/Commands/*`
 - `Assets/Scripts/Domain/Combat/Actions/Execution/ActionEntryRequest*.cs`
 - `Assets/Tests/Editor/Enemy/EnemyBehaviorTreeTests.cs`
-- `docs/2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`
 - `docs/ENEMY_BEHAVIOR_TREE_PLAN.md`
-- `docs/2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md`
+- `docs/2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md`
 
 ---
 
@@ -1456,7 +1446,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-07-12 | `ActionDefinition` 多段 `ActionAnimationSegment[]`：同招顺序播多 Clip；`ActionExecutor` 段边界自动切；旧 `animationClip` OnValidate 迁入 segments |
 | 2026-07-13 | 相机方案 B：`CameraOrbitPivot` 对 `CameraRoot` SmoothDamp；LookAt 改为 `orbitPivot`；新增 `followSmoothTime` / `SnapFollowToTarget` |
 | 2026-07-16 | VFX：连招切招不再强制回收；`VfxPooledInstance` 按自然生命周期（含 playbackSpeed）自行回池 |
-| 2026-07-18 | Locomotion Phase/FootCycle：`LocomotionService`（Start/Gait/PivotTurn/Stop）、落脚脚步、`ApplyLocomotion`；方案见 `docs/LOCOMOTION_OPTIMIZATION_PLAN.md` |
+| 2026-07-18 | Locomotion Phase/FootCycle：`LocomotionService`（Start/Gait/PivotTurn/Stop）、落脚脚步、`ApplyLocomotion` |
 | 2026-07-18 | 拆分 Run/Sprint：满输入先进 Run，持续 `sprintAfterRunSeconds` 后 Sprint；Pivot 仅 Sprint |
 | 2026-07-18 | Locomotion 方案 B：Stop/Pivot 烘焙根位移轨（`LocomotionRootMotionBaker`）+ 运行时采样驱动 |
 | 2026-07-19 | Stop 全程可取消进 Start；移除 `stopCancelNormalized`；Pivot→Stop 用转身目标朝向 |
@@ -1584,7 +1574,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-15 | 出招/闪避禁止每包 SnapPresentation；`IsPresentingAction` 时相机暂停跟朝向 |
 | 2026-08-15 | UE4：`AutonomousActionRunner` 只读 ActionSim；删除 `PredictedActionDriver` |
 | 2026-08-15 | 客机出招表现：自然结束不重播延迟招；连招超前不误 Cancel；权威卡肉暂停本机推帧 |
-| 2026-08-15 | 新增 `docs/2026.8.15/NETWORK_SYNC.md`：按已落地代码整理网络同步实现说明 |
+| 2026-08-15 | 按已落地代码整理网络同步实现说明（后续阅读入口迁到 `NETSYNC_FROM_JOIN_TO_HIT`） |
 | 2026-08-15 | CA1：客机同一 `CharacterActor` + `ReplicationSeat.Autonomous`；删除 Runner / CreateAutonomous |
 | 2026-08-15 | CA2：`RemoteCharacterProxy` 只读 ITargetable 进 TargetSystem；OnHit 空操作 |
 | 2026-08-15 | 客机注入 WorldQuery：TargetAdhesion / Relocate / SoftBodySuppress 与 Host 同一套桥 |
@@ -1607,7 +1597,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-18 | NetSync W4 Character Schema Capture 切片：`ActCharacterSnapshotSchema` 统一 CharacterActor Capture 与 V1 编解码并注册到生产 Schema Registry；删除独立 `CharacterReplicationCapture` |
 | 2026-08-18 | NetSync W4 Room Facade：新增 Host/Client Gameplay 与内容预填 Service；Room 删除 Character/Config/Proxy/Hit Cue/HitStop 具体实现，仅保留 Session 收发、固定帧调度与 HUD；新增 W4 架构边界守卫 |
 | 2026-08-18 | NetSync W4/M1 验收关闭：Authority/Owner/Observer、Room 架构守卫、Golden Bytes 与双进程移动/战斗/CameraLock/断线回归通过；网络层分离完成，下一阶段为尚未开始的 W5 Dedicated |
-| 2026-08-18 | 新增 `docs/2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md`：M1 阶段性总结与当前实现阅读入口 |
+| 2026-08-18 | M1 网络层分离验收关闭；实现阅读入口后迁到 `NETSYNC_FROM_JOIN_TO_HIT` |
 | 2026-08-19 | NetSync W5：`ACTGame.Server` Dedicated Bootstrap / Match / 每连接 ACK；Listen Host 改 N Guest；JoinAccept 允许无房主实体；权威 World 仍属 W6 |
 | 2026-08-19 | NetSync W6：`ServerSimulationRunner` + Headless `CharacterPresentationMode`；Capture 改读模拟 Locomotion 时钟；`ServerContentManifest` 指纹加入 Join；Dedicated 创建权威 Actor 并步进 |
 | 2026-08-19 | NetSync W7：Dedicated Match 状态机、每连接 `ReplicationFrame`、`MatchEnd`、JoinAccept 改写 SimulationId；Owner 预测复用 W4 Adapter |
@@ -1624,6 +1614,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-22 | 方案 B：`RemotePlaybackClock` + `TickAnimation`；不再用本机 InterpolationAlpha 取样远端 |
 | 2026-08-22 | 远端战斗立即提交：判定/受击/Notify 不等播放头；Urgent 破节拍 |
 | 2026-08-23 | 新增现行联网阅读入口 `docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`（Join→命中调用链） |
+| 2026-08-23 | 文档整理：删除已关闭波次备忘 / 被替代方案；TECHNICAL 交叉引用改指现行入口 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
@@ -1677,7 +1668,6 @@ SimulationWorld 帧末 SoftBodySeparation（抑制者不参与）
 - `Assets/Scripts/Domain/Character/Presentation/CharacterActionPresentationBridge.cs`
 - `Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/MotionModifierNotifyState.cs`
 - `Assets/Tests/EditMode/Simulation/ActionMotionAdhesionTests.cs`
-- `docs/2026.8.9/WAVE4_GAMEPLAY_MOTION_BRANCH02_PLAN.md`
 
 ---
 
@@ -1740,8 +1730,8 @@ LateUpdate：HUD 采样 Snapshot → OnGUI 绘制
 
 ### 已知限制
 
-- 0.4 基准招样例需人工填写 `docs/2026.8.6/WAVE0_BASELINE_NOTES.md`
-- 尚未删除 Animator RM 回退（Wave 2.4/2.5）
+- 0.4 人工基线手记可选，不阻塞
+- Wave 2.5 已删除 Animator RM 回退
 
 ### 相关文件
 
