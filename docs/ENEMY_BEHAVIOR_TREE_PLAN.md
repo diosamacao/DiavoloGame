@@ -3,15 +3,10 @@
 > 基准：`develop`（敌人 AI 初版已落地：`EnemyBrain` 五态 FSM + `AIInputWriter`）  
 > 制定日期：2026-07-30  
 > 修订：2026-08-09 — 补充**可替换 BT 后端**抽象（`IEnemyBehaviorTreeAsset` / `IEnemyBehaviorRunner`）；Phase-1 输出对齐 `AIInputWriter`/`InputFrame`  
-> 修订：2026-08-09 — BT-1/BT-2 主体已落地；GraphView 见 [ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md](./2026.8.9/ENEMY_BEHAVIOR_TREE_EVOLUTION_PLAN.md)  
-> 修订：2026-08-09 — E3 后**编辑器**优化见 [ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md](./2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)  
-> 修订：2026-08-10 — **§3.4 输出槽终态**改为 `LocomotionDesire` + `CombatRequest`；结构真源见 [ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)  
 > 修订：2026-08-11 — 结构主线与对峙表现已关闭；**待优化真源**见 [2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md](./2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md)
 
-> 前置文档：[ENEMY_SYSTEM_INTEGRATION_PLAN.md](./ENEMY_SYSTEM_INTEGRATION_PLAN.md)  
-> 总清单交叉：[PROJECT_CHECKLIST.md](./PROJECT_CHECKLIST.md) §6.4（BT 抽象 + 简易编辑器）  
-> 本次范围：**只做行为树决策层**；NavMesh / A\* 寻路另开迭代，本方案预留接口不实现  
-> **结构真源（已关闭）：** [2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)  
+> 总清单交叉：[PROJECT_CHECKLIST.md](./PROJECT_CHECKLIST.md) §6.4  
+> 本次范围：**行为树决策层契约**；NavMesh / A\* 寻路另开迭代  
 > **待优化真源：** [2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md](./2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md)
 
 ---
@@ -178,7 +173,7 @@ PluginBehaviorTreeAdapterAsset : ScriptableObject, IEnemyBehaviorTreeAsset
 | 冷却 | 招式 CD 终态以节点 `CooldownGate` 为主；Brain 可保留起手确认观测；禁止同一 id 双写 |
 | 资产引用 | `EnemyDefinition` 序列化字段类型为 `EnemyBehaviorTreeAsset`（具体 SO）亦可，但 **Factory 构建时经 `IEnemyBehaviorTreeAsset` 取 Runner**；或字段直接 `SerializeReference`/`ScriptableObject` 再 `as IEnemyBehaviorTreeAsset` |
 
-细节阶段与验收见 [ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)。
+结构主线已关闭；待优化见 [2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md](./2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md)。
 
 #### 3.4.3 禁止
 
@@ -613,6 +608,6 @@ BT-1 / BT-2 / **BT-E1～E3** / **8.10 结构主线** 已关闭；对峙 CD 循�
 **待优化真源：** [2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md](./2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md)  
 推荐顺序：**BT-A3 → A2/A4 → A5 →（按需）C1～C4**。  
 
-历史：结构见 [2026.8.10](./2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)；编辑器 A1 见 [OPT](./2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md)。**禁止**再落地 Pulse 版 CombatPool。  
+待优化见 [2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md](./2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md)。**禁止**再落地 Pulse 版 CombatPool。  
 
 寻路见 Backlog **BT-C4**（原演进 E4）。插件 Adapter 为可选；Runner 接口形状保持，输出槽以 §3.4.2 终态为准。

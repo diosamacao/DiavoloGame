@@ -5,11 +5,10 @@
 > 基准：`develop`（ActionSim / ResourceSim / Pipeline / Timeline；完美闪避**产品规则已定**，Wave 3.4 代码待做）  
 > **数值改造真源（本文件）**  
 > 关联：  
-> - [BUFF_SYSTEM_PLAN.md](./BUFF_SYSTEM_PLAN.md)（Buff 终态 = Effect，本文下属）  
 > - [COMBAT_NUMERICS_PLAN.md](../COMBAT_NUMERICS_PLAN.md)（字段语义；实现排期以本文 G* 为准）  
-> - [MASTER_IMPLEMENTATION_PLAN.md](../2026.8.6/MASTER_IMPLEMENTATION_PLAN.md)（Wave 排期；G0～G5 插在 Wave 3 后、Wave 4 前）  
-> - [SKILL_AND_RESOURCE_SYSTEM_PLAN.md](../2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md)（槽位/同键 EX/完美闪避**产品语义**；存储迁 Numeric）  
-> 状态：**G0～G5 完成（2026-08-08）；NumericSystem 为唯一数值真源；可进 Wave 4**
+> - [MASTER_IMPLEMENTATION_PLAN.md](../2026.8.6/MASTER_IMPLEMENTATION_PLAN.md)（Wave 排期）  
+> - [SKILL_AND_RESOURCE_SYSTEM_PLAN.md](../2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md)（槽位/同键 EX/完美闪避产品语义；存储迁 Numeric）  
+> 状态：**G0～G5 完成（2026-08-08）；NumericSystem 为唯一数值真源。Buff = Effect，无独立 BuffSim。**
 
 ---
 
@@ -253,7 +252,7 @@ Actor / NumericSystem.Step
 **任务**
 
 - [x] 冻结本文为数值改造真源（本修订）  
-- [x] 新增/修订 `BUFF_SYSTEM_PLAN`：终态 = EffectContainer  
+- [x] 定案 Buff 终态 = EffectContainer（无独立 BuffSim）  
 - [x] 修订 `COMBAT_NUMERICS_PLAN`：N1 Resource 标为过渡，终态并入本文  
 - [x] 修订 `MASTER_IMPLEMENTATION_PLAN`：插入 G0～G5；Wave 4 入口 = G5  
 - [x] 修订 Skill 篇：完美窗=玩家 Dodge；ResourceSim 过渡；Intent=`PerfectDodgeAttack`  
@@ -262,7 +261,7 @@ Actor / NumericSystem.Step
 
 **验收**
 
-- [x] 文档交叉引用无「长期保留 ResourceSim/BuffSim/EnemyHealth 权威」表述（Skill/NUMERICS/MASTER/BUFF 已改）  
+- [x] 文档交叉引用无「长期保留 ResourceSim/BuffSim/EnemyHealth 权威」表述  
 - [x] 删除清单与保留清单无冲突  
 - [x] MASTER 已标注 G* 与 Wave 4 入口关系  
 
@@ -396,7 +395,6 @@ Wave 2 出口 + Wave 3 玩法语义已代码落地
 
 | 文档 | 调整 |
 |------|------|
-| `BUFF_SYSTEM_PLAN.md` | 终态 Effect；无独立 BuffSim |
 | `COMBAT_NUMERICS_PLAN.md` | N* 语义保留；实现排期改指本文 G* |
 | `MASTER_IMPLEMENTATION_PLAN.md` | 增补 G0～G5；Wave 4 入口 = G5 |
 | Skill 篇 | 产品语义保留；存储真源改指 Numeric |

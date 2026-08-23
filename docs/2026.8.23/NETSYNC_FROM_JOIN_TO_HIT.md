@@ -3,9 +3,9 @@
 > 撰写：2026-08-23  
 > 角色：**当前代码的端到端学习笔记**（对照 `Assets/Scripts/**`，不是下一阶段实施计划，不是验收勾选表）  
 > 冲突时以代码为准，并回头改本文。  
-> 排期真源：[`../2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)  
-> 运行时快照：`.cursor/skills/actgame-architecture/`（ARCHITECTURE / TECHNICAL / CONVENTIONS）  
-> 波次备忘：M1（W0～W4）→ W5～W9 → W10 → W11；踩坑见 [`../2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md`](../2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md)
+> 排期：[`../2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)  
+> 运行时：`.cursor/skills/actgame-architecture/`（ARCHITECTURE / TECHNICAL / CONVENTIONS）  
+> 踩坑：[`../2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md`](../2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md)
 
 **本文覆盖到 2026-08-23 的生产路径**：W9 Listen 组合 + W10 通道/预测骨架 + W11 Compact + 远端播放头 / Urgent / 战斗立刻 Apply。  
 **明确未关出口**：W10 Clumsy Play、W11 远敌裁剪 Play、R2。不得称公网可用。
@@ -27,17 +27,7 @@
 | 刀光 / 受击谁先到 | §12 / §13 | `ActObserverReplicationAdapter.ApplyUpdates` vs `FlushEvents` |
 | 丢包后怎么办 | §14 Recover | `LocalClientRuntime` Rejected 分支 |
 
-**不要当现行实现的文档**（仍可当历史）：
-
-| 文档 | 过时点 |
-|------|--------|
-| `2026.8.18/NETSYNC_M1_STAGE_SUMMARY.md` | 仍写 `ReplicationRoomHost` / `ActHostRoomGameplay`；Listen 已改组合 |
-| `2026.8.15/NETWORK_SYNC.md` | 下行曾是 `AuthorityTick` |
-| `2026.8.16/NETWORK_SYNC_STUDY_QA.md` | Host 房间模型；文内已声明不是真源 |
-| `2026.8.13/TEAM_PVE_NARAKA_STYLE_STATE_SYNC_PLAN.md` | Host 权威合同；进程模型已换 |
-| `2026.8.22/NETSYNC_W11_STAGE_SUMMARY.md` | 未写播放头 / Urgent / 战斗立刻 Apply |
-
-纠偏阈值（2m 硬吸、Restore+Replay）仍以 [`../2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md) 与 `PredictedLocomotionDriver` 为准。
+纠偏阈值（2m 硬吸、Restore+Replay）仍以 [`../2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md) 与 `PredictedLocomotionDriver` 为准。已关闭的 Host 房间 / `AuthorityTick` / 波次备忘不再归档。
 
 ---
 
@@ -668,10 +658,9 @@ Owner **不**在客机跑 `CombatHitPipeline.Collect`（`RoomArchitectureBoundar
 读完本文若还要往下挖：
 
 1. **约定（禁止事项）**：`.cursor/skills/actgame-architecture/CONVENTIONS.md`「复制契约 / RemoteProxy / 预测位移 / 命中复制」
-2. **功能参数表**：同目录 `TECHNICAL.md`「组队 PVE · NS0」一直到 **W11**
-3. **波次为什么这样切**：`docs/2026.8.17/NETSYNC_GENERIC_CORE_GAMEPLAY_SEPARATION_PLAN.md`（GF）与 Dedicated 分离方案（DS）
+2. **功能参数表**：`.cursor/skills/actgame-architecture/TECHNICAL.md`「组队 PVE · NS0」一直到 **W11**
+3. **波次勾选**：`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`
 4. **踩过的坑**：`docs/2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md`
 5. **怎么起 Dedicated 进程**：`docs/2026.8.19/DEDICATED_SERVER_LAUNCH.md`
-6. **对照大厅服（不要学战斗权威）**：`DemoServer/docs/ARCHITECTURE.md`
 
 对照代码时从 `ListenServerBootstrap.Update` 或 `DedicatedServerRuntime.Poll` 跟进去，比从目录树扫更快。

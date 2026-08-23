@@ -2,12 +2,8 @@
 
 > 制定：2026-08-11  
 > 角色：**行为树后续优化真源**（结构主线已关闭后的待办排期；先文档，后实现）  
-> 迁移自：  
-> - [`../2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md`](../2026.8.9/ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md) Phase A2～A5、Phase C  
-> 已关闭（不在本文推进）：  
-> - [`../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`](../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)（Desire + Entry Request / 滞回 / 配置归属 / E-REQ3）  
-> - [`../2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md`](../2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md)（对峙 CD 循环拓扑；用户已验收表现）  
 > 契约：[`../ENEMY_BEHAVIOR_TREE_PLAN.md`](../ENEMY_BEHAVIOR_TREE_PLAN.md) §3.4  
+> 对峙循环：[`../2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md`](../2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md)  
 > 装配链：`EnemyDefinition → BehaviorTree → Runner → Blackboard → Brain 提交 Desire/Request`
 
 ---
@@ -274,9 +270,9 @@ Play 监视：只读黑板快照（不写权威）
 | RandomSelector / CombatPool / 秒制 CD / CdNotReady 对峙循环 | 已落地 |
 | 引入 BD/JL 运行时、Parallel、完整 EQS、Pulse 招式池 | 永久不做 / 另题 |
 
-### 5.3 旧文档角色变更
+### 5.3 文档角色
 
-- `ENEMY_BEHAVIOR_TREE_OPTIMIZATION_PLAN.md`：保留为 **A1 完成记录 + 历史对照**；未完成项以**本文为准**。  
+- 未完成编辑器项以**本文为准**。  
 - Agent **不直接改** `Assets/Data/**`、Prefab。
 
 ---

@@ -692,7 +692,7 @@ transitions:
 
 - [第三方资产许可](./THIRD_PARTY_LICENSES.md)
 - `.cursor/skills/actgame-architecture/ROADMAP.md` — 排期与里程碑
-- [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md) — 跨系统排期真源
+- [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md) — 跨系统排期
 
 ### 外部参考（调研来源）
 

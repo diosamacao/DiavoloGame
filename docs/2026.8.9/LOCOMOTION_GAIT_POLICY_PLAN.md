@@ -3,13 +3,9 @@
 > 制定：2026-08-09  
 > 修订：2026-08-09 — **终态定案**：对峙→追击→攻击→对峙循环 + 左右走动画为必达出口  
 > 角色：**敌人近战循环玩法**与 **Locomotion 步态/横步表现** 的结构真源（先文档，后实现）  
-> 修订：2026-08-10 — AI 移动权威终态对齐 [`ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`](../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)（`LocomotionDesire`）；拓扑仍成立  
-> 相关：  
-> - 既有 Locomotion 相位：[`docs/LOCOMOTION_OPTIMIZATION_PLAN.md`](../LOCOMOTION_OPTIMIZATION_PLAN.md)  
-> - 敌人 AI 结构：[`../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md`](../2026.8.10/ENEMY_BT_DISCRETE_COMBAT_AND_CONFIG_PLAN.md)  
-> - BT 待优化：[`../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md`](../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md)  
-
-> - 装配链：`CombatMode → CharacterLocomotionProfile → LocomotionStateMachine`；AI 终态：`EnemyBrain → BT → LocomotionDesire`（现状过渡仍可经 InputFrame）
+> 修订：2026-08-10 — AI 移动权威终态为 `LocomotionDesire`；拓扑仍成立  
+> 相关：BT 待优化 [`../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md`](../2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md)  
+> 装配链：`CombatMode → CharacterLocomotionProfile → LocomotionStateMachine`；AI：`EnemyBrain → BT → LocomotionDesire`
 
 ---
 

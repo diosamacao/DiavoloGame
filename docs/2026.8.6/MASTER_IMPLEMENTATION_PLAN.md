@@ -11,12 +11,10 @@
 > 角色：**跨文档唯一排期与依赖真源**；单篇方案保留设计细节，阶段号与开工顺序以本文为准  
 > 覆盖文档：
 >
-> - [ACTION_DEFINITION_OPTIMIZATION_PLAN.md](./ACTION_DEFINITION_OPTIMIZATION_PLAN.md)
-> - [CHARACTER_MOVEMENT_ANCHOR_OPTIMIZATION_PLAN.md](./CHARACTER_MOVEMENT_ANCHOR_OPTIMIZATION_PLAN.md)
 > - [SKILL_AND_RESOURCE_SYSTEM_PLAN.md](./SKILL_AND_RESOURCE_SYSTEM_PLAN.md)
 > - [CAMERA_SYSTEM_PLAN.md](./CAMERA_SYSTEM_PLAN.md)
 > - 关联真源：[COMBAT_NUMERICS_PLAN.md](../COMBAT_NUMERICS_PLAN.md)（字段语义 / N*）  
-> - **数值改造真源：** [GAS_STYLE_COMBAT_REFACTOR_PLAN.md](../2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md)（G0～G5；替换 ResourceSim/旧 Health）
+> - **数值改造真源：** [GAS_STYLE_COMBAT_REFACTOR_PLAN.md](../2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md)（G0～G5 已关）
 
 ---
 
@@ -36,8 +34,8 @@
 | 排期 / 依赖 / 并行边界 | **本文** | 单篇只描述本域设计，阶段勾选同步本文 |
 | `ActionResourceSpec` 字段语义 | **`COMBAT_NUMERICS_PLAN`** | 运行时存储/结算改造以 **GAS G*** 为准 |
 | 数值口袋 / Resource·Health·Buff 终态 | **`GAS_STYLE_COMBAT_REFACTOR_PLAN`** | NUMERICS/Skill 只保留字段与产品语义 |
-| Action 位移权威 / Modifier / Command | **ActionDefinition 优化篇** | Anchor 篇消费其 BaseMotion，不另立 BaseMotionMode |
-| 烘焙轨迹 Gameplay/Residual | **Movement Anchor 篇** | Action 篇的 `bakedMotion` **演进为** `ActionBakedTrajectory`（见 §3） |
+| Action 位移权威 / Modifier / Command | **TECHNICAL + 代码**（Wave 0～2.5 已关） | 本文只保留 Wave 裁定 |
+| 烘焙轨迹 Gameplay/Residual | **TECHNICAL + 代码**（Wave 2 已关） | 逻辑表 + 可选残差，见 §3 |
 | 相机模式 / LockOn / SkillShot | **Camera 篇** | 日常跟随锚点必须挂在无视觉残差的 `CameraRoot` |
 | 技能槽 / Special·EX / 完美闪避产品 | **Skill 篇** | 阶段号对齐本文 Wave；存储迁 GAS Numeric |
 
@@ -297,7 +295,7 @@ EX/Ult 的「命中不回能」用 `energyGrantOnHit = 0` 表达，**不**另增
 **入口：** Wave 2 完成；**GAS G5 完成**（数值唯一真源为 NumericSystem）。  
 **禁止：** Relocate 直接改 Transform；modifier 读表现骨骼；在旧 ResourceSim API 上堆 Wave 4 依赖。
 
-**实施细则（2026-08-09）：** [WAVE4_GAMEPLAY_MOTION_BRANCH02_PLAN.md](../2026.8.9/WAVE4_GAMEPLAY_MOTION_BRANCH02_PLAN.md) — 以 `Unagi_Attack_Branch_02` 为样板（SoftBody 抑制 + 行程加长 + RelocateBehind）。
+**实施细则（2026-08-09）：** 以 `Unagi_Attack_Branch_02` 为样板（SoftBody 抑制 + 行程加长 + RelocateBehind）；运行时见 TECHNICAL「Wave 4」。
 
 #### Wave 4 落地状态（2026-08-09）— ✅ 出口达成
 
