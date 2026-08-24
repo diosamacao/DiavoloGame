@@ -1,6 +1,6 @@
 # ACTGame 文档索引
 
-> 更新：2026-08-23 — 已关闭的日计划、波次备忘与被替代方案已删除；实现细节以代码 + 架构文档为准。
+> 更新：2026-08-24 — 增补复制带宽三项方案（未实现）；实现细节以代码 + 架构文档为准。
 
 **先读**
 
@@ -16,6 +16,7 @@
 | 文档 | 角色 |
 |------|------|
 | [2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md](./2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md) | **联网实现阅读入口**：Join → 命中现行调用链 |
+| [2026.8.24/README.md](./2026.8.24/README.md) | 下行角色快照带宽：掩码 / 分频 / 本地推帧（方案，未实现） |
 | [2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md](./2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) | 联网排期：W10/W11 Play 与 W12 未关 |
 | [2026.8.19/DEDICATED_SERVER_LAUNCH.md](./2026.8.19/DEDICATED_SERVER_LAUNCH.md) | Dedicated 本地启动与退出码 |
 | [2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md](./2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md) | 走跑纠偏合同（2m 硬吸 / Restore+Replay） |

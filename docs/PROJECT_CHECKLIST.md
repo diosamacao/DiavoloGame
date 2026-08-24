@@ -1,6 +1,6 @@
 # ACTGame 项目总清单
 
-> 更新：2026-08-23 — 一页总览；细节不与架构文档抢权威
+> 更新：2026-08-24 — 一页总览；细节不与架构文档抢权威
 
 > | 主题 | 真源 |
 > |------|------|
@@ -58,6 +58,8 @@
 
 **下一项（联网）：** W11 Play（远敌裁剪 / Owner 不被饿死）或用户指定的 W12；W10 Clumsy 验收仍开放。
 
+下行带宽三项方案已立、**未实现**：[`2026.8.24/README.md`](./2026.8.24/README.md)（`RS-M` 掩码 → `RS-S` 分频 → `RS-C` 推帧）。未点名实现前不挡 W10/W11 Play。
+
 - 实现阅读：[`2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](./2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)
 - 排期：[`2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](./2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)
 - 启动：[`2026.8.19/DEDICATED_SERVER_LAUNCH.md`](./2026.8.19/DEDICATED_SERVER_LAUNCH.md)
@@ -103,6 +105,7 @@
 | W10 预测 / 可靠通道 / 网络时间 | 🟡 代码切面；Play 暂缓 |
 | W11 Delta / Relevancy / FakeActionGame | 🟡 代码切面；R2 未关 |
 | W12 公网 / 重连 / 运维 | ⬜ |
+| 复制带宽 RS-M / RS-S / RS-C | ⬜ 方案 [`2026.8.24`](./2026.8.24/README.md) |
 | L5 全员输入广播 + 完整回滚 | ❌ 已取消产品主路径 |
 
 ---

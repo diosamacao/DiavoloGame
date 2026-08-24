@@ -108,6 +108,8 @@
 
 **状态**：NS0～NS5 / W0～W9 已验收。W10/W11 代码切面已落地，Play / R2 未关，不得称公网可用。同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。命中 **P0 仍权威 Collect**；`NS-PVP` 未开，禁止现在分叉两套盒。
 
+**下行带宽（方案，未实现）**：整包 67B 脏检测的后续三项，按序 [`docs/2026.8.24/README.md`](../../docs/2026.8.24/README.md) — `RS-M` 分块掩码 → `RS-S` 同实体分频 → `RS-C` 动作本地推帧。不改权威 Collect，不双轨 V1。
+
 ### [P1] Lockstep 模拟核迁移
 
 **方案**：`docs/ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md`
@@ -238,6 +240,7 @@
 | 2026-06-17 | CharacterController 非 Rigidbody | ACT 地面移动更可控 |
 | 2026-06-17 | 状态机 Core 不引用 UnityEngine | 可测试性与分层清晰 |
 | 2026-08-23 | 删除已关闭方案与波次备忘；现行联网阅读改为 `NETSYNC_FROM_JOIN_TO_HIT` | 避免过期文档当生产入口 |
+| 2026-08-24 | 复制下行带宽三项方案（掩码 / 分频 / 推帧）先文档 | 团战整包脏；实现前不改 Schema |
 | 2026-06-21 | 连招保持线性 | 近期无分支图需求 |
 | 2026-07-12 | 自研薄 Playable + `IAnimationPlayback`；不同时引入 Animancer | Action 时序已自研；门面可替换后端 |
 | 2026-06-21 | 输入路由命名 `CharacterActionDriver` | 敌人复用同一组件 |
