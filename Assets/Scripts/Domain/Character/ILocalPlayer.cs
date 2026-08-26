@@ -18,6 +18,9 @@ public interface ILocalPlayer
     /// <summary>本地渲染帧 Look；远端实现应返回零。</summary>
     Vector2 LookInput { get; }
 
+    /// <summary>本地渲染帧相机相对移动轴；远端实现应返回零。供 L-DIR5 判断后退，不进 InputFrame。</summary>
+    Vector2 MoveInput { get; }
+
     /// <summary>本渲染帧是否按下纯表现 CameraLock。</summary>
     bool CameraLockPressedThisFrame { get; }
 

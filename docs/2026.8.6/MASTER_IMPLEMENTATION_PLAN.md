@@ -5,6 +5,7 @@
 > 修订：2026-08-09 — Wave 4 位移切片（4.2/4.4 + SoftBody）Editor 验收收口；Relocate Command 已接线  
 > 修订：2026-08-09 — **Wave 4 不再含相机**：原 4.5～4.6 Lock-On/Predict 撤出本 Wave；LockOn / SkillShot / Director 排期与实施归 [CAMERA_SYSTEM_PLAN.md](./CAMERA_SYSTEM_PLAN.md)  
 > 修订：2026-08-09 — **Wave 5 也不再含大招演出**：原 5.1/5.2/5.5 SkillShot·Camera 轨·Finisher 撤出；一律归 Camera 篇  
+> 修订：2026-08-26 — 相机排期真源改为 [../2026.8.26/CAMERA_SYSTEM_PLAN.md](../2026.8.26/CAMERA_SYSTEM_PLAN.md)；本目录旧相机篇仅作设计备忘  
 
 
 > 基准：`develop`  
@@ -12,7 +13,7 @@
 > 覆盖文档：
 >
 > - [SKILL_AND_RESOURCE_SYSTEM_PLAN.md](./SKILL_AND_RESOURCE_SYSTEM_PLAN.md)
-> - [CAMERA_SYSTEM_PLAN.md](./CAMERA_SYSTEM_PLAN.md)
+> - [CAMERA_SYSTEM_PLAN.md](../2026.8.26/CAMERA_SYSTEM_PLAN.md)（相机排期；本目录旧篇为历史细节）
 > - 关联真源：[COMBAT_NUMERICS_PLAN.md](../COMBAT_NUMERICS_PLAN.md)（字段语义 / N*）  
 > - **数值改造真源：** [GAS_STYLE_COMBAT_REFACTOR_PLAN.md](../2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md)（G0～G5 已关）
 
@@ -290,7 +291,7 @@ EX/Ult 的「命中不回能」用 `energyGrantOnHit = 0` 表达，**不**另增
 | 4.3 | `RelocateBehindTarget` + Facing/Collision/Fallback | Action A5 | 挡墙走 Fallback；关闭 Animator 结果不变 |
 | 4.4 | 起手固化 `ActionTargetId` | Action A5 | 吸附不跳人 |
 
-**已撤出（2026-08-09）：** 原 4.5 LockOn、4.6 Predict/Feedback → 改由 [CAMERA_SYSTEM_PLAN.md](./CAMERA_SYSTEM_PLAN.md)（C1/C2）独立排期，不再作为 Wave 4 出口条件。
+**已撤出（2026-08-09）：** 原 4.5 LockOn、4.6 Predict/Feedback → 改由 [相机篇](../2026.8.26/CAMERA_SYSTEM_PLAN.md)（C1/C2）独立排期，不再作为 Wave 4 出口条件。
 
 **入口：** Wave 2 完成；**GAS G5 完成**（数值唯一真源为 NumericSystem）。  
 **禁止：** Relocate 直接改 Transform；modifier 读表现骨骼；在旧 ResourceSim API 上堆 Wave 4 依赖。
@@ -310,7 +311,7 @@ EX/Ult 的「命中不回能」用 `energyGrantOnHit = 0` 表达，**不**另增
 ### Wave 5 — 可选玩法后置项（不含相机）
 
 **目标：** 不阻塞主循环的玩法/模拟后置项。  
-**已撤出（2026-08-09）：** 原 5.1 SkillShot、5.2 Action Editor Camera 轨、5.5 Timeline Finisher/过场 → 全部改由 [CAMERA_SYSTEM_PLAN.md](./CAMERA_SYSTEM_PLAN.md)（C3/C4）独立排期，**不再作为 Wave 5 出口或产品勾选**。
+**已撤出（2026-08-09）：** 原 5.1 SkillShot、5.2 Action Editor Camera 轨、5.5 Timeline Finisher/过场 → 全部改由 [相机篇](../2026.8.26/CAMERA_SYSTEM_PLAN.md)（C3/C4/C5）独立排期，**不再作为 Wave 5 出口或产品勾选**。
 
 | # | 任务 | 优先级 | 验收 |
 |---|------|--------|------|

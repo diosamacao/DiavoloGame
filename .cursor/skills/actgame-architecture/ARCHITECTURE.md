@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-23（现行联网阅读入口：`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`；W11 代码切面已落地；W10 Play 未验收）
+> Last audited: 2026-08-26（L-DIR5 后退不跟朝向；联网阅读仍见 `docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`）
 
 ## 项目概述
 
@@ -295,7 +295,7 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `EnemyActorFactory` / `EnemyHandle` | 复用 CharacterActorFactory，聚合 Actor、Brain、Vitality、Hurtbox 生命周期 |
 | `EnemyController` / `EnemySpawnController` | 单敌 Tick 入口与场景刷怪入口；感知读玩家花名册，不 Find 唯一玩家 |
 | `EnemySpawnSystem` | 架构级敌人实例注册与同 Definition 存活上限 |
-| `ILocalPlayer` / `LocalPlayerService` | 本机输入/相机拥有者；客机 `Input` 可空；跟朝向用 `HasMoveIntent`，出招用 `IsPresentingAction` 暂停 |
+| `ILocalPlayer` / `LocalPlayerService` | 本机输入/相机拥有者；客机 `Input` 可空；跟朝向用 `HasMoveIntent` + `MoveInput`（后退不跟），出招用 `IsPresentingAction` 暂停 |
 
 **数据流（敌人 · 当前终态）**：
 

@@ -1,6 +1,6 @@
 # ACTGame 文档索引
 
-> 更新：2026-08-24 — 增补复制带宽三项方案（未实现）；实现细节以代码 + 架构文档为准。
+> 更新：2026-08-26 — 相机排期真源迁至 `2026.8.26/CAMERA_SYSTEM_PLAN.md`（Director / SkillShot / UI 展示舱）。
 
 **先读**
 
@@ -22,7 +22,7 @@
 | [2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md](./2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md) | 走跑纠偏合同（2m 硬吸 / Restore+Replay） |
 | [2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md](./2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md) | 联网踩坑备忘（不是排期真源） |
 | [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md) | 战斗 / 位移 Wave 排期（0～4 已关；相机独立） |
-| [2026.8.6/CAMERA_SYSTEM_PLAN.md](./2026.8.6/CAMERA_SYSTEM_PLAN.md) | 相机 Lock-On / Director / SkillShot（未做） |
+| [2026.8.26/CAMERA_SYSTEM_PLAN.md](./2026.8.26/CAMERA_SYSTEM_PLAN.md) | **相机排期真源**：Director / Lock-On / SkillShot / UI 展示舱 |
 | [2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md](./2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md) | Camera C1 前置：MoveReferenceYaw + SelectedTarget |
 | [COMBAT_NUMERICS_PLAN.md](./COMBAT_NUMERICS_PLAN.md) | 资源字段与产品语义 |
 | [2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md](./2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md) | 技能槽 / 完美闪避产品（资产持续填表） |

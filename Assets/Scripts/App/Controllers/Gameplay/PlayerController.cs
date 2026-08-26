@@ -45,6 +45,11 @@ public class PlayerController : AppControllerBase, ILocalPlayer
         ? _inputSampler.LookInput
         : actor?.LookInput ?? Vector2.zero;
 
+    /// <summary>相机相对移动轴；跟朝向只认本机设备采样，不读权威 InputFrame。</summary>
+    public Vector2 MoveInput => _inputSampler != null
+        ? _inputSampler.MoveInput
+        : actor?.Input != null ? actor.Input.MoveIntent : Vector2.zero;
+
     /// <summary>本渲染帧是否按下纯表现 CameraLock。</summary>
     public bool CameraLockPressedThisFrame => _inputSampler != null
         ? _inputSampler.CameraLockPressedThisFrame

@@ -84,7 +84,7 @@
 
 - [x] TargetAdhesion + SoftBodySuppress；Branch_02 验收（目标已于 2026-08-13 迁为逐帧 SelectedTarget）
 - [x] RelocateBehind / MotionCommand → `ActionMotionResolver` 接线（P3）
-- ~~Lock-On（原 4.5～4.6）~~ → 已撤出 Wave 4；排期见 `docs/2026.8.6/CAMERA_SYSTEM_PLAN.md`
+- ~~Lock-On（原 4.5～4.6）~~ → 已撤出 Wave 4；排期见 [`docs/2026.8.26/CAMERA_SYSTEM_PLAN.md`](../../docs/2026.8.26/CAMERA_SYSTEM_PLAN.md)
 
 **打击感优化（木桩 / Cue / 吸附行程）至此告一段落；Relocate 按需配资产。**
 
@@ -96,7 +96,15 @@
 
 **目标**：MoveReferenceYaw 固化进 `InputFrame`；角色只保存一个自动维护且 Action 中可切换的 `SelectedTargetId`，Action/Motion/Camera 共用；`CameraLockEnabled` 仅为本地表现；删除 PlanarBasis Motor 旁路、`ActionTargetId`、Transform 索敌与 Presentation late-bind。
 
-**状态：🟡 C-AT0～C-AT3 代码重构完成（2026-08-13）**；已删除旧权威路径并补确定性 Resolver 测试。待 Editor 绑定 TargetSwitch/CameraLock、Unity 编译/Test Runner/Play 回归后关闭出口，再进入 Camera C1 Director / LockOn VCam。
+**状态：🟡 C-AT0～C-AT3 代码重构完成（2026-08-13）**；已删除旧权威路径并补确定性 Resolver 测试。待 Editor 绑定 TargetSwitch/CameraLock、Unity 编译/Test Runner/Play 回归后关闭出口，再进入 Camera C1。
+
+### [P1] Camera Director / SkillShot / UI 展示舱
+
+**方案**：[`docs/2026.8.26/CAMERA_SYSTEM_PLAN.md`](../../docs/2026.8.26/CAMERA_SYSTEM_PLAN.md)（接替 8.6 篇为排期真源）
+
+**目标**：`CameraDirector` 栈做战斗多机位（LockOn / 大招 SkillShot）；UI 用独立展示舱 + RenderTexture，不拧战斗 VCam。吸收 DemoClient 的多 VCam 抢权、最近候选进出、演出结束回写 yaw、FollowHold；拒绝 VCam.forward 玩法朝向。
+
+**状态：⬜ 方案已立（2026-08-26）；C0 收口 / C1～C5 未开工。** 前置仍为 C-AT Input 资产与 Play 回归。
 
 ### [P1] 组队 PVE · Dedicated 权威状态同步
 

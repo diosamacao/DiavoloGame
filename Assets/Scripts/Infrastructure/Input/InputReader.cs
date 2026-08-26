@@ -14,7 +14,10 @@ public sealed class InputReader : ILocalInputSampler
     InputActionReference[] _discreteInputs = System.Array.Empty<InputActionReference>();
     ushort _stagedMoveReferenceYaw;
 
+    /// <inheritdoc />
     public Vector2 MoveInput => moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
+
+    /// <inheritdoc />
     public Vector2 LookInput => lookAction != null ? lookAction.ReadValue<Vector2>() : Vector2.zero;
 
     /// <inheritdoc />

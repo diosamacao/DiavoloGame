@@ -45,7 +45,7 @@
 | 资源循环 Special·EX·闪避·Ult | 🟡 | 代码闭环；Graph/Spec 资产持续填表 |
 | 完美闪避反击 | ✅ | 窗轨 + Counter Entry |
 | 敌人 AI | ✅ | Desire + Entry Request；编辑器待优化见 8.11 Backlog |
-| 相机 | 🟡 | 跟随 + 滤左右；Lock-On / SkillShot 未做 |
+| 相机 | 🟡 | 跟随 + 滤左右；Director / Lock-On / SkillShot / UI 展示舱见 8.26 篇 |
 | 正式 UI / 血条 | ⬜ | 仅 Debug HUD；目标 MVVM |
 | 吸附 / 绕背 | ✅ | Wave 4 位移出口 |
 | 预测 / 联网 | 🟡 | W10/W11 代码切面；Play 未关；不得称公网可用 |
@@ -65,7 +65,7 @@
 - 启动：[`2026.8.19/DEDICATED_SERVER_LAUNCH.md`](./2026.8.19/DEDICATED_SERVER_LAUNCH.md)
 - 踩坑：[`2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md`](./2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md)
 
-战斗主线：Wave 4 位移已关；Wave 5 仅可选后置；相机 LockOn/SkillShot 见 [`CAMERA_SYSTEM_PLAN.md`](./2026.8.6/CAMERA_SYSTEM_PLAN.md)。
+战斗主线：Wave 4 位移已关；Wave 5 仅可选后置；相机见 [`2026.8.26/CAMERA_SYSTEM_PLAN.md`](./2026.8.26/CAMERA_SYSTEM_PLAN.md)。
 
 ---
 
@@ -80,13 +80,13 @@
 | GAS G0～G5 | ✅ | 零兼容完成 |
 | Wave 4 玩法位移 | ✅ | 吸附/SoftBody/Relocate；**不含相机** |
 | Wave 5 可选后置 | ⬜ | Daze/HeavyHit 可选；命中盒烘焙后置 |
-| 相机系统（独立） | ⬜ | LockOn/Predict/SkillShot/Finisher → C1～C4 |
+| 相机系统（独立） | ⬜ | C1 Director/LockOn · C3 SkillShot · C5 UI 展示舱 → [`2026.8.26`](./2026.8.26/CAMERA_SYSTEM_PLAN.md) |
 
 **整包仍开放：**
 
 - [ ] 正式 Action 单一位移权威且全库校验无 Error（资产侧）
 - [ ] 同键 EX + 闪避反击 + Ult 资产闭环齐
-- [ ] Lock-On + 多段 SkillShot 纯表现
+- [ ] Lock-On + 多段 SkillShot + UI 展示舱（纯表现）
 
 ---
 
@@ -135,9 +135,10 @@
 
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
-| Lock-On / Director | P1 | Camera 篇 C1 |
+| Lock-On / Director | P1 | Camera C1（[`2026.8.26`](./2026.8.26/CAMERA_SYSTEM_PLAN.md)） |
 | 正式 HUD（血条/资源条） | P2 | 替代 F3；实现走 §6.4 MVVM |
-| SkillShot 多段镜头 | P2 | Camera 篇 C3 |
+| SkillShot 多段镜头 | P1 | Camera C3（大招多机位） |
+| UI 展示舱 | P1 | Camera C5；与战斗 Brain 隔离 |
 | 对象池 / 伤害数字 | P2 | 表现优化 |
 | 场景胜负流 / Boot 流程 | P2 | Demo 包装 |
 | 斜坡精确碰撞 | P2 | L2 收口 |
