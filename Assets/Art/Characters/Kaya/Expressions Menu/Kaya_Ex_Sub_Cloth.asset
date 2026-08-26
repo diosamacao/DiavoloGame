@@ -1,0 +1,95 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: -340790334, guid: 67cc4cb7839cd3741b63733d5adf0442, type: 3}
+  m_Name: Kaya_Ex_Sub_Cloth
+  m_EditorClassIdentifier: 
+  controls:
+  - name: Leatherfurisode_OFF
+    icon: {fileID: 2800000, guid: 12e3eae61ef8b70429d97efbad6535ea, type: 3}
+    type: 102
+    parameter:
+      name: 'Cloth_Leatherfurisode_OFF '
+    value: 1
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []
+  - name: Tops_OFF
+    icon: {fileID: 2800000, guid: 5ebee4d2f4044a0429e400ff27a8ffd0, type: 3}
+    type: 102
+    parameter:
+      name: Cloth_Tops_OFF
+    value: 1
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []
+  - name: Glove_OFF
+    icon: {fileID: 2800000, guid: 7aa379a2331f0be4d87a7688eddf90dc, type: 3}
+    type: 102
+    parameter:
+      name: Cloth_Glove_OFF
+    value: 1
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []
+  - name: Gauntlet_OFF
+    icon: {fileID: 2800000, guid: 41a4bdd1d3adcc449aadc7eeb09b292c, type: 3}
+    type: 102
+    parameter:
+      name: Cloth_Gauntlet_OFF
+    value: 1
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []
+  - name: Skirt_OFF
+    icon: {fileID: 2800000, guid: de7f703da483d1145900dabfce327667, type: 3}
+    type: 102
+    parameter:
+      name: Cloth_Skirt_OFF
+    value: 1
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []
+  - name: Greave_OFF
+    icon: {fileID: 2800000, guid: 0685ca12f07f2ee4699686ac26a76487, type: 3}
+    type: 102
+    parameter:
+      name: Cloth_Greave_OFF
+    value: 1
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []
+  - name: Kneehighsocks_OFF
+    icon: {fileID: 2800000, guid: 7adcaf8c64540b44ab27d4297c1be2c9, type: 3}
+    type: 102
+    parameter:
+      name: Cloth_Kneehighsocks_OFF
+    value: 1
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []
+  - name: Geta_OFF
+    icon: {fileID: 2800000, guid: 6a05d587af5b56a46941f49f68dbf395, type: 3}
+    type: 102
+    parameter:
+      name: Cloth_Geta_OFF
+    value: 1
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []

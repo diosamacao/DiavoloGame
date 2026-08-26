@@ -1,0 +1,86 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: -340790334, guid: 67cc4cb7839cd3741b63733d5adf0442, type: 3}
+  m_Name: Kaya_ExpressionsMenu
+  m_EditorClassIdentifier: 
+  Parameters: {fileID: 11400000, guid: e99b5ba4ffb728545a7c19c5930974c7, type: 2}
+  controls:
+  - name: Facial
+    icon: {fileID: 2800000, guid: 18f4a2e99bdd46e4486d82551f7d0b9c, type: 3}
+    type: 103
+    parameter:
+      name: 
+    value: 1
+    style: 0
+    subMenu: {fileID: 11400000, guid: 1507dd38471462242a35406697867589, type: 2}
+    subParameters: []
+    labels: []
+  - name: Hair Type
+    icon: {fileID: 2800000, guid: 94a5586d1d1c63d4f8bca155508e0bd9, type: 3}
+    type: 103
+    parameter:
+      name: 
+    value: 1
+    style: 0
+    subMenu: {fileID: 11400000, guid: edc76401c2b7fea489369430b7b34e99, type: 2}
+    subParameters: []
+    labels: []
+  - name: Cloth
+    icon: {fileID: 2800000, guid: 40dfab6eb30532148bfc40ee8cf2b4d9, type: 3}
+    type: 103
+    parameter:
+      name: 
+    value: 1
+    style: 0
+    subMenu: {fileID: 11400000, guid: ca25c3c26c418694c97e115ecc38622c, type: 2}
+    subParameters: []
+    labels: []
+  - name: Katana
+    icon: {fileID: 2800000, guid: 8d233245e2f6ee346b10cb0b426b03a0, type: 3}
+    type: 103
+    parameter:
+      name: 
+    value: 1
+    style: 0
+    subMenu: {fileID: 11400000, guid: 0d7e617e47d1d414a9bc9bee1da3f2dc, type: 2}
+    subParameters: []
+    labels: []
+  - name: JpUmbllera
+    icon: {fileID: 2800000, guid: 65f97158de2879048beffec97c838cad, type: 3}
+    type: 103
+    parameter:
+      name: 
+    value: 1
+    style: 0
+    subMenu: {fileID: 11400000, guid: aa1a5a733a0e4f04e8fb299fb7d99700, type: 2}
+    subParameters: []
+    labels: []
+  - name: Accessories
+    icon: {fileID: 2800000, guid: 17b27c63e60e94544b5ac8e3638d3dac, type: 3}
+    type: 103
+    parameter:
+      name: 
+    value: 1
+    style: 0
+    subMenu: {fileID: 11400000, guid: d2e33d71cb1a27b418edfcca24cb83c3, type: 2}
+    subParameters: []
+    labels: []
+  - name: Contacts_ON
+    icon: {fileID: 2800000, guid: f7bf827271431b44eb283be47a86bc1c, type: 3}
+    type: 102
+    parameter:
+      name: Hand_Contacts_ON
+    value: 1
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []

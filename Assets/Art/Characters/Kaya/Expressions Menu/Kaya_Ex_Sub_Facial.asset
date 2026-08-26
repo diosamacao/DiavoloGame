@@ -1,0 +1,107 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: -340790334, guid: 67cc4cb7839cd3741b63733d5adf0442, type: 3}
+  m_Name: Kaya_Ex_Sub_Facial
+  m_EditorClassIdentifier: 
+  Parameters: {fileID: 11400000, guid: e99b5ba4ffb728545a7c19c5930974c7, type: 2}
+  controls:
+  - name: Facial_1
+    icon: {fileID: 2800000, guid: b6548202d6abd804daec7909c1ae5c9f, type: 3}
+    type: 102
+    parameter:
+      name: Facial_1
+    value: 1
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []
+  - name: Facial_2
+    icon: {fileID: 2800000, guid: cb24fe783c469e4498e4e8c7982b705a, type: 3}
+    type: 102
+    parameter:
+      name: Facial_2
+    value: 1
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []
+  - name: Facial_3
+    icon: {fileID: 2800000, guid: 99420c2bb4b7cc64082b244061792353, type: 3}
+    type: 102
+    parameter:
+      name: Facial_3
+    value: 1
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []
+  - name: Facial_4
+    icon: {fileID: 2800000, guid: a4788a35014e5c8428ef597ca02ca28a, type: 3}
+    type: 102
+    parameter:
+      name: Facial_4
+    value: 1
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []
+  - name: Facial_5
+    icon: {fileID: 2800000, guid: a783e46070521cf43a3ceb7d95cc0161, type: 3}
+    type: 102
+    parameter:
+      name: Facial_5
+    value: 1
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []
+  - name: Facial_6
+    icon: {fileID: 2800000, guid: 77688fd6ce0781d4dba388bc7b5312b2, type: 3}
+    type: 102
+    parameter:
+      name: Facial_6
+    value: 1
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []
+  - name: Eye_Close
+    icon: {fileID: 2800000, guid: ca5bdde6635ff694b92e7cab1f06bf92, type: 3}
+    type: 203
+    parameter:
+      name: 
+    value: 1
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters:
+    - name: Eye_Close
+    labels: []
+  - name: Looking at
+    icon: {fileID: 2800000, guid: d0bbcc2abc4ce1c418fd0e47b635a956, type: 3}
+    type: 201
+    parameter:
+      name: 
+    value: 1
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters:
+    - name: Eye_Looking at X
+    - name: Eye_Looking at Y
+    labels:
+    - name: Up
+      icon: {fileID: 0}
+    - name: Right
+      icon: {fileID: 0}
+    - name: Down
+      icon: {fileID: 0}
+    - name: Left
+      icon: {fileID: 0}

@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: -340790334, guid: 67cc4cb7839cd3741b63733d5adf0442, type: 3}
+  m_Name: Kaya_Ex_Sub_Hair_Classic
+  m_EditorClassIdentifier: 
+  controls:
+  - name: TypeA
+    icon: {fileID: 2800000, guid: 7b86b0aaf238cc24293cdaa631da5813, type: 3}
+    type: 102
+    parameter:
+      name: Hair_Type_Classic
+    value: 1
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []
+  - name: TypeB
+    icon: {fileID: 2800000, guid: 4564ae94e7d30d84a94700c57e801419, type: 3}
+    type: 102
+    parameter:
+      name: Hair_Type_Classic
+    value: 2
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []
+  - name: TypeC
+    icon: {fileID: 2800000, guid: e4a8991bdcc029047909f1840dfa90f6, type: 3}
+    type: 102
+    parameter:
+      name: Hair_Type_Classic
+    value: 3
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []
+  - name: TypeD
+    icon: {fileID: 2800000, guid: ed479da80bffe494f929cc4dac7a9c26, type: 3}
+    type: 102
+    parameter:
+      name: Hair_Type_Classic
+    value: 4
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []
+  - name: TypeE
+    icon: {fileID: 2800000, guid: a7ed19444a5b72142a4e95264d897189, type: 3}
+    type: 102
+    parameter:
+      name: Hair_Type_Classic
+    value: 5
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters: []
+    labels: []
+  - name: CenterPart
+    icon: {fileID: 2800000, guid: 647d6bbf084202f40925b4560aa8663c, type: 3}
+    type: 203
+    parameter:
+      name: 
+    value: 1
+    style: 0
+    subMenu: {fileID: 0}
+    subParameters:
+    - name: Hair_Front_CenterPart
+    labels: []
