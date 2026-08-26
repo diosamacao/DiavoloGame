@@ -1,16 +1,18 @@
-# ACTGame 相机系统方案
+# ACTGame 相机系统方案（历史设计细节）
 
+> **现行排期真源已迁至** [../2026.8.26/CAMERA_SYSTEM_PLAN.md](../2026.8.26/CAMERA_SYSTEM_PLAN.md)（2026-08-26：Director 多机位 + UI 展示舱；吸收 DemoClient）。阶段勾选与开工顺序以新篇为准。本文保留 C0～C4 设计备忘。  
 > 基准：`develop`（`CameraManager` + `CameraShakeController` + Cinemachine 2.10 + `PresentationRoot`）  
 > 制定日期：2026-08-05  
 > 目标：在**不改动逻辑权威**的前提下，建成可扩展的 ACT 战斗相机（多锚点 Rig、模式导演、Lock-On、反馈通道、**多段技能/大招演出机位**）  
 > 产品参考：魂系 Lock-On；**绝区零式**大招多段定制镜头（特写 → 回身、FOV/推拉、段内震屏）  
-> **排期真源：** [MASTER_IMPLEMENTATION_PLAN.md](./MASTER_IMPLEMENTATION_PLAN.md)  
+> **排期真源：** [../2026.8.26/CAMERA_SYSTEM_PLAN.md](../2026.8.26/CAMERA_SYSTEM_PLAN.md)  
 > 相关：[ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](../ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)、[SKILL_AND_RESOURCE_SYSTEM_PLAN.md](./SKILL_AND_RESOURCE_SYSTEM_PLAN.md)、[CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md](../2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md)  
 > 修订：2026-08-05 — 补强 §5.5 技能演出镜头  
 > 修订：2026-08-06 — 对齐 VisualMotionRoot 层级；滤左右定位为 Wave 1 临时止血  
 > 修订：2026-08-09 — **LockOn / Predict / SkillShot / Finisher 排期全部由本文自管**：不再挂 MASTER Wave 4/5；C1～C4 按本篇 Phase 独立推进  
 > 修订：2026-08-11 — 铁律 #6：自由移动 Orbit yaw 可跟随角色朝向（交叉 Locomotion L-DIR5）；禁止反写 Motor
 > 修订：2026-08-13 — C-AT0～3 已切换为 MoveReferenceYaw + 唯一 SelectedTarget；CameraLock 仅为本地表现。旧 CombatTargetLock/PlanarBasis 描述已废止。
+> 修订：2026-08-26 — 本文降为历史细节；排期改挂 2026.8.26 篇。
 
 ---
 

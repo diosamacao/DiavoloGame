@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-23（现行联网阅读入口：`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`；W11 代码切面已落地；W10/W11 Play 未验收）
+> Last updated: 2026-08-26（相机排期真源改挂 `docs/2026.8.26/CAMERA_SYSTEM_PLAN.md`；实现仍以代码为准）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -1009,6 +1009,7 @@ Dodge 恢复                            → Gait（PendingGait 经 MaxGait 钳�
 | `sprintLean.leanEngageSmoothTime` | 0.22 | 切入满倾平滑（秒） |
 | `sprintLean.leanRecoverSmoothTime` | 0.28 | 回正到 0 平滑（秒） |
 | Camera `cameraFollowFacingSmoothTime` | 0.35 | L-DIR5 绕圈；越大弯越缓 |
+| Camera `followFacingBackwardDeadzone` | 0.2 | 相机相对 Move.y 低于 -此值则不跟朝向 |
 
 ### Profile 配置（Katana / 敌人）
 
@@ -1041,7 +1042,7 @@ Dodge 恢复                            → Gait（PendingGait 经 MaxGait 钳�
 
 ### 功能说明
 
-Cinemachine 第三人称跟随；鼠标控制 yaw/pitch；碰撞遮挡；启动时锁定光标。Orbit 锚点对 `CameraRoot` 做 SmoothDamp。**L-DIR5**：移动中 Orbit yaw 插值跟随角色朝向，并把最终 yaw staged 到下一 `InputFrame`；Look 输入抢权暂停跟随。`CameraLockEnabled` 是本地表现状态，只在存在 SelectedTarget 时开启。
+Cinemachine 第三人称跟随；鼠标控制 yaw/pitch；碰撞遮挡；启动时锁定光标。Orbit 锚点对 `CameraRoot` 做 SmoothDamp。**L-DIR5**：前进/侧移时 Orbit yaw 插值跟随角色朝向，并把最终 yaw staged 到下一 `InputFrame`；Look 抢权、出招、**相机相对后退**暂停跟随。`CameraLockEnabled` 是本地表现状态，只在存在 SelectedTarget 时开启。
 
 ### 实现方案
 
@@ -1074,8 +1075,9 @@ CameraManager (场景对象)
 
 - `CameraManager` 引用玩家 `PlayerController`，通过 `PlayerController.LookInput` 获取非权威视角输入
 - Update 累加 yaw/pitch；有 Look 时启动 `lookOverrideResumeDelay` 暂停跟朝向
-- 移动中且无抢权、且未在播招：`SmoothDampAngle(yaw → PresentationRoot yaw)`；**禁止**写 Motor 朝向
+- 前进/侧移且无抢权、且未在播招：`SmoothDampAngle(yaw → PresentationRoot yaw)`；**禁止**写 Motor 朝向
 - 是否在移动：读 `ILocalPlayer.HasMoveIntent`。客机无 Actor，`Input` 为空，禁止再判 `local.Input.HasMoveIntent`
+- 是否后退：读本机设备 `ILocalPlayer.MoveInput.y`；低于 `followFacingBackwardDeadzone`（默认 -0.2）则暂停跟朝向，避免后退 wish 与镜头互追转圈
 - 出招/闪避/受击：读 `IsPresentingAction`，暂停跟朝向，避免连闪甩镜头
 - 朝向源优先 `PresentationRoot`（客机预测体插值锚点）；空座位 `transform` 不转，跟它无法 A/D 绕圈
 - `CameraLock` 只切本地 `CameraLockEnabled`；SelectedTarget 无效时不能开启/自动关闭，不写 Targeting/Action/InputFrame
@@ -1615,6 +1617,8 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-22 | 远端战斗立即提交：判定/受击/Notify 不等播放头；Urgent 破节拍 |
 | 2026-08-23 | 新增现行联网阅读入口 `docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`（Join→命中调用链） |
 | 2026-08-23 | 文档整理：删除已关闭波次备忘 / 被替代方案；TECHNICAL 交叉引用改指现行入口 |
+| 2026-08-26 | 相机排期交叉引用改挂 `docs/2026.8.26/CAMERA_SYSTEM_PLAN.md`（Director / SkillShot / UI 展示舱）；实现未改 |
+| 2026-08-26 | L-DIR5：相机相对后退（`MoveInput.y`）暂停跟朝向，避免按住 S 与镜头互追转圈 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |
@@ -1655,7 +1659,7 @@ SimulationWorld 帧末 SoftBodySeparation（抑制者不参与）
 
 ### 已知限制
 
-- Lock-On / SkillShot 不在 Wave 4/5；排期见 `docs/2026.8.6/CAMERA_SYSTEM_PLAN.md`
+- Lock-On / SkillShot / UI 展示舱不在 Wave 4/5；排期见 `docs/2026.8.26/CAMERA_SYSTEM_PLAN.md`
 - Relocate 挡墙精细候选（FindNearestValid 首版≈ ResolveMove）可后续加强
 - 共线退化（玩家与敌人水平重合）本帧不吸
 - **打击感吸附已验收；Relocate 需在招上配 MotionCommand 点事件后 Play 验**

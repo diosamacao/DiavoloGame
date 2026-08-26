@@ -4,7 +4,8 @@
 > 角色：**Camera C1 前置的移动输入、唯一自动选敌与纯表现镜头锁定结构真源**  
 > 实施状态：**C-AT0～C-AT3 代码已完成（2026-08-13）；Input Actions、Unity Test Runner 与 Play 回归待 Editor 人工确认**  
 > 相关：  
-> - [相机系统方案](../2026.8.6/CAMERA_SYSTEM_PLAN.md)  
+> - [相机系统方案（现行排期）](../2026.8.26/CAMERA_SYSTEM_PLAN.md)  
+> - [相机系统方案（8.6 历史细节）](../2026.8.6/CAMERA_SYSTEM_PLAN.md)  
 > - [锁步模拟重构](../ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md)  
 > - [架构 ROADMAP](../../.cursor/skills/actgame-architecture/ROADMAP.md)  
 > - 装配链：`本地 Orbit Yaw → InputFrame → MoveIntent`；`TargetingState → ActionSim / Locomotion / CameraDirector`
@@ -596,7 +597,7 @@ C-AT0 MoveReferenceYaw 输入闭包
   → C-AT1 自动 SelectedTarget + 确定性 Resolver
   → C-AT2 Action/Motion 统一消费 SelectedTarget
   → C-AT3 纯表现 CameraLock / Snapshot 契约收口
-  → CAMERA_SYSTEM_PLAN C1（Director + LockOn VCam + TargetGroup）
+  → 2026.8.26 CAMERA_SYSTEM_PLAN C1（Director + LockOn VCam + TargetGroup）
 ```
 
 **最小正确切片：** C-AT0。它不依赖 Camera C1，却先消除现有回放/帧同步中最直接的相机渲染态权威旁路。

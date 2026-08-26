@@ -47,6 +47,8 @@ public class CameraManager : AppControllerBase
     [SerializeField, Min(0f)] float lookOverrideResumeDelay = 0.25f;
     [Tooltip("判定 Look 抢权的输入死区。")]
     [SerializeField, Min(0f)] float lookOverrideThreshold = 0.01f;
+    [Tooltip("相机相对移动轴 Y 低于此值视为后退，暂停 L-DIR5，避免后退与跟朝向互追转圈。")]
+    [SerializeField, Range(0f, 1f)] float followFacingBackwardDeadzone = 0.2f;
 
     [Header("Wave1 Lateral Follow")]
     [Tooltip("吸收 CameraRoot 相对 Follow 状态的左右分量；0=忽略左右（Wave1 止血），1=完整跟随。")]
@@ -425,8 +427,9 @@ public class CameraManager : AppControllerBase
     }
 
     /// <summary>
-    /// L-DIR5：有移动且无 Look 抢权、且未在播招时，Orbit yaw 平滑追角色朝向；只读 facing，不写 Motor。
-    /// 出招/闪避期间暂停，避免连闪时 yaw 追权威朝向台阶。
+    /// L-DIR5：前进/侧移且无 Look 抢权、未在播招时，Orbit yaw 平滑追角色朝向；只读 facing，不写 Motor。
+    /// 后退（相机相对 Move.y &lt; 0）暂停：跟朝向会把后退 wish 拧成新前向，角色与镜头互追转圈。
+    /// 出招/闪避期间也暂停，避免连闪时 yaw 追权威朝向台阶。
     /// </summary>
     void ApplyFollowFacingYaw()
     {
@@ -452,6 +455,13 @@ public class CameraManager : AppControllerBase
             return;
         }
 
+        // 只认本机设备轴，不读角色朝向：朝向已被后退 wish 拧过，再用它判断会永远跟上去。
+        if (IsCameraRelativeBackwardMove(local.MoveInput))
+        {
+            _yawFollowVelocity = 0f;
+            return;
+        }
+
         // FaceTarget 时不跟朝向，避免与 strafing 锁面抢 yaw
         if (local.Actor != null
             && local.Actor.IsLocomotionFaceTargetActive)
@@ -470,6 +480,12 @@ public class CameraManager : AppControllerBase
             targetYaw,
             ref _yawFollowVelocity,
             cameraFollowFacingSmoothTime);
+    }
+
+    /// <summary>相机相对移动轴的后退分量超过死区时视为向后走，L-DIR5 不得追朝向。</summary>
+    bool IsCameraRelativeBackwardMove(Vector2 moveInput)
+    {
+        return moveInput.y < -followFacingBackwardDeadzone;
     }
 
     /// <summary>读取本地锁定键；有 SelectedTarget 才能开启，无目标时自动退出。</summary>

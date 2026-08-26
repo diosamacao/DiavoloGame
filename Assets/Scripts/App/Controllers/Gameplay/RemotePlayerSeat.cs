@@ -26,6 +26,9 @@ public sealed class RemotePlayerSeat : AppControllerBase, ILocalPlayer
     public Vector2 LookInput => Vector2.zero;
 
     /// <inheritdoc />
+    public Vector2 MoveInput => Vector2.zero;
+
+    /// <inheritdoc />
     public bool CameraLockPressedThisFrame => false;
 
     /// <inheritdoc />
