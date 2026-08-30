@@ -244,6 +244,10 @@ MonoBehaviour:
       smoothTimeOverride: 0.05
     motionModifierStates: []
     motionCommandNotifies: []
+    cameraSettings:
+      restoreMode: 0
+      suppressLookInput: 1
+    cameraShotStates: []
     tracks:
     - trackName: Phase_1
       kind: 8
