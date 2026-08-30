@@ -8,5 +8,6 @@ public enum InputButton : byte
     Evade = 4,
     Skill = 5,
     TargetSwitchLeft = 6,
-    TargetSwitchRight = 7
+    TargetSwitchRight = 7,
+    Ultimate = 8,
 }

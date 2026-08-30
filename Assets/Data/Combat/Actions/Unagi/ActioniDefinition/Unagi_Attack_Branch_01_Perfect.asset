@@ -124,6 +124,128 @@ MonoBehaviour:
       smoothTimeOverride: 0
     motionModifierStates: []
     motionCommandNotifies: []
+    cameraSettings:
+      restoreMode: 0
+      suppressLookInput: 1
+    cameraShotStates:
+    - id: Camera_1
+      startFrame: 3
+      endFrame: 45
+      priority: 0
+      trackName: Camera_1
+      overrideCameraPose: 1
+      referenceBinding:
+        source: 0
+        space: 0
+        anchorId: 
+      positionSpline:
+        m_EditModeType: 1
+        m_Knots:
+        - Position:
+            x: 0
+            y: 1.4
+            z: -4
+          TangentIn:
+            x: 0
+            y: 0
+            z: 0
+          TangentOut:
+            x: 0
+            y: 0
+            z: 0
+          Rotation:
+            value:
+              x: 0
+              y: 0
+              z: 0
+              w: 1
+        - Position:
+            x: 0
+            y: 1.4
+            z: -4
+          TangentIn:
+            x: 0
+            y: 0
+            z: 0
+          TangentOut:
+            x: 0
+            y: 0
+            z: 0
+          Rotation:
+            value:
+              x: 0
+              y: 0
+              z: 0
+              w: 1
+        m_MetaData: []
+        m_Closed: 0
+        m_IntData:
+          m_Data: []
+        m_FloatData:
+          m_Data: []
+        m_Float4Data:
+          m_Data: []
+        m_ObjectData:
+          m_Data: []
+      speedCurve:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 1
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 1
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+      constantSpeed: 1
+      lookAtBinding:
+        source: 0
+        space: 0
+        anchorId: 
+      lookAtLocalPosition: {x: 0, y: 1.2, z: 0}
+      fieldOfViewCurve:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 60
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 60
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+      blendInSeconds: 0.08
+      inheritPosition: 1
+      holdFollow: 0
+      impulseOnEnter: {fileID: 0}
+      debugApplySceneCameraView: 0
     tracks:
     - trackName: Cancel_3
       kind: 4
@@ -139,6 +261,9 @@ MonoBehaviour:
       visible: 1
     - trackName: Hitbox_1
       kind: 0
+      visible: 1
+    - trackName: Camera_1
+      kind: 13
       visible: 1
   bakedMotion:
     logicHz: 60

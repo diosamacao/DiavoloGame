@@ -36,6 +36,15 @@ public static class InputBindingUtils
             case "Skill":
                 button = InputButton.Skill;
                 return true;
+            case "TargetSwitchLeft":
+                button = InputButton.TargetSwitchLeft;
+                return true;
+            case "TargetSwitchRight":
+                button = InputButton.TargetSwitchRight;
+                return true;
+            case "Ultimate":
+                button = InputButton.Ultimate;
+                return true;
             default:
                 button = default;
                 return false;

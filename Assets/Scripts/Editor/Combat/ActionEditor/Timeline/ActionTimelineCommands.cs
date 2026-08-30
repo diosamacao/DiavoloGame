@@ -20,6 +20,7 @@ public static class ActionTimelineCommands
         ActionTimelineTrackKind.PerfectDodgeWindow => "perfectDodgeWindowStates",
         ActionTimelineTrackKind.MotionModifier => "motionModifierStates",
         ActionTimelineTrackKind.MotionCommand => "motionCommandNotifies",
+        ActionTimelineTrackKind.Camera => "cameraShotStates",
         _ => null,
     };
 
@@ -45,6 +46,7 @@ public static class ActionTimelineCommands
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.PerfectDodgeWindow);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.MotionModifier);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.MotionCommand);
+        anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Camera);
 
         if (!anyAdded)
             return;
@@ -328,7 +330,24 @@ public static class ActionTimelineCommands
             SetIfExists(element, "stopOnTargetLost", true);
         }
 
+        if (kind == ActionTimelineTrackKind.Camera)
+        {
+            SetIfExists(element, "overrideCameraPose", true);
+            SetIfExists(element, "constantSpeed", true);
+            SetIfExists(element, "blendInSeconds", 0.08f);
+            SetIfExists(element, "inheritPosition", true);
+        }
+
         so.ApplyModifiedProperties();
+        if (kind == ActionTimelineTrackKind.Camera
+            && so.targetObject is ActionDefinition action
+            && index < action.CameraShotStates.Length)
+        {
+            // Unity 扩容数组会复制上一项，必须在 Apply 后替换为独立 Spline 实例。
+            action.CameraShotStates[index].ResetSplineDefaults();
+            EditorUtility.SetDirty(action);
+            so.Update();
+        }
         EditorUtility.SetDirty(so.targetObject);
         return new ActionEditorSelection(arrayProp, index, kind);
     }

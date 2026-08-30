@@ -115,6 +115,13 @@ public static class ActionNotifySelectionDrawer
                 case ActionTimelineTrackKind.MotionCommand:
                     DrawMotionCommand(element, batchSet);
                     break;
+                case ActionTimelineTrackKind.Camera:
+                    EditorGUILayout.PropertyField(
+                        so.FindProperty("timeline.cameraSettings"),
+                        new GUIContent("Camera Track Settings"),
+                        includeChildren: true);
+                    DrawCameraShot(element, batchSet, selection, action);
+                    break;
             }
         }
 
@@ -175,6 +182,10 @@ public static class ActionNotifySelectionDrawer
         EditorGUILayout.PropertyField(
             so.FindProperty("executionPolicy"),
             new GUIContent("Execution Policy"),
+            includeChildren: true);
+        EditorGUILayout.PropertyField(
+            so.FindProperty("timeline.cameraSettings"),
+            new GUIContent("Camera Track Settings"),
             includeChildren: true);
 
         if (!action.HasAnimation)
@@ -416,6 +427,128 @@ public static class ActionNotifySelectionDrawer
         DrawMultiProperty(batchSet, element, "forwardFallbackMm");
         DrawMultiProperty(batchSet, element, "softBodySuppressFrames");
         DrawMultiProperty(batchSet, element, "preserveVertical");
+    }
+
+    /// <summary>镜头区间：官方 Spline、模型无关 Binding、FOV 与反馈参数。</summary>
+    static void DrawCameraShot(
+        SerializedProperty element,
+        ActionEditorSelectionSet batchSet,
+        ActionEditorSelection selection,
+        ActionDefinition action)
+    {
+        EditorGUILayout.HelpBox(
+            "Camera 窗只由表现层 CameraShotPlayer 消费。Position Spline 是机位唯一真源；"
+            + "关闭 Override Camera Pose 可只使用 Hold Follow / Impulse。",
+            MessageType.Info);
+        DrawMultiProperty(batchSet, element, "overrideCameraPose");
+        DrawMultiProperty(batchSet, element, "referenceBinding", includeChildren: true);
+        DrawCameraSplineCurveRule(element, batchSet, selection, action);
+        DrawCameraPositionSpline(batchSet, element);
+        DrawMultiProperty(batchSet, element, "speedCurve");
+        DrawMultiProperty(batchSet, element, "constantSpeed");
+        DrawMultiProperty(batchSet, element, "lookAtBinding", includeChildren: true);
+        DrawMultiProperty(batchSet, element, "lookAtLocalPosition");
+        DrawMultiProperty(batchSet, element, "fieldOfViewCurve");
+        DrawMultiProperty(batchSet, element, "blendInSeconds");
+        DrawMultiProperty(batchSet, element, "inheritPosition");
+        DrawMultiProperty(batchSet, element, "holdFollow");
+        DrawMultiProperty(batchSet, element, "impulseOnEnter");
+    }
+
+    /// <summary>切换端点几何规则并立即把同类型多选窗口的预设编译进各自 Spline。</summary>
+    static void DrawCameraSplineCurveRule(
+        SerializedProperty element,
+        ActionEditorSelectionSet batchSet,
+        ActionEditorSelection selection,
+        ActionDefinition action)
+    {
+        SerializedProperty ruleProp = element.FindPropertyRelative("splineCurveRule");
+        if (ruleProp == null)
+            return;
+
+        bool mixed = IsMixed(batchSet, element, "splineCurveRule");
+        EditorGUI.showMixedValue = mixed;
+        EditorGUI.BeginChangeCheck();
+        var rule = (CameraSplineCurveRule)EditorGUILayout.EnumPopup(
+            new GUIContent("Curve Rule", "预设规则只编辑首尾端点；Custom 开放全部 Knot 与 Tangent。"),
+            (CameraSplineCurveRule)ruleProp.intValue);
+        EditorGUI.showMixedValue = false;
+        if (!EditorGUI.EndChangeCheck())
+            return;
+
+        SerializedObject so = element.serializedObject;
+        Undo.RecordObject(so.targetObject, "Change Camera Spline Curve Rule");
+        ruleProp.intValue = (int)rule;
+        PropagateRelative(batchSet, "splineCurveRule");
+        so.ApplyModifiedProperties();
+        ApplyCameraSplineRules(action, selection, batchSet);
+        EditorUtility.SetDirty(so.targetObject);
+        so.Update();
+    }
+
+    /// <summary>按当前单选或同类型多选索引重建预设路径；Custom 保留原始作者数据。</summary>
+    static void ApplyCameraSplineRules(
+        ActionDefinition action,
+        ActionEditorSelection selection,
+        ActionEditorSelectionSet batchSet)
+    {
+        if (action == null)
+            return;
+
+        if (batchSet == null)
+        {
+            ApplyCameraSplineRule(action, selection.Index);
+            return;
+        }
+
+        for (int i = 0; i < batchSet.Items.Count; i++)
+            ApplyCameraSplineRule(action, batchSet.Items[i].Index);
+    }
+
+    /// <summary>重建指定 Camera Window 的预设路径，非法索引直接忽略。</summary>
+    static void ApplyCameraSplineRule(ActionDefinition action, int index)
+    {
+        CameraShotNotifyState[] states = action.CameraShotStates;
+        if (states == null || index < 0 || index >= states.Length || states[index] == null)
+            return;
+
+        CameraShotNotifyState shot = states[index];
+        CameraSplineCurveRuleUtility.Apply(shot.PositionSpline, shot.SplineCurveRule);
+    }
+
+    /// <summary>只展示相机作者需要的 Spline 摘要与闭合开关，隐藏官方扩展数据字典。</summary>
+    static void DrawCameraPositionSpline(
+        ActionEditorSelectionSet batchSet,
+        SerializedProperty element)
+    {
+        SerializedProperty spline = element.FindPropertyRelative("positionSpline");
+        if (spline == null)
+            return;
+
+        SerializedProperty knots = spline.FindPropertyRelative("m_Knots");
+        int knotCount = knots?.arraySize ?? 0;
+        spline.isExpanded = EditorGUILayout.Foldout(
+            spline.isExpanded,
+            $"Position Spline ({knotCount} Knots)",
+            true);
+        if (!spline.isExpanded)
+            return;
+
+        EditorGUI.indentLevel++;
+        SerializedProperty rule = element.FindPropertyRelative("splineCurveRule");
+        bool custom = rule == null || rule.intValue == (int)CameraSplineCurveRule.Custom;
+        using (new EditorGUI.DisabledScope(!custom))
+        {
+            DrawMultiProperty(
+                batchSet,
+                element,
+                "positionSpline.m_Closed",
+                new GUIContent("Closed", "仅 Custom 可闭合；预设规则固定为开放的首尾端点路径。"));
+        }
+        EditorGUILayout.HelpBox(
+            "Knot、Rotation 与 Tangent 请在 Scene 视图中编辑；Spline 的 Int/Float/Object 扩展数据未被相机系统使用。",
+            MessageType.None);
+        EditorGUI.indentLevel--;
     }
 
     /// <summary>显式播放倍率；可选显示资源估测自然时长（只读，不驱动倍率）。</summary>

@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-26（相机排期真源改挂 `docs/2026.8.26/CAMERA_SYSTEM_PLAN.md`；实现仍以代码为准）
+> Last updated: 2026-08-30（Unity Splines 2.8.4 + CM2 A/B SkillShot + Scene Knot 编辑已编译；Test/Play 待验）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -29,7 +29,7 @@
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionStateMachine` + `LocomotionState` | AnimationProfile + `CharacterLocomotionProfile` |
 | Locomotion 起步/急停/转身 | ✅ Play 2026-08-12 | 内层相位 + L-DIR1～5 + Pivot 两段式 | 旧 Phase D 减速曲线不做 |
 | Sprint 倾身 / 相机跟朝向 | ✅ Play 2026-08-12 | `SprintLeanModel` + `CameraManager` Follow Facing | 出招时暂停跟朝向 |
-| 第三人称相机 | 🟡 C-AT 前置完成，C1 构图待做 | `CameraManager` | Orbit yaw 不再写 Motor；本地 CameraLock 契约已接 |
+| 第三人称相机 | 🟡 SkillShot Spline 代码完成，C1 构图待做 | `CameraManager` + `CameraDirector` | CM2 保留；Unity Splines 2.8.4；Editor/Play 待验 |
 | 唯一战斗目标 | 🟡 代码完成、输入资产与 Play 待验 | `CharacterTargetingState` + `DeterministicTargetResolver` | 自动最近、滞回保持、Action 中 TargetSwitch |
 | 动作系统（整数帧 / 选招 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ L1B 已实现（Play Mode 待回归） | `ActionSim` + `CharacterActionPresentationBridge` + `ActionFrameQuery` | 60Hz Action + `ActionGraph` |
 | Action Editor（时间轴编辑） | 🟡 骨架/部分 | `ActionEditorWindow` + `ActionTimeline` 手动加轨/窗口 | Menu：`ACT/Action Editor` |
@@ -1042,7 +1042,7 @@ Dodge 恢复                            → Gait（PendingGait 经 MaxGait 钳�
 
 ### 功能说明
 
-Cinemachine 第三人称跟随；鼠标控制 yaw/pitch；碰撞遮挡；启动时锁定光标。Orbit 锚点对 `CameraRoot` 做 SmoothDamp。**L-DIR5**：前进/侧移时 Orbit yaw 插值跟随角色朝向，并把最终 yaw staged 到下一 `InputFrame`；Look 抢权、出招、**相机相对后退**暂停跟随。`CameraLockEnabled` 是本地表现状态，只在存在 SelectedTarget 时开启。
+Cinemachine 2 第三人称跟随；鼠标控制 yaw/pitch；碰撞遮挡；启动时锁定光标。`CameraRig` 对 `CameraRoot` 做滤左右 / SmoothDamp，并支持 Action Camera 窗的 `FollowHold`。`CameraDirector` 持有 CameraLock 与 SkillShot 优先级栈；`CameraShotPlayer` 按本机逻辑动作帧求值内嵌官方 Spline，并在 Director 内部 A/B VCam 间切段。
 
 ### 实现方案
 
@@ -1052,8 +1052,8 @@ Cinemachine 第三人称跟随；鼠标控制 yaw/pitch；碰撞遮挡；启动�
 Player
   └── CameraRoot (y = 1.4)     ← 角色跟随目标（硬绑角色）
 
-CameraManager (场景对象)
-  └── CameraOrbitPivot         ← SmoothDamp 追 CameraRoot；Follow/LookAt 共用此平滑点
+CameraManager + CameraRig + CameraDirector + CameraShotPlayer（场景对象）
+  └── CameraOrbitPivot         ← CameraRig 写 SmoothDamp / FollowHold
         └── CameraPitchPivot   ← pitch 旋转
               └── CM ThirdPerson (CinemachineVirtualCamera)
                     Follow = pitchPivot, LookAt = orbitPivot
@@ -1065,11 +1065,24 @@ CameraManager (场景对象)
 - `CinemachineHardLookAt`：注视平滑后的 `orbitPivot`
 - `CinemachineCollider`：Default 层遮挡，PreserveCameraHeight
 
-**跟随平滑**
+**跟随平滑 / 演出镜头**
 
-- `LateUpdate`：先 `ApplyFollowFacingYaw`（可选），再 `orbitPivot` 对 `cameraRoot` 做位置 `SmoothDamp`，最后 `StageMoveReferenceYaw`
+- `CameraManager.LateUpdate`：先跟朝向，再 `CameraRig.Sync`，最后 `StageMoveReferenceYaw`
 - 首帧、`followSmoothTime <= 0`、或距离超过 `SnapDistance`(3) 时直接吸附
 - 对外提供 `SnapFollowToTarget()` 供传送等硬重置
+- Action Timeline 的 `cameraShotStates` 是唯一镜头窗真源；`CameraShotSequence` / Preset SO 不存在
+- `CameraShotPlayer` 只读 `ActionSimSnapshot.CurrentFrame`；Camera 窗不进入 `EnumerateStates()`，因此 Sim Runner 不执行
+- `holdFollow` 钉住进入窗时的 FollowAnchor；窗口退出后从钉点平滑追回
+- `CameraShotNotifyState.positionSpline`（官方 `UnityEngine.Splines.Spline`）是机位位置唯一真源；恒速模式按各 Bezier 段 `GetCurveLength` 累计弧长，再通过 `GetCurveInterpolation` 定位段内进度，禁止使用计算首尾直线距离的 `GetPointAtLinearDistance`
+- `splineCurveRule` 提供 Linear / ArcUp / ArcDown / ArcLeft / ArcRight 端点预设；由 `CameraSplineCurveRuleUtility` 把首尾点编译为两 Knot Spline；Custom 才保留任意 Knot/Tangent
+- `CameraTransformBinding` 只提供 Character / SelectedTarget / World 根来源；空 `AnchorId` 为 Root，自定义部位经 `CameraAnchorProvider` 映射
+- Dynamic Binding 逐帧读取 Transform；Snapshot Binding 只在窗口进入时捕获；解析失败不回退固定节点名
+- `CameraDirector` 固定复用两台无 Body 的 CM2 SkillShot VCam；换段 Ping-Pong Blend，并更新世界 Pose / FOV / 可选 Impulse
+- Action Editor Scene 的预设规则只显示并编辑首尾端点，提供明确起点/终点选择；Custom 才开放全部 Knot、E 旋转、Tangent、插入/删除/平滑；`Scene 构图 → 选中点` 会把 Scene Camera 位置反解到 Reference Binding，并沿 Scene forward 以当前焦距生成 LookAt Binding 局部观察点；FOV 可选择 Keep Shot、Scene View 或 Custom，后两者在当前预览帧写入/覆盖 FOV Curve Key
+- Camera 窗选中时按当前预览帧求值出的 Position/LookAt/FOV 绘制视锥；Knot Rotation 仍只控制切线局部朝向
+- `ActionEditorCameraView` 是实际构图唯一预览入口：菜单 `ACT/Action Camera View` 或 Scene 浮窗打开；隐藏 Camera 复用 Main Camera 设置并渲染当前场景到缓存 RenderTexture，自动跟随 Shot/Frame/Position/LookAt/FOV，SceneView 保持自由导航
+- Camera Inspector 只展示 Spline Knot 数量与 Closed，不再暴露未使用的 Int/Float/Float4/Object 扩展数据；旧 `Debug Scene Camera` 字段与 `SceneView.LookAtDirect` 接管路径已删除；Clipboard 仍递归复制 Spline 隐藏 MetaData
+- 旧 `CameraDebugAnchorVisualizer`、`CameraDebugGizmoDrawer` 及常驻 Frustum/LookAt 定位图形已删除，不再干扰 Spline 编辑
 
 **输入 / 跟朝向**
 
@@ -1080,7 +1093,7 @@ CameraManager (场景对象)
 - 是否后退：读本机设备 `ILocalPlayer.MoveInput.y`；低于 `followFacingBackwardDeadzone`（默认 -0.2）则暂停跟朝向，避免后退 wish 与镜头互追转圈
 - 出招/闪避/受击：读 `IsPresentingAction`，暂停跟朝向，避免连闪甩镜头
 - 朝向源优先 `PresentationRoot`（客机预测体插值锚点）；空座位 `transform` 不转，跟它无法 A/D 绕圈
-- `CameraLock` 只切本地 `CameraLockEnabled`；SelectedTarget 无效时不能开启/自动关闭，不写 Targeting/Action/InputFrame
+- `CameraLock` 只请求 `CameraDirector.CameraLockEnabled`；SelectedTarget 无效时不能开启/自动关闭，不写 Targeting/Action/InputFrame
 
 **初始化**
 
@@ -1110,11 +1123,22 @@ CameraManager (场景对象)
 
 - 平滑仅抹平位置顿挫；未按 Action/Locomotion 切换不同 `followSmoothTime`（可后续做方案 C）
 - LookAt 已切到 `orbitPivot`，角色急速冲刺时镜头会略滞后于角色身体
-- Camera C1 的 LockOn VCam、TargetGroup 与切敌短 Blend 尚未实现；当前只完成权威边界和本地开关契约
+- Camera C1 的 LockOn VCam、TargetGroup 与切敌短 Blend尚未实现；Director 当前保留 LockOn 栈槽
+- SkillShot Spline / FollowHold / Scene 预览已通过 Unity 脚本编译；Test Runner 与 Play 仍待人工验收
+- 自定义 `AnchorId` 需要用户在角色 Prefab 配置 `CameraAnchorProvider`；解析失败时 Shot 不抢权
+- LookAt 首版仍是 `lookAtBinding + lookAtLocalPosition`，未提供第二条观察点 Spline 或 Roll 曲线
 
 ### 相关文件
 
 - `Assets/Scripts/App/Controllers/Camera/CameraManager.cs`
+- `Assets/Scripts/App/Controllers/Camera/CameraRig.cs`
+- `Assets/Scripts/App/Controllers/Camera/CameraDirector.cs`
+- `Assets/Scripts/App/Controllers/Camera/CameraShotPlayer.cs`
+- `Assets/Scripts/App/Controllers/Camera/CameraAnchorProvider.cs`
+- `Assets/Scripts/Domain/Camera/CameraSplineEvaluator.cs`
+- `Assets/Scripts/Domain/Camera/CameraShotPoseResolver.cs`
+- `Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/CameraShotNotifyState.cs`
+- `Assets/Scripts/Editor/Combat/ActionEditor/ActionEditorCameraShotPreview.cs`
 
 ### 5.1 唯一战斗目标
 
@@ -1619,6 +1643,13 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-23 | 文档整理：删除已关闭波次备忘 / 被替代方案；TECHNICAL 交叉引用改指现行入口 |
 | 2026-08-26 | 相机排期交叉引用改挂 `docs/2026.8.26/CAMERA_SYSTEM_PLAN.md`（Director / SkillShot / UI 展示舱）；实现未改 |
 | 2026-08-26 | L-DIR5：相机相对后退（`MoveInput.y`）暂停跟朝向，避免按住 S 与镜头互追转圈 |
+| 2026-08-29 | Camera CS0～CS3 代码：Timeline Camera 轨、Rig FollowHold、Director/SkillShot 池、FOV/Dolly/Impulse、Action Editor Scene 预览；待 Editor 验收 |
+| 2026-08-30 | Camera C-SP0～C-SP3：保留 Cinemachine 2，接入 Unity Splines 2.8.4；Spline/Binding、A/B VCam、Knot/Tangent/Helix 编辑替换旧 offset/Dolly/VcamKey/Anchor |
+| 2026-08-30 | Camera Editor 收敛：删除 Helix 生成器与旧定位 Gizmo；Knot 独立点击热区、W/E 位移/旋转、CameraWindow Debug Scene Camera |
+| 2026-08-30 | Camera Editor 可读性：隐藏官方 Spline 未使用扩展数据；按当前预览帧 Position/LookAt/FOV 绘制视锥，不改变朝向真源 |
+| 2026-08-30 | Camera Spline 端点规则：新增 Linear/上下左右 Arc 预设；非 Custom 只拖首尾端点，放大选点并隐藏无效首尾切线 |
+| 2026-08-30 | Action Camera View：新增独立可停靠 RenderTexture 实际构图窗口；删除会量化闪跳且妨碍编辑的 SceneView Debug 接管路径 |
+| 2026-08-30 | Camera Spline 恒速修复：改为逐 Bezier 段累计弧长并查表定位，避免高曲率路径在窗口结束帧前提前到达终点 |
 | 2026-08-14 | SprintLean 从静止向右倾改走 engage；GaitPolicy Run 计时加 0.1ms 容差；量化单测不再用非精确 2.5mm |
 | 2026-08-09 | BT：删除 `EnemyBehaviorTreeKind` / Presets / Fill / Create Default；运行时仅 `customRoot.Build()` |
 | 2026-08-09 | BT：Condition 改为 UE 风格单子装饰 + Abort Self；不再作为 Sequence 叶子条件 |

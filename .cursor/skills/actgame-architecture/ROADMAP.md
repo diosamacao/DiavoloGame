@@ -100,11 +100,13 @@
 
 ### [P1] Camera Director / SkillShot / UI 展示舱
 
-**方案**：[`docs/2026.8.26/CAMERA_SYSTEM_PLAN.md`](../../docs/2026.8.26/CAMERA_SYSTEM_PLAN.md)（接替 8.6 篇为排期真源）
+**方案（总览 / UI）**：[`docs/2026.8.26/CAMERA_SYSTEM_PLAN.md`](../../docs/2026.8.26/CAMERA_SYSTEM_PLAN.md)
+**方案（大招机位 + 镜头拉伸）**：[`docs/2026.8.29/CAMERA_SKILLSHOT_AND_STRETCH_PLAN.md`](../../docs/2026.8.29/CAMERA_SKILLSHOT_AND_STRETCH_PLAN.md)（CS0～CS3；对照 ZZZACTGame / zzzdemo / DemoClient）
+**方案（样条轨迹接替）**：[`docs/2026.8.29/CAMERA_SPLINE_INTEGRATION_PLAN.md`](../../docs/2026.8.29/CAMERA_SPLINE_INTEGRATION_PLAN.md)（C-SP0～C-SP3；替换单 localOffset/Dolly 与固定机位枚举）
 
-**目标**：`CameraDirector` 栈做战斗多机位（LockOn / 大招 SkillShot）；UI 用独立展示舱 + RenderTexture，不拧战斗 VCam。吸收 DemoClient 的多 VCam 抢权、最近候选进出、演出结束回写 yaw、FollowHold；拒绝 VCam.forward 玩法朝向。
+**目标**：`CameraDirector` 栈做战斗多机位（LockOn / 大招 SkillShot）；招式窗 `FollowHold` 做镜头拉伸；UI 用独立展示舱 + RenderTexture，不拧战斗 VCam。吸收 Demo 最近候选/回写 yaw/HoldFollow 与 zzzdemo 机位池思想；拒绝 State SetActive / StateDriven 时钟 / `Time.timeScale` 当镜头时钟 / VCam.forward 玩法朝向。
 
-**状态：⬜ 方案已立（2026-08-26）；C0 收口 / C1～C5 未开工。** 前置仍为 C-AT Input 资产与 Play 回归。
+**状态：🟡 Camera C-SP0～C-SP3 已编译（2026-08-30），Test/Play 待验收**。保持 Cinemachine 2.10.7，接入 Unity Splines 2.8.4；机位位置只读 Action 内嵌官方 Spline，常规作者使用端点驱动 Linear/上下左右 Arc 规则，Custom 才开放完整 Knot/Tangent；独立 Action Camera View 预览实际构图，SceneView 不再被 Debug 接管；Director 内部 A/B 抢权，旧 localOffset/Dolly/VcamKey/Anchor 路径已删除。8.26 C1 完整 LockOn 构图与 C5 UI 展示舱仍未开工。
 
 ### [P1] 组队 PVE · Dedicated 权威状态同步
 

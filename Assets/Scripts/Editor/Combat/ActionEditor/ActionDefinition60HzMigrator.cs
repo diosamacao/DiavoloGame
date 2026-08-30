@@ -21,6 +21,8 @@ public static class ActionDefinition60HzMigrator
         "phaseStates",
         "movementStates",
         "rotationStates",
+        // Camera 窗虽不进入 Sim Runner，仍以同一动作逻辑帧配置，迁移时必须同步缩放。
+        "cameraShotStates",
     };
 
     /// <summary>扫描项目内全部 ActionDefinition，报告 60Hz / 可模拟就绪状态（不改资产）。</summary>

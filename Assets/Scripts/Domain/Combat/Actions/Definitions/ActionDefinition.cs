@@ -109,6 +109,13 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
     /// <summary>通用点事件列表，来自统一 Timeline。</summary>
     public ActionEvent[] ActionEvents => Timeline.ActionEvents;
 
+    /// <summary>纯表现 Camera 窗口；逻辑模拟不消费。</summary>
+    public CameraShotNotifyState[] CameraShotStates => Timeline.CameraShotStates;
+
+    /// <summary>返回指定帧最高优先级的 Camera 窗口。</summary>
+    public CameraShotNotifyState GetActiveCameraShotAtFrame(int frame) =>
+        Timeline.GetActiveCameraShotAtFrame(frame);
+
     /// <summary>供动画与编辑器显示的派生总时长；Runtime 结束判定只使用 TotalFrames。</summary>
     public float DurationSeconds
     {

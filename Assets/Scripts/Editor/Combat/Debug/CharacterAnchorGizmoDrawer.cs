@@ -2,8 +2,7 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Wave 0：角色逻辑/表现锚点 Gizmo（Motor 圆、Sim/Presentation/Visual）。
-/// 相机链（CameraRoot / FollowAnchor / Orbit / VCam）见 <see cref="CameraDebugGizmoDrawer"/>。
+/// Wave 0：角色逻辑/表现锚点 Gizmo（Motor 圆、Sim/Presentation/Visual），不绘制相机定位。
 /// </summary>
 public static class CharacterAnchorGizmoDrawer
 {
@@ -48,7 +47,7 @@ public static class CharacterAnchorGizmoDrawer
 
     static void DrawAxisMarker(Vector3 position, Color color, string label)
     {
-        // Play 时由 CameraDebugAnchorVisualizer 画实心球，此处仅 Edit 补球，避免叠两层
+        // Play 时只保留文字，避免运行状态下实体球遮挡角色观察。
         if (!Application.isPlaying)
         {
             Handles.color = color;

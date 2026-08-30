@@ -355,6 +355,10 @@ MonoBehaviour:
       maxAngleMilliDeg: 0
       stopOnTargetLost: 1
     motionCommandNotifies: []
+    cameraSettings:
+      restoreMode: 0
+      suppressLookInput: 1
+    cameraShotStates: []
     tracks:
     - trackName: Phase_1
       kind: 8

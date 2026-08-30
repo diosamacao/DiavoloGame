@@ -38,6 +38,15 @@ public static class ActionTimelineClipboard
         public float[] floats;
     }
 
+    /// <summary>AnimationCurve 的 Json 载体，保留 Key 与首尾 WrapMode。</summary>
+    [Serializable]
+    sealed class CurvePayload
+    {
+        public Keyframe[] keys;
+        public WrapMode preWrapMode;
+        public WrapMode postWrapMode;
+    }
+
     static string s_json = string.Empty;
 
     /// <summary>剪贴板是否有可粘贴内容。</summary>
@@ -178,7 +187,8 @@ public static class ActionTimelineClipboard
         SerializedProperty iterator = element.Copy();
         SerializedProperty end = iterator.GetEndProperty();
         bool enterChildren = true;
-        while (iterator.NextVisible(enterChildren) && !SerializedProperty.EqualContents(iterator, end))
+        // Spline 的 TangentMode 位于 HideInInspector MetaData，必须遍历全部序列化字段。
+        while (iterator.Next(enterChildren) && !SerializedProperty.EqualContents(iterator, end))
         {
             enterChildren = false;
             string path = iterator.propertyPath;
@@ -187,13 +197,6 @@ public static class ActionTimelineClipboard
                 continue;
 
             string relative = path.Substring(prefix.Length);
-            if (relative.Contains(".Array."))
-            {
-                // 嵌套数组（极少）：进入子级逐字段采
-                enterChildren = true;
-                continue;
-            }
-
             var field = new Field
             {
                 path = relative,
@@ -237,12 +240,25 @@ public static class ActionTimelineClipboard
                         iterator.vector4Value.z, iterator.vector4Value.w,
                     };
                     break;
+                case SerializedPropertyType.Quaternion:
+                    Quaternion quaternion = iterator.quaternionValue;
+                    field.floats = new[] { quaternion.x, quaternion.y, quaternion.z, quaternion.w };
+                    break;
                 case SerializedPropertyType.Color:
                     field.floats = new[]
                     {
                         iterator.colorValue.r, iterator.colorValue.g,
                         iterator.colorValue.b, iterator.colorValue.a,
                     };
+                    break;
+                case SerializedPropertyType.AnimationCurve:
+                    AnimationCurve curve = iterator.animationCurveValue;
+                    field.stringValue = JsonUtility.ToJson(new CurvePayload
+                    {
+                        keys = curve?.keys ?? Array.Empty<Keyframe>(),
+                        preWrapMode = curve?.preWrapMode ?? WrapMode.Clamp,
+                        postWrapMode = curve?.postWrapMode ?? WrapMode.Clamp,
+                    });
                     break;
                 case SerializedPropertyType.Generic:
                     enterChildren = true;
@@ -313,9 +329,24 @@ public static class ActionTimelineClipboard
                     prop.vector4Value = new Vector4(
                         field.floats[0], field.floats[1], field.floats[2], field.floats[3]);
                     break;
+                case SerializedPropertyType.Quaternion when field.floats is { Length: >= 4 }:
+                    prop.quaternionValue = new Quaternion(
+                        field.floats[0], field.floats[1], field.floats[2], field.floats[3]);
+                    break;
                 case SerializedPropertyType.Color when field.floats is { Length: >= 4 }:
                     prop.colorValue = new Color(
                         field.floats[0], field.floats[1], field.floats[2], field.floats[3]);
+                    break;
+                case SerializedPropertyType.AnimationCurve:
+                    CurvePayload curve = JsonUtility.FromJson<CurvePayload>(field.stringValue);
+                    if (curve != null)
+                    {
+                        prop.animationCurveValue = new AnimationCurve(curve.keys ?? Array.Empty<Keyframe>())
+                        {
+                            preWrapMode = curve.preWrapMode,
+                            postWrapMode = curve.postWrapMode,
+                        };
+                    }
                     break;
             }
         }

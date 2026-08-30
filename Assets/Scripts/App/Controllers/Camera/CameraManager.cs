@@ -10,9 +10,6 @@ public class CameraManager : AppControllerBase
     const string OrbitPivotName = "CameraOrbitPivot";
     const string PitchPivotName = "CameraPitchPivot";
 
-    /// <summary>超过该距离时直接吸附，避免传送后长时间追赶。</summary>
-    const float SnapDistance = 3f;
-
     [Header("Targets")]
     [SerializeField] Transform followTarget;
     [SerializeField] string playerTag = "Player";
@@ -55,62 +52,21 @@ public class CameraManager : AppControllerBase
     [Range(0f, 1f)]
     [SerializeField] float lateralFollowFactor = 0.1f;
 
-    [Header("Debug Visualization")]
-    [Tooltip("Play 时生成实心锚点球（Game 视图可见），并驱动 Scene 附加箭头/图例。")]
-    [SerializeField] bool drawCameraDebugGizmos = true;
-    [Tooltip("实心锚点球半径（米）。")]
-    [SerializeField] float debugAnchorRadius = 0.07f;
-    [Tooltip("Game 视图是否叠锚点名称。")]
-    [SerializeField] bool debugAnchorLabels = true;
-
     CinemachineVirtualCamera virtualCamera;
     Transform cameraRoot;
     Transform orbitPivot;
     Transform pitchPivot;
+    CameraRig cameraRig;
+    CameraDirector cameraDirector;
     float yaw;
     float pitch;
     bool lookEnabled = true;
-    Vector3 orbitFollowVelocity;
-    bool orbitPositionInitialized;
-    Vector3 followAnchorPosition;
-    CameraDebugAnchorVisualizer _debugAnchorVisualizer;
     float _yawFollowVelocity;
     float _lookOverrideRemaining;
-    bool _cameraLockEnabled;
     /// <summary>进关后尚未看/走/出招：Orbit yaw 跟角色朝向，避免 MoveReferenceYaw 停在 0。</summary>
     bool _orbitYawFollowUntilInput = true;
 
     public Transform FollowTarget => cameraRoot != null ? cameraRoot : followTarget;
-
-    /// <summary>挂在 Presentation 下的胸口高度锚点；供 Gizmo / Rig 调试。</summary>
-    public Transform CameraRootTransform => cameraRoot;
-
-    /// <summary>水平 Orbit 枢轴；供 Gizmo 调试。</summary>
-    public Transform OrbitPivotTransform => orbitPivot;
-
-    /// <summary>俯仰枢轴（VCam Follow）；供 Gizmo 调试。</summary>
-    public Transform PitchPivotTransform => pitchPivot;
-
-    /// <summary>滤左右 + SmoothDamp 后的跟随点（逻辑 FollowAnchor）。</summary>
-    public Vector3 FollowAnchorPosition => followAnchorPosition;
-
-    /// <summary>当前 yaw（度）。</summary>
-    public float YawDegrees => yaw;
-
-    /// <summary>当前 pitch（度）。</summary>
-    public float PitchDegrees => pitch;
-
-    /// <summary>滤左右吸收系数；供调试面板显示。</summary>
-    public float LateralFollowFactor => lateralFollowFactor;
-
-    /// <summary>是否绘制相机调试锚点（运行时实心球 + Scene 附加信息）。</summary>
-    public bool DrawCameraDebugGizmos => drawCameraDebugGizmos;
-
-    /// <summary>实心锚点球半径（米）。</summary>
-    public float DebugAnchorRadius => debugAnchorRadius;
-
-    /// <summary>Presentation / 跟随用角色根（相机源父级）。</summary>
-    public Transform PresentationFollowTarget => followTarget;
 
     /// <summary>Orbit Yaw 投影的水平前向；供 Motor 相机相对移动（不含挤墙偏转）。</summary>
     public Vector3 PlanarForward
@@ -138,7 +94,8 @@ public class CameraManager : AppControllerBase
     public CinemachineVirtualCamera VirtualCamera => virtualCamera;
 
     /// <summary>纯表现 Camera Lock 开关；不进入 InputFrame 或角色逻辑状态。</summary>
-    public bool CameraLockEnabled => _cameraLockEnabled;
+    public bool CameraLockEnabled =>
+        cameraDirector != null && cameraDirector.CameraLockEnabled;
 
     void Awake()
     {
@@ -147,6 +104,7 @@ public class CameraManager : AppControllerBase
         ResolveFollowTarget();
         ResolvePresentationFollowTarget();
         EnsureCameraRoot();
+        EnsureCameraRuntime();
         EnsureCameraShakeController();
         EnsureVirtualCamera();
     }
@@ -158,6 +116,7 @@ public class CameraManager : AppControllerBase
         if (cameraRoot == null || virtualCamera == null)
         {
             EnsureCameraRoot();
+            EnsureCameraRuntime();
             EnsureCameraShakeController();
             EnsureVirtualCamera();
         }
@@ -182,32 +141,24 @@ public class CameraManager : AppControllerBase
         ApplyFollowFacingYaw();
         SyncOrbitPivots();
         StageMoveReferenceYaw();
-        SyncDebugAnchorVisualizer();
     }
 
-    /// <summary>确保开发构建下有实心球可视化，并同步半径/开关。</summary>
-    void SyncDebugAnchorVisualizer()
+    /// <summary>确保 Rig 与 Director 唯一运行时入口存在。</summary>
+    void EnsureCameraRuntime()
     {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        if (!drawCameraDebugGizmos)
-        {
-            if (_debugAnchorVisualizer != null)
-                _debugAnchorVisualizer.Sync();
-            return;
-        }
+        cameraRig = GetComponent<CameraRig>();
+        if (cameraRig == null)
+            cameraRig = gameObject.AddComponent<CameraRig>();
 
-        if (_debugAnchorVisualizer == null)
-        {
-            _debugAnchorVisualizer = GetComponent<CameraDebugAnchorVisualizer>();
-            if (_debugAnchorVisualizer == null)
-                _debugAnchorVisualizer = gameObject.AddComponent<CameraDebugAnchorVisualizer>();
-            _debugAnchorVisualizer.Bind(this);
-        }
+        cameraDirector = GetComponent<CameraDirector>();
+        if (cameraDirector == null)
+            cameraDirector = gameObject.AddComponent<CameraDirector>();
+        cameraDirector.Bind(this);
 
-        _debugAnchorVisualizer.SetRadius(debugAnchorRadius);
-        _debugAnchorVisualizer.SetShowLabels(debugAnchorLabels);
-        // 位置刷新放在 Visualizer.LateUpdate（更高 executionOrder），保证本帧 Follow 已写入
-#endif
+        if (GetComponent<CameraFeedback>() == null)
+            gameObject.AddComponent<CameraFeedback>();
+        if (GetComponent<CameraShotPlayer>() == null)
+            gameObject.AddComponent<CameraShotPlayer>();
     }
 
     /// <summary>把最终 Orbit yaw 暂存到设备输入边界，不直接写 Motor。</summary>
@@ -352,6 +303,7 @@ public class CameraManager : AppControllerBase
             Destroy(legacyFreeLook.gameObject);
 
         EnsureOrbitPivots();
+        cameraRig?.Bind(cameraRoot, orbitPivot, pitchPivot);
 
         virtualCamera = GetComponentInChildren<CinemachineVirtualCamera>(true);
         if (virtualCamera == null)
@@ -362,6 +314,7 @@ public class CameraManager : AppControllerBase
         }
 
         ConfigureVirtualCamera(virtualCamera);
+        cameraDirector?.Bind(this);
     }
 
     void ConfigureVirtualCamera(CinemachineVirtualCamera vcam)
@@ -439,7 +392,7 @@ public class CameraManager : AppControllerBase
         if (!followFacingWhileMoving || cameraFollowFacingSmoothTime <= 0f)
             return;
 
-        if (_cameraLockEnabled)
+        if (CameraLockEnabled)
         {
             _yawFollowVelocity = 0f;
             return;
@@ -491,19 +444,17 @@ public class CameraManager : AppControllerBase
     /// <summary>读取本地锁定键；有 SelectedTarget 才能开启，无目标时自动退出。</summary>
     void UpdateCameraLock()
     {
+        if (cameraDirector == null)
+            EnsureCameraRuntime();
         ILocalPlayer local = ResolveLocalPlayer();
         ILocalCameraTargetSource targetSource = local?.Actor;
         bool hasTarget = targetSource != null && targetSource.TargetingSnapshot.HasSelectedTarget;
-        if (_cameraLockEnabled && !hasTarget)
-            _cameraLockEnabled = false;
+        cameraDirector.SetTargetAvailable(hasTarget);
 
         if (local == null || !local.CameraLockPressedThisFrame)
             return;
 
-        if (_cameraLockEnabled)
-            _cameraLockEnabled = false;
-        else if (hasTarget)
-            _cameraLockEnabled = true;
+        cameraDirector.ToggleCameraLock();
     }
 
     /// <summary>
@@ -512,60 +463,20 @@ public class CameraManager : AppControllerBase
     /// </summary>
     void SyncOrbitPivots()
     {
-        if (orbitPivot == null || pitchPivot == null || cameraRoot == null)
-            return;
-
-        Vector3 source = cameraRoot.position;
-        if (!orbitPositionInitialized ||
-            (followAnchorPosition - source).sqrMagnitude > SnapDistance * SnapDistance)
-        {
-            followAnchorPosition = source;
-            orbitPivot.position = source;
-            orbitFollowVelocity = Vector3.zero;
-            orbitPositionInitialized = true;
-        }
-        else
-        {
-            Vector3 forward = ResolveFollowForwardAxis();
-            Vector3 delta = source - followAnchorPosition;
-            Vector3 forwardPart = Vector3.Dot(delta, forward) * forward;
-            Vector3 verticalPart = new Vector3(0f, delta.y, 0f);
-            Vector3 lateralPart = delta - forwardPart - verticalPart;
-            float lateralFactor = Mathf.Clamp01(lateralFollowFactor);
-            Vector3 absorbed = forwardPart + verticalPart + lateralPart * lateralFactor;
-            Vector3 desired = followAnchorPosition + absorbed;
-
-            if (followSmoothTime <= 0f)
-            {
-                followAnchorPosition = desired;
-                orbitFollowVelocity = Vector3.zero;
-            }
-            else
-            {
-                followAnchorPosition = Vector3.SmoothDamp(
-                    followAnchorPosition,
-                    desired,
-                    ref orbitFollowVelocity,
-                    followSmoothTime);
-            }
-
-            orbitPivot.position = followAnchorPosition;
-        }
-
-        orbitPivot.rotation = Quaternion.Euler(0f, yaw, 0f);
-        pitchPivot.localPosition = Vector3.zero;
-        pitchPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+        cameraRig?.Bind(cameraRoot, orbitPivot, pitchPivot);
+        cameraRig?.Sync(
+            followTarget,
+            yaw,
+            pitch,
+            followSmoothTime,
+            lateralFollowFactor,
+            PlanarForward);
     }
 
     /// <summary>滤左右用角色表现朝向，不用镜头 forward。</summary>
     Vector3 ResolveFollowForwardAxis()
     {
-        Transform basis = followTarget != null ? followTarget : cameraRoot;
-        Vector3 forward = basis.forward;
-        forward.y = 0f;
-        if (forward.sqrMagnitude < 0.0001f)
-            return PlanarForward;
-        return forward.normalized;
+        return CameraRig.ResolveForwardAxis(followTarget, cameraRoot, PlanarForward);
     }
 
     /// <summary>供 Gizmo 绘制滤左右轴向。</summary>
@@ -574,19 +485,27 @@ public class CameraManager : AppControllerBase
     /// <summary>立刻吸附到 CameraRoot（传送、切场景等场景用）。</summary>
     public void SnapFollowToTarget()
     {
-        if (orbitPivot == null || cameraRoot == null)
-            return;
-
-        followAnchorPosition = cameraRoot.position;
-        orbitPivot.position = followAnchorPosition;
-        orbitFollowVelocity = Vector3.zero;
-        orbitPositionInitialized = true;
+        cameraRig?.SnapToTarget();
     }
 
     public void SetLookEnabled(bool enabled)
     {
         lookEnabled = enabled;
     }
+
+    /// <summary>供 Director 在演出结束时把日常 Orbit 水平角对齐实际镜头。</summary>
+    public void SnapshotOrbitYaw(float worldYaw)
+    {
+        yaw = worldYaw;
+        _yawFollowVelocity = 0f;
+        StageMoveReferenceYaw();
+    }
+
+    /// <summary>供 CameraShotPlayer 访问唯一 CameraRig。</summary>
+    public CameraRig Rig => cameraRig;
+
+    /// <summary>供 CameraShotPlayer 解析本机 Actor 与表现锚点。</summary>
+    public ILocalPlayer LocalPlayer => ResolveLocalPlayer();
 
     public void SetCursorLocked(bool locked)
     {

@@ -1,10 +1,10 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-26（L-DIR5 后退不跟朝向；联网阅读仍见 `docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`）
+> Last audited: 2026-08-30（Unity Splines 2.8.4 + CM2 SkillShot A/B + Scene Knot 编辑已编译；Test/Play 待验）
 
 ## 项目概述
 
-Unity ACT（动作）游戏。当前重点：60Hz 模拟核、数据驱动动作 / 数值、Dedicated 权威状态同步；相机 Lock-On 与正式 UI 未做。
+Unity ACT（动作）游戏。当前重点：60Hz 模拟核、数据驱动动作 / 数值、Dedicated 权威状态同步；相机 SkillShot Spline 已落地，完整 Lock-On 构图与正式 UI 未做。
 
 > 各功能的实现细节、参数与运行时流程见 [TECHNICAL.md](TECHNICAL.md)。
 
@@ -255,7 +255,13 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 
 | 类 | 职责 |
 |----|------|
-| `CameraManager` | Cinemachine 第三人称；Orbit yaw 只 staged 到 InputFrame，本地 CameraLock 只读 SelectedTarget |
+| `CameraManager` | 日常 Look、锚点装配与 Orbit yaw staged；不再持有滤左右或 CameraLock 真源 |
+| `CameraRig` | 日常 FollowAnchor 唯一写入器：滤左右、FollowHold、Orbit/Pitch |
+| `CameraDirector` / `CameraDirectorStack` | Free/LockOn/SkillShot/Cutscene 优先级栈、CM2 A/B SkillShot VCam、Look 门控与退出 yaw 回写 |
+| `CameraShotPlayer` | 只读本机 `ActionSimSnapshot`，捕获 Snapshot Binding 并按逻辑帧驱动 Spline |
+| `CameraAnchorProvider` | 把模型无关 `AnchorId` 映射为实际 Transform；空 Id 直接使用 Root |
+| `CameraSplineCurveRuleUtility` / `CameraSplineEvaluator` / `CameraShotPoseResolver` | 端点预设几何编译、官方 Spline 恒速求值；Binding + 局部路径 → 世界 Position/LookAt/FOV |
+| `ActionEditorCameraShotPreview` / `ActionEditorCameraView` | Scene 中编辑端点或 Custom Knot/Tangent并绘制当前帧视锥；独立 Camera View 用隐藏 Camera + RenderTexture 预览实际构图 |
 
 ### 9. 复制与权威进程（NS0～NS5 代码已落地）
 
