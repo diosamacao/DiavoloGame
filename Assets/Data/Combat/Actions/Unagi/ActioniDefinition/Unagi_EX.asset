@@ -33,7 +33,7 @@ MonoBehaviour:
   actionType: 0
   crossFadeDuration: 0.1
   executionPolicy:
-    interruptPriority: 0
+    interruptPriority: 70
     baseMotionMode: 2
   resourceSpec:
     resourceTag: 0
