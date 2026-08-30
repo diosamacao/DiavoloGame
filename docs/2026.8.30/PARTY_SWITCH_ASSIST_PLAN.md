@@ -47,7 +47,7 @@ SKILL 方案原裁定：切人 / 支援 / 连携 = 后置
 ### 1.2 痛点
 
 1. 产品已要求「最多 3 人出战 + 切人弹刀」，技能方案仍把切人标后置，与现需求冲突。  
-2. 切人不是「换模型」：下场要播完当前招、上场要播登场/支援、过程中要派生突击并播音效特效。  
+2. 切人不是「换模型」：普通切是双人过场（下场播完 / 上场 SwitchIn）；金光弹刀是瞬切到弹刀点，不播 SwitchIn/SwitchOut。  
 3. 若把「换谁、支援点够不够」写进某张 `ActionGraph`，三人各自 Graph 会互相引用、无法锁步测试。  
 4. 若只做临时 `if (下一个角色)` 切 Prefab，养成与联网会无身份可挂。
 
@@ -58,7 +58,7 @@ SKILL 方案原裁定：切人 / 支援 / 连携 = 后置
 | 结构 | 座位级编队协调器 + 每角色独立 Actor/Graph；差异在 Definition/资产，不在身份 if |
 | 可玩 | Play：3 人轮换上场；金光切人出招架或回避支援，再点攻击出支援突击 |
 | 可测 | EditMode：支援点、金/红裁定、下场未完成不可再切出 |
-| 不做 | 养成养成养成、抽卡、背包、邦布、属性异常、彩光、13 段连续招架、联网三人复制（P-SW5） |
+| 不做 | SwitchPrev / 反向切人、养成、抽卡、背包、邦布、属性异常、彩光、13 段连续招架、联网三人复制（P-SW5） |
 
 ---
 
@@ -80,10 +80,12 @@ SKILL 方案原裁定：切人 / 支援 / 连携 = 后置
 | 机制 | 绝区零要点 | 本项目定案 |
 |------|------------|------------|
 | 编队 | 最多 3 名代理人 | `PartyLoadout` 槽位数 1～3；空槽合法 |
-| 切人键 | 左切/右切（键鼠/手柄）；手机仅右切 | `InputButton.SwitchPrev` / `SwitchNext`；与 `SwitchMode` 分离 |
+| 切人键 | 键鼠/手柄可左右切；手机仅顺序切 | **只留一键** `InputButton.SwitchCharacter`（空格顺序循环）；禁止 `SwitchPrev`；与 `SwitchMode` 分离 |
 | 切人 CD | 无 | 无时间 CD |
-| 下场 | 不打断当前招，做完再退场；未退场不可再切出 | `PartyMemberState.Exiting` 期间该槽不可再激活 |
-| 上场普通切 | 后方冲入，播登场 | 上场 Actor 起手 `SwitchIn` Intent → Graph Entry |
+| 下场（普通切） | 不打断当前招，做完再退场；未退场不可再切出 | 仅 `SwitchPresentation.DualPresence`：下场 `Exiting` |
+| 下场（极限支援） | 当场角色立刻消失，不播 SwitchOut | `InstantReplace`：下场当帧 `Inactive`，禁止 SwitchOut |
+| 上场普通切 | 后方冲入，播登场 | 上场 `SwitchIn`；出生在下场逻辑根附近 |
+| 上场弹刀切 | 下一角色直接播招架/回避，并吸附到弹刀点 | 上场只起 `AssistParry`/`AssistEvade`；frame 0 `Relocate` + `SnapFacing` |
 | 金光 | 特定攻击金色闪光；切人消耗支援点 → 极限支援 | 敌人 Timeline `AssistCueWindow`（Gold） |
 | 红光 | 点数不足或类型不匹配时金变红；切人 → 极限闪避（换人闪） | 同一窗降级为 Red；上场走 `SwitchPerfectDodge` |
 | 彩光 | 极少；切人两者都不触发 | **不做** |
@@ -175,16 +177,19 @@ PlayerSeat（原 PlayerController 升级为座位）
   → PartyCombatCoordinator（纯 C#，World 每帧先于成员 Step）
 
 InputFrame
-  SwitchPrev / SwitchNext Pressed
+  SwitchCharacter Pressed（单键，空格）
        ↓
 PartyCombatCoordinator.TryResolveSwitch
+  下一可激活槽 = (ActiveIndex+1 …) 绕回，跳过空槽 / Dead / Exiting
   读：ActiveIndex、各槽 PartyMemberState、AssistPoints、
       WorldAssistCueBoard（敌人当前 Gold/Red 窗）、上场 AssistStyle
   写：SwitchCommand { from, to, kind }
        ↓
   kind = SwitchIn | AssistParry | AssistEvade | SwitchPerfectDodge | QuickAssist
+  presentation = DualPresence | InstantReplace
        ↓
-  下场槽 → Exiting（继续播完当前 Action，空输入）
+  DualPresence  ：下场 Exiting（播完当前招）；上场 SwitchIn
+  InstantReplace：下场当帧 Inactive（不播 SwitchOut）；上场只播支援招 + Relocate
   上场槽 → Active；只把玩法输入灌给该 Actor
   上场 Intent → 该角色 ActionGraph.TryResolveStart
        ↓
@@ -195,13 +200,14 @@ ActionSim + Timeline（动画 / VFX / SFX / Invincible / 招架 Hitbox）
 
 ```mermaid
 flowchart TB
-  InputFrame -->|SwitchPrev/SwitchNext| Coordinator[PartyCombatCoordinator.TryResolveSwitch]
+  InputFrame -->|SwitchCharacter| Coordinator[PartyCombatCoordinator.TryResolveSwitch]
   EnemyTL[敌人 ActionTimeline.AssistCueWindow] --> CueBoard[WorldAssistCueBoard]
   CueBoard --> Coordinator
   AssistPts[PartyAssistPoints] --> Coordinator
   Def[CharacterDefinition.AssistStyle] --> Coordinator
-  Coordinator -->|SwitchCommand.kind| IncomingIntent[上场 GameplayIntentType]
-  Coordinator -->|Exiting| Outgoing[下场 CharacterActor.Step 空输入]
+  Coordinator -->|kind + presentation| IncomingIntent[上场 GameplayIntentType]
+  Coordinator -->|DualPresence Exiting| Outgoing[下场 CharacterActor 播完再 Inactive]
+  Coordinator -->|InstantReplace| Hide[下场当帧 Inactive 不播 SwitchOut]
   IncomingIntent --> Graph[上场 ActionGraph.TryResolveStart]
   Graph --> ActionSim[ActionSim.Step]
   ActionSim --> TL[ActionTimeline VFX/SFX/Invincible/Hitbox]
@@ -213,7 +219,7 @@ flowchart TB
 ### 5.1 关键契约
 
 ```text
-Input  → InputFrame.SwitchPrev / SwitchNext（Pressed 边沿；左右同帧 = 忽略）
+Input  → InputFrame.SwitchCharacter（Pressed 边沿；无 SwitchPrev）
 Cue    → WorldAssistCueBoard.ActiveCue { ownerId, kind Gold|Red, remainingFrames, interruptible }
 Resolve → SwitchCommand { fromSlot, toSlot, kind, spendAssistPoints }
 Output → 上场 Actor 当帧 Intent；下场 Actor 无玩法输入；相机仍读 Active.PresentationRoot（P-SW1 可硬切）
@@ -234,7 +240,7 @@ Output → 上场 Actor 当帧 Intent；下场 Actor 无玩法输入；相机仍
 ### 5.2 裁定表（Coordinator 唯一）
 
 ```text
-无有效下场目标（空槽 / Dead / Exiting）→ 忽略切人
+无下一可激活槽（空槽 / Dead / Exiting 全跳过后回到自己）→ 忽略切人
 无 Cue 且上场可激活 → SwitchIn，不耗点
 Gold ∧ 点数够 ∧ 上场 MeleeParry → AssistParry，耗点
 Gold ∧ 点数够 ∧ 上场 RangedEvade → AssistEvade，耗点
@@ -270,6 +276,44 @@ Dead      : 不可切出；队灭规则后置
 ```
 
 软弹开 / Hurtbox：仅 `Active` + `Exiting` 参与。`Inactive` 不进 `ISimSoftBodyParticipant`、不进 Hurtbox 花名册。
+
+### 5.5 普通切 vs 弹刀切（目标效果，只留一种）
+
+初版把两种切人写成同一条「下场 Exiting + 上场 Graph」，**不对**：金光极限支援在绝区零里是瞬切到弹刀点，不播 SwitchIn/SwitchOut。本方案以该观察为验收目标。
+
+| | 普通切人 `DualPresence` | 极限支援 / 红闪换人闪 / 快速支援 `InstantReplace` |
+|--|-------------------------|-----------------------------------------------------|
+| 触发 | 无 Cue（或 Cue 已过） | Gold / Red / 击飞窗 |
+| 上场播什么 | **只** `SwitchIn` | **只** `AssistParry` / `AssistEvade` / `SwitchPerfectDodge` / `QuickAssist` |
+| 下场播什么 | 当前招播完（可另配 `SwitchOut`，非必须） | **不播** SwitchOut；当帧隐身进 `Inactive` |
+| 场上人数 | 可两人同框（下场收招 + 上场冲入） | **一人**：上场角色出现在弹刀/回避点 |
+| 出生点 | 下场逻辑根附近（略退后冲入） | 敌人 Cue 给出的弹刀点（见下） |
+| 吸附 | 不强制贴敌 | frame 0：`RelocateToTargetOffset` + `SnapFacingToTarget` |
+| 连招 | 无突击武装 | 招架/回避结束后武装 `AssistFollowUp` |
+
+**弹刀点（首版只留一种）：**
+
+```text
+敌人 AssistCueWindow 带 parryLocalOffsetMm（相对进攻敌人逻辑根，敌人朝向）
+  缺省：(0, 0, +frontMm) = 敌人正前方固定距
+上场 Assist* Action 的 Timeline frame 0：
+  MotionCommand RelocateToTargetOffset（Target = Cue 敌人，即 SelectedTarget）
+  MotionCommand SnapFacingToTarget
+禁止用 ActionMotionAdhesion 多帧去「滑向」弹刀点——那是普攻贴身，不是瞬切
+回避支援同一套 Relocate，offset 用 evadeLocalOffsetMm（可更侧向/更远）
+```
+
+`SwitchCommand` 必须带 `presentation`：
+
+```text
+SwitchIn            → DualPresence
+AssistParry         → InstantReplace
+AssistEvade         → InstantReplace
+SwitchPerfectDodge  → InstantReplace
+QuickAssist         → InstantReplace
+```
+
+禁止：极限支援先播 `SwitchIn` 再 Cancel 进招架；禁止弹刀切还让下场角色在场上播完当前招。
 
 ---
 
@@ -312,16 +356,18 @@ Dead      : 不可切出；队灭规则后置
 
 **任务**
 
-- [ ] `InputButton` 增加 `SwitchPrev` / `SwitchNext`；`InputBindingUtils` + Input Actions（Editor 人工）  
-- [ ] `PartyCombatCoordinator`：解析左右切、写 ActiveIndex、下场 `Exiting`  
+- [ ] `InputButton` 只增加 `SwitchCharacter`；`InputBindingUtils` + Input Actions 绑空格（Editor 人工）  
+- [ ] `PartyCombatCoordinator`：顺序找下一可激活槽、写 ActiveIndex；普通切下场 `Exiting`（`DualPresence`）  
+- [ ] **禁止** `SwitchPrev` / 反向切人键 / 左右同帧仲裁  
 - [ ] 座位创建最多 3 个 `CharacterActor`；仅 Active 接收玩法输入  
 - [ ] `GameplayIntentType.SwitchIn`；每角色 Graph 配 Entry  
-- [ ] 上场 Pose：对齐下场逻辑根 + 朝向 SelectedTarget（无目标则继承朝向）  
+- [ ] 普通切上场 Pose：对齐下场逻辑根附近 + 朝向 SelectedTarget（无目标则继承朝向）  
+- [ ] **禁止**普通切走 InstantReplace / Relocate 贴敌
 - [ ] Debug HUD：槽位、Active、Exiting  
 
 **验收**
 
-- [ ] Play：3 人可左右轮换；上场播登场 Action（无资产时可空 Timeline 但必须进 Action 态）  
+- [ ] Play：空格按槽位顺序循环（0→1→2→0）；上场播登场 Action（无资产时可空 Timeline 但必须进 Action 态）  
 - [ ] 下场未结束时再切回该槽：忽略  
 - [ ] 无时间 CD；Locomotion 下切人立即 Exiting→上场  
 - [ ] `PartyCoordinatorTests`：空槽/死亡/Exiting 拒绝  
@@ -337,14 +383,17 @@ Dead      : 不可切出；队灭规则后置
 - [ ] 队共享 `AssistPoints`（上限 6，开局 3）；扣费只在 Coordinator 裁定成功  
 - [ ] Intent：`AssistParry` / `AssistEvade` / `SwitchPerfectDodge` / `AssistFollowUp`  
 - [ ] Producer：`HasAssistFollowUp` 时攻击族派生 `AssistFollowUp`（对照完美反击）  
-- [ ] 招架 Action：Invincible + Hitbox（可先打固定失衡占位伤害）；回避 Action：Invincible + 可选位移  
+- [ ] 招架/回避/换人闪：`InstantReplace`——下场当帧 Inactive，**不**起 `SwitchIn`/`SwitchOut`  
+- [ ] Cue 带 `parryLocalOffsetMm`；上场 Action Timeline **frame 0** 配 `RelocateToTargetOffset` + `SnapFacingToTarget`  
+- [ ] 招架 Action：Invincible + Hitbox（可先打固定失衡占位伤害）；回避 Action：Invincible  
 - [ ] Ult 起手成功回复 +3 支援点（P-SW4 前连携未做，+1 暂不接）  
 - [ ] 点数为 0 时 Gold 对外表现为 Red  
 
 **验收**
 
-- [ ] Play：木桩 Gold 窗内切近战 → 招架；再点攻击 → 突击  
-- [ ] 远程上场 Gold → 回避，不走招架节点  
+- [ ] Play：木桩 Gold 窗内切近战 → **当场角色立刻消失**，下一角色出现在敌人前方弹刀点播招架（无 SwitchIn）  
+- [ ] 同一次切人不得同时看到 SwitchIn + AssistParry  
+- [ ] 远程上场 Gold → 回避点 Relocate，不走招架节点  
 - [ ] 0 点 Gold 窗切人 → 换人闪，不耗点  
 - [ ] `PartyAssistResolveTests`：上表裁定行覆盖  
 - [ ] 禁止 `Time.timeScale`（`rg` 玩法目录无新增）  
@@ -433,7 +482,7 @@ Assets/Scripts/Domain/Party/
 Assets/Scripts/Domain/Combat/Actions/Frames/
   AssistCueNotifyState.cs         // 敌人 Timeline 窗
 Assets/Scripts/Domain/Simulation/Input/
-  InputButton.cs                  // + SwitchPrev/Next
+  InputButton.cs                  // + SwitchCharacter（无 SwitchPrev）
   GameplayIntentType.cs           // + SwitchIn / Assist* / …
 Assets/Tests/EditMode/Domain/Party/
   PartyLoadoutTests.cs
@@ -465,7 +514,7 @@ docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md
 1. 为每个可出战角色建 `CharacterDefinition`，填 Id、AssistStyle、拖 `CharacterConfig`。  
 2. 建 `PartyLoadout`，拖 1～3 个 Id。  
 3. `PlayerController` 改绑 Loadout。  
-4. Input Actions 增加 `SwitchPrev` / `SwitchNext`，写入 `GameplayIntentProfile`（切人键**不要**映射成 Graph Intent，由 Coordinator 消费）。  
+4. Input Actions 只增加 `SwitchCharacter`（建议空格），由 Coordinator 消费；**不要**映射成 Graph Intent，**不要**做 SwitchPrev。  
 5. 每角色 Graph：Entry 节点 `SwitchIn` / `AssistParry` 或 `AssistEvade` / `AssistFollowUp` /（P-SW3）`QuickAssist`。  
 6. 对应 `ActionDefinition` 配 Clip + Timeline：登场位移、招架 Hitbox、无敌、VFX/SFX。  
 7. 木桩/精英敌 Graph：至少 1 个攻击节点加 Gold `AssistCue` 窗。  
@@ -484,7 +533,7 @@ P-SW0 身份/Loadout
   → P-SW5 复制
 ```
 
-**最小可感切片：** P-SW1 — 三个占位角色按左右键轮换上场并播登场 Action。
+**最小可感切片：** P-SW1 — 三个占位角色按空格顺序循环上场并播登场 Action。
 
 ---
 
@@ -493,3 +542,5 @@ P-SW0 身份/Loadout
 | 日期 | 说明 |
 |------|------|
 | 2026-08-30 | 初版：收集绝区零换人/支援/连携规则；定案 Graph vs 编队分层；薄身份不做养成 |
+| 2026-08-31 | 锁定两种切人表现：普通 DualPresence（SwitchIn+下场播完）；弹刀 InstantReplace（不播 SwitchIn/Out，frame 0 Relocate 到 Cue 弹刀点） |
+| 2026-08-31 | 切人输入只留 `SwitchCharacter` 单键顺序循环；不做 SwitchPrev |
