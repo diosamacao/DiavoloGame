@@ -163,9 +163,19 @@ public class MyBehaviour : MonoBehaviour
 ## 相机约定
 
 - 运行时由 CameraManager 搭建层级（CameraRoot → Orbit → Pitch）
+- `CameraRig` 是 FollowAnchor / FollowHold / Orbit/Pitch 的唯一写入器；`CameraManager` 只管 Look、装配与 staged yaw
 - Orbit 用 SmoothDamp 追 CameraRoot；VCam Follow/LookAt 走平滑 Orbit（非直接硬锁角色 Transform）
 - 灵敏度、Clamp 等 tunable 值 SerializeField 暴露
-- `CameraLockEnabled` 只属于本地表现；通过 `ILocalCameraTargetSource` 只读 SelectedTarget，范围内无目标时不得开启
+- `CameraLockEnabled` 只由 `CameraDirector` 持有；通过 `ILocalCameraTargetSource` 只读 SelectedTarget，范围内无目标时不得开启
+- 招式镜头唯一数据真源为 `ActionDefinition.timeline.cameraShotStates`；禁止新增 `CameraShotSequence` / Preset SO 双入口
+- `CameraShotPlayer` 只读 `ActionSim.CurrentFrame`；Camera 窗不得进入 `ActionTimeline.EnumerateStates()` 或 Sim Runner
+- SkillShot 位置唯一来自内嵌官方 `UnityEngine.Splines.Spline`；禁止恢复 `localOffset` / Dolly / authored VCamKey 双轨
+- 常规路径优先使用 `CameraSplineCurveRule` 的 Linear/上下左右 Arc，只编辑首尾端点；任意中间 Knot/Tangent 只允许在 Custom 规则下作者化
+- 项目保持 Cinemachine 2；Action 不引用 CM3 `CinemachineSplineDolly` 或场景 `SplineContainer`，Director 内部固定 A/B VCam
+- 模型部位只经 `CameraTransformBinding.AnchorId` + `CameraAnchorProvider` 解析；空 Id 为 Root，禁止恢复 Face/Chest 固定枚举或失败回退
+- Scene 预览与 Runtime 必须共用 `CameraSplineEvaluator` / `CameraShotPoseResolver`；Handles 只写当前 Camera 窗的 Knot/Tangent
+- SceneView 快速取景把 Scene Camera 世界位置反解到选中 Knot，并用其 forward 更新 `lookAtLocalPosition`；它不得改写 LookAt Binding 的 Source/Space/AnchorId，也不得把 Knot Rotation 重新解释为最终相机朝向
+- Scene 默认显示 Spline/Knot/Tangent 与当前帧视锥，并始终保留自由导航；实际构图只通过独立 `ActionEditorCameraView` 的隐藏 Camera + RenderTexture 预览，禁止恢复 `SceneView.LookAtDirect` 接管或常驻 Anchor Gizmo
 
 ## 服务器 / 权威进程
 

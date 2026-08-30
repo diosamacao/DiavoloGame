@@ -20,6 +20,8 @@ public enum ActionTimelineTrackKind
     MotionModifier = 11,
     /// <summary>离散位移点事件：Relocate 等（Wave 4，可选）。</summary>
     MotionCommand = 12,
+    /// <summary>纯表现镜头区间；CameraShotPlayer 消费，ActionSim 不执行。</summary>
+    Camera = 13,
 }
 
 /// <summary>时间轴轨道描述；允许空轨存在，窗口通过 trackName 归属到轨。</summary>

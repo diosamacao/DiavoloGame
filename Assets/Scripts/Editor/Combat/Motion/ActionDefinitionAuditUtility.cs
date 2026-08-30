@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Splines;
 
 /// <summary>
 /// Wave 0：扫描全库 ActionDefinition，归类位移源并报告 Hz / 帧越界等问题（不改 Runtime、不改资产）。
@@ -200,17 +201,14 @@ public static class ActionDefinitionAuditUtility
         ActionTimeline timeline = action.Timeline;
         foreach (ActionNotifyState state in timeline.EnumerateStates())
         {
-            if (state == null)
-                continue;
-            if (state.StartFrame < 0
-                || state.EndFrame < state.StartFrame
-                || state.EndFrame > maxFrame)
-            {
-                entry.AddIssue(
-                    ActionDefinitionAuditSeverity.Error,
-                    "TIMELINE_STATE_OOB",
-                    $"{state.GetType().Name} '{state.Id}' 帧 [{state.StartFrame},{state.EndFrame}] 越界（合法 0..{maxFrame}）。");
-            }
+            CollectStateBoundsIssue(state, maxFrame, entry);
+        }
+
+        // Camera 窗故意不进 EnumerateStates/Sim Runner，但资产审计仍必须覆盖。
+        foreach (CameraShotNotifyState state in timeline.CameraShotStates)
+        {
+            CollectStateBoundsIssue(state, maxFrame, entry);
+            CollectCameraSplineIssues(state, entry);
         }
 
         foreach (ActionNotify notify in timeline.EnumerateNotifies())
@@ -226,6 +224,98 @@ public static class ActionDefinitionAuditUtility
             }
         }
     }
+
+    /// <summary>检查一个区间窗口是否超出动作闭区间帧范围。</summary>
+    static void CollectStateBoundsIssue(
+        ActionNotifyState state,
+        int maxFrame,
+        ActionDefinitionAuditEntry entry)
+    {
+        if (state == null)
+            return;
+        if (state.StartFrame >= 0
+            && state.EndFrame >= state.StartFrame
+            && state.EndFrame <= maxFrame)
+        {
+            return;
+        }
+
+        entry.AddIssue(
+            ActionDefinitionAuditSeverity.Error,
+            "TIMELINE_STATE_OOB",
+            $"{state.GetType().Name} '{state.Id}' 帧 [{state.StartFrame},{state.EndFrame}] 越界（合法 0..{maxFrame}）。");
+    }
+
+    /// <summary>检查 Camera Spline 的 Knot 数、有限值与 Binding 基本契约。</summary>
+    static void CollectCameraSplineIssues(
+        CameraShotNotifyState shot,
+        ActionDefinitionAuditEntry entry)
+    {
+        if (shot == null || !shot.OverrideCameraPose)
+            return;
+
+        Spline spline = shot.PositionSpline;
+        if (!CameraSplineEvaluator.IsValid(spline))
+        {
+            entry.AddIssue(
+                ActionDefinitionAuditSeverity.Error,
+                "CAMERA_SPLINE_INVALID",
+                $"CameraShot '{shot.Id}' 开启机位覆盖，但 PositionSpline 少于 2 个 Knot。");
+            return;
+        }
+
+        for (int i = 0; i < spline.Count; i++)
+        {
+            var knot = spline[i];
+            bool finite = IsFinite(knot.Position.x)
+                && IsFinite(knot.Position.y)
+                && IsFinite(knot.Position.z)
+                && IsFinite(knot.TangentIn.x)
+                && IsFinite(knot.TangentIn.y)
+                && IsFinite(knot.TangentIn.z)
+                && IsFinite(knot.TangentOut.x)
+                && IsFinite(knot.TangentOut.y)
+                && IsFinite(knot.TangentOut.z);
+            if (finite)
+                continue;
+
+            entry.AddIssue(
+                ActionDefinitionAuditSeverity.Error,
+                "CAMERA_SPLINE_NON_FINITE",
+                $"CameraShot '{shot.Id}' Knot[{i}] 含 NaN/Infinity。");
+        }
+
+        CollectBindingIssue(shot, shot.ReferenceBinding, "Reference", entry);
+        CollectBindingIssue(shot, shot.LookAtBinding, "LookAt", entry);
+    }
+
+    /// <summary>World Binding 不接收 AnchorId；其它 Binding 对象必须存在。</summary>
+    static void CollectBindingIssue(
+        CameraShotNotifyState shot,
+        CameraTransformBinding binding,
+        string bindingName,
+        ActionDefinitionAuditEntry entry)
+    {
+        if (binding == null)
+        {
+            entry.AddIssue(
+                ActionDefinitionAuditSeverity.Error,
+                "CAMERA_BINDING_NULL",
+                $"CameraShot '{shot.Id}' {bindingName}Binding 为空。");
+            return;
+        }
+
+        if (binding.Source == CameraBindingSource.World
+            && !string.IsNullOrWhiteSpace(binding.AnchorId))
+        {
+            entry.AddIssue(
+                ActionDefinitionAuditSeverity.Warning,
+                "CAMERA_WORLD_BINDING_ANCHOR_UNUSED",
+                $"CameraShot '{shot.Id}' {bindingName}Binding=World，AnchorId 不会被使用。");
+        }
+    }
+
+    static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
 
     static void AppendSection(
         StringBuilder sb,

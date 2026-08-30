@@ -25,6 +25,7 @@ public sealed class ActionEditorWindow : EditorWindow
     readonly ActionEditorSelectionSet _selection = new();
     ActionEditorPreviewSession _previewSession;
     ActionEditorVfxPreviewExtension _vfxPreviewExtension;
+    ActionEditorCameraShotPreview _cameraShotPreviewExtension;
     readonly ActionEditorHitboxWorldSpacePreview _hitboxWorldPreview = new();
 
     Transform _previewCharacter;
@@ -59,9 +60,15 @@ public sealed class ActionEditorWindow : EditorWindow
         _vfxPreviewExtension = new ActionEditorVfxPreviewExtension();
         _vfxPreviewExtension.Bind(GetVfxArrayProperty);
         _previewSession = new ActionEditorPreviewSession(this);
-        // 世界空间 VFX 在触发帧冻结落点，需 Session 临时采样该帧 Pose
+        // 世界 VFX 与 Camera Snapshot Binding 需 Session 临时采样进入帧 Pose。
         _vfxPreviewExtension.BindWorldPoseEvaluator(_previewSession.TryEvaluateAttachWorldPoseAtFrame);
         _previewSession.RegisterExtension(_vfxPreviewExtension);
+        _cameraShotPreviewExtension = new ActionEditorCameraShotPreview();
+        _cameraShotPreviewExtension.Bind(
+            () => _selection.Primary,
+            () => _serializedObject,
+            _previewSession.TryEvaluateAttachWorldPoseAtFrame);
+        _previewSession.RegisterExtension(_cameraShotPreviewExtension);
 
         EditorApplication.update += OnEditorUpdate;
         SceneView.duringSceneGui += OnSceneGUI;
@@ -420,6 +427,7 @@ public sealed class ActionEditorWindow : EditorWindow
 
         // 选中 MotionModifier 时：假敌球 + TargetAdhesion 修正轨迹 / 角色落点预览
         DrawMotionModifierScenePreview(trajectoryOrigin, trajectoryRotation);
+        _cameraShotPreviewExtension?.DrawSceneGUI(sceneView);
     }
 
     /// <summary>

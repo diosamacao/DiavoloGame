@@ -1,8 +1,10 @@
 # 相机系统扩展 — Director 多机位 + UI 展示舱
 
 > 制定：2026-08-26  
-> 角色：**相机表现层的结构 / 排期真源（先文档，后实现）**  
-> 接替：[2026.8.6/CAMERA_SYSTEM_PLAN.md](../2026.8.6/CAMERA_SYSTEM_PLAN.md)（C0～C4 设计细节仍有效；阶段勾选与开工顺序以**本文**为准）  
+> 修订：2026-08-29 — **大招 SkillShot 数据真源**改挂 [2026.8.29 篇](../2026.8.29/CAMERA_SKILLSHOT_AND_STRETCH_PLAN.md)：`timeline.cameraShotStates`；**不再**以独立 `CameraShotSequence` SO 为入口（本文 C3 任务中的 Sequence SO 条目作废，以 8.29 为准）
+> 修订：2026-08-29 — SkillShot / FollowHold 实施勾选改挂 8.29 篇；本文保留总览与 C5
+> 角色：**相机表现层总览 / UI 展示舱排期真源**；SkillShot+拉伸以 8.29 篇为准
+> 接替：[2026.8.6/CAMERA_SYSTEM_PLAN.md](../2026.8.6/CAMERA_SYSTEM_PLAN.md)（C0～C4 设计细节仍有效）
 > 前置（不重做）：[2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md](../2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md)（C-AT0～3 代码已切；Input 资产仍待 Editor）  
 > 对照实现（只读吸收）：`D:\Projects\DemoClient` 的 `PlayerSystem` / `RoleCtrl` / `DialogueSystem` / Timeline 相机 Notify  
 > 装配链：`ActionSim.CurrentFrame → CameraShotPlayer → CameraDirector`；`UiShowcaseProfile → UiShowcaseBooth → RenderTexture → UI RawImage`
@@ -471,3 +473,4 @@ C-AT Input 资产（Editor，不挡 C0/C3 编码）
 | 日期 | 说明 |
 |------|------|
 | 2026-08-26 | 初版：接替 8.6 篇为排期真源；吸收 DemoClient 多 VCam / 最近候选 / 回写 yaw / HoldFollow；新增 C5 UI 展示舱；阶段改为任务/验收/出口 |
+| 2026-08-29 | SkillShot / FollowHold 实施勾选改挂 8.29 篇；本文保留总览与 C5 |

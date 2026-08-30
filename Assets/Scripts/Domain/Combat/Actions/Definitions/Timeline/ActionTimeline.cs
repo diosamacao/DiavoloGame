@@ -19,6 +19,8 @@ public class ActionTimeline
     [SerializeField] RotationNotifyState[] rotationStates = Array.Empty<RotationNotifyState>();
     [SerializeField] MotionModifierNotifyState[] motionModifierStates = Array.Empty<MotionModifierNotifyState>();
     [SerializeField] MotionCommandNotify[] motionCommandNotifies = Array.Empty<MotionCommandNotify>();
+    [SerializeField] CameraTrackSettings cameraSettings = new();
+    [SerializeField] CameraShotNotifyState[] cameraShotStates = Array.Empty<CameraShotNotifyState>();
     [SerializeField] ActionTimelineTrack[] tracks = Array.Empty<ActionTimelineTrack>();
 
     /// <summary>通用点事件列表，用于自定义信号、镜头等非专用事件。</summary>
@@ -77,8 +79,30 @@ public class ActionTimeline
     public MotionCommandNotify[] MotionCommandNotifies =>
         motionCommandNotifies ?? Array.Empty<MotionCommandNotify>();
 
+    /// <summary>Action 级 Camera 轨恢复与 Look 门控设置。</summary>
+    public CameraTrackSettings CameraSettings => cameraSettings ?? new CameraTrackSettings();
+
+    /// <summary>纯表现 Camera 窗；ActionSim 的通用 State Runner 不枚举该数组。</summary>
+    public CameraShotNotifyState[] CameraShotStates =>
+        cameraShotStates ?? Array.Empty<CameraShotNotifyState>();
+
     /// <summary>手动添加的轨道列表；可为空轨，窗口通过 trackName 归属。</summary>
     public ActionTimelineTrack[] Tracks => tracks ?? Array.Empty<ActionTimelineTrack>();
+
+    /// <summary>返回指定帧最高优先级的表现镜头窗口。</summary>
+    public CameraShotNotifyState GetActiveCameraShotAtFrame(int frame)
+    {
+        CameraShotNotifyState best = null;
+        foreach (CameraShotNotifyState state in CameraShotStates)
+        {
+            if (state == null || !state.IsActiveAtFrame(frame))
+                continue;
+            if (best == null || state.Priority > best.Priority)
+                best = state;
+        }
+
+        return best;
+    }
 
     /// <summary>是否配置了任意非零脚本位移窗口。</summary>
     public bool HasScriptedMovement
@@ -345,6 +369,13 @@ public class ActionTimeline
 
         foreach (ActionNotifyState state in EnumerateStates())
             state.ClampToTotalFrames(totalFrames);
+
+        // Camera 窗只供表现层消费，不能塞进 EnumerateStates/ActionTimelineRunner。
+        foreach (CameraShotNotifyState state in CameraShotStates)
+        {
+            if (state != null)
+                state.ClampToTotalFrames(totalFrames);
+        }
 
     }
 }
