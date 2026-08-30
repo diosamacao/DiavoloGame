@@ -168,6 +168,7 @@
 
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
+| 三人换人 / 极限支援 | P1 | 方案已立：[`docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`](../../docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md)；P-SW0～2 为最小弹刀闭环，养成不做 |
 | ActionEditorWindow | P1 | ✅ 基础版 + 菱形/Zoom/Scrub 预览 + 2026-08-04 playhead 跟视口、Create 选文件夹、左侧文件夹分组；后续增强 SFX 预览 |
 | Enemy/ + AI | P1 | ✅ 8.10 Desire/Entry Request 总出口关闭；对峙表现已验收；待优化见 8.11 Backlog / A* |
 | UI/（MVVM） | P2 | HUD、血条；View/ViewModel 分层，不直写 Domain 权威 |
@@ -251,6 +252,7 @@
 | 2026-06-17 | 状态机 Core 不引用 UnityEngine | 可测试性与分层清晰 |
 | 2026-08-23 | 删除已关闭方案与波次备忘；现行联网阅读改为 `NETSYNC_FROM_JOIN_TO_HIT` | 避免过期文档当生产入口 |
 | 2026-08-24 | 复制下行带宽三项方案（掩码 / 分频 / 推帧）先文档 | 团战整包脏；实现前不改 Schema |
+| 2026-08-30 | 三人换人/极限支援先文档；Graph 只管上场招，编队归 Coordinator | 产品改 3 人出战；养成只留 CharacterId 薄契约 |
 | 2026-06-21 | 连招保持线性 | 近期无分支图需求 |
 | 2026-07-12 | 自研薄 Playable + `IAnimationPlayback`；不同时引入 Animancer | Action 时序已自研；门面可替换后端 |
 | 2026-06-21 | 输入路由命名 `CharacterActionDriver` | 敌人复用同一组件 |

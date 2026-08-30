@@ -4,6 +4,7 @@
 > 修订：2026-08-06 — 收敛字段真源到 NUMERICS；同键 EX 定为必做；完美闪避单真源  
 > 修订：2026-08-07 — 完美窗改玩家 Dodge Timeline；ResourceSim 标过渡；存储终态指 GAS Numeric  
 > 修订：2026-08-08 — GAS G5：数值口袋完成态为 NumericSystem；旧 ResourceSim/Gate 已删  
+> 修订：2026-08-30 — **切人 / 支援技 / 连携** 不再以本文「后置」为真源，改 [`../2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`](../2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md)  
 > 基准：`develop`（`ActionSim` / `ActionGraph` / Intent / `CombatHitPipeline` / `COMBAT_NUMERICS_PLAN`）  
 > 产品参考：**绝区零**战斗技能槽 + 能量 / 喧响 / 闪避反击循环  
 > **排期真源：** [MASTER_IMPLEMENTATION_PLAN.md](./MASTER_IMPLEMENTATION_PLAN.md)（Wave 3 产品；数值口袋 → [GAS G0～G5](../2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md)）  
@@ -43,7 +44,7 @@
    `普攻/反击命中回能 → 能量够放强化特殊技 → 命中攒喧响 → 满喧响放大招 → 闪避有限次数 / 完美闪避接反击`。  
 3. **实现落点（产品层）**：招式仍是 `ActionDefinition`；同键 Special/EX、闪避反击等用 **Intent + Graph 路由**，不新开第二套执行器。  
 4. **数值口袋**：GAS-lite `NumericSystem` + `NumericCostGate`（G5 完成）；`ActionResourceSpec` 仅为价签并编译为 Instant Effect。新权威字段写入 GAS §5 / Attribute。  
-5. **首版（单机单角色 ACT）**：Energy + Decibel + DodgeCharges + PerfectDodge 窗口 + **Special/EX 同键双形态（必做）** + Ult；**暂缓**切人支援、连携技、邦布、属性异常。  
+5. **技能资源首版**：Energy + Decibel + DodgeCharges + PerfectDodge 窗口 + **Special/EX 同键双形态（必做）** + Ult。切人支援 / 连携改 [8.30 换人篇](../2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md)；邦布、属性异常仍后置。  
 6. **失衡（Daze）** 可作为敌方资源后置（Wave 5），与「重击 Tag」预留接口，不阻塞技能资源主线。  
 7. 与 `COMBAT_NUMERICS_PLAN` **合并产品语义**：阶段号 **N0～N5** ≡ 总案 Wave 3；本文 S* 为索引别名。数值改造排期以 **GAS G*** 为准。
 
@@ -128,9 +129,9 @@
 | 闪避次数 / CD | ✅ DodgeCharges | 近似闪避压力 |
 | 极限闪避 + 闪避反击 | ✅ | ACT 手感刚需 |
 | 冲刺攻击 | ✅ 可选 | 已有 Sprint/Dodge 上下文 Intent |
-| 切人 / 支援点 / 支援技 | ❌ 后置 | 无多角色编队前不做 |
-| 连携技 | ❌ 后置 | 依赖失衡+多人；可先做「破防一击」简化 |
-| 敌人失衡 | ⚪ S3 可选 | 与 HeavyHit Tag 预留 |
+| 切人 / 支援点 / 支援技 | → [8.30 篇](../2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md) | 产品已要求 3 人出战；本文不再裁掉 |
+| 连携技 | → 8.30 P-SW4 | 仍依赖失衡+多人，排期归换人篇 |
+| 敌人失衡 | → 8.30 P-SW4 | 与 HeavyHit Tag；不再只标 S3 可选 |
 | 属性异常 / 紊乱 | ❌ 后置 | 数值膨胀大 |
 | 核心被动 / 额外能力 | ⚪ 极简 Buff | 先做 1～2 个通用被动槽 |
 | 邦布 | ❌ | 非目标 |
@@ -393,4 +394,4 @@ EX/Ult 默认 `grantsEnergyOnHit=false`。
 
 ## 15. 一句话
 
-绝区零教给我们的不是「一百套独特技能脚本」，而是 **统一技能槽 + 能量/喧响/闪避门槛 + 同键强化 + 完美闪避反击**；本项目用 **Intent/Graph 路由 + Gate** 叠在 `ActionSim` 上，数值口袋为 GAS Numeric，先做单角色完整循环，再考虑失衡、编队与异常。
+绝区零教给我们的不是「一百套独特技能脚本」，而是 **统一技能槽 + 能量/喧响/闪避门槛 + 同键强化 + 完美闪避反击**；本项目用 **Intent/Graph 路由 + Gate** 叠在 `ActionSim` 上，数值口袋为 GAS Numeric。编队切人 / 极限支援见 [8.30 换人篇](../2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md)；属性异常仍后置。
