@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: ccf5f0eab5206714d80eda2eb3ac2293
+guid: a88c00b23ee0a5c4da96d7f5315e3721
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
@@ -33,18 +33,18 @@ ModelImporter:
     extraUserProperties: []
     clipAnimations:
     - serializedVersion: 16
-      name: Avatar_Female_Size02_Remielle_Origin_Ani_Attack_Normal_01
-      takeName: Avatar_Female_Size02_Remielle_Origin_Ani_Attack_Normal_01
-      internalID: -3617641141657272698
+      name: Anbi_Idle_Inplace
+      takeName: Anbi_Idle_Inplace
+      internalID: -1978419803751483461
       firstFrame: 0
-      lastFrame: 161
+      lastFrame: 121
       wrapMode: 0
       orientationOffsetY: 0
       level: 0
       cycleOffset: 0
       loop: 0
       hasAdditiveReferencePose: 0
-      loopTime: 1
+      loopTime: 0
       loopBlend: 0
       loopBlendOrientation: 1
       loopBlendPositionY: 1
@@ -124,7 +124,7 @@ ModelImporter:
     hasTranslationDoF: 0
     hasExtraRoot: 0
     skeletonHasParents: 1
-  lastHumanDescriptionAvatarSource: {fileID: 9000000, guid: 6254cbeec19540e41b3cd665365d7665, type: 3}
+  lastHumanDescriptionAvatarSource: {fileID: 9000000, guid: 709747048344da84c87d21f41f152d8d, type: 3}
   autoGenerateAvatarMappingIfUnspecified: 1
   animationType: 2
   humanoidOversampling: 1

@@ -1,76 +1,11 @@
 fileFormatVersion: 2
-guid: 6254cbeec19540e41b3cd665365d7665
+guid: 709747048344da84c87d21f41f152d8d
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
-  externalObjects:
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: MAT_HairShadow
-    second: {fileID: 2100000, guid: 2496614db310cb64baf0f059ef597315, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: MAT_Remielle_Eye
-    second: {fileID: 2100000, guid: 2219504d082d7d34e84dac639adad440, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: MAT_Remielle_Eyebrow
-    second: {fileID: 2100000, guid: ec4313d8a14f1fe47b19a5266a0e549e, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: MAT_Remielle_Face
-    second: {fileID: 2100000, guid: fdeb03140ef9d8847837f16efe472c21, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: MAT_Remielle_Hair
-    second: {fileID: 2100000, guid: 0baa5c9c71d853a499933c52e81e0cf2, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: MAT_Remielle_Hair_T
-    second: {fileID: 2100000, guid: 8c39d942ab1e1504a96d7f1cfdebaa28, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: MAT_Remielle_Origin_Body_1
-    second: {fileID: 2100000, guid: 3fc7ebd9b36f027419269d2995c575ce, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: MAT_Remielle_Origin_Body_1_T
-    second: {fileID: 2100000, guid: 6f9f7eaf1336d39489950469720e00f8, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: MAT_Remielle_Origin_Body_2
-    second: {fileID: 2100000, guid: d8c7c604d89aa774dabfc61c7ee53303, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: MAT_Remielle_Sticker
-    second: {fileID: 2100000, guid: 56621e4cb2780ca4bab2d9607a851f7a, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: MAT_Remielle_Weapon_01
-    second: {fileID: 2100000, guid: 1d5a28cf1587928439a295f128f3eaee, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: MAT_Remielle_Weapon_02
-    second: {fileID: 2100000, guid: 09b332998f0721e418bf11a147126d0e, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: MAT_Remielle_Wings
-    second: {fileID: 2100000, guid: a5aacc30e302585488836386b39df5a0, type: 2}
+  externalObjects: {}
   materials:
-    materialImportMode: 1
+    materialImportMode: 2
     materialName: 0
     materialSearch: 1
     materialLocation: 1
@@ -96,7 +31,36 @@ ModelImporter:
     animationWrapMode: 0
     extraExposedTransformPaths: []
     extraUserProperties: []
-    clipAnimations: []
+    clipAnimations:
+    - serializedVersion: 16
+      name: Anbi_Idle
+      takeName: Anbi_Idle
+      internalID: -3569866125469850799
+      firstFrame: 0
+      lastFrame: 121
+      wrapMode: 0
+      orientationOffsetY: 0
+      level: 0
+      cycleOffset: 0
+      loop: 0
+      hasAdditiveReferencePose: 0
+      loopTime: 0
+      loopBlend: 0
+      loopBlendOrientation: 1
+      loopBlendPositionY: 1
+      loopBlendPositionXZ: 0
+      keepOriginalOrientation: 1
+      keepOriginalPositionY: 1
+      keepOriginalPositionXZ: 0
+      heightFromFeet: 0
+      mirror: 0
+      bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+      curves: []
+      events: []
+      transformMask: []
+      maskType: 3
+      maskSource: {instanceID: 0}
+      additiveReferencePoseFrame: 0
     isReadable: 0
   meshes:
     lODScreenPercentages: []
@@ -156,7 +120,7 @@ ModelImporter:
     legStretch: 0.05
     feetSpacing: 0
     globalScale: 1
-    rootMotionBoneName: Bone_Root
+    rootMotionBoneName: Bip001
     hasTranslationDoF: 0
     hasExtraRoot: 0
     skeletonHasParents: 1
