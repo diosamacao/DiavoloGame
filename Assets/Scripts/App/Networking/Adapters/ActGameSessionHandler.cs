@@ -107,7 +107,10 @@ public sealed class ActGameSessionHandler
 
         prefillEnemyCatalog?.Invoke();
         guest = new ActGameGuest(connectionId, seat, coordinator, members);
-        seat.Bind(guest.Actor);
+        ActGameGuestMember activeMember = guest.ActiveMember;
+        if (activeMember == null)
+            throw new InvalidOperationException("Guest 创建后没有有效 Active 阵容成员。");
+        seat.Bind(activeMember.Actor, activeMember.Root);
         _services.RegisterPlayer?.Invoke(seat, false);
         return true;
     }
@@ -229,7 +232,7 @@ public sealed class ActGameGuest
         from.Actor.BeginPartyExit();
         to.Actor.SetPartyState(PartyMemberState.Active);
         to.Actor.QueueExternalIntent(GameplayIntentType.SwitchIn);
-        Seat.Bind(to.Actor);
+        Seat.Bind(to.Actor, to.Root);
         return true;
     }
 

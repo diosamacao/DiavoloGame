@@ -84,6 +84,7 @@ public sealed class ReplicationProductionOrderTests
             "actor.Enable();",
             "host.RegisterPlayer(actor);",
             "guest = new ActGameGuest(",
+            "seat.Bind(activeMember.Actor, activeMember.Root);",
             "_services.RegisterPlayer?.Invoke(");
 
         string destroyGuest = Slice(
@@ -104,6 +105,7 @@ public sealed class ReplicationProductionOrderTests
         Assert.That(authority, Does.Not.Contain("CharacterReplicationCapture"));
         Assert.That(authority, Does.Not.Contain("ILocalPlayer local"));
         Assert.That(gameSession, Does.Not.Contain("hostPlayer.Root"));
+        Assert.That(gameSession, Does.Contain("Seat.Bind(to.Actor, to.Root);"));
         Assert.That(world, Does.Not.Contain("new Vector3(2f"));
     }
 
