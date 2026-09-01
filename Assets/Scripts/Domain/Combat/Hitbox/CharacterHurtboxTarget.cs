@@ -10,6 +10,7 @@ public sealed class CharacterHurtboxTarget : ITargetable, IHitAbsorbQuery
     readonly CharacterVitality _vitality;
     readonly ActionSim _actionSim;
     readonly Func<SimActorId> _simulationIdProvider;
+    readonly Func<bool> _participationProvider;
     Func<SimActorId, NumericSystem> _numericLookup;
     readonly CharacterMotorSim _motorSim;
 
@@ -23,7 +24,8 @@ public sealed class CharacterHurtboxTarget : ITargetable, IHitAbsorbQuery
         ActionSim actionSim,
         Func<SimActorId> simulationIdProvider,
         CharacterMotorSim motorSim,
-        Func<SimActorId, NumericSystem> numericLookup = null)
+        Func<SimActorId, NumericSystem> numericLookup = null,
+        Func<bool> participationProvider = null)
     {
         _root = root;
         _aimTransform = aimTransform != null ? aimTransform : root;
@@ -34,6 +36,7 @@ public sealed class CharacterHurtboxTarget : ITargetable, IHitAbsorbQuery
         _simulationIdProvider = simulationIdProvider;
         _motorSim = motorSim ?? throw new ArgumentNullException(nameof(motorSim));
         _numericLookup = numericLookup;
+        _participationProvider = participationProvider;
     }
 
     /// <summary>Host 就绪后注入攻击者 Numeric 查找（敌人延迟装配）。</summary>
@@ -53,6 +56,7 @@ public sealed class CharacterHurtboxTarget : ITargetable, IHitAbsorbQuery
     public bool IsAlive =>
         _root != null
         && _root.gameObject.activeInHierarchy
+        && (_participationProvider == null || _participationProvider())
         && !_vitality.IsDead;
 
     /// <inheritdoc />

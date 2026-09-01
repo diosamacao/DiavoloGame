@@ -44,8 +44,23 @@ MonoBehaviour:
     playSfxStates: []
     hitboxStates: []
     hurtboxStates: []
-    cancelWindowStates: []
-    phaseStates: []
+    cancelWindowStates:
+    - id: NormalCancel
+      startFrame: 41
+      endFrame: 60
+      priority: 0
+      trackName: Cancel_1
+      windowType: 0
+    phaseStates:
+    - id: Phase_1
+      startFrame: 61
+      endFrame: 171
+      priority: 0
+      trackName: Phase_1
+      kind: 2
+      interruptible: 1
+      allowMovementCancel: 1
+      allowEntryRestart: 1
     perfectDodgeWindowStates: []
     movementStates: []
     rotationStates: []
@@ -55,7 +70,13 @@ MonoBehaviour:
       restoreMode: 0
       suppressLookInput: 1
     cameraShotStates: []
-    tracks: []
+    tracks:
+    - trackName: Phase_1
+      kind: 8
+      visible: 1
+    - trackName: Cancel_1
+      kind: 4
+      visible: 1
   bakedMotion:
     logicHz: 60
     frameCount: 173

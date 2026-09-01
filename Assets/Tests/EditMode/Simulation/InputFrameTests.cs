@@ -28,16 +28,18 @@ public sealed class InputFrameTests
     {
         ulong attack = InputButtonMask.Of(InputButton.Attack);
         ulong dodge = InputButtonMask.Of(InputButton.Dodge);
+        ulong switchCharacter = InputButtonMask.Of(InputButton.SwitchCharacter);
         var frame = new InputFrame(
             4,
             new SimActorId(2),
             0,
             0,
-            attack,
+            attack | switchCharacter,
             attack | dodge,
             dodge);
 
         Assert.That(frame.WasPressed(InputButton.Attack), Is.True);
+        Assert.That(frame.WasPressed(InputButton.SwitchCharacter), Is.True);
         Assert.That(frame.IsHeld(InputButton.Dodge), Is.True);
         Assert.That(frame.WasReleased(InputButton.Dodge), Is.True);
         Assert.That(frame.WasReleased(InputButton.Attack), Is.False);
@@ -78,5 +80,31 @@ public sealed class InputFrameTests
         Assert.That(rewritten.ButtonsHeld, Is.EqualTo(source.ButtonsHeld));
         Assert.That(rewritten.ButtonsReleased, Is.EqualTo(source.ButtonsReleased));
         Assert.That(rewritten.MoveReferenceYawQuantized, Is.EqualTo(source.MoveReferenceYawQuantized));
+    }
+
+    /// <summary>座位级按钮被消费后应从三个生命周期 bitset 移除，并保留其它输入。</summary>
+    [Test]
+    public void WithoutButton_RemovesOnlyRequestedButton()
+    {
+        ulong attack = InputButtonMask.Of(InputButton.Attack);
+        ulong switchCharacter = InputButtonMask.Of(InputButton.SwitchCharacter);
+        var source = new InputFrame(
+            5,
+            new SimActorId(2),
+            10,
+            -20,
+            attack | switchCharacter,
+            switchCharacter,
+            switchCharacter,
+            90);
+
+        InputFrame filtered = source.WithoutButton(InputButton.SwitchCharacter);
+
+        Assert.That(filtered.WasPressed(InputButton.SwitchCharacter), Is.False);
+        Assert.That(filtered.IsHeld(InputButton.SwitchCharacter), Is.False);
+        Assert.That(filtered.WasReleased(InputButton.SwitchCharacter), Is.False);
+        Assert.That(filtered.WasPressed(InputButton.Attack), Is.True);
+        Assert.That(filtered.MoveX, Is.EqualTo(source.MoveX));
+        Assert.That(filtered.MoveY, Is.EqualTo(source.MoveY));
     }
 }

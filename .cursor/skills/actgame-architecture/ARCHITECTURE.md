@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-08-30（Unity Splines 2.8.4 + CM2 SkillShot A/B + Scene Knot 编辑已编译；Test/Play 待验）
+> Last audited: 2026-09-01（Party P-SW1 三槽稳定实体与普通切人代码已落地；Editor Action/Test/Play 待验）
 
 ## 项目概述
 
@@ -31,7 +31,8 @@ Assets/
 │   │   │   ├── VFX/           # 招式 VFX 帧事件
 │   │   │   └── Targeting/     # 索敌
 │   │   ├── Input/             # 原始帧、意图与输入中枢
-│   │   ├── Simulation/        # 固定帧核 + Replication + Prediction（无 Unity）
+│   │   ├── Party/             # CharacterDefinition / PartyLoadout Unity 配置壳
+│   │   ├── Simulation/        # 固定帧核 + Party 纯规则 + Replication + Prediction（无 Unity）
 │   │   ├── Net/               # ACTGame 网络身份 Adapter（ACTGame.Net）
 │   │   └── Networking/        # Character Schema 与稳定 Archetype Catalog（纯 C#）
 │   ├── Framework/ACTNet/
@@ -104,11 +105,11 @@ flowchart TB
 | `ACTNet.Prediction` | 只依赖 Core：`CommandHistory` / `PredictedStateHistory` / `PredictionCoordinator` / `SnapshotTimeline` / `NetworkTimeEstimator`；不解读 ActionId 或 Hit/Death |
 | `ACTGame.Networking` | 依赖 Simulation 与 ACTNet Core/Replication：`CharacterSnapshotSchemaV1`、稳定 Character Archetype 映射；不含 Unity 资产引用 |
 | `ActAuthorityReplicationAdapter` | App/Networking 的 ACT 权威映射：远端输入灌入、Guest/敌人 Capture 与 FrameHits 补 ActionId；不再拍场景 LocalPlayer |
-| `ActGameSessionHandler` | App/Networking 的加入生命周期映射：创建 Guest Authority Actor、注册 App/Simulation 并在断线时逆序清理；不调用 ServerSession Accept/Reject |
-| `ActOwnerReplicationAdapter` | App/Networking 的 Autonomous 映射：Owner HP、Action Ack、Locomotion Reconcile、Hit/Death 硬吸；位移历史交给 Coordinator |
+| `ActGameSessionHandler` | App/Networking 的加入生命周期映射：按 Loadout 创建最多三个稳定 Guest Authority Actor、注册 App/Simulation 并在断线时逆序清理 |
+| `ActOwnerReplicationAdapter` | App/Networking 的 Autonomous 映射：跟随 Active 槽切换 Owner ActorId，处理 HP、Action Ack、Locomotion Reconcile 与 Hit/Death 硬吸 |
 | `ActCharacterPredictionModel` | ACT 走跑策略：2m Gate、宽限、出招/受击禁止走跑 Replay；连招 Cancel 仍在 `PredictedActionAckQueue` |
 | `ActObserverReplicationAdapter` / `ActRemoteProxyFactory` | Observer 映射：`SnapshotTimeline` 丢旧 Tick 并按插值延迟取样；Proxy 只做状态到表现 |
-| `ActContentRegistry` | App/Networking 的 ACT 内容唯一真源：集中持有 Action Catalog、Character Archetype 与 Unity CharacterConfig/EnemyDefinition 映射 |
+| `ActContentRegistry` | App/Networking 的 ACT 内容唯一真源：集中持有 PartyLoadout、Action Catalog、全部槽 Character Archetype 与 EnemyDefinition 映射 |
 | `ActCharacterSnapshotSchema` | App/Networking 的角色生产 Schema：统一 CharacterActor Capture 与 V1 编解码；纯 C# `CharacterSnapshotSchemaV1` 仍是线格式实现 |
 | `ActContentPrefillService` | App 场景内容接缝：唯一扫描 Player/Enemy 配置并幂等预填 `ActContentRegistry`；Room 不再查找 Gameplay 组件 |
 | `ActClientRoomGameplay` / `LocalClientRuntime` | Client Gameplay 编排与 Session 运行时：Owner 预测、Observer、Hit Cue；Listen 本机与远端 Client 共用 |
@@ -183,6 +184,21 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
                     ↓（全体 Actor Step 完成）
               CombatHitPipeline.SortAndResolve → CharacterActor.ResolvePostCombat → 帧末 App 表现事件
 ```
+
+### 3.1 玩家阵容与换人（Party，P-SW0 / P-SW1）
+
+| 类 | 职责 |
+|----|------|
+| `CharacterId` | 跨阵容、存档与联网使用的稳定角色字符串身份 |
+| `CharacterDefinition` | `CharacterId` + `CharacterAssistStyle` + 现有 `CharacterConfig`；元素/阵营/定位标签仅预留 |
+| `PartyLoadout` | 单座位 1～3 槽阵容与开局槽；允许中间空槽，拒绝重复 Id |
+| `PartySlotSelector` | 单键按槽位正序绕回，跳过 Empty / Exiting / Dead |
+| `PartyCombatCoordinator` | 纯逻辑维护 Active / Exiting，并输出普通切人 `DualPresence` 命令 |
+| `PlayerController` | 为每个非空槽创建独立 Autonomous Actor；只让 Active 接收输入，预测切人时同时推进 Exiting |
+| `ActGameGuest` | 权威侧一座位多稳定 Actor；按同一输入边沿切 Active，全部槽独立注册、命中与复制 |
+| `ActReplicationApplicationPayload` | 每帧下发 Owner 槽 ActorId、ActiveSlot 与累计命令 ACK；客户端据此跳过自有 Proxy 并纠正预测 |
+
+`SwitchCharacter` 上行仍是单条 `ClientCommand`。权威先裁定槽切换，再把该帧输入路由到新 Active Actor；旧槽保持 Exiting 并完成当前 Action。每槽身份稳定，未采用单 Actor 热换配置旧路径。`SwitchIn` Graph Entry 与实际动画资产仍需 Editor 配置，Play 验收前状态保持 🟡。
 
 ### 4. 动作系统（Combat/Actions）
 

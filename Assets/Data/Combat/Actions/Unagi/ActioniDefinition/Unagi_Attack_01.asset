@@ -132,6 +132,10 @@ MonoBehaviour:
       smoothTimeOverride: 0.05
     motionModifierStates: []
     motionCommandNotifies: []
+    cameraSettings:
+      restoreMode: 0
+      suppressLookInput: 1
+    cameraShotStates: []
     tracks:
     - trackName: Cancel_3
       kind: 4

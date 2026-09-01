@@ -139,6 +139,12 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         bool updatePresentation = true)
     {
         BindReplicationIdentity(in snapshot);
+        PartyMemberState partyState =
+            PartyReplicationPacking.ReadMemberState(snapshot.FlagsPacked);
+        bool partyVisible =
+            partyState == PartyMemberState.Active || partyState == PartyMemberState.Exiting;
+        if (_root.gameObject.activeSelf != partyVisible)
+            _root.gameObject.SetActive(partyVisible);
         if (updatePresentation)
             _presentation.BeginSimulationStep();
         ReplicationPoseApplier.ApplyToMotor(_motor.Sim, in snapshot);

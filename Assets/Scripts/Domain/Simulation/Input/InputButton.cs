@@ -10,4 +10,7 @@ public enum InputButton : byte
     TargetSwitchLeft = 6,
     TargetSwitchRight = 7,
     Ultimate = 8,
+
+    /// <summary>按阵容槽位正序循环切换下一名可用角色。</summary>
+    SwitchCharacter = 9,
 }

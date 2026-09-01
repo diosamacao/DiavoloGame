@@ -1,0 +1,95 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 75d4082a12231c54fad59c09f1e2e1eb, type: 3}
+  m_Name: AnbiActionGraph
+  m_EditorClassIdentifier: 
+  nodes:
+  - nodeId: Anbi_Attack_Normal_01
+    action: {fileID: 11400000, guid: 8eab155b88871324d8c3c97bbda704f1, type: 2}
+    intent: 1
+    isEntry: 1
+    variantResolver: {fileID: 0}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions: []
+    editorPosition: {x: -298, y: -116.666664}
+  - nodeId: Anbi_Attack_Normal_02
+    action: {fileID: 11400000, guid: 7ceae25d0352ba14598bc6460ddb2dfb, type: 2}
+    intent: 1
+    isEntry: 0
+    variantResolver: {fileID: 0}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions: []
+    editorPosition: {x: 278, y: -116.666664}
+  - nodeId: Anbi_Attack_Normal_03
+    action: {fileID: 11400000, guid: 1996ff3db5c3bb140bb1e846a207cb74, type: 2}
+    intent: 1
+    isEntry: 0
+    variantResolver: {fileID: 0}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions: []
+    editorPosition: {x: 865.3333, y: -116.666664}
+  - nodeId: Anbi_Attack_Normal_04
+    action: {fileID: 11400000, guid: 5a10aa001da08634c93cfdde685a16e5, type: 2}
+    intent: 1
+    isEntry: 0
+    variantResolver: {fileID: 0}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions: []
+    editorPosition: {x: 316, y: 174}
+  - nodeId: Anbi_Evade_Front
+    action: {fileID: 11400000, guid: 66d842ae0004f2e44b643574e32b8f31, type: 2}
+    intent: 4
+    isEntry: 1
+    variantResolver: {fileID: 11400000, guid: 18d6325f114f2004b8996990b648d1cc, type: 2}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions: []
+    editorPosition: {x: -232, y: 174}
+  edges:
+  - fromNodeId: Anbi_Attack_Normal_03
+    routeKind: 0
+    toNodeId: Anbi_Attack_Normal_04
+  - fromNodeId: Anbi_Attack_Normal_01
+    routeKind: 0
+    toNodeId: Anbi_Attack_Normal_02
+  - fromNodeId: Anbi_Attack_Normal_02
+    routeKind: 0
+    toNodeId: Anbi_Attack_Normal_03
+  - fromNodeId: Anbi_Attack_Normal_04
+    routeKind: 0
+    toNodeId: Anbi_Attack_Normal_01
+  sharedRoutes: []
+  nodeGroups: []

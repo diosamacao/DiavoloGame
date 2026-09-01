@@ -41,6 +41,7 @@ public sealed class ReplicationProductionOrderTests
             applyCommands,
             "currentFrame + 1",
             "RoomRemoteInputMerge.TryMergeUnapplied(",
+            "merged.WithoutButton(InputButton.SwitchCharacter)",
             "buffer.Set(in merged);",
             "new ActAuthorityInputApplyResult(true, newestHint, firstAppliedHint);");
 
@@ -80,10 +81,10 @@ public sealed class ReplicationProductionOrderTests
             "CharacterActorFactory.Create(",
             "_services.RegisterCombatActor?.Invoke(",
             "_services.RegisterTarget?.Invoke(",
-            "_services.RegisterPlayer?.Invoke(",
             "actor.Enable();",
             "host.RegisterPlayer(actor);",
-            "guest = new ActGameGuest(");
+            "guest = new ActGameGuest(",
+            "_services.RegisterPlayer?.Invoke(");
 
         string destroyGuest = Slice(
             gameSession,
@@ -94,9 +95,9 @@ public sealed class ReplicationProductionOrderTests
             "_services.UnregisterPlayer?.Invoke(",
             "_services.UnregisterTarget?.Invoke(",
             "_services.UnregisterCombatActor?.Invoke(",
-            "host.Unregister(guest.Registration);",
-            "guest.Reactions?.Dispose();",
-            "guest.Actor?.Dispose();",
+            "host.Unregister(member.Registration);",
+            "member.Reactions?.Dispose();",
+            "member.Actor?.Dispose();",
             "_services.DestroyGameObject?.Invoke(");
 
         Assert.That(authority, Does.Contain("_characterSchema.Capture("));

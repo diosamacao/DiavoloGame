@@ -45,6 +45,8 @@ public sealed class CharacterActor :
     int _prevMotorXMm;
     int _prevMotorZMm;
     bool _hasPrevMotorSample;
+    PartyMemberState _partyState = PartyMemberState.Active;
+    GameplayIntentType _queuedExternalIntent = GameplayIntentType.None;
 
     static readonly GameplayIntentType[] EmptyIntents = Array.Empty<GameplayIntentType>();
     static readonly BufferedIntentDebug[] EmptyBuffers = Array.Empty<BufferedIntentDebug>();
@@ -60,7 +62,10 @@ public sealed class CharacterActor :
     public ReplicationSeat Seat => _seat;
 
     /// <summary>是否会把 Hitbox 写入共享流水线。</summary>
-    public bool CollectsCombatHits => _seat == ReplicationSeat.Authority;
+    public bool CollectsCombatHits =>
+        _seat == ReplicationSeat.Authority
+        && (_partyState == PartyMemberState.Active
+            || _partyState == PartyMemberState.Exiting);
 
     /// <summary>内层走跑机；纠偏 Restore/Replay 用。</summary>
     public LocomotionStateMachine Locomotion => _stateMachine?.Locomotion;
@@ -86,7 +91,8 @@ public sealed class CharacterActor :
 
     /// <summary>死亡或软体抑制窗内不参与互撞软弹开。</summary>
     public bool ParticipatesInSoftBodySeparation =>
-        CurrentState != CharacterStateType.Death
+        (_partyState == PartyMemberState.Active || _partyState == PartyMemberState.Exiting)
+        && CurrentState != CharacterStateType.Death
         && (_motor == null || !_motor.Sim.IsSoftBodySuppressed);
 
     /// <summary>供相机与表现系统跟随的插值锚点。</summary>
@@ -182,6 +188,9 @@ public sealed class CharacterActor :
 
     /// <summary>Health 边沿（扣血 / Hit / Death 事件）。</summary>
     public CharacterVitality Vitality => _vitality;
+
+    /// <summary>当前阵容槽状态；非 Party 角色默认保持 Active。</summary>
+    public PartyMemberState PartyState => _partyState;
 
     /// <summary>创建角色实例；所有依赖由工厂一次性注入。</summary>
     public CharacterActor(
@@ -354,6 +363,51 @@ public sealed class CharacterActor :
     /// <summary>禁用本地设备采样；AI Actor 无设备源时为空操作。</summary>
     public void Disable() => _localInput?.Disable();
 
+    /// <summary>
+    /// 切换阵容生命周期并同步表现显隐；Inactive/Dead 会清空新输入与动作缓冲。
+    /// Exiting 保持可见，但后续逻辑帧只接收空输入。
+    /// </summary>
+    public void SetPartyState(PartyMemberState state)
+    {
+        _partyState = state;
+        bool visible = state == PartyMemberState.Active || state == PartyMemberState.Exiting;
+        if (_presentation?.PresentationRoot != null)
+            _presentation.PresentationRoot.gameObject.SetActive(visible);
+
+        if (state == PartyMemberState.Inactive
+            || state == PartyMemberState.Dead
+            || state == PartyMemberState.Empty)
+        {
+            _queuedExternalIntent = GameplayIntentType.None;
+            ClearControlledInput();
+        }
+    }
+
+    /// <summary>
+    /// 排队一个由座位协调器裁定的外部意图；下一次 Actor.Step 在设备意图之后注入。
+    /// 同帧重复排队视为编程错误，避免无序覆盖支援/切人结果。
+    /// </summary>
+    public void QueueExternalIntent(GameplayIntentType intent)
+    {
+        if (intent == GameplayIntentType.None)
+            throw new ArgumentException("外部意图不能为 None。", nameof(intent));
+        if (_queuedExternalIntent != GameplayIntentType.None)
+            throw new InvalidOperationException("同一 Actor 已有待处理的外部意图。");
+        _queuedExternalIntent = intent;
+    }
+
+    /// <summary>普通切人继承旧朝向；若本槽已有 SelectedTarget，则立即朝向其逻辑位置。</summary>
+    public void AlignSwitchFacing(int inheritedFacingMilliDeg)
+    {
+        int facingMilliDeg = inheritedFacingMilliDeg;
+        if (_targetingState.TryGetSelectedDirection(_motor.Sim, out Vector3 direction))
+        {
+            float facingDegrees = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
+            facingMilliDeg = Mathf.RoundToInt(facingDegrees * 1000f);
+        }
+        _motor.Sim.SetFacingMilliDeg(facingMilliDeg);
+    }
+
     /// <summary>暂存本地 Orbit yaw；下一次渲染采样将其固化进 InputFrame。</summary>
     public void StageMoveReferenceYaw(float yawDegrees) =>
         _localInput?.StageMoveReferenceYaw(yawDegrees);
@@ -394,7 +448,10 @@ public sealed class CharacterActor :
     public void SampleRenderFrame(long targetFrame)
     {
         // AI/回放 Actor 没有设备采样器，跳过
-        if (_localInput == null || _inputFrames == null || !_actorId.IsValid)
+        if (_partyState != PartyMemberState.Active
+            || _localInput == null
+            || _inputFrames == null
+            || !_actorId.IsValid)
             return;
 
         // 本渲染帧边沿写入下一逻辑帧槽（Pressed 做 OR）
@@ -405,9 +462,12 @@ public sealed class CharacterActor :
     /// <summary>由 SimulationWorld 按固定顺序推进输入、动作路由、重力、状态机与动画淡入。</summary>
     public void Step(long frameIndex, float fixedDeltaSeconds, in InputFrame inputFrame)
     {
+        InputFrame effectiveInput = _partyState == PartyMemberState.Active
+            ? inputFrame
+            : InputFrame.Empty(frameIndex, _actorId);
         // 记下本步帧号与输入，供 PostCombat / 调试快照对齐
         _currentFrameIndex = frameIndex;
-        _lastSimulationInput = inputFrame;
+        _lastSimulationInput = effectiveInput;
         // 边沿只活一帧：本步结算前清掉，AfterLogicStep 才能读到本帧 Hit/Death
         _vitality?.ClearReplicationEdge();
         // 锁定表现锚点，逻辑位移期间禁止插值读半帧
@@ -419,11 +479,17 @@ public sealed class CharacterActor :
             // 软体抑制倒计时：须在本帧 ApplyStep 置位之前递减
             _motor?.Sim.TickSoftBodySuppress();
             // 量化输入灌入 InputManager（按钮边沿 / 移动意图）
-            _inputManager.IngestFrame(inputFrame);
+            _inputManager.IngestFrame(effectiveInput);
             // Targeting 必须先于 Action 路由/推进，使同帧切敌立即作用于尚未解析的动作逻辑。
-            _targetingState.Step(_actorId, _motor.Sim, in inputFrame);
+            _targetingState.Step(_actorId, _motor.Sim, in effectiveInput);
             // 按钮生命周期 → 当帧意图 + Cancel 缓冲
             _intentProducer.Step();
+            if (_queuedExternalIntent != GameplayIntentType.None)
+            {
+                // Coordinator 意图必须在 Producer.BeginFrame 之后注入，避免被当帧清空。
+                _intentBuffer.Emit(_queuedExternalIntent);
+                _queuedExternalIntent = GameplayIntentType.None;
+            }
             // Graph 起手/取消后推进 ActionSim 一帧
             StepActionClock();
             // 查表位移 / Timeline 表现桥消费本帧 Action 快照

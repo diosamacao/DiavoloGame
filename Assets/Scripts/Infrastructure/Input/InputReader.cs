@@ -11,6 +11,7 @@ public sealed class InputReader : ILocalInputSampler
     InputAction cameraLockAction;
     InputAction targetSwitchLeftAction;
     InputAction targetSwitchRightAction;
+    InputAction switchCharacterAction;
     InputActionReference[] _discreteInputs = System.Array.Empty<InputActionReference>();
     ushort _stagedMoveReferenceYaw;
 
@@ -68,6 +69,8 @@ public sealed class InputReader : ILocalInputSampler
 
         SampleOptionalButton(targetSwitchLeftAction, InputButton.TargetSwitchLeft, ref pressed, ref held, ref released);
         SampleOptionalButton(targetSwitchRightAction, InputButton.TargetSwitchRight, ref pressed, ref held, ref released);
+        // 阵容切人不进入 GameplayIntentProfile，由座位级 Party 协调器消费。
+        SampleOptionalButton(switchCharacterAction, InputButton.SwitchCharacter, ref pressed, ref held, ref released);
 
         Vector2 move = MoveInput;
         return new InputFrame(
@@ -99,6 +102,7 @@ public sealed class InputReader : ILocalInputSampler
         cameraLockAction = playerMap.FindAction("CameraLock", throwIfNotFound: false);
         targetSwitchLeftAction = playerMap.FindAction("TargetSwitchLeft", throwIfNotFound: false);
         targetSwitchRightAction = playerMap.FindAction("TargetSwitchRight", throwIfNotFound: false);
+        switchCharacterAction = playerMap.FindAction("SwitchCharacter", throwIfNotFound: false);
     }
 
     /// <summary>把可选 Player Action 采样到稳定按钮位；资产未配置时保持未按下。</summary>
