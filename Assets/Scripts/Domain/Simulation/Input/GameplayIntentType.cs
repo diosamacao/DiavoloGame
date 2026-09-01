@@ -38,4 +38,7 @@ public enum GameplayIntentType
 
     /// <summary>普通切人时由座位协调器注入，上场角色 Graph Entry 播放登场动作。</summary>
     SwitchIn = 10,
+
+    /// <summary>普通退场时由座位协调器注入；角色在该动作首次进入 Recovery 后隐藏。</summary>
+    SwitchOut = 11,
 }

@@ -50,7 +50,7 @@
 | 吸附 / 绕背 | ✅ | Wave 4 位移出口 |
 | 预测 / 联网 | 🟡 | W10/W11 代码切面；Play 未关；不得称公网可用 |
 | 打击感木桩 / 命中 Cue | ✅ | 2026-08-08 / 08-09 验收 |
-| 三人换人 / 极限支援 | 🟡 | P-SW1 三 Actor、单键预测/权威切人及复制代码完成；SwitchIn Graph、Test/Play 待验，金光弹刀未做 |
+| 三人换人 / 极限支援 | 🟡 | P-SW1 三 Actor 与复制完成；普通退场统一为原招 Recovery→SwitchOut→其 Recovery 隐藏，Graph/Test/Play 待验 |
 | 学习/工程实践轨 | ⬜ | A*、AB/Lua、SDK、剧情等（§6.4） |
 
 ---

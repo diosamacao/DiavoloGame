@@ -148,4 +148,22 @@ public sealed class PartyCombatCoordinatorTests
             Is.EqualTo(PartyMemberState.Exiting));
         Assert.That(packed & existingFlags, Is.EqualTo(existingFlags));
     }
+
+    /// <summary>普通换人落点必须跟随旧角色局部右向，而不是固定世界轴或相机朝向。</summary>
+    [TestCase(0, 1600, 2000)]
+    [TestCase(90000, 1000, 1400)]
+    [TestCase(180000, 400, 2000)]
+    [TestCase(-90000, 1000, 2600)]
+    public void Placement_UsesOutgoingLocalRight(
+        int facingMilliDeg,
+        int expectedXMm,
+        int expectedZMm)
+    {
+        SimVec2 result = PartySwitchPlacement.ResolveNormalSwitchPosition(
+            new SimVec2(1000, 2000),
+            facingMilliDeg);
+
+        Assert.That(result.X, Is.EqualTo(expectedXMm));
+        Assert.That(result.Z, Is.EqualTo(expectedZMm));
+    }
 }

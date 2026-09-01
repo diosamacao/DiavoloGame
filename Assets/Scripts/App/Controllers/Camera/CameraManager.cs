@@ -34,6 +34,10 @@ public class CameraManager : AppControllerBase
     [Header("Follow Smoothing")]
     [Tooltip("Orbit 锚点追 CameraRoot 的 SmoothDamp 时间；越大越稳，攻击多段位移越不易抖。")]
     [SerializeField] float followSmoothTime = 0.1f;
+    [Tooltip("切换 Active 角色后短暂使用的快速跟随 SmoothDamp 时间。")]
+    [SerializeField, Min(0f)] float switchFollowSmoothTime = 0.04f;
+    [Tooltip("切换 Active 角色后保持快速跟随的时间。")]
+    [SerializeField, Min(0f)] float switchFollowDuration = 0.2f;
 
     [Header("Follow Facing (L-DIR5)")]
     [Tooltip("移动时 Orbit yaw 插值跟随角色朝向，反哺镜头相对 wish 以绕圈。")]
@@ -63,6 +67,7 @@ public class CameraManager : AppControllerBase
     bool lookEnabled = true;
     float _yawFollowVelocity;
     float _lookOverrideRemaining;
+    float _switchFollowRemaining;
     /// <summary>进关后尚未看/走/出招：Orbit yaw 跟角色朝向，避免 MoveReferenceYaw 停在 0。</summary>
     bool _orbitYawFollowUntilInput = true;
 
@@ -141,6 +146,8 @@ public class CameraManager : AppControllerBase
         ApplyFollowFacingYaw();
         SyncOrbitPivots();
         StageMoveReferenceYaw();
+        if (_switchFollowRemaining > 0f)
+            _switchFollowRemaining = Mathf.Max(0f, _switchFollowRemaining - Time.deltaTime);
     }
 
     /// <summary>确保 Rig 与 Director 唯一运行时入口存在。</summary>
@@ -237,6 +244,7 @@ public class CameraManager : AppControllerBase
 
         if (presentationRoot != followTarget)
         {
+            bool changedFromExistingTarget = followTarget != null;
             followTarget = presentationRoot;
             if (cameraRoot != null)
             {
@@ -244,6 +252,8 @@ public class CameraManager : AppControllerBase
                 cameraRoot.localPosition = new Vector3(0f, cameraRootHeight, 0f);
                 cameraRoot.localRotation = Quaternion.identity;
             }
+            if (changedFromExistingTarget)
+                _switchFollowRemaining = switchFollowDuration;
         }
 
         // 进关未操作时 Orbit yaw 默认 0；首份快照改朝向后仍要对齐，直到玩家看/走/出招
@@ -464,12 +474,20 @@ public class CameraManager : AppControllerBase
     void SyncOrbitPivots()
     {
         cameraRig?.Bind(cameraRoot, orbitPivot, pitchPivot);
+        bool switchingCharacter = _switchFollowRemaining > 0f;
+        float effectiveSmoothTime = switchingCharacter
+            ? switchFollowSmoothTime
+            : followSmoothTime;
+        // 普通切人是横向换位；快速阶段必须完整吸收左右位移，否则只调平滑时间仍会拖尾。
+        float effectiveLateralFactor = switchingCharacter
+            ? 1f
+            : lateralFollowFactor;
         cameraRig?.Sync(
             followTarget,
             yaw,
             pitch,
-            followSmoothTime,
-            lateralFollowFactor,
+            effectiveSmoothTime,
+            effectiveLateralFactor,
             PlanarForward);
     }
 

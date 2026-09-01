@@ -217,7 +217,7 @@ public sealed class ActGameGuest
     /// <summary>本逻辑步真正灌入的最新 Hint；无新命令时下行 0。</summary>
     public long AppliedHintThisTick { get; set; }
 
-    /// <summary>执行一次普通切人并把状态、出生位姿、SwitchIn 意图与 Seat 绑定原子切换。</summary>
+    /// <summary>执行普通切人，把右侧落点、状态、SwitchIn 意图与 Seat 绑定原子切换。</summary>
     public bool TryResolveSwitch()
     {
         if (!Coordinator.TryResolveSwitchIn(out PartySwitchCommand command))
@@ -225,14 +225,8 @@ public sealed class ActGameGuest
 
         ActGameGuestMember from = _members[command.FromSlot];
         ActGameGuestMember to = _members[command.ToSlot];
-        to.Actor.MotorSim.TeleportMm(
-            from.Actor.MotorSim.PositionMm.X,
-            from.Actor.MotorSim.YMm,
-            from.Actor.MotorSim.PositionMm.Z);
-        to.Actor.AlignSwitchFacing(from.Actor.MotorSim.FacingMilliDeg);
-        to.Actor.AlignSimulationRootToMotor();
-        to.Actor.SnapPresentationToSimulation();
-        from.Actor.SetPartyState(PartyMemberState.Exiting);
+        to.Actor.PlaceForNormalSwitchFrom(from.Actor);
+        from.Actor.BeginPartyExit();
         to.Actor.SetPartyState(PartyMemberState.Active);
         to.Actor.QueueExternalIntent(GameplayIntentType.SwitchIn);
         Seat.Bind(to.Actor);
@@ -247,14 +241,11 @@ public sealed class ActGameGuest
             ActGameGuestMember member = _members[i];
             if (member?.Actor == null || member.Actor.PartyState != PartyMemberState.Exiting)
                 continue;
-            if (member.Actor.ActionSim.IsActive
-                || member.Actor.CurrentState != CharacterStateType.Locomotion)
-            {
+            if (!member.Actor.IsPartyExitReady)
                 continue;
-            }
 
+            member.Actor.CompletePartyExit();
             Coordinator.CompleteExit(i);
-            member.Actor.SetPartyState(PartyMemberState.Inactive);
         }
     }
 
