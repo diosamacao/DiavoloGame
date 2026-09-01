@@ -220,6 +220,118 @@ public sealed class RemoteCharacterProxyTests
             Is.False);
     }
 
+    /// <summary>新动作首见于中段时只跨当前帧，禁止从 -1 补播此前全部 VFX/SFX。</summary>
+    [Test]
+    public void ResolvePreviousNotifyFrame_NewMidAction_DoesNotReplayHistory()
+    {
+        int previousFrame = RemoteCharacterProxy.ResolvePreviousNotifyFrame(
+            forceRestart: false,
+            previousActionId: 0,
+            previousActionFrame: 0,
+            actionId: 6,
+            actionFrame: 134);
+
+        Assert.That(previousFrame, Is.EqualTo(133));
+    }
+
+    /// <summary>同一动作正常前进仍从上次快照补齐间隔内 Notify，避免普通丢包漏特效。</summary>
+    [Test]
+    public void ResolvePreviousNotifyFrame_SameAction_PreservesCatchUp()
+    {
+        int previousFrame = RemoteCharacterProxy.ResolvePreviousNotifyFrame(
+            forceRestart: false,
+            previousActionId: 6,
+            previousActionFrame: 130,
+            actionId: 6,
+            actionFrame: 134);
+
+        Assert.That(previousFrame, Is.EqualTo(130));
+    }
+
+    /// <summary>动作重启的 frame 0 仍使用 -1，保证起手帧 Notify 可以触发。</summary>
+    [Test]
+    public void ResolvePreviousNotifyFrame_RestartAtZero_FiresStartFrame()
+    {
+        int previousFrame = RemoteCharacterProxy.ResolvePreviousNotifyFrame(
+            forceRestart: true,
+            previousActionId: 6,
+            previousActionFrame: 134,
+            actionId: 6,
+            actionFrame: 0);
+
+        Assert.That(previousFrame, Is.EqualTo(-1));
+    }
+
+    /// <summary>远端角色离场时须在父节点停用前清理可见性相关表现。</summary>
+    [Test]
+    public void ApplySnapshot_VisibleToInactive_ResetsVisibilityConsumers()
+    {
+        var root = new GameObject("GhostVisibilityResetRoot");
+        var presentation = new GameObject("GhostVisibilityResetPresentation");
+        presentation.transform.SetParent(root.transform, false);
+        CharacterController controller = root.AddComponent<CharacterController>();
+        controller.enabled = false;
+        var consumer = new VisibilityResetConsumer();
+        var proxy = new RemoteCharacterProxy(
+            root.transform,
+            new CharacterMotor(
+                root.transform,
+                controller,
+                CharacterMotorConfig.Default,
+                new IdleIntent(),
+                new CharacterMotorSim(OpenFieldSimCollisionWorld.Instance, radiusMm: 280)),
+            animation: null,
+            new CharacterPresentationBridge(root.transform, presentation.transform),
+            new ActionReplicationCatalog(),
+            Vector3.zero,
+            1f / 60f,
+            notifyConsumers: new IActionNotifyConsumer[] { consumer });
+
+        ActorReplicationSnapshot active = CreatePoseSnapshot(0, 0, PartyMemberState.Active);
+        ActorReplicationSnapshot inactive = CreatePoseSnapshot(0, 0, PartyMemberState.Inactive);
+        proxy.ApplySnapshot(in active);
+        proxy.ApplySnapshot(in inactive);
+
+        Assert.That(consumer.ResetCount, Is.EqualTo(1));
+        Assert.That(root.activeSelf, Is.False);
+        Object.DestroyImmediate(root);
+    }
+
+    /// <summary>远端角色重新显形时插值双端须直接落在新位置，不得从上次退场点拉过去。</summary>
+    [Test]
+    public void ApplySnapshot_BecameVisible_SnapsPresentationToCurrentPose()
+    {
+        var root = new GameObject("GhostReentrySnapRoot");
+        var presentation = new GameObject("GhostReentrySnapPresentation");
+        presentation.transform.SetParent(root.transform, false);
+        CharacterController controller = root.AddComponent<CharacterController>();
+        controller.enabled = false;
+        var proxy = new RemoteCharacterProxy(
+            root.transform,
+            new CharacterMotor(
+                root.transform,
+                controller,
+                CharacterMotorConfig.Default,
+                new IdleIntent(),
+                new CharacterMotorSim(OpenFieldSimCollisionWorld.Instance, radiusMm: 280)),
+            animation: null,
+            new CharacterPresentationBridge(root.transform, presentation.transform),
+            new ActionReplicationCatalog(),
+            Vector3.zero,
+            1f / 60f);
+
+        ActorReplicationSnapshot inactive =
+            CreatePoseSnapshot(1000, 0, PartyMemberState.Inactive);
+        ActorReplicationSnapshot active =
+            CreatePoseSnapshot(2000, 0, PartyMemberState.Active);
+        proxy.ApplySnapshot(in inactive);
+        proxy.ApplySnapshot(in active);
+        proxy.Render(0f);
+
+        Assert.That(presentation.transform.position.x, Is.EqualTo(2f).Within(0.001f));
+        Object.DestroyImmediate(root);
+    }
+
     /// <summary>快照写入只读索敌身份；OnHit 不改血。</summary>
     [Test]
     public void ApplySnapshot_BindsReadOnlyTargetable_OnHitDoesNotChangeHealth()
@@ -396,7 +508,10 @@ public sealed class RemoteCharacterProxyTests
         Assert.That(text, Does.Contain("new PredictedHitStopConsumer"));
     }
 
-    static ActorReplicationSnapshot CreatePoseSnapshot(int xMm, int zMm) =>
+    static ActorReplicationSnapshot CreatePoseSnapshot(
+        int xMm,
+        int zMm,
+        PartyMemberState partyState = PartyMemberState.Empty) =>
         new ActorReplicationSnapshot(
             new SimActorId(1),
             1,
@@ -416,8 +531,22 @@ public sealed class RemoteCharacterProxyTests
             0,
             SimActorId.Invalid,
             100000,
-            0,
+            PartyReplicationPacking.WithMemberState(0, partyState),
             VitalityReplicationEdge.None);
+
+    /// <summary>记录 Proxy 显隐边界清理调用的测试消费者。</summary>
+    sealed class VisibilityResetConsumer : IActionNotifyConsumer, IActionVisibilityResetConsumer
+    {
+        public int ResetCount { get; private set; }
+
+        public void OnActionNotify(in ActionNotifyContext context) { }
+
+        public void OnActionNotifyState(in ActionNotifyContext context) { }
+
+        public void OnActionEnded() { }
+
+        public void ResetForVisibilityLoss() => ResetCount++;
+    }
 
     sealed class IdleIntent : IMoveIntentSource
     {

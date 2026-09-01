@@ -27,6 +27,7 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     AnimationKey? _locomotionKey;
     bool _visualActionActive;
     bool _animationFrozen;
+    bool _partyVisible;
     Vector3 _debugWishWorld;
     SimActorId _simulationId;
     int _teamId;
@@ -47,6 +48,9 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
 
     /// <summary>幽灵永不收集命中；恒为 false，供装配断言。</summary>
     public bool CollectsHits => false;
+
+    /// <summary>最近一次已应用快照是否要求显示该阵容成员。</summary>
+    public bool IsPartyVisible => _partyVisible;
 
     /// <inheritdoc />
     public SimActorId SimulationId => _simulationId;
@@ -143,15 +147,27 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
             PartyReplicationPacking.ReadMemberState(snapshot.FlagsPacked);
         bool partyVisible =
             partyState == PartyMemberState.Active || partyState == PartyMemberState.Exiting;
-        if (_root.gameObject.activeSelf != partyVisible)
-            _root.gameObject.SetActive(partyVisible);
+        bool becameVisible = partyVisible && !_partyVisible;
+        if (!partyVisible && _partyVisible)
+            ResetVisibilityConsumers();
         if (updatePresentation)
             _presentation.BeginSimulationStep();
         ReplicationPoseApplier.ApplyToMotor(_motor.Sim, in snapshot);
         ApplyWorldOffset();
         _motor.SyncRootPoseFromSim();
+        if (becameVisible)
+            _presentation.SnapToSimulationRoot();
+        if (_root.gameObject.activeSelf != partyVisible)
+            _root.gameObject.SetActive(partyVisible);
         ApplyDebugWish(in snapshot);
-        ApplyPresentation(in snapshot, leanRollDegrees, seekLocomotion, simulationTicks);
+        ApplyPresentation(
+            in snapshot,
+            leanRollDegrees,
+            seekLocomotion,
+            simulationTicks,
+            dispatchNotifies: partyVisible,
+            resetNotifyHistory: becameVisible);
+        _partyVisible = partyVisible;
         if (updatePresentation)
             _presentation.EndSimulationStep();
     }
@@ -252,9 +268,20 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     /// <summary>释放动画后端；ownsRoot 时销毁幽灵根物体。</summary>
     public void Dispose()
     {
+        ResetVisibilityConsumers();
         _animation?.Dispose();
         if (_ownsRoot && _root != null)
             UnityEngine.Object.Destroy(_root.gameObject);
+    }
+
+    /// <summary>在角色根停用或销毁前通知需要清理父节点相关状态的表现消费者。</summary>
+    void ResetVisibilityConsumers()
+    {
+        for (int i = 0; i < _notifyConsumers.Length; i++)
+        {
+            if (_notifyConsumers[i] is IActionVisibilityResetConsumer resettable)
+                resettable.ResetForVisibilityLoss();
+        }
     }
 
     /// <summary>从快照写入索敌身份；不改变表现图。</summary>
@@ -306,7 +333,9 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         in ActorReplicationSnapshot snapshot,
         float leanRollDegrees,
         bool seekLocomotion,
-        int simulationTicks)
+        int simulationTicks,
+        bool dispatchNotifies,
+        bool resetNotifyHistory)
     {
         bool frozen = snapshot.FreezeFrames > 0;
         _animationFrozen = frozen;
@@ -322,9 +351,12 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
             _lastActionFrame,
             snapshot.ActionId,
             snapshot.ActionFrame);
-        int previousActionFrame = !forceRestart && _lastActionId == snapshot.ActionId
-            ? _lastActionFrame
-            : -1;
+        int previousActionFrame = ResolvePreviousNotifyFrame(
+            forceRestart || resetNotifyHistory,
+            _lastActionId,
+            _lastActionFrame,
+            snapshot.ActionId,
+            snapshot.ActionFrame);
 
         if (_animation != null)
         {
@@ -361,7 +393,7 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
             }
         }
 
-        if (actionActive && !frozen)
+        if (dispatchNotifies && actionActive && !frozen)
             DispatchPresentationNotifies(action, previousActionFrame, snapshot.ActionFrame);
 
         _lastActionId = snapshot.ActionId;
@@ -420,6 +452,22 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         return actionId != 0
             && actionId == previousActionId
             && actionFrame < previousActionFrame;
+    }
+
+    /// <summary>
+    /// 同一可见动作会话按上次帧补丢包；新动作、重启或重新显形只跨当前帧，禁止回放整段历史特效。
+    /// </summary>
+    public static int ResolvePreviousNotifyFrame(
+        bool forceRestart,
+        int previousActionId,
+        int previousActionFrame,
+        int actionId,
+        int actionFrame)
+    {
+        if (!forceRestart && actionId != 0 && previousActionId == actionId)
+            return previousActionFrame;
+
+        return Math.Max(-1, actionFrame - 1);
     }
 
     /// <summary>只把 VFX/SFX 点事件交给消费者；不调用 notify.OnNotify，也不派发 Motion/Hitbox。</summary>

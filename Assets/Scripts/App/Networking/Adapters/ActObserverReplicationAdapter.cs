@@ -138,12 +138,21 @@ public sealed class ActObserverReplicationAdapter
                 _timelines.Add(id, timeline);
             }
 
+            bool becameVisible = !proxy.IsPartyVisible && IsPartyVisible(in snapshot);
+            if (becameVisible)
+            {
+                // 先拒绝迟到旧包，再丢弃上次退场的插值历史；否则新角色会从旧退出点被拉到登场点。
+                if (authorityTick <= timeline.LatestTick)
+                    continue;
+                timeline.Clear();
+            }
+
             // 旧 Tick 不回滚。每份到达的快照立刻写判定/受击/Notify，禁止等播放头。
             if (!timeline.TryPush(authorityTick, in snapshot))
                 continue;
             proxy.ApplySnapshot(in snapshot, simulationTicks: 0, updatePresentation: false);
             _appliedTicks[id] = authorityTick;
-            if (!_playbackTicks.ContainsKey(id))
+            if (becameVisible || !_playbackTicks.ContainsKey(id))
                 _playbackTicks[id] = authorityTick;
         }
     }
@@ -281,6 +290,13 @@ public sealed class ActObserverReplicationAdapter
                 return true;
         }
         return false;
+    }
+
+    /// <summary>从快照阵容状态判断表现是否应存在；与 RemoteCharacterProxy 显隐规则保持一致。</summary>
+    static bool IsPartyVisible(in ActorReplicationSnapshot snapshot)
+    {
+        PartyMemberState state = PartyReplicationPacking.ReadMemberState(snapshot.FlagsPacked);
+        return state == PartyMemberState.Active || state == PartyMemberState.Exiting;
     }
 
     /// <summary>按精确 CharacterConfig 创建 Remote Proxy；缺模型或 SimulationHost 时明确失败。</summary>

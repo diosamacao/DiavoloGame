@@ -71,6 +71,16 @@ public sealed class CharacterActionPresentationBridge
             _notifyConsumers.Add(consumer);
     }
 
+    /// <summary>角色退出可见阵容状态时，立即清理会随表现节点残留到下次登场的消费者实例。</summary>
+    public void ResetForVisibilityLoss()
+    {
+        for (int i = 0; i < _notifyConsumers.Count; i++)
+        {
+            if (_notifyConsumers[i] is IActionVisibilityResetConsumer resettable)
+                resettable.ResetForVisibilityLoss();
+        }
+    }
+
     /// <summary>更新时间轴默认挂点；空值回退角色根。</summary>
     public void BindDefaultAttachPoint(Transform attachPoint) =>
         _defaultAttachPoint = attachPoint != null ? attachPoint : _actorRoot;
