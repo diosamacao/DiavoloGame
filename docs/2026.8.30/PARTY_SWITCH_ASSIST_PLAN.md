@@ -271,7 +271,7 @@ Active 处于击飞档 Hit 且上场可激活 → QuickAssist（优先于普通 
 enum PartyMemberState : Inactive | Active | Exiting | Dead
 Inactive  : 后台；可被切出；仍 Step 个人回能（接战规则跟 SKILL 能量，后台也回）
 Active    : 收 InputFrame 玩法键；进索敌/软弹开/Hurtbox
-Exiting   : 空闲立即 SwitchOut；有 Action 时首次进入 Recovery 即 Stop → SwitchOut；SwitchOut 首次进入 Recovery → Inactive
+Exiting   : 空闲立即 SwitchOut；有 Action 时首次进入 Recovery 即 Stop → SwitchOut；切人时已在 Recovery 则不再多推进旧招；SwitchOut 首次进入 Recovery → Inactive
 Dead      : 不可切出；队灭规则后置
 ```
 
@@ -371,7 +371,7 @@ QuickAssist         → InstantReplace
 
 - [ ] Play：空格按槽位顺序循环（0→1→2→0）；上场播登场 Action（无资产时可空 Timeline 但必须进 Action 态）  
 - [ ] 下场未结束时再切回该槽：忽略  
-- [ ] 无时间 CD；空闲立即 SwitchOut；已有 Action 在首次 Recovery 切 SwitchOut；仅 SwitchOut Recovery 隐藏
+- [ ] 无时间 CD；空闲立即 SwitchOut；已有 Action 在首次 Recovery 切 SwitchOut；切人时已处于 Recovery 不得再泄漏一帧旧招 Notify；仅 SwitchOut Recovery 隐藏
 - [ ] `PartyCoordinatorTests`：空槽/死亡/Exiting 拒绝  
 
 **出口：** 无闪光也能三人轮换。→ **未达成**
@@ -555,3 +555,6 @@ P-SW0 身份/Loadout
 | 2026-09-01 | 普通退场规则收敛：空闲角色播放完整 SwitchOut；已有 Action 只播到首次 Recovery，随后停止原招并转 Inactive |
 | 2026-09-01 | 普通退场规则再次收敛：所有普通退场都经过 SwitchOut；原招 Recovery 只作为切入点，最终仅在 SwitchOut 自身 Recovery 隐藏 |
 | 2026-09-01 | 普通登场位置改为旧角色局部右侧 0.6m；预测与权威共用 `PartySwitchPlacement`，墙边由静态碰撞世界修正 |
+| 2026-09-02 | 修复切人特效泄漏：切人输入到达时原招已在 Recovery 则在下一次 Step 前交接；远端新动作/重启不再补播整段历史 VFX/SFX |
+| 2026-09-02 | 修复远端重复登场表现：Inactive 前回收挂在角色层级下的 VFX，Active/Exiting 重新显形时丢弃上次退场位置的插值历史并吸到最新权威 Pose |
+| 2026-09-02 | 本机 `CharacterActor` 同样在退出可见状态前清理所属 VFX；远端与本机统一以阵容显隐边界终止会随父节点冻结的表现租约 |

@@ -30,6 +30,10 @@ public sealed class VfxPooledInstance : AppControllerBase, IPoolable
     /// <summary>记录生成该特效的攻击者根节点，用于卡肉时筛选暂停范围。</summary>
     public void SetSpawnOwner(Transform ownerRoot) => _spawnOwner = ownerRoot;
 
+    /// <summary>确认当前池租约是否仍属于指定角色，避免旧引用误回收已复用给别人的实例。</summary>
+    public bool IsOwnedBy(Transform ownerRoot) =>
+        ownerRoot != null && _spawnOwner == ownerRoot;
+
     void OnEnable()
     {
         RegisterEvent<HitStopBeganEvent>(HandleHitStopBegan);

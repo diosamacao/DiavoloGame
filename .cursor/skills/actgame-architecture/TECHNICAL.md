@@ -59,7 +59,7 @@
 | 顺序选择 | `PartySlotSelector` 从 Active 后一槽正序绕回，只接受 `Inactive` |
 | 普通切裁定 | `PartyCombatCoordinator.TryResolveSwitchIn` 输出 `DualPresence`，旧槽 Active→Exiting，新槽 Inactive→Active |
 | 普通切落点 | `PartySwitchPlacement` 按旧角色 Motor 朝向取局部右侧 600mm；`CharacterActor.PlaceForNormalSwitchFrom` 从旧位置经新角色静态碰撞世界解析后落地 |
-| 退场时序 | `CharacterActor.BeginPartyExit/AdvancePartyExitAfterPostCombat`：空闲立即注入 `SwitchOut`；有招在原招 Recovery 停止并排队 `SwitchOut`；`IsPartyExitReady` 只认 SwitchOut 实例的 Recovery |
+| 退场时序 | `CharacterActor.BeginPartyExit/AdvancePartyExitAfterPostCombat`：空闲立即注入 `SwitchOut`；切人输入到达时已在 Recovery 则在下一次 Action Step 前立即交接，否则到首次 Recovery 停止并排队 `SwitchOut`；`IsPartyExitReady` 只认 SwitchOut 实例的 Recovery |
 | 运行时槽 | `PlayerController` / `ActGameGuest` 均按非空槽创建独立 `CharacterActor`；Inactive 空输入且不参与软碰撞/受击 |
 | 稳定身份 | 每槽独立 `SimActorId` / `NetEntityId`；禁止单 Actor 热换 Config |
 | Owner 复制 | V2 应用载荷下发槽 ActorId、ActiveSlot、累计命令 ACK；自有后台槽不会创建 Observer Proxy |
@@ -371,7 +371,7 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 
 - PivotTurn 根朝向仍只跟快照 facing（不在幽灵侧重跑 AnimAuth）；Clip 已按权威归一化时间 Seek
 - Catalog 已改为资产名稳定 Id（NS5）
-- 幽灵不进权威花名册、无 Hurtbox Collect；可按 ActionFrame 过点派发 VFX/SFX
+- 幽灵不进权威花名册、无 Hurtbox Collect；同一动作按前后 ActionFrame 补齐 VFX/SFX；新动作或帧回绕只派发当前跨帧。本机 `CharacterActor` 与远端 Proxy 在阵容成员隐藏前都由 `IActionVisibilityResetConsumer` 回收仍挂在角色下的 VFX；远端重新显形时另清空旧 `SnapshotTimeline` 并重置插值双端
 - 多种敌人通过 `NetArchetypeId` 精确解析各自配置；未知 Archetype 明确拒绝，不做首敌回退
 
 ### 相关文件
@@ -1542,6 +1542,9 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-09-01 | Party 退场最终规则：所有普通退场均进入 SwitchOut；原招 Recovery 仅负责切入，只有 SwitchOut 自身 Recovery 可隐藏 |
 | 2026-09-01 | Party 普通登场落点改为旧角色局部右侧 600mm；客户端预测与 Dedicated 权威共用确定性算法，并经静态碰撞解析 |
 | 2026-09-01 | 相机检测 Active 角色表现根切换后短暂启用 0.04s 快速平滑与完整横向跟随，0.2s 后恢复日常参数 |
+| 2026-09-02 | 修复切人 VFX 泄漏：已处于 Recovery 的退场原招不再多推进一帧；RemoteProxy 新动作/重启不再从 frame -1 补播整段历史 Notify |
+| 2026-09-02 | 修复 Observer 二次登场残留：远端角色隐藏前回收所属 VFX；重新显形时清空退场前插值历史并直接落到当前权威位置 |
+| 2026-09-02 | 本机阵容生命周期接入同一可见性清理接口：`CharacterActor` 转入 Inactive/Dead/Empty 前回收所属 VFX，避免本机再次 SwitchIn 时复活旧特效 |
 | 2026-06-17 | 初版：移动、输入、状态机、动画、相机、Prefab 文档化 |
 | 2026-06-17 | 动作系统 §7：ComboSequence、CombatMode、ACTION_EDITOR 对齐摘要 |
 | 2026-06-21 | ActionEditor 准备重构：CharacterActionDriver、UpdateFrame、Phase/Event 骨架、命中回流 |

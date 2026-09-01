@@ -399,8 +399,16 @@ public sealed class CharacterActor :
     /// </summary>
     public void SetPartyState(PartyMemberState state)
     {
-        _partyState = state;
+        bool wasVisible =
+            _partyState == PartyMemberState.Active || _partyState == PartyMemberState.Exiting;
         bool visible = state == PartyMemberState.Active || state == PartyMemberState.Exiting;
+        if (wasVisible && !visible)
+        {
+            // 必须在表现根停用前回收挂点 VFX；否则粒子会冻结并在下次 SwitchIn 随父节点复活。
+            _actionPresentation?.ResetForVisibilityLoss();
+        }
+
+        _partyState = state;
         if (_presentation?.PresentationRoot != null)
             _presentation.PresentationRoot.gameObject.SetActive(visible);
 
@@ -424,21 +432,32 @@ public sealed class CharacterActor :
     }
 
     /// <summary>
-    /// 开始普通退场：有活动 Action 时等首次 Recovery；空闲时立即请求 SwitchOut。
+    /// 开始普通退场：空闲时立即请求 SwitchOut；已有 Action 在当前或后续首次 Recovery 交接。
     /// </summary>
     public void BeginPartyExit()
     {
         if (_partyState != PartyMemberState.Active)
             throw new InvalidOperationException("只有 Active 角色可以开始普通退场。");
 
-        bool hasActiveAction = _actionSim != null && _actionSim.IsActive;
+        ActionSimSnapshot action = _actionSim.Snapshot;
+        bool hasActiveAction = action.IsActive;
+        bool alreadyInRecovery = hasActiveAction
+            && action.Content is ActionDefinition definition
+            && definition.IsRecoveryAtFrame(action.CurrentFrame);
         SetPartyState(PartyMemberState.Exiting);
         _partyExitMode = hasActiveAction
             ? PartyExitMode.WaitForCurrentRecovery
             : PartyExitMode.PlayingSwitchOut;
         _switchOutActionInstanceId = 0;
         if (!hasActiveAction)
+        {
             QueueExternalIntent(GameplayIntentType.SwitchOut);
+        }
+        else if (alreadyInRecovery)
+        {
+            // 切人输入到达时已在 Recovery，须在下一次 Action Step 前交接，禁止旧招多泄漏一帧 Notify。
+            BeginSwitchOutAfterCurrentAction();
+        }
     }
 
     /// <summary>SwitchOut 进入 Recovery 后转入后台；Recovery 后半段不得继续模拟。</summary>
@@ -687,11 +706,7 @@ public sealed class CharacterActor :
             if (!reachedHandoff)
                 return;
 
-            // 原招只播到 Recovery 首帧；SwitchOut 下一逻辑帧从独立 Graph Entry 起手。
-            StopActionForPartyTransition();
-            _partyExitMode = PartyExitMode.PlayingSwitchOut;
-            _switchOutActionInstanceId = 0;
-            QueueExternalIntent(GameplayIntentType.SwitchOut);
+            BeginSwitchOutAfterCurrentAction();
             return;
         }
 
@@ -701,6 +716,15 @@ public sealed class CharacterActor :
         {
             _switchOutActionInstanceId = action.InstanceId;
         }
+    }
+
+    /// <summary>终止已到交接点的原招，并让下一逻辑帧从独立 SwitchOut Entry 起手。</summary>
+    void BeginSwitchOutAfterCurrentAction()
+    {
+        StopActionForPartyTransition();
+        _partyExitMode = PartyExitMode.PlayingSwitchOut;
+        _switchOutActionInstanceId = 0;
+        QueueExternalIntent(GameplayIntentType.SwitchOut);
     }
 
     /// <summary>切入 SwitchOut 前终止原招及其缓冲，并回到可从 Entry 起手的 Locomotion。</summary>
@@ -781,8 +805,12 @@ public sealed class CharacterActor :
     public void SnapVisualResidual() =>
         _visualMotion?.EndAction(VisualResidualExitPolicy.SnapToZero);
 
-    /// <summary>释放动画 PlayableGraph 等资源。</summary>
-    public void Dispose() => _animation?.Dispose();
+    /// <summary>释放角色表现资源，并回收仍由该角色持有的动作实例。</summary>
+    public void Dispose()
+    {
+        _actionPresentation?.ResetForVisibilityLoss();
+        _animation?.Dispose();
+    }
 
     /// <summary>受击与死亡优先级高于输入，必须同步清掉连续量和动作缓冲。</summary>
     void ClearControlledInput()
