@@ -76,6 +76,21 @@ public readonly struct InputFrame : IEquatable<InputFrame>
             ButtonsReleased,
             MoveReferenceYawQuantized);
 
+    /// <summary>移除指定按钮的按下、保持与松开位；座位级命令消费后不得再进入角色意图。</summary>
+    public InputFrame WithoutButton(InputButton button)
+    {
+        ulong keepMask = ~InputButtonMask.Of(button);
+        return new InputFrame(
+            Frame,
+            ActorId,
+            MoveX,
+            MoveY,
+            ButtonsPressed & keepMask,
+            ButtonsHeld & keepMask,
+            ButtonsReleased & keepMask,
+            MoveReferenceYawQuantized);
+    }
+
     /// <summary>把连续状态延续到下一逻辑帧，并清除 Pressed/Released 边沿。</summary>
     public InputFrame CarryForward(long targetFrame) =>
         new(

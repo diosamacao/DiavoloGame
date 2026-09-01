@@ -20,6 +20,7 @@ public sealed class ActClientRoomGameplay
     PlayerController _localPlayer;
     SessionJoinAccept _accept;
     InputFrameBuffer _inputFrames;
+    SimActorId[] _ownerPartyActorIds = Array.Empty<SimActorId>();
     SimVec2[] _softBlockerPosMm = Array.Empty<SimVec2>();
     int[] _softBlockerRadiiMm = Array.Empty<int>();
     long _predictFrame;
@@ -96,6 +97,7 @@ public sealed class ActClientRoomGameplay
         LastAuthorityFrame = accept.AuthorityTick.Value;
         EnsureInputBuffer();
         _owner.BeginSession(new SimActorId(accept.EntityId.Value), _inputFrames);
+        _ownerPartyActorIds = new[] { new SimActorId(accept.EntityId.Value) };
         _recentCommands.Clear();
         _localPlayer = _contentPrefill.LocalPlayer;
         _loggedOwnerPredict = false;
@@ -147,8 +149,11 @@ public sealed class ActClientRoomGameplay
             return;
 
         float dt = _world.SimulationHost.FixedDeltaSeconds;
-        actor.Step(_predictFrame, dt, in _pendingPredictionInput);
-        actor.ResolvePostCombat(_predictFrame);
+        _localPlayer.StepPartyPrediction(_predictFrame, dt, in _pendingPredictionInput);
+        actor = _localPlayer.Actor;
+        int activeSlot = _localPlayer.ActivePartySlot;
+        if (activeSlot >= 0 && activeSlot < _ownerPartyActorIds.Length)
+            _owner.SetActiveOwnerActor(_ownerPartyActorIds[activeSlot]);
         PresentPredictedHitStop(actor);
         ResolveAutonomousSoftBody(actor);
         _owner.RecordAutonomous(actor, _predictFrame, in _pendingPredictionInput);
@@ -176,15 +181,41 @@ public sealed class ActClientRoomGameplay
 
         ActReplicationApplicationPayload application =
             ActReplicationApplicationPayloadCodec.Decode(frame.ApplicationPayload);
+        SimActorId[] partyActorIds = application.PartyActorIds;
+        if (_localPlayer == null
+            || partyActorIds.Length != _localPlayer.PartyActors.Count
+            || application.ActivePartySlot < 0
+            || application.ActivePartySlot >= partyActorIds.Length)
+        {
+            throw new InvalidOperationException("权威帧缺少与本机 Loadout 对齐的阵容身份。");
+        }
+        _ownerPartyActorIds = partyActorIds;
+        _localPlayer.BindPartySimulationInput(_ownerPartyActorIds, _inputFrames);
+        _localPlayer.SynchronizeAuthorityActiveSlot(
+            application.ActivePartySlot,
+            application.LastAppliedClientFrameHint);
+        SimActorId ownerId = _ownerPartyActorIds[application.ActivePartySlot];
+        _owner.SetActiveOwnerActor(ownerId);
         ActorReplicationSnapshot self = default;
         bool hasSelf = false;
-        SimActorId ownerId = new(_accept.EntityId.Value);
         _clock.ObserveAuthorityTick(
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             frame.Tick.Value);
-        _observer.ApplySpawns(result.Spawns, ownerId, frame.Tick.Value, ref self, ref hasSelf);
-        _observer.ApplyUpdates(result.Updates, ownerId, frame.Tick.Value, ref self, ref hasSelf);
-        if (!_observer.ApplyDespawns(result.Despawns, ownerId))
+        _observer.ApplySpawns(
+            result.Spawns,
+            _ownerPartyActorIds,
+            ownerId,
+            frame.Tick.Value,
+            ref self,
+            ref hasSelf);
+        _observer.ApplyUpdates(
+            result.Updates,
+            _ownerPartyActorIds,
+            ownerId,
+            frame.Tick.Value,
+            ref self,
+            ref hasSelf);
+        if (!_observer.ApplyDespawns(result.Despawns, _ownerPartyActorIds, ownerId))
             return ActClientFrameApplyStatus.OwnerDespawned;
 
         LastAuthorityFrame = frame.Tick.Value;
@@ -223,7 +254,7 @@ public sealed class ActClientRoomGameplay
             return;
 
         float alpha = host.InterpolationAlpha;
-        _localPlayer?.Actor?.Render(alpha);
+        _localPlayer?.RenderParty(alpha);
         _observer.Render(_clock.InterpolationDelayTicks, Time.deltaTime);
     }
 
@@ -367,10 +398,16 @@ public sealed class ActClientRoomGameplay
     {
         if (!actorId.IsValid)
             return null;
-        if (actorId.Value == _accept.EntityId.Value)
+        for (int i = 0; i < _ownerPartyActorIds.Length; i++)
         {
-            return _localPlayer != null && _localPlayer.Actor != null
-                ? _localPlayer.Actor.PresentationRoot
+            if (_ownerPartyActorIds[i] != actorId)
+                continue;
+            CharacterActor member = _localPlayer != null
+                && i < _localPlayer.PartyActors.Count
+                    ? _localPlayer.PartyActors[i]
+                    : null;
+            return member?.PresentationRoot != null
+                ? member.PresentationRoot
                 : _localPlayer != null ? _localPlayer.Root : null;
         }
         return _observer.TryGetProxy(actorId, out RemoteCharacterProxy proxy)

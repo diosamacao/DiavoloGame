@@ -35,4 +35,7 @@ public enum GameplayIntentType
     /// Graph Entry 指向 Counter，禁止挂在 Attack 上隐式换招。
     /// </summary>
     PerfectDodgeAttack = 9,
+
+    /// <summary>普通切人时由座位协调器注入，上场角色 Graph Entry 播放登场动作。</summary>
+    SwitchIn = 10,
 }

@@ -13,6 +13,7 @@ public sealed class ActContentRegistry
         new(StringComparer.Ordinal);
     readonly Dictionary<NetArchetypeId, CharacterConfig> _configsById = new();
     readonly Dictionary<NetArchetypeId, ReplicationActorKind> _kindsById = new();
+    PartyLoadout _playerLoadout;
 
     /// <summary>
     /// 当前房间动作 Id 与资产映射。
@@ -22,6 +23,9 @@ public sealed class ActContentRegistry
 
     /// <summary>当前已登记动作数，不含 Id=0。</summary>
     public int ActionCount => _actions.Count;
+
+    /// <summary>当前房间声明的玩家阵容；Dedicated Join 用同一槽序创建稳定实体。</summary>
+    public PartyLoadout PlayerLoadout => _playerLoadout;
 
     /// <summary>复制已登记网络原型 Id，供 Gameplay 指纹哈希。</summary>
     public void CopyArchetypeIds(List<int> results)
@@ -54,6 +58,27 @@ public sealed class ActContentRegistry
         return id;
     }
 
+    /// <summary>
+    /// 登记当前房间唯一玩家阵容并登记全部非空角色 Archetype。
+    /// 同一 Registry 不接受两份不同 Loadout，避免客户端与权威槽序分叉。
+    /// </summary>
+    public void RegisterPlayerLoadout(PartyLoadout loadout)
+    {
+        if (loadout == null)
+            throw new ArgumentNullException(nameof(loadout));
+        if (_playerLoadout != null && _playerLoadout != loadout)
+            throw new InvalidOperationException("当前房间已登记另一份 PartyLoadout。");
+
+        _playerLoadout = loadout;
+        IReadOnlyList<CharacterDefinition> members = loadout.Members;
+        for (int i = 0; i < members.Count; i++)
+        {
+            CharacterConfig config = members[i]?.CharacterConfig;
+            if (config != null)
+                RegisterPlayer(config);
+        }
+    }
+
     /// <summary>登记敌人定义；stableKey 固定为 enemy/{EnemyDefinition.name}。</summary>
     public NetArchetypeId RegisterEnemy(EnemyDefinition definition)
     {
@@ -75,19 +100,6 @@ public sealed class ActContentRegistry
             definition.CharacterConfig);
         _enemies.Add(definition, id);
         return id;
-    }
-
-    /// <summary>取任意已登记玩家配置，供 Join 在无 Host Actor 时解析角色。</summary>
-    public bool TryGetAnyPlayerConfig(out CharacterConfig config)
-    {
-        foreach (CharacterConfig registered in _players.Keys)
-        {
-            config = registered;
-            return true;
-        }
-
-        config = null;
-        return false;
     }
 
     /// <summary>按已登记玩家配置取得网络原型；未知配置明确失败。</summary>

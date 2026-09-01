@@ -26,10 +26,10 @@ public sealed class ActContentPrefillService
     public void InitializeFromScene()
     {
         PlayerController player = LocalPlayer;
-        if (player != null && player.CharacterConfig != null)
+        if (player?.PartyLoadout != null)
         {
-            _content.RegisterPlayer(player.CharacterConfig);
-            _content.PrefillActions(player.CharacterConfig);
+            _content.RegisterPlayerLoadout(player.PartyLoadout);
+            PrefillPlayerActions(player);
         }
 
         VisitEnemyDefinitions(
@@ -48,9 +48,26 @@ public sealed class ActContentPrefillService
 
         PlayerController player = LocalPlayer;
         if (player != null)
-            _content.PrefillActions(player.CharacterConfig);
+            PrefillPlayerActions(player);
         VisitEnemyDefinitions(
             definition => _content.PrefillActions(definition.CharacterConfig));
+    }
+
+    /// <summary>
+    /// 预填阵容全部角色动作；角色 Archetype 已由 RegisterPlayerLoadout 统一登记。
+    /// </summary>
+    void PrefillPlayerActions(PlayerController player)
+    {
+        if (player?.PartyLoadout == null)
+            return;
+
+        IReadOnlyList<CharacterDefinition> members = player.PartyLoadout.Members;
+        for (int i = 0; i < members.Count; i++)
+        {
+            CharacterConfig config = members[i]?.CharacterConfig;
+            if (config != null)
+                _content.PrefillActions(config);
+        }
     }
 
     /// <summary>遍历全部 EnemySpawnController 声明的定义，并跳过空条目。</summary>

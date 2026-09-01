@@ -1,12 +1,13 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-08-30（Unity Splines 2.8.4 + CM2 A/B SkillShot + Scene Knot 编辑已编译；Test/Play 待验）
+> Last updated: 2026-09-01（Party P-SW1 三槽稳定实体与普通切人代码已落地；Editor Action/Test/Play 待验）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
 
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
+| 三人阵容 / 单键换人 | 🟡 P-SW1 运行时/权威代码完成，Editor 验收待办 | `PartyLoadout`、`PartyCombatCoordinator`、`ActGameGuest` | 空格已进 Input Actions；需各角色 Graph 配 `SwitchIn` Entry |
 | Wave4 位移（Adhesion / SoftBody / Relocate） | ✅ 已实现（吸附已验收；Relocate 已接线） | `ActionMotionAdhesion` + `ActionMotionResolver` + Bridge | Branch_02 吸附已配；Relocate 按需加 MotionCommand 轨；相机不在本 Wave |
 | 命中受击 Cue（VFX/SFX） | ✅ 已实现（A2 打击感验收 2026-08-09） | `HitImpactController` + `HitFeedbackSettings` | 接触点落点 + 随机旋转；普攻 Cue 已验 |
 | 逻辑 Hurtbox 调试线框 | ✅ 已实现 | `CombatHurtboxDebugSettings` + `CombatHurtboxDebugVisualizer` | F4 开关（F3 HUD 显示状态） |
@@ -38,6 +39,71 @@
 | UI | ⬜ 未实现 | — | `UI/` 占位 |
 
 状态图例：✅ 可玩可用 · 🟡 有类/占位但未接完 · ⬜ 未开始
+
+---
+
+## 0.0 三人阵容 / 单键换人（P-SW0 + P-SW1）
+
+### 功能说明
+
+玩家座位由 `PartyLoadout` 声明最多三个角色；空格按槽序切到下一名可用角色。新角色立即接管输入并请求 `SwitchIn`，旧角色以 `Exiting` 完成当前 Action 后退场。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 角色身份 | `CharacterId`；Ordinal 字符串值 |
+| 角色定义 | `CharacterDefinition` 引用现有 `CharacterConfig`，并声明 `CharacterAssistStyle` |
+| 阵容 | `PartyLoadout` 保存 1～3 个 Definition 引用和 `StartingSlot`；空槽合法、Id 不可重复 |
+| 输入 | `InputButton.SwitchCharacter` 固定 bit 9；`InputReader` 可选采样同名 Input Action |
+| 顺序选择 | `PartySlotSelector` 从 Active 后一槽正序绕回，只接受 `Inactive` |
+| 普通切裁定 | `PartyCombatCoordinator.TryResolveSwitchIn` 输出 `DualPresence`，旧槽 Active→Exiting，新槽 Inactive→Active |
+| 运行时槽 | `PlayerController` / `ActGameGuest` 均按非空槽创建独立 `CharacterActor`；Inactive 空输入且不参与软碰撞/受击 |
+| 稳定身份 | 每槽独立 `SimActorId` / `NetEntityId`；禁止单 Actor 热换 Config |
+| Owner 复制 | V2 应用载荷下发槽 ActorId、ActiveSlot、累计命令 ACK；自有后台槽不会创建 Observer Proxy |
+| 状态复制 | `PartyMemberState` 编入角色快照 `FlagsPacked` 低三位；Observer 仅显示 Active / Exiting |
+| 内容预填 | Client / Server 登记 Loadout 全部角色 Archetype 与动作 |
+
+### 运行时流程
+
+```text
+InputReader.Sample → InputFrame.SwitchCharacter
+  → ClientCommand（仍是一座位一条输入流）
+  → DedicatedAuthorityWorld 预合并未应用命令
+  → ActGameGuest.TryResolveSwitch
+      → from = Exiting；to = Active
+      → to 对齐旧槽逻辑根，优先朝向 SelectedTarget
+      → to.QueueExternalIntent(SwitchIn)
+  → 输入写入新 Active ActorId
+  → SimulationWorld.Step（Active + Exiting + Inactive 独立 Actor）
+  → ReplicationFrame（全部槽快照 + Owner ActiveSlot）
+
+客户端同帧：
+ActClientRoomGameplay.StepPrediction
+  → PlayerController.StepPartyPrediction
+  → Active 收输入；Exiting/Inactive 收空输入
+  → 累计 ACK 未覆盖预测切人帧时，不用旧快照撤销切人
+```
+
+### 已知限制
+
+- `SwitchIn` 只提供代码意图；每个角色 ActionGraph 仍需 Editor 人工配置同名 Entry/Action。
+- 本轮已通过解决方案编译；Unity Test Runner 与 Listen Play 尚未验收，因此功能状态仍为 🟡。
+- P-SW2 金光、支援点、招架/回避支援尚未实现。
+
+### 相关文件
+
+- `Assets/Scripts/Domain/Party/*`
+- `Assets/Scripts/Domain/Simulation/Party/*`
+- `Assets/Scripts/App/Controllers/Gameplay/PlayerController.cs`
+- `Assets/Scripts/App/Networking/Services/ActContentPrefillService.cs`
+- `Assets/Scripts/App/Networking/Content/ActServerContentProbe.cs`
+- `Assets/Scripts/App/Networking/Adapters/ActGameSessionHandler.cs`
+- `Assets/Scripts/App/Networking/Services/DedicatedAuthorityWorld.cs`
+- `Assets/Scripts/Domain/Networking/ActReplicationApplicationPayload*.cs`
+- `Assets/Scripts/Domain/Simulation/Input/InputButton.cs`
+- `Assets/Scripts/Infrastructure/Input/InputReader.cs`
+- `docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`
 
 ---
 
@@ -1459,6 +1525,8 @@ CombatHitPipeline（全体 Actor Step 后）
 
 | 日期 | 变更 |
 |------|------|
+| 2026-08-31 | Party P-SW0 / P-SW1 骨架：CharacterId/Definition/Loadout、单键 SwitchCharacter、顺序槽位协调器；PlayerController 切到 Loadout，三 Actor 与联网尚未接 |
+| 2026-09-01 | Party P-SW1：每槽稳定 Actor/网络实体、Active/Exiting 输入与显隐、SwitchIn 外部意图、Owner 阵容载荷、累计切人 ACK 和 Debug HUD；Editor Graph/Test/Play 待验 |
 | 2026-06-17 | 初版：移动、输入、状态机、动画、相机、Prefab 文档化 |
 | 2026-06-17 | 动作系统 §7：ComboSequence、CombatMode、ACTION_EDITOR 对齐摘要 |
 | 2026-06-21 | ActionEditor 准备重构：CharacterActionDriver、UpdateFrame、Phase/Event 骨架、命中回流 |

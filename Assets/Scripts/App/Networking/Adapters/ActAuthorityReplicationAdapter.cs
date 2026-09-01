@@ -89,6 +89,8 @@ public sealed class ActAuthorityReplicationAdapter
         if (buffer.TryGetExact(targetFrame, actorId, out InputFrame existing))
             merged = existing.MergeSample(in merged);
 
+        // SwitchCharacter 属于座位协调命令，禁止继续进入 Active 角色的意图生产器。
+        merged = merged.WithoutButton(InputButton.SwitchCharacter);
         buffer.Set(in merged);
         return new ActAuthorityInputApplyResult(true, newestHint, firstAppliedHint);
     }
@@ -105,12 +107,19 @@ public sealed class ActAuthorityReplicationAdapter
             for (int i = 0; i < guests.Count; i++)
             {
                 ActGameGuest guest = guests[i];
-                if (guest?.Actor == null)
+                if (guest == null)
                     continue;
-                ActorReplicationSnapshot snapshot = _characterSchema.Capture(
-                    guest.Actor,
-                    ReplicationActorKind.Player);
-                AddEntityState(in snapshot, guest.ArchetypeId);
+                IReadOnlyList<ActGameGuestMember> members = guest.Members;
+                for (int slot = 0; slot < members.Count; slot++)
+                {
+                    ActGameGuestMember member = members[slot];
+                    if (member?.Actor == null)
+                        continue;
+                    ActorReplicationSnapshot snapshot = _characterSchema.Capture(
+                        member.Actor,
+                        ReplicationActorKind.Player);
+                    AddEntityState(in snapshot, member.ArchetypeId);
+                }
             }
         }
 

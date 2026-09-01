@@ -43,7 +43,8 @@ public sealed class ActObserverReplicationAdapter
     /// <summary>处理显式 Spawn；Owner 只回传快照，Observer 创建并注册精确 Archetype Proxy。</summary>
     public void ApplySpawns(
         SpawnRecord[] records,
-        SimActorId ownerActorId,
+        IReadOnlyList<SimActorId> ownerActorIds,
+        SimActorId activeOwnerActorId,
         long authorityTick,
         ref ActorReplicationSnapshot ownerSnapshot,
         ref bool hasOwnerSnapshot)
@@ -66,12 +67,15 @@ public sealed class ActObserverReplicationAdapter
                     + $"与 Snapshot Kind={snapshot.Kind} 不一致。");
             }
 
-            if (snapshot.ActorId == ownerActorId)
+            if (IsOwned(snapshot.ActorId, ownerActorIds))
             {
                 if (snapshot.Kind != ReplicationActorKind.Player)
-                    throw new InvalidOperationException("Owner Spawn 必须是 Player 原型。");
-                ownerSnapshot = snapshot;
-                hasOwnerSnapshot = true;
+                    throw new InvalidOperationException("Owner 阵容 Spawn 必须是 Player 原型。");
+                if (snapshot.ActorId == activeOwnerActorId)
+                {
+                    ownerSnapshot = snapshot;
+                    hasOwnerSnapshot = true;
+                }
                 continue;
             }
 
@@ -95,7 +99,8 @@ public sealed class ActObserverReplicationAdapter
     /// <summary>处理显式 Update；未知 Observer 实体明确失败，禁止静默创建默认 Proxy。</summary>
     public void ApplyUpdates(
         EntityRecord[] records,
-        SimActorId ownerActorId,
+        IReadOnlyList<SimActorId> ownerActorIds,
+        SimActorId activeOwnerActorId,
         long authorityTick,
         ref ActorReplicationSnapshot ownerSnapshot,
         ref bool hasOwnerSnapshot)
@@ -110,10 +115,13 @@ public sealed class ActObserverReplicationAdapter
                 record.EntityId,
                 record.SchemaId,
                 record.Payload);
-            if (snapshot.ActorId == ownerActorId)
+            if (IsOwned(snapshot.ActorId, ownerActorIds))
             {
-                ownerSnapshot = snapshot;
-                hasOwnerSnapshot = true;
+                if (snapshot.ActorId == activeOwnerActorId)
+                {
+                    ownerSnapshot = snapshot;
+                    hasOwnerSnapshot = true;
+                }
                 continue;
             }
 
@@ -141,7 +149,10 @@ public sealed class ActObserverReplicationAdapter
     }
 
     /// <summary>处理显式 Despawn；返回 false 表示 Owner 已被移除，调用方应结束房间。</summary>
-    public bool ApplyDespawns(DespawnRecord[] records, SimActorId ownerActorId)
+    public bool ApplyDespawns(
+        DespawnRecord[] records,
+        IReadOnlyList<SimActorId> ownerActorIds,
+        SimActorId activeOwnerActorId)
     {
         if (records == null)
             return true;
@@ -149,8 +160,13 @@ public sealed class ActObserverReplicationAdapter
         for (int i = 0; i < records.Length; i++)
         {
             int id = records[i].EntityId.Value;
-            if (id == ownerActorId.Value)
-                return false;
+            var actorId = new SimActorId(id);
+            if (IsOwned(actorId, ownerActorIds))
+            {
+                if (actorId == activeOwnerActorId)
+                    return false;
+                continue;
+            }
 
             if (!_proxies.TryGetValue(id, out RemoteCharacterProxy proxy))
                 throw new InvalidOperationException($"远端 Despawn {id} 没有已存在的 Proxy。");
@@ -252,6 +268,19 @@ public sealed class ActObserverReplicationAdapter
                 $"角色记录 EntityId={entityId.Value} 与 Snapshot ActorId={snapshot.ActorId.Value} 不一致。");
         }
         return snapshot;
+    }
+
+    /// <summary>判断实体是否属于本机玩家的任一稳定阵容槽。</summary>
+    static bool IsOwned(SimActorId actorId, IReadOnlyList<SimActorId> ownerActorIds)
+    {
+        if (ownerActorIds == null)
+            return false;
+        for (int i = 0; i < ownerActorIds.Count; i++)
+        {
+            if (ownerActorIds[i] == actorId)
+                return true;
+        }
+        return false;
     }
 
     /// <summary>按精确 CharacterConfig 创建 Remote Proxy；缺模型或 SimulationHost 时明确失败。</summary>

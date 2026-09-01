@@ -81,6 +81,7 @@ public sealed class CombatDebugHudController : AppControllerBase
         AppendRoomLine(_sb, in room);
         if (hasActor)
         {
+            AppendPartyLine(_sb, playerController);
             AppendSnapshot(
                 _sb,
                 in _cached,
@@ -90,6 +91,32 @@ public sealed class CombatDebugHudController : AppControllerBase
         float height = Mathf.Min(420f, Screen.height * 0.55f);
         GUI.Box(new Rect(8f, 8f, width, height), GUIContent.none, _boxStyle);
         GUI.Label(new Rect(16f, 16f, width - 16f, height - 16f), _sb.ToString(), _labelStyle);
+    }
+
+    /// <summary>输出本机阵容槽、稳定 ActorId 与 Active/Exiting 状态。</summary>
+    static void AppendPartyLine(StringBuilder sb, PlayerController player)
+    {
+        if (player?.PartyLoadout == null)
+            return;
+
+        sb.Append("Party: ");
+        for (int i = 0; i < player.PartyActors.Count; i++)
+        {
+            if (i > 0)
+                sb.Append(" | ");
+            CharacterActor member = player.PartyActors[i];
+            sb.Append('[').Append(i).Append("] ");
+            if (member == null)
+            {
+                sb.Append("Empty");
+                continue;
+            }
+
+            sb.Append(member.PartyState)
+                .Append(" #")
+                .Append(member.SimulationId.Value);
+        }
+        sb.AppendLine();
     }
 
     /// <summary>房间角色、权威帧与 W0 网络基线；客机无本地 Actor 时仍显示。</summary>

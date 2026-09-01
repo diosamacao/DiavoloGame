@@ -1,15 +1,20 @@
 using System;
 using NUnit.Framework;
 
-/// <summary>验证 ACT 帧级应用载荷的唯一命中线布局与严格协议边界。</summary>
+/// <summary>验证 ACT 帧级应用载荷的阵容身份、命中布局与严格协议边界。</summary>
 public sealed class ActReplicationApplicationPayloadCodecTests
 {
-    /// <summary>Hint 与全部命中字段往返保持一致。</summary>
+    /// <summary>Hint、阵容身份与全部命中字段往返保持一致。</summary>
     [Test]
     public void RoundTrip_PreservesHintAndHits()
     {
         ReplicatedHitEvent hit = CreateHit();
-        var payload = new ActReplicationApplicationPayload(42, new[] { hit });
+        var payload = new ActReplicationApplicationPayload(
+            42,
+            new[] { hit },
+            new[] { new SimActorId(11), SimActorId.Invalid, new SimActorId(33) },
+            2,
+            99);
 
         ActReplicationApplicationPayload restored =
             ActReplicationApplicationPayloadCodec.Decode(
@@ -18,6 +23,9 @@ public sealed class ActReplicationApplicationPayloadCodecTests
         Assert.That(restored.AppliedClientFrameHint, Is.EqualTo(42));
         Assert.That(restored.Hits, Has.Length.EqualTo(1));
         Assert.That(restored.Hits[0].Equals(hit), Is.True);
+        Assert.That(restored.PartyActorIds, Is.EqualTo(payload.PartyActorIds));
+        Assert.That(restored.ActivePartySlot, Is.EqualTo(2));
+        Assert.That(restored.LastAppliedClientFrameHint, Is.EqualTo(99));
     }
 
     /// <summary>null 命中数组编码为空数组，且不会在访问副本时泄漏内部状态。</summary>
@@ -50,7 +58,7 @@ public sealed class ActReplicationApplicationPayloadCodecTests
     {
         byte[] bytes =
         {
-            2,
+            1,
             0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0,
         };
@@ -78,6 +86,7 @@ public sealed class ActReplicationApplicationPayloadCodecTests
         {
             ActReplicationApplicationPayloadCodec.Version,
             0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0,
             0xFF, 0xFF, 0xFF, 0xFF,
         };
 
@@ -85,14 +94,15 @@ public sealed class ActReplicationApplicationPayloadCodecTests
             () => ActReplicationApplicationPayloadCodec.Decode(bytes));
     }
 
-    /// <summary>超过 MaxHits 的 count 在分配数组前被拒绝。</summary>
+    /// <summary>超过最大阵容槽数的 count 在分配数组前被拒绝。</summary>
     [Test]
     public void Decode_OverLimitCount_Throws()
     {
-        int count = ActReplicationApplicationPayloadCodec.MaxHits + 1;
+        int count = PartyLoadoutRules.MaxMembers + 1;
         byte[] bytes =
         {
             ActReplicationApplicationPayloadCodec.Version,
+            0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0,
             (byte)count, (byte)(count >> 8), (byte)(count >> 16), (byte)(count >> 24),
         };
@@ -125,18 +135,21 @@ public sealed class ActReplicationApplicationPayloadCodecTests
             () => ActReplicationApplicationPayloadCodec.Decode(valid));
     }
 
-    /// <summary>冻结 V1：版本字节后依次为 little-endian hint、count 与命中字段。</summary>
+    /// <summary>冻结 V2：版本、hint、槽身份、Active 槽、count 与命中字段。</summary>
     [Test]
-    public void GoldenBytes_FreezesVersionOneLayout()
+    public void GoldenBytes_FreezesVersionTwoLayout()
     {
         const string golden =
-            "01080706050403020101000000"
+            "0208070605040302010000000000000000030000000B0000000000000021000000"
+            + "0200000001000000"
             + "0900000000000000090000000000000001000000020000000300000004000000"
             + "05000000FAFFFFFF07000000F8FFFFFFE803000018FCFFFF";
         byte[] actual = ActReplicationApplicationPayloadCodec.Encode(
             new ActReplicationApplicationPayload(
                 0x0102030405060708,
-                new[] { CreateHit() }));
+                new[] { CreateHit() },
+                new[] { new SimActorId(11), SimActorId.Invalid, new SimActorId(33) },
+                2));
 
         Assert.That(actual, Is.EqualTo(ParseHex(golden)));
     }

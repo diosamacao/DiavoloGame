@@ -46,6 +46,22 @@ public sealed class ActOwnerReplicationAdapter
         _selfHealthMilli = -1;
     }
 
+    /// <summary>
+    /// 切换当前受控槽身份并丢弃上一槽预测历史；输入历史由座位继续共用。
+    /// </summary>
+    public void SetActiveOwnerActor(SimActorId ownerActorId)
+    {
+        if (!ownerActorId.IsValid)
+            throw new ArgumentException("Active Owner 必须绑定有效 SimActorId。", nameof(ownerActorId));
+        if (_ownerActorId == ownerActorId)
+            return;
+
+        _ownerActorId = ownerActorId;
+        _driver = null;
+        _actionAck = new PredictedActionAckQueue();
+        _hasSelfSnapshot = false;
+    }
+
     /// <summary>记录本逻辑帧 Autonomous Actor 已执行的动作与位移结果，供后续 ACK/Replay。</summary>
     public void RecordAutonomous(
         CharacterActor actor,

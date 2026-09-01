@@ -326,7 +326,7 @@ QuickAssist         → InstantReplace
 | P-SW2 | Cue 窗、支援点、招架/回避、支援突击 | 连续招架 13 段、视域镜头演出打磨 |
 | P-SW3 | 击飞 → 快速支援 | 支援角色 EX 触发快速支援 |
 | P-SW4 | 敌人 Daze + 连携选人（可先自动切下一名） | 手动长按跳过连携、邦布 |
-| P-SW5 | 三人进复制/预测 | 公网 |
+| P-SW5 | 支援点/Cue 等后续 Party 状态复制与公网验收 | 每槽稳定实体（已提前到 P-SW1） |
 
 ---
 
@@ -338,17 +338,18 @@ QuickAssist         → InstantReplace
 
 **任务**
 
-- [ ] 新增 `CharacterId`（只读字符串包装或稳定 string 约定）  
-- [ ] 新增 `CharacterDefinition` SO：`characterId`、`assistStyle`（MeleeParry / RangedEvade）、`combatConfig`（现有 `CharacterConfig`）、预留 `element`/`faction`/`specialty` **不读**  
-- [ ] 新增 `PartyLoadout` SO：`CharacterId[]` 长度 1～3、`startingSlot`  
-- [ ] `PlayerController` 改绑 `PartyLoadout`（可暂只填 1 人，行为与现单人等价）  
-- [ ] **删除**座位「只认单 CharacterConfig、无 Id」作为唯一装配入口  
+- [x] 新增 `CharacterId`（只读字符串包装）
+- [x] 新增 `CharacterDefinition` SO：`characterId`、`assistStyle`（MeleeParry / RangedEvade）、`characterConfig`、预留 `element`/`faction`/`specialty` **不读**
+- [x] 新增 `PartyLoadout` SO：1～3 个 `CharacterDefinition` 引用（身份仍取 `CharacterId`）、`startingSlot`；中间空槽合法
+- [x] `PlayerController` 改绑 `PartyLoadout`
+- [x] Client / Server 内容预填遍历 Loadout 全部角色并登记各槽网络 Archetype
+- [x] **删除**座位「只认单 CharacterConfig、无 Id」作为唯一装配入口
 
 **验收**
 
 - [ ] EditMode：Loadout 3 槽校验（重复 Id 失败、空槽允许、越界 startingSlot 失败）  
 - [ ] 单槽 Loadout Play：进关、相机、出招与改前单 Config 等价  
-- [ ] `rg "SerializeField] CharacterConfig characterConfig"` 在 `PlayerController` 无匹配  
+- [x] `rg "SerializeField] CharacterConfig characterConfig"` 在 `PlayerController` 无匹配
 
 **出口：** 养成可挂 Id，战斗仍可单人。→ **未达成**
 
@@ -356,14 +357,15 @@ QuickAssist         → InstantReplace
 
 **任务**
 
-- [ ] `InputButton` 只增加 `SwitchCharacter`；`InputBindingUtils` + Input Actions 绑空格（Editor 人工）  
-- [ ] `PartyCombatCoordinator`：顺序找下一可激活槽、写 ActiveIndex；普通切下场 `Exiting`（`DualPresence`）  
-- [ ] **禁止** `SwitchPrev` / 反向切人键 / 左右同帧仲裁  
-- [ ] 座位创建最多 3 个 `CharacterActor`；仅 Active 接收玩法输入  
-- [ ] `GameplayIntentType.SwitchIn`；每角色 Graph 配 Entry  
-- [ ] 普通切上场 Pose：对齐下场逻辑根附近 + 朝向 SelectedTarget（无目标则继承朝向）  
-- [ ] **禁止**普通切走 InstantReplace / Relocate 贴敌
-- [ ] Debug HUD：槽位、Active、Exiting  
+- [x] `InputButton` / `InputBindingUtils` / `InputReader` 增加唯一 `SwitchCharacter`；Input Actions 绑空格仍需 Editor 人工
+- [x] `PartyCombatCoordinator` 纯逻辑：顺序找下一可激活槽、写 ActiveIndex；普通切下场 `Exiting`（`DualPresence`）
+- [x] **禁止** `SwitchPrev` / 反向切人键 / 左右同帧仲裁
+- [x] 座位创建最多 3 个 `CharacterActor`；仅 Active 接收玩法输入
+- [x] `GameplayIntentType.SwitchIn` 与 Coordinator 外部意图注入；每角色 Graph 配 Entry 仍需 Editor
+- [x] 普通切上场 Pose：对齐下场逻辑根 + 优先朝向本槽 SelectedTarget（无目标继承朝向）
+- [x] **禁止**普通切走 InstantReplace / Relocate 贴敌
+- [x] Debug HUD：槽位、稳定 ActorId、Active、Exiting
+- [x] P-SW5 身份基础前置：每槽稳定 `SimActorId/NetEntityId`，Owner 载荷同步槽身份与 ActiveSlot
 
 **验收**
 
@@ -432,12 +434,14 @@ QuickAssist         → InstantReplace
 
 **出口：** 三人循环「破防 → 切人爆发」可演示。→ **未达成**
 
-### P-SW5 — 复制（不挡 P-SW2 验收）
+### P-SW5 — Party 后续状态复制与公网验收
 
 **任务**
 
-- [ ] 每槽独立实体或明确「一席三 Archetype」方案（只留一种，开工前补一页契约）  
-- [ ] ActiveIndex / AssistPoints / Cue 进权威快照  
+- [x] 每槽独立稳定实体；已删除「一席热换单 Actor/Archetype」候选路径
+- [x] ActiveIndex 与 Owner 槽 ActorId 进入 V2 帧级应用载荷
+- [x] `PartyMemberState` 进入角色快照 Flags，Observer 只显示 Active / Exiting
+- [ ] AssistPoints / Cue 进入权威快照
 
 **验收**
 
@@ -471,23 +475,25 @@ QuickAssist         → InstantReplace
 
 ```text
 Assets/Scripts/Domain/Party/
-  CharacterId.cs
-  CharacterAssistStyle.cs
   CharacterDefinition.cs          // SO
   PartyLoadout.cs                 // SO
+Assets/Scripts/Domain/Simulation/Party/
+  CharacterId.cs
+  CharacterAssistStyle.cs
   PartyMemberState.cs
+  PartySlotSelector.cs
+  PartyLoadoutRules.cs
   PartyCombatCoordinator.cs
-  SwitchCommand.cs
+  PartySwitchCommand.cs
   WorldAssistCueBoard.cs
 Assets/Scripts/Domain/Combat/Actions/Frames/
   AssistCueNotifyState.cs         // 敌人 Timeline 窗
 Assets/Scripts/Domain/Simulation/Input/
   InputButton.cs                  // + SwitchCharacter（无 SwitchPrev）
   GameplayIntentType.cs           // + SwitchIn / Assist* / …
-Assets/Tests/EditMode/Domain/Party/
-  PartyLoadoutTests.cs
+Assets/Tests/EditMode/Simulation/
+  PartyCombatCoordinatorTests.cs
   PartyAssistResolveTests.cs
-  PartyCoordinatorTests.cs
 docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md
 ```
 
@@ -500,7 +506,7 @@ docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md
 | 风险 | 对策 |
 |------|------|
 | 3 Actor 步进成本 | 后台跳过 Motor 重计算可后做；首版先全 Step 但 Inactive 空输入、不进软弹开 |
-| 换人与预测回滚 | P-SW1～4 本机权威即可；P-SW5 再进 Snapshot |
+| 换人与预测回滚 | P-SW1 已进入 Dedicated 权威：累计命令 ACK 覆盖切人帧前，不用旧 ActiveSlot 撤销本地预测 |
 | 招架要「打断」敌招 | 招架 Hitbox 走 Pipeline + 已有 Reaction；敌 Graph 配高打断档 |
 | 极限视域像顿帧 | 逻辑 `dilationPermille` 只作用于敌方 Action/Motor 步长；表现插值跟同一时钟 |
 | 资产未齐 | 可用占位 Action（无 Clip）验收状态机；Clip/VFX Editor 人工 |
@@ -518,7 +524,7 @@ docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md
 5. 每角色 Graph：Entry 节点 `SwitchIn` / `AssistParry` 或 `AssistEvade` / `AssistFollowUp` /（P-SW3）`QuickAssist`。  
 6. 对应 `ActionDefinition` 配 Clip + Timeline：登场位移、招架 Hitbox、无敌、VFX/SFX。  
 7. 木桩/精英敌 Graph：至少 1 个攻击节点加 Gold `AssistCue` 窗。  
-8. 相机：确认 Follow 读座位 Active 锚点（可先手工改引用）。
+8. Play 确认相机随 `PlayerController.PresentationRoot` 自动切到当前 Active 槽；无需逐角色拖引用。
 
 ---
 
@@ -526,11 +532,11 @@ docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md
 
 ```text
 P-SW0 身份/Loadout
-  → P-SW1 三 Actor 普通切人（最小可感）
+  → P-SW1 三 Actor + 稳定复制身份 + 普通切人（最小可感）
   → P-SW2 金光弹刀 + 突击
   → P-SW3 击飞快速支援
   → P-SW4 失衡连携
-  → P-SW5 复制
+  → P-SW5 支援状态复制与公网验收
 ```
 
 **最小可感切片：** P-SW1 — 三个占位角色按空格顺序循环上场并播登场 Action。
@@ -544,3 +550,5 @@ P-SW0 身份/Loadout
 | 2026-08-30 | 初版：收集绝区零换人/支援/连携规则；定案 Graph vs 编队分层；薄身份不做养成 |
 | 2026-08-31 | 锁定两种切人表现：普通 DualPresence（SwitchIn+下场播完）；弹刀 InstantReplace（不播 SwitchIn/Out，frame 0 Relocate 到 Cue 弹刀点） |
 | 2026-08-31 | 切人输入只留 `SwitchCharacter` 单键顺序循环；不做 SwitchPrev |
+| 2026-08-31 | 开始实现：P-SW0 代码与 P-SW1 纯逻辑骨架；因现行一座位一网络实体，三 Actor 运行时接线保持未完成 |
+| 2026-09-01 | P-SW1 采用每槽稳定网络实体：三 Actor、Active 输入路由、DualPresence、SwitchIn 意图、Owner 阵容载荷与 Observer 显隐代码完成；Graph 资产/Test/Play 待验 |

@@ -49,23 +49,11 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
     public bool TryAcceptPlayer(in MatchPlayerSlot slot, out NetEntityId entityId)
     {
         entityId = NetEntityId.Invalid;
-        if (!_content.TryGetAnyPlayerConfig(out CharacterConfig config)
-            && slot.ArchetypeId.IsValid)
-        {
-            try
-            {
-                config = _content.ResolveCharacterConfig(slot.ArchetypeId);
-            }
-            catch (KeyNotFoundException)
-            {
-                config = null;
-            }
-        }
-
+        PartyLoadout loadout = _content.PlayerLoadout;
         MatchSpawnPose spawn = slot.Spawn;
-        if (config == null
+        if (loadout == null
             || !_gameSession.TryCreateGuest(
-                config,
+                loadout,
                 spawn,
                 _host,
                 slot.ConnectionId,
@@ -94,6 +82,20 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
             || _host.World == null)
         {
             return;
+        }
+
+        long targetFrame = _host.CurrentFrame + 1;
+        if (RoomRemoteInputMerge.TryMergeUnapplied(
+                commands,
+                guest.LastAppliedFrameHint,
+                targetFrame,
+                guest.Actor.SimulationId,
+                out InputFrame preview,
+                out _,
+                out _)
+            && preview.WasPressed(InputButton.SwitchCharacter))
+        {
+            guest.TryResolveSwitch();
         }
 
         ActAuthorityInputApplyResult result = _authority.ApplyGuestCommands(
@@ -200,6 +202,8 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
     {
         if (_guests.Count == 0)
             return;
+        foreach (ActGameGuest guest in _guests.Values)
+            guest.CompleteFinishedExits();
         EnqueueFrames(authorityFrame, connections: null);
     }
 
@@ -230,7 +234,12 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
             long appliedHint = pair.Value.AppliedHintThisTick;
             pair.Value.AppliedHintThisTick = 0;
             byte[] applicationBytes = ActReplicationApplicationPayloadCodec.Encode(
-                new ActReplicationApplicationPayload(appliedHint, null));
+                new ActReplicationApplicationPayload(
+                    appliedHint,
+                    null,
+                    pair.Value.CopyPartyActorIds(),
+                    pair.Value.Coordinator.ActiveIndex,
+                    pair.Value.LastAppliedFrameHint));
             bool forceFull = connections != null
                 || _pendingFullRecovery.Remove(pair.Key);
             if (forceFull)

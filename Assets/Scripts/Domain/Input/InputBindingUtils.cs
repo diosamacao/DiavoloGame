@@ -45,6 +45,9 @@ public static class InputBindingUtils
             case "Ultimate":
                 button = InputButton.Ultimate;
                 return true;
+            case "SwitchCharacter":
+                button = InputButton.SwitchCharacter;
+                return true;
             default:
                 button = default;
                 return false;
