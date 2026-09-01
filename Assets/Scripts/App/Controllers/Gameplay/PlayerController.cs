@@ -254,7 +254,7 @@ public class PlayerController : AppControllerBase, ILocalPlayer
         }
     }
 
-    /// <summary>客户端预测一次普通切人；新角色贴到旧角色位姿并排队 SwitchIn。</summary>
+    /// <summary>客户端预测一次普通切人；新角色落到旧角色局部右侧并排队 SwitchIn。</summary>
     public bool TryPredictPartySwitch(long frameIndex)
     {
         if (_partyCoordinator == null
@@ -265,14 +265,8 @@ public class PlayerController : AppControllerBase, ILocalPlayer
 
         CharacterActor from = _partyActors[command.FromSlot];
         CharacterActor to = _partyActors[command.ToSlot];
-        to.MotorSim.TeleportMm(
-            from.MotorSim.PositionMm.X,
-            from.MotorSim.YMm,
-            from.MotorSim.PositionMm.Z);
-        to.AlignSwitchFacing(from.MotorSim.FacingMilliDeg);
-        to.AlignSimulationRootToMotor();
-        to.SnapPresentationToSimulation();
-        from.SetPartyState(PartyMemberState.Exiting);
+        to.PlaceForNormalSwitchFrom(from);
+        from.BeginPartyExit();
         to.SetPartyState(PartyMemberState.Active);
         to.QueueExternalIntent(GameplayIntentType.SwitchIn);
         _predictedSwitchFrame = frameIndex;
@@ -350,10 +344,10 @@ public class PlayerController : AppControllerBase, ILocalPlayer
             CharacterActor member = _partyActors[i];
             if (member == null || member.PartyState != PartyMemberState.Exiting)
                 continue;
-            if (member.ActionSim.IsActive || member.CurrentState != CharacterStateType.Locomotion)
+            if (!member.IsPartyExitReady)
                 continue;
+            member.CompletePartyExit();
             _partyCoordinator.CompleteExit(i);
-            member.SetPartyState(PartyMemberState.Inactive);
         }
     }
 

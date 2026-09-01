@@ -216,6 +216,21 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
     public IReadOnlyList<ActionPhaseNotifyState> GetActivePhasesAtFrame(int frame) =>
         Timeline.GetActivePhaseStatesAtFrame(frame);
 
+    /// <summary>指定帧是否位于任一 Recovery 阶段；普通切人据此提前结束原招表现。</summary>
+    public bool IsRecoveryAtFrame(int frame)
+    {
+        foreach (ActionPhaseNotifyState phase in Timeline.PhaseStates)
+        {
+            if (phase != null
+                && phase.Kind == ActionPhaseKind.Recovery
+                && phase.IsActiveAtFrame(frame))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// <summary>指定帧是否处于 Invincible 相位（普通 i-frame）。</summary>
     public bool IsInvincibleAtFrame(int frame)
     {

@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
+  m_Name: Anbi_SwitchOut
+  m_EditorClassIdentifier: 
+  animationSegments:
+  - clip: {fileID: 4475403916718268433, guid: 00d41248ab779fe4fb58d1076787b05f, type: 3}
+    startFrame: 0
+    endFrame: -1
+    hasCrossFadeOverride: 0
+    crossFadeDuration: 0
+  sampleRate: 60
+  totalFrames: 56
+  actionType: 0
+  crossFadeDuration: 0.1
+  executionPolicy:
+    interruptPriority: 0
+    baseMotionMode: 2
+  resourceSpec:
+    resourceTag: 0
+    energyCost: 0
+    energyGrantOnHit: 0
+    decibelGrantOnHit: 0
+    consumeDodgeCharge: 0
+    requiresDecibelFull: 0
+    clearsDecibelOnStart: 0
+  timeline:
+    actionEvents: []
+    playVfxNotifies: []
+    playSfxStates: []
+    hitboxStates: []
+    hurtboxStates: []
+    cancelWindowStates: []
+    phaseStates:
+    - id: Phase_1
+      startFrame: 49
+      endFrame: 55
+      priority: 0
+      trackName: Phase_1
+      kind: 2
+      interruptible: 1
+      allowMovementCancel: 1
+      allowEntryRestart: 1
+    perfectDodgeWindowStates: []
+    movementStates: []
+    rotationStates: []
+    motionModifierStates: []
+    motionCommandNotifies: []
+    cameraSettings:
+      restoreMode: 0
+      suppressLookInput: 1
+    cameraShotStates: []
+    tracks:
+    - trackName: Phase_1
+      kind: 8
+      visible: 1
+  bakedMotion:
+    logicHz: 60
+    frameCount: 57
+    planarMode: 2
+    positionDeltaMmX: 0f000000110000001800000019000000130000000d00000004000000fffffffffcfffffff9fffffff8fffffff8fffffff9fffffff9fffffff7fffffff7fffffff8fffffffafffffffdfffffffffffffffffffffffffffffffcfffffffbfffffffcfffffffbfffffff8fffffff9fffffffeffffff00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    positionDeltaMmZ: a4000000920000005c000000480000004c000000500000005e0000006500000066000000620000005c00000057000000510000004a00000041000000380000002d000000200000001300000005000000f7ffffffdeffffffb8ffffff94ffffff72ffffff3affffffebfeffffd4fefffff8feffff07ffffff04ffffff02ffffff02ffffff02ffffff02ffffff02ffffff03ffffff05ffffff06ffffff08ffffff0affffff0cffffff0fffffff12ffffff15ffffff19ffffff1effffff26ffffff30ffffff3dffffff4dffffff5fffffff73ffffff8affffffb2ffffffc3ffffff00000000
+    yawDeltaMilliDeg: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    inplaceContentHash: Assets/Art/Characters/Anbi/Blender_FbxFormat_Inplace/Anbi_SwitchOut_Normal_Inplace.fbx|Anbi_SwitchOut_Normal_Inplace|0.93333|30.000;
+    rootMotionContentHash: Assets/Art/Characters/Anbi/Blender_FbxFormat_Root/Anbi_SwitchOut_Normal.fbx|Anbi_SwitchOut_Normal|0.93333|30.000;
+    matchedRootMotionName: Anbi_SwitchOut_Normal
+    bakeStatus: 1

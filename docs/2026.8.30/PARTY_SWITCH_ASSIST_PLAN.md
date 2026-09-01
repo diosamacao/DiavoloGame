@@ -47,7 +47,7 @@ SKILL 方案原裁定：切人 / 支援 / 连携 = 后置
 ### 1.2 痛点
 
 1. 产品已要求「最多 3 人出战 + 切人弹刀」，技能方案仍把切人标后置，与现需求冲突。  
-2. 切人不是「换模型」：普通切是双人过场（下场播完 / 上场 SwitchIn）；金光弹刀是瞬切到弹刀点，不播 SwitchIn/SwitchOut。  
+2. 切人不是「换模型」：普通切是双人过场（空闲立即播 SwitchOut；已有 Action 到 Recovery 后转 SwitchOut；SwitchOut 到自身 Recovery 才隐藏；上场播 SwitchIn）；金光弹刀是瞬切到弹刀点，不播 SwitchIn/SwitchOut。
 3. 若把「换谁、支援点够不够」写进某张 `ActionGraph`，三人各自 Graph 会互相引用、无法锁步测试。  
 4. 若只做临时 `if (下一个角色)` 切 Prefab，养成与联网会无身份可挂。
 
@@ -84,7 +84,7 @@ SKILL 方案原裁定：切人 / 支援 / 连携 = 后置
 | 切人 CD | 无 | 无时间 CD |
 | 下场（普通切） | 不打断当前招，做完再退场；未退场不可再切出 | 仅 `SwitchPresentation.DualPresence`：下场 `Exiting` |
 | 下场（极限支援） | 当场角色立刻消失，不播 SwitchOut | `InstantReplace`：下场当帧 `Inactive`，禁止 SwitchOut |
-| 上场普通切 | 后方冲入，播登场 | 上场 `SwitchIn`；出生在下场逻辑根附近 |
+| 上场普通切 | 侧方冲入，播登场 | 上场 `SwitchIn`；出生在下场角色局部右侧 0.6m |
 | 上场弹刀切 | 下一角色直接播招架/回避，并吸附到弹刀点 | 上场只起 `AssistParry`/`AssistEvade`；frame 0 `Relocate` + `SnapFacing` |
 | 金光 | 特定攻击金色闪光；切人消耗支援点 → 极限支援 | 敌人 Timeline `AssistCueWindow`（Gold） |
 | 红光 | 点数不足或类型不匹配时金变红；切人 → 极限闪避（换人闪） | 同一窗降级为 Red；上场走 `SwitchPerfectDodge` |
@@ -188,7 +188,7 @@ PartyCombatCoordinator.TryResolveSwitch
   kind = SwitchIn | AssistParry | AssistEvade | SwitchPerfectDodge | QuickAssist
   presentation = DualPresence | InstantReplace
        ↓
-  DualPresence  ：下场 Exiting（播完当前招）；上场 SwitchIn
+  DualPresence  ：下场 Exiting（空闲立即播 SwitchOut；有招到 Recovery 后转 SwitchOut；SwitchOut Recovery 隐藏）；上场 SwitchIn
   InstantReplace：下场当帧 Inactive（不播 SwitchOut）；上场只播支援招 + Relocate
   上场槽 → Active；只把玩法输入灌给该 Actor
   上场 Intent → 该角色 ActionGraph.TryResolveStart
@@ -206,7 +206,7 @@ flowchart TB
   AssistPts[PartyAssistPoints] --> Coordinator
   Def[CharacterDefinition.AssistStyle] --> Coordinator
   Coordinator -->|kind + presentation| IncomingIntent[上场 GameplayIntentType]
-  Coordinator -->|DualPresence Exiting| Outgoing[下场 CharacterActor 播完再 Inactive]
+  Coordinator -->|DualPresence Exiting| Outgoing[空闲立即 SwitchOut / 有招 Recovery 后切 SwitchOut / 其 Recovery 后 Inactive]
   Coordinator -->|InstantReplace| Hide[下场当帧 Inactive 不播 SwitchOut]
   IncomingIntent --> Graph[上场 ActionGraph.TryResolveStart]
   Graph --> ActionSim[ActionSim.Step]
@@ -271,7 +271,7 @@ Active 处于击飞档 Hit 且上场可激活 → QuickAssist（优先于普通 
 enum PartyMemberState : Inactive | Active | Exiting | Dead
 Inactive  : 后台；可被切出；仍 Step 个人回能（接战规则跟 SKILL 能量，后台也回）
 Active    : 收 InputFrame 玩法键；进索敌/软弹开/Hurtbox
-Exiting   : 播完当前 Action 或 Locomotion 一拍后 → Inactive；不可再激活
+Exiting   : 空闲立即 SwitchOut；有 Action 时首次进入 Recovery 即 Stop → SwitchOut；SwitchOut 首次进入 Recovery → Inactive
 Dead      : 不可切出；队灭规则后置
 ```
 
@@ -285,9 +285,9 @@ Dead      : 不可切出；队灭规则后置
 |--|-------------------------|-----------------------------------------------------|
 | 触发 | 无 Cue（或 Cue 已过） | Gold / Red / 击飞窗 |
 | 上场播什么 | **只** `SwitchIn` | **只** `AssistParry` / `AssistEvade` / `SwitchPerfectDodge` / `QuickAssist` |
-| 下场播什么 | 当前招播完（可另配 `SwitchOut`，非必须） | **不播** SwitchOut；当帧隐身进 `Inactive` |
+| 下场播什么 | 空闲立即播 `SwitchOut`；已有 Action 到首次 Recovery 后切 `SwitchOut`；只在 `SwitchOut` 的 Recovery 隐藏 | **不播** SwitchOut；当帧隐身进 `Inactive` |
 | 场上人数 | 可两人同框（下场收招 + 上场冲入） | **一人**：上场角色出现在弹刀/回避点 |
-| 出生点 | 下场逻辑根附近（略退后冲入） | 敌人 Cue 给出的弹刀点（见下） |
+| 出生点 | 下场角色局部右侧 0.6m（以旧角色 Motor 朝向为基准） | 敌人 Cue 给出的弹刀点（见下） |
 | 吸附 | 不强制贴敌 | frame 0：`RelocateToTargetOffset` + `SnapFacingToTarget` |
 | 连招 | 无突击武装 | 招架/回避结束后武装 `AssistFollowUp` |
 
@@ -361,8 +361,8 @@ QuickAssist         → InstantReplace
 - [x] `PartyCombatCoordinator` 纯逻辑：顺序找下一可激活槽、写 ActiveIndex；普通切下场 `Exiting`（`DualPresence`）
 - [x] **禁止** `SwitchPrev` / 反向切人键 / 左右同帧仲裁
 - [x] 座位创建最多 3 个 `CharacterActor`；仅 Active 接收玩法输入
-- [x] `GameplayIntentType.SwitchIn` 与 Coordinator 外部意图注入；每角色 Graph 配 Entry 仍需 Editor
-- [x] 普通切上场 Pose：对齐下场逻辑根 + 优先朝向本槽 SelectedTarget（无目标继承朝向）
+- [x] `GameplayIntentType.SwitchIn/SwitchOut` 与 Coordinator 外部意图注入；每角色 Graph 配两个 Entry 仍需 Editor
+- [x] 普通切上场 Pose：从下场逻辑根沿旧角色局部右向偏移 600mm，经静态碰撞解析；优先朝向本槽 SelectedTarget（无目标继承朝向）
 - [x] **禁止**普通切走 InstantReplace / Relocate 贴敌
 - [x] Debug HUD：槽位、稳定 ActorId、Active、Exiting
 - [x] P-SW5 身份基础前置：每槽稳定 `SimActorId/NetEntityId`，Owner 载荷同步槽身份与 ActiveSlot
@@ -371,7 +371,7 @@ QuickAssist         → InstantReplace
 
 - [ ] Play：空格按槽位顺序循环（0→1→2→0）；上场播登场 Action（无资产时可空 Timeline 但必须进 Action 态）  
 - [ ] 下场未结束时再切回该槽：忽略  
-- [ ] 无时间 CD；Locomotion 下切人立即 Exiting→上场  
+- [ ] 无时间 CD；空闲立即 SwitchOut；已有 Action 在首次 Recovery 切 SwitchOut；仅 SwitchOut Recovery 隐藏
 - [ ] `PartyCoordinatorTests`：空槽/死亡/Exiting 拒绝  
 
 **出口：** 无闪光也能三人轮换。→ **未达成**
@@ -521,8 +521,8 @@ docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md
 2. 建 `PartyLoadout`，拖 1～3 个 Id。  
 3. `PlayerController` 改绑 Loadout。  
 4. Input Actions 只增加 `SwitchCharacter`（建议空格），由 Coordinator 消费；**不要**映射成 Graph Intent，**不要**做 SwitchPrev。  
-5. 每角色 Graph：Entry 节点 `SwitchIn` / `AssistParry` 或 `AssistEvade` / `AssistFollowUp` /（P-SW3）`QuickAssist`。  
-6. 对应 `ActionDefinition` 配 Clip + Timeline：登场位移、招架 Hitbox、无敌、VFX/SFX。  
+5. 每角色 Graph：P-SW1 配 `SwitchIn`、`SwitchOut` Entry；后续再配 `AssistParry` 或 `AssistEvade` / `AssistFollowUp` /（P-SW3）`QuickAssist`。
+6. 对应 `ActionDefinition` 配 Clip + Timeline：`SwitchOut` 必须配置 Recovery Phase；其它动作配置登场位移、招架 Hitbox、无敌、VFX/SFX。
 7. 木桩/精英敌 Graph：至少 1 个攻击节点加 Gold `AssistCue` 窗。  
 8. Play 确认相机随 `PlayerController.PresentationRoot` 自动切到当前 Active 槽；无需逐角色拖引用。
 
@@ -552,3 +552,6 @@ P-SW0 身份/Loadout
 | 2026-08-31 | 切人输入只留 `SwitchCharacter` 单键顺序循环；不做 SwitchPrev |
 | 2026-08-31 | 开始实现：P-SW0 代码与 P-SW1 纯逻辑骨架；因现行一座位一网络实体，三 Actor 运行时接线保持未完成 |
 | 2026-09-01 | P-SW1 采用每槽稳定网络实体：三 Actor、Active 输入路由、DualPresence、SwitchIn 意图、Owner 阵容载荷与 Observer 显隐代码完成；Graph 资产/Test/Play 待验 |
+| 2026-09-01 | 普通退场规则收敛：空闲角色播放完整 SwitchOut；已有 Action 只播到首次 Recovery，随后停止原招并转 Inactive |
+| 2026-09-01 | 普通退场规则再次收敛：所有普通退场都经过 SwitchOut；原招 Recovery 只作为切入点，最终仅在 SwitchOut 自身 Recovery 隐藏 |
+| 2026-09-01 | 普通登场位置改为旧角色局部右侧 0.6m；预测与权威共用 `PartySwitchPlacement`，墙边由静态碰撞世界修正 |

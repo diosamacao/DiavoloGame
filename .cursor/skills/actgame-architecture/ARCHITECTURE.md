@@ -198,7 +198,7 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `ActGameGuest` | 权威侧一座位多稳定 Actor；按同一输入边沿切 Active，全部槽独立注册、命中与复制 |
 | `ActReplicationApplicationPayload` | 每帧下发 Owner 槽 ActorId、ActiveSlot 与累计命令 ACK；客户端据此跳过自有 Proxy 并纠正预测 |
 
-`SwitchCharacter` 上行仍是单条 `ClientCommand`。权威先裁定槽切换，再把该帧输入路由到新 Active Actor；旧槽保持 Exiting 并完成当前 Action。每槽身份稳定，未采用单 Actor 热换配置旧路径。`SwitchIn` Graph Entry 与实际动画资产仍需 Editor 配置，Play 验收前状态保持 🟡。
+`SwitchCharacter` 上行仍是单条 `ClientCommand`。权威先裁定槽切换，再把该帧输入路由到新 Active Actor；旧槽空闲时立即注入 `SwitchOut`，已有 Action 时保持到首次 Recovery、停止原招并转入 `SwitchOut`，最终只在 `SwitchOut` 自身 Recovery 后进入 Inactive。每槽身份稳定，未采用单 Actor 热换配置旧路径。`SwitchIn/SwitchOut` Graph Entry 与实际动画资产仍需 Editor 配置，Play 验收前状态保持 🟡。
 
 ### 4. 动作系统（Combat/Actions）
 

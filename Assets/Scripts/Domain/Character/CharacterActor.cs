@@ -17,6 +17,14 @@ public sealed class CharacterActor :
     ICharacterFacingDebugTarget,
     IPredictedLocomotionReplay
 {
+    /// <summary>退场角色先等待原招 Recovery，再进入专用 SwitchOut。</summary>
+    enum PartyExitMode
+    {
+        None = 0,
+        WaitForCurrentRecovery = 1,
+        PlayingSwitchOut = 2,
+    }
+
     readonly ILocalInputSampler _localInput;
     readonly InputManager _inputManager;
     readonly GameplayIntentProducer _intentProducer;
@@ -47,6 +55,8 @@ public sealed class CharacterActor :
     bool _hasPrevMotorSample;
     PartyMemberState _partyState = PartyMemberState.Active;
     GameplayIntentType _queuedExternalIntent = GameplayIntentType.None;
+    PartyExitMode _partyExitMode;
+    int _switchOutActionInstanceId;
 
     static readonly GameplayIntentType[] EmptyIntents = Array.Empty<GameplayIntentType>();
     static readonly BufferedIntentDebug[] EmptyBuffers = Array.Empty<BufferedIntentDebug>();
@@ -191,6 +201,26 @@ public sealed class CharacterActor :
 
     /// <summary>当前阵容槽状态；非 Party 角色默认保持 Active。</summary>
     public PartyMemberState PartyState => _partyState;
+
+    /// <summary>
+    /// 当前退场条件是否满足：已启动的 SwitchOut 自身进入 Recovery。
+    /// </summary>
+    public bool IsPartyExitReady
+    {
+        get
+        {
+            if (_partyState != PartyMemberState.Exiting)
+                return false;
+
+            ActionSimSnapshot action = _actionSim.Snapshot;
+            return _partyExitMode == PartyExitMode.PlayingSwitchOut
+                && _switchOutActionInstanceId > 0
+                && action.IsActive
+                && action.InstanceId == _switchOutActionInstanceId
+                && action.Content is ActionDefinition definition
+                && definition.IsRecoveryAtFrame(action.CurrentFrame);
+        }
+    }
 
     /// <summary>创建角色实例；所有依赖由工厂一次性注入。</summary>
     public CharacterActor(
@@ -378,9 +408,46 @@ public sealed class CharacterActor :
             || state == PartyMemberState.Dead
             || state == PartyMemberState.Empty)
         {
+            // 权威纠正也可能强制 Active/Exiting 回后台，必须终止未完成动作，禁止隐藏后继续衔接。
+            if (state == PartyMemberState.Inactive && _actionSim.IsActive)
+            {
+                _actionSim.Stop();
+                _intentBuffer.ClearAllBuffers();
+                if (CurrentState == CharacterStateType.Action)
+                    _stateMachine.TryChangeState(CharacterStateType.Locomotion, force: true);
+            }
+            _partyExitMode = PartyExitMode.None;
+            _switchOutActionInstanceId = 0;
             _queuedExternalIntent = GameplayIntentType.None;
             ClearControlledInput();
         }
+    }
+
+    /// <summary>
+    /// 开始普通退场：有活动 Action 时等首次 Recovery；空闲时立即请求 SwitchOut。
+    /// </summary>
+    public void BeginPartyExit()
+    {
+        if (_partyState != PartyMemberState.Active)
+            throw new InvalidOperationException("只有 Active 角色可以开始普通退场。");
+
+        bool hasActiveAction = _actionSim != null && _actionSim.IsActive;
+        SetPartyState(PartyMemberState.Exiting);
+        _partyExitMode = hasActiveAction
+            ? PartyExitMode.WaitForCurrentRecovery
+            : PartyExitMode.PlayingSwitchOut;
+        _switchOutActionInstanceId = 0;
+        if (!hasActiveAction)
+            QueueExternalIntent(GameplayIntentType.SwitchOut);
+    }
+
+    /// <summary>SwitchOut 进入 Recovery 后转入后台；Recovery 后半段不得继续模拟。</summary>
+    public void CompletePartyExit()
+    {
+        if (!IsPartyExitReady)
+            throw new InvalidOperationException("角色尚未满足普通退场条件。");
+
+        SetPartyState(PartyMemberState.Inactive);
     }
 
     /// <summary>
@@ -394,6 +461,33 @@ public sealed class CharacterActor :
         if (_queuedExternalIntent != GameplayIntentType.None)
             throw new InvalidOperationException("同一 Actor 已有待处理的外部意图。");
         _queuedExternalIntent = intent;
+    }
+
+    /// <summary>
+    /// 普通换人时落到退场角色局部右侧；先从旧位置经静态碰撞解析，再同步逻辑根与表现根。
+    /// </summary>
+    public void PlaceForNormalSwitchFrom(CharacterActor outgoing)
+    {
+        if (outgoing == null)
+            throw new ArgumentNullException(nameof(outgoing));
+
+        CharacterMotorSim outgoingMotor = outgoing.MotorSim;
+        SimVec2 outgoingPosition = outgoingMotor.PositionMm;
+        SimVec2 desired = PartySwitchPlacement.ResolveNormalSwitchPosition(
+            outgoingPosition,
+            outgoingMotor.FacingMilliDeg);
+
+        // 从旧角色位置向右移动，使现有 CollisionWorld 能在墙边缩短或阻止偏移。
+        _motor.Sim.TeleportMm(
+            outgoingPosition.X,
+            outgoingMotor.YMm,
+            outgoingPosition.Z);
+        _motor.Sim.TryMoveWorldMm(
+            desired.X - outgoingPosition.X,
+            desired.Z - outgoingPosition.Z);
+        AlignSwitchFacing(outgoingMotor.FacingMilliDeg);
+        AlignSimulationRootToMotor();
+        SnapPresentationToSimulation();
     }
 
     /// <summary>普通切人继承旧朝向；若本槽已有 SelectedTarget，则立即朝向其逻辑位置。</summary>
@@ -575,6 +669,48 @@ public sealed class CharacterActor :
         _stateMachine.ResolvePostCombat();
         // 同帧新增的 Started/Stopped 再派发给表现桥
         _actionPresentation?.ApplyPostCombat();
+        AdvancePartyExitAfterPostCombat();
+    }
+
+    /// <summary>在动作帧与自动衔接结算后推进“原招 Recovery → SwitchOut”退场序列。</summary>
+    void AdvancePartyExitAfterPostCombat()
+    {
+        if (_partyState != PartyMemberState.Exiting)
+            return;
+
+        ActionSimSnapshot action = _actionSim.Snapshot;
+        if (_partyExitMode == PartyExitMode.WaitForCurrentRecovery)
+        {
+            bool reachedHandoff = !action.IsActive
+                || (action.Content is ActionDefinition definition
+                    && definition.IsRecoveryAtFrame(action.CurrentFrame));
+            if (!reachedHandoff)
+                return;
+
+            // 原招只播到 Recovery 首帧；SwitchOut 下一逻辑帧从独立 Graph Entry 起手。
+            StopActionForPartyTransition();
+            _partyExitMode = PartyExitMode.PlayingSwitchOut;
+            _switchOutActionInstanceId = 0;
+            QueueExternalIntent(GameplayIntentType.SwitchOut);
+            return;
+        }
+
+        if (_partyExitMode == PartyExitMode.PlayingSwitchOut
+            && _switchOutActionInstanceId == 0
+            && action.IsActive)
+        {
+            _switchOutActionInstanceId = action.InstanceId;
+        }
+    }
+
+    /// <summary>切入 SwitchOut 前终止原招及其缓冲，并回到可从 Entry 起手的 Locomotion。</summary>
+    void StopActionForPartyTransition()
+    {
+        if (_actionSim.IsActive)
+            _actionSim.Stop();
+        _intentBuffer.ClearAllBuffers();
+        if (CurrentState == CharacterStateType.Action)
+            _stateMachine.TryChangeState(CharacterStateType.Locomotion, force: true);
     }
 
     /// <summary>软弹开提交后同步 Transform，并刷新本帧表现终点 Pose。</summary>

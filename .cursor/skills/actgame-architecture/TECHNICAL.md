@@ -7,7 +7,7 @@
 
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
-| 三人阵容 / 单键换人 | 🟡 P-SW1 运行时/权威代码完成，Editor 验收待办 | `PartyLoadout`、`PartyCombatCoordinator`、`ActGameGuest` | 空格已进 Input Actions；需各角色 Graph 配 `SwitchIn` Entry |
+| 三人阵容 / 单键换人 | 🟡 P-SW1 运行时/权威代码完成，Editor 验收待办 | `PartyLoadout`、`PartyCombatCoordinator`、`ActGameGuest` | 空格已进 Input Actions；需各角色 Graph 配 `SwitchIn/SwitchOut` Entry |
 | Wave4 位移（Adhesion / SoftBody / Relocate） | ✅ 已实现（吸附已验收；Relocate 已接线） | `ActionMotionAdhesion` + `ActionMotionResolver` + Bridge | Branch_02 吸附已配；Relocate 按需加 MotionCommand 轨；相机不在本 Wave |
 | 命中受击 Cue（VFX/SFX） | ✅ 已实现（A2 打击感验收 2026-08-09） | `HitImpactController` + `HitFeedbackSettings` | 接触点落点 + 随机旋转；普攻 Cue 已验 |
 | 逻辑 Hurtbox 调试线框 | ✅ 已实现 | `CombatHurtboxDebugSettings` + `CombatHurtboxDebugVisualizer` | F4 开关（F3 HUD 显示状态） |
@@ -46,7 +46,7 @@
 
 ### 功能说明
 
-玩家座位由 `PartyLoadout` 声明最多三个角色；空格按槽序切到下一名可用角色。新角色立即接管输入并请求 `SwitchIn`，旧角色以 `Exiting` 完成当前 Action 后退场。
+玩家座位由 `PartyLoadout` 声明最多三个角色；空格按槽序切到下一名可用角色。新角色落到旧角色局部右侧 0.6m，立即接管输入并请求 `SwitchIn`；旧角色空闲时立即播放 `SwitchOut`，已有 Action 时在首次 Recovery 停止原招并转入 `SwitchOut`，最终只在 `SwitchOut` 自身 Recovery 隐藏。
 
 ### 实现方案
 
@@ -58,6 +58,8 @@
 | 输入 | `InputButton.SwitchCharacter` 固定 bit 9；`InputReader` 可选采样同名 Input Action |
 | 顺序选择 | `PartySlotSelector` 从 Active 后一槽正序绕回，只接受 `Inactive` |
 | 普通切裁定 | `PartyCombatCoordinator.TryResolveSwitchIn` 输出 `DualPresence`，旧槽 Active→Exiting，新槽 Inactive→Active |
+| 普通切落点 | `PartySwitchPlacement` 按旧角色 Motor 朝向取局部右侧 600mm；`CharacterActor.PlaceForNormalSwitchFrom` 从旧位置经新角色静态碰撞世界解析后落地 |
+| 退场时序 | `CharacterActor.BeginPartyExit/AdvancePartyExitAfterPostCombat`：空闲立即注入 `SwitchOut`；有招在原招 Recovery 停止并排队 `SwitchOut`；`IsPartyExitReady` 只认 SwitchOut 实例的 Recovery |
 | 运行时槽 | `PlayerController` / `ActGameGuest` 均按非空槽创建独立 `CharacterActor`；Inactive 空输入且不参与软碰撞/受击 |
 | 稳定身份 | 每槽独立 `SimActorId` / `NetEntityId`；禁止单 Actor 热换 Config |
 | Owner 复制 | V2 应用载荷下发槽 ActorId、ActiveSlot、累计命令 ACK；自有后台槽不会创建 Observer Proxy |
@@ -71,8 +73,12 @@ InputReader.Sample → InputFrame.SwitchCharacter
   → ClientCommand（仍是一座位一条输入流）
   → DedicatedAuthorityWorld 预合并未应用命令
   → ActGameGuest.TryResolveSwitch
-      → from = Exiting；to = Active
-      → to 对齐旧槽逻辑根，优先朝向 SelectedTarget
+      → from.BeginPartyExit；to = Active
+      → from 空闲：QueueExternalIntent(SwitchOut)
+      → from 有招：首次 Recovery 后 Stop 原招并 QueueExternalIntent(SwitchOut)
+      → SwitchOut 首次 Recovery：CompletePartyExit
+      → to 从旧槽逻辑根沿旧角色局部右向偏移 600mm（静态碰撞解析）
+      → to 优先朝向 SelectedTarget
       → to.QueueExternalIntent(SwitchIn)
   → 输入写入新 Active ActorId
   → SimulationWorld.Step（Active + Exiting + Inactive 独立 Actor）
@@ -87,7 +93,9 @@ ActClientRoomGameplay.StepPrediction
 
 ### 已知限制
 
-- `SwitchIn` 只提供代码意图；每个角色 ActionGraph 仍需 Editor 人工配置同名 Entry/Action。
+- `SwitchIn/SwitchOut` 只提供代码意图；每个角色 ActionGraph 仍需 Editor 人工配置同名 Entry/Action。
+- 原 Action 没有 Recovery Phase 时，等其自然结束后再切 `SwitchOut`，避免在 Startup/Active 中硬掐。
+- `SwitchOut` 必须配置 Recovery Phase；缺失时角色不会被静默隐藏，便于暴露资产错误。
 - 本轮已通过解决方案编译；Unity Test Runner 与 Listen Play 尚未验收，因此功能状态仍为 🟡。
 - P-SW2 金光、支援点、招架/回避支援尚未实现。
 
@@ -1135,6 +1143,7 @@ CameraManager + CameraRig + CameraDirector + CameraShotPlayer（场景对象）
 
 - `CameraManager.LateUpdate`：先跟朝向，再 `CameraRig.Sync`，最后 `StageMoveReferenceYaw`
 - 首帧、`followSmoothTime <= 0`、或距离超过 `SnapDistance`(3) 时直接吸附
+- Active 角色表现根切换后 0.2s 内改用 0.04s SmoothDamp，并完整吸收横向位移；结束后恢复日常滤左右参数
 - 对外提供 `SnapFollowToTarget()` 供传送等硬重置
 - Action Timeline 的 `cameraShotStates` 是唯一镜头窗真源；`CameraShotSequence` / Preset SO 不存在
 - `CameraShotPlayer` 只读 `ActionSimSnapshot.CurrentFrame`；Camera 窗不进入 `EnumerateStates()`，因此 Sim Runner 不执行
@@ -1174,6 +1183,8 @@ CameraManager + CameraRig + CameraDirector + CameraShotPlayer（场景对象）
 | `cameraRootHeight` | 1.4 | 锚点高度 |
 | `followDistance` | 4 | 相机距离 |
 | `followSmoothTime` | 0.1 | Orbit 追 CameraRoot 的平滑时间 |
+| `switchFollowSmoothTime` | 0.04 | 换人后的快速跟随平滑时间 |
+| `switchFollowDuration` | 0.2 | 快速跟随保持时间；期间横向跟随系数临时为 1 |
 | `initialPitch` | 15 | 初始俯角 |
 | `horizontalSensitivity` | 0.15 | 水平灵敏度 |
 | `verticalSensitivity` | 0.15 | 垂直灵敏度 |
@@ -1527,6 +1538,10 @@ CombatHitPipeline（全体 Actor Step 后）
 |------|------|
 | 2026-08-31 | Party P-SW0 / P-SW1 骨架：CharacterId/Definition/Loadout、单键 SwitchCharacter、顺序槽位协调器；PlayerController 切到 Loadout，三 Actor 与联网尚未接 |
 | 2026-09-01 | Party P-SW1：每槽稳定 Actor/网络实体、Active/Exiting 输入与显隐、SwitchIn 外部意图、Owner 阵容载荷、累计切人 ACK 和 Debug HUD；Editor Graph/Test/Play 待验 |
+| 2026-09-01 | Party 普通退场改为双规则：空闲播完整 SwitchOut；有招进入首次 Recovery 后停止并隐藏，不再等待整个 Action |
+| 2026-09-01 | Party 退场最终规则：所有普通退场均进入 SwitchOut；原招 Recovery 仅负责切入，只有 SwitchOut 自身 Recovery 可隐藏 |
+| 2026-09-01 | Party 普通登场落点改为旧角色局部右侧 600mm；客户端预测与 Dedicated 权威共用确定性算法，并经静态碰撞解析 |
+| 2026-09-01 | 相机检测 Active 角色表现根切换后短暂启用 0.04s 快速平滑与完整横向跟随，0.2s 后恢复日常参数 |
 | 2026-06-17 | 初版：移动、输入、状态机、动画、相机、Prefab 文档化 |
 | 2026-06-17 | 动作系统 §7：ComboSequence、CombatMode、ACTION_EDITOR 对齐摘要 |
 | 2026-06-21 | ActionEditor 准备重构：CharacterActionDriver、UpdateFrame、Phase/Event 骨架、命中回流 |

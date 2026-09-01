@@ -168,7 +168,7 @@
 
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
-| 三人换人 / 极限支援 | P1 | 🟡 P-SW1 三槽稳定实体、单键预测/权威切人与复制代码完成；SwitchIn Graph 资产、Test Runner/Play 待验。P-SW2 金光弹刀未做。方案：[`docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`](../../docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md) |
+| 三人换人 / 极限支援 | P1 | 🟡 P-SW1 三槽稳定实体、单键预测/权威切人与复制代码完成；原招 Recovery→SwitchOut→其 Recovery 隐藏已接。SwitchIn/SwitchOut Graph 资产、Test Runner/Play 待验。P-SW2 金光弹刀未做。方案：[`docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`](../../docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md) |
 | ActionEditorWindow | P1 | ✅ 基础版 + 菱形/Zoom/Scrub 预览 + 2026-08-04 playhead 跟视口、Create 选文件夹、左侧文件夹分组；后续增强 SFX 预览 |
 | Enemy/ + AI | P1 | ✅ 8.10 Desire/Entry Request 总出口关闭；对峙表现已验收；待优化见 8.11 Backlog / A* |
 | UI/（MVVM） | P2 | HUD、血条；View/ViewModel 分层，不直写 Domain 权威 |

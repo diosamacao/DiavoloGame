@@ -247,6 +247,19 @@ MonoBehaviour:
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
     editorPosition: {x: 1884.6666, y: -850.6667}
+  - nodeId: Unagi_SwitchOut
+    action: {fileID: 11400000, guid: c0a0d80f072f2594bb50d8b6ce50150a, type: 2}
+    intent: 11
+    isEntry: 1
+    variantResolver: {fileID: 0}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions: []
+    editorPosition: {x: 2288.6667, y: -880.6667}
   edges:
   - fromNodeId: Unagi_Attack_02
     routeKind: 0
