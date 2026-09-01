@@ -14,7 +14,7 @@
 
 ## 0. 一句话
 
-用 **座位级 `PartyCombatCoordinator`** 裁定「谁上场、切哪种支援」，用 **上场角色自己的 `ActionGraph` + `ActionTimeline`** 播放切人/招架/回避/突击（含动画、VFX、SFX、无敌、命中）；身份用薄层 `CharacterId` + `CharacterDefinition` + `PartyLoadout`（最多 3 槽）。禁止把阵容/支援点写进单张 Graph，禁止 `if (角色名)`，禁止现在做养成/抽卡/邦布，禁止 Update 旁路权威。
+用 **座位级 `PartyCombatCoordinator`** 裁定「谁上场、切哪种支援」，用上场角色 `ActionGraph` 播 Guard/Success，用现有 **`HitState`** 播敌人被弹刀；身份用薄层 `CharacterId` + `CharacterDefinition` + `PartyLoadout`（最多 3 槽）。禁止把阵容/支援点写进单张 Graph，禁止 `if (角色名)`，禁止新建顶层 Parry 状态，禁止 Update 旁路权威。
 
 ---
 
@@ -56,7 +56,7 @@ SKILL 方案原裁定：切人 / 支援 / 连携 = 后置
 | 目标 | 说明 |
 |------|------|
 | 结构 | 座位级编队协调器 + 每角色独立 Actor/Graph；差异在 Definition/资产，不在身份 if |
-| 可玩 | Play：3 人轮换上场；金光切人出招架或回避支援，再点攻击出支援突击 |
+| 可玩 | Play：3 人轮换；金光切人先举刀，敌人出手后 clang + 敌人进 `Hit`，再点攻击出支援突击 |
 | 可测 | EditMode：支援点、金/红裁定、下场未完成不可再切出 |
 | 不做 | SwitchPrev / 反向切人、养成、抽卡、背包、邦布、属性异常、彩光、13 段连续招架、联网三人复制（P-SW5） |
 
@@ -85,7 +85,7 @@ SKILL 方案原裁定：切人 / 支援 / 连携 = 后置
 | 下场（普通切） | 不打断当前招，做完再退场；未退场不可再切出 | 仅 `SwitchPresentation.DualPresence`：下场 `Exiting` |
 | 下场（极限支援） | 当场角色立刻消失，不播 SwitchOut | `InstantReplace`：下场当帧 `Inactive`，禁止 SwitchOut |
 | 上场普通切 | 侧方冲入，播登场 | 上场 `SwitchIn`；出生在下场角色局部右侧 0.6m |
-| 上场弹刀切 | 下一角色直接播招架/回避，并吸附到弹刀点 | 上场只起 `AssistParry`/`AssistEvade`；frame 0 `Relocate` + `SnapFacing` |
+| 上场弹刀切 | 下一角色先吸到弹刀点举刀，敌人出手接触后才播成功 | 上场只起 `AssistParry` Guard；frame 0 `Relocate` + `SnapFacing`；接触后切 Success，敌人进 `HitState` |
 | 金光 | 特定攻击金色闪光；切人消耗支援点 → 极限支援 | 敌人 Timeline `AssistCueWindow`（Gold） |
 | 红光 | 点数不足或类型不匹配时金变红；切人 → 极限闪避（换人闪） | 同一窗降级为 Red；上场走 `SwitchPerfectDodge` |
 | 彩光 | 极少；切人两者都不触发 | **不做** |
@@ -107,12 +107,15 @@ SKILL 方案原裁定：切人 / 支援 / 连携 = 后置
     → Producer：攻击键 → PerfectDodgeAttack
     → 上场角色 Graph Entry → Counter Action（Timeline 含 VFX/SFX）
 
-极限支援（本方案）
-  敌人 Action Timeline.AssistCueWindow（Gold/Red）
-    → PartyCombatCoordinator 读窗 + 支援点 + 上场 AssistStyle
-    → 切人键不进「普通 SwitchIn」，而派生 AssistParry / AssistEvade / SwitchPerfectDodge
-    → 上场角色 Graph Entry → 对应 Action
-    → 武装 AssistFollowUp → 攻击/特殊技 → AssistFollowUp Entry
+极限支援（本方案，接触成功）
+  敌人 Action Timeline.AssistCueNotifyState（Gold/Red）只裁定「能不能切」
+    → Coordinator 派生 AssistParry / AssistEvade / SwitchPerfectDodge
+    → InstantReplace + frame 0 Relocate；上场播 Guard（举刀 + Invincible + AssistParryWindow）
+    → 敌人 Active Hitbox 打到玩家：
+         Pipeline 玩家吞伤（对偶 PerfectDodgeWindow）
+         攻击者 CharacterReactionResolver.ResolveParried → EnterHit（现有 HitState）
+         玩家切 AssistParrySuccess（clang VFX/SFX）并 ArmAssistFollowUp
+    → Producer：攻击键 → AssistFollowUp
 ```
 
 ---
@@ -128,7 +131,8 @@ SKILL 方案原裁定：切人 / 支援 / 连携 = 后置
 |------|------|------|
 | 普通登场 / 招架支援 / 回避支援 / 支援突击 / 快速支援 / 连携技 的 Clip | 该角色 `ActionDefinition` | 已有播放真源 |
 | 切人过程中的 VFX / SFX / 无敌 / Hitbox（弹刀打失衡） / Cancel | 该 Action 的 `ActionTimeline` | 与普攻同一套点事件/窗口 |
-| 「招架后点攻击 → 突击」 | 该角色 Graph：`AssistParry` 节点 Perfect/Normal 边 → `AssistFollowUp`；或 Flags + 专用 Intent Entry | 与 `PerfectDodgeAttack` 同构 |
+| 「招架后点攻击 → 突击」 | 接触成功后 Flags 武装；Producer 派生 `AssistFollowUp` Intent Entry | 与 `PerfectDodgeAttack` 同构；禁止切人当帧武装 |
+| 敌人被弹刀后的硬直/受击 Clip | 现有 `HitState` + `CharacterReactionSet` 的 `Parried` 规则 | 禁止新建顶层 `ParryState` / 第二套受击执行器 |
 | 角色是近战弹刀还是远程回避 | `CharacterDefinition.AssistStyle`，Coordinator 选 Intent | 禁止 Graph 里 `if (比利)` |
 | 3 人槽位、活跃下标、支援点、金/红裁定 | `PartyCombatCoordinator` | Graph 是单角色选招图，不是编队状态机 |
 | 敌人会不会闪光 | 敌人 `ActionTimeline` 的 `AssistCueWindow` | 与玩家 Dodge 窗对偶，真源在**进攻方** |
@@ -189,19 +193,22 @@ PartyCombatCoordinator.TryResolveSwitch
   presentation = DualPresence | InstantReplace
        ↓
   DualPresence  ：下场 Exiting（空闲立即播 SwitchOut；有招到 Recovery 后转 SwitchOut；SwitchOut Recovery 隐藏）；上场 SwitchIn
-  InstantReplace：下场当帧 Inactive（不播 SwitchOut）；上场只播支援招 + Relocate
+  InstantReplace：下场当帧 Inactive（不播 SwitchOut）；上场只起 Guard + Relocate
   上场槽 → Active；只把玩法输入灌给该 Actor
   上场 Intent → 该角色 ActionGraph.TryResolveStart
        ↓
-ActionSim + Timeline（动画 / VFX / SFX / Invincible / 招架 Hitbox）
-  Assist 成功 → Flags.ArmAssistFollowUp
+ActionSim Guard（举刀 / Invincible / AssistParryWindow；无 clang）
+  敌人 Active Hitbox → CombatHitPipeline
+       ↓
+  玩家吞伤 + 切 AssistParrySuccess（clang VFX/SFX）+ ArmAssistFollowUp
+  敌人 ResolveParried → CharacterActor.EnterHit → HitState
   攻击族 Pressed → AssistFollowUp Intent → Graph Entry
 ```
 
 ```mermaid
 flowchart TB
   InputFrame -->|SwitchCharacter| Coordinator[PartyCombatCoordinator.TryResolveSwitch]
-  EnemyTL[敌人 ActionTimeline.AssistCueWindow] --> CueBoard[WorldAssistCueBoard]
+  EnemyTL[敌人 ActionTimeline.AssistCueNotifyState] --> CueBoard[WorldAssistCueBoard]
   CueBoard --> Coordinator
   AssistPts[PartyAssistPoints] --> Coordinator
   Def[CharacterDefinition.AssistStyle] --> Coordinator
@@ -209,9 +216,13 @@ flowchart TB
   Coordinator -->|DualPresence Exiting| Outgoing[空闲立即 SwitchOut / 有招 Recovery 后切 SwitchOut / 其 Recovery 后 Inactive]
   Coordinator -->|InstantReplace| Hide[下场当帧 Inactive 不播 SwitchOut]
   IncomingIntent --> Graph[上场 ActionGraph.TryResolveStart]
-  Graph --> ActionSim[ActionSim.Step]
-  ActionSim --> TL[ActionTimeline VFX/SFX/Invincible/Hitbox]
-  ActionSim -->|ArmAssistFollowUp| Flags[CombatContextFlags]
+  Graph --> Guard[AssistParry Guard ActionSim]
+  Guard -->|frame 0 Relocate| Pose[弹刀点]
+  EnemyHit[敌人 Active Hitbox] --> Pipeline[CombatHitPipeline]
+  Guard -->|AssistParryWindow| Pipeline
+  Pipeline -->|玩家吞伤| Success[AssistParrySuccess clang]
+  Pipeline -->|ResolveParried| HitState[攻击者 EnterHit / HitState]
+  Success -->|ArmAssistFollowUp| Flags[CombatContextFlags]
   Flags --> Producer[GameplayIntentProducer]
   Producer -->|AssistFollowUp| Graph
 ```
@@ -230,7 +241,8 @@ Output → 上场 Actor 当帧 Intent；下场 Actor 无玩法输入；相机仍
 | kind | `GameplayIntentType` | 典型 Graph Entry |
 |------|----------------------|------------------|
 | SwitchIn | `SwitchIn` | 普通登场 |
-| AssistParry | `AssistParry` | 招架支援 |
+| AssistParry | `AssistParry` | 招架 Guard（举刀；无 clang） |
+| AssistParrySuccess | `AssistParrySuccess` | 接触后成功段（clang）；不由切人键产生 |
 | AssistEvade | `AssistEvade` | 回避支援 |
 | SwitchPerfectDodge | `SwitchPerfectDodge` | 换人极限闪避（可再接已有 Counter 或独立登场闪） |
 | QuickAssist | `QuickAssist` | 受击支援（重击 Tag） |
@@ -259,9 +271,10 @@ Active 处于击飞档 Hit 且上场可激活 → QuickAssist（优先于普通 
 | `CharacterDefinition` / `PartyLoadout` | 身份、槽位、AssistStyle | 出招、扣血 |
 | `PartyCombatCoordinator` | 换人合法性、Cue/点数、谁收输入 | 播动画、写 Timeline |
 | 上场 `ActionGraph` + `ActionDefinition` | 登场/支援/突击选招与衔接 | 改 ActiveIndex、改支援点（耗点在 Coordinator 裁定成功时扣） |
-| `ActionTimeline` | 帧上 VFX/SFX/无敌/弹刀 Hitbox | 选下一个角色 |
+| `ActionTimeline` | Guard/Success 窗、无敌、接触后 clang | 选下一个角色；用玩家招架 Hitbox 打断敌人 |
 | `GameplayIntentProducer` | 突击缓冲内劫持攻击族 | 读 3 个槽 |
-| `CombatHitPipeline` | 招架命中结算、武装完美闪避（已有） | 换人 |
+| `CombatHitPipeline` | 窗内被命中：玩家吞伤、攻击者进受击、武装突击 | 换人；自己 new 状态机 |
+| `CharacterReactionResolver` + `HitState` | 被弹刀：`Parried` 规则选招，强制 `EnterHit` | 换人；另开顶层 Parry 状态 |
 | `LocalPlayerService` | 多玩家座位 | 队内 3 槽 |
 | Camera Director | 跟 Active 锚点 | 换人权威 |
 
@@ -284,24 +297,73 @@ Dead      : 不可切出；队灭规则后置
 | | 普通切人 `DualPresence` | 极限支援 / 红闪换人闪 / 快速支援 `InstantReplace` |
 |--|-------------------------|-----------------------------------------------------|
 | 触发 | 无 Cue（或 Cue 已过） | Gold / Red / 击飞窗 |
-| 上场播什么 | **只** `SwitchIn` | **只** `AssistParry` / `AssistEvade` / `SwitchPerfectDodge` / `QuickAssist` |
+| 上场播什么 | **只** `SwitchIn` | 先 `AssistParry` Guard；接触后再 `AssistParrySuccess`。回避/换人闪仍当帧起对应 Intent |
 | 下场播什么 | 空闲立即播 `SwitchOut`；已有 Action 到首次 Recovery 后切 `SwitchOut`；只在 `SwitchOut` 的 Recovery 隐藏 | **不播** SwitchOut；当帧隐身进 `Inactive` |
 | 场上人数 | 可两人同框（下场收招 + 上场冲入） | **一人**：上场角色出现在弹刀/回避点 |
 | 出生点 | 下场角色局部右侧 0.6m（以旧角色 Motor 朝向为基准） | 敌人 Cue 给出的弹刀点（见下） |
 | 吸附 | 不强制贴敌 | frame 0：`RelocateToTargetOffset` + `SnapFacingToTarget` |
-| 连招 | 无突击武装 | 招架/回避结束后武装 `AssistFollowUp` |
+| 连招 | 无突击武装 | **仅接触成功后**武装 `AssistFollowUp` |
 
 **弹刀点（首版只留一种）：**
 
 ```text
-敌人 AssistCueWindow 带 parryLocalOffsetMm（相对进攻敌人逻辑根，敌人朝向）
+敌人 AssistCueNotifyState 带 parryLocalOffsetMm（相对进攻敌人逻辑根，敌人朝向）
   缺省：(0, 0, +frontMm) = 敌人正前方固定距
-上场 Assist* Action 的 Timeline frame 0：
+上场 AssistParry **Guard** Timeline frame 0：
   MotionCommand RelocateToTargetOffset（Target = Cue 敌人，即 SelectedTarget）
   MotionCommand SnapFacingToTarget
 禁止用 ActionMotionAdhesion 多帧去「滑向」弹刀点——那是普攻贴身，不是瞬切
 回避支援同一套 Relocate，offset 用 evadeLocalOffsetMm（可更侧向/更远）
 ```
+
+**接触成功（首版只留一种，删除「上场招架 Hitbox 打断敌人」）：**
+
+```text
+Cue Gold/Red     = 只决定切人 kind；可在 Startup 结束
+敌人 Hitbox      = 出手真源；Guard 必须覆盖到该窗
+玩家 Guard       = Invincible + AssistParryWindow；禁止 clang / 禁止 ArmAssistFollowUp
+Pipeline         = 对偶 PerfectDodgeWindow：
+                   1. 玩家吞伤，不 EnterHit
+                   2. 按攻击者 SimActorId 取 CharacterReactionService
+                      CharacterReactionType.Parried → Resolve → EnterHit
+                      （复用 HitState：停当前攻击 ActionSim，播反应 Action 或默认硬直帧）
+                   3. 玩家 QueueExternalIntent(AssistParrySuccess) 或 Graph 自动衔接
+                   4. 玩家 Flags.ArmAssistFollowUp
+仅 Invincible、无 ParryWindow = 只吞伤，不进受击、不武装突击
+Guard 结束仍未接触 = 回 Locomotion，不武装突击
+禁止用 ActionTransitionCondition.OnHitConfirm 等敌人出手（那是「自己的 Hitbox 打中人」）
+禁止为弹刀新增 CharacterStateType 或第二套 Reaction 执行器
+```
+
+### 5.6 被弹刀走现有受击状态机（只留一种）
+
+```text
+已有路径（普通命中）
+  CombatHitPipeline → Target.OnHit → Vitality.ApplyDamage
+    → CharacterReactionService.HitReceived
+    → CharacterReactionResolver.ResolveHit(HitReactionId)
+    → CharacterActor.EnterHit → HitState
+         Stop 当前 ActionSim
+         有 ResolvedAction：TryStart 受击招
+         无动作：DefaultHitStunFrames 倒数回 Locomotion
+
+被弹刀（P-SW2 纳入同一条 HitState）
+  Pipeline AssistParryWindow 分支不走玩家 OnHit
+  按 hit.Key.AttackerId 取攻击者 CharacterReactionService
+    CharacterReactionType.Parried（新增枚举值；不是新顶层状态）
+    Resolver.ResolveParried() → ReactionSet 的 Parried 默认规则
+    EnterHit（force）→ 同一 HitState
+  敌人 Brain 已有 NotifyHit 副作用继续复用，BT 清空 Desire/Request
+  0 伤：不改攻击者 Health；只进 Hit / 复制 VitalityEdge.Hit
+```
+
+| 角色 | 接触瞬间进什么状态 | 播什么 |
+|------|--------------------|--------|
+| 上场玩家 | 保持 Action：Guard → Success | clang 在 Success Timeline |
+| 进攻敌人 | 顶层 `CharacterStateType.Hit` | `CharacterReactionSet` 的 `Parried` Action；缺资产则默认硬直帧 |
+| 下场角色 | 已 `Inactive` | 无 |
+
+禁止：用玩家 Success 上的 Hitbox 再打敌人当「打断」；打断只发生在 Pipeline 的 `EnterHit`。P-SW4 失衡仍可另挂 Grant，不改本条。
 
 `SwitchCommand` 必须带 `presentation`：
 
@@ -323,7 +385,7 @@ QuickAssist         → InstantReplace
 |------|------|--------|
 | P-SW0 | Id / Definition / Loadout / AssistStyle | 换人玩法 |
 | P-SW1 | 3 Actor、切人键、普通 `SwitchIn`、Exiting | 金光、支援点 |
-| P-SW2 | Cue 窗、支援点、招架/回避、支援突击 | 连续招架 13 段、视域镜头演出打磨 |
+| P-SW2 | Cue 窗、支援点、Guard/接触成功、敌人 `HitState` 被弹刀、支援突击 | 连续招架 13 段、视域镜头演出打磨、专用弹刀硬直状态机 |
 | P-SW3 | 击飞 → 快速支援 | 支援角色 EX 触发快速支援 |
 | P-SW4 | 敌人 Daze + 连携选人（可先自动切下一名） | 手动长按跳过连携、邦布 |
 | P-SW5 | 支援点/Cue 等后续 Party 状态复制与公网验收 | 每槽稳定实体（已提前到 P-SW1） |
@@ -376,31 +438,39 @@ QuickAssist         → InstantReplace
 
 **出口：** 无闪光也能三人轮换。→ **未达成**
 
-### P-SW2 — 金/红 Cue、支援点、弹刀与突击
+### P-SW2 — 金/红 Cue、支援点、接触弹刀与突击
 
 **任务**
 
-- [ ] 敌人 Timeline 新窗口 `AssistCueNotifyState`：`Gold` / `Red`、`requiresRanged`、持续帧  
+- [ ] 敌人 Timeline 新窗口 `AssistCueNotifyState`：`Gold` / `Red`、`requiresRanged`、持续帧、`parryLocalOffsetMm` / `evadeLocalOffsetMm`  
 - [ ] `WorldAssistCueBoard`：权威帧收集当前窗（按 `SimActorId` 稳定）  
 - [ ] 队共享 `AssistPoints`（上限 6，开局 3）；扣费只在 Coordinator 裁定成功  
-- [ ] Intent：`AssistParry` / `AssistEvade` / `SwitchPerfectDodge` / `AssistFollowUp`  
-- [ ] Producer：`HasAssistFollowUp` 时攻击族派生 `AssistFollowUp`（对照完美反击）  
+- [ ] Intent：`AssistParry` / `AssistParrySuccess` / `AssistEvade` / `SwitchPerfectDodge` / `AssistFollowUp`  
+- [ ] 玩家 Timeline 新窗口 `AssistParryWindowNotifyState`（对偶 `PerfectDodgeWindowNotifyState`）  
+- [ ] `CharacterReactionType.Parried`；`CharacterReactionResolver.ResolveParried()`；`CharacterReactionService` 对攻击者 `EnterHit`  
+- [ ] `CombatHitPipeline`：`IsInAssistParryWindow` 时玩家吞伤、攻击者 `ResolveParried`、玩家切 Success、武装 `AssistFollowUp`  
+- [ ] **删除**「上场招架 Hitbox 打断敌人」作为弹刀成功条件  
+- [ ] Producer：`HasAssistFollowUp` 时攻击族派生 `AssistFollowUp`（对照完美反击）；切人当帧不得武装  
 - [ ] 招架/回避/换人闪：`InstantReplace`——下场当帧 Inactive，**不**起 `SwitchIn`/`SwitchOut`  
-- [ ] Cue 带 `parryLocalOffsetMm`；上场 Action Timeline **frame 0** 配 `RelocateToTargetOffset` + `SnapFacingToTarget`  
-- [ ] 招架 Action：Invincible + Hitbox（可先打固定失衡占位伤害）；回避 Action：Invincible  
+- [ ] Guard frame 0：`RelocateToTargetOffset` + `SnapFacingToTarget`；Success 才挂 clang VFX/SFX  
+- [ ] Guard：Invincible + `AssistParryWindow`；回避 Guard：Invincible（接触成功规则可与招架共用窗或首版仅招架）  
 - [ ] Ult 起手成功回复 +3 支援点（P-SW4 前连携未做，+1 暂不接）  
 - [ ] 点数为 0 时 Gold 对外表现为 Red  
 
 **验收**
 
-- [ ] Play：木桩 Gold 窗内切近战 → **当场角色立刻消失**，下一角色出现在敌人前方弹刀点播招架（无 SwitchIn）  
+- [ ] Play：木桩 Gold 窗内切近战 → 当场角色立刻消失，下一角色出现在弹刀点**举刀**（无 SwitchIn、无 clang）  
+- [ ] Play：敌人 Active 命中前不得出现招架成功特效；命中后才播 Success，敌人进入 `Hit` 并停掉攻击 Action  
 - [ ] 同一次切人不得同时看到 SwitchIn + AssistParry  
+- [ ] Guard 结束前敌人未出手 → 玩家回 Locomotion，敌人不进 `Hit`，不可派生突击  
 - [ ] 远程上场 Gold → 回避点 Relocate，不走招架节点  
 - [ ] 0 点 Gold 窗切人 → 换人闪，不耗点  
-- [ ] `PartyAssistResolveTests`：上表裁定行覆盖  
+- [ ] `PartyAssistResolveTests`：裁定表覆盖  
+- [ ] `AssistParryPipelineTests`：窗内命中 → 玩家不 `EnterHit`、攻击者 `EnterHit`、武装突击；仅无敌不武装  
+- [ ] `rg CharacterStateType.Parry` 玩法目录无匹配  
 - [ ] 禁止 `Time.timeScale`（`rg` 玩法目录无新增）  
 
-**出口：** 弹刀闭环可玩。→ **未达成**
+**出口：** 金光切入、出手接触、敌人受击、突击派生可玩。→ **未达成**
 
 ### P-SW3 — 快速支援（击飞档）
 
@@ -468,6 +538,8 @@ QuickAssist         → InstantReplace
 | 把换人做成 `SwitchCombatMode` 或 Graph StartBehavior | 语义冲突 |
 | 单 Actor 热换 ModelPrefab / 运行时改 Config | 无法下场播完、无法后台回能 |
 | 为换人新建第二套 Timeline/执行器 | 与 Action 核双轨 |
+| 上场招架 Hitbox 作为弹刀成功/打断敌人的条件 | 改为敌人 Hitbox 接触 `AssistParryWindow`；打断只走 `EnterHit` |
+| 顶层 `CharacterStateType.Parry` / 第二套受击执行器 | 被弹刀复用现有 `HitState` |
 
 ---
 
@@ -486,14 +558,19 @@ Assets/Scripts/Domain/Simulation/Party/
   PartyCombatCoordinator.cs
   PartySwitchCommand.cs
   WorldAssistCueBoard.cs
-Assets/Scripts/Domain/Combat/Actions/Frames/
+Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/
   AssistCueNotifyState.cs         // 敌人 Timeline 窗
+  AssistParryWindowNotifyState.cs // 玩家 Guard 接触窗
+Assets/Scripts/Domain/Character/Reactions/
+  CharacterReactionType.cs        // + Parried
+  CharacterReactionResolver.cs    // + ResolveParried
 Assets/Scripts/Domain/Simulation/Input/
   InputButton.cs                  // + SwitchCharacter（无 SwitchPrev）
   GameplayIntentType.cs           // + SwitchIn / Assist* / …
 Assets/Tests/EditMode/Simulation/
   PartyCombatCoordinatorTests.cs
   PartyAssistResolveTests.cs
+  AssistParryPipelineTests.cs
 docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md
 ```
 
@@ -507,7 +584,8 @@ docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md
 |------|------|
 | 3 Actor 步进成本 | 后台跳过 Motor 重计算可后做；首版先全 Step 但 Inactive 空输入、不进软弹开 |
 | 换人与预测回滚 | P-SW1 已进入 Dedicated 权威：累计命令 ACK 覆盖切人帧前，不用旧 ActiveSlot 撤销本地预测 |
-| 招架要「打断」敌招 | 招架 Hitbox 走 Pipeline + 已有 Reaction；敌 Graph 配高打断档 |
+| 招架要打断敌招 | 接触瞬间 `ResolveParried` → `EnterHit`；`HitState` 停攻击 ActionSim；缺 `Parried` 资产则默认硬直帧 |
+| Cue 已过但敌人尚未出手 | Guard 覆盖到 Active Hitbox；Cue 只裁定切人，不裁定成功 |
 | 极限视域像顿帧 | 逻辑 `dilationPermille` 只作用于敌方 Action/Motor 步长；表现插值跟同一时钟 |
 | 资产未齐 | 可用占位 Action（无 Clip）验收状态机；Clip/VFX Editor 人工 |
 | 与相机 Follow 打架 | P-SW1 硬切 Active `PresentationRoot`；Director 换人前排不进本出口 |
@@ -521,10 +599,11 @@ docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md
 2. 建 `PartyLoadout`，拖 1～3 个 Id。  
 3. `PlayerController` 改绑 Loadout。  
 4. Input Actions 只增加 `SwitchCharacter`（建议空格），由 Coordinator 消费；**不要**映射成 Graph Intent，**不要**做 SwitchPrev。  
-5. 每角色 Graph：P-SW1 配 `SwitchIn`、`SwitchOut` Entry；后续再配 `AssistParry` 或 `AssistEvade` / `AssistFollowUp` /（P-SW3）`QuickAssist`。
-6. 对应 `ActionDefinition` 配 Clip + Timeline：`SwitchOut` 必须配置 Recovery Phase；其它动作配置登场位移、招架 Hitbox、无敌、VFX/SFX。
-7. 木桩/精英敌 Graph：至少 1 个攻击节点加 Gold `AssistCue` 窗。  
-8. Play 确认相机随 `PlayerController.PresentationRoot` 自动切到当前 Active 槽；无需逐角色拖引用。
+5. 每角色 Graph：P-SW1 配 `SwitchIn`、`SwitchOut`；P-SW2 再配 `AssistParry` Guard、`AssistParrySuccess`、`AssistFollowUp`（远程加 `AssistEvade`）。
+6. Guard `ActionDefinition`：frame 0 Relocate + SnapFacing、Invincible、`AssistParryWindow`（覆盖到敌攻击 Active）；**不要**在 Guard 上挂 clang。Success 才挂 clang VFX/SFX。
+7. 木桩/精英敌 Graph：攻击节点加 Gold `AssistCue`（抬手）+ 独立 Hitbox（出手）；二者不要叠成同一帧。
+8. 敌人 `CharacterReactionSet` 增加 `Parried` 默认规则（可先空 Clip，靠默认硬直帧验收 `HitState`）。
+9. Play 确认相机随 `PlayerController.PresentationRoot` 自动切到当前 Active 槽；无需逐角色拖引用。
 
 ---
 
@@ -533,7 +612,7 @@ docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md
 ```text
 P-SW0 身份/Loadout
   → P-SW1 三 Actor + 稳定复制身份 + 普通切人（最小可感）
-  → P-SW2 金光弹刀 + 突击
+  → P-SW2 金光切入 + 接触成功 + 敌人 HitState + 突击
   → P-SW3 击飞快速支援
   → P-SW4 失衡连携
   → P-SW5 支援状态复制与公网验收
@@ -559,3 +638,4 @@ P-SW0 身份/Loadout
 | 2026-09-02 | 修复远端重复登场表现：Inactive 前回收挂在角色层级下的 VFX，Active/Exiting 重新显形时丢弃上次退场位置的插值历史并吸到最新权威 Pose |
 | 2026-09-02 | 本机 `CharacterActor` 同样在退出可见状态前清理所属 VFX；远端与本机统一以阵容显隐边界终止会随父节点冻结的表现租约 |
 | 2026-09-02 | 修复权威敌人感知根：`RemotePlayerSeat` 保留稳定花名册锚点，并在每次切人时将其重挂到当前 Active 槽位逻辑根 |
+| 2026-09-02 | P-SW2 改为接触成功：Guard 到位举刀，敌人 Hitbox 触发 Success clang；被弹刀纳入现有 `HitState`（`CharacterReactionType.Parried`），删除上场招架 Hitbox 打断路径 |
