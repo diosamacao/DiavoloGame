@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-09-01（Party P-SW1 三槽稳定实体与普通切人代码已落地；Editor Action/Test/Play 待验）
+> Last audited: 2026-09-02（Party P-SW1 权威座位感知根随 Active 槽切换；Editor Action/Test/Play 待验）
 
 ## 项目概述
 
@@ -317,7 +317,7 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `EnemyActorFactory` / `EnemyHandle` | 复用 CharacterActorFactory，聚合 Actor、Brain、Vitality、Hurtbox 生命周期 |
 | `EnemyController` / `EnemySpawnController` | 单敌 Tick 入口与场景刷怪入口；感知读玩家花名册，不 Find 唯一玩家 |
 | `EnemySpawnSystem` | 架构级敌人实例注册与同 Definition 存活上限 |
-| `ILocalPlayer` / `LocalPlayerService` | 本机输入/相机拥有者；客机 `Input` 可空；跟朝向用 `HasMoveIntent` + `MoveInput`（后退不跟），出招用 `IsPresentingAction` 暂停 |
+| `ILocalPlayer` / `LocalPlayerService` | 本机输入/相机拥有者与权威玩家花名册；`RemotePlayerSeat.Root` 是稳定感知锚点，切人时重挂到当前 Active 槽位逻辑根 |
 
 **数据流（敌人 · 当前终态）**：
 

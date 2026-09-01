@@ -237,10 +237,10 @@ SimulationHost.LateUpdate
 
 | 项 | 方案 |
 |----|------|
-| 本机入口 | `ILocalPlayer`（`PlayerController` 实现）；`IsLocalPredicted` 恒 false |
-| 登记 | `LocalPlayerService`（Architecture System）；Awake/OnEnable 登记，OnDisable 注销 |
+| 本机入口 | `ILocalPlayer`：客机 `PlayerController` 是预测输入/相机拥有者，权威侧 `RemotePlayerSeat` 表示每个连接的阵容 |
+| 登记 | `LocalPlayerService`（Architecture System）；预测座位不进入敌人感知根列表，权威 `RemotePlayerSeat` 进入 |
 | 查询 | `GetLocalPlayerQuery` / `GetPlayerRootsQuery` |
-| 仇恨 | `EnemyPerception` 在玩家根列表中取水平最近；可选 Inspector 钉死单 Transform |
+| 仇恨 | `EnemyPerception` 在玩家根列表中取水平最近；`RemotePlayerSeat` 暴露稳定感知锚点，换人时锚点重挂到当前 Active 槽位根 |
 | 禁止 | 玩法 `FindObjectOfType<PlayerController>()`（仅 Editor Gizmo） |
 
 ### 关键参数
@@ -250,7 +250,9 @@ SimulationHost.LateUpdate
 ### 运行时流程
 
 ```
-PlayerController.Awake → LocalPlayerService.Register(this, isLocalOwner: true)
+Client PlayerController.Awake → LocalPlayerService.Register(this, isLocalOwner: true)
+Authority ActGameSessionHandler.TryCreateGuest → Register(RemotePlayerSeat)
+ActGameGuest.TryResolveSwitch → RemotePlayerSeat.Bind(to.Actor, to.Root)
 CameraManager / HUD → GetLocalPlayerQuery
 EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
 ```
@@ -258,7 +260,7 @@ EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
 ### 已知限制
 
 - 2026-08-18 Unity 编译、Test Runner 与双进程 Play 已确认
-- Host 花名册只有本机；远端玩家只在客机 `RemoteCharacterProxy` 上可见
+- 客机预测座位不进入敌人权威感知；Dedicated/Host 由每连接 `RemotePlayerSeat` 提供当前 Active 槽感知根
 
 ### 相关文件
 
@@ -1545,6 +1547,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-09-02 | 修复切人 VFX 泄漏：已处于 Recovery 的退场原招不再多推进一帧；RemoteProxy 新动作/重启不再从 frame -1 补播整段历史 Notify |
 | 2026-09-02 | 修复 Observer 二次登场残留：远端角色隐藏前回收所属 VFX；重新显形时清空退场前插值历史并直接落到当前权威位置 |
 | 2026-09-02 | 本机阵容生命周期接入同一可见性清理接口：`CharacterActor` 转入 Inactive/Dead/Empty 前回收所属 VFX，避免本机再次 SwitchIn 时复活旧特效 |
+| 2026-09-02 | 修复 P-SW1 后敌人感知根停在出生点：`RemotePlayerSeat` 使用稳定锚点并在普通切人时重挂到当前权威槽位根 |
 | 2026-06-17 | 初版：移动、输入、状态机、动画、相机、Prefab 文档化 |
 | 2026-06-17 | 动作系统 §7：ComboSequence、CombatMode、ACTION_EDITOR 对齐摘要 |
 | 2026-06-21 | ActionEditor 准备重构：CharacterActionDriver、UpdateFrame、Phase/Event 骨架、命中回流 |
