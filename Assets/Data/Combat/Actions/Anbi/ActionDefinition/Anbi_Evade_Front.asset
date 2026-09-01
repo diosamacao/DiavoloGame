@@ -24,7 +24,7 @@ MonoBehaviour:
   crossFadeDuration: 0.1
   executionPolicy:
     interruptPriority: 0
-    baseMotionMode: 1
+    baseMotionMode: 2
   resourceSpec:
     resourceTag: 0
     energyCost: 0

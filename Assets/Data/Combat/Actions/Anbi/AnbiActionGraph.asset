@@ -78,6 +78,19 @@ MonoBehaviour:
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
     editorPosition: {x: -232, y: 174}
+  - nodeId: Anbi_SwitchIn
+    action: {fileID: 11400000, guid: ee4c2dbcb5bfb764b8830a7b2d3cc998, type: 2}
+    intent: 10
+    isEntry: 1
+    variantResolver: {fileID: 0}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions: []
+    editorPosition: {x: 830, y: 174}
   edges:
   - fromNodeId: Anbi_Attack_Normal_03
     routeKind: 0
