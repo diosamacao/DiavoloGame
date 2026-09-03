@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-09-03（P-HR1 裁定纯函数已接；命中仍一律 EnterHit）
+> Last updated: 2026-09-03（P-HR2 Flinch 不停招；Stun+ 仍 EnterHit）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -12,7 +12,7 @@
 | 命中受击 Cue（VFX/SFX） | ✅ 已实现（A2 打击感验收 2026-08-09） | `HitImpactController` + `HitFeedbackSettings` | 接触点落点 + 随机旋转；普攻 Cue 已验 |
 | 逻辑 Hurtbox 调试线框 | ✅ 已实现 | `CombatHurtboxDebugSettings` + `CombatHurtboxDebugVisualizer` | F4 开关（F3 HUD 显示状态） |
 | Playable Additive 探针 | 🟡 P-HR0 Play 已确认 Additive | `PlayableAnimationPlayback.PlayAdditive` + F6 | Listen 无头敌人打 Observer Proxy；HUD 拖 `Hit_Shake` |
-| 受击档位裁定 | 🟡 P-HR1 纯函数，未接 Service | `HitReactionKind` + `CharacterReactionResolver.Resolve` | 旧盒子默认 LightStun + level 1；真命中仍 `EnterHit` |
+| 受击档位裁定 | 🟡 P-HR2 已接 Service，Play 待验 | `CharacterReactionService` + `HitFlinchPlaybackController` | 轻击盒子改 `desiredReaction=Flinch`；旧盒子仍 LightStun |
 | 固定帧模拟宿主 | ✅ L0A 已实现 | `SimulationHost`、`SimulationWorld`、`SimActorId` | 60Hz，无资产 |
 | Wave0 动作审计 / 锚点可视化 / Debug HUD | ✅ 已实现 | `ActionDefinitionAuditUtility`、`CharacterAnchorGizmoDrawer`、`CombatDebugHudController` | 菜单 `ACTGame/Action/Validate Motion Sources`；场景挂 HUD |
 | 角色朝向调试箭头 | ✅ Play 实心箭 | `CharacterFacingDebugVisualizer` + `ICharacterFacingDebugTarget` | 本体 / 客机他人幽灵各一份；黄=wish 品红=模型 |
@@ -1384,42 +1384,43 @@ SimulationHost 帧末
 
 **已知限制：** 单 Hurtbox/角色，无多部位表；新招仍须人工绑 Feedback Prefab/Clip。A2 打击感验收 ✅ 2026-08-09。
 
-### 7.2 受击档位裁定（P-HR1）
+### 7.2 受击档位裁定（P-HR2）
 
-**功能说明：** 把「这刀该微颤还是进 Hit」收成纯函数；轻击档不断招。Service 尚未改，真命中仍一律 `EnterHit`。
+**功能说明：** 轻击（Flinch）扣血但不断招，可见体叠 Additive；硬直及以上仍进 Hit。Shake 不 Play 走跑/出招主轨，不 `SetLocked`。
 
 **实现方案：**
 
 | 项 | 方案 |
 |----|------|
 | 档位 | `HitReactionKind`：None / Flinch / LightStun / HeavyStun / Launch / Death |
-| 输出 | `HitReactionCommand`（Kind、StunAction、StunFrames、FlinchKey） |
-| 输入 | `HitReactionResolveQuery`（打断等级、抗打断、SuperArmor、DOT/Payload） |
-| 算法 | `CharacterReactionResolver.Resolve`：致命→Death；无敌/吞伤/DOT/无 Payload→None；`!canInterrupt` 最多 Flinch |
-| 同帧 | `HitReactionCommand.Merge` 取更高档 |
-| 旧入口 | `ResolveHit` / `ResolveDeath` 仍给 Service，P-HR2 再删 |
+| 裁定 | `CharacterReactionResolver.Resolve` → `HitReactionCommand` |
+| 执行 | `CharacterReactionService`：Flinch 不 `EnterHit` / 不 `NotifyHit`；Stun+ 旧路径 |
+| 表现 | `CharacterActor.IssueFlinch` → `HitFlinchPlaybackController` → `PlayAdditive` |
+| 边沿 | Flinch 把 `VitalityEdge` 清成 None，避免幽灵把底轨当受击重播 |
+| 旧入口 | `ResolveHit` 仅快照硬吸（Stun 边沿） |
 
 **关键参数：**
 
 | 参数 | 默认 | 含义 |
 |------|------|------|
-| `interruptLevel` | 1 | 旧盒子未填时的打断等级 |
-| `desiredReaction` | `LightStun` | 旧盒子期望档，杂兵仍断招 |
+| `HitPayload.interruptLevel` | 1 | 旧盒子打断等级 |
+| `HitPayload.desiredReaction` | `LightStun` | 旧盒子仍进 Hit；轻击测 Shake 改为 Flinch |
 | `baseInterruptResist` | 1 | 杂兵站立抗性 |
-| Flinch 键 | `AnimationKey.HitShake` | Additive 逻辑键，不进 Locomotion |
+| Flinch 键 | `AnimationKey.HitShake` | Additive；不进 Locomotion |
 
 **运行时流程：**
 
 ```
-P-HR1（已落地，仅单测 / 调用方可问）
-  HitReactionResolveQuery → CharacterReactionResolver.Resolve → HitReactionCommand
-
-现行命中（未改）
-  CombatHitPipeline → Vitality.HitReceived → CharacterReactionService
-    → ResolveHit → Actor.EnterHit
+CombatHitPipeline.OnHit → Vitality.HitReceived
+  → CharacterReactionService
+       Resolve(FromHitContext + SuperArmor)
+       ConfirmHitReaction
+       Flinch → Actor.IssueFlinch → HitFlinchPlaybackController.PlayAdditive
+       Stun+  → NotifyHit + EnterHit
+       None   → 只保留已结算伤害
 ```
 
-**已知限制：** 未接 Service / Pipeline / 复制；`HitPayload` 尚无打断字段（P-HR3）；Play 挨打手感与 P-HR0 后相同。方案：`docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md`。
+**已知限制：** 未填 `desiredReaction=Flinch` 的旧盒子仍断招；Listen 客机 Shake 待 P-HR4；`baseInterruptResist` 资产待 P-HR3。方案：`docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md`。
 
 **相关文件：**
 
@@ -1427,6 +1428,9 @@ P-HR1（已落地，仅单测 / 调用方可问）
 - `Assets/Scripts/Domain/Character/Reactions/HitReactionCommand.cs`
 - `Assets/Scripts/Domain/Character/Reactions/HitReactionResolveQuery.cs`
 - `Assets/Scripts/Domain/Character/Reactions/CharacterReactionResolver.cs`
+- `Assets/Scripts/Domain/Character/Reactions/CharacterReactionService.cs`
+- `Assets/Scripts/App/Controllers/Combat/HitFlinchPlaybackController.cs`
+- `Assets/Scripts/App/Events/Combat/HitFlinchEvent.cs`
 - `Assets/Tests/Editor/Combat/HitReactionResolverTests.cs`
 
 VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强制 Despawn；池化实例由 `VfxPooledInstance` 按粒子与 Animator clip 的较长自然时长（含 `playbackSpeed` / 卡肉冻结）自行回池。Spawn 时 `Rebind`+从头 `Play` Animator；卡肉同步 `Animator.speed=0`。无 `VFXManager` 时回退 `Destroy(lifetime)`。C1 展示包源资产位于 `Assets/Resources/Effect-C1/EffectPackage/`（Prefab 经 `PlayVfxNotify` 引用，非 `Resources.Load` 硬编码路径）。
@@ -1595,7 +1599,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-09-02 | 修复 Observer 二次登场残留：远端角色隐藏前回收所属 VFX；重新显形时清空退场前插值历史并直接落到当前权威位置 |
 | 2026-09-02 | 本机阵容生命周期接入同一可见性清理接口：`CharacterActor` 转入 Inactive/Dead/Empty 前回收所属 VFX，避免本机再次 SwitchIn 时复活旧特效 |
 | 2026-09-02 | 修复 P-SW1 后敌人感知根停在出生点：`RemotePlayerSeat` 使用稳定锚点并在普通切人时重挂到当前权威槽位根 |
-| 2026-09-03 | P-HR1：`HitReactionResolver.Resolve` 出 Command；Service 未接。P-HR0 Additive Play 已确认 |
+| 2026-09-03 | P-HR2：Flinch 不停招、不锁 Locomotion；`HitFlinchPlaybackController` 只 `PlayAdditive`；Stun+ 仍 EnterHit |
 | 2026-06-17 | 初版：移动、输入、状态机、动画、相机、Prefab 文档化 |
 | 2026-06-17 | 动作系统 §7：ComboSequence、CombatMode、ACTION_EDITOR 对齐摘要 |
 | 2026-06-21 | ActionEditor 准备重构：CharacterActionDriver、UpdateFrame、Phase/Event 骨架、命中回流 |

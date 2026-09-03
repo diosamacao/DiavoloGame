@@ -84,20 +84,19 @@ public static class HitFlinchAdditiveProbe
         if (actor == null)
             return null;
 
+        CombatWorldController world = CombatWorldController.Current;
+        if (world != null
+            && world.TryResolvePresentation(actor, out CharacterAnimationService resolved)
+            && resolved != null
+            && resolved.HasPlayback)
+        {
+            return resolved;
+        }
+
         CharacterAnimationService local = actor.Animation;
         if (local != null && local.HasPlayback)
             return local;
 
-        CombatWorldController world = CombatWorldController.Current;
-        if (world != null
-            && world.TryGetPresentationAnimation(actor.SimulationId, out CharacterAnimationService proxy)
-            && proxy != null
-            && proxy.HasPlayback)
-        {
-            return proxy;
-        }
-
-        // 组件链未挂上时，直接扫场上已生成的 Ghost Playable。
         if (RemoteCharacterProxy.TryFindLivePresentation(
                 actor.SimulationId,
                 out CharacterAnimationService live)
