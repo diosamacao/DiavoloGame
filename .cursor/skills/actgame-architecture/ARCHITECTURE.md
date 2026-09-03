@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-09-03（P-HR3 受击抗打断走 CombatConfig + Phase bonus；轻击 Flinch 不停招）
+> Last audited: 2026-09-03（受击档由冲击力对韧性裁定；Flinch 不停招）
 
 ## 项目概述
 
@@ -221,10 +221,10 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `CombatActorSystem` / `TargetSystem` / `CombatFeedbackSystem` | 战斗角色注册、目标注册、反馈状态 |
 | `PublishAttackHitCommand` / `GetActiveTargetsQuery` / `AttackHitEvent` | 已结算命中的只读表现通知入口与无副作用目标查询 |
 | `HitboxFrameConsumer` / `HitDetector` / `CombatHitPipeline` / `TargetingResolver` | 动作帧几何检测只 Collect；命中按 `SimHitKey` 排序后帧末统一结算 |
-| `HitPayload` / `HitFeedbackSettings` | 单个 Hitbox 的伤害、`interruptLevel`、`desiredReaction`、HitReactionId、镜头震动、卡肉与受击 Cue |
+| `HitPayload` / `HitFeedbackSettings` | 单个 Hitbox 的伤害、冲击力（`interruptLevel`）、HitReactionId、镜头震动、卡肉与受击 Cue |
 | `HitImpactController` / `FeedbackController` | 帧末 `AttackHitEvent` 在接触点播受击特效/音效（可随机旋转）；卡肉由 `HitStopController` 托管 |
 | `CombatHurtboxDebugSettings` / `CombatHurtboxDebugVisualizer` | F4 开关绘制逻辑 Hurtbox 线框 |
-| `CharacterReactionSet` / `CharacterReactionResolver` | `Resolve` 出 `HitReactionCommand`；Stun+ 才按 HitReactionId 选受击 Action；默认硬直时长在规则集 |
+| `CharacterReactionSet` / `CharacterReactionResolver` | `ResolveKind(冲击力, 韧性)` 出档；Stun+ 才按 HitReactionId 选受击 Action；默认硬直时长在规则集 |
 | `CharacterReactionService` | Vitality 边沿桥接：Flinch 不进 Hit / 不通知树；Stun+ / Death 交给 CharacterActor |
 | `CombatModeProfile` | mode → `ActionGraph`（节点按语义 Intent 匹配；无 ActionSet 壳） |
 | `NumericSystem` / `NumericCostGate` / `ActionResourceSpec` | 数值权威与起手扣费；价签挂 ActionDefinition；ConfirmHit 经 Pipeline Grant Effect |

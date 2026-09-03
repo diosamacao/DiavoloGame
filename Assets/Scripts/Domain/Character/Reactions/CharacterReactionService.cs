@@ -12,7 +12,7 @@ public sealed class CharacterReactionService : IDisposable
     readonly Action<ActionHitContext, float> _deathSideEffect;
     readonly int _baseInterruptResist;
 
-    /// <summary>绑定 Vitality 事件；resist 来自角色 CombatConfig，禁止按敌人身份分支。</summary>
+    /// <summary>绑定 Vitality 事件；韧性来自角色 CombatConfig，禁止按敌人身份分支。</summary>
     public CharacterReactionService(
         CharacterVitality vitality,
         CharacterActor actor,
@@ -69,7 +69,7 @@ public sealed class CharacterReactionService : IDisposable
         _actor.EnterDeath(in request);
     }
 
-    /// <summary>读站立抗性、当前 Phase 加成与 SuperArmor；无敌/吞伤由管道早退。</summary>
+    /// <summary>读站立韧性、当前 Phase 加成与 SuperArmor；无敌/吞伤由管道早退。</summary>
     HitReactionResolveQuery BuildQuery(in ActionHitContext context)
     {
         bool superArmor = false;

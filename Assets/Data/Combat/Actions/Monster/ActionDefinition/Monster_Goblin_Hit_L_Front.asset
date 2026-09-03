@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
+  m_Name: Monster_Goblin_Hit_L_Front
+  m_EditorClassIdentifier: 
+  animationSegments:
+  - clip: {fileID: -4857606888386965987, guid: a769c442d7ea88c4d8f124f275f1d626, type: 3}
+    startFrame: 0
+    endFrame: -1
+    hasCrossFadeOverride: 0
+    crossFadeDuration: 0
+  sampleRate: 60
+  totalFrames: 105
+  actionType: 3
+  crossFadeDuration: 0.1
+  executionPolicy:
+    interruptPriority: 0
+    baseMotionMode: 2
+  resourceSpec:
+    resourceTag: 0
+    energyCost: 0
+    energyGrantOnHit: 0
+    decibelGrantOnHit: 0
+    consumeDodgeCharge: 0
+    requiresDecibelFull: 0
+    clearsDecibelOnStart: 0
+  timeline:
+    actionEvents: []
+    playVfxNotifies: []
+    playSfxStates: []
+    hitboxStates: []
+    hurtboxStates: []
+    cancelWindowStates: []
+    phaseStates: []
+    perfectDodgeWindowStates: []
+    movementStates: []
+    rotationStates: []
+    motionModifierStates: []
+    motionCommandNotifies: []
+    cameraSettings:
+      restoreMode: 0
+      suppressLookInput: 1
+    cameraShotStates: []
+    tracks: []
+  bakedMotion:
+    logicHz: 60
+    frameCount: 106
+    planarMode: 2
+    positionDeltaMmX: 0d0000000d0000000c0000000c0000000b00000005000000fefffffff9fffffff8fffffffbffffffffffffff0000000001000000010000000100000000000000fefffffffdfffffffdfffffffdffffffffffffff0000000003000000040000000500000006000000060000000500000004000000020000000100000000000000fffffffffffffffffffffffffefffffffefffffffefffffffefffffffdfffffffefffffffefffffffefffffffdfffffffdfffffffdfffffffdfffffffdfffffffdfffffffdfffffffdfffffffdfffffffdfffffffdfffffffdfffffffdfffffffcfffffffcfffffffdfffffffdfffffffdfffffffdfffffffdfffffffefffffffeffffffffffffffffffffffffffffff0000000000000000000000000000000000000000000000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000000000000000000000000000
+    positionDeltaMmZ: 0400000004000000f6ffffffdcffffffceffffffdbffffffeefffffff6fffffffcffffff01000000040000000700000009000000090000000900000008000000060000000500000004000000030000000200000001000000fffffffffefffffffdfffffffdfffffffcfffffffcfffffffbfffffffbfffffffbfffffffbfffffffbfffffffbfffffffbfffffffbfffffffbfffffffbfffffffbfffffffbfffffffbfffffffcfffffffcfffffffcfffffffcfffffffdfffffffdfffffffdfffffffdfffffffefffffffefffffffefffffffefffffffeffffffffffffffffffffffffffffffffffffff000000000000000000000000000000000000000000000000000000000000000001000000010000000100000001000000010000000100000001000000010000000200000002000000020000000200000002000000020000000200000003000000030000000300000003000000030000000300000003000000030000000300000002000000020000000200000002000000020000000200000002000000010000000100000001000000020000000200000002000000010000000000000000000000
+    yawDeltaMilliDeg: 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    inplaceContentHash: Assets/Art/Characters/Monster/Blender_FbxFormat_Inplace/Goblin_Ani_Stun_Hit_L_Front_Inplace.fbx|Goblin_Ani_Stun_Hit_L_Front_Inplace|1.75000|60.000;
+    rootMotionContentHash: Assets/Art/Characters/Monster/Blender_FbxFormat_Root/Goblin_Ani_Stun_Hit_L_Front.fbx|Goblin_Ani_Stun_Hit_L_Front|1.75000|60.000;
+    matchedRootMotionName: Goblin_Ani_Stun_Hit_L_Front
+    bakeStatus: 1

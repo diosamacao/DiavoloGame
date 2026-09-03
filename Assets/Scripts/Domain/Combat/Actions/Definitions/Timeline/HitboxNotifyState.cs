@@ -44,7 +44,7 @@ public class HitboxNotifyState : ActionNotifyState, ISerializationCallbackReceiv
     /// <summary>该判定框独立的命中结算载荷。</summary>
     public HitPayload Payload => payload ?? new HitPayload();
 
-    /// <summary>补写未填的 interruptLevel；Payload 为空时先建默认盒子。</summary>
+    /// <summary>补写未填的冲击力；Payload 为空时先建默认盒子。</summary>
     public bool EnsurePayloadDefaults()
     {
         payload ??= new HitPayload();

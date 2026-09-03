@@ -2,19 +2,18 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 
-/// <summary>P-HR1/P-HR3：受击档位纯函数、抗打断默认值与 Phase 加成。</summary>
+/// <summary>冲击力对韧性裁定档位、默认值与 Phase 加成。</summary>
 public sealed class HitReactionResolverTests
 {
     readonly CharacterReactionResolver _resolver = new CharacterReactionResolver(new CharacterReactionSet());
 
-    /// <summary>等级不够时击飞期望降为 Flinch。</summary>
+    /// <summary>冲击力低于韧性只 Shake，不进 Hit。</summary>
     [Test]
-    public void InterruptBelowResist_DesiredLaunch_ReturnsFlinch()
+    public void ImpactBelowToughness_ReturnsFlinch()
     {
         HitReactionCommand command = _resolver.Resolve(
             HitReactionResolveQuery.CombatHit(
                 interruptLevel: 1,
-                desiredReaction: HitReactionKind.Launch,
                 baseInterruptResist: 3));
 
         Assert.That(command.Kind, Is.EqualTo(HitReactionKind.Flinch));
@@ -23,18 +22,39 @@ public sealed class HitReactionResolverTests
         Assert.That(command.StunAction, Is.Null);
     }
 
-    /// <summary>等级够但仍期望 Flinch 时不进 Hit。</summary>
+    /// <summary>冲击力达到韧性进 LightStun（HardHit）。</summary>
     [Test]
-    public void LevelAtLeastResist_DesiredFlinch_ReturnsFlinch()
+    public void ImpactAtLeastToughness_ReturnsLightStun()
     {
         HitReactionCommand command = _resolver.Resolve(
             HitReactionResolveQuery.CombatHit(
                 interruptLevel: 3,
-                desiredReaction: HitReactionKind.Flinch,
                 baseInterruptResist: 1));
 
-        Assert.That(command.Kind, Is.EqualTo(HitReactionKind.Flinch));
-        Assert.That(command.InterruptsAction, Is.False);
+        Assert.That(command.Kind, Is.EqualTo(HitReactionKind.LightStun));
+        Assert.That(command.InterruptsAction, Is.True);
+    }
+
+    /// <summary>超出韧性 2 档升 HeavyStun。</summary>
+    [Test]
+    public void ExcessAtLeast2_ReturnsHeavyStun()
+    {
+        HitReactionCommand command = _resolver.Resolve(
+            HitReactionResolveQuery.CombatHit(
+                interruptLevel: 5,
+                baseInterruptResist: 3));
+
+        Assert.That(command.Kind, Is.EqualTo(HitReactionKind.HeavyStun));
+        Assert.That(CharacterReactionResolver.ResolveKind(5, 3, superArmor: false),
+            Is.EqualTo(HitReactionKind.HeavyStun));
+    }
+
+    /// <summary>超出韧性 4 档升 Launch。</summary>
+    [Test]
+    public void ExcessAtLeast4_ReturnsLaunch()
+    {
+        Assert.That(CharacterReactionResolver.ResolveKind(7, 3, superArmor: false),
+            Is.EqualTo(HitReactionKind.Launch));
     }
 
     /// <summary>SuperArmor 窗非致命最多 Flinch。</summary>
@@ -44,7 +64,6 @@ public sealed class HitReactionResolverTests
         HitReactionCommand command = _resolver.Resolve(
             HitReactionResolveQuery.CombatHit(
                 interruptLevel: 99,
-                desiredReaction: HitReactionKind.Launch,
                 superArmor: true));
 
         Assert.That(command.Kind, Is.EqualTo(HitReactionKind.Flinch));
@@ -63,7 +82,6 @@ public sealed class HitReactionResolverTests
             isDot: false,
             hasHitPayload: true,
             interruptLevel: 1,
-            desiredReaction: HitReactionKind.Flinch,
             baseInterruptResist: 1,
             phaseInterruptResistBonus: 0,
             superArmor: true,
@@ -79,9 +97,9 @@ public sealed class HitReactionResolverTests
     public void Merge_FlinchAndLightStun_ReturnsLightStun()
     {
         HitReactionCommand flinch = _resolver.Resolve(
-            HitReactionResolveQuery.CombatHit(desiredReaction: HitReactionKind.Flinch));
+            HitReactionResolveQuery.CombatHit(interruptLevel: 1, baseInterruptResist: 3));
         HitReactionCommand stun = _resolver.Resolve(
-            HitReactionResolveQuery.CombatHit(desiredReaction: HitReactionKind.LightStun));
+            HitReactionResolveQuery.CombatHit(interruptLevel: 1, baseInterruptResist: 1));
 
         HitReactionCommand merged = HitReactionCommand.Merge(flinch, stun);
         Assert.That(merged.Kind, Is.EqualTo(HitReactionKind.LightStun));
@@ -100,7 +118,6 @@ public sealed class HitReactionResolverTests
             isDot: true,
             hasHitPayload: true,
             interruptLevel: 1,
-            desiredReaction: HitReactionKind.LightStun,
             baseInterruptResist: 1,
             phaseInterruptResistBonus: 0,
             superArmor: false,
@@ -111,11 +128,10 @@ public sealed class HitReactionResolverTests
         Assert.That(command.InterruptsAction, Is.False);
     }
 
-    /// <summary>旧盒子默认 level 1 + LightStun，杂兵仍断招。</summary>
+    /// <summary>旧盒子默认冲击 1 打杂兵韧性 1，进 LightStun。</summary>
     [Test]
     public void EmptyPayloadDefaults_LightStunAndLevel1()
     {
-        // 旧盒子：有 Payload、未填打断字段 → level=1、desired=LightStun，杂兵 resist=1 仍断招。
         HitReactionCommand command = _resolver.Resolve(HitReactionResolveQuery.CombatHit());
 
         Assert.That(HitReactionResolveQuery.DefaultInterruptLevel, Is.EqualTo(1));
@@ -136,7 +152,6 @@ public sealed class HitReactionResolverTests
             isDot: false,
             hasHitPayload: false,
             interruptLevel: 1,
-            desiredReaction: HitReactionKind.LightStun,
             baseInterruptResist: 1,
             phaseInterruptResistBonus: 0,
             superArmor: false,
@@ -157,7 +172,6 @@ public sealed class HitReactionResolverTests
             isDot: false,
             hasHitPayload: true,
             interruptLevel: 3,
-            desiredReaction: HitReactionKind.Launch,
             baseInterruptResist: 1,
             phaseInterruptResistBonus: 0,
             superArmor: false,
@@ -170,7 +184,6 @@ public sealed class HitReactionResolverTests
             isDot: false,
             hasHitPayload: true,
             interruptLevel: 3,
-            desiredReaction: HitReactionKind.Launch,
             baseInterruptResist: 1,
             phaseInterruptResistBonus: 0,
             superArmor: false,
@@ -180,32 +193,18 @@ public sealed class HitReactionResolverTests
         Assert.That(_resolver.Resolve(in dodge).Kind, Is.EqualTo(HitReactionKind.None));
     }
 
-    /// <summary>Phase 抗打断加成抬高 resist 后，普攻打不进 Stun。</summary>
+    /// <summary>Phase 韧性加成抬高后，普攻打不进 Stun。</summary>
     [Test]
-    public void PhaseResistBonus_BlocksLaunch()
+    public void PhaseResistBonus_BlocksLightStun()
     {
-        HitReactionCommand command = _resolver.Resolve(
-            HitReactionResolveQuery.CombatHit(
-                interruptLevel: 1,
-                desiredReaction: HitReactionKind.Launch,
-                baseInterruptResist: 1,
-                phaseInterruptResistBonus: 2));
+        HitReactionResolveQuery query = HitReactionResolveQuery.CombatHit(
+            interruptLevel: 1,
+            baseInterruptResist: 1,
+            phaseInterruptResistBonus: 2);
+        HitReactionCommand command = _resolver.Resolve(query);
 
+        Assert.That(query.Toughness, Is.EqualTo(3));
         Assert.That(command.Kind, Is.EqualTo(HitReactionKind.Flinch));
-    }
-
-    /// <summary>Payload 标明 Flinch 时即使等级够也不进 Hit。</summary>
-    [Test]
-    public void PayloadDesiredFlinch_ReturnsFlinch()
-    {
-        var payload = new HitPayload(10f, interruptLevel: 1, HitReactionKind.Flinch);
-        HitReactionCommand command = _resolver.Resolve(
-            HitReactionResolveQuery.CombatHit(
-                payload.InterruptLevel,
-                payload.DesiredReaction));
-
-        Assert.That(command.Kind, Is.EqualTo(HitReactionKind.Flinch));
-        Assert.That(command.InterruptsAction, Is.False);
     }
 
     /// <summary>Flinch 裁定后复制边沿不得停在 Hit，避免幽灵重播走跑/出招。</summary>
@@ -244,60 +243,56 @@ public sealed class HitReactionResolverTests
         Assert.That(command.Kind, Is.EqualTo(HitReactionKind.None));
     }
 
-    /// <summary>P-HR3：精英 resist=3 吃普攻 level1，即使期望 LightStun 也只 Flinch。</summary>
+    /// <summary>Attack01 冲击 2 打杂兵韧性 1：HardHit。</summary>
     [Test]
-    public void EliteResist3_NormalAttackLevel1_DesiredLightStun_Flinch()
+    public void Attack01Impact2_GruntToughness1_LightStun()
     {
         HitReactionCommand command = _resolver.Resolve(
             HitReactionResolveQuery.CombatHit(
-                interruptLevel: 1,
-                desiredReaction: HitReactionKind.LightStun,
+                interruptLevel: 2,
+                baseInterruptResist: 1));
+
+        Assert.That(command.Kind, Is.EqualTo(HitReactionKind.LightStun));
+        Assert.That(command.InterruptsAction, Is.True);
+    }
+
+    /// <summary>Attack01 冲击 2 打精英韧性 3：只 Shake。</summary>
+    [Test]
+    public void Attack01Impact2_EliteToughness3_Flinch()
+    {
+        HitReactionCommand command = _resolver.Resolve(
+            HitReactionResolveQuery.CombatHit(
+                interruptLevel: 2,
                 baseInterruptResist: 3));
 
         Assert.That(command.Kind, Is.EqualTo(HitReactionKind.Flinch));
         Assert.That(command.InterruptsAction, Is.False);
     }
 
-    /// <summary>P-HR3：同精英被技能 level≥3 打断，按期望进 LightStun。</summary>
+    /// <summary>技能冲击 3 打精英韧性 3：HardHit。</summary>
     [Test]
-    public void EliteResist3_SkillLevel3_LightStun()
+    public void SkillImpact3_EliteToughness3_LightStun()
     {
         HitReactionCommand command = _resolver.Resolve(
             HitReactionResolveQuery.CombatHit(
                 interruptLevel: 3,
-                desiredReaction: HitReactionKind.LightStun,
                 baseInterruptResist: 3));
 
         Assert.That(command.Kind, Is.EqualTo(HitReactionKind.LightStun));
         Assert.That(command.InterruptsAction, Is.True);
     }
 
-    /// <summary>P-HR3：杂兵 resist=1 + 未改旧盒子仍断招。</summary>
+    /// <summary>未填冲击力写成 1。</summary>
     [Test]
-    public void GruntResist1_LegacyBox_LightStun()
+    public void HitPayload_EnsureInterruptLevel_WritesDefault()
     {
-        HitReactionCommand command = _resolver.Resolve(
-            HitReactionResolveQuery.CombatHit(
-                interruptLevel: HitReactionResolveQuery.DefaultInterruptLevel,
-                desiredReaction: HitReactionKind.LightStun,
-                baseInterruptResist: HitReactionResolveQuery.DefaultBaseInterruptResist));
-
-        Assert.That(command.Kind, Is.EqualTo(HitReactionKind.LightStun));
-        Assert.That(command.InterruptsAction, Is.True);
-    }
-
-    /// <summary>未填 interruptLevel 写成 1，已设的 Flinch 不被覆盖。</summary>
-    [Test]
-    public void HitPayload_EnsureInterruptLevel_PreservesDesiredFlinch()
-    {
-        var payload = new HitPayload(10f, interruptLevel: 0, HitReactionKind.Flinch);
+        var payload = new HitPayload(10f, interruptLevel: 0);
         Assert.That(payload.EnsureInterruptLevelDefault(), Is.True);
         Assert.That(payload.InterruptLevel, Is.EqualTo(HitReactionResolveQuery.DefaultInterruptLevel));
-        Assert.That(payload.DesiredReaction, Is.EqualTo(HitReactionKind.Flinch));
         Assert.That(payload.EnsureInterruptLevelDefault(), Is.False);
     }
 
-    /// <summary>未填站立抗打断按杂兵 1 读，Ensure 只补写空字段。</summary>
+    /// <summary>未填站立韧性按杂兵 1 读，Ensure 只补写空字段。</summary>
     [Test]
     public void CharacterCombatConfig_UnfilledResist_ReadsAsGruntDefault()
     {
@@ -310,7 +305,7 @@ public sealed class HitReactionResolverTests
             Is.EqualTo(HitReactionResolveQuery.DefaultBaseInterruptResist));
     }
 
-    /// <summary>当前帧生效 Phase 的抗打断加成求和；窗外为 0。</summary>
+    /// <summary>当前帧生效 Phase 的韧性加成求和；窗外为 0。</summary>
     [Test]
     public void ActionDefinition_SumsActivePhaseInterruptResistBonus()
     {

@@ -1,13 +1,19 @@
 /// <summary>
-/// 裁定输入。打断等级与期望档由调用方填好；旧盒子用默认 LightStun + level 1。
+/// 裁定输入。冲击力与韧性由调用方填好；旧盒子默认冲击 1、韧性 1。
 /// </summary>
 public readonly struct HitReactionResolveQuery
 {
-    /// <summary>旧 Hitbox 未填打断等级时的缺省值。</summary>
+    /// <summary>旧 Hitbox 未填冲击力时的缺省值。</summary>
     public const int DefaultInterruptLevel = 1;
 
-    /// <summary>未配置抗打断时按杂兵站立抗性。</summary>
+    /// <summary>未配置韧性时按杂兵站立韧性。</summary>
     public const int DefaultBaseInterruptResist = 1;
+
+    /// <summary>冲击力 − 韧性 ≥ 此值升为 HeavyStun。</summary>
+    public const int HeavyStunExcess = 2;
+
+    /// <summary>冲击力 − 韧性 ≥ 此值升为 Launch。</summary>
+    public const int LaunchExcess = 4;
 
     /// <summary>组装一次完整裁定查询；调用方负责填默认值。</summary>
     public HitReactionResolveQuery(
@@ -18,7 +24,6 @@ public readonly struct HitReactionResolveQuery
         bool isDot,
         bool hasHitPayload,
         int interruptLevel,
-        HitReactionKind desiredReaction,
         int baseInterruptResist,
         int phaseInterruptResistBonus,
         bool superArmor,
@@ -31,7 +36,6 @@ public readonly struct HitReactionResolveQuery
         IsDot = isDot;
         HasHitPayload = hasHitPayload;
         InterruptLevel = interruptLevel;
-        DesiredReaction = desiredReaction;
         BaseInterruptResist = baseInterruptResist;
         PhaseInterruptResistBonus = phaseInterruptResistBonus;
         SuperArmor = superArmor;
@@ -56,30 +60,38 @@ public readonly struct HitReactionResolveQuery
     /// <summary>是否来自 Hitbox Payload。无 Payload 的数值伤视为 None。</summary>
     public bool HasHitPayload { get; }
 
-    /// <summary>本刀打断等级。</summary>
+    /// <summary>本刀冲击力（序列化字段 interruptLevel）。</summary>
     public int InterruptLevel { get; }
 
-    /// <summary>攻击期望档；未打断成功时最多落到 Flinch。</summary>
-    public HitReactionKind DesiredReaction { get; }
-
-    /// <summary>站立抗打断。</summary>
+    /// <summary>站立韧性（序列化字段 baseInterruptResist）。</summary>
     public int BaseInterruptResist { get; }
 
-    /// <summary>当前 Phase 抗打断加成。</summary>
+    /// <summary>当前 Phase 韧性加成。</summary>
     public int PhaseInterruptResistBonus { get; }
 
-    /// <summary>SuperArmor 窗：非 Death 不可打断，最多 Flinch。</summary>
+    /// <summary>SuperArmor 窗：非 Death 最多 Flinch。</summary>
     public bool SuperArmor { get; }
 
     /// <summary>Stun+ 选受击 Action 的语义 Id。</summary>
     public string HitReactionId { get; }
 
-    /// <summary>
-    /// 常规打击查询。空字段默认 level=1、desired=LightStun，与未改旧盒子手感接近。
-    /// </summary>
+    /// <summary>本刀冲击力，等同 InterruptLevel。</summary>
+    public int Impact => InterruptLevel;
+
+    /// <summary>受击方当前韧性 = 站立 + Phase 加成，负值按 0。</summary>
+    public int Toughness
+    {
+        get
+        {
+            int stand = BaseInterruptResist < 0 ? 0 : BaseInterruptResist;
+            int bonus = PhaseInterruptResistBonus < 0 ? 0 : PhaseInterruptResistBonus;
+            return stand + bonus;
+        }
+    }
+
+    /// <summary>常规打击查询。空字段默认冲击 1、韧性 1。</summary>
     public static HitReactionResolveQuery CombatHit(
         int interruptLevel = DefaultInterruptLevel,
-        HitReactionKind desiredReaction = HitReactionKind.LightStun,
         int baseInterruptResist = DefaultBaseInterruptResist,
         int phaseInterruptResistBonus = 0,
         bool superArmor = false,
@@ -93,16 +105,13 @@ public readonly struct HitReactionResolveQuery
             isDot: false,
             hasHitPayload: true,
             interruptLevel,
-            desiredReaction,
             baseInterruptResist,
             phaseInterruptResistBonus,
             superArmor,
             hitReactionId);
     }
 
-    /// <summary>
-    /// 从命中上下文读取 Payload 打断字段；无 Hitbox 视为无打击语义。
-    /// </summary>
+    /// <summary>从命中上下文读取冲击力；无 Hitbox 视为无打击语义。</summary>
     public static HitReactionResolveQuery FromHitContext(
         in ActionHitContext context,
         bool isDead = false,
@@ -123,7 +132,6 @@ public readonly struct HitReactionResolveQuery
             isDot,
             hasHitPayload: payload != null,
             payload != null ? payload.InterruptLevel : DefaultInterruptLevel,
-            payload != null ? payload.DesiredReaction : HitReactionKind.LightStun,
             baseInterruptResist,
             phaseInterruptResistBonus,
             superArmor,

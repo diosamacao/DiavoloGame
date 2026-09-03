@@ -3,14 +3,14 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// P-HR3：把未填的 interruptLevel / 站立抗打断写成杂兵默认。不改 DesiredReaction。
+/// P-HR3：把未填的冲击力 / 站立韧性写成杂兵默认。
 /// </summary>
 public static class HitReactionDefaultsMigrator
 {
     const string MenuFill = "ACTGame/Combat/Fill Hit Reaction Defaults";
     const string MenuValidate = "ACTGame/Combat/Validate Hit Reaction Defaults";
 
-    /// <summary>扫描并补写 Action Hitbox 的 interruptLevel≤0、CharacterConfig 抗打断≤0。</summary>
+    /// <summary>扫描并补写 Action Hitbox 的冲击力≤0、CharacterConfig 韧性≤0。</summary>
     [MenuItem(MenuFill)]
     public static void FillDefaults()
     {
@@ -19,7 +19,7 @@ public static class HitReactionDefaultsMigrator
         AssetDatabase.SaveAssets();
         Debug.Log(
             $"HitReactionDefaults: 已写入 ActionDefinition {actionsTouched} 个、" +
-            $"CharacterConfig {configsTouched} 个。DesiredReaction 未改。");
+            $"CharacterConfig {configsTouched} 个。");
     }
 
     /// <summary>只报告未填字段，不写资产。</summary>
@@ -30,7 +30,7 @@ public static class HitReactionDefaultsMigrator
         int configsMissing = FillCharacterConfigs(apply: false);
         Debug.Log(
             $"HitReactionDefaults: 待补 ActionDefinition {actionsMissing} 个、" +
-            $"CharacterConfig {configsMissing} 个（interruptLevel/resist≤0）。");
+            $"CharacterConfig {configsMissing} 个（冲击力/韧性≤0）。");
     }
 
     /// <summary>扫描 ActionDefinition Hitbox；apply=false 只计数 interruptLevel≤0。</summary>

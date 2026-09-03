@@ -45,7 +45,7 @@ MonoBehaviour:
       - reactionType: 0
         reactionId: 
         defaultRule: 1
-        action: {fileID: 11400000, guid: ef0c9f0264bc33746a2aabfea88f00de, type: 2}
+        action: {fileID: 11400000, guid: d34a5c797fc0c0a418afa0c2f62fc6e3, type: 2}
     baseInterruptResist: 3
   resources:
     maxEnergy: 120

@@ -231,7 +231,7 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
         return false;
     }
 
-    /// <summary>当前帧所有生效 Phase 的抗打断加成之和。</summary>
+    /// <summary>当前帧所有生效 Phase 的韧性加成之和。</summary>
     public int GetInterruptResistBonusAtFrame(int frame)
     {
         int bonus = 0;
@@ -373,7 +373,7 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
         executionPolicy ??= new ActionExecutionPolicy();
         bakedMotion ??= new ActionBakedMotion();
 
-        // 未填 interruptLevel 写成 1；不改 DesiredReaction（保护已设的 Flinch）。
+        // 未填冲击力写成 1。档位由冲击力对韧性裁定，不再读 desiredReaction。
         HitboxNotifyState[] boxes = Timeline.HitboxStates;
         for (int i = 0; i < boxes.Length; i++)
             boxes[i]?.EnsurePayloadDefaults();
