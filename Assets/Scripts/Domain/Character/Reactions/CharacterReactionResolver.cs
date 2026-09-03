@@ -13,7 +13,7 @@ public sealed class CharacterReactionResolver
     }
 
     /// <summary>
-    /// 按打断等级 / 抗打断 / 期望档裁定反馈。不切状态、不播动画。
+    /// 按冲击力对韧性裁定反馈。不切状态、不播动画，不读 desiredReaction。
     /// </summary>
     public HitReactionCommand Resolve(in HitReactionResolveQuery query)
     {
@@ -27,27 +27,29 @@ public sealed class CharacterReactionResolver
         if (query.IsDot || !query.HasHitPayload)
             return HitReactionCommand.None;
 
-        int resist = ClampNonNegative(query.BaseInterruptResist)
-            + ClampNonNegative(query.PhaseInterruptResistBonus);
-        bool canInterrupt = !query.SuperArmor
-            && ClampNonNegative(query.InterruptLevel) >= resist;
-
-        HitReactionKind desired = NormalizeDesired(query.DesiredReaction);
-        HitReactionKind actual;
-        if (!canInterrupt)
-        {
-            // 没打断成功：想击飞也最多微颤；期望本就是 None/Flinch 则保持。
-            actual = desired <= HitReactionKind.Flinch ? desired : HitReactionKind.Flinch;
-        }
-        else
-        {
-            // 等级够：仍尊重期望。None/Flinch 不进 Hit。非致命不得出 Death。
-            actual = desired == HitReactionKind.Death
-                ? HitReactionKind.Launch
-                : desired;
-        }
-
+        HitReactionKind actual = ResolveKind(query.Impact, query.Toughness, query.SuperArmor);
         return Create(actual, query.HitReactionId);
+    }
+
+    /// <summary>
+    /// 冲击力对韧性：不足则 Flinch；持平起 LightStun；超出 2 HeavyStun；超出 4 Launch。
+    /// SuperArmor 非死最多 Flinch。
+    /// </summary>
+    public static HitReactionKind ResolveKind(int impact, int toughness, bool superArmor)
+    {
+        if (superArmor)
+            return HitReactionKind.Flinch;
+
+        int safeImpact = impact < 0 ? 0 : impact;
+        int safeToughness = toughness < 0 ? 0 : toughness;
+        int excess = safeImpact - safeToughness;
+        if (excess < 0)
+            return HitReactionKind.Flinch;
+        if (excess < HitReactionResolveQuery.HeavyStunExcess)
+            return HitReactionKind.LightStun;
+        if (excess < HitReactionResolveQuery.LaunchExcess)
+            return HitReactionKind.HeavyStun;
+        return HitReactionKind.Launch;
     }
 
     /// <summary>解析一次非致命命中；默认帧数同时作为反应动作启动失败时的硬直回退。</summary>
@@ -102,14 +104,4 @@ public sealed class CharacterReactionResolver
             stunFrames: 0,
             AnimationKey.Idle);
     }
-
-    /// <summary>非法期望档回退到旧盒子默认 LightStun。</summary>
-    static HitReactionKind NormalizeDesired(HitReactionKind desired)
-    {
-        if (desired > HitReactionKind.Death)
-            return HitReactionKind.LightStun;
-        return desired;
-    }
-
-    static int ClampNonNegative(int value) => value < 0 ? 0 : value;
 }

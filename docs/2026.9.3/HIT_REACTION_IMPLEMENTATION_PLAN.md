@@ -87,19 +87,18 @@ enum HitReactionKind
 
 | 字段 | 默认 | 含义 |
 |------|------|------|
-| `interruptLevel` | 1 | 打断等级，整数 |
-| `desiredReaction` | `LightStun`（兼容现状） | 这刀期望的受击档 |
+| `interruptLevel` | 1 | 冲击力。与目标韧性比较后出档，不再读 `desiredReaction` |
 | `HitReactionId` | 现有 | 断招时选哪份受击 Action |
 | `flinchClipKey` | 可选空 | 空则用角色默认 `Hit_Shake` |
 
-旧资产未填：`interruptLevel=1`，`desiredReaction=LightStun`，行为与现在「一打就进 Hit」接近。要轻击的盒子改成 `desiredReaction=Flinch` 或把目标抗打断抬到高于 1。
+旧资产未填冲击力按 1。档位只由冲击力 − 韧性决定。
 
 ### 3.3 受击侧
 
 | 来源 | 字段 | 含义 |
 |------|------|------|
-| `CharacterCombatConfig` / 敌人 Numeric | `baseInterruptResist` | 站立抗打断。杂兵 1，精英 3，Boss 5（可调） |
-| `ActionPhaseNotifyState` | `interruptResistBonus` | 出招窗内加成。现有 `SuperArmor` = 本窗视为不可打断（或 bonus 很大） |
+| `CharacterCombatConfig` / 敌人 Numeric | `baseInterruptResist` | 站立韧性。杂兵 1，精英 3，Boss 5（可调） |
+| `ActionPhaseNotifyState` | `interruptResistBonus` | 出招窗内韧性加成。现有 `SuperArmor` = 本窗最多 Flinch |
 | `Invincible` | — | 管道早退，不进裁定 |
 
 本轮不单独做 Buff 抗打断表；有 Numeric Flag 再加成即可。
@@ -128,17 +127,14 @@ Resolver **只出 Command**，不切状态、不播动画。
 1. 已死或本帧致命 → Death
 2. 无敌 / 完美吞伤 → None（管道本就不该叫到这里）
 3. DOT / 无 HitPayload 的数值伤 → None
-4. resist = baseInterruptResist + 当前 Phase.bonus
-   SuperArmor 窗：canInterrupt = false
-   否则 canInterrupt = payload.interruptLevel >= resist
-5. desired = payload.desiredReaction
-6. 若 !canInterrupt：
-     actual = desired <= Flinch ? desired : Flinch
-     （想击飞但没打断成功 → 最多微颤）
-   若 canInterrupt：
-     actual = desired
-     desired 为 None/Flinch 时即使等级够也不进 Hit
-7. 填 Command：Stun+ 查 CharacterReactionSet + HitReactionId
+4. toughness = baseInterruptResist + 当前 Phase.bonus
+   SuperArmor 窗：Flinch（非死亡）
+5. excess = interruptLevel − toughness
+   excess < 0  → Flinch
+   excess < 2  → LightStun（HardHit）
+   excess < 4  → HeavyStun
+   excess >= 4 → Launch
+6. 填 Command：Stun+ 查 CharacterReactionSet + HitReactionId
 ```
 
 同帧多刀：管道已按 `SimHitKey` 排序。对同一目标：
@@ -262,15 +258,15 @@ Phase `interruptible` 继续只管 **玩家出招被更高优 Intent 硬切**，
 
 **玩家普攻 Hitbox**
 
-- 轻段：`interruptLevel = 1`，`desiredReaction = Flinch`
-- 重段 / 技能：`interruptLevel = 3`，`desiredReaction = LightStun`，填 `HitReactionId`
+- 轻段：`interruptLevel = 1` 或 `2`（打韧性 1 杂兵进 LightStun，打韧性 3 精英只 Flinch）
+- 重段 / 技能：`interruptLevel >= 3`，填 `HitReactionId`
 
 **动画**
 
 - `Hit_Shake`：短、无根移、Additive 导入
 - 受击断招片：继续挂 ReactionSet（现有路径）
 
-未改的旧盒子仍是「等级 1 + LightStun」：打 resist=1 的杂兵会断招，和现在手感接近；打 resist=3 的精英只 Flinch。
+未改的旧盒子冲击力 1：打韧性 1 的杂兵会断招；打韧性 3 的精英只 Flinch。`desiredReaction` 已删除，不再参与裁定。
 
 ---
 
@@ -383,7 +379,7 @@ P-HR0 出口：**人眼 + F3 状态**，不要求 EditMode 反应单测，不要
 
 - [x] `HitPayload.interruptLevel` / `desiredReaction`；旧资产默认值。（C# 默认 LightStun + level 1；OnValidate / 菜单只补空字段）
 - [x] `baseInterruptResist`；Phase `interruptResistBonus` 或 SuperArmor。（Service 读 Config + 当前帧加成）
-- [ ] 普攻轻段 → `Flinch`；技能 / 重段 → `LightStun` + `HitReactionId`。**Editor 填资产，代码不改 Data/**
+- [x] 档位由冲击力对韧性算出；`desiredReaction` 已从裁定删除。轻/重段只调 `interruptLevel`。**Editor 填冲击力与韧性，代码不改 Data/**
 - [x] 迁移菜单或 OnValidate 填默认，避免空字段。
 
 **验收**
@@ -421,14 +417,14 @@ P-HR0 以 Play 人眼为主。以下从 P-HR1 起。
 
 ### EditMode（P-HR1+）
 
-- [x] `interruptLevel < resist` + `desired=Launch` → `Flinch`
-- [x] `level >= resist` + `desired=Flinch` → `Flinch`（不进 Hit）
+- [x] 冲击力 < 韧性 → `Flinch`
+- [x] 冲击力 ≥ 韧性 → `LightStun`（HardHit）
+- [x] 超出 2 → HeavyStun；超出 4 → Launch
 - [x] SuperArmor → 非 Death 最多 Flinch
 - [x] 同帧 Flinch+LightStun → 只 LightStun
 - [x] DOT → None
-- [x] 迁移默认：空 Payload → LightStun + level 1
-- [x] 精英 resist=3 + 普攻 level1 → Flinch；技能 level≥3 → LightStun
-- [x] 杂兵 resist=1 + 旧盒子 → LightStun
+- [x] 旧盒子冲击 1 打杂兵韧性 1 → LightStun
+- [x] Attack01 冲击 2：杂兵 1 HardHit，精英 3 Flinch
 
 ### Play（P-HR2+）
 
@@ -492,3 +488,4 @@ P-HR0 以 Play 人眼为主。以下从 P-HR1 起。
 | 2026-09-03 | P-HR0 Play 已确认 Additive；P-HR1：`HitReactionKind` / Command / `Resolve` + `HitReactionResolverTests`；Service 未改 |
 | 2026-09-03 | P-HR2：Service 按 Command 分支；Flinch 发 `HitFlinchEvent` + `PlayAdditive`；不锁 Locomotion；Flinch 清 Vitality Hit 边沿 |
 | 2026-09-03 | P-HR2 轻击 Play 已验收；P-HR3：`baseInterruptResist` / Phase bonus / OnValidate+菜单默认值；轻段 Flinch 仍待 Editor 填表 |
+| 2026-09-03 | 裁定改为冲击力对韧性：不足 Flinch，持平起 LightStun；删除 `desiredReaction` 双轨 |

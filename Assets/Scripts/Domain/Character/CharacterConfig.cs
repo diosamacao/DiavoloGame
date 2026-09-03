@@ -101,7 +101,7 @@ public class CharacterConfig : ScriptableObject
         return valid;
     }
 
-    /// <summary>旧资产未填抗打断时写成杂兵默认，避免 Inspector 显示 0。</summary>
+    /// <summary>旧资产未填韧性时写成杂兵默认，避免 Inspector 显示 0。</summary>
     void OnValidate()
     {
         CharacterCombatConfig copy = combat;
@@ -206,7 +206,7 @@ public struct CharacterCombatConfig
     [SerializeField] float targetRetainRangeMeters;
     [Tooltip("上层控制器用于选择受击与死亡表现动作的规则集。")]
     [SerializeField] CharacterReactionSet reactions;
-    [Tooltip("站立抗打断。杂兵 1，精英 3，Boss 5。禁止按身份 if。")]
+    [Tooltip("站立韧性。杂兵 1，精英 3，Boss 5。禁止按身份 if。")]
     [SerializeField] int baseInterruptResist;
 
     /// <summary>默认玩家阵营与空挂点名。</summary>
@@ -247,13 +247,13 @@ public struct CharacterCombatConfig
     /// <summary>供玩家或敌人上层控制器解析受击、死亡表现的规则集。</summary>
     public CharacterReactionSet Reactions => reactions ?? new CharacterReactionSet();
 
-    /// <summary>站立抗打断；旧资产未填时按杂兵 1。</summary>
+    /// <summary>站立韧性；旧资产未填时按杂兵 1。</summary>
     public int BaseInterruptResist =>
         baseInterruptResist > 0
             ? baseInterruptResist
             : HitReactionResolveQuery.DefaultBaseInterruptResist;
 
-    /// <summary>把未填的抗打断写成杂兵默认；调用方须写回 struct。</summary>
+    /// <summary>把未填的韧性写成杂兵默认；调用方须写回 struct。</summary>
     public void EnsureInterruptResistDefault()
     {
         if (baseInterruptResist <= 0)

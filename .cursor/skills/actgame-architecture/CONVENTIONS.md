@@ -144,9 +144,9 @@ public class MyBehaviour : MonoBehaviour
 
 ## 伤害与受击约定
 
-- 伤害、`interruptLevel`、`desiredReaction`、`HitReactionId`、镜头震动与卡肉统一由 `HitboxNotifyState.Payload` 持有；反馈系统禁止从 `ActionDefinition` 反查
-- 轻/重是裁定结果，不是 Hitbox 上的独立真源：`interruptLevel` 对 `baseInterruptResist + Phase.bonus` 决定打不打得断；`desiredReaction` 决定断得成时进哪一档
-- 抗打断只写 `CharacterCombatConfig.baseInterruptResist`（杂兵 1 / 精英 3），禁止 `if (精英)` 身份分支
+- 伤害、冲击力（`interruptLevel`）、`HitReactionId`、镜头震动与卡肉统一由 `HitboxNotifyState.Payload` 持有；反馈系统禁止从 `ActionDefinition` 反查
+- 轻/重是裁定结果：`CharacterReactionResolver.ResolveKind(冲击力, 韧性)`。不足 Flinch，持平起 LightStun，超出 2 HeavyStun，超出 4 Launch。禁止再读 `desiredReaction`
+- 韧性只写 `CharacterCombatConfig.baseInterruptResist`（杂兵 1 / 精英 3），禁止 `if (精英)` 身份分支
 - `ActionPhaseNotifyState.interruptible` 只管出招被更高优 Intent 硬切；受击抗打断用 `interruptResistBonus` 或 SuperArmor 窗
 - `Flinch` 不 `EnterHit`、不 `NotifyHit`、不 Reset BT、不 Play 主轨；Shake 只走 Additive
 - 命中去重身份使用 ActionTimeline 中的 Hitbox 窗口下标；同一窗口对同一目标一次，不以可重复的显示字符串作为运行时键

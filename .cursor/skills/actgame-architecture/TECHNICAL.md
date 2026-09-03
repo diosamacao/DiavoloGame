@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-09-03（P-HR3 抗打断表已接；轻击 Play 已验；轻段资产待填）
+> Last updated: 2026-09-03（受击档由冲击力对韧性裁定；已删 desiredReaction）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -12,7 +12,7 @@
 | 命中受击 Cue（VFX/SFX） | ✅ 已实现（A2 打击感验收 2026-08-09） | `HitImpactController` + `HitFeedbackSettings` | 接触点落点 + 随机旋转；普攻 Cue 已验 |
 | 逻辑 Hurtbox 调试线框 | ✅ 已实现 | `CombatHurtboxDebugSettings` + `CombatHurtboxDebugVisualizer` | F4 开关（F3 HUD 显示状态） |
 | Playable Additive 探针 | 🟡 P-HR0 Play 已确认 Additive | `PlayableAnimationPlayback.PlayAdditive` + F6 | Listen 无头敌人打 Observer Proxy；HUD 拖 `Hit_Shake` |
-| 受击档位裁定 | 🟡 P-HR3 代码已接；精英 resist / 轻段 Flinch 待 Editor | `CharacterReactionService` + `HitFlinchPlaybackController` | 杂兵 resist=1；精英填 3；轻段 `desiredReaction=Flinch` |
+| 受击档位裁定 | 🟡 冲击力对韧性已接；韧性/冲击数字待 Editor 填 | `CharacterReactionService` + `HitFlinchPlaybackController` | 杂兵韧性 1；精英 3；Attack01 冲击 2 |
 | 固定帧模拟宿主 | ✅ L0A 已实现 | `SimulationHost`、`SimulationWorld`、`SimActorId` | 60Hz，无资产 |
 | Wave0 动作审计 / 锚点可视化 / Debug HUD | ✅ 已实现 | `ActionDefinitionAuditUtility`、`CharacterAnchorGizmoDrawer`、`CombatDebugHudController` | 菜单 `ACTGame/Action/Validate Motion Sources`；场景挂 HUD |
 | 角色朝向调试箭头 | ✅ Play 实心箭 | `CharacterFacingDebugVisualizer` + `ICharacterFacingDebugTarget` | 本体 / 客机他人幽灵各一份；黄=wish 品红=模型 |
@@ -1384,31 +1384,34 @@ SimulationHost 帧末
 
 **已知限制：** 单 Hurtbox/角色，无多部位表；新招仍须人工绑 Feedback Prefab/Clip。A2 打击感验收 ✅ 2026-08-09。
 
-### 7.2 受击档位裁定（P-HR3）
+### 7.2 受击档位裁定（冲击力 × 韧性）
 
-**功能说明：** 轻击（Flinch）扣血但不断招，可见体叠 Additive；硬直及以上仍进 Hit。打断等级对站立抗性 + Phase 加成；Shake 不 Play 走跑/出招主轨，不 `SetLocked`。
+**功能说明：** 档位只由本刀冲击力对目标当前韧性算出。不足则 Flinch（扣血不断招、叠 Additive）；压过则 LightStun 起进 Hit。Shake 不 Play 走跑/出招主轨，不 `SetLocked`。
 
 **实现方案：**
 
 | 项 | 方案 |
 |----|------|
 | 档位 | `HitReactionKind`：None / Flinch / LightStun / HeavyStun / Launch / Death |
-| 裁定 | `CharacterReactionResolver.Resolve` → `HitReactionCommand` |
-| 抗打断 | `CharacterCombatConfig.baseInterruptResist` + 当前帧 Phase `interruptResistBonus`；SuperArmor 窗非 Death 最多 Flinch |
+| 裁定 | `CharacterReactionResolver.ResolveKind(冲击力, 韧性)` → `HitReactionCommand` |
+| 冲击力 | `HitPayload.interruptLevel` |
+| 韧性 | `CharacterCombatConfig.baseInterruptResist` + 当前帧 Phase `interruptResistBonus` |
+| SuperArmor | 非 Death 最多 Flinch |
 | 执行 | `CharacterReactionService`：Flinch 不 `EnterHit` / 不 `NotifyHit`；Stun+ 旧路径 |
 | 表现 | `CharacterActor.IssueFlinch` → `HitFlinchPlaybackController` → `PlayAdditive` |
 | 边沿 | Flinch 把 `VitalityEdge` 清成 None，避免幽灵把底轨当受击重播 |
-| 默认值 | OnValidate + 菜单 `ACTGame/Combat/Fill Hit Reaction Defaults` 只补 `interruptLevel`/`resist`≤0，不改 DesiredReaction |
+| 删除 | `desiredReaction` 不再参与裁定，避免同一刀被锁死在 Flinch |
 | 旧入口 | `ResolveHit` 仅快照硬吸（Stun 边沿） |
 
 **关键参数：**
 
 | 参数 | 默认 | 含义 |
 |------|------|------|
-| `HitPayload.interruptLevel` | 1 | 旧盒子打断等级 |
-| `HitPayload.desiredReaction` | `LightStun` | 旧盒子仍进 Hit；轻段改为 Flinch |
-| `CharacterCombatConfig.baseInterruptResist` | 1 | 杂兵站立抗性；精英填 3 |
-| `ActionPhaseNotifyState.interruptResistBonus` | 0 | 出招窗加成；与 SuperArmor 标签独立 |
+| `HitPayload.interruptLevel` | 1 | 冲击力 |
+| `CharacterCombatConfig.baseInterruptResist` | 1 | 站立韧性；精英填 3 |
+| `ActionPhaseNotifyState.interruptResistBonus` | 0 | 出招窗韧性加成 |
+| `HeavyStunExcess` | 2 | 冲击 − 韧性 ≥ 2 → HeavyStun |
+| `LaunchExcess` | 4 | 冲击 − 韧性 ≥ 4 → Launch |
 | Flinch 键 | `AnimationKey.HitShake` | Additive；不进 Locomotion |
 
 **运行时流程：**
@@ -1416,14 +1419,14 @@ SimulationHost 帧末
 ```
 CombatHitPipeline.OnHit → Vitality.HitReceived
   → CharacterReactionService
-       Resolve(FromHitContext + resist + Phase bonus + SuperArmor)
+       Resolve(冲击力 vs 韧性 + SuperArmor)
        ConfirmHitReaction
        Flinch → Actor.IssueFlinch → HitFlinchPlaybackController.PlayAdditive
        Stun+  → NotifyHit + EnterHit
        None   → 只保留已结算伤害
 ```
 
-**已知限制：** 轻段 `desiredReaction=Flinch` 与精英 `resist=3` 须 Editor 填资产；未改旧盒子打杂兵仍断招；Listen 客机 Shake 待 P-HR4。方案：`docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md`。轻击 Play 已验收 2026-09-03。
+**已知限制：** 杂兵/精英韧性与各刀冲击力须 Editor 填；Listen 客机 Shake 待 P-HR4。方案：`docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md`。轻击 Play 已验收 2026-09-03。
 
 **相关文件：**
 
@@ -1605,6 +1608,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-09-02 | 修复 Observer 二次登场残留：远端角色隐藏前回收所属 VFX；重新显形时清空退场前插值历史并直接落到当前权威位置 |
 | 2026-09-02 | 本机阵容生命周期接入同一可见性清理接口：`CharacterActor` 转入 Inactive/Dead/Empty 前回收所属 VFX，避免本机再次 SwitchIn 时复活旧特效 |
 | 2026-09-02 | 修复 P-SW1 后敌人感知根停在出生点：`RemotePlayerSeat` 使用稳定锚点并在普通切人时重挂到当前权威槽位根 |
+| 2026-09-03 | 受击档改为冲击力对韧性；删除 `desiredReaction`；不足 Flinch，持平起 LightStun |
 | 2026-09-03 | P-HR3：`baseInterruptResist` + Phase `interruptResistBonus` 进 Service；OnValidate/菜单只补空字段；轻击 Play 已验 |
 | 2026-09-03 | P-HR2：Flinch 不停招、不锁 Locomotion；`HitFlinchPlaybackController` 只 `PlayAdditive`；Stun+ 仍 EnterHit |
 | 2026-06-17 | 初版：移动、输入、状态机、动画、相机、Prefab 文档化 |

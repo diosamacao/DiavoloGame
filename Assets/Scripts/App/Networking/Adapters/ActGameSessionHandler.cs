@@ -74,7 +74,7 @@ public sealed class ActGameSessionHandler
                 presentation: presentation);
             actor.SetPartyState(coordinator.States[i]);
             // 玩家站立抗打断同样只读 CombatConfig，与敌人同一 Service。
-            // 玩家抗打断同样只读 CombatConfig，与敌人同一裁定入口。
+            // 玩家韧性同样只读 CombatConfig，与敌人同一裁定入口。
             var reactions = new CharacterReactionService(
                 actor.Vitality,
                 actor,
