@@ -73,10 +73,13 @@ public sealed class ActGameSessionHandler
                 host.CollisionWorld,
                 presentation: presentation);
             actor.SetPartyState(coordinator.States[i]);
+            // 玩家站立抗打断同样只读 CombatConfig，与敌人同一 Service。
+            // 玩家抗打断同样只读 CombatConfig，与敌人同一裁定入口。
             var reactions = new CharacterReactionService(
                 actor.Vitality,
                 actor,
-                new CharacterReactionResolver(config.Combat.Reactions));
+                new CharacterReactionResolver(config.Combat.Reactions),
+                baseInterruptResist: config.Combat.BaseInterruptResist);
             var hurtbox = new CharacterHurtboxTarget(
                 slotRoot.transform,
                 slotRoot.transform,

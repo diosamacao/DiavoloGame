@@ -366,14 +366,14 @@ P-HR0 出口：**人眼 + F3 状态**，不要求 EditMode 反应单测，不要
 
 **验收**
 
-- [ ] 轻击盒子打木桩：HP 下降，状态仍是 Action/Locomotion，攻击播完。
-- [ ] 同时看到与 P-HR0 同质量的 Shake；走跑 Clip 不重头、不冻结。
-- [ ] 行为树不因轻击 Reset（攻击循环不被拆掉）。
+- [x] 轻击盒子打木桩：HP 下降，状态仍是 Action/Locomotion，攻击播完。
+- [x] 同时看到与 P-HR0 同质量的 Shake；走跑 Clip 不重头、不冻结。
+- [x] 行为树不因轻击 Reset（攻击循环不被拆掉）。
 - [ ] 重击盒子：仍 `EnterHit`，树 Reset，Shake 被清。
 - [ ] 轻击过程中吃重击：立刻进 Hit。
 - [ ] 完美吞伤 / 无敌：无 Flinch、无 Stun。
 
-**出口：** 轻击不停招 + Shake，重击仍 EnterHit。→ **代码已接（2026-09-03）**；Play 待 Editor。
+**出口：** 轻击不停招 + Shake，重击仍 EnterHit。→ **轻击 Play 已验收（2026-09-03）**；重击/连打/吞伤待 Editor。
 
 ---
 
@@ -381,10 +381,10 @@ P-HR0 出口：**人眼 + F3 状态**，不要求 EditMode 反应单测，不要
 
 **待办**
 
-- [ ] `HitPayload.interruptLevel` / `desiredReaction`；旧资产默认值。（C# 字段已随 P-HR2 加上，默认 LightStun；资产填表仍本阶段）
-- [ ] `baseInterruptResist`；Phase `interruptResistBonus` 或 SuperArmor。
-- [ ] 普攻轻段 → `Flinch`；技能 / 重段 → `LightStun` + `HitReactionId`。
-- [ ] 迁移菜单或 OnValidate 填默认，避免空字段。
+- [x] `HitPayload.interruptLevel` / `desiredReaction`；旧资产默认值。（C# 默认 LightStun + level 1；OnValidate / 菜单只补空字段）
+- [x] `baseInterruptResist`；Phase `interruptResistBonus` 或 SuperArmor。（Service 读 Config + 当前帧加成）
+- [ ] 普攻轻段 → `Flinch`；技能 / 重段 → `LightStun` + `HitReactionId`。**Editor 填资产，代码不改 Data/**
+- [x] 迁移菜单或 OnValidate 填默认，避免空字段。
 
 **验收**
 
@@ -392,6 +392,8 @@ P-HR0 出口：**人眼 + F3 状态**，不要求 EditMode 反应单测，不要
 - [ ] 同精英：技能（level≥3）能进 Hit。
 - [ ] 杂兵 `resist=1` + 未改旧盒子：仍断招（接近改前手感）。
 - [ ] Phase SuperArmor 窗内普攻只抖。
+
+**出口：** 代码已接（2026-09-03）；精英 resist / 轻段 Flinch 填表后 Play 验收。
 
 ---
 
@@ -425,10 +427,12 @@ P-HR0 以 Play 人眼为主。以下从 P-HR1 起。
 - [x] 同帧 Flinch+LightStun → 只 LightStun
 - [x] DOT → None
 - [x] 迁移默认：空 Payload → LightStun + level 1
+- [x] 精英 resist=3 + 普攻 level1 → Flinch；技能 level≥3 → LightStun
+- [x] 杂兵 resist=1 + 旧盒子 → LightStun
 
 ### Play（P-HR2+）
 
-- [ ] 轻击：不停招、Shake、BT 不 Reset
+- [x] 轻击：不停招、Shake、BT 不 Reset
 - [ ] 重击：进 Hit，树 Reset
 - [ ] 出招中连打轻击：招打完，Shake 可重触发
 - [ ] 轻击中吃重击：立刻 EnterHit，Shake 清
@@ -441,7 +445,7 @@ P-HR0 以 Play 人眼为主。以下从 P-HR1 起。
 1. [x] **P-HR0**：接 Mixer + 调试键，只验 Additive（Play 已确认 2026-09-03）。
 2. [x] P-HR0 验收全勾后，才开 P-HR1 Resolver。
 3. [x] P-HR1 单测绿，再改 Service（P-HR2）。
-4. [ ] P-HR2 Play 通过，再填盒子 / 抗打断（P-HR3）。
+4. [x] P-HR2 Play 通过，再填盒子 / 抗打断（P-HR3）。
 5. [ ] 本机手感稳了再动复制（P-HR4）。
 6. [ ] 停。失衡条、击飞物理不进本轮。
 
@@ -487,3 +491,4 @@ P-HR0 以 Play 人眼为主。以下从 P-HR1 起。
 | 2026-09-03 | P-HR0 代码：LayerMixer Additive、`PlayAdditive`、F6/菜单探针；Play 验收与 `Hit_Shake` 资产仍待 Editor |
 | 2026-09-03 | P-HR0 Play 已确认 Additive；P-HR1：`HitReactionKind` / Command / `Resolve` + `HitReactionResolverTests`；Service 未改 |
 | 2026-09-03 | P-HR2：Service 按 Command 分支；Flinch 发 `HitFlinchEvent` + `PlayAdditive`；不锁 Locomotion；Flinch 清 Vitality Hit 边沿 |
+| 2026-09-03 | P-HR2 轻击 Play 已验收；P-HR3：`baseInterruptResist` / Phase bonus / OnValidate+菜单默认值；轻段 Flinch 仍待 Editor 填表 |

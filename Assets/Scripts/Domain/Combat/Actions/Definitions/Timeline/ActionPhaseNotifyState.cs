@@ -15,6 +15,8 @@ public sealed class ActionPhaseNotifyState : ActionNotifyState
     [SerializeField] bool allowMovementCancel = true;
     [Tooltip("仅 Recovery 生效：有效动作输入可按当前 ActionGraph Entry 重开。")]
     [SerializeField] bool allowEntryRestart = true;
+    [Tooltip("本窗受击抗打断加成。与 SuperArmor 独立：标签窗仍完全不可断。")]
+    [SerializeField] int interruptResistBonus = 0;
 
     /// <summary>阶段语义或覆盖标签。</summary>
     public ActionPhaseKind Kind => kind;
@@ -33,4 +35,7 @@ public sealed class ActionPhaseNotifyState : ActionNotifyState
     /// <summary>Recovery 阶段是否允许按 Entry 重开。</summary>
     public bool AllowEntryRestart =>
         kind == ActionPhaseKind.Recovery && allowEntryRestart;
+
+    /// <summary>本窗抗打断加成；负值按 0。</summary>
+    public int InterruptResistBonus => interruptResistBonus > 0 ? interruptResistBonus : 0;
 }

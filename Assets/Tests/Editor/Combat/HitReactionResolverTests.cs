@@ -1,6 +1,8 @@
 using NUnit.Framework;
+using UnityEditor;
+using UnityEngine;
 
-/// <summary>P-HR1：受击档位纯函数。不碰 Service / EnterHit。</summary>
+/// <summary>P-HR1/P-HR3：受击档位纯函数、抗打断默认值与 Phase 加成。</summary>
 public sealed class HitReactionResolverTests
 {
     readonly CharacterReactionResolver _resolver = new CharacterReactionResolver(new CharacterReactionSet());
@@ -240,5 +242,98 @@ public sealed class HitReactionResolverTests
             attackerId: default);
         HitReactionCommand command = _resolver.Resolve(HitReactionResolveQuery.FromHitContext(in context));
         Assert.That(command.Kind, Is.EqualTo(HitReactionKind.None));
+    }
+
+    /// <summary>P-HR3：精英 resist=3 吃普攻 level1，即使期望 LightStun 也只 Flinch。</summary>
+    [Test]
+    public void EliteResist3_NormalAttackLevel1_DesiredLightStun_Flinch()
+    {
+        HitReactionCommand command = _resolver.Resolve(
+            HitReactionResolveQuery.CombatHit(
+                interruptLevel: 1,
+                desiredReaction: HitReactionKind.LightStun,
+                baseInterruptResist: 3));
+
+        Assert.That(command.Kind, Is.EqualTo(HitReactionKind.Flinch));
+        Assert.That(command.InterruptsAction, Is.False);
+    }
+
+    /// <summary>P-HR3：同精英被技能 level≥3 打断，按期望进 LightStun。</summary>
+    [Test]
+    public void EliteResist3_SkillLevel3_LightStun()
+    {
+        HitReactionCommand command = _resolver.Resolve(
+            HitReactionResolveQuery.CombatHit(
+                interruptLevel: 3,
+                desiredReaction: HitReactionKind.LightStun,
+                baseInterruptResist: 3));
+
+        Assert.That(command.Kind, Is.EqualTo(HitReactionKind.LightStun));
+        Assert.That(command.InterruptsAction, Is.True);
+    }
+
+    /// <summary>P-HR3：杂兵 resist=1 + 未改旧盒子仍断招。</summary>
+    [Test]
+    public void GruntResist1_LegacyBox_LightStun()
+    {
+        HitReactionCommand command = _resolver.Resolve(
+            HitReactionResolveQuery.CombatHit(
+                interruptLevel: HitReactionResolveQuery.DefaultInterruptLevel,
+                desiredReaction: HitReactionKind.LightStun,
+                baseInterruptResist: HitReactionResolveQuery.DefaultBaseInterruptResist));
+
+        Assert.That(command.Kind, Is.EqualTo(HitReactionKind.LightStun));
+        Assert.That(command.InterruptsAction, Is.True);
+    }
+
+    /// <summary>未填 interruptLevel 写成 1，已设的 Flinch 不被覆盖。</summary>
+    [Test]
+    public void HitPayload_EnsureInterruptLevel_PreservesDesiredFlinch()
+    {
+        var payload = new HitPayload(10f, interruptLevel: 0, HitReactionKind.Flinch);
+        Assert.That(payload.EnsureInterruptLevelDefault(), Is.True);
+        Assert.That(payload.InterruptLevel, Is.EqualTo(HitReactionResolveQuery.DefaultInterruptLevel));
+        Assert.That(payload.DesiredReaction, Is.EqualTo(HitReactionKind.Flinch));
+        Assert.That(payload.EnsureInterruptLevelDefault(), Is.False);
+    }
+
+    /// <summary>未填站立抗打断按杂兵 1 读，Ensure 只补写空字段。</summary>
+    [Test]
+    public void CharacterCombatConfig_UnfilledResist_ReadsAsGruntDefault()
+    {
+        var combat = default(CharacterCombatConfig);
+        Assert.That(combat.BaseInterruptResist, Is.EqualTo(HitReactionResolveQuery.DefaultBaseInterruptResist));
+
+        combat.EnsureInterruptResistDefault();
+        Assert.That(combat.BaseInterruptResist, Is.EqualTo(HitReactionResolveQuery.DefaultBaseInterruptResist));
+        Assert.That(CharacterCombatConfig.Default.BaseInterruptResist,
+            Is.EqualTo(HitReactionResolveQuery.DefaultBaseInterruptResist));
+    }
+
+    /// <summary>当前帧生效 Phase 的抗打断加成求和；窗外为 0。</summary>
+    [Test]
+    public void ActionDefinition_SumsActivePhaseInterruptResistBonus()
+    {
+        ActionDefinition action = ScriptableObject.CreateInstance<ActionDefinition>();
+        var so = new SerializedObject(action);
+        SerializedProperty phases = so.FindProperty("timeline").FindPropertyRelative("phaseStates");
+        phases.arraySize = 2;
+
+        SerializedProperty first = phases.GetArrayElementAtIndex(0);
+        first.FindPropertyRelative("startFrame").intValue = 0;
+        first.FindPropertyRelative("endFrame").intValue = 10;
+        first.FindPropertyRelative("interruptResistBonus").intValue = 2;
+
+        SerializedProperty second = phases.GetArrayElementAtIndex(1);
+        second.FindPropertyRelative("startFrame").intValue = 5;
+        second.FindPropertyRelative("endFrame").intValue = 10;
+        second.FindPropertyRelative("interruptResistBonus").intValue = 1;
+        so.ApplyModifiedPropertiesWithoutUndo();
+
+        Assert.That(action.GetInterruptResistBonusAtFrame(0), Is.EqualTo(2));
+        Assert.That(action.GetInterruptResistBonusAtFrame(5), Is.EqualTo(3));
+        Assert.That(action.GetInterruptResistBonusAtFrame(11), Is.EqualTo(0));
+
+        Object.DestroyImmediate(action);
     }
 }

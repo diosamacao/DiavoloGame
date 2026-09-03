@@ -44,6 +44,13 @@ public class HitboxNotifyState : ActionNotifyState, ISerializationCallbackReceiv
     /// <summary>该判定框独立的命中结算载荷。</summary>
     public HitPayload Payload => payload ?? new HitPayload();
 
+    /// <summary>补写未填的 interruptLevel；Payload 为空时先建默认盒子。</summary>
+    public bool EnsurePayloadDefaults()
+    {
+        payload ??= new HitPayload();
+        return payload.EnsureInterruptLevelDefault();
+    }
+
     /// <summary>旧资产缺少字段时 Unity 会把 bool 读成 false；此处纠正为默认跟随。</summary>
     public void OnAfterDeserialize()
     {

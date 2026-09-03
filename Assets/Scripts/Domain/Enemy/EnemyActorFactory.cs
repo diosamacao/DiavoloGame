@@ -80,12 +80,15 @@ public static class EnemyActorFactory
             pathQuery,
             actionEntryRequests,
             locomotionDesires);
+        // 抗打断来自角色 CombatConfig，禁止按敌人身份分支。
+        // 抗打断只读 CombatConfig，禁止按敌人身份分支。
         var reactionService = new CharacterReactionService(
             actor.Vitality,
             actor,
             reactionResolver,
             _ => brain.NotifyHit(),
-            (_, _) => brain.NotifyDeath());
+            (_, _) => brain.NotifyDeath(),
+            config.Combat.BaseInterruptResist);
         var target = new CharacterHurtboxTarget(
             root,
             root,

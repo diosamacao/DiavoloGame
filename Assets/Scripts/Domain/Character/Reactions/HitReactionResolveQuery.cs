@@ -1,6 +1,5 @@
 /// <summary>
 /// 裁定输入。打断等级与期望档由调用方填好；旧盒子用默认 LightStun + level 1。
-/// HitPayload 资产字段仍待 P-HR3 写入，本结构先作为唯一真源。
 /// </summary>
 public readonly struct HitReactionResolveQuery
 {
