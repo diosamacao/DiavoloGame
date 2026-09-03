@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-09-03（受击档由冲击力对韧性裁定；Flinch 不停招）
+> Last audited: 2026-09-04（受击 P-HR0～P-HR4 已验收）
 
 ## 项目概述
 
