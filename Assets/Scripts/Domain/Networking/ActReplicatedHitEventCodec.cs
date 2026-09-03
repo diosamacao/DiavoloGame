@@ -1,7 +1,10 @@
 /// <summary>权威命中事件的唯一线布局；Snapshot 载荷与可靠事件通道共用。</summary>
 public static class ActReplicatedHitEventCodec
 {
-    /// <summary>写入 EventFrame → SimHitKey → ActionId → 落点 → 水平方向。</summary>
+    /// <summary>Version 2 起携带 ReactionKind；旧 V1 不再解码。</summary>
+    public const byte Version = 2;
+
+    /// <summary>写入 EventFrame → SimHitKey → ActionId → ReactionKind → 落点 → 水平方向。</summary>
     public static void Write(NetBufferWriter writer, in ReplicatedHitEvent hit)
     {
         writer.WriteInt64(hit.Frame);
@@ -11,6 +14,7 @@ public static class ActReplicatedHitEventCodec
         writer.WriteInt32(hit.Key.HitboxIndex);
         writer.WriteInt32(hit.Key.TargetId.Value);
         writer.WriteInt32(hit.ActionId);
+        writer.WriteByte((byte)hit.ReactionKind);
         writer.WriteInt32(hit.HitXMm);
         writer.WriteInt32(hit.HitYMm);
         writer.WriteInt32(hit.HitZMm);
@@ -32,6 +36,7 @@ public static class ActReplicatedHitEventCodec
             frame,
             key,
             reader.ReadInt32(),
+            (HitReactionKind)reader.ReadByte(),
             reader.ReadInt32(),
             reader.ReadInt32(),
             reader.ReadInt32(),

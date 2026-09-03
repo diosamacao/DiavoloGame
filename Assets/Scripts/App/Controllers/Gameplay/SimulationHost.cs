@@ -227,6 +227,7 @@ public sealed class SimulationHost : AppControllerBase
                 _world.CurrentFrame,
                 hit.Key,
                 actionId: 0,
+                hit.ReactionKind,
                 MotionQuantization.MetersToMm(hit.HitPoint.x),
                 MotionQuantization.MetersToMm(hit.HitPoint.y),
                 MotionQuantization.MetersToMm(hit.HitPoint.z),

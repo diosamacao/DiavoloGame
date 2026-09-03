@@ -10,7 +10,8 @@ public readonly struct ResolvedCombatHit
         Vector3 hitDirection,
         Vector3 hitPoint,
         bool absorbedByPerfectDodge = false,
-        SimHitKey key = default)
+        SimHitKey key = default,
+        HitReactionKind reactionKind = HitReactionKind.None)
     {
         Context = context;
         TargetTransform = targetTransform;
@@ -18,6 +19,7 @@ public readonly struct ResolvedCombatHit
         HitPoint = hitPoint;
         AbsorbedByPerfectDodge = absorbedByPerfectDodge;
         Key = key;
+        ReactionKind = reactionKind;
     }
 
     /// <summary>已成功结算的命中上下文。</summary>
@@ -37,4 +39,7 @@ public readonly struct ResolvedCombatHit
 
     /// <summary>权威命中键；供下行 ReplicatedHitEvent 去重，不参与表现方向。</summary>
     public SimHitKey Key { get; }
+
+    /// <summary>Service 裁定后的受击档；供复制事件与 HUD。</summary>
+    public HitReactionKind ReactionKind { get; }
 }

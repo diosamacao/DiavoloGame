@@ -3,8 +3,8 @@ using System;
 /// <summary>可靠命中事件包：本帧权威命中，不含 Snapshot 冗余窗口。</summary>
 public static class ActReplicationEventCodec
 {
-    /// <summary>当前唯一支持的事件包版本。</summary>
-    public const byte Version = 1;
+    /// <summary>当前唯一支持的事件包版本（命中线 Version 2 含 ReactionKind）。</summary>
+    public const byte Version = 2;
 
     /// <summary>单包允许的最大命中数。</summary>
     public const int MaxHits = 1024;

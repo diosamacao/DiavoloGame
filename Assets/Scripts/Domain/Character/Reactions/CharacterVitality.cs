@@ -30,6 +30,9 @@ public sealed class CharacterVitality
     /// <summary>本逻辑步生命边沿；Step 开头清零，供复制快照读取。</summary>
     public VitalityReplicationEdge ReplicationEdge => _replicationEdge;
 
+    /// <summary>最近一次 ConfirmHitReaction 的档位；供复制命中与 HUD。</summary>
+    public HitReactionKind LastConfirmedReactionKind { get; private set; }
+
     /// <summary>新逻辑步开始时清边沿，避免上一帧 Hit/Death 被重复复制。</summary>
     public void ClearReplicationEdge() => _replicationEdge = VitalityReplicationEdge.None;
 
@@ -69,6 +72,7 @@ public sealed class CharacterVitality
     /// </summary>
     public void ConfirmHitReaction(HitReactionKind kind)
     {
+        LastConfirmedReactionKind = kind;
         if (IsDead || kind == HitReactionKind.Death)
         {
             _replicationEdge = VitalityReplicationEdge.Death;
@@ -98,12 +102,9 @@ public sealed class CharacterVitality
     {
         if (IsDead || damageMilli <= 0)
         {
-            // 0 伤命中仍可播受击（仅打击路径）
+            // 0 伤命中仍可播受击；边沿只由 ConfirmHitReaction 写入。
             if (triggerHitReaction && !IsDead && damageMilli <= 0)
-            {
-                _replicationEdge = VitalityReplicationEdge.Hit;
                 HitReceived?.Invoke(context);
-            }
             return;
         }
 
@@ -123,7 +124,6 @@ public sealed class CharacterVitality
         if (!triggerHitReaction)
             return;
 
-        _replicationEdge = VitalityReplicationEdge.Hit;
         HitReceived?.Invoke(context);
         if (appliedMilli > 0)
             Damaged?.Invoke(context, applied);

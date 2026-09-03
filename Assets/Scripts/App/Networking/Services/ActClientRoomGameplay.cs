@@ -353,7 +353,7 @@ public sealed class ActClientRoomGameplay
         _lastPresentedHitStopFrames = freeze;
     }
 
-    /// <summary>按权威落点播放去重 Hit Cue；命中结算仍只在 Authority。</summary>
+    /// <summary>按权威落点播 Cue；Flinch 时对 Proxy 叠 Additive，不写 ActionSim。</summary>
     void PlayReplicatedHits(ReplicatedHitEvent[] hits)
     {
         if (hits == null || hits.Length == 0)
@@ -379,6 +379,25 @@ public sealed class ActClientRoomGameplay
                     0f,
                     MotionQuantization.MmToMeters(hit.DirZMm)),
                 attackerRoot);
+
+            if (_observer.TryGetProxy(hit.Key.TargetId, out RemoteCharacterProxy proxy))
+            {
+                proxy.NotifyReplicatedReaction(hit.ReactionKind);
+                if (hit.ReactionKind == HitReactionKind.Flinch)
+                {
+                    HitFlinchPlaybackController flinchPlayback =
+                        _world.GetComponent<HitFlinchPlaybackController>();
+                    if (flinchPlayback != null)
+                        flinchPlayback.TryPlayOnProxy(proxy, AnimationKey.HitShake);
+                    else
+                        HitFlinchPresentation.TryPlayOnProxy(
+                            proxy,
+                            AnimationKey.HitShake,
+                            fallbackClip: null,
+                            fallbackMask: null,
+                            fadeDuration: 0.05f);
+                }
+            }
         }
     }
 

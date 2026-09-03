@@ -65,6 +65,9 @@ public sealed class CharacterHurtboxTarget : ITargetable, IHitAbsorbQuery
     /// <summary>角色阵营 id。</summary>
     public int TeamId { get; }
 
+    /// <summary>最近一次裁定的受击档；OnHit 同步完成后可读。</summary>
+    public HitReactionKind LastConfirmedReactionKind => _vitality.LastConfirmedReactionKind;
+
     /// <inheritdoc />
     public bool IsInvincible => QueryDefensiveWindow(perfectDodge: false);
 

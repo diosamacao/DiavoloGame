@@ -1,5 +1,6 @@
 /// <summary>
 /// 受击裁定档。Flinch 及以下不断招；LightStun 及以上进 Hit。
+/// 位于 Simulation 程序集，供复制命中事件与 Domain 裁定共用。
 /// </summary>
 public enum HitReactionKind : byte
 {
