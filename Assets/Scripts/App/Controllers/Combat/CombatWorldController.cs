@@ -47,6 +47,39 @@ public class CombatWorldController : AppControllerBase
     /// <summary>房间 HUD 一行；由 Host/Client 刷新。</summary>
     public ReplicationRoomHudInfo RoomHud { get; set; }
 
+    /// <summary>
+    /// 取本机可见的动画门面：Full Actor 用自身 Playable；Listen 无头权威改走 Observer Proxy。
+    /// </summary>
+    public bool TryGetPresentationAnimation(SimActorId actorId, out CharacterAnimationService animation)
+    {
+        animation = null;
+        if (!actorId.IsValid)
+            return false;
+
+        LocalClientRuntime client = ResolveLocalClientRuntime();
+        if (client != null
+            && client.TryGetObserverProxy(actorId, out RemoteCharacterProxy proxy)
+            && proxy?.Animation != null
+            && proxy.Animation.HasPlayback)
+        {
+            animation = proxy.Animation;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Listen 用 Bootstrap 本机 Client；远端 Client 用 Room Facade。</summary>
+    LocalClientRuntime ResolveLocalClientRuntime()
+    {
+        ListenServerBootstrap listen = GetComponent<ListenServerBootstrap>();
+        if (listen != null && listen.LocalClient != null)
+            return listen.LocalClient;
+
+        ReplicationRoomClient room = GetComponent<ReplicationRoomClient>();
+        return room != null ? room.Runtime : null;
+    }
+
     void Awake()
     {
         if (Current != null && Current != this)

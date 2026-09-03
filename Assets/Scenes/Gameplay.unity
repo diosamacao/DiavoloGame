@@ -1003,6 +1003,10 @@ MonoBehaviour:
   visible: 1
   toggleKey: 284
   hurtboxToggleKey: 285
+  flinchProbeKey: 287
+  flinchProbeClip: {fileID: -1837773511420484736, guid: d5312259d4a874e47b7747e41d57c297, type: 3}
+  flinchProbeMask: {fileID: 0}
+  flinchProbeFade: 0.05
 --- !u!1 &682243684
 GameObject:
   m_ObjectHideFlags: 0

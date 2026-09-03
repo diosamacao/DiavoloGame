@@ -79,6 +79,8 @@ public sealed class CharacterActionPresentationBridge
             if (_notifyConsumers[i] is IActionVisibilityResetConsumer resettable)
                 resettable.ResetForVisibilityLoss();
         }
+
+        _animation?.StopAdditive();
     }
 
     /// <summary>更新时间轴默认挂点；空值回退角色根。</summary>

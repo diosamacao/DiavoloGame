@@ -16,6 +16,9 @@ public sealed class CharacterAnimationService : IDisposable, ILocomotionAnimClip
     public AnimationKey? CurrentKey => _currentKey;
     public bool IsLocked => _locked;
 
+    /// <summary>Additive 层权重；无叠加或 Headless 时为 0。</summary>
+    public float AdditiveWeight => playback != null ? playback.AdditiveWeight : 0f;
+
     /// <summary>驱动骨骼的 Animator（Playable 输出目标）；供 Root Motion 等桥接使用。</summary>
     public Animator Animator => animator;
 
@@ -100,6 +103,18 @@ public sealed class CharacterAnimationService : IDisposable, ILocomotionAnimClip
         playback.Play(clip, fadeDuration);
         _currentKey = null;
     }
+
+    /// <summary>叠 Additive 轻受击；不锁走跑、不改 CurrentKey。</summary>
+    public void PlayAdditive(AnimationClip clip, AvatarMask mask = null, float fadeDuration = 0.05f)
+    {
+        if (playback == null || !playback.IsValid || clip == null)
+            return;
+
+        playback.PlayAdditive(clip, mask, fadeDuration);
+    }
+
+    /// <summary>立刻清 Additive 层；进 Hit / 隐藏 / 切招时由上层调用。</summary>
+    public void StopAdditive() => playback?.StopAdditive();
 
     /// <summary>将当前招式 Clip 跳到指定时间（秒）；仅切段对时使用，勿每逻辑帧调用。</summary>
     public void SeekClip(float timeSeconds) => playback?.Seek(timeSeconds);

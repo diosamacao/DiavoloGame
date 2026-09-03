@@ -10,6 +10,9 @@ public sealed class ReplicationRoomClient : AppControllerBase
     ClientSession _session;
     LocalClientRuntime _runtime;
 
+    /// <summary>本机 Client 运行时；尚未 Ensure 时为 null。</summary>
+    public LocalClientRuntime Runtime => _runtime;
+
     /// <summary>由 CombatWorldController 注入战斗世界与已启动的客户端 Session。</summary>
     public void Configure(CombatWorldController world, ClientSession session)
     {

@@ -60,6 +60,13 @@ public sealed class LocalClientRuntime : IDisposable
     /// <summary>当前 Observer Proxy 数量。</summary>
     public int ProxyCount => _gameplay != null ? _gameplay.ProxyCount : 0;
 
+    /// <summary>按权威 Id 取本机 Observer Proxy。</summary>
+    public bool TryGetObserverProxy(SimActorId actorId, out RemoteCharacterProxy proxy)
+    {
+        proxy = null;
+        return _gameplay != null && _gameplay.TryGetProxy(actorId, out proxy);
+    }
+
     /// <summary>Owner 尚未确认的动作与位移预测总数。</summary>
     public int PredictionPendingCount => _gameplay != null ? _gameplay.PredictionPendingCount : 0;
 

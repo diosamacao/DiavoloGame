@@ -45,9 +45,9 @@ MonoBehaviour:
   startToGaitNormalized: 1
   interruptFadeDuration: 0.08
   sprintLean:
-    maxLeanDeg: 8
-    deadZoneDeg: 4
-    maxEngageYawDeg: 45
+    maxLeanDeg: 15
+    deadZoneDeg: 15
+    maxEngageYawDeg: 30
     leanEngageSmoothTime: 0.22
     leanRecoverSmoothTime: 0.28
   walkFootPlants: []

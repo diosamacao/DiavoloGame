@@ -191,7 +191,7 @@ public sealed class ActObserverReplicationAdapter
         return true;
     }
 
-    /// <summary>按 SimActorId 查找 Observer Proxy，供 Hit Cue 与本地交互表现定位。</summary>
+    /// <summary>按 SimActorId 查找 Observer Proxy，供 Hit Cue、本地交互与 Additive 探针定位。</summary>
     public bool TryGetProxy(SimActorId actorId, out RemoteCharacterProxy proxy)
     {
         if (!actorId.IsValid)
