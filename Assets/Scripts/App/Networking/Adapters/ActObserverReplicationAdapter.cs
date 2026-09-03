@@ -199,7 +199,22 @@ public sealed class ActObserverReplicationAdapter
             proxy = null;
             return false;
         }
-        return _proxies.TryGetValue(actorId.Value, out proxy);
+
+        if (_proxies.TryGetValue(actorId.Value, out proxy) && proxy != null)
+            return true;
+
+        // EntityId 与 Snapshot.ActorId 偶发未同步时，按已绑定身份扫一遍。
+        foreach (KeyValuePair<int, RemoteCharacterProxy> pair in _proxies)
+        {
+            if (pair.Value != null && pair.Value.SimulationId.Equals(actorId))
+            {
+                proxy = pair.Value;
+                return true;
+            }
+        }
+
+        proxy = null;
+        return false;
     }
 
     /// <summary>注销并销毁全部 Observer View；结束房间与组件销毁共用。</summary>
