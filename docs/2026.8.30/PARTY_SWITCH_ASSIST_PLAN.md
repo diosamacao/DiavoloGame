@@ -8,6 +8,7 @@
 > - 完美闪避对照：`GameplayIntentType.PerfectDodgeAttack` + Graph Counter Entry  
 > - 数值口袋：[`../COMBAT_NUMERICS_PLAN.md`](../COMBAT_NUMERICS_PLAN.md) / [`../2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md`](../2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md)  
 > - 锁步：`SimulationWorld` → `CharacterActor.Step` → `ActionSim` → `CombatHitPipeline`  
+> - 受击真源（P-HR0～4 已关闭）：[`../2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md`](../2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md) — 真命中走冲击力对韧性；被弹刀**禁止**走该裁定  
 > - 相机换人前排：[`../2026.8.26/CAMERA_SYSTEM_PLAN.md`](../2026.8.26/CAMERA_SYSTEM_PLAN.md)（后置，不进本方案出口）
 
 ---
@@ -112,8 +113,11 @@ SKILL 方案原裁定：切人 / 支援 / 连携 = 后置
     → Coordinator 派生 AssistParry / AssistEvade / SwitchPerfectDodge
     → InstantReplace + frame 0 Relocate；上场播 Guard（举刀 + Invincible + AssistParryWindow）
     → 敌人 Active Hitbox 打到玩家：
-         Pipeline 玩家吞伤（对偶 PerfectDodgeWindow）
-         攻击者 CharacterReactionResolver.ResolveParried → EnterHit（现有 HitState）
+         Pipeline 玩家吞伤（对偶 PerfectDodgeWindow；不 OnHit）
+         攻击者 CharacterReactionService.IssueParried
+           → Resolver.ResolveParried（固定 LightStun + Parried 片子）
+           → ConfirmHitReaction(LightStun) + EnterHit（现有 HitState）
+           → 禁止走 Resolve(冲击力 vs 韧性)，禁止 Flinch
          玩家切 AssistParrySuccess（clang VFX/SFX）并 ArmAssistFollowUp
     → Producer：攻击键 → AssistFollowUp
 ```
@@ -201,7 +205,7 @@ ActionSim Guard（举刀 / Invincible / AssistParryWindow；无 clang）
   敌人 Active Hitbox → CombatHitPipeline
        ↓
   玩家吞伤 + 切 AssistParrySuccess（clang VFX/SFX）+ ArmAssistFollowUp
-  敌人 ResolveParried → CharacterActor.EnterHit → HitState
+  敌人 IssueParried → ConfirmHitReaction(LightStun) → EnterHit → HitState
   攻击族 Pressed → AssistFollowUp Intent → Graph Entry
 ```
 
@@ -221,7 +225,7 @@ flowchart TB
   EnemyHit[敌人 Active Hitbox] --> Pipeline[CombatHitPipeline]
   Guard -->|AssistParryWindow| Pipeline
   Pipeline -->|玩家吞伤| Success[AssistParrySuccess clang]
-  Pipeline -->|ResolveParried| HitState[攻击者 EnterHit / HitState]
+  Pipeline -->|IssueParried| HitState[攻击者 LightStun EnterHit / HitState]
   Success -->|ArmAssistFollowUp| Flags[CombatContextFlags]
   Flags --> Producer[GameplayIntentProducer]
   Producer -->|AssistFollowUp| Graph
@@ -273,8 +277,8 @@ Active 处于击飞档 Hit 且上场可激活 → QuickAssist（优先于普通 
 | 上场 `ActionGraph` + `ActionDefinition` | 登场/支援/突击选招与衔接 | 改 ActiveIndex、改支援点（耗点在 Coordinator 裁定成功时扣） |
 | `ActionTimeline` | Guard/Success 窗、无敌、接触后 clang | 选下一个角色；用玩家招架 Hitbox 打断敌人 |
 | `GameplayIntentProducer` | 突击缓冲内劫持攻击族 | 读 3 个槽 |
-| `CombatHitPipeline` | 窗内被命中：玩家吞伤、攻击者进受击、武装突击 | 换人；自己 new 状态机 |
-| `CharacterReactionResolver` + `HitState` | 被弹刀：`Parried` 规则选招，强制 `EnterHit` | 换人；另开顶层 Parry 状态 |
+| `CombatHitPipeline` | 窗内被命中：玩家吞伤、攻击者 `IssueParried`、武装突击 | 换人；自己 new 状态机；对攻击者 `OnHit` / 扣血 |
+| `CharacterReactionResolver` + `HitState` | 被弹刀：`ResolveParried` 固定 LightStun + `Parried` 选招，强制 `EnterHit` | 换人；冲击力裁定；另开顶层 Parry 状态；`HitReactionKind.Parried` |
 | `LocalPlayerService` | 多玩家座位 | 队内 3 槽 |
 | Camera Director | 跟 Active 锚点 | 换人权威 |
 
@@ -322,39 +326,47 @@ Dead      : 不可切出；队灭规则后置
 Cue Gold/Red     = 只决定切人 kind；可在 Startup 结束
 敌人 Hitbox      = 出手真源；Guard 必须覆盖到该窗
 玩家 Guard       = Invincible + AssistParryWindow；禁止 clang / 禁止 ArmAssistFollowUp
-Pipeline         = 对偶 PerfectDodgeWindow：
-                   1. 玩家吞伤，不 EnterHit
-                   2. 按攻击者 SimActorId 取 CharacterReactionService
-                      CharacterReactionType.Parried → Resolve → EnterHit
-                      （复用 HitState：停当前攻击 ActionSim，播反应 Action 或默认硬直帧）
+Pipeline         = 对偶 PerfectDodgeWindow（优先于普通无敌；与 PD 窗互斥，窗内只走弹刀）：
+                   1. 玩家吞伤，不 OnHit、不 EnterHit
+                   2. 按攻击者 SimActorId 取 CharacterReactionService.IssueParried()
+                      （见 §5.6；强制 LightStun + Parried 片子，不走冲击力裁定）
                    3. 玩家 QueueExternalIntent(AssistParrySuccess) 或 Graph 自动衔接
                    4. 玩家 Flags.ArmAssistFollowUp
-仅 Invincible、无 ParryWindow = 只吞伤，不进受击、不武装突击
+仅 Invincible、无 ParryWindow = 只吞伤，不 IssueParried、不武装突击
 Guard 结束仍未接触 = 回 Locomotion，不武装突击
 禁止用 ActionTransitionCondition.OnHitConfirm 等敌人出手（那是「自己的 Hitbox 打中人」）
-禁止为弹刀新增 CharacterStateType 或第二套 Reaction 执行器
+禁止为弹刀新增 CharacterStateType、HitReactionKind.Parried 或第二套 Reaction 执行器
 ```
 
 ### 5.6 被弹刀走现有受击状态机（只留一种）
 
-```text
-已有路径（普通命中）
-  CombatHitPipeline → Target.OnHit → Vitality.ApplyDamage
-    → CharacterReactionService.HitReceived
-    → CharacterReactionResolver.ResolveHit(HitReactionId)
-    → CharacterActor.EnterHit → HitState
-         Stop 当前 ActionSim
-         有 ResolvedAction：TryStart 受击招
-         无动作：DefaultHitStunFrames 倒数回 Locomotion
+P-HR 已改真命中：冲击力对韧性，不足则 **Flinch（不停招、边沿 None）**。被弹刀若误走该裁定，精英 SuperArmor / 高韧性会继续出招。弹刀必须走**强制 Stun 旁路**。
 
-被弹刀（P-SW2 纳入同一条 HitState）
-  Pipeline AssistParryWindow 分支不走玩家 OnHit
-  按 hit.Key.AttackerId 取攻击者 CharacterReactionService
-    CharacterReactionType.Parried（新增枚举值；不是新顶层状态）
-    Resolver.ResolveParried() → ReactionSet 的 Parried 默认规则
-    EnterHit（force）→ 同一 HitState
+```text
+现行真命中（P-HR，禁止弹刀复用这条）
+  CombatHitPipeline → Target.OnHit → Vitality.ApplyDamage / HitReceived
+    → CharacterReactionResolver.Resolve(冲击力 vs 韧性 + SuperArmor)
+    → CharacterVitality.ConfirmHitReaction
+         Flinch → Actor.IssueFlinch（Additive；不停招；VitalityEdge.None）
+         LightStun+ → NotifyHit + EnterHit（VitalityEdge.Hit）
+    ResolveHit(HitReactionId) 只给快照硬吸选招，不是真命中入口
+
+被弹刀（P-SW2 纳入同一条 HitState，不走冲击力裁定）
+  Pipeline：玩家 IsInAssistParryWindow
+    不走玩家 OnHit
+    按 hit.Key.AttackerId 取攻击者 CharacterReactionService.IssueParried()
+      Resolver.ResolveParried()
+        Kind        = LightStun          // 不新增 HitReactionKind.Parried
+        StunAction  = ReactionSet.Resolve(CharacterReactionType.Parried, default)
+        StunFrames  = DefaultHitStunFrames
+        不读 interruptLevel / 韧性 / SuperArmor / HitPayload.HitReactionId
+      Vitality.ConfirmHitReaction(LightStun) → VitalityEdge.Hit
+      NotifyHit + EnterHit(force) → 同一 HitState
+        Stop 当前攻击 ActionSim
+        有 Parried Action：TryStart
+        无动作：DefaultHitStunFrames 倒数回 Locomotion
   敌人 Brain 已有 NotifyHit 副作用继续复用，BT 清空 Desire/Request
-  0 伤：不改攻击者 Health；只进 Hit / 复制 VitalityEdge.Hit
+  0 伤：不改攻击者 Health；禁止 IssueFlinch
 ```
 
 | 角色 | 接触瞬间进什么状态 | 播什么 |
@@ -363,7 +375,9 @@ Guard 结束仍未接触 = 回 Locomotion，不武装突击
 | 进攻敌人 | 顶层 `CharacterStateType.Hit` | `CharacterReactionSet` 的 `Parried` Action；缺资产则默认硬直帧 |
 | 下场角色 | 已 `Inactive` | 无 |
 
-禁止：用玩家 Success 上的 Hitbox 再打敌人当「打断」；打断只发生在 Pipeline 的 `EnterHit`。P-SW4 失衡仍可另挂 Grant，不改本条。
+禁止：用玩家 Success 上的 Hitbox 再打敌人当「打断」；打断只发生在 `IssueParried` → `EnterHit`。P-SW4 失衡仍可另挂 Grant，不改本条。  
+禁止：对攻击者 `ApplyDamage` / `OnHitReceived` 来间接触发受击。  
+禁止：`ConfirmHitReaction(Flinch)` 或漏写 `ConfirmHitReaction`（客机硬吸只认 `VitalityEdge.Hit`）。
 
 `SwitchCommand` 必须带 `presentation`：
 
@@ -447,8 +461,10 @@ QuickAssist         → InstantReplace
 - [ ] 队共享 `AssistPoints`（上限 6，开局 3）；扣费只在 Coordinator 裁定成功  
 - [ ] Intent：`AssistParry` / `AssistParrySuccess` / `AssistEvade` / `SwitchPerfectDodge` / `AssistFollowUp`  
 - [ ] 玩家 Timeline 新窗口 `AssistParryWindowNotifyState`（对偶 `PerfectDodgeWindowNotifyState`）  
-- [ ] `CharacterReactionType.Parried`；`CharacterReactionResolver.ResolveParried()`；`CharacterReactionService` 对攻击者 `EnterHit`  
-- [ ] `CombatHitPipeline`：`IsInAssistParryWindow` 时玩家吞伤、攻击者 `ResolveParried`、玩家切 Success、武装 `AssistFollowUp`  
+- [ ] `CharacterReactionType.Parried`；`ResolveParried()` 固定 `HitReactionCommand(LightStun, Parried Action)`，不读冲击力 / 韧性 / SuperArmor  
+- [ ] `CharacterReactionService.IssueParried()`：不 `ApplyDamage`、不走 `Resolve(冲击对韧性)`；必须 `ConfirmHitReaction(LightStun)` + `NotifyHit` + `EnterHit`  
+- [ ] `IHitAbsorbQuery.IsInAssistParryWindow`；`CombatHitPipeline` 窗内早退（对偶 PD、优先于普通无敌）：玩家吞伤、攻击者 `IssueParried`、玩家切 Success、武装 `AssistFollowUp`  
+- [ ] **禁止**新增 `HitReactionKind.Parried`；F3 攻击者显示 `LightStun` 即可  
 - [ ] **删除**「上场招架 Hitbox 打断敌人」作为弹刀成功条件  
 - [ ] Producer：`HasAssistFollowUp` 时攻击族派生 `AssistFollowUp`（对照完美反击）；切人当帧不得武装  
 - [ ] 招架/回避/换人闪：`InstantReplace`——下场当帧 Inactive，**不**起 `SwitchIn`/`SwitchOut`  
@@ -467,7 +483,8 @@ QuickAssist         → InstantReplace
 - [ ] 0 点 Gold 窗切人 → 换人闪，不耗点  
 - [ ] `PartyAssistResolveTests`：裁定表覆盖  
 - [ ] `AssistParryPipelineTests`：窗内命中 → 玩家不 `EnterHit`、攻击者 `EnterHit`、武装突击；仅无敌不武装  
-- [ ] `rg CharacterStateType.Parry` 玩法目录无匹配  
+- [ ] 同测：攻击者 SuperArmor / 韧性 3 仍 `EnterHit`，**不是** Flinch；`VitalityEdge == Hit`；`LastConfirmedReactionKind == LightStun`  
+- [ ] `rg CharacterStateType.Parry` 与 `rg HitReactionKind.Parried` 玩法目录无匹配  
 - [ ] 禁止 `Time.timeScale`（`rg` 玩法目录无新增）  
 
 **出口：** 金光切入、出手接触、敌人受击、突击派生可玩。→ **未达成**
@@ -476,14 +493,14 @@ QuickAssist         → InstantReplace
 
 **任务**
 
-- [ ] Reaction 击飞档暴露给 Coordinator（或 Flags `HasQuickAssistWindow`）  
+- [ ] Coordinator 读目标 `CharacterVitality.LastConfirmedReactionKind == Launch`（或同帧 Flags `HasQuickAssistWindow`）  
 - [ ] 击飞中切人 → `QuickAssist`；上场 Action 标 `HeavyHit`  
-- [ ] 轻/重击退 **不**开快速支援  
+- [ ] `LightStun` / `HeavyStun` / 被弹刀的 `LightStun` **不**开快速支援  
 
 **验收**
 
-- [ ] Play：击飞后切人播受击支援，下场立即按 Exiting 收  
-- [ ] 非击飞受击切人仍为 SwitchIn  
+- [ ] Play：击飞后切人播受击支援，下场立即按 InstantReplace 收  
+- [ ] 非 Launch 受击（含普通 HardHit、被弹刀）切人仍为 SwitchIn / 不派生 QuickAssist  
 
 **出口：** 失误可切人翻盘。→ **未达成**
 
@@ -538,8 +555,10 @@ QuickAssist         → InstantReplace
 | 把换人做成 `SwitchCombatMode` 或 Graph StartBehavior | 语义冲突 |
 | 单 Actor 热换 ModelPrefab / 运行时改 Config | 无法下场播完、无法后台回能 |
 | 为换人新建第二套 Timeline/执行器 | 与 Action 核双轨 |
-| 上场招架 Hitbox 作为弹刀成功/打断敌人的条件 | 改为敌人 Hitbox 接触 `AssistParryWindow`；打断只走 `EnterHit` |
+| 上场招架 Hitbox 作为弹刀成功/打断敌人的条件 | 改为敌人 Hitbox 接触 `AssistParryWindow`；打断只走 `IssueParried` → `EnterHit` |
 | 顶层 `CharacterStateType.Parry` / 第二套受击执行器 | 被弹刀复用现有 `HitState` |
+| 被弹刀走 `Resolve(冲击力 vs 韧性)` / `IssueFlinch` | SuperArmor / 高韧性会变成不停招 |
+| `HitReactionKind.Parried` | 档位复用 `LightStun`；片子用 `CharacterReactionType.Parried` |
 
 ---
 
@@ -562,8 +581,11 @@ Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/
   AssistCueNotifyState.cs         // 敌人 Timeline 窗
   AssistParryWindowNotifyState.cs // 玩家 Guard 接触窗
 Assets/Scripts/Domain/Character/Reactions/
-  CharacterReactionType.cs        // + Parried
-  CharacterReactionResolver.cs    // + ResolveParried
+  CharacterReactionType.cs        // + Parried（选招类型，不是 HitReactionKind）
+  CharacterReactionResolver.cs    // + ResolveParried（固定 LightStun）
+  CharacterReactionService.cs     // + IssueParried
+Assets/Scripts/Domain/Combat/Hitbox/
+  IHitAbsorbQuery.cs              // + IsInAssistParryWindow
 Assets/Scripts/Domain/Simulation/Input/
   InputButton.cs                  // + SwitchCharacter（无 SwitchPrev）
   GameplayIntentType.cs           // + SwitchIn / Assist* / …
@@ -584,7 +606,8 @@ docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md
 |------|------|
 | 3 Actor 步进成本 | 后台跳过 Motor 重计算可后做；首版先全 Step 但 Inactive 空输入、不进软弹开 |
 | 换人与预测回滚 | P-SW1 已进入 Dedicated 权威：累计命令 ACK 覆盖切人帧前，不用旧 ActiveSlot 撤销本地预测 |
-| 招架要打断敌招 | 接触瞬间 `ResolveParried` → `EnterHit`；`HitState` 停攻击 ActionSim；缺 `Parried` 资产则默认硬直帧 |
+| 招架要打断敌招 | 接触瞬间 `IssueParried` → `ConfirmHitReaction(LightStun)` → `EnterHit`；禁止走冲击力裁定（否则 SuperArmor 变 Flinch） |
+| 客机看不到被弹 | 必须写 `VitalityEdge.Hit`；Flinch 边沿是 None，Observer 不会硬吸 |
 | Cue 已过但敌人尚未出手 | Guard 覆盖到 Active Hitbox；Cue 只裁定切人，不裁定成功 |
 | 极限视域像顿帧 | 逻辑 `dilationPermille` 只作用于敌方 Action/Motor 步长；表现插值跟同一时钟 |
 | 资产未齐 | 可用占位 Action（无 Clip）验收状态机；Clip/VFX Editor 人工 |
@@ -602,7 +625,7 @@ docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md
 5. 每角色 Graph：P-SW1 配 `SwitchIn`、`SwitchOut`；P-SW2 再配 `AssistParry` Guard、`AssistParrySuccess`、`AssistFollowUp`（远程加 `AssistEvade`）。
 6. Guard `ActionDefinition`：frame 0 Relocate + SnapFacing、Invincible、`AssistParryWindow`（覆盖到敌攻击 Active）；**不要**在 Guard 上挂 clang。Success 才挂 clang VFX/SFX。
 7. 木桩/精英敌 Graph：攻击节点加 Gold `AssistCue`（抬手）+ 独立 Hitbox（出手）；二者不要叠成同一帧。
-8. 敌人 `CharacterReactionSet` 增加 `Parried` 默认规则（可先空 Clip，靠默认硬直帧验收 `HitState`）。
+8. 敌人 `CharacterReactionSet` 增加 `Parried` 默认规则（可先空 Clip，靠默认硬直帧验收 `HitState`）。不要把被弹刀片子只挂在 `Hit` 规则上指望冲击力裁定选中它。
 9. Play 确认相机随 `PlayerController.PresentationRoot` 自动切到当前 Active 槽；无需逐角色拖引用。
 
 ---
@@ -639,3 +662,4 @@ P-SW0 身份/Loadout
 | 2026-09-02 | 本机 `CharacterActor` 同样在退出可见状态前清理所属 VFX；远端与本机统一以阵容显隐边界终止会随父节点冻结的表现租约 |
 | 2026-09-02 | 修复权威敌人感知根：`RemotePlayerSeat` 保留稳定花名册锚点，并在每次切人时将其重挂到当前 Active 槽位逻辑根 |
 | 2026-09-02 | P-SW2 改为接触成功：Guard 到位举刀，敌人 Hitbox 触发 Success clang；被弹刀纳入现有 `HitState`（`CharacterReactionType.Parried`），删除上场招架 Hitbox 打断路径 |
+| 2026-09-04 | 对齐已关闭的 P-HR 受击：被弹刀走 `IssueParried` 强制 LightStun，禁止冲击力×韧性 / SuperArmor / Flinch；不新增 `HitReactionKind.Parried`；P-SW3 读 `LastConfirmedReactionKind == Launch` |
