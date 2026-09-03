@@ -22,6 +22,7 @@ public sealed class CombatDebugHudController : AppControllerBase
     CharacterDebugSnapshot _cached;
     CharacterDebugSnapshot _targetCached;
     bool _hasTargetSnapshot;
+    /// <summary>探针目标可见体 Additive 权重；Listen 无头 Actor 快照恒为 0，须读 Proxy。</summary>
     float _targetAdditiveWeight;
     CameraManager _cameraManager;
     readonly StringBuilder _sb = new(512);

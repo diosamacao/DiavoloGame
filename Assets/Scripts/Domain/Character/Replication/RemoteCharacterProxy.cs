@@ -34,6 +34,41 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     int _healthMilli;
     readonly HurtboxDefinition _hurtbox;
 
+    static readonly List<RemoteCharacterProxy> LivePresentations = new();
+
+    /// <summary>当前场上带 Playable 的 Observer 数量；Listen 无头权威探针用。</summary>
+    public static int LivePresentationCount => LivePresentations.Count;
+
+    /// <summary>
+    /// 按权威 Id 找可见 Playable。不依赖 CombatWorld 组件链；无 Graph 的测试装配不会入表。
+    /// </summary>
+    public static bool TryFindLivePresentation(SimActorId actorId, out CharacterAnimationService animation)
+    {
+        animation = null;
+        if (!actorId.IsValid)
+            return false;
+
+        for (int i = LivePresentations.Count - 1; i >= 0; i--)
+        {
+            RemoteCharacterProxy proxy = LivePresentations[i];
+            if (proxy == null || proxy._root == null)
+            {
+                LivePresentations.RemoveAt(i);
+                continue;
+            }
+
+            if (!proxy._simulationId.Equals(actorId))
+                continue;
+            if (proxy._animation == null || !proxy._animation.HasPlayback)
+                continue;
+
+            animation = proxy._animation;
+            return true;
+        }
+
+        return false;
+    }
+
     /// <summary>幽灵权威根；调试与测试读位姿用。</summary>
     public Transform Root => _root;
 
@@ -129,6 +164,9 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
             ? fixedDeltaSeconds
             : 1f / SimulationConfig.DefaultLogicHz;
         _ownsRoot = ownsRoot;
+        // 仅登记有 Graph 的可见体；EditMode 位姿单测传入 null animation，不会污染表。
+        if (_animation != null && _animation.HasPlayback)
+            LivePresentations.Add(this);
     }
 
     /// <summary>
@@ -271,6 +309,7 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     /// <summary>释放动画后端；ownsRoot 时销毁幽灵根物体。</summary>
     public void Dispose()
     {
+        LivePresentations.Remove(this);
         ResetVisibilityConsumers();
         _animation?.Dispose();
         if (_ownsRoot && _root != null)

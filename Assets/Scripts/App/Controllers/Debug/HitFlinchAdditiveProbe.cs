@@ -31,7 +31,7 @@ public static class HitFlinchAdditiveProbe
         CharacterAnimationService animation = ResolvePresentation(actor);
         if (animation == null || !animation.HasPlayback)
         {
-            error = "目标没有可见 Playable（Listen 无头权威需等 Observer Proxy）。";
+            error = DescribeMissingPlayback(actor);
             return false;
         }
 
@@ -43,9 +43,10 @@ public static class HitFlinchAdditiveProbe
         }
 
         ActionSimSnapshot action = actor.ActionSim != null ? actor.ActionSim.Snapshot : default;
-        LogProbe("before", actor, action, animation.AdditiveWeight);
+        string backend = ReferenceEquals(animation, actor.Animation) ? "actor" : "proxy";
+        LogProbe("before", actor, action, animation.AdditiveWeight, backend);
         animation.PlayAdditive(clip, mask, fadeDuration);
-        LogProbe("after", actor, action, animation.AdditiveWeight);
+        LogProbe("after", actor, action, animation.AdditiveWeight, backend);
         return true;
     }
 
@@ -96,7 +97,28 @@ public static class HitFlinchAdditiveProbe
             return proxy;
         }
 
+        // 组件链未挂上时，直接扫场上已生成的 Ghost Playable。
+        if (RemoteCharacterProxy.TryFindLivePresentation(
+                actor.SimulationId,
+                out CharacterAnimationService live)
+            && live != null
+            && live.HasPlayback)
+        {
+            return live;
+        }
+
         return local;
+    }
+
+    /// <summary>把 Listen 无头失败拆成可对照的原因，避免只看到「没有 Playable」。</summary>
+    static string DescribeMissingPlayback(CharacterActor actor)
+    {
+        CombatWorldController world = CombatWorldController.Current;
+        string role = world != null ? world.Role.ToString() : "NoWorld";
+        int live = RemoteCharacterProxy.LivePresentationCount;
+        return
+            $"目标没有可见 Playable（{role} 无头权威 id=#{actor.SimulationId.Value}，" +
+            $"LiveProxy={live}）。等 Observer 出模型后再按 F6。";
     }
 
     /// <summary>按稳定模拟 Id 找到场上敌人 Actor。</summary>
@@ -116,7 +138,13 @@ public static class HitFlinchAdditiveProbe
         return null;
     }
 
-    static void LogProbe(string phase, CharacterActor actor, in ActionSimSnapshot action, float additiveWeight)
+    /// <summary>探针前后各打一行；via=proxy 表示打在 Observer 可见体上。</summary>
+    static void LogProbe(
+        string phase,
+        CharacterActor actor,
+        in ActionSimSnapshot action,
+        float additiveWeight,
+        string backend)
     {
         string actionName = action.IsActive && action.Content is Object unity
             ? unity.name
@@ -124,6 +152,6 @@ public static class HitFlinchAdditiveProbe
         Debug.Log(
             $"[P-HR0] {phase} state={actor.CurrentState} action={actionName} " +
             $"frame={action.CurrentFrame} additive={additiveWeight:0.00} " +
-            $"id=#{actor.SimulationId.Value}");
+            $"id=#{actor.SimulationId.Value} via={backend}");
     }
 }

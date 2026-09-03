@@ -66,17 +66,22 @@ public class CombatWorldController : AppControllerBase
             return true;
         }
 
-        return false;
+        // Client 组件链未就绪时仍可按权威 Id 找已生成的 Ghost Playable。
+        return RemoteCharacterProxy.TryFindLivePresentation(actorId, out animation);
     }
 
-    /// <summary>Listen 用 Bootstrap 本机 Client；远端 Client 用 Room Facade。</summary>
+    /// <summary>Listen 用 Bootstrap 本机 Client；远端 Client 用 Room Facade。同物体找不到时再扫场景。</summary>
     LocalClientRuntime ResolveLocalClientRuntime()
     {
         ListenServerBootstrap listen = GetComponent<ListenServerBootstrap>();
+        if (listen == null)
+            listen = FindObjectOfType<ListenServerBootstrap>();
         if (listen != null && listen.LocalClient != null)
             return listen.LocalClient;
 
         ReplicationRoomClient room = GetComponent<ReplicationRoomClient>();
+        if (room == null)
+            room = FindObjectOfType<ReplicationRoomClient>();
         return room != null ? room.Runtime : null;
     }
 
