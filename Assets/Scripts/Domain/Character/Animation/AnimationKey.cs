@@ -23,4 +23,6 @@ public enum AnimationKey
     WalkStartLeft = 12,
     /// <summary>走档右向起步；缺则 WalkStart → Start。</summary>
     WalkStartRight = 13,
+    /// <summary>轻受击 Additive 默认键；不进 Locomotion 状态机。</summary>
+    HitShake = 14,
 }

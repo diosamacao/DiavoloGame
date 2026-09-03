@@ -8,7 +8,7 @@
 > - 功能真源：`.cursor/skills/actgame-architecture/TECHNICAL.md`（命中管道、Reaction、Playable）  
 > - 计划体例对照：[`../2026.8.24/UI_BACKPACK_PLAN.md`](../2026.8.24/UI_BACKPACK_PLAN.md) §6、[`../2026.8.17/NETSYNC_DEDICATED_SERVER_SEPARATION_PLAN.md`](../2026.8.17/NETSYNC_DEDICATED_SERVER_SEPARATION_PLAN.md) §17  
 > 前置：现行有效命中一律 `EnterHit` 断招；轻击要不停招、用 Additive 叠 `Hit_Shake`。  
-> **第一步只验表现：** Playable Additive 叠在正在播的 Action/Locomotion 上是否不断招、看起来是否正常。未通过前不改 Resolver / Pipeline。
+> **第一步只验表现：** Playable Additive 叠在正在播的 Action/Locomotion 上是否不断招、看起来是否正常。P-HR0 Play 已于 2026-09-03 确认。
 
 ---
 
@@ -301,7 +301,7 @@ Phase `interruptible` 继续只管 **玩家出招被更高优 Intent 硬切**，
 - [x] 读清 `IAnimationPlayback` / `PlayableAnimationPlayback` 现图（几个 Mixer、谁 Seek、HitStop 怎么 `SetSpeed`）。
 - [x] 层 0 保持现有 Override Seek；增加 `AnimationLayerMixerPlayable`，层 1 `SetLayerAdditive(1, true)`。
 - [x] `IAnimationPlayback` 增加 `PlayAdditive(clip, mask, fade)` / `StopAdditive()`，不把 Mixer 类型漏出 Domain 逻辑。
-- [ ] `Hit_Shake` 导入为 Additive（参考第 0 帧或 T-Pose）；去掉 Root Motion；准备上半身 `AvatarMask`（脊柱 / 胸 / 头）。**Editor 人工**
+- [x] `Hit_Shake` 导入为 Additive（参考第 0 帧或 T-Pose）；去掉 Root Motion；准备上半身 `AvatarMask`（脊柱 / 胸 / 头）。**Editor 人工**（Play 已确认能看见抖）
 - [x] 调试入口：Play 下 **F6**，或菜单 `ACTGame/Combat/Debug Play Flinch Additive`（选中敌人优先）。不改 Hitbox。
 - [x] 触发时目标必须已在播 Action 或 Locomotion；禁止为了探针 `EnterHit` / `ActionSim.Stop`。
 - [x] 切招、进 Hit、角色隐藏时 `StopAdditive`（避免探针残留到下一招）。
@@ -309,15 +309,15 @@ Phase `interruptible` 继续只管 **玩家出招被更高优 Intent 硬切**，
 
 **验收（Play，本机 Listen / 单机即可）**
 
-- [ ] 敌人正在播攻击（或木桩 Idle 走循环）：按调试键后**底轨不重头、不冻结、不切受击 Action**。
-- [ ] `CharacterStateType` 仍是 `Action` 或 `Locomotion`，不是 `Hit`。
-- [ ] `ActionSim.CurrentFrame`（或等价）在 Shake 期间继续 +1（卡肉除外）。
-- [ ] 能看出上半身/脊柱轻抖，不是整段 Idle 盖住出招、不是 T-Pose 抽一下。
-- [ ] 拳头 / 武器轨迹与未按调试键时同一套攻击盒时间轴（逻辑位移不变）。
-- [ ] 连按调试键：Shake 从 0 重播，不叠多条、不把骨架拉飞。
-- [ ] 调试后让敌人吃**真受击**（旧 `EnterHit`）：Shake 立刻停，受击片仍按旧路径播。
-- [ ] Motor / 烘焙位移无额外平移；脚不因 Shake 根曲线搓地。
-- [ ] 关闭调试入口后，不打人则不再自己抖。
+- [x] 敌人正在播攻击（或木桩 Idle 走循环）：按调试键后**底轨不重头、不冻结、不切受击 Action**。
+- [x] `CharacterStateType` 仍是 `Action` 或 `Locomotion`，不是 `Hit`。
+- [x] `ActionSim.CurrentFrame`（或等价）在 Shake 期间继续 +1（卡肉除外）。
+- [x] 能看出上半身/脊柱轻抖，不是整段 Idle 盖住出招、不是 T-Pose 抽一下。
+- [x] 拳头 / 武器轨迹与未按调试键时同一套攻击盒时间轴（逻辑位移不变）。
+- [x] 连按调试键：Shake 从 0 重播，不叠多条、不把骨架拉飞。
+- [x] 调试后让敌人吃**真受击**（旧 `EnterHit`）：Shake 立刻停，受击片仍按旧路径播。
+- [x] Motor / 烘焙位移无额外平移；脚不因 Shake 根曲线搓地。
+- [x] 关闭调试入口后，不打人则不再自己抖。
 
 **失败怎么处理（未通过不得进 P-HR1）**
 
@@ -329,7 +329,7 @@ Phase `interruptible` 继续只管 **玩家出招被更高优 Intent 硬切**，
 | 一播就位移 | 关 Shake Root Motion；确认没写 Motor |
 | 一播就进 Hit | 误接了 Reaction；撤回，探针不得走 `EnterHit` |
 
-P-HR0 出口：**人眼 + F3 状态**，不要求 EditMode 反应单测，不要求联网。
+P-HR0 出口：**人眼 + F3 状态**，不要求 EditMode 反应单测，不要求联网。→ **已达成（2026-09-03）**
 
 ---
 
@@ -337,19 +337,21 @@ P-HR0 出口：**人眼 + F3 状态**，不要求 EditMode 反应单测，不要
 
 **待办**
 
-- [ ] 增加 `HitReactionKind`、`HitReactionCommand`。
-- [ ] `CharacterReactionResolver.Resolve` 按本文 §4 出 Command，不切状态。
-- [ ] EditMode：§11 裁定用例。
+- [x] 增加 `HitReactionKind`、`HitReactionCommand`。
+- [x] `CharacterReactionResolver.Resolve` 按本文 §4 出 Command，不切状态。
+- [x] EditMode：§11 裁定用例。
 
 **验收**
 
-- [ ] `level < resist` + `desired=Launch` → `Flinch`。
-- [ ] `level >= resist` + `desired=Flinch` → `Flinch`。
-- [ ] SuperArmor → 非 Death 最多 `Flinch`。
-- [ ] 同帧 Flinch+LightStun 合并为 LightStun。
-- [ ] DOT → `None`。
-- [ ] 空 Payload 默认 `LightStun` + `interruptLevel=1`（兼容旧盒子）。
-- [ ] Play 行为与 P-HR0 前相同（尚未改 Service）。
+- [x] `level < resist` + `desired=Launch` → `Flinch`。
+- [x] `level >= resist` + `desired=Flinch` → `Flinch`。
+- [x] SuperArmor → 非 Death 最多 `Flinch`。
+- [x] 同帧 Flinch+LightStun 合并为 LightStun。
+- [x] DOT → `None`。
+- [x] 空 Payload 默认 `LightStun` + `interruptLevel=1`（兼容旧盒子）。
+- [ ] Play 行为与 P-HR0 前相同（尚未改 Service）。**Editor 确认**
+
+**出口：** 单测覆盖 §4 档位；Service 未接，真命中仍 `EnterHit`。→ **代码已达成（2026-09-03）**；Play 手感待 Editor 点开确认。
 
 ---
 
@@ -415,12 +417,12 @@ P-HR0 以 Play 人眼为主。以下从 P-HR1 起。
 
 ### EditMode（P-HR1+）
 
-- [ ] `interruptLevel < resist` + `desired=Launch` → `Flinch`
-- [ ] `level >= resist` + `desired=Flinch` → `Flinch`（不进 Hit）
-- [ ] SuperArmor → 非 Death 最多 Flinch
-- [ ] 同帧 Flinch+LightStun → 只 LightStun
-- [ ] DOT → None
-- [ ] 迁移默认：空 Payload → LightStun + level 1
+- [x] `interruptLevel < resist` + `desired=Launch` → `Flinch`
+- [x] `level >= resist` + `desired=Flinch` → `Flinch`（不进 Hit）
+- [x] SuperArmor → 非 Death 最多 Flinch
+- [x] 同帧 Flinch+LightStun → 只 LightStun
+- [x] DOT → None
+- [x] 迁移默认：空 Payload → LightStun + level 1
 
 ### Play（P-HR2+）
 
@@ -434,8 +436,8 @@ P-HR0 以 Play 人眼为主。以下从 P-HR1 起。
 
 ## 12. 开工顺序（给自己勾）
 
-1. [x] **P-HR0**：接 Mixer + 调试键，只验 Additive（代码已接；Play 人眼与 Clip 资产未勾）。
-2. [ ] P-HR0 验收全勾后，才开 P-HR1 Resolver。
+1. [x] **P-HR0**：接 Mixer + 调试键，只验 Additive（Play 已确认 2026-09-03）。
+2. [x] P-HR0 验收全勾后，才开 P-HR1 Resolver。
 3. [ ] P-HR1 单测绿，再改 Service（P-HR2）。
 4. [ ] P-HR2 Play 通过，再填盒子 / 抗打断（P-HR3）。
 5. [ ] 本机手感稳了再动复制（P-HR4）。
@@ -481,3 +483,4 @@ P-HR0 以 Play 人眼为主。以下从 P-HR1 起。
 | 2026-09-03 | 初版：档位裁定、Flinch 不停招、Playable Additive、打断/抗打断 |
 | 2026-09-03 | 对齐以往计划体例：分阶段待办/验收勾选；**P-HR0 改为 Additive 探针且必须先做**；原 Resolver 顺延为 P-HR1 |
 | 2026-09-03 | P-HR0 代码：LayerMixer Additive、`PlayAdditive`、F6/菜单探针；Play 验收与 `Hit_Shake` 资产仍待 Editor |
+| 2026-09-03 | P-HR0 Play 已确认 Additive；P-HR1：`HitReactionKind` / Command / `Resolve` + `HitReactionResolverTests`；Service 未改 |
