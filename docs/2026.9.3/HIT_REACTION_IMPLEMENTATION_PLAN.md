@@ -8,7 +8,8 @@
 > - 功能真源：`.cursor/skills/actgame-architecture/TECHNICAL.md`（命中管道、Reaction、Playable）  
 > - 计划体例对照：[`../2026.8.24/UI_BACKPACK_PLAN.md`](../2026.8.24/UI_BACKPACK_PLAN.md) §6、[`../2026.8.17/NETSYNC_DEDICATED_SERVER_SEPARATION_PLAN.md`](../2026.8.17/NETSYNC_DEDICATED_SERVER_SEPARATION_PLAN.md) §17  
 > 前置：现行有效命中一律 `EnterHit` 断招；轻击要不停招、用 Additive 叠 `Hit_Shake`。  
-> **第一步只验表现：** Playable Additive 叠在正在播的 Action/Locomotion 上是否不断招、看起来是否正常。P-HR0 Play 已于 2026-09-03 确认。
+> **第一步只验表现：** Playable Additive 叠在正在播的 Action/Locomotion 上是否不断招、看起来是否正常。P-HR0 Play 已于 2026-09-03 确认。  
+> **计划状态：已关闭（2026-09-04）** — P-HR0～P-HR4 用户 Play 全部验收。失衡条 / 击飞物理仍本轮不做。
 
 ---
 
@@ -278,7 +279,7 @@ Phase `interruptible` 继续只管 **玩家出招被更高优 Intent 硬切**，
 | **P-HR1 裁定纯函数** | `HitReactionKind` / Command / Resolver + EditMode | 单测档位与 SuperArmor 稳定 | 不接 Service |
 | **P-HR2 执行分支** | Flinch 不 `EnterHit`、不 Reset BT；Stun+ 旧路径；接 P-HR0 的 `PlayAdditive` | 真命中轻击：不停招 + 抖；重击仍进 Hit | 不改 Payload 资产、不动网络 |
 | **P-HR3 等级表** | `interruptLevel` / 抗打断 / Phase bonus；旧资产默认值 | 精英出招中普攻只抖，技能能断 | — |
-| **P-HR4 复制** | 命中事件带 Kind；Proxy Additive；F3 档位 | Listen：一端断招一端只抖，ActionId 一致 | 代码已接；Listen Play 待验 |
+| **P-HR4 复制** | 命中事件带 Kind；Proxy Additive；F3 档位 | Listen：一端断招一端只抖，ActionId 一致 | 已验收（2026-09-04）；不宣称公网 / W10 |
 
 对照 UI 计划的 U0：P-HR0 是「空白 DebugPanel」——只证明通道，不做完整受击业务。
 
@@ -339,15 +340,15 @@ P-HR0 出口：**人眼 + F3 状态**，不要求 EditMode 反应单测，不要
 
 **验收**
 
-- [x] `level < resist` + `desired=Launch` → `Flinch`。
-- [x] `level >= resist` + `desired=Flinch` → `Flinch`。
+- [x] 冲击 < 韧性 → `Flinch`（不再读 `desiredReaction`）。
+- [x] 冲击 ≥ 韧性 → `LightStun`（HardHit）。
 - [x] SuperArmor → 非 Death 最多 `Flinch`。
 - [x] 同帧 Flinch+LightStun 合并为 LightStun。
 - [x] DOT → `None`。
-- [x] 空 Payload 默认 `LightStun` + `interruptLevel=1`（兼容旧盒子）。
-- [ ] Play 行为与 P-HR0 前相同（尚未改 Service）。**Editor 确认**
+- [x] 旧盒子冲击 1 打韧性 1 → `LightStun`。
+- [x] 后续阶段已接 Service；本阶段单测出口已关闭。
 
-**出口：** 单测覆盖 §4 档位；Service 未接，真命中仍 `EnterHit`。→ **代码已达成（2026-09-03）**；Play 手感待 Editor 点开确认。
+**出口：** 单测覆盖 §4 档位。→ **已达成（2026-09-03 代码 / 2026-09-04 全计划 Play 收口）**。
 
 ---
 
@@ -365,11 +366,11 @@ P-HR0 出口：**人眼 + F3 状态**，不要求 EditMode 反应单测，不要
 - [x] 轻击盒子打木桩：HP 下降，状态仍是 Action/Locomotion，攻击播完。
 - [x] 同时看到与 P-HR0 同质量的 Shake；走跑 Clip 不重头、不冻结。
 - [x] 行为树不因轻击 Reset（攻击循环不被拆掉）。
-- [ ] 重击盒子：仍 `EnterHit`，树 Reset，Shake 被清。
-- [ ] 轻击过程中吃重击：立刻进 Hit。
-- [ ] 完美吞伤 / 无敌：无 Flinch、无 Stun。
+- [x] 重击盒子：仍 `EnterHit`，树 Reset，Shake 被清。
+- [x] 轻击过程中吃重击：立刻进 Hit。
+- [x] 完美吞伤 / 无敌：无 Flinch、无 Stun。
 
-**出口：** 轻击不停招 + Shake，重击仍 EnterHit。→ **轻击 Play 已验收（2026-09-03）**；重击/连打/吞伤待 Editor。
+**出口：** 轻击不停招 + Shake，重击仍 EnterHit。→ **已验收（2026-09-04）**。
 
 ---
 
@@ -384,12 +385,12 @@ P-HR0 出口：**人眼 + F3 状态**，不要求 EditMode 反应单测，不要
 
 **验收**
 
-- [ ] 精英 `resist=3` 出招中：普攻（level 1）只抖不断招。
-- [ ] 同精英：技能（level≥3）能进 Hit。
-- [ ] 杂兵 `resist=1` + 未改旧盒子：仍断招（接近改前手感）。
-- [ ] Phase SuperArmor 窗内普攻只抖。
+- [x] 精英 `resist=3` 出招中：普攻（level 1）只抖不断招。
+- [x] 同精英：技能（level≥3）能进 Hit。
+- [x] 杂兵 `resist=1` + 未改旧盒子：仍断招（接近改前手感）。
+- [x] Phase SuperArmor 窗内普攻只抖。
 
-**出口：** 代码已接（2026-09-03）；精英 resist / 轻段 Flinch 填表后 Play 验收。
+**出口：** 冲击力对韧性 + 资产表。→ **已验收（2026-09-04）**。
 
 ---
 
@@ -404,10 +405,12 @@ P-HR0 出口：**人眼 + F3 状态**，不要求 EditMode 反应单测，不要
 
 **验收**
 
-- [ ] Listen 双端：轻击时两边 ActionId/帧连续，客机看得到抖。
-- [ ] 重击仍硬吸进 Hit，与改前一致。
-- [ ] Flinch 不产生错误 Action Ack / Restore。
-- [ ] 不宣称公网 / W10 出口。
+- [x] Listen 双端：轻击时两边 ActionId/帧连续，客机看得到抖。
+- [x] 重击仍硬吸进 Hit，与改前一致。
+- [x] Flinch 不产生错误 Action Ack / Restore。
+- [x] 不宣称公网 / W10 出口。
+
+**出口：** Listen 观测与 Flinch 复制。→ **已验收（2026-09-04）**。本轮到此结束。
 
 ---
 
@@ -429,10 +432,10 @@ P-HR0 以 Play 人眼为主。以下从 P-HR1 起。
 ### Play（P-HR2+）
 
 - [x] 轻击：不停招、Shake、BT 不 Reset
-- [ ] 重击：进 Hit，树 Reset
-- [ ] 出招中连打轻击：招打完，Shake 可重触发
-- [ ] 轻击中吃重击：立刻 EnterHit，Shake 清
-- [ ] （P-HR4）客机：攻击 Clip 连续，Shake 跟事件，无误硬吸
+- [x] 重击：进 Hit，树 Reset
+- [x] 出招中连打轻击：招打完，Shake 可重触发
+- [x] 轻击中吃重击：立刻 EnterHit，Shake 清
+- [x] （P-HR4）客机：攻击 Clip 连续，Shake 跟事件，无误硬吸
 
 ---
 
@@ -442,8 +445,8 @@ P-HR0 以 Play 人眼为主。以下从 P-HR1 起。
 2. [x] P-HR0 验收全勾后，才开 P-HR1 Resolver。
 3. [x] P-HR1 单测绿，再改 Service（P-HR2）。
 4. [x] P-HR2 Play 通过，再填盒子 / 抗打断（P-HR3）。
-5. [x] 本机手感稳了再动复制（P-HR4 代码已接；Listen 双端 Play 待验收）。
-6. [ ] 停。失衡条、击飞物理不进本轮。
+5. [x] 本机手感稳了再动复制（P-HR4 Listen 双端 Play 已验收 2026-09-04）。
+6. [x] 停。失衡条、击飞物理不进本轮。
 
 每阶段结束能 Play 一次再往下。不要先改 Hitbox 再发现 Additive 叠出来是 Idle 抽搐。
 
@@ -489,3 +492,4 @@ P-HR0 以 Play 人眼为主。以下从 P-HR1 起。
 | 2026-09-03 | P-HR2：Service 按 Command 分支；Flinch 发 `HitFlinchEvent` + `PlayAdditive`；不锁 Locomotion；Flinch 清 Vitality Hit 边沿 |
 | 2026-09-03 | P-HR4 代码：命中事件 V2 带 `ReactionKind`；客机 Proxy Flinch Additive；F3 裁档；Listen 双端待 Play |
 | 2026-09-03 | 裁定改为冲击力对韧性：不足 Flinch，持平起 LightStun；删除 `desiredReaction` 双轨 |
+| 2026-09-04 | 用户验收：P-HR0～P-HR4 全部计划关闭；失衡条 / 击飞物理仍本轮不做 |

@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-09-03（受击档由冲击力对韧性裁定；已删 desiredReaction）
+> Last updated: 2026-09-04（受击 P-HR0～P-HR4 全计划 Play 已验收）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -11,8 +11,8 @@
 | Wave4 位移（Adhesion / SoftBody / Relocate） | ✅ 已实现（吸附已验收；Relocate 已接线） | `ActionMotionAdhesion` + `ActionMotionResolver` + Bridge | Branch_02 吸附已配；Relocate 按需加 MotionCommand 轨；相机不在本 Wave |
 | 命中受击 Cue（VFX/SFX） | ✅ 已实现（A2 打击感验收 2026-08-09） | `HitImpactController` + `HitFeedbackSettings` | 接触点落点 + 随机旋转；普攻 Cue 已验 |
 | 逻辑 Hurtbox 调试线框 | ✅ 已实现 | `CombatHurtboxDebugSettings` + `CombatHurtboxDebugVisualizer` | F4 开关（F3 HUD 显示状态） |
-| Playable Additive 探针 | 🟡 P-HR0 Play 已确认 Additive | `PlayableAnimationPlayback.PlayAdditive` + F6 | Listen 无头敌人打 Observer Proxy；HUD 拖 `Hit_Shake` |
-| 受击档位裁定 | 🟡 冲击力对韧性已接；韧性/冲击数字待 Editor 填 | `CharacterReactionService` + `HitFlinchPlaybackController` | 杂兵韧性 1；精英 3；Attack01 冲击 2 |
+| Playable Additive 探针 | ✅ P-HR0 Play 已验收 | `PlayableAnimationPlayback.PlayAdditive` + F6 | Listen 无头敌人打 Observer Proxy；HUD 拖 `Hit_Shake` |
+| 受击档位裁定 | ✅ P-HR0～P-HR4 已验收（2026-09-04） | `CharacterReactionService` + `HitFlinchPlaybackController` | 冲击对韧性；Listen 客机 Flinch Additive；不宣称公网 |
 | 固定帧模拟宿主 | ✅ L0A 已实现 | `SimulationHost`、`SimulationWorld`、`SimActorId` | 60Hz，无资产 |
 | Wave0 动作审计 / 锚点可视化 / Debug HUD | ✅ 已实现 | `ActionDefinitionAuditUtility`、`CharacterAnchorGizmoDrawer`、`CombatDebugHudController` | 菜单 `ACTGame/Action/Validate Motion Sources`；场景挂 HUD |
 | 角色朝向调试箭头 | ✅ Play 实心箭 | `CharacterFacingDebugVisualizer` + `ICharacterFacingDebugTarget` | 本体 / 客机他人幽灵各一份；黄=wish 品红=模型 |
@@ -1427,7 +1427,7 @@ CombatHitPipeline.OnHit → Vitality.HitReceived
   PublishResolvedHit → ReplicatedHitEvent(ReactionKind) → 客机 PlayReplicatedHits → Proxy Additive
 ```
 
-**已知限制：** 杂兵/精英韧性与各刀冲击力须 Editor 填。P-HR4 复制已接（命中 V2 + 客机 Flinch Additive + F3 裁档）；Listen 双端 Play 待验收。方案：`docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md`。
+**已知限制：** 失衡条 / 击飞抛物线物理仍本轮不做。韧性与冲击数字可继续在 Editor 调。Listen 已验，不宣称公网 / W10。方案已关闭：`docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md`。
 
 **相关文件：**
 
@@ -1612,6 +1612,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-09-02 | 修复 Observer 二次登场残留：远端角色隐藏前回收所属 VFX；重新显形时清空退场前插值历史并直接落到当前权威位置 |
 | 2026-09-02 | 本机阵容生命周期接入同一可见性清理接口：`CharacterActor` 转入 Inactive/Dead/Empty 前回收所属 VFX，避免本机再次 SwitchIn 时复活旧特效 |
 | 2026-09-02 | 修复 P-SW1 后敌人感知根停在出生点：`RemotePlayerSeat` 使用稳定锚点并在普通切人时重挂到当前权威槽位根 |
+| 2026-09-04 | 受击 P-HR0～P-HR4 全计划 Play 验收关闭；Listen 客机 Flinch Additive 已验 |
 | 2026-09-03 | 受击档改为冲击力对韧性；删除 `desiredReaction`；不足 Flinch，持平起 LightStun |
 | 2026-09-03 | P-HR3：`baseInterruptResist` + Phase `interruptResistBonus` 进 Service；OnValidate/菜单只补空字段；轻击 Play 已验 |
 | 2026-09-03 | P-HR2：Flinch 不停招、不锁 Locomotion；`HitFlinchPlaybackController` 只 `PlayAdditive`；Stun+ 仍 EnterHit |
