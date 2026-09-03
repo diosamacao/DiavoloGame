@@ -186,6 +186,7 @@ Data/          → ScriptableObject、配置（Assets/Data/）
 - 先读文档再改代码；改完代码再更新文档
 - 文档与代码冲突时，以代码为准并更新文档，在报告中说明
 - **解释架构时必须举仓库内代码并画 mermaid 流程图**（见 `.cursor/rules/architecture-explain-with-code.mdc`）；无实现则写明并给伪代码 + 方案图，不得只引文档
+- **解释执行过程时走 `actgame-execution-trace`**，主答用场景化缩进链路，不用 mermaid 长文
 - 不创建与用户请求无关的抽象层
 - 重构提案需用户确认后再实施（除非用户明确说「直接改」）
 - 中文撰写文档与报告；类名/路径保持英文
@@ -214,6 +215,7 @@ Data/          → ScriptableObject、配置（Assets/Data/）
 | 「刷新架构文档」「同步架构」 | Update（全部文档） |
 | 「同步技术文档」「更新功能文档」 | Update（侧重 TECHNICAL.md） |
 | 「XX 怎么实现的」 | 读 TECHNICAL → 必要时 Feature + Update |
+| 「XX 怎么跑 / 执行过程 / 调用链 / 现行链路」 | 先读 skill `actgame-execution-trace`，按场景化缩进链路回答（不要 mermaid 主答） |
 | 「审计架构」「检查结构」 | Audit |
 | 「审计功能文档」 | Feature |
 | 「该怎么重构 X」 | Refactor |
