@@ -1,21 +1,22 @@
 using System;
 
 /// <summary>
-/// 权威命中边沿。Key 供去重；ActionId 与毫米落点供客机播受击 Cue，不参与伤害结算。
+/// 权威命中边沿。Key 供去重；ActionId 与落点供 Cue；ReactionKind 供客机 Flinch Additive。
 /// </summary>
 public readonly struct ReplicatedHitEvent : IEquatable<ReplicatedHitEvent>
 {
-    /// <summary>仅键与帧；表现字段为 0。供旧测试与无落点路径。</summary>
+    /// <summary>仅键与帧；表现字段为 0。供测试与无落点路径。</summary>
     public ReplicatedHitEvent(long frame, SimHitKey key)
-        : this(frame, key, actionId: 0, 0, 0, 0, 0, 0)
+        : this(frame, key, actionId: 0, HitReactionKind.None, 0, 0, 0, 0, 0)
     {
     }
 
-    /// <summary>创建带受击表现落点的命中事件。</summary>
+    /// <summary>创建带受击表现落点与裁档次的命中事件。</summary>
     public ReplicatedHitEvent(
         long frame,
         SimHitKey key,
         int actionId,
+        HitReactionKind reactionKind,
         int hitXMm,
         int hitYMm,
         int hitZMm,
@@ -25,6 +26,7 @@ public readonly struct ReplicatedHitEvent : IEquatable<ReplicatedHitEvent>
         Frame = frame;
         Key = key;
         ActionId = actionId < 0 ? 0 : actionId;
+        ReactionKind = reactionKind;
         HitXMm = hitXMm;
         HitYMm = hitYMm;
         HitZMm = hitZMm;
@@ -41,6 +43,9 @@ public readonly struct ReplicatedHitEvent : IEquatable<ReplicatedHitEvent>
     /// <summary>攻击者当时招式的 Catalog Id；Host 在进入帧级应用载荷前补齐。</summary>
     public int ActionId { get; }
 
+    /// <summary>权威裁定的受击档；Flinch 时客机叠 Additive、不硬吸 Action。</summary>
+    public HitReactionKind ReactionKind { get; }
+
     /// <summary>受击 Cue 落点 X（毫米）。</summary>
     public int HitXMm { get; }
 
@@ -56,15 +61,16 @@ public readonly struct ReplicatedHitEvent : IEquatable<ReplicatedHitEvent>
     /// <summary>水平命中方向 Z（毫米）。</summary>
     public int DirZMm { get; }
 
-    /// <summary>补写 Catalog ActionId 并保留落点；Host 打包应用载荷时调用。</summary>
+    /// <summary>补写 Catalog ActionId 并保留落点与档位。</summary>
     public ReplicatedHitEvent WithActionId(int actionId) =>
-        new(Frame, Key, actionId, HitXMm, HitYMm, HitZMm, DirXMm, DirZMm);
+        new(Frame, Key, actionId, ReactionKind, HitXMm, HitYMm, HitZMm, DirXMm, DirZMm);
 
-    /// <summary>比较键、招式 Id 与落点。</summary>
+    /// <summary>比较键、招式 Id、档位与落点。</summary>
     public bool Equals(ReplicatedHitEvent other) =>
         Frame == other.Frame
         && Key.Equals(other.Key)
         && ActionId == other.ActionId
+        && ReactionKind == other.ReactionKind
         && HitXMm == other.HitXMm
         && HitYMm == other.HitYMm
         && HitZMm == other.HitZMm

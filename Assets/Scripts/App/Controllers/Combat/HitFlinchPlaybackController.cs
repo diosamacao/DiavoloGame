@@ -12,6 +12,15 @@ public sealed class HitFlinchPlaybackController : AppControllerBase
     [SerializeField] AvatarMask fallbackFlinchMask;
     [SerializeField] float fadeDuration = 0.05f;
 
+    /// <summary>客机复制命中叠 Proxy Additive 时使用同一 fallback。</summary>
+    public bool TryPlayOnProxy(RemoteCharacterProxy proxy, AnimationKey key) =>
+        HitFlinchPresentation.TryPlayOnProxy(
+            proxy,
+            key,
+            fallbackFlinchClip,
+            fallbackFlinchMask,
+            fadeDuration);
+
     void OnEnable() => CharacterActor.FlinchIssued += OnFlinchIssued;
 
     void OnDisable() => CharacterActor.FlinchIssued -= OnFlinchIssued;
@@ -22,22 +31,17 @@ public sealed class HitFlinchPlaybackController : AppControllerBase
         if (actor == null)
             return;
 
-        CharacterAnimationService animation = ResolvePresentation(actor);
-        if (animation == null || !animation.HasPlayback)
-            return;
-
-        // 只走 PlayAdditive：Locomotion / Action 主轨继续 Tick，CurrentKey 不变。
-        if (!animation.TryPlayAdditive(key, fallbackFlinchMask, fadeDuration))
+        if (!HitFlinchPresentation.TryPlayOnActor(
+                actor,
+                key,
+                fallbackFlinchClip,
+                fallbackFlinchMask,
+                fadeDuration))
         {
-            if (fallbackFlinchClip == null)
-            {
-                Debug.LogWarning(
-                    "HitFlinchPlayback: 可见体没有 HitShake Clip，且未拖 fallback。逻辑仍不停招。",
-                    this);
-                return;
-            }
-
-            animation.PlayAdditive(fallbackFlinchClip, fallbackFlinchMask, fadeDuration);
+            Debug.LogWarning(
+                "HitFlinchPlayback: 可见体没有 HitShake Clip，且未拖 fallback。逻辑仍不停招。",
+                this);
+            return;
         }
 
         GetArchitecture().SendEvent(new HitFlinchEvent(
@@ -45,30 +49,5 @@ public sealed class HitFlinchPlaybackController : AppControllerBase
             key,
             context.AttackerId,
             context.ActionInstanceId));
-    }
-
-    /// <summary>Full Actor 优先，否则 Listen Ghost；都没有则不播。</summary>
-    static CharacterAnimationService ResolvePresentation(CharacterActor actor)
-    {
-        CombatWorldController world = CombatWorldController.Current;
-        if (world != null
-            && world.TryResolvePresentation(actor, out CharacterAnimationService resolved)
-            && resolved != null
-            && resolved.HasPlayback)
-        {
-            return resolved;
-        }
-
-        if (RemoteCharacterProxy.TryFindLivePresentation(
-                actor.SimulationId,
-                out CharacterAnimationService live)
-            && live != null
-            && live.HasPlayback)
-        {
-            return live;
-        }
-
-        CharacterAnimationService local = actor.Animation;
-        return local != null && local.HasPlayback ? local : null;
     }
 }

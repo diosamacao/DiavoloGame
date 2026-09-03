@@ -353,7 +353,8 @@ public sealed class CharacterActor :
             _actionLateralPeakMm,
             frameIntents,
             buffers,
-            _animation != null ? _animation.AdditiveWeight : 0f);
+            _animation != null ? _animation.AdditiveWeight : 0f,
+            _vitality.LastConfirmedReactionKind);
     }
 
     /// <summary>HUD：反击缓冲优先显示 Counter；否则预判 Special 同键 EX/普通。</summary>

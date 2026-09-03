@@ -143,7 +143,7 @@ public sealed class ActReplicationApplicationPayloadCodecTests
             "0208070605040302010000000000000000030000000B0000000000000021000000"
             + "0200000001000000"
             + "0900000000000000090000000000000001000000020000000300000004000000"
-            + "05000000FAFFFFFF07000000F8FFFFFFE803000018FCFFFF";
+            + "0500000000FAFFFFFF07000000F8FFFFFFE803000018FCFFFF";
         byte[] actual = ActReplicationApplicationPayloadCodec.Encode(
             new ActReplicationApplicationPayload(
                 0x0102030405060708,
@@ -165,6 +165,7 @@ public sealed class ActReplicationApplicationPayloadCodecTests
                 3,
                 new SimActorId(4)),
             actionId: 5,
+            HitReactionKind.None,
             hitXMm: -6,
             hitYMm: 7,
             hitZMm: -8,

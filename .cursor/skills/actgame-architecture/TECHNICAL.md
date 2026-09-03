@@ -1421,16 +1421,17 @@ CombatHitPipeline.OnHit → Vitality.HitReceived
   → CharacterReactionService
        Resolve(冲击力 vs 韧性 + SuperArmor)
        ConfirmHitReaction
-       Flinch → Actor.IssueFlinch → HitFlinchPlaybackController.PlayAdditive
+       Flinch → Actor.IssueFlinch → HitFlinchPlaybackController / HitFlinchPresentation.PlayAdditive
        Stun+  → NotifyHit + EnterHit
        None   → 只保留已结算伤害
+  PublishResolvedHit → ReplicatedHitEvent(ReactionKind) → 客机 PlayReplicatedHits → Proxy Additive
 ```
 
-**已知限制：** 杂兵/精英韧性与各刀冲击力须 Editor 填；Listen 客机 Shake 待 P-HR4。方案：`docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md`。轻击 Play 已验收 2026-09-03。
+**已知限制：** 杂兵/精英韧性与各刀冲击力须 Editor 填。P-HR4 复制已接（命中 V2 + 客机 Flinch Additive + F3 裁档）；Listen 双端 Play 待验收。方案：`docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md`。
 
 **相关文件：**
 
-- `Assets/Scripts/Domain/Character/Reactions/HitReactionKind.cs`
+- `Assets/Scripts/Domain/Simulation/Reactions/HitReactionKind.cs`
 - `Assets/Scripts/Domain/Character/Reactions/HitReactionCommand.cs`
 - `Assets/Scripts/Domain/Character/Reactions/HitReactionResolveQuery.cs`
 - `Assets/Scripts/Domain/Character/Reactions/CharacterReactionResolver.cs`
@@ -1439,6 +1440,9 @@ CombatHitPipeline.OnHit → Vitality.HitReceived
 - `Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/ActionPhaseNotifyState.cs`
 - `Assets/Scripts/Editor/Combat/HitReactionDefaultsMigrator.cs`
 - `Assets/Scripts/App/Controllers/Combat/HitFlinchPlaybackController.cs`
+- `Assets/Scripts/App/Controllers/Combat/HitFlinchPresentation.cs`
+- `Assets/Scripts/Domain/Networking/ActReplicatedHitEventCodec.cs`
+- `Assets/Scripts/App/Networking/Services/ActClientRoomGameplay.cs`
 - `Assets/Scripts/App/Events/Combat/HitFlinchEvent.cs`
 - `Assets/Tests/Editor/Combat/HitReactionResolverTests.cs`
 

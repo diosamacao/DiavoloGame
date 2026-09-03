@@ -125,6 +125,10 @@ public sealed class CombatHitPipeline
             hit.Target.OnHit(in context);
             hit.HitReceiver?.ConfirmHit(hit.Key.ActionInstanceId);
 
+            HitReactionKind reactionKind = HitReactionKind.None;
+            if (hit.Target is CharacterHurtboxTarget characterTarget)
+                reactionKind = characterTarget.LastConfirmedReactionKind;
+
             NumericSystem attackerNumeric = _numericLookup?.Invoke(hit.Key.AttackerId);
             if (attackerNumeric != null)
             {
@@ -151,7 +155,8 @@ public sealed class CombatHitPipeline
                 ResolveHitDirection(hit.Context.Attacker, hit.TargetTransform),
                 hit.HitPoint,
                 absorbedByPerfectDodge: false,
-                hit.Key));
+                hit.Key,
+                reactionKind));
         }
 
         _pending.Clear();

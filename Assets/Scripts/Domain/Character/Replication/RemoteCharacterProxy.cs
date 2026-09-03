@@ -33,6 +33,7 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     int _teamId;
     int _healthMilli;
     readonly HurtboxDefinition _hurtbox;
+    HitReactionKind _lastReplicatedReactionKind;
 
     static readonly List<RemoteCharacterProxy> LivePresentations = new();
 
@@ -69,11 +70,44 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         return false;
     }
 
+    /// <summary>按权威 Id 找 Live Proxy；F3 读复制裁档次用。</summary>
+    public static bool TryFindLive(SimActorId actorId, out RemoteCharacterProxy proxy)
+    {
+        proxy = null;
+        if (!actorId.IsValid)
+            return false;
+
+        for (int i = LivePresentations.Count - 1; i >= 0; i--)
+        {
+            RemoteCharacterProxy candidate = LivePresentations[i];
+            if (candidate == null || candidate._root == null)
+            {
+                LivePresentations.RemoveAt(i);
+                continue;
+            }
+
+            if (!candidate._simulationId.Equals(actorId))
+                continue;
+
+            proxy = candidate;
+            return true;
+        }
+
+        return false;
+    }
+
     /// <summary>幽灵权威根；调试与测试读位姿用。</summary>
     public Transform Root => _root;
 
     /// <summary>Observer 可见体动画门面；Listen 权威敌人无头时探针走这里。</summary>
     public CharacterAnimationService Animation => _animation;
+
+    /// <summary>最近一次复制命中的裁档次；供 F3 HUD。</summary>
+    public HitReactionKind LastReplicatedReactionKind => _lastReplicatedReactionKind;
+
+    /// <summary>记录复制档位；Flinch 时由客机命中事件写入。</summary>
+    public void NotifyReplicatedReaction(HitReactionKind kind) =>
+        _lastReplicatedReactionKind = kind;
 
     /// <summary>幽灵逻辑电机；仅被快照写入，不进 SimulationWorld。</summary>
     public CharacterMotorSim MotorSim => _motor.Sim;

@@ -24,6 +24,7 @@ public sealed class CombatDebugHudController : AppControllerBase
     bool _hasTargetSnapshot;
     /// <summary>探针目标可见体 Additive 权重；Listen 无头 Actor 快照恒为 0，须读 Proxy。</summary>
     float _targetAdditiveWeight;
+    HitReactionKind _targetReactionKind;
     CameraManager _cameraManager;
     readonly StringBuilder _sb = new(512);
     GUIStyle _boxStyle;
@@ -100,6 +101,13 @@ public sealed class CombatDebugHudController : AppControllerBase
             CharacterAnimationService presentation =
                 HitFlinchAdditiveProbe.ResolvePresentation(probeTarget);
             _targetAdditiveWeight = presentation != null ? presentation.AdditiveWeight : 0f;
+            _targetReactionKind = _targetCached.LastReactionKind;
+            if (RemoteCharacterProxy.TryFindLive(probeTarget.SimulationId, out RemoteCharacterProxy proxy)
+                && proxy.LastReplicatedReactionKind != HitReactionKind.None)
+            {
+                _targetReactionKind = proxy.LastReplicatedReactionKind;
+            }
+
             _hasTargetSnapshot = true;
         }
         else
@@ -131,7 +139,7 @@ public sealed class CombatDebugHudController : AppControllerBase
                 in _cached,
                 _cameraManager != null && _cameraManager.CameraLockEnabled);
             if (_hasTargetSnapshot)
-                AppendTargetSnapshot(_sb, in _targetCached, _targetAdditiveWeight);
+                AppendTargetSnapshot(_sb, in _targetCached, _targetAdditiveWeight, _targetReactionKind);
         }
         const float width = 440f;
         float height = Mathf.Min(420f, Screen.height * 0.55f);
@@ -219,6 +227,7 @@ public sealed class CombatDebugHudController : AppControllerBase
 
         sb.Append(" | Freeze: ").Append(s.FreezeFrames)
             .Append(" | Additive: ").Append(s.AdditiveWeight.ToString("0.00"))
+            .Append(" | Reaction: ").Append(s.LastReactionKind)
             .AppendLine();
         sb.Append("HP: ").Append(s.CurrentHp.ToString("0.#")).Append('/')
             .Append(s.MaxHp.ToString("0.#")).AppendLine();
@@ -292,8 +301,12 @@ public sealed class CombatDebugHudController : AppControllerBase
             .Append("  (Wave0 baseline; 对照横摆是否进逻辑根)");
     }
 
-    /// <summary>探针目标（锁定/场上敌人）的状态与 Additive 权重，便于对照 F6 前后。</summary>
-    static void AppendTargetSnapshot(StringBuilder sb, in CharacterDebugSnapshot s, float presentationAdditive)
+    /// <summary>探针目标（锁定/场上敌人）的状态、裁档与 Additive 权重，便于对照 F6 前后。</summary>
+    static void AppendTargetSnapshot(
+        StringBuilder sb,
+        in CharacterDebugSnapshot s,
+        float presentationAdditive,
+        HitReactionKind reactionKind)
     {
         sb.AppendLine();
         sb.Append("FlinchTarget: ").Append(s.State);
@@ -303,7 +316,8 @@ public sealed class CombatDebugHudController : AppControllerBase
             sb.Append(" | Action: ").Append(s.ActionName);
         }
 
-        sb.Append(" | Additive: ").Append(presentationAdditive.ToString("0.00"));
+        sb.Append(" | Reaction: ").Append(reactionKind)
+            .Append(" | Additive: ").Append(presentationAdditive.ToString("0.00"));
     }
 
     void EnsureStyles()

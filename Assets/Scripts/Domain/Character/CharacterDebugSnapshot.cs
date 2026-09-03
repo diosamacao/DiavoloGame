@@ -43,6 +43,90 @@ public readonly struct CharacterDebugSnapshot
         GameplayIntentType[] frameIntents,
         BufferedIntentDebug[] buffers,
         float additiveWeight = 0f)
+        : this(
+            state,
+            actionActive,
+            actionName,
+            actionFrame,
+            actionTotalFrames,
+            freezeFrames,
+            currentHp,
+            maxHp,
+            energyPoints,
+            maxEnergy,
+            energyRegenMilliPerFrame,
+            decibel,
+            maxDecibel,
+            dodgeCharges,
+            maxDodgeCharges,
+            dodgeRechargeFramesLeft,
+            inCombat,
+            inCombatHoldFrames,
+            perfectDodgeCounterFrames,
+            attackPoints,
+            defensePoints,
+            outgoingDamageMultMilli,
+            incomingDamageMultMilli,
+            activeEffects,
+            nextSpecialForm,
+            hasSelectedTarget,
+            selectedTargetName,
+            selectedTargetDistanceMeters,
+            motorXMm,
+            motorZMm,
+            motorYMm,
+            motorFacingMilliDeg,
+            softBodyMass,
+            softBodyImmovable,
+            actionLateralPeakMm,
+            frameIntents,
+            buffers,
+            additiveWeight,
+            HitReactionKind.None)
+    {
+    }
+
+    /// <summary>组装一帧调试快照（含 Numeric Attribute / Effects / Flags）。</summary>
+    public CharacterDebugSnapshot(
+        CharacterStateType state,
+        bool actionActive,
+        string actionName,
+        int actionFrame,
+        int actionTotalFrames,
+        int freezeFrames,
+        float currentHp,
+        float maxHp,
+        int energyPoints,
+        int maxEnergy,
+        int energyRegenMilliPerFrame,
+        int decibel,
+        int maxDecibel,
+        int dodgeCharges,
+        int maxDodgeCharges,
+        int dodgeRechargeFramesLeft,
+        bool inCombat,
+        int inCombatHoldFrames,
+        int perfectDodgeCounterFrames,
+        int attackPoints,
+        int defensePoints,
+        int outgoingDamageMultMilli,
+        int incomingDamageMultMilli,
+        NumericEffectDebugEntry[] activeEffects,
+        string nextSpecialForm,
+        bool hasSelectedTarget,
+        string selectedTargetName,
+        float selectedTargetDistanceMeters,
+        int motorXMm,
+        int motorZMm,
+        int motorYMm,
+        int motorFacingMilliDeg,
+        int softBodyMass,
+        bool softBodyImmovable,
+        int actionLateralPeakMm,
+        GameplayIntentType[] frameIntents,
+        BufferedIntentDebug[] buffers,
+        float additiveWeight,
+        HitReactionKind lastReactionKind)
     {
         State = state;
         ActionActive = actionActive;
@@ -82,6 +166,7 @@ public readonly struct CharacterDebugSnapshot
         FrameIntents = frameIntents ?? Array.Empty<GameplayIntentType>();
         Buffers = buffers ?? Array.Empty<BufferedIntentDebug>();
         AdditiveWeight = additiveWeight;
+        LastReactionKind = lastReactionKind;
     }
 
     public CharacterStateType State { get; }
@@ -130,4 +215,7 @@ public readonly struct CharacterDebugSnapshot
 
     /// <summary>Playable Additive 层权重；P-HR0 探针与 F3 只读。</summary>
     public float AdditiveWeight { get; }
+
+    /// <summary>最近一次 ConfirmHitReaction 裁定的档位；F3 只读。</summary>
+    public HitReactionKind LastReactionKind { get; }
 }

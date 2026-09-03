@@ -278,7 +278,7 @@ Phase `interruptible` 继续只管 **玩家出招被更高优 Intent 硬切**，
 | **P-HR1 裁定纯函数** | `HitReactionKind` / Command / Resolver + EditMode | 单测档位与 SuperArmor 稳定 | 不接 Service |
 | **P-HR2 执行分支** | Flinch 不 `EnterHit`、不 Reset BT；Stun+ 旧路径；接 P-HR0 的 `PlayAdditive` | 真命中轻击：不停招 + 抖；重击仍进 Hit | 不改 Payload 资产、不动网络 |
 | **P-HR3 等级表** | `interruptLevel` / 抗打断 / Phase bonus；旧资产默认值 | 精英出招中普攻只抖，技能能断 | — |
-| **P-HR4 复制** | 命中事件带 Kind；Proxy Additive；F3 档位 | Listen：一端断招一端只抖，ActionId 一致 | 不宣称公网 |
+| **P-HR4 复制** | 命中事件带 Kind；Proxy Additive；F3 档位 | Listen：一端断招一端只抖，ActionId 一致 | 代码已接；Listen Play 待验 |
 
 对照 UI 计划的 U0：P-HR0 是「空白 DebugPanel」——只证明通道，不做完整受击业务。
 
@@ -397,10 +397,10 @@ P-HR0 出口：**人眼 + F3 状态**，不要求 EditMode 反应单测，不要
 
 **待办**
 
-- [ ] 可靠命中事件带 `HitReactionKind`（或 Flinch 标记）。
-- [ ] Observer Proxy：Action 快照连续 Seek，另叠 Additive。
-- [ ] Owner Flinch **不**走受击硬吸。
-- [ ] F3：`ReactionKind` / Additive 权重。
+- [x] 可靠命中事件带 `HitReactionKind`（`ActReplicatedHitEventCodec` V2）。
+- [x] Observer Proxy：Action 快照连续 Seek，Flinch 另叠 Additive（`ActClientRoomGameplay.PlayReplicatedHits`）。
+- [x] Owner Flinch **不**走受击硬吸（`ConfirmHitReaction` → Flinch 时 `VitalityEdge.None`）。
+- [x] F3：`ReactionKind` / Additive 权重（`CharacterDebugSnapshot` + Proxy 裁档）。
 
 **验收**
 
@@ -442,7 +442,7 @@ P-HR0 以 Play 人眼为主。以下从 P-HR1 起。
 2. [x] P-HR0 验收全勾后，才开 P-HR1 Resolver。
 3. [x] P-HR1 单测绿，再改 Service（P-HR2）。
 4. [x] P-HR2 Play 通过，再填盒子 / 抗打断（P-HR3）。
-5. [ ] 本机手感稳了再动复制（P-HR4）。
+5. [x] 本机手感稳了再动复制（P-HR4 代码已接；Listen 双端 Play 待验收）。
 6. [ ] 停。失衡条、击飞物理不进本轮。
 
 每阶段结束能 Play 一次再往下。不要先改 Hitbox 再发现 Additive 叠出来是 Idle 抽搐。
@@ -487,5 +487,5 @@ P-HR0 以 Play 人眼为主。以下从 P-HR1 起。
 | 2026-09-03 | P-HR0 代码：LayerMixer Additive、`PlayAdditive`、F6/菜单探针；Play 验收与 `Hit_Shake` 资产仍待 Editor |
 | 2026-09-03 | P-HR0 Play 已确认 Additive；P-HR1：`HitReactionKind` / Command / `Resolve` + `HitReactionResolverTests`；Service 未改 |
 | 2026-09-03 | P-HR2：Service 按 Command 分支；Flinch 发 `HitFlinchEvent` + `PlayAdditive`；不锁 Locomotion；Flinch 清 Vitality Hit 边沿 |
-| 2026-09-03 | P-HR2 轻击 Play 已验收；P-HR3：`baseInterruptResist` / Phase bonus / OnValidate+菜单默认值；轻段 Flinch 仍待 Editor 填表 |
+| 2026-09-03 | P-HR4 代码：命中事件 V2 带 `ReactionKind`；客机 Proxy Flinch Additive；F3 裁档；Listen 双端待 Play |
 | 2026-09-03 | 裁定改为冲击力对韧性：不足 Flinch，持平起 LightStun；删除 `desiredReaction` 双轨 |
