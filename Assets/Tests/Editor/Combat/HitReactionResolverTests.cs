@@ -192,6 +192,42 @@ public sealed class HitReactionResolverTests
         Assert.That(command.Kind, Is.EqualTo(HitReactionKind.Flinch));
     }
 
+    /// <summary>Payload 标明 Flinch 时即使等级够也不进 Hit。</summary>
+    [Test]
+    public void PayloadDesiredFlinch_ReturnsFlinch()
+    {
+        var payload = new HitPayload(10f, interruptLevel: 1, HitReactionKind.Flinch);
+        HitReactionCommand command = _resolver.Resolve(
+            HitReactionResolveQuery.CombatHit(
+                payload.InterruptLevel,
+                payload.DesiredReaction));
+
+        Assert.That(command.Kind, Is.EqualTo(HitReactionKind.Flinch));
+        Assert.That(command.InterruptsAction, Is.False);
+    }
+
+    /// <summary>Flinch 裁定后复制边沿不得停在 Hit，避免幽灵重播走跑/出招。</summary>
+    [Test]
+    public void ConfirmHitReaction_Flinch_ClearsHitEdge()
+    {
+        var vitality = new CharacterVitality(new NumericSystem(CharacterNumericConfig.Default));
+        vitality.ApplyDamage(1f, default);
+        Assert.That(vitality.ReplicationEdge, Is.EqualTo(VitalityReplicationEdge.Hit));
+
+        vitality.ConfirmHitReaction(HitReactionKind.Flinch);
+        Assert.That(vitality.ReplicationEdge, Is.EqualTo(VitalityReplicationEdge.None));
+    }
+
+    /// <summary>Stun+ 仍标 Hit 边沿，供硬直硬吸。</summary>
+    [Test]
+    public void ConfirmHitReaction_LightStun_KeepsHitEdge()
+    {
+        var vitality = new CharacterVitality(new NumericSystem(CharacterNumericConfig.Default));
+        vitality.ApplyDamage(1f, default);
+        vitality.ConfirmHitReaction(HitReactionKind.LightStun);
+        Assert.That(vitality.ReplicationEdge, Is.EqualTo(VitalityReplicationEdge.Hit));
+    }
+
     /// <summary>无 Hitbox 的上下文按数值伤处理。</summary>
     [Test]
     public void FromHitContext_NoHitbox_IsNumericNone()

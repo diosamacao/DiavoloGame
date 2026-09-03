@@ -102,8 +102,7 @@ public readonly struct HitReactionResolveQuery
     }
 
     /// <summary>
-    /// 从命中上下文取 ReactionId；打断字段尚未进 Payload，一律用旧盒子默认。
-    /// Hitbox / Payload 皆空视为无打击语义。
+    /// 从命中上下文读取 Payload 打断字段；无 Hitbox 视为无打击语义。
     /// </summary>
     public static HitReactionResolveQuery FromHitContext(
         in ActionHitContext context,
@@ -124,8 +123,8 @@ public readonly struct HitReactionResolveQuery
             absorbedByPerfectDodge,
             isDot,
             hasHitPayload: payload != null,
-            DefaultInterruptLevel,
-            HitReactionKind.LightStun,
+            payload != null ? payload.InterruptLevel : DefaultInterruptLevel,
+            payload != null ? payload.DesiredReaction : HitReactionKind.LightStun,
             baseInterruptResist,
             phaseInterruptResistBonus,
             superArmor,

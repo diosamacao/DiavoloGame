@@ -527,6 +527,20 @@ public sealed class CharacterActor :
     public void StageMoveReferenceYaw(float yawDegrees) =>
         _localInput?.StageMoveReferenceYaw(yawDegrees);
 
+    /// <summary>轻受击表现入口。不切状态、不停 ActionSim、不锁走跑；由表现层叠 Additive。</summary>
+    public static event Action<CharacterActor, AnimationKey, ActionHitContext> FlinchIssued;
+
+    /// <summary>
+    /// 发布 Flinch。已在 Hit/Death 则忽略。禁止在此 Play 主轨或 SetLocked。
+    /// </summary>
+    public void IssueFlinch(AnimationKey key, in ActionHitContext context)
+    {
+        if (CurrentState == CharacterStateType.Death || CurrentState == CharacterStateType.Hit)
+            return;
+
+        FlinchIssued?.Invoke(this, key, context);
+    }
+
     /// <summary>执行上层已解析的受击请求并进入整数帧硬直；Actor 不负责选招。</summary>
     public void EnterHit(in CharacterReactionRequest request)
     {

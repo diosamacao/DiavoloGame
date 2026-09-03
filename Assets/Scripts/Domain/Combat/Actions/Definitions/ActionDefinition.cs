@@ -231,6 +231,19 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
         return false;
     }
 
+    /// <summary>指定帧是否处于 SuperArmor 覆盖窗（受击最多 Flinch）。</summary>
+    public bool IsSuperArmorAtFrame(int frame)
+    {
+        IReadOnlyList<ActionPhaseNotifyState> phases = GetActivePhasesAtFrame(frame);
+        for (int i = 0; i < phases.Count; i++)
+        {
+            if (phases[i] != null && phases[i].Kind == ActionPhaseKind.SuperArmor)
+                return true;
+        }
+
+        return false;
+    }
+
     /// <summary>指定帧是否处于 Invincible 相位（普通 i-frame）。</summary>
     public bool IsInvincibleAtFrame(int frame)
     {

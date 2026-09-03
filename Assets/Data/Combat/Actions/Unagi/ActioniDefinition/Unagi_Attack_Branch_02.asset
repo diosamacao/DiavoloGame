@@ -119,6 +119,8 @@ MonoBehaviour:
       payload:
         baseDamage: 10
         hitReactionId: 
+        interruptLevel: 1
+        desiredReaction: 2
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -147,6 +149,8 @@ MonoBehaviour:
       payload:
         baseDamage: 10
         hitReactionId: 
+        interruptLevel: 1
+        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -175,6 +179,8 @@ MonoBehaviour:
       payload:
         baseDamage: 10
         hitReactionId: 
+        interruptLevel: 1
+        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -203,6 +209,8 @@ MonoBehaviour:
       payload:
         baseDamage: 10
         hitReactionId: 
+        interruptLevel: 1
+        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -231,6 +239,8 @@ MonoBehaviour:
       payload:
         baseDamage: 10
         hitReactionId: 
+        interruptLevel: 1
+        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -259,6 +269,8 @@ MonoBehaviour:
       payload:
         baseDamage: 10
         hitReactionId: 
+        interruptLevel: 1
+        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -287,6 +299,8 @@ MonoBehaviour:
       payload:
         baseDamage: 10
         hitReactionId: 
+        interruptLevel: 1
+        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1

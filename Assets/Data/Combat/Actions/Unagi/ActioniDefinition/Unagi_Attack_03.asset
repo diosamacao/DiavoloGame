@@ -95,6 +95,8 @@ MonoBehaviour:
       payload:
         baseDamage: 10
         hitReactionId: 
+        interruptLevel: 1
+        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -123,6 +125,8 @@ MonoBehaviour:
       payload:
         baseDamage: 10
         hitReactionId: 
+        interruptLevel: 1
+        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -177,6 +181,10 @@ MonoBehaviour:
       smoothTimeOverride: 0
     motionModifierStates: []
     motionCommandNotifies: []
+    cameraSettings:
+      restoreMode: 0
+      suppressLookInput: 1
+    cameraShotStates: []
     tracks:
     - trackName: Cancel_3
       kind: 4

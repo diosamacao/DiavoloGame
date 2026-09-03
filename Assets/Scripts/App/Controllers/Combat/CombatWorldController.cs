@@ -48,6 +48,25 @@ public class CombatWorldController : AppControllerBase
     public ReplicationRoomHudInfo RoomHud { get; set; }
 
     /// <summary>
+    /// Full 用 Actor 自己的 Graph；Listen 无头权威改走 Observer Proxy。
+    /// </summary>
+    public bool TryResolvePresentation(CharacterActor actor, out CharacterAnimationService animation)
+    {
+        animation = null;
+        if (actor == null)
+            return false;
+
+        CharacterAnimationService local = actor.Animation;
+        if (local != null && local.HasPlayback)
+        {
+            animation = local;
+            return true;
+        }
+
+        return TryGetPresentationAnimation(actor.SimulationId, out animation);
+    }
+
+    /// <summary>
     /// 取本机可见的动画门面：Full Actor 用自身 Playable；Listen 无头权威改走 Observer Proxy。
     /// </summary>
     public bool TryGetPresentationAnimation(SimActorId actorId, out CharacterAnimationService animation)
@@ -121,11 +140,13 @@ public class CombatWorldController : AppControllerBase
             Current = null;
     }
 
-    /// <summary>确保场景有统一反馈系统，避免多个角色各自挂卡肉控制器。</summary>
+    /// <summary>确保场景有卡肉与 Flinch Additive 表现入口。</summary>
     void EnsureFeedbackController()
     {
         if (GetComponent<FeedbackController>() == null)
             gameObject.AddComponent<FeedbackController>();
+        if (GetComponent<HitFlinchPlaybackController>() == null)
+            gameObject.AddComponent<HitFlinchPlaybackController>();
     }
 
     /// <summary>确保固定帧宿主与本战斗世界同生命周期，并返回唯一实例。</summary>

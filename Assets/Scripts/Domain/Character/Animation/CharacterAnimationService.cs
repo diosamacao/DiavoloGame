@@ -104,13 +104,24 @@ public sealed class CharacterAnimationService : IDisposable, ILocomotionAnimClip
         _currentKey = null;
     }
 
-    /// <summary>叠 Additive 轻受击；不锁走跑、不改 CurrentKey。</summary>
+    /// <summary>叠 Additive 轻受击；不锁走跑、不改 CurrentKey、不 Play 主轨。</summary>
     public void PlayAdditive(AnimationClip clip, AvatarMask mask = null, float fadeDuration = 0.05f)
     {
         if (playback == null || !playback.IsValid || clip == null)
             return;
 
         playback.PlayAdditive(clip, mask, fadeDuration);
+    }
+
+    /// <summary>按逻辑键查 Profile 后叠 Additive；缺 Clip 返回 false，不碰主轨。</summary>
+    public bool TryPlayAdditive(AnimationKey key, AvatarMask mask = null, float fadeDuration = 0.05f)
+    {
+        if (!HasClip(key))
+            return false;
+
+        profile.TryGetClip(key, out AnimationClip clip);
+        PlayAdditive(clip, mask, fadeDuration);
+        return true;
     }
 
     /// <summary>立刻清 Additive 层；进 Hit / 隐藏 / 切招时由上层调用。</summary>

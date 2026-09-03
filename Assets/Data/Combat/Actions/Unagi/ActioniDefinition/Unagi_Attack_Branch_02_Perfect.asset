@@ -102,6 +102,8 @@ MonoBehaviour:
       payload:
         baseDamage: 0
         hitReactionId: 
+        interruptLevel: 1
+        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 0
@@ -130,6 +132,8 @@ MonoBehaviour:
       payload:
         baseDamage: 0
         hitReactionId: 
+        interruptLevel: 1
+        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 0
@@ -158,6 +162,8 @@ MonoBehaviour:
       payload:
         baseDamage: 0
         hitReactionId: 
+        interruptLevel: 1
+        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 0
@@ -186,6 +192,8 @@ MonoBehaviour:
       payload:
         baseDamage: 0
         hitReactionId: 
+        interruptLevel: 1
+        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 0
@@ -214,6 +222,8 @@ MonoBehaviour:
       payload:
         baseDamage: 0
         hitReactionId: 
+        interruptLevel: 1
+        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 0
@@ -242,6 +252,8 @@ MonoBehaviour:
       payload:
         baseDamage: 0
         hitReactionId: 
+        interruptLevel: 1
+        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 0
@@ -270,6 +282,8 @@ MonoBehaviour:
       payload:
         baseDamage: 0
         hitReactionId: 
+        interruptLevel: 1
+        desiredReaction: 2
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -353,6 +367,10 @@ MonoBehaviour:
       forwardFallbackMm: 0
       softBodySuppressFrames: 0
       preserveVertical: 0
+    cameraSettings:
+      restoreMode: 0
+      suppressLookInput: 1
+    cameraShotStates: []
     tracks:
     - trackName: Cancel_3
       kind: 4

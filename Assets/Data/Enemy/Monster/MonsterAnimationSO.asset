@@ -35,4 +35,6 @@ MonoBehaviour:
     Clip: {fileID: 5754812438852175945, guid: ea71ab058911e4c428f0b2a902eaca8f, type: 3}
   - Key: 13
     Clip: {fileID: 2786324784981302555, guid: 87226790f9fa1b44e930b7c7464ce569, type: 3}
+  - Key: 14
+    Clip: {fileID: -1837773511420484736, guid: d5312259d4a874e47b7747e41d57c297, type: 3}
   defaultCrossFadeDuration: 0.15

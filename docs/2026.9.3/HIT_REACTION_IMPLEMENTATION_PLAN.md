@@ -359,19 +359,21 @@ P-HR0 出口：**人眼 + F3 状态**，不要求 EditMode 反应单测，不要
 
 **待办**
 
-- [ ] `ReactionService`：`Flinch` 不 `EnterHit`、不 `ActionSim.Stop`、不 `Brain.NotifyHit`。
-- [ ] `Stun+` / `Death` 走现有路径。
-- [ ] 发布 `HitFlinchEvent`（或扩 `AttackHitEvent`），表现桥调 P-HR0 的 `PlayAdditive`。
-- [ ] 禁止 Event Handler 回写 `ActionSim`。
+- [x] `ReactionService`：`Flinch` 不 `EnterHit`、不 `ActionSim.Stop`、不 `Brain.NotifyHit`。
+- [x] `Stun+` / `Death` 走现有路径。
+- [x] 发布 `HitFlinchEvent`，`HitFlinchPlaybackController` 调 `PlayAdditive`（不 Play 主轨 / 不锁走跑）。
+- [x] 禁止 Event Handler 回写 `ActionSim`。
 
 **验收**
 
 - [ ] 轻击盒子打木桩：HP 下降，状态仍是 Action/Locomotion，攻击播完。
-- [ ] 同时看到与 P-HR0 同质量的 Shake。
+- [ ] 同时看到与 P-HR0 同质量的 Shake；走跑 Clip 不重头、不冻结。
 - [ ] 行为树不因轻击 Reset（攻击循环不被拆掉）。
 - [ ] 重击盒子：仍 `EnterHit`，树 Reset，Shake 被清。
 - [ ] 轻击过程中吃重击：立刻进 Hit。
 - [ ] 完美吞伤 / 无敌：无 Flinch、无 Stun。
+
+**出口：** 轻击不停招 + Shake，重击仍 EnterHit。→ **代码已接（2026-09-03）**；Play 待 Editor。
 
 ---
 
@@ -379,7 +381,7 @@ P-HR0 出口：**人眼 + F3 状态**，不要求 EditMode 反应单测，不要
 
 **待办**
 
-- [ ] `HitPayload.interruptLevel` / `desiredReaction`；旧资产默认值。
+- [ ] `HitPayload.interruptLevel` / `desiredReaction`；旧资产默认值。（C# 字段已随 P-HR2 加上，默认 LightStun；资产填表仍本阶段）
 - [ ] `baseInterruptResist`；Phase `interruptResistBonus` 或 SuperArmor。
 - [ ] 普攻轻段 → `Flinch`；技能 / 重段 → `LightStun` + `HitReactionId`。
 - [ ] 迁移菜单或 OnValidate 填默认，避免空字段。
@@ -438,7 +440,7 @@ P-HR0 以 Play 人眼为主。以下从 P-HR1 起。
 
 1. [x] **P-HR0**：接 Mixer + 调试键，只验 Additive（Play 已确认 2026-09-03）。
 2. [x] P-HR0 验收全勾后，才开 P-HR1 Resolver。
-3. [ ] P-HR1 单测绿，再改 Service（P-HR2）。
+3. [x] P-HR1 单测绿，再改 Service（P-HR2）。
 4. [ ] P-HR2 Play 通过，再填盒子 / 抗打断（P-HR3）。
 5. [ ] 本机手感稳了再动复制（P-HR4）。
 6. [ ] 停。失衡条、击飞物理不进本轮。
@@ -484,3 +486,4 @@ P-HR0 以 Play 人眼为主。以下从 P-HR1 起。
 | 2026-09-03 | 对齐以往计划体例：分阶段待办/验收勾选；**P-HR0 改为 Additive 探针且必须先做**；原 Resolver 顺延为 P-HR1 |
 | 2026-09-03 | P-HR0 代码：LayerMixer Additive、`PlayAdditive`、F6/菜单探针；Play 验收与 `Hit_Shake` 资产仍待 Editor |
 | 2026-09-03 | P-HR0 Play 已确认 Additive；P-HR1：`HitReactionKind` / Command / `Resolve` + `HitReactionResolverTests`；Service 未改 |
+| 2026-09-03 | P-HR2：Service 按 Command 分支；Flinch 发 `HitFlinchEvent` + `PlayAdditive`；不锁 Locomotion；Flinch 清 Vitality Hit 边沿 |

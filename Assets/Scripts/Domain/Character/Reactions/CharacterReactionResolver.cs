@@ -1,6 +1,6 @@
 /// <summary>
-/// 角色反应解析器。档位裁定只出 <see cref="HitReactionCommand"/>；
-/// Service 仍走 <see cref="ResolveHit"/> / <see cref="ResolveDeath"/>，待 P-HR2 切换。
+/// 角色反应解析器。命中走 <see cref="Resolve"/> 出 Command；
+/// <see cref="ResolveHit"/> / <see cref="ResolveDeath"/> 仅给快照硬吸与死亡选招。
 /// </summary>
 public sealed class CharacterReactionResolver
 {

@@ -64,6 +64,22 @@ public sealed class CharacterVitality
         _numeric.Attributes.SetBase(AttributeId.Health, milli);
     }
 
+    /// <summary>
+    /// Service 裁定后回写复制边沿。Flinch / None 不得标 Hit，避免 Observer 把底轨当受击重播。
+    /// </summary>
+    public void ConfirmHitReaction(HitReactionKind kind)
+    {
+        if (IsDead || kind == HitReactionKind.Death)
+        {
+            _replicationEdge = VitalityReplicationEdge.Death;
+            return;
+        }
+
+        _replicationEdge = kind >= HitReactionKind.LightStun
+            ? VitalityReplicationEdge.Hit
+            : VitalityReplicationEdge.None;
+    }
+
     /// <summary>应用一次命中；扣血与受击反应分离，0 伤害仍可触发 Hit。</summary>
     public void ApplyDamage(float damage, in ActionHitContext context) =>
         ApplyDamageMilli(
