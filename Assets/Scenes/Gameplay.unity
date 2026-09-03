@@ -12597,7 +12597,7 @@ MonoBehaviour:
   topClamp: 70
   bottomClamp: -60
   lockCursorOnStart: 1
-  followDistance: 4
+  followDistance: 2
   initialPitch: 15
   followSmoothTime: 0.05
   switchFollowSmoothTime: 0.04

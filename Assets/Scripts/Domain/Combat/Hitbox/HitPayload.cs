@@ -36,6 +36,16 @@ public sealed class HitPayload
     /// <summary>命中镜头、卡肉与受击 Cue（VFX/SFX）反馈。</summary>
     public HitFeedbackSettings Feedback => feedback ?? new HitFeedbackSettings();
 
+    /// <summary>未填打断等级时写成 1；不改 DesiredReaction（Flinch / None 保持）。</summary>
+    public bool EnsureInterruptLevelDefault()
+    {
+        if (interruptLevel > 0)
+            return false;
+
+        interruptLevel = HitReactionResolveQuery.DefaultInterruptLevel;
+        return true;
+    }
+
     /// <summary>测试与代码装配用；运行时资产仍走序列化字段。</summary>
     public HitPayload(
         float baseDamage,

@@ -144,7 +144,11 @@ public class MyBehaviour : MonoBehaviour
 
 ## 伤害与受击约定
 
-- 伤害、`HitReactionId`、镜头震动与卡肉统一由 `HitboxNotifyState.Payload` 持有；反馈系统禁止从 `ActionDefinition` 反查
+- 伤害、`interruptLevel`、`desiredReaction`、`HitReactionId`、镜头震动与卡肉统一由 `HitboxNotifyState.Payload` 持有；反馈系统禁止从 `ActionDefinition` 反查
+- 轻/重是裁定结果，不是 Hitbox 上的独立真源：`interruptLevel` 对 `baseInterruptResist + Phase.bonus` 决定打不打得断；`desiredReaction` 决定断得成时进哪一档
+- 抗打断只写 `CharacterCombatConfig.baseInterruptResist`（杂兵 1 / 精英 3），禁止 `if (精英)` 身份分支
+- `ActionPhaseNotifyState.interruptible` 只管出招被更高优 Intent 硬切；受击抗打断用 `interruptResistBonus` 或 SuperArmor 窗
+- `Flinch` 不 `EnterHit`、不 `NotifyHit`、不 Reset BT、不 Play 主轨；Shake 只走 Additive
 - 命中去重身份使用 ActionTimeline 中的 Hitbox 窗口下标；同一窗口对同一目标一次，不以可重复的显示字符串作为运行时键
 - 命中目标身份必须是 `SimActorId`；排序使用 `SimHitKey(frame, attackerId, actionInstanceId, hitboxIndex, targetId)`，禁止 `GetInstanceID()` 进入去重、Snapshot 或 Hash
 - 受击反应由“有效命中”驱动，不得依赖最终伤害必须大于 0；扣血与 Hit 状态是两条职责
@@ -154,7 +158,7 @@ public class MyBehaviour : MonoBehaviour
 - 受击/死亡映射统一由 `CharacterConfig.Combat.Reactions` 持有；`EnemyDefinition` 禁止重复声明 Action 引用
 - `CharacterReactionService` 是玩家/敌人 Health 事件到 Actor 的唯一桥接；Controller 只负责构造并注入 Resolver，禁止各自重复订阅受击/死亡事件
 - `CharacterReactionResolver` 直接产出 `CharacterReactionRequest`；默认硬直时长只保存在 `CharacterReactionSet`，State、BrainProfile 与 ActionDefinition 禁止重复配置
-- 每次非致命有效命中都可强制重入 HitState；死亡状态是唯一不可被后续受击覆盖的反应终态
+- Stun+ 才重入 HitState；Flinch 不进 Hit；死亡状态是唯一不可被后续受击覆盖的反应终态
 - Hit 无反应动作时只使用 `DurationFrames`；Hit/Death 有动作时按稳定 Action Instance 结束标记收尾，禁止读取动画播放状态或秒倒计时
 - 死亡产生于统一 Combat Resolve；PostCombat 后的 Commit 先注销 `TargetSystem / CombatActorSystem`，死亡表现完成后再 Despawn
 - 静态测试木桩若未注册 SimulationWorld，不得进入权威命中；需要可攻击目标时必须提供正式 `SimActorId`

@@ -85,9 +85,13 @@ MonoBehaviour:
       localOffset: {x: 0, y: 1, z: 0}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 2, y: 2, z: 3}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
       payload:
         baseDamage: 10
         hitReactionId: 
+        interruptLevel: 2
+        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 0
@@ -119,6 +123,7 @@ MonoBehaviour:
       interruptible: 1
       allowMovementCancel: 1
       allowEntryRestart: 1
+      interruptResistBonus: 0
     perfectDodgeWindowStates: []
     movementStates: []
     rotationStates:
@@ -128,6 +133,12 @@ MonoBehaviour:
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0.05
+    motionModifierStates: []
+    motionCommandNotifies: []
+    cameraSettings:
+      restoreMode: 0
+      suppressLookInput: 1
+    cameraShotStates: []
     tracks:
     - trackName: Phase_1
       kind: 8

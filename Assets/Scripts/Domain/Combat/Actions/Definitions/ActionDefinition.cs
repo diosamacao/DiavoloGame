@@ -231,6 +231,20 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
         return false;
     }
 
+    /// <summary>当前帧所有生效 Phase 的抗打断加成之和。</summary>
+    public int GetInterruptResistBonusAtFrame(int frame)
+    {
+        int bonus = 0;
+        IReadOnlyList<ActionPhaseNotifyState> phases = GetActivePhasesAtFrame(frame);
+        for (int i = 0; i < phases.Count; i++)
+        {
+            if (phases[i] != null)
+                bonus += phases[i].InterruptResistBonus;
+        }
+
+        return bonus;
+    }
+
     /// <summary>指定帧是否处于 SuperArmor 覆盖窗（受击最多 Flinch）。</summary>
     public bool IsSuperArmorAtFrame(int frame)
     {
@@ -358,6 +372,11 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
         timeline.ClampToTotalFrames(totalFrames);
         executionPolicy ??= new ActionExecutionPolicy();
         bakedMotion ??= new ActionBakedMotion();
+
+        // 未填 interruptLevel 写成 1；不改 DesiredReaction（保护已设的 Flinch）。
+        HitboxNotifyState[] boxes = Timeline.HitboxStates;
+        for (int i = 0; i < boxes.Length; i++)
+            boxes[i]?.EnsurePayloadDefaults();
     }
 
     int ComputeTotalFramesFromSegments()

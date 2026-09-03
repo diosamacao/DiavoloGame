@@ -82,6 +82,8 @@ MonoBehaviour:
       payload:
         baseDamage: 10
         hitReactionId: 
+        interruptLevel: 1
+        desiredReaction: 2
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 0
@@ -113,6 +115,7 @@ MonoBehaviour:
       interruptible: 1
       allowMovementCancel: 1
       allowEntryRestart: 1
+      interruptResistBonus: 0
     perfectDodgeWindowStates: []
     movementStates: []
     rotationStates:
@@ -187,6 +190,7 @@ MonoBehaviour:
           m_Data: []
         m_ObjectData:
           m_Data: []
+      splineCurveRule: 0
       speedCurve:
         serializedVersion: 2
         m_Curve:
@@ -245,7 +249,6 @@ MonoBehaviour:
       inheritPosition: 1
       holdFollow: 0
       impulseOnEnter: {fileID: 0}
-      debugApplySceneCameraView: 0
     tracks:
     - trackName: Cancel_3
       kind: 4

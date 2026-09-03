@@ -32,12 +32,13 @@ MonoBehaviour:
   combat:
     teamId: 0
     attachPointName: 
-    aimOriginName: 
     hurtbox:
       localOffset: {x: 0, y: 0.9, z: 0}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 1.5, y: 1.5, z: 1.5}
     maxHealth: 100
+    targetAcquireRangeMeters: 12
+    targetRetainRangeMeters: 13.5
     reactions:
       defaultHitStunFrames: 21
       rules:
@@ -45,6 +46,7 @@ MonoBehaviour:
         reactionId: 
         defaultRule: 1
         action: {fileID: 11400000, guid: ef0c9f0264bc33746a2aabfea88f00de, type: 2}
+    baseInterruptResist: 3
   resources:
     maxEnergy: 120
     energyRegenMilliPerFrame: 200

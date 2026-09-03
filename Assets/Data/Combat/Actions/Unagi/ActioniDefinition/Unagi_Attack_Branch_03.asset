@@ -339,6 +339,7 @@ MonoBehaviour:
       interruptible: 1
       allowMovementCancel: 1
       allowEntryRestart: 1
+      interruptResistBonus: 0
     perfectDodgeWindowStates: []
     movementStates: []
     rotationStates:

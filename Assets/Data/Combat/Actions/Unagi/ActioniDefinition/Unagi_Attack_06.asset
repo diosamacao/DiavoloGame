@@ -90,7 +90,7 @@ MonoBehaviour:
       payload:
         baseDamage: 10
         hitReactionId: 
-        interruptLevel: 1
+        interruptLevel: 2
         desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
@@ -120,7 +120,7 @@ MonoBehaviour:
       payload:
         baseDamage: 10
         hitReactionId: 
-        interruptLevel: 1
+        interruptLevel: 2
         desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
@@ -150,7 +150,7 @@ MonoBehaviour:
       payload:
         baseDamage: 10
         hitReactionId: 
-        interruptLevel: 1
+        interruptLevel: 2
         desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
@@ -180,7 +180,7 @@ MonoBehaviour:
       payload:
         baseDamage: 10
         hitReactionId: 
-        interruptLevel: 1
+        interruptLevel: 2
         desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
@@ -210,7 +210,7 @@ MonoBehaviour:
       payload:
         baseDamage: 10
         hitReactionId: 
-        interruptLevel: 1
+        interruptLevel: 2
         desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
@@ -243,6 +243,7 @@ MonoBehaviour:
       interruptible: 1
       allowMovementCancel: 1
       allowEntryRestart: 1
+      interruptResistBonus: 0
     perfectDodgeWindowStates: []
     movementStates: []
     rotationStates:

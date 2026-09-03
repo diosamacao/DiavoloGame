@@ -53,9 +53,13 @@ MonoBehaviour:
       localOffset: {x: 0, y: 0, z: 0}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 0, y: 0, z: 0}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
       payload:
         baseDamage: 0
         hitReactionId: 
+        interruptLevel: 1
+        desiredReaction: 2
         feedback:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 0
@@ -66,6 +70,9 @@ MonoBehaviour:
           hitImpactSfxVolume: 1
           hitImpactWorldOffset: {x: 0, y: 1, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
     - id: Hitbox_2
       startFrame: 18
       endFrame: 22
@@ -76,9 +83,13 @@ MonoBehaviour:
       localOffset: {x: 0, y: 0, z: 0}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 0, y: 0, z: 0}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
       payload:
         baseDamage: 0
         hitReactionId: 
+        interruptLevel: 1
+        desiredReaction: 2
         feedback:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 0
@@ -89,6 +100,9 @@ MonoBehaviour:
           hitImpactSfxVolume: 1
           hitImpactWorldOffset: {x: 0, y: 1, z: 0}
           hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
     hurtboxStates: []
     cancelWindowStates:
     - id: NormalCancel
@@ -107,6 +121,7 @@ MonoBehaviour:
       interruptible: 1
       allowMovementCancel: 1
       allowEntryRestart: 1
+      interruptResistBonus: 0
     perfectDodgeWindowStates: []
     movementStates: []
     rotationStates:
@@ -116,6 +131,12 @@ MonoBehaviour:
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0
+    motionModifierStates: []
+    motionCommandNotifies: []
+    cameraSettings:
+      restoreMode: 0
+      suppressLookInput: 1
+    cameraShotStates: []
     tracks:
     - trackName: Phase_1
       kind: 8
