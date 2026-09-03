@@ -41,7 +41,8 @@ public readonly struct CharacterDebugSnapshot
         bool softBodyImmovable,
         int actionLateralPeakMm,
         GameplayIntentType[] frameIntents,
-        BufferedIntentDebug[] buffers)
+        BufferedIntentDebug[] buffers,
+        float additiveWeight = 0f)
     {
         State = state;
         ActionActive = actionActive;
@@ -80,6 +81,7 @@ public readonly struct CharacterDebugSnapshot
         ActionLateralPeakMm = actionLateralPeakMm;
         FrameIntents = frameIntents ?? Array.Empty<GameplayIntentType>();
         Buffers = buffers ?? Array.Empty<BufferedIntentDebug>();
+        AdditiveWeight = additiveWeight;
     }
 
     public CharacterStateType State { get; }
@@ -125,4 +127,7 @@ public readonly struct CharacterDebugSnapshot
     public int ActionLateralPeakMm { get; }
     public GameplayIntentType[] FrameIntents { get; }
     public BufferedIntentDebug[] Buffers { get; }
+
+    /// <summary>Playable Additive 层权重；P-HR0 探针与 F3 只读。</summary>
+    public float AdditiveWeight { get; }
 }

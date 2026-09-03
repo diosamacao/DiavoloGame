@@ -2,22 +2,35 @@ using UnityEngine;
 using UnityEngine.Animations;
 using UnityEngine.Playables;
 
-/// <summary>基于 PlayableGraph 的双槽 CrossFade 播放后端；Manual 时间由 Simulation Tick 推进，保证 RootMotion delta 与逻辑步对齐。</summary>
+/// <summary>
+/// 基于 PlayableGraph 的播放后端：层 0 双槽 Override CrossFade，层 1 Additive。
+/// Manual 时间由 Simulation Tick 推进，保证 RootMotion delta 与逻辑步对齐。
+/// </summary>
 public sealed class PlayableAnimationPlayback : IAnimationPlayback
 {
     const int InputCount = 2;
     const int PreviousSlot = 0;
     const int CurrentSlot = 1;
+    const int BaseLayer = 0;
+    const int AdditiveLayer = 1;
+    const float DefaultAdditiveFadeOut = 0.05f;
 
     readonly Animator _animator;
     PlayableGraph _graph;
+    AnimationLayerMixerPlayable _layerMixer;
     AnimationMixerPlayable _mixer;
     AnimationClipPlayable _previousPlayable;
     AnimationClipPlayable _currentPlayable;
+    AnimationClipPlayable _additivePlayable;
     AnimationClip _currentClip;
+    AnimationClip _additiveClip;
     float _fadeDuration;
     float _fadeElapsed;
     bool _fading;
+    float _additiveWeight;
+    float _additiveFadeIn;
+    float _additiveElapsed;
+    float _additiveHoldSeconds;
     float _speed = 1f;
     bool _disposed;
 
@@ -35,8 +48,13 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
         // Manual：禁止 GameTime 与逻辑步双轨推进，否则逐帧 Seek 会污染 Animator.deltaPosition。
         _graph.SetTimeUpdateMode(DirectorUpdateMode.Manual);
         _mixer = AnimationMixerPlayable.Create(_graph, InputCount);
+        _layerMixer = AnimationLayerMixerPlayable.Create(_graph, InputCount);
+        _layerMixer.ConnectInput(BaseLayer, _mixer, 0);
+        _layerMixer.SetInputWeight(BaseLayer, 1f);
+        _layerMixer.SetLayerAdditive(AdditiveLayer, true);
+        _layerMixer.SetInputWeight(AdditiveLayer, 0f);
         AnimationPlayableOutput output = AnimationPlayableOutput.Create(_graph, "Animation", _animator);
-        output.SetSourcePlayable(_mixer);
+        output.SetSourcePlayable(_layerMixer);
         _graph.Play();
     }
 
@@ -53,6 +71,9 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
     }
 
     public AnimationClip CurrentClip => _currentClip;
+
+    /// <inheritdoc />
+    public float AdditiveWeight => _additiveWeight;
 
     public float NormalizedTime
     {
@@ -85,6 +106,8 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
         if (!IsValid || clip == null)
             return;
 
+        // 切主 Clip（走跑键或出招段）时清 Additive，避免探针残留到下一招。
+        StopAdditive();
         PromoteCurrentToPrevious();
 
         _currentPlayable = AnimationClipPlayable.Create(_graph, clip);
@@ -150,8 +173,41 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
             }
         }
 
+        TickAdditive(dt);
+
         // 唯一时间推进入口：固定步长 Evaluate Graph
         _graph.Evaluate(dt);
+    }
+
+    /// <inheritdoc />
+    public void PlayAdditive(AnimationClip clip, AvatarMask mask, float fadeDuration)
+    {
+        if (!IsValid || clip == null)
+            return;
+
+        DisconnectAdditive();
+
+        _additivePlayable = AnimationClipPlayable.Create(_graph, clip);
+        _additivePlayable.SetApplyFootIK(false);
+        _additivePlayable.SetTime(0.0);
+        _additivePlayable.SetTime(0.0);
+        _additivePlayable.Play();
+        _layerMixer.ConnectInput(AdditiveLayer, _additivePlayable, 0);
+        if (mask != null)
+            _layerMixer.SetLayerMaskFromAvatarMask((uint)AdditiveLayer, mask);
+
+        _additiveClip = clip;
+        _additiveFadeIn = Mathf.Max(0f, fadeDuration);
+        _additiveElapsed = 0f;
+        _additiveHoldSeconds = Mathf.Max(0.0001f, clip.length);
+        _additiveWeight = _additiveFadeIn <= 0f ? 1f : 0f;
+        _layerMixer.SetInputWeight(AdditiveLayer, _additiveWeight);
+    }
+
+    /// <inheritdoc />
+    public void StopAdditive()
+    {
+        DisconnectAdditive();
     }
 
     public void Dispose()
@@ -161,14 +217,18 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
 
         _disposed = true;
         _currentClip = null;
+        _additiveClip = null;
         _fading = false;
+        _additiveWeight = 0f;
 
         if (_graph.IsValid())
             _graph.Destroy();
 
         _previousPlayable = default;
         _currentPlayable = default;
+        _additivePlayable = default;
         _mixer = default;
+        _layerMixer = default;
     }
 
     void PromoteCurrentToPrevious()
@@ -208,9 +268,64 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
 
     void ApplySpeed()
     {
-        if (!_mixer.IsValid())
+        if (_mixer.IsValid())
+            _mixer.SetSpeed(_speed);
+        if (_layerMixer.IsValid())
+            _layerMixer.SetSpeed(_speed);
+    }
+
+    /// <summary>按 Clip 时长推进 Additive 淡入/淡出；播完后自动清层，避免残留权重。</summary>
+    void TickAdditive(float dt)
+    {
+        if (!_additivePlayable.IsValid() || !_layerMixer.IsValid())
             return;
 
-        _mixer.SetSpeed(_speed);
+        _additiveElapsed += dt * _speed;
+        float fade = _additiveFadeIn > 0f ? _additiveFadeIn : DefaultAdditiveFadeOut;
+        float weight;
+        if (_additiveElapsed < _additiveFadeIn)
+            weight = _additiveFadeIn <= 0f ? 1f : Mathf.Clamp01(_additiveElapsed / _additiveFadeIn);
+        else if (_additiveElapsed >= _additiveHoldSeconds)
+        {
+            float over = _additiveElapsed - _additiveHoldSeconds;
+            if (over >= fade)
+            {
+                DisconnectAdditive();
+                return;
+            }
+
+            weight = 1f - Mathf.Clamp01(over / fade);
+        }
+        else
+            weight = 1f;
+
+        _additiveWeight = weight;
+        _layerMixer.SetInputWeight(AdditiveLayer, weight);
+    }
+
+    /// <summary>断开 Additive Clip 并将层权置 0；主槽不受影响。</summary>
+    void DisconnectAdditive()
+    {
+        _additiveWeight = 0f;
+        _additiveClip = null;
+        _additiveElapsed = 0f;
+        _additiveHoldSeconds = 0f;
+        _additiveFadeIn = 0f;
+
+        if (_layerMixer.IsValid())
+        {
+            if (_layerMixer.GetInputCount() > AdditiveLayer
+                && _layerMixer.GetInput(AdditiveLayer).IsValid())
+            {
+                _layerMixer.DisconnectInput(AdditiveLayer);
+            }
+
+            _layerMixer.SetInputWeight(AdditiveLayer, 0f);
+        }
+
+        if (_additivePlayable.IsValid())
+            _additivePlayable.Destroy();
+
+        _additivePlayable = default;
     }
 }

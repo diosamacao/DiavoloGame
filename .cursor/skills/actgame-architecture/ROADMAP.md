@@ -169,6 +169,7 @@
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
 | 三人换人 / 极限支援 | P1 | 🟡 P-SW1 代码完成，Graph/Play 待验。P-SW2 未做：金光切入先 Guard 举刀，敌人 Hitbox 接触后 Success；被弹刀走现有 `HitState`（`Parried`）。方案：[`docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`](../../docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md) |
+| 受击档位 + Additive | P1 | 🟡 P-HR0 代码：`PlayAdditive` + F6 探针。未接命中裁定。方案：[`docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md`](../../docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md) |
 | ActionEditorWindow | P1 | ✅ 基础版 + 菱形/Zoom/Scrub 预览 + 2026-08-04 playhead 跟视口、Create 选文件夹、左侧文件夹分组；后续增强 SFX 预览 |
 | Enemy/ + AI | P1 | ✅ 8.10 Desire/Entry Request 总出口关闭；对峙表现已验收；待优化见 8.11 Backlog / A* |
 | UI/（MVVM） | P2 | HUD、血条；View/ViewModel 分层，不直写 Domain 权威 |
@@ -255,6 +256,7 @@
 | 2026-08-30 | 三人换人/极限支援先文档；Graph 只管上场招，编队归 Coordinator | 产品改 3 人出战；养成只留 CharacterId 薄契约 |
 | 2026-09-01 | P-SW1 提前落每槽稳定网络实体；单输入流由权威 ActiveSlot 路由 | DualPresence 要求 Active/Exiting 同时存在，单实体热换无法保持权威收招与命中 |
 | 2026-09-02 | P-SW2 弹刀成功以敌人出手接触为准；被弹刀复用 `HitState`，不新建 Parry 状态 | 金光在抬手、出手在 Active；上场招架 Hitbox 会提前播成功且与受击状态机脱节 |
+| 2026-09-03 | 受击先做 P-HR0 Additive 探针，再改 Resolver | 轻击不停招依赖 Playable 层先被眼睛验过 |
 | 2026-06-21 | 连招保持线性 | 近期无分支图需求 |
 | 2026-07-12 | 自研薄 Playable + `IAnimationPlayback`；不同时引入 Animancer | Action 时序已自研；门面可替换后端 |
 | 2026-06-21 | 输入路由命名 `CharacterActionDriver` | 敌人复用同一组件 |

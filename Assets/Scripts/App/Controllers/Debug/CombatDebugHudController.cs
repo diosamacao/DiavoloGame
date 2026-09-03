@@ -12,8 +12,17 @@ public sealed class CombatDebugHudController : AppControllerBase
     [SerializeField] bool visible = true;
     [SerializeField] KeyCode toggleKey = KeyCode.F3;
     [SerializeField] KeyCode hurtboxToggleKey = KeyCode.F4;
+    [SerializeField] KeyCode flinchProbeKey = KeyCode.F6;
+    [Tooltip("P-HR0 探针 Clip；须 Additive 导入、无根移。Agent 不改资产。")]
+    [SerializeField] AnimationClip flinchProbeClip;
+    [Tooltip("可选上半身 AvatarMask；空则全骨骼叠加。")]
+    [SerializeField] AvatarMask flinchProbeMask;
+    [SerializeField] float flinchProbeFade = 0.05f;
 
     CharacterDebugSnapshot _cached;
+    CharacterDebugSnapshot _targetCached;
+    bool _hasTargetSnapshot;
+    float _targetAdditiveWeight;
     CameraManager _cameraManager;
     readonly StringBuilder _sb = new(512);
     GUIStyle _boxStyle;
@@ -37,6 +46,25 @@ public sealed class CombatDebugHudController : AppControllerBase
         // F4：开关 Hurtbox 线框
         if (UnityEngine.Input.GetKeyDown(hurtboxToggleKey))
             CombatHurtboxDebugSettings.ShowHurtboxes = !CombatHurtboxDebugSettings.ShowHurtboxes;
+
+        // F6：P-HR0 Additive 探针，不走命中 / EnterHit
+        if (UnityEngine.Input.GetKeyDown(flinchProbeKey))
+            PlayFlinchProbe();
+    }
+
+    /// <summary>对锁定敌人或场上第一名敌人叠 Hit_Shake；失败只打日志。</summary>
+    void PlayFlinchProbe()
+    {
+        CharacterActor target = HitFlinchAdditiveProbe.ResolveTarget(playerController);
+        if (!HitFlinchAdditiveProbe.TryPlay(
+                target,
+                flinchProbeClip,
+                flinchProbeMask,
+                flinchProbeFade,
+                out string error))
+        {
+            Debug.LogWarning("[P-HR0] " + error);
+        }
     }
 
     /// <summary>确保场景有 Hurtbox 线框绘制器（可挂本物体上）。</summary>
@@ -62,6 +90,21 @@ public sealed class CombatDebugHudController : AppControllerBase
         // 在 Actor.Render 之后采样，HUD 与画面同一表现帧
         if (playerController != null && playerController.Actor != null)
             _cached = playerController.Actor.BuildDebugSnapshot();
+
+        CharacterActor probeTarget = HitFlinchAdditiveProbe.ResolveTarget(playerController);
+        if (probeTarget != null
+            && (playerController == null || probeTarget != playerController.Actor))
+        {
+            _targetCached = probeTarget.BuildDebugSnapshot();
+            CharacterAnimationService presentation =
+                HitFlinchAdditiveProbe.ResolvePresentation(probeTarget);
+            _targetAdditiveWeight = presentation != null ? presentation.AdditiveWeight : 0f;
+            _hasTargetSnapshot = true;
+        }
+        else
+        {
+            _hasTargetSnapshot = false;
+        }
     }
 
     void OnGUI()
@@ -86,6 +129,8 @@ public sealed class CombatDebugHudController : AppControllerBase
                 _sb,
                 in _cached,
                 _cameraManager != null && _cameraManager.CameraLockEnabled);
+            if (_hasTargetSnapshot)
+                AppendTargetSnapshot(_sb, in _targetCached, _targetAdditiveWeight);
         }
         const float width = 440f;
         float height = Mathf.Min(420f, Screen.height * 0.55f);
@@ -160,7 +205,7 @@ public sealed class CombatDebugHudController : AppControllerBase
         in CharacterDebugSnapshot s,
         bool cameraLockEnabled)
     {
-        sb.AppendLine("[Combat Debug]  F3 HUD | F4 Hurtbox")
+        sb.AppendLine("[Combat Debug]  F3 HUD | F4 Hurtbox | F6 Flinch Additive")
             .Append("Hurtbox Gizmo: ")
             .Append(CombatHurtboxDebugSettings.ShowHurtboxes ? "ON" : "OFF")
             .AppendLine();
@@ -171,7 +216,9 @@ public sealed class CombatDebugHudController : AppControllerBase
             sb.Append(" | Action: ").Append(s.ActionName);
         }
 
-        sb.Append(" | Freeze: ").Append(s.FreezeFrames).AppendLine();
+        sb.Append(" | Freeze: ").Append(s.FreezeFrames)
+            .Append(" | Additive: ").Append(s.AdditiveWeight.ToString("0.00"))
+            .AppendLine();
         sb.Append("HP: ").Append(s.CurrentHp.ToString("0.#")).Append('/')
             .Append(s.MaxHp.ToString("0.#")).AppendLine();
         sb.Append("ATK/DEF: ").Append(s.AttackPoints).Append('/').Append(s.DefensePoints)
@@ -242,6 +289,20 @@ public sealed class CombatDebugHudController : AppControllerBase
             .Append(" immovable=").Append(s.SoftBodyImmovable).AppendLine();
         sb.Append("ActionLateralPeakMm: ").Append(s.ActionLateralPeakMm)
             .Append("  (Wave0 baseline; 对照横摆是否进逻辑根)");
+    }
+
+    /// <summary>探针目标（锁定/场上敌人）的状态与 Additive 权重，便于对照 F6 前后。</summary>
+    static void AppendTargetSnapshot(StringBuilder sb, in CharacterDebugSnapshot s, float presentationAdditive)
+    {
+        sb.AppendLine();
+        sb.Append("FlinchTarget: ").Append(s.State);
+        if (s.ActionActive)
+        {
+            sb.Append(" | Frame: ").Append(s.ActionFrame).Append('/').Append(s.ActionTotalFrames);
+            sb.Append(" | Action: ").Append(s.ActionName);
+        }
+
+        sb.Append(" | Additive: ").Append(presentationAdditive.ToString("0.00"));
     }
 
     void EnsureStyles()

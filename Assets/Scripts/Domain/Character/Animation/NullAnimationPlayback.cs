@@ -19,7 +19,20 @@ public sealed class NullAnimationPlayback : IAnimationPlayback
     public bool HasFinished => false;
 
     /// <inheritdoc />
+    public float AdditiveWeight => 0f;
+
+    /// <inheritdoc />
     public void Play(AnimationClip clip, float fadeDuration)
+    {
+    }
+
+    /// <inheritdoc />
+    public void PlayAdditive(AnimationClip clip, AvatarMask mask, float fadeDuration)
+    {
+    }
+
+    /// <inheritdoc />
+    public void StopAdditive()
     {
     }
 

@@ -72,6 +72,10 @@ public sealed class ActClientRoomGameplay
     /// <summary>当前 Observer Proxy 数量。</summary>
     public int ProxyCount => _observer.Count;
 
+    /// <summary>按权威 Id 取 Observer 可见体；Listen 无头敌人的 Playable 在这里。</summary>
+    public bool TryGetProxy(SimActorId actorId, out RemoteCharacterProxy proxy) =>
+        _observer.TryGetProxy(actorId, out proxy);
+
     /// <summary>Owner 尚未确认的动作与位移预测总数。</summary>
     public int PredictionPendingCount => _owner.PendingCount;
 

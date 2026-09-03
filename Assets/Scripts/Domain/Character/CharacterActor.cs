@@ -352,7 +352,8 @@ public sealed class CharacterActor :
             motor.SoftBodyImmovable,
             _actionLateralPeakMm,
             frameIntents,
-            buffers);
+            buffers,
+            _animation != null ? _animation.AdditiveWeight : 0f);
     }
 
     /// <summary>HUD：反击缓冲优先显示 Counter；否则预判 Special 同键 EX/普通。</summary>
@@ -406,6 +407,7 @@ public sealed class CharacterActor :
         {
             // 必须在表现根停用前回收挂点 VFX；否则粒子会冻结并在下次 SwitchIn 随父节点复活。
             _actionPresentation?.ResetForVisibilityLoss();
+            _animation?.StopAdditive();
         }
 
         _partyState = state;
@@ -532,6 +534,7 @@ public sealed class CharacterActor :
             return;
 
         ClearControlledInput();
+        _animation?.StopAdditive();
         // 受击打断时模型短时回锚（若动作 Stop 事件未到也兜底）
         _visualMotion?.EndAction(VisualResidualExitPolicy.BlendToZero);
         _visualMotion?.SetLeanRollDegrees(0f);
@@ -542,6 +545,7 @@ public sealed class CharacterActor :
     public void EnterDeath(in CharacterReactionRequest request)
     {
         ClearControlledInput();
+        _animation?.StopAdditive();
         SnapVisualResidual();
         _visualMotion?.SetLeanRollDegrees(0f);
         _stateMachine.EnterDeath(in request);

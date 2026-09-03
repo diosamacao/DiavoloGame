@@ -37,6 +37,9 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     /// <summary>幽灵权威根；调试与测试读位姿用。</summary>
     public Transform Root => _root;
 
+    /// <summary>Observer 可见体动画门面；Listen 权威敌人无头时探针走这里。</summary>
+    public CharacterAnimationService Animation => _animation;
+
     /// <summary>幽灵逻辑电机；仅被快照写入，不进 SimulationWorld。</summary>
     public CharacterMotorSim MotorSim => _motor.Sim;
 
@@ -282,6 +285,8 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
             if (_notifyConsumers[i] is IActionVisibilityResetConsumer resettable)
                 resettable.ResetForVisibilityLoss();
         }
+
+        _animation?.StopAdditive();
     }
 
     /// <summary>从快照写入索敌身份；不改变表现图。</summary>
