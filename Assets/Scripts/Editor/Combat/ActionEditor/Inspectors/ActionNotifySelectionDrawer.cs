@@ -109,6 +109,12 @@ public static class ActionNotifySelectionDrawer
                 case ActionTimelineTrackKind.PerfectDodgeWindow:
                     DrawPerfectDodgeWindow();
                     break;
+                case ActionTimelineTrackKind.AssistCue:
+                    DrawAssistCue(element, batchSet);
+                    break;
+                case ActionTimelineTrackKind.AssistParryWindow:
+                    DrawAssistParryWindow();
+                    break;
                 case ActionTimelineTrackKind.MotionModifier:
                     DrawMotionModifier(element, batchSet);
                     break;
@@ -363,6 +369,28 @@ public static class ActionNotifySelectionDrawer
     {
         DrawMultiProperty(batchSet, element, "kind");
         DrawMultiProperty(batchSet, element, "payloadId");
+    }
+
+    /// <summary>敌人闪光窗：金/红、远程点名与弹刀点偏移。</summary>
+    static void DrawAssistCue(SerializedProperty element, ActionEditorSelectionSet batchSet)
+    {
+        EditorGUILayout.HelpBox(
+            "敌人进攻闪光。只裁定切人 kind，不裁定弹刀成功。\n"
+            + "接触成功看玩家 AssistParry 窗 + 本招 Active Hitbox。",
+            MessageType.Info);
+        DrawMultiProperty(batchSet, element, "kind");
+        DrawMultiProperty(batchSet, element, "requiresRanged");
+        DrawMultiProperty(batchSet, element, "parryLocalOffsetMm");
+        DrawMultiProperty(batchSet, element, "evadeLocalOffsetMm");
+    }
+
+    /// <summary>玩家招架接触窗无额外载荷；语义由 Pipeline 消费。</summary>
+    static void DrawAssistParryWindow()
+    {
+        EditorGUILayout.HelpBox(
+            "玩家 Guard 上的招架接触窗。窗内被命中：吞伤、IssueParried、切 Success、武装突击。\n"
+            + "优先于完美闪避与普通无敌。不要在 Guard 上挂 clang。",
+            MessageType.Info);
     }
 
     /// <summary>完美闪避窗无额外载荷；语义由 Pipeline 消费。</summary>

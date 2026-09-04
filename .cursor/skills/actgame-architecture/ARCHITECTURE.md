@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-09-04（受击 P-HR0～P-HR4 已验收）
+> Last audited: 2026-09-04（P-SW2 接触弹刀代码已接，Play 待验）
 
 ## 项目概述
 
@@ -185,7 +185,7 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
               CombatHitPipeline.SortAndResolve → CharacterActor.ResolvePostCombat → 帧末 App 表现事件
 ```
 
-### 3.1 玩家阵容与换人（Party，P-SW0 / P-SW1）
+### 3.1 玩家阵容与换人（Party，P-SW0～P-SW2）
 
 | 类 | 职责 |
 |----|------|
@@ -193,19 +193,21 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `CharacterDefinition` | `CharacterId` + `CharacterAssistStyle` + 现有 `CharacterConfig`；元素/阵营/定位标签仅预留 |
 | `PartyLoadout` | 单座位 1～3 槽阵容与开局槽；允许中间空槽，拒绝重复 Id |
 | `PartySlotSelector` | 单键按槽位正序绕回，跳过 Empty / Exiting / Dead |
-| `PartyCombatCoordinator` | 纯逻辑维护 Active / Exiting，并输出普通切人 `DualPresence` 命令 |
+| `PartyAssistPoints` | 队共享支援点口袋（上限 6 / 开局 3）；扣费只在 Coordinator 裁定成功时发生 |
+| `WorldAssistCueBoard` | 权威帧收集敌人 `AssistCue`；切人读上一拍，优先锁定目标否则最小 OwnerId |
+| `PartyCombatCoordinator` | 按 Cue / 点数 / AssistStyle 输出 DualPresence 或 InstantReplace |
 | `PlayerController` | 为每个非空槽创建独立 Autonomous Actor；只让 Active 接收输入，预测切人时同时推进 Exiting |
 | `ActGameGuest` | 权威侧一座位多稳定 Actor；按同一输入边沿切 Active，全部槽独立注册、命中与复制 |
 | `ActReplicationApplicationPayload` | 每帧下发 Owner 槽 ActorId、ActiveSlot 与累计命令 ACK；客户端据此跳过自有 Proxy 并纠正预测 |
 
-`SwitchCharacter` 上行仍是单条 `ClientCommand`。权威先裁定槽切换，再把该帧输入路由到新 Active Actor；旧槽空闲时立即注入 `SwitchOut`，已有 Action 时保持到首次 Recovery、停止原招并转入 `SwitchOut`，最终只在 `SwitchOut` 自身 Recovery 后进入 Inactive。每槽身份稳定，未采用单 Actor 热换配置旧路径。`SwitchIn/SwitchOut` Graph Entry 与实际动画资产仍需 Editor 配置，Play 验收前状态保持 🟡。
+`SwitchCharacter` 上行仍是单条 `ClientCommand`。无 Cue 时权威先裁定普通 DualPresence：旧槽空闲立即 `SwitchOut`，已有 Action 时到首次 Recovery 再切 `SwitchOut`，最终只在 `SwitchOut` Recovery 后 Inactive。金/红 Cue 走 InstantReplace：旧槽当帧 Inactive，上场只起 `AssistParry` / `AssistEvade` / `SwitchPerfectDodge`。接触成功由 `CombatHitPipeline` 在玩家 `AssistParryWindow` 内 `IssueParried` 并切 `AssistParrySuccess`。Graph Entry 与 Timeline 窗仍需 Editor 配置，Play 验收前状态保持 🟡。
 
 ### 4. 动作系统（Combat/Actions）
 
 | 类 | 职责 |
 |----|------|
 | `ActionDefinition` | 单动作播放内容 SO：动画段、统一时间轴、分类与 `ActionExecutionPolicy`；不参与输入选招、流程、伤害、反馈或索敌 |
-| `ActionTimeline` / `ActionNotify` / `ActionNotifyState` | 动作帧数据唯一真源：点事件（Event / VFX / SFX）与区间窗口（Phase/Hitbox/Hurtbox/Cancel/Movement/Rotation）；Recovery Phase 集成移动取消与 Entry 重开；`tracks[]` 为编辑器手动轨道 |
+| `ActionTimeline` / `ActionNotify` / `ActionNotifyState` | 动作帧数据唯一真源：点事件（Event / VFX / SFX）与区间窗口（Phase/Hitbox/Hurtbox/Cancel/Movement/Rotation/`AssistCue`/`AssistParryWindow`）；Recovery Phase 集成移动取消与 Entry 重开；`tracks[]` 为编辑器手动轨道 |
 | `ActionSim` | L1B 纯模拟执行器：严格 60Hz；拥有 CurrentFrame、图游标、命中确认、稳定实例 Id 与下一帧切招 |
 | `ActionSimSnapshot` / `ActionSimEvent` | 模拟到角色表现边界；不携带 Unity 类型，表现与 Timeline 不可反写 Sim |
 | `CharacterActionPresentationBridge` | 根据 Snapshot/Event 播放并 Seek 动画，派发 Timeline；L2 前暂留 RootMotion、脚本位移与 Transform Hitbox |

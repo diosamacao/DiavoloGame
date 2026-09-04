@@ -17,6 +17,6 @@ public sealed class PublishAttackHitCommand : ArchitectureCommandBase
             _hit.TargetTransform,
             _hit.HitDirection,
             _hit.HitPoint,
-            _hit.AbsorbedByPerfectDodge));
+            _hit.AbsorbedByPerfectDodge || _hit.AbsorbedByAssistParry));
     }
 }

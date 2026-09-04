@@ -11,6 +11,7 @@ public sealed class GameplayIntentProducer
     readonly LocomotionStateMachine _locomotion;
     readonly ActionSim _actionSim;
     readonly Func<bool> _hasPerfectDodgeCounter;
+    readonly Func<bool> _hasAssistFollowUp;
     readonly InputButton[] _buttons;
     readonly Dictionary<InputButton, int> _heldFrames = new();
     readonly HashSet<InputButton> _holdIntentEmitted = new();
@@ -18,7 +19,7 @@ public sealed class GameplayIntentProducer
     /// <summary>
     /// 创建意图生产器；Profile 是物理输入映射的唯一配置源。
     /// stateMachine 只读 CurrentStateId（权威 SM 或客机播招探针）。
-    /// hasPerfectDodgeCounter：武装反击缓冲时攻击键派生 PerfectDodgeAttack。
+    /// hasAssistFollowUp 优先于 hasPerfectDodgeCounter：攻击族 Pressed 分别派生 AssistFollowUp / PerfectDodgeAttack。
     /// </summary>
     public GameplayIntentProducer(
         GameplayIntentProfile profile,
@@ -27,7 +28,8 @@ public sealed class GameplayIntentProducer
         ICharacterStateMachine stateMachine,
         LocomotionStateMachine locomotion,
         ActionSim actionSim,
-        Func<bool> hasPerfectDodgeCounter = null)
+        Func<bool> hasPerfectDodgeCounter = null,
+        Func<bool> hasAssistFollowUp = null)
     {
         _profile = profile;
         _input = input;
@@ -36,6 +38,7 @@ public sealed class GameplayIntentProducer
         _locomotion = locomotion;
         _actionSim = actionSim;
         _hasPerfectDodgeCounter = hasPerfectDodgeCounter;
+        _hasAssistFollowUp = hasAssistFollowUp;
         _buttons = CollectButtons(profile);
     }
 
@@ -91,14 +94,21 @@ public sealed class GameplayIntentProducer
     /// <summary>从同一物理事件的匹配规则中选最高优先级并独占输出。</summary>
     bool TryEmit(InputButton button, GameplayIntentInputPhase phase, int heldFrames)
     {
-        // Wave 3.4：反击缓冲内攻击键强制派生 PerfectDodgeAttack（盖过 Attack/DodgeAttack）
         if (phase == GameplayIntentInputPhase.Pressed
-            && _hasPerfectDodgeCounter != null
-            && _hasPerfectDodgeCounter()
             && ButtonMapsToAttackFamilyPressed(button))
         {
-            _output.Emit(GameplayIntentType.PerfectDodgeAttack);
-            return true;
+            // 支援突击优先于完美反击：接触成功后攻击键只派生 AssistFollowUp。
+            if (_hasAssistFollowUp != null && _hasAssistFollowUp())
+            {
+                _output.Emit(GameplayIntentType.AssistFollowUp);
+                return true;
+            }
+
+            if (_hasPerfectDodgeCounter != null && _hasPerfectDodgeCounter())
+            {
+                _output.Emit(GameplayIntentType.PerfectDodgeAttack);
+                return true;
+            }
         }
 
         GameplayIntentBinding selected = default;

@@ -1,7 +1,7 @@
 using System;
 
 /// <summary>
-/// 短时战斗上下文旗标（非 Attribute）：接战门闩、完美反击缓冲、闪避充能倒计时。
+/// 短时战斗上下文旗标（非 Attribute）：接战门闩、完美反击 / 支援突击缓冲、闪避充能倒计时。
 /// </summary>
 public sealed class CombatContextFlags
 {
@@ -11,6 +11,9 @@ public sealed class CombatContextFlags
     /// <summary>完美闪避反击缓冲剩余逻辑帧。</summary>
     public int PerfectDodgeCounterFrames { get; private set; }
 
+    /// <summary>支援突击缓冲剩余逻辑帧。</summary>
+    public int AssistFollowUpFrames { get; private set; }
+
     /// <summary>下一次闪避充能剩余逻辑帧；0 表示未在充能。</summary>
     public int DodgeRechargeFramesLeft { get; private set; }
 
@@ -19,6 +22,9 @@ public sealed class CombatContextFlags
 
     /// <summary>是否可派生 PerfectDodgeAttack。</summary>
     public bool HasPerfectDodgeCounter => PerfectDodgeCounterFrames > 0;
+
+    /// <summary>是否可派生 AssistFollowUp。</summary>
+    public bool HasAssistFollowUp => AssistFollowUpFrames > 0;
 
     /// <summary>刷新接战门闩（通常取 Config.CombatHoldFrames）。</summary>
     public void SetInCombatHold(int frames) =>
@@ -30,6 +36,13 @@ public sealed class CombatContextFlags
 
     /// <summary>Counter 起手或超时清空。</summary>
     public void ClearPerfectDodgeCounter() => PerfectDodgeCounterFrames = 0;
+
+    /// <summary>接触弹刀成功后武装支援突击。</summary>
+    public void ArmAssistFollowUp(int frames) =>
+        AssistFollowUpFrames = Math.Max(0, frames);
+
+    /// <summary>突击起手或超时清空。</summary>
+    public void ClearAssistFollowUp() => AssistFollowUpFrames = 0;
 
     /// <summary>开始或重置闪避充能倒计时。</summary>
     public void SetDodgeRechargeFramesLeft(int frames) =>
@@ -44,6 +57,8 @@ public sealed class CombatContextFlags
         // 完美闪避反击缓冲：到 0 后攻击键不再派生 Counter
         if (PerfectDodgeCounterFrames > 0)
             PerfectDodgeCounterFrames--;
+        if (AssistFollowUpFrames > 0)
+            AssistFollowUpFrames--;
     }
 
     /// <summary>闪避充能倒计时减 1；归零时返回 true 表示应 +1 次。</summary>

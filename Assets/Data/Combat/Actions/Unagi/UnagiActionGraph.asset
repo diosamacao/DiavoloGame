@@ -169,6 +169,19 @@ MonoBehaviour:
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
     editorPosition: {x: 2002.6666, y: -576}
+  - nodeId: Unagi_Attack_Counter
+    action: {fileID: 11400000, guid: 45966e04aaa840b489539b024d70adc4, type: 2}
+    intent: 16
+    isEntry: 1
+    variantResolver: {fileID: 0}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions: []
+    editorPosition: {x: 2828, y: -1332}
   - nodeId: Unagi_Attack_Rush
     action: {fileID: 11400000, guid: c18191bb1aeaeab4e8478467868d4e8f, type: 2}
     intent: 7
@@ -234,6 +247,32 @@ MonoBehaviour:
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
     editorPosition: {x: -205.33333, y: -1028.6667}
+  - nodeId: Unagi_ParryAid_H_Guard
+    action: {fileID: 11400000, guid: 70c7fed86817a1e46a973230b95e14b9, type: 2}
+    intent: 12
+    isEntry: 1
+    variantResolver: {fileID: 0}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions: []
+    editorPosition: {x: 2761.3333, y: -1510.6666}
+  - nodeId: Unagi_ParryAid_H_Success
+    action: {fileID: 11400000, guid: 2555355cead55b64cac7c5ad9eefa5cc, type: 2}
+    intent: 13
+    isEntry: 1
+    variantResolver: {fileID: 0}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions: []
+    editorPosition: {x: 2721.3333, y: -1687.3334}
   - nodeId: Unagi_SwitchIn
     action: {fileID: 11400000, guid: edf85fea80a52244181a29360df34a78, type: 2}
     intent: 10

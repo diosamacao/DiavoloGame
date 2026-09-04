@@ -60,6 +60,21 @@ public sealed class CharacterReactionResolver
         return new CharacterReactionRequest(_reactionSet.DefaultHitStunFrames, action);
     }
 
+    /// <summary>
+    /// 被弹刀：固定 LightStun + Parried 片子；缺 Parried 规则时回退 Hit 默认片。
+    /// 不读冲击力、韧性、SuperArmor。
+    /// </summary>
+    public HitReactionCommand ResolveParried()
+    {
+        ActionDefinition stunAction = _reactionSet.Resolve(CharacterReactionType.Parried, string.Empty)
+            ?? _reactionSet.Resolve(CharacterReactionType.Hit, string.Empty);
+        return new HitReactionCommand(
+            HitReactionKind.LightStun,
+            stunAction,
+            _reactionSet.DefaultHitStunFrames,
+            AnimationKey.Idle);
+    }
+
     /// <summary>解析一次致命命中的死亡表现请求。</summary>
     public CharacterReactionRequest ResolveDeath(in ActionHitContext context)
     {

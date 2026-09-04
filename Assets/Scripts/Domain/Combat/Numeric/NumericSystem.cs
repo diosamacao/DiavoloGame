@@ -40,6 +40,13 @@ public sealed class NumericSystem
     /// <summary>Counter 起手清空缓冲。</summary>
     public void ClearPerfectDodgeCounter() => Flags.ClearPerfectDodgeCounter();
 
+    /// <summary>弹刀接触成功后武装支援突击，时长复用完美反击窗。</summary>
+    public void ArmAssistFollowUp() =>
+        Flags.ArmAssistFollowUp(_config.PerfectDodgeCounterFrames);
+
+    /// <summary>突击起手清空缓冲。</summary>
+    public void ClearAssistFollowUp() => Flags.ClearAssistFollowUp();
+
     /// <summary>施加 Effect（Instant 立即生效；Duration/Periodic 进入容器）。</summary>
     public void ApplyEffect(EffectDefinition definition) => Effects.Apply(definition);
 

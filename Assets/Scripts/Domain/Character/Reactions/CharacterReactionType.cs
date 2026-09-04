@@ -6,4 +6,7 @@ public enum CharacterReactionType
 
     /// <summary>生命值首次归零的死亡反应。</summary>
     Death = 1,
+
+    /// <summary>被弹刀选招；档位仍是 LightStun，不是新的 HitReactionKind。</summary>
+    Parried = 2,
 }

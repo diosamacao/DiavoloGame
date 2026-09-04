@@ -47,12 +47,13 @@ MonoBehaviour:
       attachPointId: 
       localOffset: {x: 0, y: 1.5, z: 1.77}
       localEulerAngles: {x: 0, y: 0, z: 0}
-      size: {x: 4.58, y: 3.02, z: 3.75}
+      size: {x: 5.36, y: 3.02, z: 5.69}
       parentToAttachPoint: 0
       parentToAttachPointSchema: 1
       payload:
         baseDamage: 0
         hitReactionId: 
+        interruptLevel: 1
         feedback:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 0
@@ -70,6 +71,17 @@ MonoBehaviour:
     cancelWindowStates: []
     phaseStates: []
     perfectDodgeWindowStates: []
+    assistCueStates:
+    - id: AssistCue_1
+      startFrame: 0
+      endFrame: 55
+      priority: 0
+      trackName: AssistCue_1
+      kind: 0
+      requiresRanged: 0
+      parryLocalOffsetMm: {x: 1, y: 1, z: 1}
+      evadeLocalOffsetMm: {x: 0, y: 0, z: 0}
+    assistParryWindowStates: []
     movementStates: []
     rotationStates:
     - id: Rotation_1
@@ -80,12 +92,19 @@ MonoBehaviour:
       smoothTimeOverride: 0
     motionModifierStates: []
     motionCommandNotifies: []
+    cameraSettings:
+      restoreMode: 0
+      suppressLookInput: 1
+    cameraShotStates: []
     tracks:
     - trackName: Hitbox_1
       kind: 0
       visible: 1
     - trackName: Rotation_1
       kind: 6
+      visible: 1
+    - trackName: AssistCue_1
+      kind: 14
       visible: 1
   bakedMotion:
     logicHz: 60

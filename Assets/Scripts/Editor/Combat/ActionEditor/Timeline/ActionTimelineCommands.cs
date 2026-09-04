@@ -18,6 +18,8 @@ public static class ActionTimelineCommands
         ActionTimelineTrackKind.Event => "actionEvents",
         ActionTimelineTrackKind.Animation => null,
         ActionTimelineTrackKind.PerfectDodgeWindow => "perfectDodgeWindowStates",
+        ActionTimelineTrackKind.AssistCue => "assistCueStates",
+        ActionTimelineTrackKind.AssistParryWindow => "assistParryWindowStates",
         ActionTimelineTrackKind.MotionModifier => "motionModifierStates",
         ActionTimelineTrackKind.MotionCommand => "motionCommandNotifies",
         ActionTimelineTrackKind.Camera => "cameraShotStates",
@@ -44,6 +46,8 @@ public static class ActionTimelineCommands
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Rotation);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Event);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.PerfectDodgeWindow);
+        anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.AssistCue);
+        anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.AssistParryWindow);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.MotionModifier);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.MotionCommand);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Camera);

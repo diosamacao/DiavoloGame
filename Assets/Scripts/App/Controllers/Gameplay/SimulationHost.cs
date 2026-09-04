@@ -9,8 +9,12 @@ public sealed class SimulationHost : AppControllerBase
 {
     readonly Dictionary<SimActorId, EnemyController> _enemyControllers = new();
     readonly Dictionary<SimActorId, NumericSystem> _numericByActor = new();
+    readonly Dictionary<SimActorId, CharacterReactionService> _reactionsByActor = new();
+    readonly Dictionary<SimActorId, CharacterActor> _actorsById = new();
+    readonly WorldAssistCueBoard _assistCues = new();
     readonly List<EnemyController> _enemyStepSnapshot = new();
     readonly List<ReplicatedHitEvent> _frameHits = new();
+    readonly List<SimActorId> _assistParryContacts = new();
 
     SimulationConfig _config;
     SimulationStepKernel _kernel;
@@ -30,6 +34,9 @@ public sealed class SimulationHost : AppControllerBase
 
     /// <summary>当前场景唯一命中收集与帧末结算流水线。</summary>
     public CombatHitPipeline CombatHits => _combatHits;
+
+    /// <summary>本帧敌人闪光窗；切人在 StepOnce 之前读上一拍结果。</summary>
+    public WorldAssistCueBoard AssistCues => _assistCues;
 
     /// <summary>场景共享静态碰撞世界；角色 MotorSim 必须使用同一实例。</summary>
     public ISimCollisionWorld CollisionWorld => _collisionWorld;
@@ -54,6 +61,9 @@ public sealed class SimulationHost : AppControllerBase
     /// <summary>本逻辑步已发布的权威命中（AfterLogicStep 内可读，步末清空）。</summary>
     public IReadOnlyList<ReplicatedHitEvent> FrameHits => _frameHits;
 
+    /// <summary>本步招架窗接触的玩家 Id；供本机预测镜像 Success，步末清空。</summary>
+    public IReadOnlyList<SimActorId> FrameAssistParryContacts => _assistParryContacts;
+
     void Awake()
     {
         _config = new SimulationConfig();
@@ -61,6 +71,7 @@ public sealed class SimulationHost : AppControllerBase
         _world = new SimulationWorld(_config);
         _combatHits = new CombatHitPipeline(PublishResolvedHit);
         _combatHits.BindNumericLookup(LookupNumeric);
+        _combatHits.BindAssistParryLookups(LookupReactions, LookupActor);
     }
 
     /// <summary>注册 Actor Numeric，供命中 Grant / 完美闪避武装。</summary>
@@ -84,6 +95,34 @@ public sealed class SimulationHost : AppControllerBase
         if (!actorId.IsValid)
             return null;
         return _numericByActor.TryGetValue(actorId, out NumericSystem numeric) ? numeric : null;
+    }
+
+    /// <summary>按权威 Id 取 ReactionService；未登记返回 null。</summary>
+    public CharacterReactionService LookupReactions(SimActorId actorId)
+    {
+        if (!actorId.IsValid)
+            return null;
+        return _reactionsByActor.TryGetValue(actorId, out CharacterReactionService service)
+            ? service
+            : null;
+    }
+
+    /// <summary>按权威 Id 取 Actor；未登记返回 null。</summary>
+    public CharacterActor LookupActor(SimActorId actorId)
+    {
+        if (!actorId.IsValid)
+            return null;
+        return _actorsById.TryGetValue(actorId, out CharacterActor actor) ? actor : null;
+    }
+
+    /// <summary>登记弹刀查找与 Cue 收集用的 Actor / Service。</summary>
+    public void RegisterCombatParticipant(CharacterActor actor, CharacterReactionService reactions)
+    {
+        if (actor == null || !actor.SimulationId.IsValid)
+            return;
+        _actorsById[actor.SimulationId] = actor;
+        if (reactions != null)
+            _reactionsByActor[actor.SimulationId] = reactions;
     }
 
     /// <summary>
@@ -112,8 +151,10 @@ public sealed class SimulationHost : AppControllerBase
         if (_world == null || _combatHits == null)
             return;
 
+        _assistCues.BeginFrame();
         _combatHits.BeginFrame(_world.CurrentFrame + 1);
         _world.Step();
+        CollectAssistCues();
         _combatHits.ResolveBeforePostCombat(_world.CurrentFrame);
         _world.ResolvePostCombat();
         _combatHits.CompleteFrame(_world.CurrentFrame);
@@ -121,6 +162,7 @@ public sealed class SimulationHost : AppControllerBase
         GetArchitecture().SendEvent(SimulationLogicStepEvent.Instance);
         AfterLogicStep?.Invoke(_world.CurrentFrame);
         _frameHits.Clear();
+        _assistParryContacts.Clear();
     }
 
     /// <summary>按 Input/Actor/Combat/PostCombat/Commit 单轨顺序推进本渲染帧内的全部逻辑步。</summary>
@@ -197,6 +239,8 @@ public sealed class SimulationHost : AppControllerBase
 
         _enemyControllers.Remove(registration.Id);
         UnregisterNumeric(registration.Id);
+        _reactionsByActor.Remove(registration.Id);
+        _actorsById.Remove(registration.Id);
         return _world.Unregister(registration);
     }
 
@@ -216,10 +260,21 @@ public sealed class SimulationHost : AppControllerBase
         }
     }
 
+    /// <summary>步进后收集仍生效的敌人闪光，供下一拍切人裁定。</summary>
+    void CollectAssistCues()
+    {
+        foreach (KeyValuePair<SimActorId, CharacterActor> pair in _actorsById)
+            pair.Value?.TryPublishAssistCue(_assistCues);
+    }
+
     /// <summary>把帧末只读命中结果发布给镜头、动画与 VFX 等表现订阅者。</summary>
     void PublishResolvedHit(ResolvedCombatHit hit)
     {
+        if (hit.AbsorbedByAssistParry && hit.Key.TargetId.IsValid)
+            _assistParryContacts.Add(hit.Key.TargetId);
+
         if (!hit.AbsorbedByPerfectDodge
+            && !hit.AbsorbedByAssistParry
             && hit.Key.AttackerId.IsValid
             && hit.Key.TargetId.IsValid)
         {

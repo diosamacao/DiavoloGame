@@ -9,6 +9,8 @@ public sealed class CombatHitPipeline
     readonly List<ResolvedCombatHit> _resolved = new();
     readonly Action<ResolvedCombatHit> _publishResolvedHit;
     Func<SimActorId, NumericSystem> _numericLookup;
+    Func<SimActorId, CharacterReactionService> _reactionLookup;
+    Func<SimActorId, CharacterActor> _actorLookup;
     long _collectingFrame = -1;
 
     /// <summary>创建帧末命中流水线；发布回调只能消费只读表现结果。</summary>
@@ -20,6 +22,15 @@ public sealed class CombatHitPipeline
     /// <summary>绑定攻击者/防御者 Numeric 查找，供 Grant 与完美闪避武装。</summary>
     public void BindNumericLookup(Func<SimActorId, NumericSystem> lookup) =>
         _numericLookup = lookup;
+
+    /// <summary>绑定攻击者 Reaction 与玩家 Actor，供招架窗 IssueParried / 切 Success。</summary>
+    public void BindAssistParryLookups(
+        Func<SimActorId, CharacterReactionService> reactions,
+        Func<SimActorId, CharacterActor> actors)
+    {
+        _reactionLookup = reactions;
+        _actorLookup = actors;
+    }
 
     /// <summary>开始收集下一逻辑帧；遗留事件会被清除，避免异常帧污染后续结算。</summary>
     public void BeginFrame(long frame)
@@ -100,20 +111,28 @@ public sealed class CombatHitPipeline
 
             ActionHitContext context = hit.Context;
 
-            // 完美闪避优先于普通无敌：吞伤、不 Grant、武装反击缓冲
-            if (hit.Target is IHitAbsorbQuery absorb && absorb.IsInPerfectDodgeWindow)
+            if (hit.Target is IHitAbsorbQuery absorb)
             {
-                _numericLookup?.Invoke(hit.Key.TargetId)?.ArmPerfectDodgeCounter();
-                hit.HitReceiver?.ConfirmHit(hit.Key.ActionInstanceId);
-                // 吞伤仍发布事件（相机等可订阅），但标记 PD 供受击 Cue 跳过
-                _resolved.Add(new ResolvedCombatHit(
-                    context,
-                    hit.TargetTransform,
-                    ResolveHitDirection(hit.Context.Attacker, hit.TargetTransform),
-                    hit.HitPoint,
-                    absorbedByPerfectDodge: true,
-                    hit.Key));
-                continue;
+                // 招架窗优先于完美闪避：窗内只走弹刀，不武装 PD。
+                if (absorb.IsInAssistParryWindow)
+                {
+                    ApplyAssistParry(in hit, in context);
+                    continue;
+                }
+
+                if (absorb.IsInPerfectDodgeWindow)
+                {
+                    _numericLookup?.Invoke(hit.Key.TargetId)?.ArmPerfectDodgeCounter();
+                    hit.HitReceiver?.ConfirmHit(hit.Key.ActionInstanceId);
+                    _resolved.Add(new ResolvedCombatHit(
+                        context,
+                        hit.TargetTransform,
+                        ResolveHitDirection(hit.Context.Attacker, hit.TargetTransform),
+                        hit.HitPoint,
+                        absorbedByPerfectDodge: true,
+                        hit.Key));
+                    continue;
+                }
             }
 
             if (hit.Target is IHitAbsorbQuery invuln && invuln.IsInvincible)
@@ -160,6 +179,31 @@ public sealed class CombatHitPipeline
         }
 
         _pending.Clear();
+    }
+
+    /// <summary>玩家吞伤、攻击者强制 Stun、武装突击；不 Grant、不对玩家 OnHit。</summary>
+    void ApplyAssistParry(in CombatHitEvent hit, in ActionHitContext context)
+    {
+        hit.HitReceiver?.ConfirmHit(hit.Key.ActionInstanceId);
+        CharacterReactionService attackerReactions = _reactionLookup?.Invoke(hit.Key.AttackerId);
+        attackerReactions?.IssueParried(in context);
+
+        CharacterActor player = _actorLookup?.Invoke(hit.Key.TargetId);
+        player?.NotifyAssistParryContact();
+
+        HitReactionKind reactionKind = attackerReactions != null
+            ? attackerReactions.LastConfirmedReactionKind
+            : HitReactionKind.LightStun;
+
+        _resolved.Add(new ResolvedCombatHit(
+            context,
+            hit.TargetTransform,
+            ResolveHitDirection(hit.Context.Attacker, hit.TargetTransform),
+            hit.HitPoint,
+            absorbedByPerfectDodge: false,
+            hit.Key,
+            reactionKind,
+            absorbedByAssistParry: true));
     }
 
     void ValidateFrame(long frame)

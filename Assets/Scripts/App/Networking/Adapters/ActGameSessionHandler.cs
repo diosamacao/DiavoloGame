@@ -47,9 +47,15 @@ public sealed class ActGameSessionHandler
         RemotePlayerSeat seat = gameObject.AddComponent<RemotePlayerSeat>();
         int count = loadout.Count;
         var occupied = new bool[count];
+        var assistStyles = new CharacterAssistStyle[count];
         for (int i = 0; i < count; i++)
+        {
             occupied[i] = loadout.Members[i] != null;
-        var coordinator = new PartyCombatCoordinator(occupied, loadout.StartingSlot);
+            assistStyles[i] = loadout.Members[i] != null
+                ? loadout.Members[i].AssistStyle
+                : CharacterAssistStyle.MeleeParry;
+        }
+        var coordinator = new PartyCombatCoordinator(occupied, loadout.StartingSlot, assistStyles);
         var members = new ActGameGuestMember[count];
 
         for (int i = 0; i < count; i++)
@@ -98,6 +104,12 @@ public sealed class ActGameSessionHandler
             actor.Enable();
             SimActorRegistration registration = host.RegisterPlayer(actor);
             host.RegisterNumeric(actor.SimulationId, actor.Numeric);
+            host.RegisterCombatParticipant(actor, reactions);
+            actor.ActionBegun += intent =>
+            {
+                if (intent == GameplayIntentType.Ultimate)
+                    coordinator.AssistPoints.Grant(PartyAssistPoints.UltimateGrant);
+            };
             _content.PrefillActions(config);
             members[i] = new ActGameGuestMember(
                 slotRoot.transform,
@@ -223,20 +235,57 @@ public sealed class ActGameGuest
     /// <summary>本逻辑步真正灌入的最新 Hint；无新命令时下行 0。</summary>
     public long AppliedHintThisTick { get; set; }
 
-    /// <summary>执行普通切人，把右侧落点、状态、SwitchIn 意图与 Seat 绑定原子切换。</summary>
+    /// <summary>按 Cue/点数裁定切人并应用 DualPresence 或 InstantReplace。</summary>
     public bool TryResolveSwitch()
     {
-        if (!Coordinator.TryResolveSwitchIn(out PartySwitchCommand command))
+        if (!Coordinator.TryResolveSwitch(BuildAssistQuery(), out PartySwitchCommand command))
             return false;
 
         ActGameGuestMember from = _members[command.FromSlot];
         ActGameGuestMember to = _members[command.ToSlot];
-        to.Actor.PlaceForNormalSwitchFrom(from.Actor);
-        from.Actor.BeginPartyExit();
-        to.Actor.SetPartyState(PartyMemberState.Active);
-        to.Actor.QueueExternalIntent(GameplayIntentType.SwitchIn);
+        if (command.Presentation == PartySwitchPresentation.InstantReplace)
+        {
+            from.Actor.SetPartyState(PartyMemberState.Inactive);
+            to.Actor.SetPartyState(PartyMemberState.Active);
+            if (command.CueOwnerId.IsValid)
+                to.Actor.ForceSelectTarget(command.CueOwnerId);
+            AssistCue cue = default;
+            CombatWorldController world = CombatWorldController.Current;
+            SimulationHost host = world != null ? world.SimulationHost : null;
+            host?.AssistCues.TryGetActive(command.CueOwnerId, out cue);
+            to.Actor.PlaceForAssistSwitchFrom(
+                from.Actor,
+                in cue,
+                PartySwitchApplication.UsesEvadeOffset(command.Kind));
+            to.Actor.QueueExternalIntent(PartySwitchApplication.ToIncomingIntent(command.Kind));
+        }
+        else
+        {
+            to.Actor.PlaceForNormalSwitchFrom(from.Actor);
+            from.Actor.BeginPartyExit();
+            to.Actor.SetPartyState(PartyMemberState.Active);
+            to.Actor.QueueExternalIntent(GameplayIntentType.SwitchIn);
+        }
+
         Seat.Bind(to.Actor, to.Root);
         return true;
+    }
+
+    /// <summary>读 Host CueBoard 与当前突击武装；锁定目标优先。</summary>
+    PartyAssistResolveQuery BuildAssistQuery()
+    {
+        CharacterActor active = Actor;
+        bool followUp = active != null && active.Numeric.Flags.HasAssistFollowUp;
+        SimActorId preferred = default;
+        if (active != null && active.TryGetSelectedTarget(out ITargetable target))
+            preferred = target.SimulationId;
+
+        CombatWorldController world = CombatWorldController.Current;
+        SimulationHost host = world != null ? world.SimulationHost : null;
+        if (host != null && host.AssistCues.TryGetActive(preferred, out AssistCue cue))
+            return new PartyAssistResolveQuery(true, cue.Kind, cue.RequiresRanged, followUp, cue.OwnerId);
+
+        return new PartyAssistResolveQuery(false, AssistCueKind.Gold, false, followUp);
     }
 
     /// <summary>帧末把已收完当前动作的 Exiting 成员转入后台。</summary>

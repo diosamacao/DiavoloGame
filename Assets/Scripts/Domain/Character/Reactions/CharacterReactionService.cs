@@ -2,6 +2,7 @@ using System;
 
 /// <summary>
 /// Vitality 边沿 → 档位裁定 → Actor。Flinch 不停招、不通知树；Stun+ / Death 走原路径。
+/// 被弹刀走 <see cref="IssueParried"/>，禁止复用冲击力对韧性。
 /// </summary>
 public sealed class CharacterReactionService : IDisposable
 {
@@ -34,11 +35,29 @@ public sealed class CharacterReactionService : IDisposable
         _vitality.Died += OnDied;
     }
 
+    /// <summary>最近一次 ConfirmHitReaction 档位；弹刀成功后供复制命中读取。</summary>
+    public HitReactionKind LastConfirmedReactionKind => _vitality.LastConfirmedReactionKind;
+
     /// <summary>解绑事件；角色销毁前必须调用。</summary>
     public void Dispose()
     {
         _vitality.HitReceived -= OnHitReceived;
         _vitality.Died -= OnDied;
+    }
+
+    /// <summary>
+    /// 被弹刀强制 Stun：0 伤、不走冲击力裁定、必须写 LightStun 边沿。
+    /// 前置：攻击者仍存活。
+    /// </summary>
+    public void IssueParried(in ActionHitContext context)
+    {
+        if (_vitality.IsDead)
+            return;
+
+        HitReactionCommand command = _resolver.ResolveParried();
+        _vitality.ConfirmHitReaction(command.Kind);
+        _hitSideEffect?.Invoke(context);
+        _actor.EnterHit(new CharacterReactionRequest(command.StunFrames, command.StunAction));
     }
 
     /// <summary>按 Command 分支：None/Flinch 不进 Hit；Stun+ 才 Notify + EnterHit。</summary>
