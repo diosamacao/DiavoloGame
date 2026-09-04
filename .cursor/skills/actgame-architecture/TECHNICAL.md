@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-09-04（受击 P-HR0～P-HR4 全计划 Play 已验收）
+> Last updated: 2026-09-04（P-SW2 接触弹刀代码已接，Play 待验）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -8,6 +8,7 @@
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
 | 三人阵容 / 单键换人 | 🟡 P-SW1 运行时/权威代码完成，Editor 验收待办 | `PartyLoadout`、`PartyCombatCoordinator`、`ActGameGuest` | 空格已进 Input Actions；需各角色 Graph 配 `SwitchIn/SwitchOut` Entry |
+| 极限支援 / 接触弹刀 | 🟡 P-SW2 代码已接，Play 待验 | `WorldAssistCueBoard`、`IssueParried`、`AssistParry`/`AssistParrySuccess` | 敌人 Cue 轨 + 玩家 Guard/Success/突击 Entry |
 | Wave4 位移（Adhesion / SoftBody / Relocate） | ✅ 已实现（吸附已验收；Relocate 已接线） | `ActionMotionAdhesion` + `ActionMotionResolver` + Bridge | Branch_02 吸附已配；Relocate 按需加 MotionCommand 轨；相机不在本 Wave |
 | 命中受击 Cue（VFX/SFX） | ✅ 已实现（A2 打击感验收 2026-08-09） | `HitImpactController` + `HitFeedbackSettings` | 接触点落点 + 随机旋转；普攻 Cue 已验 |
 | 逻辑 Hurtbox 调试线框 | ✅ 已实现 | `CombatHurtboxDebugSettings` + `CombatHurtboxDebugVisualizer` | F4 开关（F3 HUD 显示状态） |
@@ -99,7 +100,7 @@ ActClientRoomGameplay.StepPrediction
 - 原 Action 没有 Recovery Phase 时，等其自然结束后再切 `SwitchOut`，避免在 Startup/Active 中硬掐。
 - `SwitchOut` 必须配置 Recovery Phase；缺失时角色不会被静默隐藏，便于暴露资产错误。
 - 本轮已通过解决方案编译；Unity Test Runner 与 Listen Play 尚未验收，因此功能状态仍为 🟡。
-- P-SW2 金光、支援点、招架/回避支援尚未实现。
+- P-SW2 代码已接（Cue / 点数 / Guard→Success / `IssueParried` / 突击派生）；Graph 与 Timeline 资产、Play 验收未做。
 
 ### 相关文件
 
@@ -113,6 +114,67 @@ ActClientRoomGameplay.StepPrediction
 - `Assets/Scripts/Domain/Networking/ActReplicationApplicationPayload*.cs`
 - `Assets/Scripts/Domain/Simulation/Input/InputButton.cs`
 - `Assets/Scripts/Infrastructure/Input/InputReader.cs`
+- `docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`
+
+---
+
+## 0.1 极限支援 / 接触弹刀（P-SW2）
+
+### 功能说明
+
+金光窗内切近战：下场当帧消失，上场先播 `AssistParry` Guard（举刀、无敌、接触窗，无 clang）。敌人 Active Hitbox 打中该窗后，玩家切 `AssistParrySuccess`（clang）并武装支援突击；攻击者强制进现有 `HitState`。0 点或类型不匹配按红光换人闪。远程上场走 `AssistEvade`。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 闪光 | 敌人 Timeline `AssistCueNotifyState`（Gold/Red、`requiresRanged`、弹刀/回避偏移）；`WorldAssistCueBoard` 步进后收集，切人读上一拍 |
+| 支援点 | `PartyAssistPoints`：上限 6、开局 3、极限支援耗 1、Ult 起手 +3 |
+| 裁定 | `PartyCombatCoordinator.TryResolveSwitch`：无 Cue → DualPresence；Gold 且能花 → InstantReplace + 扣点；0 点 / 远程点名不匹配 → Red `SwitchPerfectDodge`；突击武装中拒绝 |
+| 上场意图 | `PartySwitchApplication`：`AssistParry` / `AssistEvade` / `SwitchPerfectDodge`；不播 SwitchIn/Out |
+| 接触 | `IHitAbsorbQuery.IsInAssistParryWindow`；管道优先于 PD 与无敌：玩家不 OnHit，攻击者 `IssueParried` |
+| 被弹刀 | `ResolveParried()` 固定 LightStun + `CharacterReactionType.Parried` 片子；`ConfirmHitReaction(LightStun)`；禁止冲击力裁定 / Flinch / `HitReactionKind.Parried` |
+| 突击 | `Flags.ArmAssistFollowUp`；Producer 攻击族 Pressed 优先于 PD 派生 `AssistFollowUp`；切人当帧不武装 |
+
+### 关键参数
+
+| 参数 | 值 |
+|------|-----|
+| 支援点 | Max 6 / Starting 3 / Cost 1 / Ult +3 |
+| 突击窗 | 复用 `CharacterNumericConfig.PerfectDodgeCounterFrames`（默认 45） |
+| Success 取消优先级 | 96（高于 Guard 92、突击 94） |
+
+### 运行时流程
+
+```text
+SwitchCharacter
+  → Coordinator.TryResolveSwitch(上一拍 Cue + Points + Style)
+  → InstantReplace：旧 Inactive，新 ForceSelect(Cue 敌人) + Queue AssistParry
+敌人 Hitbox → Pipeline.IsInAssistParryWindow
+  → IssueParried → ConfirmHitReaction(LightStun) → EnterHit
+  → NotifyAssistParryContact → ArmAssistFollowUp + 排队 AssistParrySuccess
+下一帧 TryPriorityInterrupt → AssistParrySuccess
+攻击键 → Producer AssistFollowUp
+```
+
+### 已知限制
+
+- Guard / Success / AssistFollowUp / 敌人 Cue / `Parried` 反应片均需 Editor 配资产；Agent 不改 `Assets/Data/**`
+- 接触成功后 Success 可能晚一帧（`QueueExternalIntent` 下一次 Step 才进 buffer）
+- P-SW3 击飞快速支援、P-SW4 连携 +1、P-SW5 Cue/点数复制未做
+- 禁止 `Time.timeScale`；回避支援极限视域未接
+- 不宣称公网
+
+### 相关文件
+
+- `Assets/Scripts/Domain/Simulation/Party/WorldAssistCueBoard.cs`
+- `Assets/Scripts/Domain/Simulation/Party/PartyAssistPoints.cs`
+- `Assets/Scripts/Domain/Character/Reactions/CharacterReactionService.cs`
+- `Assets/Scripts/Domain/Combat/Hitbox/CombatHitPipeline.cs`
+- `Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/AssistCueNotifyState.cs`
+- `Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/AssistParryWindowNotifyState.cs`
+- `Assets/Tests/EditMode/Simulation/PartyAssistResolveTests.cs`
+- `Assets/Tests/Editor/Combat/AssistParryPipelineTests.cs`
 - `docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`
 
 ---
@@ -1612,6 +1674,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-09-02 | 修复 Observer 二次登场残留：远端角色隐藏前回收所属 VFX；重新显形时清空退场前插值历史并直接落到当前权威位置 |
 | 2026-09-02 | 本机阵容生命周期接入同一可见性清理接口：`CharacterActor` 转入 Inactive/Dead/Empty 前回收所属 VFX，避免本机再次 SwitchIn 时复活旧特效 |
 | 2026-09-02 | 修复 P-SW1 后敌人感知根停在出生点：`RemotePlayerSeat` 使用稳定锚点并在普通切人时重挂到当前权威槽位根 |
+| 2026-09-04 | P-SW2 代码已接：两条 Action（Guard + Success）、Cue/点数、`IssueParried`、突击派生；Play 待验 |
 | 2026-09-04 | 受击 P-HR0～P-HR4 全计划 Play 验收关闭；Listen 客机 Flinch Additive 已验 |
 | 2026-09-03 | 受击档改为冲击力对韧性；删除 `desiredReaction`；不足 Flinch，持平起 LightStun |
 | 2026-09-03 | P-HR3：`baseInterruptResist` + Phase `interruptResistBonus` 进 Service；OnValidate/菜单只补空字段；轻击 Play 已验 |

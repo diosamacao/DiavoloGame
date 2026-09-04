@@ -11,7 +11,8 @@ public readonly struct ResolvedCombatHit
         Vector3 hitPoint,
         bool absorbedByPerfectDodge = false,
         SimHitKey key = default,
-        HitReactionKind reactionKind = HitReactionKind.None)
+        HitReactionKind reactionKind = HitReactionKind.None,
+        bool absorbedByAssistParry = false)
     {
         Context = context;
         TargetTransform = targetTransform;
@@ -20,6 +21,7 @@ public readonly struct ResolvedCombatHit
         AbsorbedByPerfectDodge = absorbedByPerfectDodge;
         Key = key;
         ReactionKind = reactionKind;
+        AbsorbedByAssistParry = absorbedByAssistParry;
     }
 
     /// <summary>已成功结算的命中上下文。</summary>
@@ -42,4 +44,7 @@ public readonly struct ResolvedCombatHit
 
     /// <summary>Service 裁定后的受击档；供复制事件与 HUD。</summary>
     public HitReactionKind ReactionKind { get; }
+
+    /// <summary>招架窗吞伤：玩家不播受击 Cue；clang 在 Success Timeline。</summary>
+    public bool AbsorbedByAssistParry { get; }
 }

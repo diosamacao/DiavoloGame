@@ -212,6 +212,8 @@ public class PlayerController : AppControllerBase, ILocalPlayer
             return;
 
         _inputSampler?.Disable();
+        if (simulationHost != null)
+            simulationHost.AfterLogicStep -= OnAssistParryAuthorityContact;
         for (int i = 0; i < _partyActors.Length; i++)
             _partyActors[i]?.Dispose();
         _partyActors = Array.Empty<CharacterActor>();
@@ -254,24 +256,65 @@ public class PlayerController : AppControllerBase, ILocalPlayer
         }
     }
 
-    /// <summary>客户端预测一次普通切人；新角色落到旧角色局部右侧并排队 SwitchIn。</summary>
+    /// <summary>客户端预测一次切人；有 Cue 时 InstantReplace，否则 DualPresence。</summary>
     public bool TryPredictPartySwitch(long frameIndex)
     {
         if (_partyCoordinator == null
-            || !_partyCoordinator.TryResolveSwitchIn(out PartySwitchCommand command))
+            || !_partyCoordinator.TryResolveSwitch(BuildAssistQuery(), out PartySwitchCommand command))
         {
             return false;
         }
 
         CharacterActor from = _partyActors[command.FromSlot];
         CharacterActor to = _partyActors[command.ToSlot];
-        to.PlaceForNormalSwitchFrom(from);
-        from.BeginPartyExit();
-        to.SetPartyState(PartyMemberState.Active);
-        to.QueueExternalIntent(GameplayIntentType.SwitchIn);
+        if (command.Presentation == PartySwitchPresentation.InstantReplace)
+        {
+            from.SetPartyState(PartyMemberState.Inactive);
+            to.SetPartyState(PartyMemberState.Active);
+            if (command.CueOwnerId.IsValid)
+                to.ForceSelectTarget(command.CueOwnerId);
+            AssistCue cue = default;
+            simulationHost?.AssistCues.TryGetActive(command.CueOwnerId, out cue);
+            to.PlaceForAssistSwitchFrom(
+                from,
+                in cue,
+                PartySwitchApplication.UsesEvadeOffset(command.Kind));
+            to.QueueExternalIntent(PartySwitchApplication.ToIncomingIntent(command.Kind));
+        }
+        else
+        {
+            to.PlaceForNormalSwitchFrom(from);
+            from.BeginPartyExit();
+            to.SetPartyState(PartyMemberState.Active);
+            to.QueueExternalIntent(GameplayIntentType.SwitchIn);
+        }
+
         _predictedSwitchFrame = frameIndex;
         _facingDebugVisualizer?.Bind(to);
         return true;
+    }
+
+    /// <summary>读本机 Host CueBoard；远端客机无 Cue 时退回普通切。</summary>
+    PartyAssistResolveQuery BuildAssistQuery()
+    {
+        CharacterActor active = Actor;
+        bool followUp = active != null && active.Numeric.Flags.HasAssistFollowUp;
+        SimActorId preferred = default;
+        if (active != null && active.TryGetSelectedTarget(out ITargetable target))
+            preferred = target.SimulationId;
+
+        if (simulationHost != null
+            && simulationHost.AssistCues.TryGetActive(preferred, out AssistCue cue))
+        {
+            return new PartyAssistResolveQuery(
+                true,
+                cue.Kind,
+                cue.RequiresRanged,
+                followUp,
+                cue.OwnerId);
+        }
+
+        return new PartyAssistResolveQuery(false, AssistCueKind.Gold, false, followUp);
     }
 
     /// <summary>推进本机全部非空槽；只有 Active 槽接收当帧玩家输入。</summary>
@@ -372,8 +415,33 @@ public class PlayerController : AppControllerBase, ILocalPlayer
         CombatWorldController combatWorld = EnsureCombatWorldController();
         simulationHost = combatWorld != null ? combatWorld.EnsureSimulationHost() : null;
         BuildPartyActors(reader);
+        if (simulationHost != null)
+        {
+            simulationHost.AfterLogicStep -= OnAssistParryAuthorityContact;
+            simulationHost.AfterLogicStep += OnAssistParryAuthorityContact;
+        }
+
         GetSystem<LocalPlayerService>()?.Register(this, isLocalOwner: true);
         EnsureFacingDebugVisualizer();
+    }
+
+    /// <summary>权威招架接触后镜像到本机预测 Actor，否则镜头跟着的 Guard 不会切 Success。</summary>
+    void OnAssistParryAuthorityContact(long _)
+    {
+        if (simulationHost == null)
+            return;
+
+        IReadOnlyList<SimActorId> contacts = simulationHost.FrameAssistParryContacts;
+        for (int c = 0; c < contacts.Count; c++)
+        {
+            SimActorId id = contacts[c];
+            for (int i = 0; i < _partyActors.Length; i++)
+            {
+                CharacterActor member = _partyActors[i];
+                if (member != null && member.SimulationId.Equals(id))
+                    member.NotifyAssistParryContact();
+            }
+        }
     }
 
     /// <summary>按槽位创建独立运行时根和 Actor，并将空槽传给纯协调器。</summary>
@@ -383,9 +451,15 @@ public class PlayerController : AppControllerBase, ILocalPlayer
         _partyActors = new CharacterActor[count];
         _partyRoots = new GameObject[count];
         var occupied = new bool[count];
+        var assistStyles = new CharacterAssistStyle[count];
         for (int i = 0; i < count; i++)
+        {
             occupied[i] = partyLoadout.Members[i] != null;
-        _partyCoordinator = new PartyCombatCoordinator(occupied, partyLoadout.StartingSlot);
+            assistStyles[i] = partyLoadout.Members[i] != null
+                ? partyLoadout.Members[i].AssistStyle
+                : CharacterAssistStyle.MeleeParry;
+        }
+        _partyCoordinator = new PartyCombatCoordinator(occupied, partyLoadout.StartingSlot, assistStyles);
 
         for (int i = 0; i < count; i++)
         {
@@ -412,8 +486,16 @@ public class PlayerController : AppControllerBase, ILocalPlayer
                 null,
                 ReplicationSeat.Autonomous);
             member.SetPartyState(_partyCoordinator.States[i]);
+            member.ActionBegun += OnPartyActionBegun;
             _partyActors[i] = member;
         }
+    }
+
+    /// <summary>本机预测：终结技起手回复支援点，与权威同一口袋规则。</summary>
+    void OnPartyActionBegun(GameplayIntentType intent)
+    {
+        if (intent == GameplayIntentType.Ultimate)
+            _partyCoordinator?.AssistPoints.Grant(PartyAssistPoints.UltimateGrant);
     }
 
     /// <summary>玩家装配前确保场景存在统一战斗世界入口并返回该入口。</summary>

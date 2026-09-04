@@ -204,7 +204,10 @@ public sealed class EnemyController : AppControllerBase
 
         _simulationRegistration = _simulationHost.RegisterEnemy(_handle, this);
         if (_handle?.Actor != null)
+        {
             _simulationHost.RegisterNumeric(_handle.Actor.SimulationId, _handle.Actor.Numeric);
+            _simulationHost.RegisterCombatParticipant(_handle.Actor, _handle.Reactions);
+        }
         _handle?.Target?.SetNumericLookup(_simulationHost.LookupNumeric);
     }
 

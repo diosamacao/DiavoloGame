@@ -275,6 +275,14 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
     public bool IsPerfectDodgeWindowActiveAtFrame(int frame) =>
         Timeline.IsPerfectDodgeWindowActiveAtFrame(frame);
 
+    /// <summary>指定帧是否处于招架接触窗。</summary>
+    public bool IsAssistParryWindowActiveAtFrame(int frame) =>
+        Timeline.IsAssistParryWindowActiveAtFrame(frame);
+
+    /// <summary>指定帧是否有极限支援闪光；供 CueBoard 收集。</summary>
+    public bool TryGetAssistCueAtFrame(int frame, out AssistCueNotifyState cue) =>
+        Timeline.TryGetAssistCueAtFrame(frame, out cue);
+
     /// <summary>
     /// 指定帧是否允许高优硬打断。
     /// 无三相窗口覆盖时默认可打断；有覆盖时任一 Interruptible 即可；Invincible/SuperArmor 不参与。

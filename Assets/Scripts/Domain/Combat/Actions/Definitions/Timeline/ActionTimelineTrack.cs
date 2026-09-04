@@ -22,6 +22,10 @@ public enum ActionTimelineTrackKind
     MotionCommand = 12,
     /// <summary>纯表现镜头区间；CameraShotPlayer 消费，ActionSim 不执行。</summary>
     Camera = 13,
+    /// <summary>敌人进攻闪光：只裁定切人 kind。</summary>
+    AssistCue = 14,
+    /// <summary>玩家招架 Guard 接触窗：窗内被命中则弹刀成功。</summary>
+    AssistParryWindow = 15,
 }
 
 /// <summary>时间轴轨道描述；允许空轨存在，窗口通过 trackName 归属到轨。</summary>

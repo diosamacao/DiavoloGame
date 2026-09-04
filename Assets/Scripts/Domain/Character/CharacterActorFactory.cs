@@ -123,7 +123,7 @@ public static class CharacterActorFactory
         var resourceGate = new NumericCostGate(numeric);
         // Bridge 需 Gate 做同键 EX 选形；ActionSim 再用同一 Gate 扣费
         var resolverBridge = new ActionSimResolverBridge(resolverService, root, motor, resourceGate);
-        // Begin 成功清完美反击缓冲（含 Cancel/硬打断起手）
+        // Begin 成功清完美反击 / 支援突击缓冲（含 Cancel/硬打断起手）
         actionSim = new ActionSim(
             resolverBridge,
             intentBuffer,
@@ -132,6 +132,9 @@ public static class CharacterActorFactory
             {
                 if (intent == GameplayIntentType.PerfectDodgeAttack)
                     numeric.ClearPerfectDodgeCounter();
+                if (intent == GameplayIntentType.AssistFollowUp)
+                    numeric.ClearAssistFollowUp();
+                actor?.NotifyActionBegun(intent);
             });
         context.ActionSim = actionSim;
 
@@ -142,7 +145,8 @@ public static class CharacterActorFactory
             stateMachine,
             locomotionStateMachine,
             actionSim,
-            hasPerfectDodgeCounter: () => numeric.Flags.HasPerfectDodgeCounter);
+            hasPerfectDodgeCounter: () => numeric.Flags.HasPerfectDodgeCounter,
+            hasAssistFollowUp: () => numeric.Flags.HasAssistFollowUp);
 
         Transform defaultAttach = headless
             ? root

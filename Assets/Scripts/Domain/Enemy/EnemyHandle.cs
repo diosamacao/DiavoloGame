@@ -50,6 +50,8 @@ public sealed class EnemyHandle :
     public ActionSim ActionSim { get; }
     public CharacterAnimationService Animation { get; }
     public CharacterHurtboxTarget Target { get; }
+    /// <summary>受击裁定服务；供招架窗对攻击者 IssueParried。</summary>
+    public CharacterReactionService Reactions => _reactionService;
     public EnemyDefinition Definition => _definition;
     public EnemyBrainState BrainState => _brain.State;
     /// <summary>BT 调试：上一帧 Runner 状态。</summary>

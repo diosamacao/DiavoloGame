@@ -15,6 +15,10 @@ public class ActionTimeline
     [SerializeField] ActionPhaseNotifyState[] phaseStates = Array.Empty<ActionPhaseNotifyState>();
     [SerializeField] PerfectDodgeWindowNotifyState[] perfectDodgeWindowStates =
         Array.Empty<PerfectDodgeWindowNotifyState>();
+    [SerializeField] AssistCueNotifyState[] assistCueStates =
+        Array.Empty<AssistCueNotifyState>();
+    [SerializeField] AssistParryWindowNotifyState[] assistParryWindowStates =
+        Array.Empty<AssistParryWindowNotifyState>();
     [SerializeField] MovementNotifyState[] movementStates = Array.Empty<MovementNotifyState>();
     [SerializeField] RotationNotifyState[] rotationStates = Array.Empty<RotationNotifyState>();
     [SerializeField] MotionModifierNotifyState[] motionModifierStates = Array.Empty<MotionModifierNotifyState>();
@@ -64,6 +68,14 @@ public class ActionTimeline
     /// <summary>完美闪避窗口列表（通常挂在 Dodge Action）。</summary>
     public PerfectDodgeWindowNotifyState[] PerfectDodgeWindowStates =>
         perfectDodgeWindowStates ?? Array.Empty<PerfectDodgeWindowNotifyState>();
+
+    /// <summary>敌人进攻闪光窗。</summary>
+    public AssistCueNotifyState[] AssistCueStates =>
+        assistCueStates ?? Array.Empty<AssistCueNotifyState>();
+
+    /// <summary>玩家招架接触窗。</summary>
+    public AssistParryWindowNotifyState[] AssistParryWindowStates =>
+        assistParryWindowStates ?? Array.Empty<AssistParryWindowNotifyState>();
 
     /// <summary>脚本位移区间列表。</summary>
     public MovementNotifyState[] MovementStates => movementStates ?? Array.Empty<MovementNotifyState>();
@@ -180,6 +192,18 @@ public class ActionTimeline
                 yield return state;
         }
 
+        foreach (AssistCueNotifyState state in AssistCueStates)
+        {
+            if (state != null)
+                yield return state;
+        }
+
+        foreach (AssistParryWindowNotifyState state in AssistParryWindowStates)
+        {
+            if (state != null)
+                yield return state;
+        }
+
         foreach (MovementNotifyState state in MovementStates)
         {
             if (state != null)
@@ -269,6 +293,37 @@ public class ActionTimeline
         }
 
         return false;
+    }
+
+    /// <summary>指定帧是否处于招架接触窗内。</summary>
+    public bool IsAssistParryWindowActiveAtFrame(int frame)
+    {
+        foreach (AssistParryWindowNotifyState state in AssistParryWindowStates)
+        {
+            if (state != null && state.IsActiveAtFrame(frame))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>指定帧生效的闪光窗；重叠时优先 Gold，再比 Priority。</summary>
+    public bool TryGetAssistCueAtFrame(int frame, out AssistCueNotifyState cue)
+    {
+        cue = null;
+        foreach (AssistCueNotifyState state in AssistCueStates)
+        {
+            if (state == null || !state.IsActiveAtFrame(frame))
+                continue;
+            if (cue == null
+                || (state.Kind == AssistCueKind.Gold && cue.Kind != AssistCueKind.Gold)
+                || state.Priority > cue.Priority)
+            {
+                cue = state;
+            }
+        }
+
+        return cue != null;
     }
 
     /// <summary>查询指定帧的最高优先级脚本位移窗口。</summary>

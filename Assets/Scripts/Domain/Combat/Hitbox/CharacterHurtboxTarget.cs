@@ -69,10 +69,13 @@ public sealed class CharacterHurtboxTarget : ITargetable, IHitAbsorbQuery
     public HitReactionKind LastConfirmedReactionKind => _vitality.LastConfirmedReactionKind;
 
     /// <inheritdoc />
-    public bool IsInvincible => QueryDefensiveWindow(perfectDodge: false);
+    public bool IsInvincible => QueryDefensiveWindow(DefensiveWindowKind.Invincible);
 
     /// <inheritdoc />
-    public bool IsInPerfectDodgeWindow => QueryDefensiveWindow(perfectDodge: true);
+    public bool IsInPerfectDodgeWindow => QueryDefensiveWindow(DefensiveWindowKind.PerfectDodge);
+
+    /// <inheritdoc />
+    public bool IsInAssistParryWindow => QueryDefensiveWindow(DefensiveWindowKind.AssistParry);
 
     /// <inheritdoc />
     public HitboxOrientedBox GetLogicalHurtbox()
@@ -99,7 +102,14 @@ public sealed class CharacterHurtboxTarget : ITargetable, IHitAbsorbQuery
         _vitality.ApplyDamage(damage, in context);
     }
 
-    bool QueryDefensiveWindow(bool perfectDodge)
+    enum DefensiveWindowKind
+    {
+        Invincible,
+        PerfectDodge,
+        AssistParry,
+    }
+
+    bool QueryDefensiveWindow(DefensiveWindowKind kind)
     {
         if (_actionSim == null || !_actionSim.IsActive)
             return false;
@@ -108,8 +118,14 @@ public sealed class CharacterHurtboxTarget : ITargetable, IHitAbsorbQuery
         if (snap.Content is not ActionDefinition action)
             return false;
 
-        return perfectDodge
-            ? action.IsPerfectDodgeWindowActiveAtFrame(snap.CurrentFrame)
-            : action.IsInvincibleAtFrame(snap.CurrentFrame);
+        switch (kind)
+        {
+            case DefensiveWindowKind.PerfectDodge:
+                return action.IsPerfectDodgeWindowActiveAtFrame(snap.CurrentFrame);
+            case DefensiveWindowKind.AssistParry:
+                return action.IsAssistParryWindowActiveAtFrame(snap.CurrentFrame);
+            default:
+                return action.IsInvincibleAtFrame(snap.CurrentFrame);
+        }
     }
 }

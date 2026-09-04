@@ -41,4 +41,19 @@ public enum GameplayIntentType
 
     /// <summary>普通退场时由座位协调器注入；角色在该动作首次进入 Recovery 后隐藏。</summary>
     SwitchOut = 11,
+
+    /// <summary>金光近战极限支援：上场 Guard（举刀），不由攻击键产生。</summary>
+    AssistParry = 12,
+
+    /// <summary>敌人 Hitbox 接触 Guard 窗后切成功段；不由切人键产生。</summary>
+    AssistParrySuccess = 13,
+
+    /// <summary>金光远程极限支援：上场回避 Guard。</summary>
+    AssistEvade = 14,
+
+    /// <summary>红光或降级：换人极限闪避。</summary>
+    SwitchPerfectDodge = 15,
+
+    /// <summary>接触成功后武装，攻击族按键派生支援突击。</summary>
+    AssistFollowUp = 16,
 }

@@ -57,6 +57,19 @@ public sealed class HitReactionResolverTests
             Is.EqualTo(HitReactionKind.Launch));
     }
 
+    /// <summary>被弹刀固定 LightStun，不走冲击力对韧性，也不被 SuperArmor 压成 Flinch。</summary>
+    [Test]
+    public void ResolveParried_AlwaysLightStun()
+    {
+        HitReactionCommand command = _resolver.ResolveParried();
+        Assert.That(command.Kind, Is.EqualTo(HitReactionKind.LightStun));
+        Assert.That(command.InterruptsAction, Is.True);
+        Assert.That(command.StunFrames, Is.EqualTo(new CharacterReactionSet().DefaultHitStunFrames));
+        Assert.That(
+            CharacterReactionResolver.ResolveKind(1, 99, superArmor: true),
+            Is.EqualTo(HitReactionKind.Flinch));
+    }
+
     /// <summary>SuperArmor 窗非致命最多 Flinch。</summary>
     [Test]
     public void SuperArmor_NonDeath_CapsAtFlinch()

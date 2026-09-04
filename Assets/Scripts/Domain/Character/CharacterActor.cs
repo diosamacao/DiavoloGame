@@ -190,6 +190,10 @@ public sealed class CharacterActor :
     public bool TryGetSelectedTarget(out ITargetable target) =>
         _targetingState.TryGetSelectedTarget(out target);
 
+    /// <summary>InstantReplace 上场钉死闪光敌人，供 Guard frame 0 Relocate / SnapFacing。</summary>
+    public void ForceSelectTarget(SimActorId targetId) =>
+        _targetingState.ForceSelect(targetId);
+
     /// <summary>L-DIR3：Locomotion 是否处于 FaceTarget（仅 Profile 声明）；相机跟朝向应关闭。</summary>
     public bool IsLocomotionFaceTargetActive => _stateMachine.IsLocomotionFaceTargetActive;
 
@@ -201,6 +205,9 @@ public sealed class CharacterActor :
 
     /// <summary>当前阵容槽状态；非 Party 角色默认保持 Active。</summary>
     public PartyMemberState PartyState => _partyState;
+
+    /// <summary>招式起手成功；座位用它给 Ult 支援点，不写 Action 权威。</summary>
+    public event Action<GameplayIntentType> ActionBegun;
 
     /// <summary>
     /// 当前退场条件是否满足：已启动的 SwitchOut 自身进入 Recovery。
@@ -483,6 +490,77 @@ public sealed class CharacterActor :
         if (_queuedExternalIntent != GameplayIntentType.None)
             throw new InvalidOperationException("同一 Actor 已有待处理的外部意图。");
         _queuedExternalIntent = intent;
+    }
+
+    /// <summary>招架窗接触：武装突击并排队 Success。切人当帧不得调用。</summary>
+    public void NotifyAssistParryContact()
+    {
+        _numeric.ArmAssistFollowUp();
+        if (_queuedExternalIntent == GameplayIntentType.None
+            || _queuedExternalIntent == GameplayIntentType.AssistParry)
+        {
+            _queuedExternalIntent = GameplayIntentType.AssistParrySuccess;
+        }
+    }
+
+    /// <summary>当前 Action 若在闪光窗则写入 CueBoard。</summary>
+    public bool TryPublishAssistCue(WorldAssistCueBoard board)
+    {
+        if (board == null || _actionSim == null || !_actionSim.IsActive)
+            return false;
+        if (_actionSim.Snapshot.Content is not ActionDefinition action)
+            return false;
+        if (!action.TryGetAssistCueAtFrame(_actionSim.CurrentFrame, out AssistCueNotifyState state))
+            return false;
+
+        Vector3 parry = state.ParryLocalOffsetMm;
+        Vector3 evade = state.EvadeLocalOffsetMm;
+        board.Publish(new AssistCue(
+            SimulationId,
+            state.Kind,
+            state.RequiresRanged,
+            state.RemainingFramesAt(_actionSim.CurrentFrame),
+            Mathf.RoundToInt(parry.x),
+            Mathf.RoundToInt(parry.y),
+            Mathf.RoundToInt(parry.z),
+            Mathf.RoundToInt(evade.x),
+            Mathf.RoundToInt(evade.y),
+            Mathf.RoundToInt(evade.z)));
+        return true;
+    }
+
+    /// <summary>ActionSim 起手回调；由工厂闭包调用。</summary>
+    public void NotifyActionBegun(GameplayIntentType intent) =>
+        ActionBegun?.Invoke(intent);
+
+    /// <summary>
+    /// InstantReplace 上场：先落到旧角色位置，有 Cue 再经碰撞挪到弹刀/回避点。
+    /// 后台角色不会跟着当前角色走，禁止仍停在出生点再靠 Adhesion 远距离拉。
+    /// </summary>
+    public void PlaceForAssistSwitchFrom(CharacterActor outgoing, in AssistCue cue, bool evade)
+    {
+        if (outgoing == null)
+            throw new ArgumentNullException(nameof(outgoing));
+
+        CharacterMotorSim outgoingMotor = outgoing.MotorSim;
+        SimVec2 from = outgoingMotor.PositionMm;
+        _motor.Sim.TeleportMm(from.X, outgoingMotor.YMm, from.Z);
+
+        if (cue.IsValid && _targetingState.TryGetSelectedCombatPose(out SimCombatPose pose))
+        {
+            Vector3 localM = new(
+                MotionQuantization.MmToMeters(evade ? cue.EvadeLocalXMm : cue.ParryLocalXMm),
+                0f,
+                MotionQuantization.MmToMeters(evade ? cue.EvadeLocalZMm : cue.ParryLocalZMm));
+            Vector3 world = pose.TransformPoint(localM);
+            int desiredX = MotionQuantization.MetersToMm(world.x);
+            int desiredZ = MotionQuantization.MetersToMm(world.z);
+            _motor.Sim.TryMoveWorldMm(desiredX - from.X, desiredZ - from.Z);
+        }
+
+        AlignSwitchFacing(outgoingMotor.FacingMilliDeg);
+        AlignSimulationRootToMotor();
+        SnapPresentationToSimulation();
     }
 
     /// <summary>

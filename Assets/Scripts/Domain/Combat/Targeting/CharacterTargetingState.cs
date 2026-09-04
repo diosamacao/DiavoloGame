@@ -11,6 +11,7 @@ public sealed class CharacterTargetingState
     readonly Func<IReadOnlyList<IHurtboxTarget>> _targetsProvider;
     readonly List<SimTargetCandidate> _candidateScratch = new(16);
     SimActorId _selectedTargetId;
+    bool _holdForcedSelection;
 
     /// <summary>创建目标状态；范围单位为毫米。</summary>
     public CharacterTargetingState(
@@ -32,12 +33,28 @@ public sealed class CharacterTargetingState
     /// <summary>阵营 Id，供复制快照填写。</summary>
     public int TeamId => _teamId;
 
+    /// <summary>
+    /// 钉死 SelectedTarget 一帧，避免 InstantReplace 上场第一步按旧位置重选，导致 Guard Relocate 丢闪光敌人。
+    /// </summary>
+    public void ForceSelect(SimActorId targetId)
+    {
+        _selectedTargetId = targetId;
+        _holdForcedSelection = targetId.IsValid;
+    }
+
     /// <summary>在动作解析前推进自动选择与左右切敌；Action/Locomotion 共用同一规则。</summary>
     public void Step(
         SimActorId requesterId,
         CharacterMotorSim requesterMotor,
         in InputFrame inputFrame)
     {
+        if (_holdForcedSelection)
+        {
+            // InstantReplace 当帧保留 Cue 敌人，供 Guard Relocate；下一帧恢复自动索敌。
+            _holdForcedSelection = false;
+            return;
+        }
+
         if (!requesterId.IsValid || requesterMotor == null)
         {
             _selectedTargetId = SimActorId.Invalid;

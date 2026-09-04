@@ -456,22 +456,22 @@ QuickAssist         → InstantReplace
 
 **任务**
 
-- [ ] 敌人 Timeline 新窗口 `AssistCueNotifyState`：`Gold` / `Red`、`requiresRanged`、持续帧、`parryLocalOffsetMm` / `evadeLocalOffsetMm`  
-- [ ] `WorldAssistCueBoard`：权威帧收集当前窗（按 `SimActorId` 稳定）  
-- [ ] 队共享 `AssistPoints`（上限 6，开局 3）；扣费只在 Coordinator 裁定成功  
-- [ ] Intent：`AssistParry` / `AssistParrySuccess` / `AssistEvade` / `SwitchPerfectDodge` / `AssistFollowUp`  
-- [ ] 玩家 Timeline 新窗口 `AssistParryWindowNotifyState`（对偶 `PerfectDodgeWindowNotifyState`）  
-- [ ] `CharacterReactionType.Parried`；`ResolveParried()` 固定 `HitReactionCommand(LightStun, Parried Action)`，不读冲击力 / 韧性 / SuperArmor  
-- [ ] `CharacterReactionService.IssueParried()`：不 `ApplyDamage`、不走 `Resolve(冲击对韧性)`；必须 `ConfirmHitReaction(LightStun)` + `NotifyHit` + `EnterHit`  
-- [ ] `IHitAbsorbQuery.IsInAssistParryWindow`；`CombatHitPipeline` 窗内早退（对偶 PD、优先于普通无敌）：玩家吞伤、攻击者 `IssueParried`、玩家切 Success、武装 `AssistFollowUp`  
-- [ ] **禁止**新增 `HitReactionKind.Parried`；F3 攻击者显示 `LightStun` 即可  
-- [ ] **删除**「上场招架 Hitbox 打断敌人」作为弹刀成功条件  
-- [ ] Producer：`HasAssistFollowUp` 时攻击族派生 `AssistFollowUp`（对照完美反击）；切人当帧不得武装  
-- [ ] 招架/回避/换人闪：`InstantReplace`——下场当帧 Inactive，**不**起 `SwitchIn`/`SwitchOut`  
-- [ ] Guard frame 0：`RelocateToTargetOffset` + `SnapFacingToTarget`；Success 才挂 clang VFX/SFX  
-- [ ] Guard：Invincible + `AssistParryWindow`；回避 Guard：Invincible（接触成功规则可与招架共用窗或首版仅招架）  
-- [ ] Ult 起手成功回复 +3 支援点（P-SW4 前连携未做，+1 暂不接）  
-- [ ] 点数为 0 时 Gold 对外表现为 Red  
+- [x] 敌人 Timeline 新窗口 `AssistCueNotifyState`：`Gold` / `Red`、`requiresRanged`、持续帧、`parryLocalOffsetMm` / `evadeLocalOffsetMm`  
+- [x] `WorldAssistCueBoard`：权威帧收集当前窗（按 `SimActorId` 稳定）  
+- [x] 队共享 `AssistPoints`（上限 6，开局 3）；扣费只在 Coordinator 裁定成功  
+- [x] Intent：`AssistParry` / `AssistParrySuccess` / `AssistEvade` / `SwitchPerfectDodge` / `AssistFollowUp`  
+- [x] 玩家 Timeline 新窗口 `AssistParryWindowNotifyState`（对偶 `PerfectDodgeWindowNotifyState`）  
+- [x] `CharacterReactionType.Parried`；`ResolveParried()` 固定 `HitReactionCommand(LightStun, Parried Action)`，不读冲击力 / 韧性 / SuperArmor  
+- [x] `CharacterReactionService.IssueParried()`：不 `ApplyDamage`、不走 `Resolve(冲击对韧性)`；必须 `ConfirmHitReaction(LightStun)` + `NotifyHit` + `EnterHit`  
+- [x] `IHitAbsorbQuery.IsInAssistParryWindow`；`CombatHitPipeline` 窗内早退（对偶 PD、优先于普通无敌）：玩家吞伤、攻击者 `IssueParried`、玩家切 Success、武装 `AssistFollowUp`  
+- [x] **禁止**新增 `HitReactionKind.Parried`；F3 攻击者显示 `LightStun` 即可  
+- [x] **删除**「上场招架 Hitbox 打断敌人」作为弹刀成功条件  
+- [x] Producer：`HasAssistFollowUp` 时攻击族派生 `AssistFollowUp`（对照完美反击）；切人当帧不得武装  
+- [x] 招架/回避/换人闪：`InstantReplace`——下场当帧 Inactive，**不**起 `SwitchIn`/`SwitchOut`  
+- [x] Guard frame 0：`RelocateToTargetOffset` + `SnapFacingToTarget`；Success 才挂 clang VFX/SFX（代码侧已有 MotionCommand；资产仍需 Editor）  
+- [x] Guard：Invincible + `AssistParryWindow`；回避 Guard：Invincible（接触成功规则可与招架共用窗或首版仅招架）（代码窗已接；资产仍需 Editor）  
+- [x] Ult 起手成功回复 +3 支援点（P-SW4 前连携未做，+1 暂不接）  
+- [x] 点数为 0 时 Gold 对外表现为 Red  
 
 **验收**
 
@@ -481,11 +481,11 @@ QuickAssist         → InstantReplace
 - [ ] Guard 结束前敌人未出手 → 玩家回 Locomotion，敌人不进 `Hit`，不可派生突击  
 - [ ] 远程上场 Gold → 回避点 Relocate，不走招架节点  
 - [ ] 0 点 Gold 窗切人 → 换人闪，不耗点  
-- [ ] `PartyAssistResolveTests`：裁定表覆盖  
-- [ ] `AssistParryPipelineTests`：窗内命中 → 玩家不 `EnterHit`、攻击者 `EnterHit`、武装突击；仅无敌不武装  
-- [ ] 同测：攻击者 SuperArmor / 韧性 3 仍 `EnterHit`，**不是** Flinch；`VitalityEdge == Hit`；`LastConfirmedReactionKind == LightStun`  
-- [ ] `rg CharacterStateType.Parry` 与 `rg HitReactionKind.Parried` 玩法目录无匹配  
-- [ ] 禁止 `Time.timeScale`（`rg` 玩法目录无新增）  
+- [x] `PartyAssistResolveTests`：裁定表覆盖（代码已写；Unity Test Runner 待 Editor 跑）  
+- [x] `AssistParryPipelineTests`：窗内命中 → 玩家不 `EnterHit`、攻击者 `EnterHit`、武装突击；仅无敌不武装（代码已写；Unity Test Runner 待 Editor 跑）  
+- [x] 同测：攻击者 SuperArmor / 韧性 3 仍 `EnterHit`，**不是** Flinch；`VitalityEdge == Hit`；`LastConfirmedReactionKind == LightStun`  
+- [x] `rg CharacterStateType.Parry` 与 `rg HitReactionKind.Parried` 玩法目录无匹配  
+- [x] 禁止 `Time.timeScale`（`rg` 玩法目录无新增）  
 
 **出口：** 金光切入、出手接触、敌人受击、突击派生可玩。→ **未达成**
 
@@ -663,3 +663,4 @@ P-SW0 身份/Loadout
 | 2026-09-02 | 修复权威敌人感知根：`RemotePlayerSeat` 保留稳定花名册锚点，并在每次切人时将其重挂到当前 Active 槽位逻辑根 |
 | 2026-09-02 | P-SW2 改为接触成功：Guard 到位举刀，敌人 Hitbox 触发 Success clang；被弹刀纳入现有 `HitState`（`CharacterReactionType.Parried`），删除上场招架 Hitbox 打断路径 |
 | 2026-09-04 | 对齐已关闭的 P-HR 受击：被弹刀走 `IssueParried` 强制 LightStun，禁止冲击力×韧性 / SuperArmor / Flinch；不新增 `HitReactionKind.Parried`；P-SW3 读 `LastConfirmedReactionKind == Launch` |
+| 2026-09-04 | P-SW2 按两条 Action 落地：`AssistParry` Guard + 接触后 `AssistParrySuccess`；任务代码已勾，Play 验收保持未勾 |
