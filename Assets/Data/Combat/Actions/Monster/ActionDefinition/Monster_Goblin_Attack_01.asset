@@ -79,17 +79,11 @@ MonoBehaviour:
       trackName: AssistCue_1
       kind: 0
       requiresRanged: 0
-      parryLocalOffsetMm: {x: 1, y: 1, z: 1}
+      parryLocalOffsetMm: {x: 0, y: 0, z: 1500}
       evadeLocalOffsetMm: {x: 0, y: 0, z: 0}
     assistParryWindowStates: []
     movementStates: []
-    rotationStates:
-    - id: Rotation_1
-      startFrame: 0
-      endFrame: 56
-      priority: 0
-      trackName: Rotation_1
-      smoothTimeOverride: 0
+    rotationStates: []
     motionModifierStates: []
     motionCommandNotifies: []
     cameraSettings:
@@ -99,9 +93,6 @@ MonoBehaviour:
     tracks:
     - trackName: Hitbox_1
       kind: 0
-      visible: 1
-    - trackName: Rotation_1
-      kind: 6
       visible: 1
     - trackName: AssistCue_1
       kind: 14

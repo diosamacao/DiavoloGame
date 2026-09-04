@@ -40,7 +40,17 @@ MonoBehaviour:
     hitboxStates: []
     hurtboxStates: []
     cancelWindowStates: []
-    phaseStates: []
+    phaseStates:
+    - id: Phase_1
+      startFrame: 83
+      endFrame: 270
+      priority: 0
+      trackName: Phase_1
+      kind: 0
+      interruptible: 1
+      allowMovementCancel: 1
+      allowEntryRestart: 1
+      interruptResistBonus: 0
     perfectDodgeWindowStates: []
     assistCueStates: []
     assistParryWindowStates:
@@ -54,7 +64,7 @@ MonoBehaviour:
     motionModifierStates:
     - id: MotionModifier_2
       startFrame: 0
-      endFrame: 34
+      endFrame: 270
       priority: 0
       trackName: MotionModifier_1
       mode: 0
@@ -63,19 +73,6 @@ MonoBehaviour:
       lateralOffsetMm: 0
       maxCorrectionMmPerFrame: 250
       maxAcquireDistanceMm: 4500
-      maxAngleMilliDeg: 0
-      stopOnTargetLost: 1
-    - id: MotionModifier_2
-      startFrame: 0
-      endFrame: 14
-      priority: 0
-      trackName: MotionModifier_2
-      mode: 1
-      targetSource: 0
-      horizontalOffsetMm: -2000
-      lateralOffsetMm: 0
-      maxCorrectionMmPerFrame: 9999
-      maxAcquireDistanceMm: 9999
       maxAngleMilliDeg: 0
       stopOnTargetLost: 1
     motionCommandNotifies: []
@@ -87,11 +84,11 @@ MonoBehaviour:
     - trackName: AssistParry_1
       kind: 15
       visible: 1
-    - trackName: MotionModifier_2
-      kind: 11
-      visible: 1
     - trackName: MotionModifier_1
       kind: 11
+      visible: 1
+    - trackName: Phase_1
+      kind: 8
       visible: 1
   bakedMotion:
     logicHz: 60

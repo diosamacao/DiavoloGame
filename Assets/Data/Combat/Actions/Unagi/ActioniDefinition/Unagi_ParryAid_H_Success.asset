@@ -61,7 +61,20 @@ MonoBehaviour:
     assistParryWindowStates: []
     movementStates: []
     rotationStates: []
-    motionModifierStates: []
+    motionModifierStates:
+    - id: MotionModifier_1
+      startFrame: 0
+      endFrame: 19
+      priority: 0
+      trackName: MotionModifier_1
+      mode: 0
+      targetSource: 0
+      horizontalOffsetMm: 1000
+      lateralOffsetMm: 0
+      maxCorrectionMmPerFrame: 250
+      maxAcquireDistanceMm: 4500
+      maxAngleMilliDeg: 0
+      stopOnTargetLost: 1
     motionCommandNotifies: []
     cameraSettings:
       restoreMode: 0
@@ -70,6 +83,9 @@ MonoBehaviour:
     tracks:
     - trackName: Phase_1
       kind: 8
+      visible: 1
+    - trackName: MotionModifier_1
+      kind: 11
       visible: 1
   bakedMotion:
     logicHz: 60
