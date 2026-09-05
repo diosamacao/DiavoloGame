@@ -157,15 +157,17 @@ public sealed class CombatHitPipeline
                 ActionResourceSpecEffectCompiler.ApplyGrant(attackerNumeric, spec);
             }
 
-            HitFeedbackSettings feedback = context.Hitbox != null
-                ? context.Hitbox.Payload.Feedback
-                : null;
-            if (feedback != null && feedback.UseHitStop && hit.HitReceiver != null)
+            HitFeedbackSettings feedback = ReadFeedback(in context);
+            int hitStopFrames = feedback != null && feedback.UseHitStop
+                ? feedback.HitStopFrames
+                : 0;
+            if (hitStopFrames > 0)
             {
-                hit.HitReceiver.RequestHitStop(
-                    hit.Key.ActionInstanceId,
-                    feedback.HitStopFrames,
-                    feedback.HitStopOncePerAction);
+                ApplyConfirmedHitStop(
+                    in hit,
+                    hitStopFrames,
+                    feedback.HitStopOncePerAction,
+                    bothSides: false);
             }
 
             _resolved.Add(new ResolvedCombatHit(
@@ -175,13 +177,15 @@ public sealed class CombatHitPipeline
                 hit.HitPoint,
                 absorbedByPerfectDodge: false,
                 hit.Key,
-                reactionKind));
+                reactionKind,
+                absorbedByAssistParry: false,
+                hitStopFrames));
         }
 
         _pending.Clear();
     }
 
-    /// <summary>玩家吞伤、攻击者强制 Stun、武装突击；不 Grant、不对玩家 OnHit。</summary>
+    /// <summary>玩家吞伤、攻击者强制 Stun、武装突击；不 Grant、不对玩家 OnHit。顿帧在 IssueParried 之后写新实例。</summary>
     void ApplyAssistParry(in CombatHitEvent hit, in ActionHitContext context)
     {
         hit.HitReceiver?.ConfirmHit(hit.Key.ActionInstanceId);
@@ -190,6 +194,11 @@ public sealed class CombatHitPipeline
 
         CharacterActor player = _actorLookup?.Invoke(hit.Key.TargetId);
         player?.NotifyAssistParryContact();
+
+        HitFeedbackSettings feedback = ReadFeedback(in context);
+        int hitStopFrames = AssistParryHitStop.ResolveFrames(feedback);
+        bool oncePerAction = feedback == null || feedback.HitStopOncePerAction;
+        ApplyConfirmedHitStop(in hit, hitStopFrames, oncePerAction, bothSides: true);
 
         HitReactionKind reactionKind = attackerReactions != null
             ? attackerReactions.LastConfirmedReactionKind
@@ -203,8 +212,42 @@ public sealed class CombatHitPipeline
             absorbedByPerfectDodge: false,
             hit.Key,
             reactionKind,
-            absorbedByAssistParry: true));
+            absorbedByAssistParry: true,
+            hitStopFrames));
     }
+
+    /// <summary>结算后唯一卡肉入口。真伤冻进攻实例；弹刀冻当前双方实例并给玩家 Success carry。</summary>
+    void ApplyConfirmedHitStop(
+        in CombatHitEvent hit,
+        int frames,
+        bool oncePerAction,
+        bool bothSides)
+    {
+        if (frames <= 0)
+            return;
+
+        if (!bothSides)
+        {
+            hit.HitReceiver?.RequestHitStop(hit.Key.ActionInstanceId, frames, oncePerAction);
+            return;
+        }
+
+        CharacterActor attacker = _actorLookup?.Invoke(hit.Key.AttackerId);
+        if (attacker == null || !attacker.TryRequestHitStopOnCurrentAction(frames, oncePerAction))
+        {
+            // 敌人未登记 Actor 时，EnterHit 后仍是同一 ActionSim、新 InstanceId。
+            if (hit.HitReceiver is ActionSim attackerSim && attackerSim.IsActive)
+                attackerSim.RequestHitStop(attackerSim.InstanceId, frames, oncePerAction);
+        }
+
+        CharacterActor player = _actorLookup?.Invoke(hit.Key.TargetId);
+        player?.TryRequestHitStopOnCurrentAction(frames, oncePerAction);
+        player?.ArmAssistParryHitStopCarry(frames);
+    }
+
+    /// <summary>读盒上 Feedback；无盒则为空，弹刀走默认帧、真伤不冻。</summary>
+    static HitFeedbackSettings ReadFeedback(in ActionHitContext context) =>
+        context.Hitbox != null ? context.Hitbox.Payload.Feedback : null;
 
     void ValidateFrame(long frame)
     {

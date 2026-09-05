@@ -137,9 +137,12 @@ public sealed class CharacterActionDriver
         _intentBuffer?.ClearAllBuffers();
     }
 
-    /// <summary>移动取消：在 CancelWindow(Movement) 内退回 Locomotion。</summary>
+    /// <summary>移动取消：在 CancelWindow(Movement) 内退回 Locomotion。卡肉期间禁止。</summary>
     void TryCancelActionByMovement()
     {
+        if (_actionSim != null && _actionSim.IsFrozen)
+            return;
+
         if (!_moveIntent.HasMoveIntent)
             return;
 
@@ -166,9 +169,18 @@ public sealed class CharacterActionDriver
 
     /// <summary>
     /// Action 态高优硬打断：按 Graph Entry 解析候选招，成功则消费意图缓冲。
+    /// 卡肉期间只放行 AssistParrySuccess。
     /// </summary>
     bool TryPriorityInterrupt(GameplayIntentType intent)
     {
+        // 卡肉只放行弹刀 Success，避免普攻把 Guard/Success 取消掉。
+        if (_actionSim != null
+            && _actionSim.IsFrozen
+            && intent != GameplayIntentType.AssistParrySuccess)
+        {
+            return false;
+        }
+
         if (_resolverService == null || _actionSim == null)
             return false;
 

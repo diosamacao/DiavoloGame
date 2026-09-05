@@ -29,8 +29,8 @@ public class HitImpactController : AppControllerBase
     /// <summary>帧末命中回调：按接触点与 Feedback 播放特效与音效。</summary>
     void HandleAttackHit(AttackHitEvent hitEvent)
     {
-        // 完美吸收无受击权威，不播受击 Cue
-        if (hitEvent.AbsorbedByPerfectDodge)
+        // 完美闪避 / 弹刀吞伤不播打击火花；弹刀 clang 在 Success Timeline
+        if (hitEvent.AbsorbedByPerfectDodge || hitEvent.AbsorbedByAssistParry)
             return;
 
         ActionHitContext context = hitEvent.Context;

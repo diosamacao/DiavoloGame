@@ -428,21 +428,28 @@ public class PlayerController : AppControllerBase, ILocalPlayer
         EnsureFacingDebugVisualizer();
     }
 
-    /// <summary>权威招架接触后镜像到本机预测 Actor，否则镜头跟着的 Guard 不会切 Success。</summary>
+    /// <summary>权威招架接触后镜像 Success 排队与卡肉；否则镜头跟着的 Guard 不会停、也不会切 Success。</summary>
     void OnAssistParryAuthorityContact(long _)
     {
         if (simulationHost == null)
             return;
 
-        IReadOnlyList<SimActorId> contacts = simulationHost.FrameAssistParryContacts;
+        IReadOnlyList<AssistParryContact> contacts = simulationHost.FrameAssistParryContacts;
         for (int c = 0; c < contacts.Count; c++)
         {
-            SimActorId id = contacts[c];
+            AssistParryContact contact = contacts[c];
             for (int i = 0; i < _partyActors.Length; i++)
             {
                 CharacterActor member = _partyActors[i];
-                if (member != null && member.SimulationId.Equals(id))
-                    member.NotifyAssistParryContact();
+                if (member == null || !member.SimulationId.Equals(contact.TargetId))
+                    continue;
+
+                member.NotifyAssistParryContact();
+                if (contact.HitStopFrames <= 0)
+                    continue;
+
+                member.TryRequestHitStopOnCurrentAction(contact.HitStopFrames, oncePerAction: true);
+                member.ArmAssistParryHitStopCarry(contact.HitStopFrames);
             }
         }
     }
