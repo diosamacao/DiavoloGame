@@ -14,10 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   data:
     groundYMm: 0
-    aabbs:
-    - MinXMm: -371
-      MaxXMm: 629
-      MinZMm: -1170
-      MaxZMm: -170
+    aabbs: []
     sourceSceneName: Gameplay
-    bakedUtcTicks: 639214196079479206
+    bakedUtcTicks: 639242348319259722

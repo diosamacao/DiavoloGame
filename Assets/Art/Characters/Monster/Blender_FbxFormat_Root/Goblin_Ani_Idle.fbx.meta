@@ -3,7 +3,37 @@ guid: 5973cae974b9c124cb6880a58983ac14
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: MAT_Metro_Goblin_Weapon
+    second: {fileID: 2100000, guid: 6f9d850a79965d344a47b1f110ebdc89, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: MAT_Monster_Goblin
+    second: {fileID: 2100000, guid: d3c73faac764aed4ba37933d4b28f5c2, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Metro_Goblin_Weapon
+    second: {fileID: 2100000, guid: 6f9d850a79965d344a47b1f110ebdc89, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Monster_Goblin
+    second: {fileID: 2100000, guid: d3c73faac764aed4ba37933d4b28f5c2, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Monster_Goblin_D
+    second: {fileID: 2100000, guid: d3c73faac764aed4ba37933d4b28f5c2, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Monster_Metro_Goblin_Weapon_D
+    second: {fileID: 2100000, guid: 6f9d850a79965d344a47b1f110ebdc89, type: 2}
   materials:
     materialImportMode: 1
     materialName: 1
