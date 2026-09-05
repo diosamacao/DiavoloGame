@@ -33,11 +33,11 @@ ModelImporter:
     extraUserProperties: []
     clipAnimations:
     - serializedVersion: 16
-      name: Scene
-      takeName: Scene
-      internalID: -623603649343465320
-      firstFrame: 1
-      lastFrame: 250
+      name: Giant_Ani_SideStep_R
+      takeName: Giant_Ani_SideStep_R
+      internalID: 4873435762450149381
+      firstFrame: 0
+      lastFrame: 79
       wrapMode: 0
       orientationOffsetY: 0
       level: 0

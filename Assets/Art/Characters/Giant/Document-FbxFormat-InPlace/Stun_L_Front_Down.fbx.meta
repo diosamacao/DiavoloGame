@@ -33,11 +33,11 @@ ModelImporter:
     extraUserProperties: []
     clipAnimations:
     - serializedVersion: 16
-      name: Scene
-      takeName: Scene
-      internalID: -623603649343465320
-      firstFrame: 1
-      lastFrame: 250
+      name: Giant_Ani_Stun_L_Front_Down
+      takeName: Giant_Ani_Stun_L_Front_Down
+      internalID: -8121579092156143228
+      firstFrame: 0
+      lastFrame: 85
       wrapMode: 0
       orientationOffsetY: 0
       level: 0
