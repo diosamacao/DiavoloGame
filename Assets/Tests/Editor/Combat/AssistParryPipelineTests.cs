@@ -1,5 +1,7 @@
 using System;
+using System.Reflection;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 
 /// <summary>招架窗管道：玩家吞伤、攻击者 IssueParried、仅无敌不武装。</summary>
@@ -43,6 +45,7 @@ public sealed class AssistParryPipelineTests
         Assert.That(receiver.Confirmed, Is.True);
         Assert.That(resolved.HasValue, Is.True);
         Assert.That(resolved.Value.AbsorbedByAssistParry, Is.True);
+        Assert.That(resolved.Value.HitStopFrames, Is.EqualTo(AssistParryHitStop.DefaultFrames));
         Assert.That(attacker.Actor.CurrentState, Is.EqualTo(CharacterStateType.Hit));
         Assert.That(attacker.Actor.Vitality.LastConfirmedReactionKind, Is.EqualTo(HitReactionKind.LightStun));
         Assert.That(attacker.Actor.Vitality.ReplicationEdge, Is.EqualTo(VitalityReplicationEdge.Hit));
@@ -93,6 +96,158 @@ public sealed class AssistParryPipelineTests
         attackerReactions.Dispose();
     }
 
+    /// <summary>双方已起手时，IssueParried 之后冻新受击招与玩家 Guard。</summary>
+    [Test]
+    public void AssistParryWindow_FreezesBothCurrentActions()
+    {
+        ActionDefinition hitAction = CreateReadyAction("ParriedHit");
+        ActionDefinition guard = CreateReadyAction("Guard");
+        using ActorHarness attacker = ActorHarness.Create("AttackerFreeze", new SimActorId(11));
+        using ActorHarness player = ActorHarness.Create("PlayerFreeze", new SimActorId(12));
+        CharacterReactionSet reactionSet = CreateHitReactionSet(hitAction);
+        var attackerReactions = new CharacterReactionService(
+            attacker.Actor.Vitality,
+            attacker.Actor,
+            new CharacterReactionResolver(reactionSet),
+            baseInterruptResist: 3);
+
+        ResolvedCombatHit? resolved = null;
+        var pipeline = new CombatHitPipeline(hit => resolved = hit);
+        pipeline.BindAssistParryLookups(
+            id => id.Equals(attacker.Actor.SimulationId) ? attackerReactions : null,
+            id => LookupActor(id, attacker, player));
+
+        Assert.That(player.Actor.ActionSim.TryStart(ActionSimResolveResult.FromContent(guard)), Is.True);
+        Assert.That(attacker.Actor.ActionSim.TryStart(ActionSimResolveResult.FromContent(hitAction)), Is.True);
+
+        var target = new AbsorbTarget(player.Actor.SimulationId, assistParry: true, invincible: true);
+        var context = new ActionHitContext(null, null, null, 1, attacker.Actor.SimulationId);
+
+        try
+        {
+            pipeline.BeginFrame(1);
+            pipeline.Collect(
+                attacker.Actor.SimulationId,
+                attacker.Actor.ActionSim.InstanceId,
+                0,
+                target,
+                attacker.Actor.ActionSim,
+                in context,
+                Vector3.zero);
+            pipeline.ResolveBeforePostCombat(1);
+            pipeline.CompleteFrame(1);
+
+            Assert.That(target.OnHitCount, Is.Zero);
+            Assert.That(resolved.HasValue, Is.True);
+            Assert.That(resolved.Value.HitStopFrames, Is.EqualTo(AssistParryHitStop.DefaultFrames));
+            Assert.That(attacker.Actor.CurrentState, Is.EqualTo(CharacterStateType.Hit));
+            Assert.That(attacker.Actor.ActionSim.IsActive, Is.True);
+            Assert.That(attacker.Actor.ActionSim.FreezeFrames, Is.EqualTo(AssistParryHitStop.DefaultFrames));
+            Assert.That(player.Actor.ActionSim.IsActive, Is.True);
+            Assert.That(player.Actor.ActionSim.FreezeFrames, Is.EqualTo(AssistParryHitStop.DefaultFrames));
+            Assert.That(player.Actor.CurrentState, Is.Not.EqualTo(CharacterStateType.Hit));
+        }
+        finally
+        {
+            attackerReactions.Dispose();
+            DestroyAction(hitAction);
+            DestroyAction(guard);
+        }
+    }
+
+    /// <summary>无受击片时攻击者 ActionSim 已停，该侧跳过写入且不抛。</summary>
+    [Test]
+    public void AssistParryWindow_NoStunAction_SkipsAttackerFreeze()
+    {
+        ActionDefinition guard = CreateReadyAction("GuardNoStun");
+        ActionDefinition attack = CreateReadyAction("AttackNoStun");
+        using ActorHarness attacker = ActorHarness.Create("AttackerNoStun", new SimActorId(13));
+        using ActorHarness player = ActorHarness.Create("PlayerNoStun", new SimActorId(14));
+        var attackerReactions = new CharacterReactionService(
+            attacker.Actor.Vitality,
+            attacker.Actor,
+            new CharacterReactionResolver(new CharacterReactionSet()),
+            baseInterruptResist: 3);
+
+        ResolvedCombatHit? resolved = null;
+        var pipeline = new CombatHitPipeline(hit => resolved = hit);
+        pipeline.BindAssistParryLookups(
+            id => id.Equals(attacker.Actor.SimulationId) ? attackerReactions : null,
+            id => LookupActor(id, attacker, player));
+
+        Assert.That(player.Actor.ActionSim.TryStart(ActionSimResolveResult.FromContent(guard)), Is.True);
+        Assert.That(attacker.Actor.ActionSim.TryStart(ActionSimResolveResult.FromContent(attack)), Is.True);
+
+        var target = new AbsorbTarget(player.Actor.SimulationId, assistParry: true, invincible: true);
+        var context = new ActionHitContext(null, null, null, 1, attacker.Actor.SimulationId);
+
+        try
+        {
+            pipeline.BeginFrame(1);
+            pipeline.Collect(
+                attacker.Actor.SimulationId,
+                attacker.Actor.ActionSim.InstanceId,
+                0,
+                target,
+                attacker.Actor.ActionSim,
+                in context,
+                Vector3.zero);
+            pipeline.ResolveBeforePostCombat(1);
+            pipeline.CompleteFrame(1);
+
+            Assert.That(resolved.HasValue, Is.True);
+            Assert.That(resolved.Value.HitStopFrames, Is.EqualTo(AssistParryHitStop.DefaultFrames));
+            Assert.That(attacker.Actor.CurrentState, Is.EqualTo(CharacterStateType.Hit));
+            Assert.That(attacker.Actor.ActionSim.IsActive, Is.False);
+            Assert.That(player.Actor.ActionSim.FreezeFrames, Is.EqualTo(AssistParryHitStop.DefaultFrames));
+        }
+        finally
+        {
+            attackerReactions.Dispose();
+            DestroyAction(guard);
+            DestroyAction(attack);
+        }
+    }
+
+    /// <summary>真伤未勾 UseHitStop 不冻；仍 OnHit。</summary>
+    [Test]
+    public void TrueHit_WithoutUseHitStop_DoesNotFreeze()
+    {
+        ActionDefinition attack = CreateReadyAction("TrueHit");
+        using ActorHarness attacker = ActorHarness.Create("AttackerTrue", new SimActorId(15));
+        ResolvedCombatHit? resolved = null;
+        var pipeline = new CombatHitPipeline(hit => resolved = hit);
+
+        Assert.That(attacker.Actor.ActionSim.TryStart(ActionSimResolveResult.FromContent(attack)), Is.True);
+        var target = new AbsorbTarget(new SimActorId(21), assistParry: false, invincible: false);
+        var context = new ActionHitContext(null, null, null, attacker.Actor.ActionSim.InstanceId, attacker.Actor.SimulationId);
+
+        try
+        {
+            pipeline.BeginFrame(1);
+            pipeline.Collect(
+                attacker.Actor.SimulationId,
+                attacker.Actor.ActionSim.InstanceId,
+                0,
+                target,
+                attacker.Actor.ActionSim,
+                in context,
+                Vector3.zero);
+            pipeline.ResolveBeforePostCombat(1);
+            pipeline.CompleteFrame(1);
+
+            Assert.That(target.OnHitCount, Is.EqualTo(1));
+            Assert.That(resolved.HasValue, Is.True);
+            Assert.That(resolved.Value.AbsorbedByAssistParry, Is.False);
+            Assert.That(resolved.Value.HitStopFrames, Is.Zero);
+            Assert.That(attacker.Actor.ActionSim.FreezeFrames, Is.Zero);
+        }
+        finally
+        {
+            DestroyAction(attack);
+        }
+    }
+
     /// <summary>ResolveParried 无视冲击与 SuperArmor，固定 LightStun。</summary>
     [Test]
     public void ResolveParried_IgnoresToughnessAndSuperArmor()
@@ -104,6 +259,61 @@ public sealed class AssistParryPipelineTests
         Assert.That(
             CharacterReactionResolver.ResolveKind(1, 99, superArmor: true),
             Is.EqualTo(HitReactionKind.Flinch));
+    }
+
+    static CharacterActor LookupActor(SimActorId id, ActorHarness attacker, ActorHarness player)
+    {
+        if (id.Equals(attacker.Actor.SimulationId))
+            return attacker.Actor;
+        if (id.Equals(player.Actor.SimulationId))
+            return player.Actor;
+        return null;
+    }
+
+    static CharacterReactionSet CreateHitReactionSet(ActionDefinition action)
+    {
+        var rule = new CharacterReactionRule();
+        SetField(rule, "reactionType", CharacterReactionType.Hit);
+        SetField(rule, "defaultRule", true);
+        SetField(rule, "action", action);
+        var set = new CharacterReactionSet();
+        SetField(set, "rules", new[] { rule });
+        return set;
+    }
+
+    static ActionDefinition CreateReadyAction(string name)
+    {
+        ActionDefinition action = ScriptableObject.CreateInstance<ActionDefinition>();
+        action.name = name;
+        AnimationClip clip = new AnimationClip { name = name + "Clip", legacy = true };
+        var so = new SerializedObject(action);
+        so.FindProperty("sampleRate").intValue = ActionSim.LogicHz;
+        so.FindProperty("totalFrames").intValue = 12;
+        SerializedProperty segments = so.FindProperty("animationSegments");
+        segments.arraySize = 1;
+        segments.GetArrayElementAtIndex(0).FindPropertyRelative("clip").objectReferenceValue = clip;
+        so.ApplyModifiedPropertiesWithoutUndo();
+        return action;
+    }
+
+    static void DestroyAction(ActionDefinition action)
+    {
+        if (action == null)
+            return;
+
+        AnimationClip clip = action.HasAnimation ? action.AnimationSegments[0].clip : null;
+        UnityEngine.Object.DestroyImmediate(action);
+        if (clip != null)
+            UnityEngine.Object.DestroyImmediate(clip);
+    }
+
+    static void SetField(object target, string name, object value)
+    {
+        FieldInfo field = target.GetType().GetField(
+            name,
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.That(field, Is.Not.Null, name);
+        field.SetValue(target, value);
     }
 
     /// <summary>最小权威 Actor：能 EnterHit / 武装突击，不经 Factory。</summary>

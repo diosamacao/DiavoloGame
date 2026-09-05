@@ -14,7 +14,7 @@ public sealed class SimulationHost : AppControllerBase
     readonly WorldAssistCueBoard _assistCues = new();
     readonly List<EnemyController> _enemyStepSnapshot = new();
     readonly List<ReplicatedHitEvent> _frameHits = new();
-    readonly List<SimActorId> _assistParryContacts = new();
+    readonly List<AssistParryContact> _assistParryContacts = new();
 
     SimulationConfig _config;
     SimulationStepKernel _kernel;
@@ -61,8 +61,8 @@ public sealed class SimulationHost : AppControllerBase
     /// <summary>本逻辑步已发布的权威命中（AfterLogicStep 内可读，步末清空）。</summary>
     public IReadOnlyList<ReplicatedHitEvent> FrameHits => _frameHits;
 
-    /// <summary>本步招架窗接触的玩家 Id；供本机预测镜像 Success，步末清空。</summary>
-    public IReadOnlyList<SimActorId> FrameAssistParryContacts => _assistParryContacts;
+    /// <summary>本步招架窗接触；供本机预测镜像 Success 与同一套卡肉帧，步末清空。</summary>
+    public IReadOnlyList<AssistParryContact> FrameAssistParryContacts => _assistParryContacts;
 
     void Awake()
     {
@@ -271,7 +271,7 @@ public sealed class SimulationHost : AppControllerBase
     void PublishResolvedHit(ResolvedCombatHit hit)
     {
         if (hit.AbsorbedByAssistParry && hit.Key.TargetId.IsValid)
-            _assistParryContacts.Add(hit.Key.TargetId);
+            _assistParryContacts.Add(new AssistParryContact(hit.Key.TargetId, hit.HitStopFrames));
 
         if (!hit.AbsorbedByPerfectDodge
             && !hit.AbsorbedByAssistParry

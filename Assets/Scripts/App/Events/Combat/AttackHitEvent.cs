@@ -3,19 +3,23 @@ using UnityEngine;
 /// <summary>攻击命中事件；命中结算完成后广播给反馈、相机、VFX、音频与 UI 系统。</summary>
 public readonly struct AttackHitEvent : IArchitectureEvent
 {
-    /// <summary>创建攻击命中事件。</summary>
+    /// <summary>创建攻击命中事件。弹刀与完美闪避旗标分开，卡肉帧由 Pipeline 裁定。</summary>
     public AttackHitEvent(
         ActionHitContext context,
         Transform targetTransform,
         Vector3 hitDirection,
         Vector3 hitPoint,
-        bool absorbedByPerfectDodge = false)
+        bool absorbedByPerfectDodge = false,
+        bool absorbedByAssistParry = false,
+        int hitStopFrames = 0)
     {
         Context = context;
         TargetTransform = targetTransform;
         HitDirection = hitDirection;
         HitPoint = hitPoint;
         AbsorbedByPerfectDodge = absorbedByPerfectDodge;
+        AbsorbedByAssistParry = absorbedByAssistParry;
+        HitStopFrames = hitStopFrames > 0 ? hitStopFrames : 0;
     }
 
     /// <summary>命中上下文，包含招式、Hitbox 与攻击者。</summary>
@@ -32,4 +36,10 @@ public readonly struct AttackHitEvent : IArchitectureEvent
 
     /// <summary>完美闪避吞伤：无受击 Reaction，订阅者勿播受击 Cue。</summary>
     public bool AbsorbedByPerfectDodge { get; }
+
+    /// <summary>招架窗吞伤：勿播打击火花；clang 在 Success Timeline。</summary>
+    public bool AbsorbedByAssistParry { get; }
+
+    /// <summary>权威裁定的逻辑卡肉帧；大于 0 时 HitStopController 冻攻击者 VFX。</summary>
+    public int HitStopFrames { get; }
 }

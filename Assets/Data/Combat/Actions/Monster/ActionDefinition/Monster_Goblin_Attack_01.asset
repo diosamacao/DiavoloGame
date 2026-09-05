@@ -79,7 +79,7 @@ MonoBehaviour:
       trackName: AssistCue_1
       kind: 0
       requiresRanged: 0
-      parryLocalOffsetMm: {x: 0, y: 0, z: 1500}
+      parryLocalOffsetMm: {x: 0, y: 0, z: 3000}
       evadeLocalOffsetMm: {x: 0, y: 0, z: 0}
     assistParryWindowStates: []
     movementStates: []

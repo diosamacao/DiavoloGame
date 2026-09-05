@@ -12,7 +12,8 @@ public readonly struct ResolvedCombatHit
         bool absorbedByPerfectDodge = false,
         SimHitKey key = default,
         HitReactionKind reactionKind = HitReactionKind.None,
-        bool absorbedByAssistParry = false)
+        bool absorbedByAssistParry = false,
+        int hitStopFrames = 0)
     {
         Context = context;
         TargetTransform = targetTransform;
@@ -22,6 +23,7 @@ public readonly struct ResolvedCombatHit
         Key = key;
         ReactionKind = reactionKind;
         AbsorbedByAssistParry = absorbedByAssistParry;
+        HitStopFrames = hitStopFrames > 0 ? hitStopFrames : 0;
     }
 
     /// <summary>已成功结算的命中上下文。</summary>
@@ -47,4 +49,7 @@ public readonly struct ResolvedCombatHit
 
     /// <summary>招架窗吞伤：玩家不播受击 Cue；clang 在 Success Timeline。</summary>
     public bool AbsorbedByAssistParry { get; }
+
+    /// <summary>本刀逻辑卡肉帧；0 表示不冻。弹刀为 ResolveFrames，真伤仅 UseHitStop 时有值。</summary>
+    public int HitStopFrames { get; }
 }

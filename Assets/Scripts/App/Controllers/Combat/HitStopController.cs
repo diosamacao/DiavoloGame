@@ -40,14 +40,17 @@ public class HitStopController : AppControllerBase
     void HandleAttackHit(AttackHitEvent hitEvent)
     {
         ActionHitContext context = hitEvent.Context;
-        if (context.Action == null || context.Hitbox == null || context.Attacker == null)
+        if (context.Action == null || context.Attacker == null)
             return;
 
-        HitFeedbackSettings feedback = context.Hitbox.Payload.Feedback;
-        if (!feedback.UseHitStop)
+        int frames = hitEvent.HitStopFrames;
+        if (frames <= 0)
             return;
 
-        if (feedback.HitStopOncePerAction && context.ActionInstanceId > 0)
+        HitFeedbackSettings feedback = context.Hitbox != null
+            ? context.Hitbox.Payload.Feedback
+            : null;
+        if (feedback != null && feedback.HitStopOncePerAction && context.ActionInstanceId > 0)
         {
             if (_lastTriggeredActionInstance.TryGetValue(
                     context.Attacker,
@@ -59,10 +62,6 @@ public class HitStopController : AppControllerBase
 
             _lastTriggeredActionInstance[context.Attacker] = context.ActionInstanceId;
         }
-
-        int frames = feedback.HitStopFrames;
-        if (frames <= 0)
-            return;
 
         BeginOrExtend(context.Attacker, frames);
     }

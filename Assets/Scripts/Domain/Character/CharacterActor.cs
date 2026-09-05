@@ -57,6 +57,7 @@ public sealed class CharacterActor :
     GameplayIntentType _queuedExternalIntent = GameplayIntentType.None;
     PartyExitMode _partyExitMode;
     int _switchOutActionInstanceId;
+    int _assistParryHitStopCarryFrames;
 
     static readonly GameplayIntentType[] EmptyIntents = Array.Empty<GameplayIntentType>();
     static readonly BufferedIntentDebug[] EmptyBuffers = Array.Empty<BufferedIntentDebug>();
@@ -490,7 +491,7 @@ public sealed class CharacterActor :
         _queuedExternalIntent = intent;
     }
 
-    /// <summary>招架窗接触：武装突击并排队 Success。切人当帧不得调用。</summary>
+    /// <summary>招架窗接触：武装突击并排队 Success。切人当帧不得调用。不写卡肉。</summary>
     public void NotifyAssistParryContact()
     {
         _numeric.ArmAssistFollowUp();
@@ -499,6 +500,21 @@ public sealed class CharacterActor :
         {
             _queuedExternalIntent = GameplayIntentType.AssistParrySuccess;
         }
+    }
+
+    /// <summary>记下弹刀卡肉，供 AssistParrySuccess Begin 后补写（Begin 会清 freeze）。</summary>
+    public void ArmAssistParryHitStopCarry(int frames)
+    {
+        _assistParryHitStopCarryFrames = frames > 0 ? frames : 0;
+    }
+
+    /// <summary>对当前活动 Action 实例写 freeze；无活动实例则跳过。</summary>
+    public bool TryRequestHitStopOnCurrentAction(int frames, bool oncePerAction)
+    {
+        if (_actionSim == null || !_actionSim.IsActive || frames <= 0)
+            return false;
+
+        return _actionSim.RequestHitStop(_actionSim.InstanceId, frames, oncePerAction);
     }
 
     /// <summary>当前 Action 若在闪光窗则写入 CueBoard。</summary>
@@ -527,9 +543,15 @@ public sealed class CharacterActor :
         return true;
     }
 
-    /// <summary>ActionSim 起手回调；由工厂闭包调用。</summary>
-    public void NotifyActionBegun(GameplayIntentType intent) =>
+    /// <summary>ActionSim 起手回调；Success 起手时把弹刀卡肉写到新实例，其它起手只清空 carry。</summary>
+    public void NotifyActionBegun(GameplayIntentType intent)
+    {
+        if (intent == GameplayIntentType.AssistParrySuccess && _assistParryHitStopCarryFrames > 0)
+            TryRequestHitStopOnCurrentAction(_assistParryHitStopCarryFrames, oncePerAction: true);
+
+        _assistParryHitStopCarryFrames = 0;
         ActionBegun?.Invoke(intent);
+    }
 
     /// <summary>
     /// InstantReplace 上场：先落到旧角色位置，有 Cue 再经碰撞挪到弹刀/回避点。

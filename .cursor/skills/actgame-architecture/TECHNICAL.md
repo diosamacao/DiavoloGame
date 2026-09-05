@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-09-05（F3 显示支援点；点数由 PartyLoadout 配置）
+> Last updated: 2026-09-05（弹刀接触后双方 RequestHitStop）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -8,7 +8,7 @@
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
 | 三人阵容 / 单键换人 | 🟡 P-SW1 运行时/权威代码完成，Editor 验收待办 | `PartyLoadout`、`PartyCombatCoordinator`、`ActGameGuest` | 空格已进 Input Actions；需各角色 Graph 配 `SwitchIn/SwitchOut` Entry |
-| 极限支援 / 接触弹刀 | 🟡 P-SW2 代码已接，Play 待验 | `WorldAssistCueBoard`、`IssueParried`、`AssistParry`/`AssistParrySuccess` | 敌人 Cue 轨 + 玩家 Guard/Success/突击 Entry |
+| 极限支援 / 接触弹刀 | 🟡 P-SW2 代码已接，Play 待验；卡肉 HS0～HS3 已接线 | `WorldAssistCueBoard`、`IssueParried`、`AssistParryHitStop` | 敌人 Cue 轨 + 玩家 Guard/Success/突击 Entry |
 | Wave4 位移（Adhesion / SoftBody / Relocate） | ✅ 已实现（吸附已验收；Relocate 已接线） | `ActionMotionAdhesion` + `ActionMotionResolver` + Bridge | Branch_02 吸附已配；Relocate 按需加 MotionCommand 轨；相机不在本 Wave |
 | 命中受击 Cue（VFX/SFX） | ✅ 已实现（A2 打击感验收 2026-08-09） | `HitImpactController` + `HitFeedbackSettings` | 接触点落点 + 随机旋转；普攻 Cue 已验 |
 | 逻辑 Hurtbox 调试线框 | ✅ 已实现 | `CombatHurtboxDebugSettings` + `CombatHurtboxDebugVisualizer` | F4 开关（F3 HUD 显示状态） |
@@ -135,6 +135,7 @@ ActClientRoomGameplay.StepPrediction
 | 上场意图 | `PartySwitchApplication`：`AssistParry` / `AssistEvade` / `SwitchPerfectDodge`；不播 SwitchIn/Out |
 | 接触 | `IHitAbsorbQuery.IsInAssistParryWindow`；管道优先于 PD 与无敌：玩家不 OnHit，攻击者 `IssueParried` |
 | 被弹刀 | `ResolveParried()` 固定 LightStun + `CharacterReactionType.Parried` 片子；`ConfirmHitReaction(LightStun)`；禁止冲击力裁定 / Flinch / `HitReactionKind.Parried` |
+| 卡肉 | `ResolvePending` 裁定后唯一 `ApplyConfirmedHitStop`。真伤只冻进攻实例且仍受 `UseHitStop` 门控；弹刀冻敌人新受击招 + 玩家 Guard，默认 8 帧（盒勾了则用盒帧），`ArmAssistParryHitStopCarry` 把剩余帧带到 Success |
 | 突击 | `Flags.ArmAssistFollowUp`；Producer 攻击族 Pressed 优先于 PD 派生 `AssistFollowUp`；切人当帧不武装 |
 
 ### 关键参数
@@ -154,14 +155,17 @@ SwitchCharacter
 敌人 Hitbox → Pipeline.IsInAssistParryWindow
   → IssueParried → ConfirmHitReaction(LightStun) → EnterHit
   → NotifyAssistParryContact → ArmAssistFollowUp + 排队 AssistParrySuccess
-下一帧 TryPriorityInterrupt → AssistParrySuccess
+  → ApplyConfirmedHitStop(BothSides) + ArmAssistParryHitStopCarry
+下一帧 TryPriorityInterrupt(仅放行 Success) → Begin 后补 freeze → AssistParrySuccess 停在 frame 0
 攻击键 → Producer AssistFollowUp
 ```
 
 ### 已知限制
 
 - Guard / Success / AssistFollowUp / 敌人 Cue / `Parried` 反应片均需 Editor 配资产；Agent 不改 `Assets/Data/**`
+- 无受击片时攻击者 `ActionSim` 已 Stop，该侧不写 freeze（不另开 HitState 冻帧）
 - 接触成功后 Success 可能晚一帧（`QueueExternalIntent` 下一次 Step 才进 buffer）
+- 客机不预测「敌人打玩家」几何卡肉；本机预测只镜像权威接触列表
 - P-SW3 击飞快速支援、P-SW4 连携 +1、P-SW5 Cue/点数复制未做
 - 禁止 `Time.timeScale`；回避支援极限视域未接
 - 不宣称公网
@@ -172,11 +176,15 @@ SwitchCharacter
 - `Assets/Scripts/Domain/Simulation/Party/PartyAssistPoints.cs`
 - `Assets/Scripts/Domain/Character/Reactions/CharacterReactionService.cs`
 - `Assets/Scripts/Domain/Combat/Hitbox/CombatHitPipeline.cs`
+- `Assets/Scripts/Domain/Combat/Hitbox/AssistParryHitStop.cs`
 - `Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/AssistCueNotifyState.cs`
 - `Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/AssistParryWindowNotifyState.cs`
 - `Assets/Tests/EditMode/Simulation/PartyAssistResolveTests.cs`
 - `Assets/Tests/Editor/Combat/AssistParryPipelineTests.cs`
+- `Assets/Tests/Editor/Combat/AssistParryHitStopTests.cs`
+- `Assets/Tests/Editor/Combat/AssistParryHitStopCarryTests.cs`
 - `docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`
+- `docs/2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md`
 
 ---
 
@@ -1425,13 +1433,13 @@ SimulationHost 帧末
       → Graph 自动衔接排队；自然结束按 TotalFrames 停止
       → NotifyActionEnded → ActionSfxPlayer.OnActionEnded → 0.1s 音量淡出后 Stop
   → PublishAttackHitCommand → AttackHitEvent（仅表现）
-      → HitImpactController：Feedback 受击 VFX/SFX（完美吞伤跳过）
+      → HitImpactController：Feedback 受击 VFX/SFX（完美闪避 / 弹刀吞伤跳过）
       → CameraShakeController / HitStopController（既有）
 ```
 
 ### 7.1 命中受击 Cue（A2）
 
-**功能说明：** Confirm 命中后在逻辑接触点播特效与音效；挥空不播；完美闪避吞伤不播受击 Cue。
+**功能说明：** Confirm 命中后在逻辑接触点播特效与音效；挥空不播；完美闪避 / 弹刀吞伤不播受击 Cue。
 
 **实现方案：**
 
@@ -1439,7 +1447,7 @@ SimulationHost 帧末
 |----|------|
 | 接触点 | `HitboxMath.EstimateContactPointOnHurtbox`（攻击盒中心→受击盒最近点） |
 | 配置 | `HitFeedbackSettings`：VFX/SFX、相对接触点偏移、随机欧拉范围 |
-| 事件 | `AttackHitEvent.HitPoint` / `AbsorbedByPerfectDodge` |
+| 事件 | `AttackHitEvent.HitPoint` / `AbsorbedByPerfectDodge` / `AbsorbedByAssistParry` / `HitStopFrames` |
 | App | `HitImpactController`：落点=接触点+Offset；`LookRotation * Random.Euler` |
 | 调试 | F4 → `CombatHurtboxDebugSettings.ShowHurtboxes` 画逻辑 Hurtbox |
 | 卡肉 | 火花 `VfxPooledInstance.SetSpawnOwner(attacker)`，与刀光同窗暂停 |
@@ -1676,6 +1684,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-09-02 | 修复 Observer 二次登场残留：远端角色隐藏前回收所属 VFX；重新显形时清空退场前插值历史并直接落到当前权威位置 |
 | 2026-09-02 | 本机阵容生命周期接入同一可见性清理接口：`CharacterActor` 转入 Inactive/Dead/Empty 前回收所属 VFX，避免本机再次 SwitchIn 时复活旧特效 |
 | 2026-09-02 | 修复 P-SW1 后敌人感知根停在出生点：`RemotePlayerSeat` 使用稳定锚点并在普通切人时重挂到当前权威槽位根 |
+| 2026-09-05 | 弹刀卡肉：Pipeline 结算后唯一 `RequestHitStop`；双方冻，Success 续冻；事件拆开 PD/弹刀 |
 | 2026-09-05 | F3 Party 行显示支援点；上限/开局/消耗/Ult 回复由 PartyLoadout 配置 |
 | 2026-09-05 | Hurt 中普通切人：交接 SwitchOut 前必须离开 Hit，避免意图被丢掉、槽永久 Exiting |
 | 2026-09-05 | Observer 收招钉招尾：片子只跟播放头；最新快照不再提前 Play(Walk)；落到走跑必须再 Play |
