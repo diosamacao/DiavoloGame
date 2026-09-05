@@ -33,11 +33,11 @@ ModelImporter:
     extraUserProperties: []
     clipAnimations:
     - serializedVersion: 16
-      name: Scene
-      takeName: Scene
-      internalID: -623603649343465320
-      firstFrame: 1
-      lastFrame: 250
+      name: Giant_Ani_Attack_03_Hitwall
+      takeName: Giant_Ani_Attack_03_Hitwall
+      internalID: -6093981403171218355
+      firstFrame: 0
+      lastFrame: 95
       wrapMode: 0
       orientationOffsetY: 0
       level: 0

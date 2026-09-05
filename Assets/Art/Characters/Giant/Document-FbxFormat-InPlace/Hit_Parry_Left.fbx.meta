@@ -33,11 +33,11 @@ ModelImporter:
     extraUserProperties: []
     clipAnimations:
     - serializedVersion: 16
-      name: Scene
-      takeName: Scene
-      internalID: -623603649343465320
-      firstFrame: 1
-      lastFrame: 250
+      name: Giant_Ani_Hit_Parry_Left
+      takeName: Giant_Ani_Hit_Parry_Left
+      internalID: 4608718249450042335
+      firstFrame: 0
+      lastFrame: 199
       wrapMode: 0
       orientationOffsetY: 0
       level: 0

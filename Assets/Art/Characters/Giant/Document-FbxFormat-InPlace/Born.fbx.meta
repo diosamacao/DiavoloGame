@@ -33,11 +33,11 @@ ModelImporter:
     extraUserProperties: []
     clipAnimations:
     - serializedVersion: 16
-      name: Scene
-      takeName: Scene
-      internalID: -623603649343465320
-      firstFrame: 1
-      lastFrame: 250
+      name: Giant_Ani_Born
+      takeName: Giant_Ani_Born
+      internalID: 3033190438191513960
+      firstFrame: 0
+      lastFrame: 161
       wrapMode: 0
       orientationOffsetY: 0
       level: 0

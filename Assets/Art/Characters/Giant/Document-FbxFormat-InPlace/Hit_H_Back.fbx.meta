@@ -33,11 +33,11 @@ ModelImporter:
     extraUserProperties: []
     clipAnimations:
     - serializedVersion: 16
-      name: Scene
-      takeName: Scene
-      internalID: -623603649343465320
-      firstFrame: 1
-      lastFrame: 250
+      name: Giant_Ani_Hit_H_Back
+      takeName: Giant_Ani_Hit_H_Back
+      internalID: -7520465602296105162
+      firstFrame: 0
+      lastFrame: 109
       wrapMode: 0
       orientationOffsetY: 0
       level: 0
