@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-09-04（P-SW2 接触弹刀代码已接，Play 待验）
+> Last audited: 2026-09-05（Observer 片子只跟播放头；收招再 Play 走跑）
 
 ## 项目概述
 
@@ -108,7 +108,7 @@ flowchart TB
 | `ActGameSessionHandler` | App/Networking 的加入生命周期映射：按 Loadout 创建最多三个稳定 Guest Authority Actor、注册 App/Simulation 并在断线时逆序清理 |
 | `ActOwnerReplicationAdapter` | App/Networking 的 Autonomous 映射：跟随 Active 槽切换 Owner ActorId，处理 HP、Action Ack、Locomotion Reconcile 与 Hit/Death 硬吸 |
 | `ActCharacterPredictionModel` | ACT 走跑策略：2m Gate、宽限、出招/受击禁止走跑 Replay；连招 Cancel 仍在 `PredictedActionAckQueue` |
-| `ActObserverReplicationAdapter` / `ActRemoteProxyFactory` | Observer 映射：`SnapshotTimeline` 丢旧 Tick 并按插值延迟取样；Proxy 只做状态到表现 |
+| `ActObserverReplicationAdapter` / `ActRemoteProxyFactory` | Observer 映射：RemotePlaybackClock 取样（Listen delay=1）；ApplySnapshot 不切 Clip，PresentSampledPlayback 跟采样 to；走跑 Urgent；Proxy 不跑权威位移 |
 | `ActContentRegistry` | App/Networking 的 ACT 内容唯一真源：集中持有 PartyLoadout、Action Catalog、全部槽 Character Archetype 与 EnemyDefinition 映射 |
 | `ActCharacterSnapshotSchema` | App/Networking 的角色生产 Schema：统一 CharacterActor Capture 与 V1 编解码；纯 C# `CharacterSnapshotSchemaV1` 仍是线格式实现 |
 | `ActContentPrefillService` | App 场景内容接缝：唯一扫描 Player/Enemy 配置并幂等预填 `ActContentRegistry`；Room 不再查找 Gameplay 组件 |

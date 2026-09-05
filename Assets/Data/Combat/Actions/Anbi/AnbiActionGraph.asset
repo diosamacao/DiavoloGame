@@ -22,7 +22,7 @@ MonoBehaviour:
     switchCombatModeTarget: 0
     switchCombatModePolicy: 0
     targetLockSettings:
-      enabled: 0
+      enabled: 1
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
     editorPosition: {x: -298, y: -116.666664}
@@ -35,7 +35,7 @@ MonoBehaviour:
     switchCombatModeTarget: 0
     switchCombatModePolicy: 0
     targetLockSettings:
-      enabled: 0
+      enabled: 1
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
     editorPosition: {x: 278, y: -116.666664}
@@ -48,7 +48,7 @@ MonoBehaviour:
     switchCombatModeTarget: 0
     switchCombatModePolicy: 0
     targetLockSettings:
-      enabled: 0
+      enabled: 1
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
     editorPosition: {x: 865.3333, y: -116.666664}
@@ -61,7 +61,7 @@ MonoBehaviour:
     switchCombatModeTarget: 0
     switchCombatModePolicy: 0
     targetLockSettings:
-      enabled: 0
+      enabled: 1
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
     editorPosition: {x: 316, y: 174}

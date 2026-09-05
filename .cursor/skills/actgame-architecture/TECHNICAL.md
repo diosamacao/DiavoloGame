@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-09-04（P-SW2 接触弹刀代码已接，Play 待验）
+> Last updated: 2026-09-05（Observer 片子只跟播放头；收招再 Play 走跑）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -794,7 +794,7 @@ Listen 不再有特殊 Host 本机玩家。本机进程组合同一 `DedicatedSe
 | 回环 | 本机 `ClientSession` 连 `127.0.0.1:实际绑定端口` |
 | 帧序 | Poll/采样 → 按 `PeekAdvanceSteps` 发命令预测 → `Server.Poll` → 再 Drain |
 | 座位 | `PlayerController` Listen/Client 只装 Autonomous；Dedicated 禁用 |
-| 敌人 | Listen / Dedicated 权威 `AuthorityHeadless`；可见体走 Observer |
+| 敌人 | Listen / Dedicated 权威 `AuthorityHeadless`；可见体走 Observer。Listen 播放头 delay=1（禁止 delay=0 贴死最新快照）；Clip 只跟采样 to；走跑 Urgent 每 Tick；出招 Tick 走片 |
 | Capture | 只拍 Guest + 敌人，不再拍场景 LocalPlayer |
 
 ### 关键参数
@@ -833,7 +833,7 @@ Update：PollAndApply → SampleRenderInput → 按 PeekAdvanceSteps 发命令�
 
 ### 功能说明
 
-预测算法骨架可复用；ACT 2m Gate / 连招 / Hit-Death 仍归业务层。Control/Event 可靠有序，命中不再用帧内 8 条冗余。远端 Proxy 按插值延迟取样。公网 Play 未验收。
+预测算法骨架可复用；ACT 2m Gate / 连招 / Hit-Death 仍归业务层。Control/Event 可靠有序，命中不再用帧内 8 条冗余。远端 Proxy 按插值延迟取样；Listen 本机 delay=0。公网 Play 未验收。
 
 ### 实现方案
 
@@ -852,13 +852,13 @@ Update：PollAndApply → SampleRenderInput → 按 PeekAdvanceSteps 发命令�
 |------|------|------|
 | `TransportMtuGate.DefaultMaxDatagramBytes` | 1400 | 含 9 字节通道头 |
 | Mux 重传间隔 | 50ms | Control/Event |
-| 插值延迟 | RTT/2 + jitter + 16ms | 钳 16～150ms，至少 1 Tick |
+| 插值延迟 | 远端：RTT/2 + jitter + 16ms | 钳 16～150ms，至少 1 Tick。Listen 本机 Observer 强制 0 |
 
 ### 运行时流程
 
 ```
 Owner：Record → PeekError → ResolvePolicy → ReceiveAuthority
-Observer：TryPush → Render(sample delay) → ApplySnapshot → proxy.Render(alpha)
+Observer：TryPush → ApplySnapshot(判定/Notify) → RemotePlaybackClock → PresentSampledPlayback + Render(alpha)
 Hit：CopyHits(本帧) → FlushEvents → ApplyReplicationEvents → 去重播放
 ```
 
@@ -910,8 +910,9 @@ Hit：CopyHits(本帧) → FlushEvents → ApplyReplicationEvents → 去重播�
 ```
 Capture → CopyRelevantStates → BuildFrame(Compact)
 Rejected → ResetReplicationForRecovery → ReplicationRecover → ResetBaseline
-ApplyUpdates → ApplySnapshot(立即写判定/受击/Notify)
-Observer.Render → RemotePlaybackClock → SetPresentationBracket → TickAnimation → Render(alpha)
+ApplyUpdates → ApplySnapshot(立即写判定/受击/Notify，不切 Clip)
+Observer.Render → RemotePlaybackClock（Listen delay=1）
+  → SetPresentationBracket → PresentSampledPlayback（片子只跟采样 to）→ Render(alpha)
 ```
 
 ### 已知限制
@@ -919,7 +920,7 @@ Observer.Render → RemotePlaybackClock → SetPresentationBracket → TickAnima
 - W10 / W11 Play 均未用户验收
 - 无字段级 change mask、无超 MTU 拆包
 - `RoomCodec` 仍在 Simulation；未宣称只经 Networking Adapter
-- 远端隔步快照：播放头只插值锚点；出招/受击 `Urgent` 每 Tick 下发；Notify 随快照到达立即派发
+- 远端隔步快照：播放头插值锚点并独切 Clip；出招 Tick 走片，偏差超约 1 逻辑帧才 Seek；落到走跑必须再 Play；走跑/出招/受击 `Urgent` 每 Tick 下发；Notify 随快照到达立即派发
 - 不得称 R2 完成或公网可用
 
 ### 相关文件
@@ -1674,6 +1675,10 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-09-02 | 修复 Observer 二次登场残留：远端角色隐藏前回收所属 VFX；重新显形时清空退场前插值历史并直接落到当前权威位置 |
 | 2026-09-02 | 本机阵容生命周期接入同一可见性清理接口：`CharacterActor` 转入 Inactive/Dead/Empty 前回收所属 VFX，避免本机再次 SwitchIn 时复活旧特效 |
 | 2026-09-02 | 修复 P-SW1 后敌人感知根停在出生点：`RemotePlayerSeat` 使用稳定锚点并在普通切人时重挂到当前权威槽位根 |
+| 2026-09-05 | Observer 收招钉招尾：片子只跟播放头；最新快照不再提前 Play(Walk)；落到走跑必须再 Play |
+| 2026-09-05 | Observer 走跑掉帧：删除 Listen delay=0 贴最新快照；改回 RemotePlaybackClock delay=1；走跑相位改为 Urgent |
+| 2026-09-05 | Observer 出招改为 Tick 走片：仅切招/回绕或偏差超约 1 逻辑帧 Seek，避免整数帧台阶掉帧 |
+| 2026-09-05 | Observer 出招表现对齐采样快照：Listen delay=0 + Host alpha；远端仍按 RTT 播放头；Clip/残差不再墙钟空跑 |
 | 2026-09-04 | P-SW2 代码已接：两条 Action（Guard + Success）、Cue/点数、`IssueParried`、突击派生；Play 待验 |
 | 2026-09-04 | 受击 P-HR0～P-HR4 全计划 Play 验收关闭；Listen 客机 Flinch Additive 已验 |
 | 2026-09-03 | 受击档改为冲击力对韧性；删除 `desiredReaction`；不足 Flinch，持平起 LightStun |

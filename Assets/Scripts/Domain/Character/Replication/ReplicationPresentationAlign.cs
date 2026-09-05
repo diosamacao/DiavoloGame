@@ -35,6 +35,10 @@ public static class ReplicationPresentationAlign
         }
     }
 
+    /// <summary>走跑/起步/急停等位移相位；Idle 与 Additive 受击不算。供复制 Urgent 每 Tick 下发。</summary>
+    public static bool IsMovingLocomotionPhase(AnimationKey key) =>
+        key != AnimationKey.Idle && key != AnimationKey.HitShake;
+
     /// <summary>进出一次性相位硬切；Idle↔走跑冲刺走默认 CrossFade。</summary>
     public static bool ShouldHardCut(AnimationKey? previous, AnimationKey next)
     {

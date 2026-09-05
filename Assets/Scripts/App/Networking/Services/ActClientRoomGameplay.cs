@@ -85,8 +85,9 @@ public sealed class ActClientRoomGameplay
     /// <summary>走跑 Replay 命令累计。</summary>
     public int PredictionReplayCount => _owner.LocomotionReplayCount;
 
-    /// <summary>远端插值延迟毫秒。</summary>
-    public int InterpolationDelayMs => _clock.InterpolationDelayMs;
+    /// <summary>远端网络插值延迟毫秒；Listen 无 RTT 报 0。播放头仍用 1 tick 做表现插值。</summary>
+    public int InterpolationDelayMs =>
+        _world.Role == ReplicationRole.ListenHost ? 0 : _clock.InterpolationDelayMs;
 
     /// <summary>最近一次 ReplicationClient 拒绝原因。</summary>
     public string LastRejectMessage { get; private set; }
@@ -250,7 +251,10 @@ public sealed class ActClientRoomGameplay
             _clock.ObserveRtt(rttMs);
     }
 
-    /// <summary>Owner 跟本地固定步 alpha；Observer 用真实时间推进播放头与 Clip。</summary>
+    /// <summary>
+    /// Owner 跟本地固定步 alpha。
+    /// Observer 一律 RemotePlaybackClock：Listen 只留 1 tick 表现插值（delay=0 会贴死最新快照）。
+    /// </summary>
     public void Render()
     {
         SimulationHost host = _world.SimulationHost;
@@ -259,7 +263,10 @@ public sealed class ActClientRoomGameplay
 
         float alpha = host.InterpolationAlpha;
         _localPlayer?.RenderParty(alpha);
-        _observer.Render(_clock.InterpolationDelayTicks, Time.deltaTime);
+        int delayTicks = _world.Role == ReplicationRole.ListenHost
+            ? 1
+            : _clock.InterpolationDelayTicks;
+        _observer.Render(delayTicks, Time.deltaTime);
     }
 
     /// <summary>丢掉 Observer / Registry，保留 Session，等待权威下一帧全量 Spawn。</summary>

@@ -161,7 +161,7 @@ public sealed class ActAuthorityReplicationAdapter
         return copy;
     }
 
-    /// <summary>记录命中映射所需快照，并编码为通用 ReplicationEntityState。</summary>
+    /// <summary>记录命中映射所需快照，并编码为通用 ReplicationEntityState。出招/受击/走跑相位标 Urgent，避免 Compact 30Hz 让根硬切。</summary>
     void AddEntityState(
         in ActorReplicationSnapshot snapshot,
         NetArchetypeId archetypeId)
@@ -171,7 +171,9 @@ public sealed class ActAuthorityReplicationAdapter
 
         _snapshots.Add(snapshot);
         bool urgent = snapshot.ActionId != 0
-            || snapshot.VitalityEdge != VitalityReplicationEdge.None;
+            || snapshot.VitalityEdge != VitalityReplicationEdge.None
+            || (ReplicationPresentationAlign.TryReadPhase(in snapshot, out AnimationKey locomotionKey)
+                && ReplicationPresentationAlign.IsMovingLocomotionPhase(locomotionKey));
         _entityStates.Add(new ReplicationEntityState(
             new NetEntityId(snapshot.ActorId.Value),
             archetypeId,

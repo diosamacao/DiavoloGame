@@ -20,6 +20,17 @@ public sealed class ReplicationPresentationAlignTests
         Assert.That(ReplicationPresentationAlign.TryReadPhase(in snap, out AnimationKey key), Is.True);
         Assert.That(key, Is.EqualTo(AnimationKey.Sprint));
         Assert.That(ReplicationPresentationAlign.IsTransitionPhase(key), Is.False);
+        Assert.That(ReplicationPresentationAlign.IsMovingLocomotionPhase(key), Is.True);
+    }
+
+    /// <summary>走跑算位移相位，Idle / Additive 受击不算，供复制 Urgent。</summary>
+    [Test]
+    public void IsMovingLocomotionPhase_ExcludesIdleAndHitShake()
+    {
+        Assert.That(ReplicationPresentationAlign.IsMovingLocomotionPhase(AnimationKey.Walk), Is.True);
+        Assert.That(ReplicationPresentationAlign.IsMovingLocomotionPhase(AnimationKey.WalkLeft), Is.True);
+        Assert.That(ReplicationPresentationAlign.IsMovingLocomotionPhase(AnimationKey.Idle), Is.False);
+        Assert.That(ReplicationPresentationAlign.IsMovingLocomotionPhase(AnimationKey.HitShake), Is.False);
     }
 
     static ActorReplicationSnapshot PhaseSnapshot(AnimationKey phase) =>

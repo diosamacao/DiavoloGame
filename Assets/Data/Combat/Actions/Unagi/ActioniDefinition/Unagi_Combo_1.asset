@@ -52,6 +52,8 @@ MonoBehaviour:
     cancelWindowStates: []
     phaseStates: []
     perfectDodgeWindowStates: []
+    assistCueStates: []
+    assistParryWindowStates: []
     movementStates: []
     rotationStates:
     - id: Rotation_1
@@ -74,6 +76,10 @@ MonoBehaviour:
       smoothTimeOverride: 0
     motionModifierStates: []
     motionCommandNotifies: []
+    cameraSettings:
+      restoreMode: 0
+      suppressLookInput: 1
+    cameraShotStates: []
     tracks:
     - trackName: Rotation_1
       kind: 6

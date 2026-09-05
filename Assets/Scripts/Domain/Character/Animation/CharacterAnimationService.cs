@@ -25,6 +25,18 @@ public sealed class CharacterAnimationService : IDisposable, ILocomotionAnimClip
     /// <summary>当前主 Clip 归一化时间；供 Locomotion 落脚与相位结束判定。</summary>
     public float NormalizedTime => playback != null ? playback.NormalizedTime : 0f;
 
+    /// <summary>当前主 Clip 时间（秒）；无片时为 0。供 Observer 与采样动作时间比偏差。</summary>
+    public float CurrentClipTimeSeconds
+    {
+        get
+        {
+            if (playback == null || playback.CurrentClip == null)
+                return 0f;
+
+            return playback.NormalizedTime * playback.CurrentClip.length;
+        }
+    }
+
     /// <summary>当前主 Clip 是否已播完（循环 Clip 视为未结束）。</summary>
     public bool HasFinishedCurrent =>
         playback != null && playback.CurrentClip != null && playback.HasFinished;
@@ -127,7 +139,10 @@ public sealed class CharacterAnimationService : IDisposable, ILocomotionAnimClip
     /// <summary>立刻清 Additive 层；进 Hit / 隐藏 / 切招时由上层调用。</summary>
     public void StopAdditive() => playback?.StopAdditive();
 
-    /// <summary>将当前招式 Clip 跳到指定时间（秒）；仅切段对时使用，勿每逻辑帧调用。</summary>
+    /// <summary>
+    /// 将当前招式 Clip 跳到指定时间（秒）。
+    /// 权威切段对时用；Observer 只在切招/回绕或偏差超过约 1 逻辑帧时 Seek。
+    /// </summary>
     public void SeekClip(float timeSeconds) => playback?.Seek(timeSeconds);
 
     /// <summary>

@@ -194,6 +194,85 @@ public sealed class RemoteCharacterProxyTests
         Assert.That(HitImpactCuePlayer.TryResolveFeedback(null, 1, 0, out _), Is.False);
     }
 
+    /// <summary>播放头小数动作时间：同招按 alpha 线性插，不先取整。</summary>
+    [Test]
+    public void ResolvePresentationActionTime_LerpsFractionally()
+    {
+        ActorReplicationSnapshot idle = CreatePoseSnapshot(0, 0);
+        ActorReplicationSnapshot from = idle.WithAction(4, 10);
+        ActorReplicationSnapshot to = idle.WithAction(4, 12);
+
+        Assert.That(
+            RemoteCharacterProxy.ResolvePresentationActionTime(in from, in to, 0.25f),
+            Is.EqualTo(10.5f).Within(0.001f));
+        Assert.That(
+            RemoteCharacterProxy.ResolvePresentationActionTime(in from, in to, 0.5f),
+            Is.EqualTo(11f).Within(0.001f));
+    }
+
+    /// <summary>播放头收招后即使走跑键未变也必须再 Play，避免主轨停在招尾。</summary>
+    [Test]
+    public void ShouldPlaySampledLocomotion_LeavingAction_AlwaysPlays()
+    {
+        Assert.That(
+            RemoteCharacterProxy.ShouldPlaySampledLocomotion(true, AnimationKey.Walk, AnimationKey.Walk),
+            Is.True);
+        Assert.That(
+            RemoteCharacterProxy.ShouldPlaySampledLocomotion(false, AnimationKey.Walk, AnimationKey.Walk),
+            Is.False);
+        Assert.That(
+            RemoteCharacterProxy.ShouldPlaySampledLocomotion(false, AnimationKey.Idle, AnimationKey.Walk),
+            Is.True);
+        Assert.That(
+            RemoteCharacterProxy.ShouldPlaySampledLocomotion(false, null, AnimationKey.Idle),
+            Is.True);
+    }
+
+    /// <summary>Clip 偏差不超过约 1 逻辑帧不 Seek；超过才纠偏。</summary>
+    [Test]
+    public void ShouldCorrectActionClipSeek_OnlyWhenDriftExceedsOneLogicFrame()
+    {
+        Assert.That(
+            RemoteCharacterProxy.ShouldCorrectActionClipSeek(0.10f, 0.10f, 60f),
+            Is.False);
+        Assert.That(
+            RemoteCharacterProxy.ShouldCorrectActionClipSeek(0.10f, 0.11f, 60f),
+            Is.False);
+        Assert.That(
+            RemoteCharacterProxy.ShouldCorrectActionClipSeek(0.10f, 0.12f, 60f),
+            Is.True);
+    }
+
+    /// <summary>播放头出招帧：同招按 alpha 取整，切招与回绕贴 to。</summary>
+    [Test]
+    public void ResolvePresentationActionFrame_LerpsSameAction_SnapsOnSwitchOrRewind()
+    {
+        ActorReplicationSnapshot idle = CreatePoseSnapshot(0, 0);
+        ActorReplicationSnapshot from = idle.WithAction(4, 10);
+        ActorReplicationSnapshot to = idle.WithAction(4, 12);
+        ActorReplicationSnapshot next = idle.WithAction(5, 0);
+        ActorReplicationSnapshot rewind = idle.WithAction(4, 0);
+
+        Assert.That(
+            RemoteCharacterProxy.ResolvePresentationActionFrame(in from, in to, 0f),
+            Is.EqualTo(10));
+        Assert.That(
+            RemoteCharacterProxy.ResolvePresentationActionFrame(in from, in to, 0.5f),
+            Is.EqualTo(11));
+        Assert.That(
+            RemoteCharacterProxy.ResolvePresentationActionFrame(in from, in to, 1f),
+            Is.EqualTo(12));
+        Assert.That(
+            RemoteCharacterProxy.ResolvePresentationActionFrame(in from, in next, 0.25f),
+            Is.EqualTo(0));
+        Assert.That(
+            RemoteCharacterProxy.ResolvePresentationActionFrame(in from, in rewind, 0.8f),
+            Is.EqualTo(0));
+        Assert.That(
+            RemoteCharacterProxy.ResolvePresentationActionFrame(in idle, in idle, 0.5f),
+            Is.EqualTo(0));
+    }
+
     /// <summary>连续受击：Hit 边沿或同一招动作帧回绕须重播；同招帧前进不重播。</summary>
     [Test]
     public void ShouldForceActionRestart_HitEdgeOrFrameRewind()
