@@ -8,11 +8,12 @@ public sealed class PartyCombatCoordinator
     readonly PartyMemberState[] states;
     readonly CharacterAssistStyle[] _assistStyles;
 
-    /// <summary>按 Loadout 槽占用表创建阵容状态；槽数必须为 1～3，开局槽必须有人。</summary>
+    /// <summary>按 Loadout 槽占用表创建阵容状态；槽数必须为 1～3，开局槽必须有人。assistPoints 全 0 用首版默认。</summary>
     public PartyCombatCoordinator(
         IReadOnlyList<bool> occupiedSlots,
         int startingSlot,
-        IReadOnlyList<CharacterAssistStyle> assistStyles = null)
+        IReadOnlyList<CharacterAssistStyle> assistStyles = null,
+        PartyAssistPointSettings assistPoints = default)
     {
         if (occupiedSlots == null)
             throw new ArgumentNullException(nameof(occupiedSlots));
@@ -35,7 +36,7 @@ public sealed class PartyCombatCoordinator
 
         ActiveIndex = startingSlot;
         states[startingSlot] = PartyMemberState.Active;
-        AssistPoints = new PartyAssistPoints();
+        AssistPoints = new PartyAssistPoints(assistPoints);
     }
 
     /// <summary>当前接收玩法输入的槽位。</summary>
@@ -92,7 +93,7 @@ public sealed class PartyCombatCoordinator
             ApplyInstantReplace(
                 nextIndex,
                 kind,
-                PartyAssistPoints.AssistCost,
+                AssistPoints.Cost,
                 query.CueOwnerId,
                 out command);
             return true;

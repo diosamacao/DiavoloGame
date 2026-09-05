@@ -34,6 +34,9 @@ public class PlayerController : AppControllerBase, ILocalPlayer
     /// <summary>按 Loadout 槽位对齐的本机 Actor；空槽对应 null。</summary>
     public IReadOnlyList<CharacterActor> PartyActors => _partyActors;
 
+    /// <summary>本机预测口袋；F3 只读。权威 Guest 另有一份，Listen 上可能短暂不一致。</summary>
+    public PartyAssistPoints AssistPoints => _partyCoordinator?.AssistPoints;
+
     /// <summary>当前预测或权威 Active 槽索引；尚未初始化时为 -1。</summary>
     public int ActivePartySlot => _partyCoordinator?.ActiveIndex ?? -1;
 
@@ -459,7 +462,11 @@ public class PlayerController : AppControllerBase, ILocalPlayer
                 ? partyLoadout.Members[i].AssistStyle
                 : CharacterAssistStyle.MeleeParry;
         }
-        _partyCoordinator = new PartyCombatCoordinator(occupied, partyLoadout.StartingSlot, assistStyles);
+        _partyCoordinator = new PartyCombatCoordinator(
+            occupied,
+            partyLoadout.StartingSlot,
+            assistStyles,
+            partyLoadout.AssistPointSettings);
 
         for (int i = 0; i < count; i++)
         {
@@ -495,7 +502,7 @@ public class PlayerController : AppControllerBase, ILocalPlayer
     void OnPartyActionBegun(GameplayIntentType intent)
     {
         if (intent == GameplayIntentType.Ultimate)
-            _partyCoordinator?.AssistPoints.Grant(PartyAssistPoints.UltimateGrant);
+            _partyCoordinator?.AssistPoints.GrantUltimate();
     }
 
     /// <summary>玩家装配前确保场景存在统一战斗世界入口并返回该入口。</summary>

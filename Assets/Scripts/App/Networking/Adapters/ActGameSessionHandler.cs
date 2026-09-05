@@ -55,7 +55,11 @@ public sealed class ActGameSessionHandler
                 ? loadout.Members[i].AssistStyle
                 : CharacterAssistStyle.MeleeParry;
         }
-        var coordinator = new PartyCombatCoordinator(occupied, loadout.StartingSlot, assistStyles);
+        var coordinator = new PartyCombatCoordinator(
+            occupied,
+            loadout.StartingSlot,
+            assistStyles,
+            loadout.AssistPointSettings);
         var members = new ActGameGuestMember[count];
 
         for (int i = 0; i < count; i++)
@@ -108,7 +112,7 @@ public sealed class ActGameSessionHandler
             actor.ActionBegun += intent =>
             {
                 if (intent == GameplayIntentType.Ultimate)
-                    coordinator.AssistPoints.Grant(PartyAssistPoints.UltimateGrant);
+                    coordinator.AssistPoints.GrantUltimate();
             };
             _content.PrefillActions(config);
             members[i] = new ActGameGuestMember(
