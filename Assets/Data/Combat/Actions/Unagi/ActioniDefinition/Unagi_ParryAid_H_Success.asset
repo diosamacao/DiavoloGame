@@ -40,11 +40,29 @@ MonoBehaviour:
     clearsDecibelOnStart: 0
   timeline:
     actionEvents: []
-    playVfxNotifies: []
+    playVfxNotifies:
+    - id: VFX_1
+      startFrame: 0
+      endFrame: 0
+      priority: 0
+      trackName: VFX_1
+      prefab: {fileID: 1200950891393156, guid: d45e570888c383f44a28627a344aeceb, type: 3}
+      attachPointId: 
+      localOffset: {x: 0, y: 1.07, z: -3.29}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      localScale: {x: 1, y: 1, z: 1}
+      parentToAttachPoint: 0
+      playbackSpeed: 1
     playSfxStates: []
     hitboxStates: []
     hurtboxStates: []
-    cancelWindowStates: []
+    cancelWindowStates:
+    - id: NormalCancel
+      startFrame: 47
+      endFrame: 58
+      priority: 0
+      trackName: Cancel_1
+      windowType: 0
     phaseStates:
     - id: Phase_1
       startFrame: 61
@@ -64,7 +82,7 @@ MonoBehaviour:
     motionModifierStates:
     - id: MotionModifier_1
       startFrame: 0
-      endFrame: 19
+      endFrame: 59
       priority: 0
       trackName: MotionModifier_1
       mode: 0
@@ -86,6 +104,12 @@ MonoBehaviour:
       visible: 1
     - trackName: MotionModifier_1
       kind: 11
+      visible: 1
+    - trackName: Cancel_1
+      kind: 4
+      visible: 1
+    - trackName: VFX_1
+      kind: 2
       visible: 1
   bakedMotion:
     logicHz: 60

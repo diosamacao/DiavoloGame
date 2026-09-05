@@ -41,8 +41,45 @@ MonoBehaviour:
   timeline:
     actionEvents: []
     playVfxNotifies: []
-    playSfxStates: []
-    hitboxStates: []
+    playSfxStates:
+    - id: SFX_1
+      startFrame: 0
+      endFrame: 0
+      priority: 0
+      trackName: SFX_1
+      audioClip: {fileID: 8300000, guid: f6b7d84faf3f2e24590394e6228d3417, type: 3}
+      volume: 1
+      playbackSpeed: 1
+    hitboxStates:
+    - id: Hitbox_1
+      startFrame: 11
+      endFrame: 18
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 0.86}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 2, y: 2, z: 3}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
+      payload:
+        baseDamage: 10
+        hitReactionId: 
+        interruptLevel: 2
+        feedback:
+          cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
+          useHitStop: 1
+          hitStopFrames: 4
+          hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 0.3
+          hitImpactWorldOffset: {x: 0, y: 0, z: 0}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
     hurtboxStates: []
     cancelWindowStates:
     - id: NormalCancel
@@ -61,9 +98,18 @@ MonoBehaviour:
       interruptible: 1
       allowMovementCancel: 1
       allowEntryRestart: 1
+      interruptResistBonus: 0
     perfectDodgeWindowStates: []
+    assistCueStates: []
+    assistParryWindowStates: []
     movementStates: []
-    rotationStates: []
+    rotationStates:
+    - id: Rotation_1
+      startFrame: 0
+      endFrame: 10
+      priority: 0
+      trackName: Rotation_1
+      smoothTimeOverride: 0.05
     motionModifierStates: []
     motionCommandNotifies: []
     cameraSettings:
@@ -76,6 +122,15 @@ MonoBehaviour:
       visible: 1
     - trackName: Cancel_1
       kind: 4
+      visible: 1
+    - trackName: Rotation_1
+      kind: 6
+      visible: 1
+    - trackName: Hitbox_1
+      kind: 0
+      visible: 1
+    - trackName: SFX_1
+      kind: 3
       visible: 1
   bakedMotion:
     logicHz: 60

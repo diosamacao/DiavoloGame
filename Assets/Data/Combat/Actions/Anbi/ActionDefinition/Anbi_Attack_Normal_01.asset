@@ -40,26 +40,14 @@ MonoBehaviour:
     clearsDecibelOnStart: 0
   timeline:
     actionEvents: []
-    playVfxNotifies:
-    - id: VFX_1
-      startFrame: 8
-      endFrame: 8
-      priority: 0
-      trackName: VFX_1
-      prefab: {fileID: 1130446560849736, guid: c4d564b5d4682ad46b8621f0fa6f40d9, type: 3}
-      attachPointId: 
-      localOffset: {x: 0.01, y: 0.65, z: -0.31}
-      localEulerAngles: {x: 90, y: 267.9, z: 52.8}
-      localScale: {x: 0.7, y: 0.7, z: 0.7}
-      parentToAttachPoint: 1
-      playbackSpeed: 1.5
+    playVfxNotifies: []
     playSfxStates:
     - id: SFX_1
       startFrame: 0
       endFrame: 0
       priority: 0
       trackName: SFX_1
-      audioClip: {fileID: 8300000, guid: 36de77c2058f38e4985ef58f57b9fdaa, type: 3}
+      audioClip: {fileID: 8300000, guid: 8dd590bb7a3f66e46a3b2c08023b2af1, type: 3}
       volume: 1
       playbackSpeed: 1
     hitboxStates:
