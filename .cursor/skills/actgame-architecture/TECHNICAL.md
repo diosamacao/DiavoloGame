@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-09-05（Observer 片子只跟播放头；收招再 Play 走跑）
+> Last updated: 2026-09-05（Hurt 退场先离开 Hit 再 SwitchOut）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -62,7 +62,7 @@
 | 顺序选择 | `PartySlotSelector` 从 Active 后一槽正序绕回，只接受 `Inactive` |
 | 普通切裁定 | `PartyCombatCoordinator.TryResolveSwitchIn` 输出 `DualPresence`，旧槽 Active→Exiting，新槽 Inactive→Active |
 | 普通切落点 | `PartySwitchPlacement` 按旧角色 Motor 朝向取局部右侧 600mm；`CharacterActor.PlaceForNormalSwitchFrom` 从旧位置经新角色静态碰撞世界解析后落地 |
-| 退场时序 | `CharacterActor.BeginPartyExit/AdvancePartyExitAfterPostCombat`：空闲立即注入 `SwitchOut`；切人输入到达时已在 Recovery 则在下一次 Action Step 前立即交接，否则到首次 Recovery 停止并排队 `SwitchOut`；`IsPartyExitReady` 只认 SwitchOut 实例的 Recovery |
+| 退场时序 | `CharacterActor.BeginPartyExit/AdvancePartyExitAfterPostCombat`：空闲立即注入 `SwitchOut`；切人输入到达时已在 Recovery 则在下一次 Action Step 前立即交接，否则到首次 Recovery 停止并排队 `SwitchOut`；交接前必须离开 `Hit`（Driver 只从 Locomotion 起 SwitchOut）；`IsPartyExitReady` 只认 SwitchOut 实例的 Recovery |
 | 运行时槽 | `PlayerController` / `ActGameGuest` 均按非空槽创建独立 `CharacterActor`；Inactive 空输入且不参与软碰撞/受击 |
 | 稳定身份 | 每槽独立 `SimActorId` / `NetEntityId`；禁止单 Actor 热换 Config |
 | Owner 复制 | V2 应用载荷下发槽 ActorId、ActiveSlot、累计命令 ACK；自有后台槽不会创建 Observer Proxy |
@@ -77,8 +77,8 @@ InputReader.Sample → InputFrame.SwitchCharacter
   → DedicatedAuthorityWorld 预合并未应用命令
   → ActGameGuest.TryResolveSwitch
       → from.BeginPartyExit；to = Active
-      → from 空闲：QueueExternalIntent(SwitchOut)
-      → from 有招：首次 Recovery 后 Stop 原招并 QueueExternalIntent(SwitchOut)
+      → from 空闲（含纯帧 Hurt）：离开 Hit 后 QueueExternalIntent(SwitchOut)
+      → from 有招/受击招：首次 Recovery 后 Stop 并离开 Hit，再 QueueExternalIntent(SwitchOut)
       → SwitchOut 首次 Recovery：CompletePartyExit
       → to 从旧槽逻辑根沿旧角色局部右向偏移 600mm（静态碰撞解析）
       → to 优先朝向 SelectedTarget
@@ -98,6 +98,7 @@ ActClientRoomGameplay.StepPrediction
 
 - `SwitchIn/SwitchOut` 只提供代码意图；每个角色 ActionGraph 仍需 Editor 人工配置同名 Entry/Action。
 - 原 Action 没有 Recovery Phase 时，等其自然结束后再切 `SwitchOut`，避免在 Startup/Active 中硬掐。
+- `Hit` 不能转 `Action`；退场交接若不停在 Hit，`SwitchOut` 意图被丢掉，槽永久 `Exiting`，无法切回。
 - `SwitchOut` 必须配置 Recovery Phase；缺失时角色不会被静默隐藏，便于暴露资产错误。
 - 本轮已通过解决方案编译；Unity Test Runner 与 Listen Play 尚未验收，因此功能状态仍为 🟡。
 - P-SW2 代码已接（Cue / 点数 / Guard→Success / `IssueParried` / 突击派生）；Graph 与 Timeline 资产、Play 验收未做。
@@ -1675,6 +1676,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-09-02 | 修复 Observer 二次登场残留：远端角色隐藏前回收所属 VFX；重新显形时清空退场前插值历史并直接落到当前权威位置 |
 | 2026-09-02 | 本机阵容生命周期接入同一可见性清理接口：`CharacterActor` 转入 Inactive/Dead/Empty 前回收所属 VFX，避免本机再次 SwitchIn 时复活旧特效 |
 | 2026-09-02 | 修复 P-SW1 后敌人感知根停在出生点：`RemotePlayerSeat` 使用稳定锚点并在普通切人时重挂到当前权威槽位根 |
+| 2026-09-05 | Hurt 中普通切人：交接 SwitchOut 前必须离开 Hit，避免意图被丢掉、槽永久 Exiting |
 | 2026-09-05 | Observer 收招钉招尾：片子只跟播放头；最新快照不再提前 Play(Walk)；落到走跑必须再 Play |
 | 2026-09-05 | Observer 走跑掉帧：删除 Listen delay=0 贴最新快照；改回 RemotePlaybackClock delay=1；走跑相位改为 Urgent |
 | 2026-09-05 | Observer 出招改为 Tick 走片：仅切招/回绕或偏差超约 1 逻辑帧 Seek，避免整数帧台阶掉帧 |

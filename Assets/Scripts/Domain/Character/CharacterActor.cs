@@ -427,13 +427,8 @@ public sealed class CharacterActor :
             || state == PartyMemberState.Empty)
         {
             // 权威纠正也可能强制 Active/Exiting 回后台，必须终止未完成动作，禁止隐藏后继续衔接。
-            if (state == PartyMemberState.Inactive && _actionSim.IsActive)
-            {
-                _actionSim.Stop();
-                _intentBuffer.ClearAllBuffers();
-                if (CurrentState == CharacterStateType.Action)
-                    _stateMachine.TryChangeState(CharacterStateType.Locomotion, force: true);
-            }
+            if (state == PartyMemberState.Inactive)
+                StopActionForPartyTransition();
             _partyExitMode = PartyExitMode.None;
             _switchOutActionInstanceId = 0;
             _queuedExternalIntent = GameplayIntentType.None;
@@ -442,7 +437,8 @@ public sealed class CharacterActor :
     }
 
     /// <summary>
-    /// 开始普通退场：空闲时立即请求 SwitchOut；已有 Action 在当前或后续首次 Recovery 交接。
+    /// 开始普通退场：空闲时立即请求 SwitchOut；已有 Action/受击招在当前或后续首次 Recovery 交接。
+    /// SwitchOut 只能从 Locomotion Entry 起手，交接前必须离开 Hit。
     /// </summary>
     public void BeginPartyExit()
     {
@@ -461,6 +457,8 @@ public sealed class CharacterActor :
         _switchOutActionInstanceId = 0;
         if (!hasActiveAction)
         {
+            // 纯帧硬直 Hurt 没有 ActionSim，仍停在 Hit；不先回走跑则 Driver 丢掉 SwitchOut。
+            ReleaseHitOrActionForPartyTransition();
             QueueExternalIntent(GameplayIntentType.SwitchOut);
         }
         else if (alreadyInRecovery)
@@ -631,6 +629,16 @@ public sealed class CharacterActor :
         // 受击打断时模型短时回锚（若动作 Stop 事件未到也兜底）
         _visualMotion?.EndAction(VisualResidualExitPolicy.BlendToZero);
         _visualMotion?.SetLeanRollDegrees(0f);
+        // 退场中再受击会掐掉已起的 SwitchOut；回到等 Recovery，避免槽永久 Exiting。
+        if (_partyState == PartyMemberState.Exiting
+            && _partyExitMode == PartyExitMode.PlayingSwitchOut)
+        {
+            _partyExitMode = PartyExitMode.WaitForCurrentRecovery;
+            _switchOutActionInstanceId = 0;
+            if (_queuedExternalIntent == GameplayIntentType.SwitchOut)
+                _queuedExternalIntent = GameplayIntentType.None;
+        }
+
         _stateMachine.EnterHit(in request);
     }
 
@@ -815,7 +823,7 @@ public sealed class CharacterActor :
         }
     }
 
-    /// <summary>终止已到交接点的原招，并让下一逻辑帧从独立 SwitchOut Entry 起手。</summary>
+    /// <summary>终止已到交接点的原招/受击，并让下一逻辑帧从独立 SwitchOut Entry 起手。</summary>
     void BeginSwitchOutAfterCurrentAction()
     {
         StopActionForPartyTransition();
@@ -824,13 +832,22 @@ public sealed class CharacterActor :
         QueueExternalIntent(GameplayIntentType.SwitchOut);
     }
 
-    /// <summary>切入 SwitchOut 前终止原招及其缓冲，并回到可从 Entry 起手的 Locomotion。</summary>
+    /// <summary>切入 SwitchOut 或隐入后台前终止原招及其缓冲，并回到可从 Entry 起手的 Locomotion。</summary>
     void StopActionForPartyTransition()
     {
         if (_actionSim.IsActive)
             _actionSim.Stop();
         _intentBuffer.ClearAllBuffers();
-        if (CurrentState == CharacterStateType.Action)
+        ReleaseHitOrActionForPartyTransition();
+    }
+
+    /// <summary>
+    /// Driver 只从 Locomotion 起 SwitchOut；Hit 不能转 Action，且 Hit.Exit 会 Stop 刚起的招。
+    /// </summary>
+    void ReleaseHitOrActionForPartyTransition()
+    {
+        CharacterStateType state = CurrentState;
+        if (state == CharacterStateType.Action || state == CharacterStateType.Hit)
             _stateMachine.TryChangeState(CharacterStateType.Locomotion, force: true);
     }
 
