@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-09-05（Hurt 退场先离开 Hit 再 SwitchOut）
+> Last updated: 2026-09-05（F3 显示支援点；点数由 PartyLoadout 配置）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -130,7 +130,7 @@ ActClientRoomGameplay.StepPrediction
 | 项 | 方案 |
 |----|------|
 | 闪光 | 敌人 Timeline `AssistCueNotifyState`（Gold/Red、`requiresRanged`、弹刀/回避偏移）；`WorldAssistCueBoard` 步进后收集，切人读上一拍 |
-| 支援点 | `PartyAssistPoints`：上限 6、开局 3、极限支援耗 1、Ult 起手 +3 |
+| 支援点 | `PartyAssistPoints`：默认上限 6、开局 3、耗 1、Ult +3；数值由 `PartyLoadout` 的支援点字段覆盖 |
 | 裁定 | `PartyCombatCoordinator.TryResolveSwitch`：无 Cue → DualPresence；Gold 且能花 → InstantReplace + 扣点；0 点 / 远程点名不匹配 → Red `SwitchPerfectDodge`；突击武装中拒绝 |
 | 上场意图 | `PartySwitchApplication`：`AssistParry` / `AssistEvade` / `SwitchPerfectDodge`；不播 SwitchIn/Out |
 | 接触 | `IHitAbsorbQuery.IsInAssistParryWindow`；管道优先于 PD 与无敌：玩家不 OnHit，攻击者 `IssueParried` |
@@ -141,7 +141,7 @@ ActClientRoomGameplay.StepPrediction
 
 | 参数 | 值 |
 |------|-----|
-| 支援点 | Max 6 / Starting 3 / Cost 1 / Ult +3 |
+| 支援点 | `PartyLoadout`：max / starting / assistCost / ultimateGrant（默认 6 / 3 / 1 / 3） |
 | 突击窗 | 复用 `CharacterNumericConfig.PerfectDodgeCounterFrames`（默认 45） |
 | Success 取消优先级 | 96（高于 Guard 92、突击 94） |
 
@@ -1676,6 +1676,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-09-02 | 修复 Observer 二次登场残留：远端角色隐藏前回收所属 VFX；重新显形时清空退场前插值历史并直接落到当前权威位置 |
 | 2026-09-02 | 本机阵容生命周期接入同一可见性清理接口：`CharacterActor` 转入 Inactive/Dead/Empty 前回收所属 VFX，避免本机再次 SwitchIn 时复活旧特效 |
 | 2026-09-02 | 修复 P-SW1 后敌人感知根停在出生点：`RemotePlayerSeat` 使用稳定锚点并在普通切人时重挂到当前权威槽位根 |
+| 2026-09-05 | F3 Party 行显示支援点；上限/开局/消耗/Ult 回复由 PartyLoadout 配置 |
 | 2026-09-05 | Hurt 中普通切人：交接 SwitchOut 前必须离开 Hit，避免意图被丢掉、槽永久 Exiting |
 | 2026-09-05 | Observer 收招钉招尾：片子只跟播放头；最新快照不再提前 Play(Walk)；落到走跑必须再 Play |
 | 2026-09-05 | Observer 走跑掉帧：删除 Listen delay=0 贴最新快照；改回 RemotePlaybackClock delay=1；走跑相位改为 Urgent |

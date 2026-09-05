@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-09-05（Hurt 退场先离开 Hit 再 SwitchOut）
+> Last audited: 2026-09-05（F3 显示支援点；点数由 PartyLoadout 配置）
 
 ## 项目概述
 
@@ -191,9 +191,9 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 |----|------|
 | `CharacterId` | 跨阵容、存档与联网使用的稳定角色字符串身份 |
 | `CharacterDefinition` | `CharacterId` + `CharacterAssistStyle` + 现有 `CharacterConfig`；元素/阵营/定位标签仅预留 |
-| `PartyLoadout` | 单座位 1～3 槽阵容与开局槽；允许中间空槽，拒绝重复 Id |
+| `PartyLoadout` | 单座位 1～3 槽阵容、开局槽与支援点 max/starting/cost/ult；允许中间空槽，拒绝重复 Id |
 | `PartySlotSelector` | 单键按槽位正序绕回，跳过 Empty / Exiting / Dead |
-| `PartyAssistPoints` | 队共享支援点口袋（上限 6 / 开局 3）；扣费只在 Coordinator 裁定成功时发生 |
+| `PartyAssistPoints` | 队共享支援点口袋；数值来自 Loadout，默认上限 6 / 开局 3 / 耗 1；扣费只在 Coordinator 裁定成功时发生 |
 | `WorldAssistCueBoard` | 权威帧收集敌人 `AssistCue`；切人读上一拍，优先锁定目标否则最小 OwnerId |
 | `PartyCombatCoordinator` | 按 Cue / 点数 / AssistStyle 输出 DualPresence 或 InstantReplace |
 | `PlayerController` | 为每个非空槽创建独立 Autonomous Actor；只让 Active 接收输入，预测切人时同时推进 Exiting |

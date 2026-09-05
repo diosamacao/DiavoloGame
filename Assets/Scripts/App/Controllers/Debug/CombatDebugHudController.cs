@@ -147,7 +147,7 @@ public sealed class CombatDebugHudController : AppControllerBase
         GUI.Label(new Rect(16f, 16f, width - 16f, height - 16f), _sb.ToString(), _labelStyle);
     }
 
-    /// <summary>输出本机阵容槽、稳定 ActorId 与 Active/Exiting 状态。</summary>
+    /// <summary>输出本机阵容槽、ActorId、状态，以及预测口袋支援点。</summary>
     static void AppendPartyLine(StringBuilder sb, PlayerController player)
     {
         if (player?.PartyLoadout == null)
@@ -170,6 +170,17 @@ public sealed class CombatDebugHudController : AppControllerBase
                 .Append(" #")
                 .Append(member.SimulationId.Value);
         }
+
+        PartyAssistPoints points = player.AssistPoints;
+        if (points != null)
+        {
+            sb.AppendLine();
+            sb.Append("Assist: ").Append(points.Current).Append('/').Append(points.Capacity)
+                .Append("  cost=").Append(points.Cost)
+                .Append("  ult+").Append(points.UltimateGrantAmount)
+                .Append(points.CanSpendAssist ? "  GOLD" : "  RED");
+        }
+
         sb.AppendLine();
     }
 

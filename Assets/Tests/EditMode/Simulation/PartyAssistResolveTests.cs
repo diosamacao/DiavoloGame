@@ -114,6 +114,34 @@ public sealed class PartyAssistResolveTests
         Assert.That(coordinator.AssistPoints.Current, Is.EqualTo(PartyAssistPoints.Starting));
     }
 
+    /// <summary>Loadout 可改上限与消耗；扣费按口袋 Cost，不是写死的 1。</summary>
+    [Test]
+    public void CustomAssistPointSettings_UsesCostAndCapacity()
+    {
+        var settings = new PartyAssistPointSettings
+        {
+            max = 4,
+            starting = 4,
+            assistCost = 2,
+            ultimateGrant = 1,
+        };
+        var coordinator = new PartyCombatCoordinator(
+            new[] { true, true },
+            0,
+            new[] { CharacterAssistStyle.MeleeParry, CharacterAssistStyle.MeleeParry },
+            settings);
+        var query = new PartyAssistResolveQuery(true, AssistCueKind.Gold, false, false);
+
+        Assert.That(coordinator.TryResolveSwitch(in query, out PartySwitchCommand command), Is.True);
+        Assert.That(command.SpendAssistPoints, Is.EqualTo(2));
+        Assert.That(coordinator.AssistPoints.Current, Is.EqualTo(2));
+        Assert.That(coordinator.AssistPoints.Capacity, Is.EqualTo(4));
+        Assert.That(coordinator.AssistPoints.CanSpendAssist, Is.True);
+
+        coordinator.AssistPoints.GrantUltimate();
+        Assert.That(coordinator.AssistPoints.Current, Is.EqualTo(3));
+    }
+
     /// <summary>CueBoard 优先锁定目标，否则取最小 OwnerId。</summary>
     [Test]
     public void CueBoard_PrefersSelectedThenLowestId()

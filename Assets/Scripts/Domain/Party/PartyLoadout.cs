@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>玩家单座位的出战阵容；按数组顺序单向循环，最多三名角色。</summary>
+/// <summary>玩家单座位的出战阵容与队共享支援点；按数组顺序单向循环，最多三名角色。</summary>
 [CreateAssetMenu(fileName = "PartyLoadout", menuName = "ACT/Party/Party Loadout")]
 public sealed class PartyLoadout : ScriptableObject
 {
@@ -11,12 +11,25 @@ public sealed class PartyLoadout : ScriptableObject
     [SerializeField] CharacterDefinition[] members = Array.Empty<CharacterDefinition>();
     [SerializeField] int startingSlot = 0;
 
+    [Header("支援点（队共享）")]
+    [Tooltip("上限 / 开局 / 金光消耗 / 终结技回复。全 0 时运行时用 6、3、1、3。")]
+    [SerializeField] PartyAssistPointSettings assistPoints = new()
+    {
+        max = PartyAssistPoints.Max,
+        starting = PartyAssistPoints.Starting,
+        assistCost = PartyAssistPoints.AssistCost,
+        ultimateGrant = PartyAssistPoints.UltimateGrant,
+    };
+
     /// <summary>按切人顺序排列的角色定义。</summary>
     public IReadOnlyList<CharacterDefinition> Members =>
         members ?? Array.Empty<CharacterDefinition>();
 
     /// <summary>开局激活槽位。</summary>
     public int StartingSlot => startingSlot;
+
+    /// <summary>本阵容支援点上限/开局/消耗/Ult 回复；未填时用首版默认。</summary>
+    public PartyAssistPointSettings AssistPointSettings => assistPoints.Sanitized();
 
     /// <summary>当前声明的槽位数量。</summary>
     public int Count => members?.Length ?? 0;
