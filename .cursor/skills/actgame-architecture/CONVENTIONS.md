@@ -159,6 +159,7 @@ public class MyBehaviour : MonoBehaviour
 - `CharacterReactionService` 是玩家/敌人 Health 事件到 Actor 的唯一桥接；Controller 只负责构造并注入 Resolver，禁止各自重复订阅受击/死亡事件
 - `CharacterReactionResolver` 直接产出 `CharacterReactionRequest`；默认硬直时长只保存在 `CharacterReactionSet`，State、BrainProfile 与 ActionDefinition 禁止重复配置
 - Stun+ 才重入 HitState；Flinch 不进 Hit；死亡状态是唯一不可被后续受击覆盖的反应终态
+- 普通退场 `SwitchOut` 只能从 Locomotion Entry 起手。`Hit` 交接必须先回走跑；禁止停在 Hit 排队 SwitchOut（意图会被丢掉，槽永久 Exiting）
 - Hit 无反应动作时只使用 `DurationFrames`；Hit/Death 有动作时按稳定 Action Instance 结束标记收尾，禁止读取动画播放状态或秒倒计时
 - 死亡产生于统一 Combat Resolve；PostCombat 后的 Commit 先注销 `TargetSystem / CombatActorSystem`，死亡表现完成后再 Despawn
 - 静态测试木桩若未注册 SimulationWorld，不得进入权威命中；需要可攻击目标时必须提供正式 `SimActorId`

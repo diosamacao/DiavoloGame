@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-09-05（Observer 片子只跟播放头；收招再 Play 走跑）
+> Last audited: 2026-09-05（Hurt 退场先离开 Hit 再 SwitchOut）
 
 ## 项目概述
 
@@ -200,7 +200,7 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `ActGameGuest` | 权威侧一座位多稳定 Actor；按同一输入边沿切 Active，全部槽独立注册、命中与复制 |
 | `ActReplicationApplicationPayload` | 每帧下发 Owner 槽 ActorId、ActiveSlot 与累计命令 ACK；客户端据此跳过自有 Proxy 并纠正预测 |
 
-`SwitchCharacter` 上行仍是单条 `ClientCommand`。无 Cue 时权威先裁定普通 DualPresence：旧槽空闲立即 `SwitchOut`，已有 Action 时到首次 Recovery 再切 `SwitchOut`，最终只在 `SwitchOut` Recovery 后 Inactive。金/红 Cue 走 InstantReplace：旧槽当帧 Inactive，上场只起 `AssistParry` / `AssistEvade` / `SwitchPerfectDodge`。接触成功由 `CombatHitPipeline` 在玩家 `AssistParryWindow` 内 `IssueParried` 并切 `AssistParrySuccess`。Graph Entry 与 Timeline 窗仍需 Editor 配置，Play 验收前状态保持 🟡。
+`SwitchCharacter` 上行仍是单条 `ClientCommand`。无 Cue 时权威先裁定普通 DualPresence：旧槽空闲立即 `SwitchOut`，已有 Action/受击招时到首次 Recovery 再切 `SwitchOut`，交接前必须离开 `Hit`，最终只在 `SwitchOut` Recovery 后 Inactive。金/红 Cue 走 InstantReplace：旧槽当帧 Inactive，上场只起 `AssistParry` / `AssistEvade` / `SwitchPerfectDodge`。接触成功由 `CombatHitPipeline` 在玩家 `AssistParryWindow` 内 `IssueParried` 并切 `AssistParrySuccess`。Graph Entry 与 Timeline 窗仍需 Editor 配置，Play 验收前状态保持 🟡。
 
 ### 4. 动作系统（Combat/Actions）
 
