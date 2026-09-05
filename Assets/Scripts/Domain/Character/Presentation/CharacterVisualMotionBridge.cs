@@ -2,7 +2,8 @@ using UnityEngine;
 
 /// <summary>
 /// Wave 2：把动作视觉残差写入 VisualMotionRoot；不写 SimulationRoot / MotorSim。
-/// 逻辑步贴帧采样，渲染步在前后残差间插值；打断时短时 BlendToZero。
+/// 权威逻辑步贴帧采样；Observer 用 SetResidualBracket 对齐播放头两端。
+/// 渲染步在前后残差间插值；打断时短时 BlendToZero。
 /// </summary>
 public sealed class CharacterVisualMotionBridge
 {
@@ -45,6 +46,27 @@ public sealed class CharacterVisualMotionBridge
 
         // 逻辑步可立即贴倾身，避免等 Render 才看到
         _visualRoot.localRotation = Quaternion.Euler(0f, 0f, _leanRollDegrees);
+    }
+
+    /// <summary>
+    /// Observer 播放头：把残差双端设为 from/to 动作帧，供 Render(alpha) 与根 Pose 同步插值。
+    /// 取消未完成回锚，避免旧 Blend 盖住采样残差。
+    /// </summary>
+    public void SetResidualBracket(ActionDefinition action, int fromFrame, int toFrame)
+    {
+        if (_visualRoot == null)
+            return;
+
+        CancelBlendOut();
+        if (action == null)
+        {
+            SetResidualMetersBoth(Vector3.zero);
+            return;
+        }
+
+        _previousResidualMeters = ResidualMeters(action, fromFrame);
+        _currentResidualMeters = ResidualMeters(action, toFrame);
+        _hasPose = true;
     }
 
     /// <summary>
@@ -209,5 +231,18 @@ public sealed class CharacterVisualMotionBridge
             _visualRoot.localPosition = Vector3.zero;
             _visualRoot.localRotation = Quaternion.identity;
         }
+    }
+
+    /// <summary>从烘焙表取指定动作帧的视觉残差（米）；无表则为零。</summary>
+    static Vector3 ResidualMeters(ActionDefinition action, int frame)
+    {
+        ActionBakedMotion baked = action != null ? action.BakedMotion : null;
+        if (baked == null || !baked.TryGetVisualResidualMm(frame, out int rx, out int rz))
+            return Vector3.zero;
+
+        return new Vector3(
+            MotionQuantization.MmToMeters(rx),
+            0f,
+            MotionQuantization.MmToMeters(rz));
     }
 }

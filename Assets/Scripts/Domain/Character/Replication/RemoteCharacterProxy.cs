@@ -204,11 +204,12 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     }
 
     /// <summary>
-    /// 应用一帧权威快照：写 Motor、同步根、Seek/播 Locomotion；不 Dispatch 判定帧。
+    /// 应用一帧权威快照：写 Motor、同步根；不 Dispatch 判定帧。
     /// leanRollDegrees 仅预测预览传入（Lean 不进 Snapshot）；幽灵默认 0。
     /// seekLocomotion=false 时走跑只 Tick，避免本机预测每逻辑帧 Seek 抽帧。
-    /// simulationTicks≤0 时只切片段/写 Pose，不推进 Clip；远端由 TickAnimation 按真实时间走表。
-    /// updatePresentation=false 时不改模型锚点端点，判定盒仍立即跟随 Motor。
+    /// simulationTicks≤0 时只切片段/写 Pose，不推进 Clip。
+    /// updatePresentation=false（Observer 更新）不改模型锚点、不切任何 Clip/残差；
+    /// 判定与 Notify 仍立即跟随最新快照。片子由 PresentSampledPlayback 跟播放头。
     /// </summary>
     public void ApplySnapshot(
         in ActorReplicationSnapshot snapshot,
@@ -241,7 +242,8 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
             seekLocomotion,
             simulationTicks,
             dispatchNotifies: partyVisible,
-            resetNotifyHistory: becameVisible);
+            resetNotifyHistory: becameVisible,
+            driveImmediatePresentation: updatePresentation);
         _partyVisible = partyVisible;
         if (updatePresentation)
             _presentation.EndSimulationStep();
@@ -257,6 +259,102 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
             SnapshotWorldRotation(in from),
             SnapshotWorldPosition(in to),
             SnapshotWorldRotation(in to));
+    }
+
+    /// <summary>
+    /// 用播放头两端快照对齐出招/走跑 Clip 与视觉残差。
+    /// 片子只跟采样 to：出招 Tick+纠偏 Seek；落到走跑时必须 Play，禁止只 Tick 招尾。
+    /// </summary>
+    public void PresentSampledPlayback(
+        in ActorReplicationSnapshot from,
+        in ActorReplicationSnapshot to,
+        float interpolationAlpha,
+        float locomotionDeltaSeconds)
+    {
+        bool frozen = to.FreezeFrames > 0;
+        _animationFrozen = frozen;
+        if (_animation != null)
+            _animation.SetSpeed(frozen ? 0f : 1f);
+
+        if (to.ActionId != 0 && _catalog.TryGet(to.ActionId, out ActionDefinition action))
+        {
+            float actionTime = ResolvePresentationActionTime(in from, in to, interpolationAlpha);
+            bool forceRestart = from.ActionId != to.ActionId
+                || ShouldForceActionRestart(
+                    to.VitalityEdge,
+                    from.ActionId,
+                    from.ActionFrame,
+                    to.ActionId,
+                    to.ActionFrame);
+            if (_animation != null)
+                PresentActionClip(action, actionTime, forceRestart, locomotionDeltaSeconds);
+
+            int residualFrom = from.ActionId == to.ActionId ? from.ActionFrame : to.ActionFrame;
+            _visualMotion?.SetResidualBracket(action, residualFrom, to.ActionFrame);
+            _visualActionActive = true;
+            return;
+        }
+
+        bool leavingAction = _visualActionActive || _animationAction != null;
+        if (_visualActionActive)
+        {
+            _visualMotion?.EndAction(VisualResidualExitPolicy.BlendToZero);
+            _visualActionActive = false;
+        }
+
+        PresentLocomotionClip(in to, leavingAction, locomotionDeltaSeconds, seekTransition: true);
+    }
+
+    /// <summary>
+    /// 播放头上的小数动作帧：切招或帧回绕用 to；同招在 from/to 之间按 alpha 线性插。
+    /// to 无招时返回 0。
+    /// </summary>
+    public static float ResolvePresentationActionTime(
+        in ActorReplicationSnapshot from,
+        in ActorReplicationSnapshot to,
+        float interpolationAlpha)
+    {
+        if (to.ActionId == 0)
+            return 0f;
+        if (from.ActionId != to.ActionId || to.ActionFrame < from.ActionFrame)
+            return to.ActionFrame;
+
+        float t = interpolationAlpha;
+        if (t < 0f)
+            t = 0f;
+        if (t > 1f)
+            t = 1f;
+        return from.ActionFrame + (to.ActionFrame - from.ActionFrame) * t;
+    }
+
+    /// <summary>整数动作帧：小数播放头四舍五入，供 Notify/残差对齐。</summary>
+    public static int ResolvePresentationActionFrame(
+        in ActorReplicationSnapshot from,
+        in ActorReplicationSnapshot to,
+        float interpolationAlpha) =>
+        (int)(ResolvePresentationActionTime(in from, in to, interpolationAlpha) + 0.5f);
+
+    /// <summary>
+    /// 播放头落到走跑时是否必须 Play：刚出招必须切，避免 _locomotionKey 仍是 Walk 却主轨停在招尾。
+    /// </summary>
+    public static bool ShouldPlaySampledLocomotion(
+        bool leavingAction,
+        AnimationKey? currentLocomotionKey,
+        AnimationKey sampledKey) =>
+        leavingAction || currentLocomotionKey != sampledKey;
+
+    /// <summary>Clip 与采样时间偏差是否超过约 1 逻辑帧，需要 Seek 纠偏。</summary>
+    public static bool ShouldCorrectActionClipSeek(
+        float currentClipSeconds,
+        float targetClipSeconds,
+        float sampleRate)
+    {
+        float rate = sampleRate > 0f ? sampleRate : ActionSim.LogicHz;
+        float threshold = 1f / rate;
+        float delta = currentClipSeconds - targetClipSeconds;
+        if (delta < 0f)
+            delta = -delta;
+        return delta > threshold;
     }
 
     /// <summary>
@@ -317,7 +415,7 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     {
     }
 
-    /// <summary>按真实时间推进 Clip；卡肉时停表。快照到达不再突发 Tick。</summary>
+    /// <summary>按真实时间推进 Clip；出招与走跑共用。卡肉时停表。</summary>
     public void TickAnimation(float deltaTimeSeconds)
     {
         if (_animation == null || _animationFrozen)
@@ -405,7 +503,8 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     /// <summary>
     /// 有招则切段时 Play+Seek，并按跨帧规则只派发 VFX/SFX。
     /// 走跑切键后 Tick，禁止每帧 Seek。禁止派发 Hitbox。
-    /// simulationTicks 大于 0 时仍按固定步 Tick（本机预测预览）；远端 Observer 传 0，改走 TickAnimation。
+    /// driveImmediatePresentation=false 时不切任何 Clip（含走跑），由 PresentSampledPlayback 跟播放头。
+    /// simulationTicks 大于 0 时仍按固定步 Tick（本机预测预览）。
     /// </summary>
     void ApplyPresentation(
         in ActorReplicationSnapshot snapshot,
@@ -413,10 +512,10 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         bool seekLocomotion,
         int simulationTicks,
         bool dispatchNotifies,
-        bool resetNotifyHistory)
+        bool resetNotifyHistory,
+        bool driveImmediatePresentation)
     {
         bool frozen = snapshot.FreezeFrames > 0;
-        _animationFrozen = frozen;
         int ticks = simulationTicks < 1 ? 0 : simulationTicks;
         float tickDelta = _fixedDeltaSeconds * ticks;
         // 先声明再 out：短路时编译器不认为 action 已赋值（CS0165）
@@ -436,38 +535,21 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
             snapshot.ActionId,
             snapshot.ActionFrame);
 
-        if (_animation != null)
+        // Observer 更新只写判定/Notify；片子只跟播放头，避免最新快照先 Play(Walk) 再被招尾盖住。
+        if (driveImmediatePresentation && _animation != null)
         {
+            _animationFrozen = frozen;
             if (actionActive)
             {
                 _locomotionKey = null;
-                SeekActionIfSegmentChanged(action, snapshot.ActionFrame, forceRestart);
                 _animation.SetSpeed(frozen ? 0f : 1f);
+                SeekActionIfSegmentChanged(action, snapshot.ActionFrame, forceRestart);
                 if (!frozen && ticks > 0)
                     _animation.Tick(tickDelta);
             }
             else
             {
-                _animationAction = null;
-                _animationSegmentIndex = -1;
-                _animation.SetSpeed(frozen ? 0f : 1f);
-                AnimationKey key = ResolveLocomotionKey(snapshot.LocomotionPhase);
-                bool keyChanged = _locomotionKey != key;
-                if (keyChanged)
-                {
-                    bool hardCut = ReplicationPresentationAlign.ShouldHardCut(_locomotionKey, key);
-                    _animation.Play(key, hardCut ? 0f : (float?)null);
-                    _locomotionKey = key;
-                    // 一次性相位才 Seek 对齐权威时间；走跑循环淡入后只 Tick
-                    if (seekLocomotion
-                        && !frozen
-                        && ReplicationPresentationAlign.IsTransitionPhase(key))
-                        _animation.SeekLocomotionNormalized(snapshot.LocomotionNormalizedMilli / 1000f);
-                }
-
-                // 同键只 Tick：远端也不再每 Tick Seek，避免抽帧
-                if (!frozen && !keyChanged && ticks > 0)
-                    _animation.Tick(tickDelta);
+                PresentLocomotionClip(in snapshot, leavingAction: false, tickDelta, seekLocomotion);
             }
         }
 
@@ -479,6 +561,9 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
 
         // 倾身先写入，残差贴帧会一并带上 localRotation
         _visualMotion?.SetLeanRollDegrees(leanRollDegrees);
+        if (!driveImmediatePresentation)
+            return;
+
         if (actionActive)
         {
             _visualMotion?.CaptureSimulationFrame(action, snapshot.ActionFrame, actionActive: true);
@@ -489,6 +574,95 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
             _visualMotion?.EndAction(VisualResidualExitPolicy.BlendToZero);
             _visualActionActive = false;
         }
+    }
+
+    /// <summary>
+    /// 播放头走跑：出招刚结束或键变才 Play。一次性相位才 Seek 权威归一化时间。
+    /// </summary>
+    void PresentLocomotionClip(
+        in ActorReplicationSnapshot snapshot,
+        bool leavingAction,
+        float deltaTimeSeconds,
+        bool seekTransition)
+    {
+        if (_animation == null)
+            return;
+
+        _animationAction = null;
+        _animationSegmentIndex = -1;
+        _animation.SetSpeed(_animationFrozen ? 0f : 1f);
+        AnimationKey key = ResolveLocomotionKey(snapshot.LocomotionPhase);
+        if (ShouldPlaySampledLocomotion(leavingAction, _locomotionKey, key))
+        {
+            bool hardCut = leavingAction
+                || ReplicationPresentationAlign.ShouldHardCut(_locomotionKey, key);
+            _animation.Play(key, hardCut ? 0f : (float?)null);
+            _locomotionKey = key;
+            if (seekTransition
+                && !_animationFrozen
+                && ReplicationPresentationAlign.IsTransitionPhase(key))
+                _animation.SeekLocomotionNormalized(snapshot.LocomotionNormalizedMilli / 1000f);
+        }
+
+        if (!_animationFrozen)
+            TickAnimation(deltaTimeSeconds);
+    }
+
+    /// <summary>
+    /// 出招 Clip：切段/重播立刻 Play+Seek；同段 Tick 走片，偏差超过约 1 逻辑帧才 Seek。
+    /// 卡肉只 Seek、不 Tick。清掉走跑键，收招后播放头必须再 Play。
+    /// </summary>
+    void PresentActionClip(
+        ActionDefinition action,
+        float actionTime,
+        bool forceRestart,
+        float deltaTimeSeconds)
+    {
+        _locomotionKey = null;
+        int queryFrame = (int)actionTime;
+        if (queryFrame < 0)
+            queryFrame = 0;
+
+        ActionFrameQueryResult query = ActionFrameQuery.Query(action, queryFrame);
+        if (!query.HasAnimationSegment)
+        {
+            if (!_animationFrozen)
+                TickAnimation(deltaTimeSeconds);
+            return;
+        }
+
+        int segmentIndex = query.SegmentIndex;
+        bool segmentChanged = _animationAction != action || _animationSegmentIndex != segmentIndex;
+        float rate = action.SampleRate > 0 ? action.SampleRate : ActionSim.LogicHz;
+        float frac = actionTime - queryFrame;
+        float targetLocal = query.SegmentLocalTime + frac / rate;
+
+        if (forceRestart || segmentChanged)
+        {
+            ActionAnimationSegment segment = query.Segment;
+            float fade = forceRestart ? 0f : action.ResolveSegmentCrossFade(segmentIndex);
+            _animation.PlayClip(segment.clip, fade);
+            _animation.SeekClip(targetLocal);
+            _animationAction = action;
+            _animationSegmentIndex = segmentIndex;
+        }
+
+        if (_animationFrozen)
+        {
+            if (!forceRestart && !segmentChanged)
+                _animation.SeekClip(targetLocal);
+            return;
+        }
+
+        TickAnimation(deltaTimeSeconds);
+        if (forceRestart || segmentChanged)
+            return;
+
+        if (ShouldCorrectActionClipSeek(
+                _animation.CurrentClipTimeSeconds,
+                targetLocal,
+                rate))
+            _animation.SeekClip(targetLocal);
     }
 
     /// <summary>

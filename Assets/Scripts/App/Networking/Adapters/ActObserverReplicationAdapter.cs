@@ -232,7 +232,8 @@ public sealed class ActObserverReplicationAdapter
     }
 
     /// <summary>
-    /// 播放头只驱动模型锚点插值。判定、受击和 Notify 在 ApplyUpdates 到达时已提交。
+    /// 播放头驱动锚点、出招 Clip 与残差。判定 / Notify 在 ApplyUpdates 到达时已提交。
+    /// Listen / 远端共用 RemotePlaybackClock；delay=0 会把 alpha 钳成 1，走跑会 30Hz 硬切。
     /// </summary>
     public void Render(int interpolationDelayTicks, float deltaTimeSeconds)
     {
@@ -271,7 +272,7 @@ public sealed class ActObserverReplicationAdapter
             }
 
             proxy.SetPresentationBracket(in from, in to);
-            proxy.TickAnimation(deltaTimeSeconds);
+            proxy.PresentSampledPlayback(in from, in to, alpha, deltaTimeSeconds);
             proxy.Render(alpha);
         }
     }

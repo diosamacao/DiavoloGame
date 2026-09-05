@@ -46,7 +46,7 @@
 - **朝向调试箭头**：`CharacterFacingDebugVisualizer` 只绑 `ICharacterFacingDebugTarget`（本机 Actor 或 RemoteProxy）；禁止再 Bind `PlayerController`。幽灵 wish 必须与对应 Tick 成对，禁止用当前帧本机输入画延迟模型
 - **复制契约**：上行唯一为 `ClientCommand` 命令批；下行唯一为 `ACTNet.Replication.ReplicationFrame`。`ReplicationServer` 从权威 full set 生成显式 Spawn/Update/Despawn，`ReplicationClient` 原子应用并丢弃旧 Sequence；禁止恢复 `AuthorityTick` 全量数组、缺席即销毁或双轨 Codec。`ActorReplicationSnapshotCodec` 是角色快照字段布局唯一真源；`CharacterSnapshotSchemaV1` 只做 Schema 适配。`ActReplicationApplicationPayloadCodec` 承载本步 applied hint、累计命令 ACK、Owner 阵容槽 ActorId 与 ActiveSlot，生产路径 hits 为空；命中走 `RoomMessageKind.ReplicationEvent`。一座位多角色时每槽必须有稳定 `SimActorId/NetEntityId`，禁止热换单 Actor Config；`PartyMemberState` 统一编码进角色快照 Flags。Tick 由 Frame 承载。Session 信封、Join、Heartbeat、Kick 的唯一真源是 `ACTNet.Session`；禁止在 Room/App 恢复控制消息 switch 或 Endpoint/IdleTracker 状态。稳定网络身份使用 `Net*Id`；Character Archetype 由明确 stableKey 经 Catalog 映射，未知 Id 必须失败，禁止默认取首个敌人配置。传输唯一入口为 `INetTransport`（Session 外包 `ChannelMuxTransport`）。禁止把 CameraLock/Look/Lean 写入 Snapshot；禁止 ClientCommand 带 HP/坐标/招式名。`appliedClientFrameHint` 仅本步真正灌入远端命令时非 0，CarryForward 必须下发 0。装配用 `ReplicationSeat`，禁止 `if (isClient)` 开第二套 Actor
 - **RemoteProxy**：他人/敌人幽灵只应用 Snapshot（`Domain/Character/Replication/`），禁止 `CharacterActorFactory`、`HitboxFrameConsumer`、`EnemyBrain.Step`。可按 ActionFrame 过点派发 VFX/SFX，禁止派发 Hitbox/MotionCommand。Host 用 `AfterLogicStep` 打包，不得只在渲染帧漏步发送。禁止再挂 Host 同机 ±2m 预览（`RemoteGhostViewController` / `PredictedClientPreviewController` 已删）
-- **幽灵 Locomotion（他人）**：切 `AnimationKey` 时一次性相位硬切并可 Seek；Idle↔走跑冲刺用 Profile 默认 CrossFade。同键只 `Tick`
+- **幽灵 Locomotion（他人）**：切 `AnimationKey` 时一次性相位硬切并可 Seek；Idle↔走跑冲刺用 Profile 默认 CrossFade。同键只 `Tick`。播放头刚出招落到走跑时必须再 `Play`，禁止因键未变只 Tick 招尾
 - **客机本机走跑**：本机 Autonomous `CharacterActor` 跑同一套 `LocomotionStateMachine`；纠偏合同见 [`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。他人仍 Snapshot。禁止猜片 / 摇杆硬映射 Idle/Walk/Run。已废止 Runner/CreateAutonomous
 - **客机表现节拍**：本机 Clip/VFX 由 `CharacterActor.Step` + `CharacterActionPresentationBridge` 推进。禁止对自角色 `ApplySnapshot` Seek。权威 Tick 只更新纠偏与 HP/受击边沿。禁止同一逻辑帧 Tick 两次 Clip。走跑 Replay 外禁止每帧 `SyncRootPoseFromSim`（会清零转向阻尼）
 - **复制目录 Prefill**：必须收录 Graph 节点 `Action` 与 `VariantResolver` 变体（六向闪避）。只预填 `node.Action` 时客机侧/后闪 `TryGet` 失败，只有位移没有 Clip
@@ -208,8 +208,8 @@ public class MyBehaviour : MonoBehaviour
 - 复制 Update 默认可跳过未变 payload；敌人按兴趣半径裁剪；Owner 优先占预算。禁止再每 Tick 全量广播
 - Graph 节点线上只发 `GraphNodeKey` 整数，禁止再写 UTF-8 节点名
 - 复制帧被拒绝时请求 `ReplicationRecover` 并重置 Client Registry，禁止直接结束房间
-- 远端动画同键只 Tick、禁止每份快照 Seek。Observer 用 `TickAnimation(deltaTime)` 连续走表；快照 `simulationTicks=0`，禁止隔步一次 `Tick(n/60)`
-- Observer 播放头只插值模型锚点。判定盒、受击、VFX/SFX Notify 在快照到达时立即 `ApplySnapshot`，禁止等播放头
+- 远端动画同键只 Tick、禁止每份快照 Seek。Observer 用 `TickAnimation(deltaTime)` 连续走表；快照 `simulationTicks=0`，禁止隔步一次 `Tick(n/60)`。播放头收招必须再 Play 走跑，即使键与出招前相同
+- Observer 播放头只插值模型锚点并驱动 Clip。判定盒、受击、VFX/SFX Notify 在快照到达时立即 `ApplySnapshot`，禁止等播放头；禁止最新快照提前 Play 走跑/出招片
 - 出招或 Vitality 边沿必须 `Urgent`，不受 SnapshotInterval 节拍限制
 - Observer 播放头用 `RemotePlaybackClock` 按真实时间单调推进，钳在 `latest-delay`。禁止再用会每逻辑步清零的 `InterpolationAlpha` 当远端取样比例
 
