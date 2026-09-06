@@ -24,7 +24,7 @@ MonoBehaviour:
     gravity: -20
     groundedGravity: -2
     controllerHeight: 1.7
-    controllerRadius: 1.39
+    controllerRadius: 1
     controllerCenter: {x: 0, y: 0.85, z: 0}
     softBodyMass: 1000
     softBodyImmovable: 0

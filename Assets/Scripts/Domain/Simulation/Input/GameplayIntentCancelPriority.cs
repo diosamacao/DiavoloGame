@@ -17,6 +17,7 @@ public static class GameplayIntentCancelPriority
             case GameplayIntentType.PerfectDodgeAttack:
                 return 93;
             case GameplayIntentType.AssistParry:
+            case GameplayIntentType.Parry:
             case GameplayIntentType.AssistEvade:
             case GameplayIntentType.SwitchPerfectDodge:
                 return 92;

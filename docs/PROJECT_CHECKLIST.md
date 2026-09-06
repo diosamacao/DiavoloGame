@@ -19,7 +19,7 @@
 构建可重复游玩的第三人称动作 Demo：
 
 - 最多 3 名可出战角色轮换（方案：[`2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`](./2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md)）+ 至少 1 种近战敌人 / 木桩靶
-- 普攻连段、闪避、Special/EX、大招门槛、完美闪避反击；切人弹刀按 P-SW 阶段落地
+- 普攻连段、闪避、Special/EX、大招门槛、完美闪避反击；切人弹刀按 P-SW 阶段落地；本体 `Parry` 意图已接线
 - 60Hz 锁步 Sim + ActionGraph 数据驱动招式
 - 第三人称相机；F3 Debug HUD（正式 UI 后置）
 - 单场景内可验收战斗手感与 AI 基础行为
@@ -144,7 +144,7 @@
 | 场景胜负流 / Boot 流程 | P2 | Demo 包装 |
 | 斜坡精确碰撞 | P2 | L2 收口 |
 | 联网 Play / W12 | P1 | 见 §3；不得称公网可用 |
-| 三人换人 / 弹刀 | P1 | [`2026.8.30`](./2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md)；P-SW1 普通切人；P-SW2 接触成功 + 敌人 `HitState` |
+| 三人换人 / 弹刀 | P1 | [`2026.8.30`](./2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md)；P-SW2 接触成功；卡肉读窗；本体 `Parry` 意图已接线 |
 
 ### 6.4 学习与工程实践轨
 

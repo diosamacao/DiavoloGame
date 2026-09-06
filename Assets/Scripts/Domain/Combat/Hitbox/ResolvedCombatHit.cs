@@ -50,6 +50,6 @@ public readonly struct ResolvedCombatHit
     /// <summary>招架窗吞伤：玩家不播受击 Cue；clang 在 Success Timeline。</summary>
     public bool AbsorbedByAssistParry { get; }
 
-    /// <summary>本刀逻辑卡肉帧；0 表示不冻。弹刀为 ResolveFrames，真伤仅 UseHitStop 时有值。</summary>
+    /// <summary>本刀逻辑卡肉帧；0 表示不冻。弹刀读玩家招架窗，真伤仅 UseHitStop 时有值。</summary>
     public int HitStopFrames { get; }
 }

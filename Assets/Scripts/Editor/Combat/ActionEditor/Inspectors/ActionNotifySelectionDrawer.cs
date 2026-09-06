@@ -113,7 +113,7 @@ public static class ActionNotifySelectionDrawer
                     DrawAssistCue(element, batchSet);
                     break;
                 case ActionTimelineTrackKind.AssistParryWindow:
-                    DrawAssistParryWindow();
+                    DrawAssistParryWindow(element, batchSet);
                     break;
                 case ActionTimelineTrackKind.MotionModifier:
                     DrawMotionModifier(element, batchSet);
@@ -384,13 +384,14 @@ public static class ActionNotifySelectionDrawer
         DrawMultiProperty(batchSet, element, "evadeLocalOffsetMm");
     }
 
-    /// <summary>玩家招架接触窗无额外载荷；语义由 Pipeline 消费。</summary>
-    static void DrawAssistParryWindow()
+    /// <summary>玩家招架接触窗：卡肉帧写在窗上，语义由 Pipeline 消费。</summary>
+    static void DrawAssistParryWindow(SerializedProperty element, ActionEditorSelectionSet batchSet)
     {
         EditorGUILayout.HelpBox(
-            "玩家 Guard 上的招架接触窗。窗内被命中：吞伤、IssueParried、切 Success、武装突击。\n"
-            + "优先于完美闪避与普通无敌。不要在 Guard 上挂 clang。",
+            "玩家 Guard / Success 上的招架接触窗。窗内被命中：吞伤、IssueParried、切 Success、武装突击。\n"
+            + "卡肉帧只读本窗 Hit Stop Frames，不读进攻盒。优先于完美闪避与普通无敌。不要在 Guard 上挂 clang。",
             MessageType.Info);
+        DrawMultiProperty(batchSet, element, "hitStopFrames");
     }
 
     /// <summary>完美闪避窗无额外载荷；语义由 Pipeline 消费。</summary>

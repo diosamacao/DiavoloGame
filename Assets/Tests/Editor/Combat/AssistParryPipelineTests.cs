@@ -101,7 +101,7 @@ public sealed class AssistParryPipelineTests
     public void AssistParryWindow_FreezesBothCurrentActions()
     {
         ActionDefinition hitAction = CreateReadyAction("ParriedHit");
-        ActionDefinition guard = CreateReadyAction("Guard");
+        ActionDefinition guard = CreateReadyAction("Guard", parryHitStopFrames: 5);
         using ActorHarness attacker = ActorHarness.Create("AttackerFreeze", new SimActorId(11));
         using ActorHarness player = ActorHarness.Create("PlayerFreeze", new SimActorId(12));
         CharacterReactionSet reactionSet = CreateHitReactionSet(hitAction);
@@ -139,12 +139,12 @@ public sealed class AssistParryPipelineTests
 
             Assert.That(target.OnHitCount, Is.Zero);
             Assert.That(resolved.HasValue, Is.True);
-            Assert.That(resolved.Value.HitStopFrames, Is.EqualTo(AssistParryHitStop.DefaultFrames));
+            Assert.That(resolved.Value.HitStopFrames, Is.EqualTo(5));
             Assert.That(attacker.Actor.CurrentState, Is.EqualTo(CharacterStateType.Hit));
             Assert.That(attacker.Actor.ActionSim.IsActive, Is.True);
-            Assert.That(attacker.Actor.ActionSim.FreezeFrames, Is.EqualTo(AssistParryHitStop.DefaultFrames));
+            Assert.That(attacker.Actor.ActionSim.FreezeFrames, Is.EqualTo(5));
             Assert.That(player.Actor.ActionSim.IsActive, Is.True);
-            Assert.That(player.Actor.ActionSim.FreezeFrames, Is.EqualTo(AssistParryHitStop.DefaultFrames));
+            Assert.That(player.Actor.ActionSim.FreezeFrames, Is.EqualTo(5));
             Assert.That(player.Actor.CurrentState, Is.Not.EqualTo(CharacterStateType.Hit));
         }
         finally
@@ -281,7 +281,7 @@ public sealed class AssistParryPipelineTests
         return set;
     }
 
-    static ActionDefinition CreateReadyAction(string name)
+    static ActionDefinition CreateReadyAction(string name, int parryHitStopFrames = -1)
     {
         ActionDefinition action = ScriptableObject.CreateInstance<ActionDefinition>();
         action.name = name;
@@ -292,6 +292,18 @@ public sealed class AssistParryPipelineTests
         SerializedProperty segments = so.FindProperty("animationSegments");
         segments.arraySize = 1;
         segments.GetArrayElementAtIndex(0).FindPropertyRelative("clip").objectReferenceValue = clip;
+        if (parryHitStopFrames >= 0)
+        {
+            SerializedProperty windows = so
+                .FindProperty("timeline")
+                .FindPropertyRelative("assistParryWindowStates");
+            windows.arraySize = 1;
+            SerializedProperty window = windows.GetArrayElementAtIndex(0);
+            window.FindPropertyRelative("startFrame").intValue = 0;
+            window.FindPropertyRelative("endFrame").intValue = 11;
+            window.FindPropertyRelative("hitStopFrames").intValue = parryHitStopFrames;
+        }
+
         so.ApplyModifiedPropertiesWithoutUndo();
         return action;
     }

@@ -13,4 +13,7 @@ public enum InputButton : byte
 
     /// <summary>按阵容槽位正序循环切换下一名可用角色。</summary>
     SwitchCharacter = 9,
+
+    /// <summary>本体弹刀；不进入切人协调器。</summary>
+    Parry = 10,
 }

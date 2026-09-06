@@ -17,7 +17,8 @@ public sealed class GameplayIntentProducer
     readonly HashSet<InputButton> _holdIntentEmitted = new();
 
     /// <summary>
-    /// 创建意图生产器；Profile 是物理输入映射的唯一配置源。
+    /// 创建意图生产器；多数按钮由 Profile 映射。
+    /// <see cref="InputButton.Parry"/> 不经 Profile，按下边沿硬产出 <see cref="GameplayIntentType.Parry"/>。
     /// stateMachine 只读 CurrentStateId（权威 SM 或客机播招探针）。
     /// hasAssistFollowUp 优先于 hasPerfectDodgeCounter：攻击族 Pressed 分别派生 AssistFollowUp / PerfectDodgeAttack。
     /// </summary>
@@ -49,17 +50,35 @@ public sealed class GameplayIntentProducer
         _output.Step();
         // 再清空当帧意图列表，准备本步生产
         _output.BeginFrame();
-        if (_profile == null || _input == null)
+        if (_input == null)
             return;
 
-        // 每个稳定按钮依次处理按下 / 长按阈值 / 松开
-        for (int i = 0; i < _buttons.Length; i++)
-            ProduceForButton(_buttons[i]);
+        // Profile 映射与本体弹刀解耦：无 Profile 时仍可产出 Parry。
+        if (_profile != null)
+        {
+            for (int i = 0; i < _buttons.Length; i++)
+                ProduceForButton(_buttons[i]);
+        }
+
+        TryEmitSelfParry();
+    }
+
+    /// <summary>本体弹刀不走切人协调器；Profile 未绑定时仍按 Parry 按下边沿产出。</summary>
+    void TryEmitSelfParry()
+    {
+        if (_input == null || !_input.WasPressedThisFrame(InputButton.Parry))
+            return;
+
+        _output.Emit(GameplayIntentType.Parry);
     }
 
     /// <summary>单个稳定按钮在一帧内依次处理按下、长按阈值和松开。</summary>
     void ProduceForButton(InputButton button)
     {
+        // 本体弹刀只走 TryEmitSelfParry，避免 Profile 误把 Parry 键映射成其它意图。
+        if (button == InputButton.Parry)
+            return;
+
         if (_input.WasPressedThisFrame(button))
         {
             _heldFrames[button] = 0;
@@ -233,7 +252,9 @@ public sealed class GameplayIntentProducer
         for (int i = 0; i < profile.Bindings.Count; i++)
         {
             GameplayIntentBinding binding = profile.Bindings[i];
-            if (binding.IsValid && seen.Add(binding.Button))
+            if (binding.IsValid
+                && binding.Button != InputButton.Parry
+                && seen.Add(binding.Button))
                 result.Add(binding.Button);
         }
 

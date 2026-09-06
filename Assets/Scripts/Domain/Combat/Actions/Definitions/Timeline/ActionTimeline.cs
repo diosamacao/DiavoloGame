@@ -296,14 +296,22 @@ public class ActionTimeline
     }
 
     /// <summary>指定帧是否处于招架接触窗内。</summary>
-    public bool IsAssistParryWindowActiveAtFrame(int frame)
+    public bool IsAssistParryWindowActiveAtFrame(int frame) =>
+        TryGetAssistParryWindowAtFrame(frame, out _);
+
+    /// <summary>指定帧生效的招架窗；重叠时取列表中先出现的一条。</summary>
+    public bool TryGetAssistParryWindowAtFrame(int frame, out AssistParryWindowNotifyState window)
     {
         foreach (AssistParryWindowNotifyState state in AssistParryWindowStates)
         {
             if (state != null && state.IsActiveAtFrame(frame))
+            {
+                window = state;
                 return true;
+            }
         }
 
+        window = null;
         return false;
     }
 

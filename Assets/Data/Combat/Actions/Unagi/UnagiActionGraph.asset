@@ -181,7 +181,7 @@ MonoBehaviour:
       enabled: 0
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
-    editorPosition: {x: 2828, y: -1332}
+    editorPosition: {x: -1070.6666, y: 322}
   - nodeId: Unagi_Attack_Rush
     action: {fileID: 11400000, guid: c18191bb1aeaeab4e8478467868d4e8f, type: 2}
     intent: 7
@@ -259,7 +259,33 @@ MonoBehaviour:
       enabled: 0
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
-    editorPosition: {x: 2761.3333, y: -1510.6666}
+    editorPosition: {x: -1137.3334, y: 143.33333}
+  - nodeId: Unagi_ParryAid_H_Guard_2
+    action: {fileID: 11400000, guid: 70c7fed86817a1e46a973230b95e14b9, type: 2}
+    intent: 0
+    isEntry: 0
+    variantResolver: {fileID: 0}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions: []
+    editorPosition: {x: 0, y: 0}
+  - nodeId: Unagi_ParryAid_H_Guard_3
+    action: {fileID: 11400000, guid: 70c7fed86817a1e46a973230b95e14b9, type: 2}
+    intent: 17
+    isEntry: 1
+    variantResolver: {fileID: 0}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions: []
+    editorPosition: {x: -1647.3334, y: 143.33333}
   - nodeId: Unagi_ParryAid_H_Success
     action: {fileID: 11400000, guid: 2555355cead55b64cac7c5ad9eefa5cc, type: 2}
     intent: 13
@@ -272,7 +298,7 @@ MonoBehaviour:
       enabled: 0
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
-    editorPosition: {x: 2721.3333, y: -1687.3334}
+    editorPosition: {x: -1679.3334, y: 322}
   - nodeId: Unagi_SwitchIn
     action: {fileID: 11400000, guid: edf85fea80a52244181a29360df34a78, type: 2}
     intent: 10
@@ -387,5 +413,11 @@ MonoBehaviour:
   - fromNodeId: Unagi_Attack_06
     routeKind: 0
     toNodeId: Unagi_Attack_02
+  - fromNodeId: Unagi_ParryAid_H_Success
+    routeKind: 0
+    toNodeId: Unagi_Attack_Counter
+  - fromNodeId: Unagi_Attack_Counter
+    routeKind: 0
+    toNodeId: Unagi_Attack_03
   sharedRoutes: []
   nodeGroups: []

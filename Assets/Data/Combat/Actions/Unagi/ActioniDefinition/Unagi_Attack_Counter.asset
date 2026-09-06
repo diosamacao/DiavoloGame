@@ -13,18 +13,18 @@ MonoBehaviour:
   m_Name: Unagi_Attack_Counter
   m_EditorClassIdentifier: 
   animationSegments:
-  - clip: {fileID: -6359458248583962549, guid: c33d1bad18fd20441b86f98ff5e8df6c, type: 3}
+  - clip: {fileID: -7726521830935650672, guid: c62649a37a8667745b7827c521ccbc01, type: 3}
     startFrame: 0
     endFrame: -1
     hasCrossFadeOverride: 0
     crossFadeDuration: 0
-  - clip: {fileID: -1643911828452035145, guid: 9b59cae055f43794e86bd5f94e4b729b, type: 3}
+  - clip: {fileID: 3385136151205621180, guid: b75887cc9881fcd41af51d99fe857fd0, type: 3}
     startFrame: 0
     endFrame: -1
     hasCrossFadeOverride: 0
     crossFadeDuration: 0
   sampleRate: 60
-  totalFrames: 328
+  totalFrames: 240
   actionType: 0
   crossFadeDuration: 0.1
   executionPolicy:
@@ -40,24 +40,294 @@ MonoBehaviour:
     clearsDecibelOnStart: 0
   timeline:
     actionEvents: []
-    playVfxNotifies: []
+    playVfxNotifies:
+    - id: VFX_1
+      startFrame: 212
+      endFrame: 212
+      priority: 0
+      trackName: VFX_1
+      prefab: {fileID: 2336738607144242677, guid: ccddab8d96f24c4e91399ea71a2353e4, type: 3}
+      attachPointId: Bn_katana_burst
+      localOffset: {x: 0, y: 0, z: 0}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      localScale: {x: 0.2, y: 0.2, z: 0.2}
+      parentToAttachPoint: 1
+      playbackSpeed: 1
+    - id: VFX_2
+      startFrame: 22
+      endFrame: 22
+      priority: 0
+      trackName: VFX_1
+      prefab: {fileID: 6855955652325114174, guid: 9feeffc118524c829dc98322405ce38c, type: 3}
+      attachPointId: 
+      localOffset: {x: 0, y: 0.64, z: -0.36}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      localScale: {x: 1, y: 1, z: 1}
+      parentToAttachPoint: 1
+      playbackSpeed: 1
     playSfxStates: []
-    hitboxStates: []
+    hitboxStates:
+    - id: Hitbox_2
+      startFrame: 22
+      endFrame: 23
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: -0.49}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 4.11, y: 3, z: 4.47}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
+      payload:
+        baseDamage: 10
+        hitReactionId: 
+        interruptLevel: 2
+        feedback:
+          cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
+          useHitStop: 1
+          hitStopFrames: 3
+          hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 0.8
+          hitImpactWorldOffset: {x: 0, y: 0, z: 0}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
+    - id: Hitbox_3
+      startFrame: 26
+      endFrame: 27
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: -0.49}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 4.11, y: 3, z: 4.47}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
+      payload:
+        baseDamage: 10
+        hitReactionId: 
+        interruptLevel: 2
+        feedback:
+          cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
+          useHitStop: 1
+          hitStopFrames: 3
+          hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 0.8
+          hitImpactWorldOffset: {x: 0, y: 0, z: 0}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
+    - id: Hitbox_4
+      startFrame: 30
+      endFrame: 31
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: -0.49}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 4.11, y: 3, z: 4.47}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
+      payload:
+        baseDamage: 10
+        hitReactionId: 
+        interruptLevel: 2
+        feedback:
+          cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
+          useHitStop: 1
+          hitStopFrames: 3
+          hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 0.8
+          hitImpactWorldOffset: {x: 0, y: 0, z: 0}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
+    - id: Hitbox_5
+      startFrame: 34
+      endFrame: 35
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: -0.49}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 4.11, y: 3, z: 4.47}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
+      payload:
+        baseDamage: 10
+        hitReactionId: 
+        interruptLevel: 2
+        feedback:
+          cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
+          useHitStop: 1
+          hitStopFrames: 3
+          hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 0.8
+          hitImpactWorldOffset: {x: 0, y: 0, z: 0}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
+    - id: Hitbox_6
+      startFrame: 38
+      endFrame: 39
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: -0.49}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 4.11, y: 3, z: 4.47}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
+      payload:
+        baseDamage: 10
+        hitReactionId: 
+        interruptLevel: 2
+        feedback:
+          cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
+          useHitStop: 1
+          hitStopFrames: 3
+          hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 0.8
+          hitImpactWorldOffset: {x: 0, y: 0, z: 0}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
+    - id: Hitbox_7
+      startFrame: 42
+      endFrame: 43
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: -0.49}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 4.11, y: 3, z: 4.47}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
+      payload:
+        baseDamage: 10
+        hitReactionId: 
+        interruptLevel: 2
+        feedback:
+          cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
+          useHitStop: 1
+          hitStopFrames: 3
+          hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 0.8
+          hitImpactWorldOffset: {x: 0, y: 0, z: 0}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
     hurtboxStates: []
-    cancelWindowStates: []
-    phaseStates: []
+    cancelWindowStates:
+    - id: Cancel_1
+      startFrame: 48
+      endFrame: 90
+      priority: 0
+      trackName: Cancel_1
+      windowType: 0
+    phaseStates:
+    - id: Phase_1
+      startFrame: 92
+      endFrame: 239
+      priority: 0
+      trackName: Phase_1
+      kind: 2
+      interruptible: 1
+      allowMovementCancel: 1
+      allowEntryRestart: 1
+      interruptResistBonus: 0
     perfectDodgeWindowStates: []
     assistCueStates: []
     assistParryWindowStates: []
     movementStates: []
-    rotationStates: []
-    motionModifierStates: []
+    rotationStates:
+    - id: Rotation_1
+      startFrame: 0
+      endFrame: 21
+      priority: 0
+      trackName: Rotation_1
+      smoothTimeOverride: 0
+    motionModifierStates:
+    - id: MotionModifier_1
+      startFrame: 0
+      endFrame: 25
+      priority: 0
+      trackName: MotionModifier_1
+      mode: 1
+      targetSource: 0
+      horizontalOffsetMm: 2000
+      lateralOffsetMm: 0
+      maxCorrectionMmPerFrame: 99999
+      maxAcquireDistanceMm: 99999
+      maxAngleMilliDeg: 0
+      stopOnTargetLost: 1
+    - id: MotionModifier_2
+      startFrame: 0
+      endFrame: 30
+      priority: 0
+      trackName: MotionModifier_2
+      mode: 0
+      targetSource: 0
+      horizontalOffsetMm: 1000
+      lateralOffsetMm: 0
+      maxCorrectionMmPerFrame: 250
+      maxAcquireDistanceMm: 4500
+      maxAngleMilliDeg: 0
+      stopOnTargetLost: 1
     motionCommandNotifies: []
     cameraSettings:
       restoreMode: 0
       suppressLookInput: 1
     cameraShotStates: []
-    tracks: []
+    tracks:
+    - trackName: Phase_1
+      kind: 8
+      visible: 1
+    - trackName: Cancel_1
+      kind: 4
+      visible: 1
+    - trackName: VFX_1
+      kind: 2
+      visible: 1
+    - trackName: Rotation_1
+      kind: 6
+      visible: 1
+    - trackName: Hitbox_1
+      kind: 0
+      visible: 1
+    - trackName: SFX_1
+      kind: 3
+      visible: 1
+    - trackName: MotionModifier_1
+      kind: 11
+      visible: 1
+    - trackName: MotionModifier_2
+      kind: 11
+      visible: 1
   bakedMotion:
     logicHz: 60
     frameCount: 330

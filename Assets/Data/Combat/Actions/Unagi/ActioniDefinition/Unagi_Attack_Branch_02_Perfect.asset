@@ -319,7 +319,7 @@ MonoBehaviour:
       endFrame: 10
       priority: 0
       trackName: Rotation_1
-      smoothTimeOverride: 0
+      smoothTimeOverride: 0.05
     motionModifierStates:
     - id: MotionModifier_1
       startFrame: 7

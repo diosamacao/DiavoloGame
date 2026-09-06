@@ -56,4 +56,10 @@ public enum GameplayIntentType
 
     /// <summary>接触成功后武装，攻击族按键派生支援突击。</summary>
     AssistFollowUp = 16,
+
+    /// <summary>
+    /// 本体弹刀：当前上场角色按键起 Guard，不走切人协调器、不耗支援点。
+    /// 接触成功仍切 AssistParrySuccess。必须追加在枚举末尾，避免 Graph 资产 enumValueIndex 错位。
+    /// </summary>
+    Parry = 17,
 }

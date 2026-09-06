@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-09-05（弹刀接触后双方 RequestHitStop）
+> Last updated: 2026-09-06（弹刀卡肉读 Guard 窗；本体 Parry 意图）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -8,7 +8,7 @@
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
 | 三人阵容 / 单键换人 | 🟡 P-SW1 运行时/权威代码完成，Editor 验收待办 | `PartyLoadout`、`PartyCombatCoordinator`、`ActGameGuest` | 空格已进 Input Actions；需各角色 Graph 配 `SwitchIn/SwitchOut` Entry |
-| 极限支援 / 接触弹刀 | 🟡 P-SW2 代码已接，Play 待验；卡肉 HS0～HS3 已接线 | `WorldAssistCueBoard`、`IssueParried`、`AssistParryHitStop` | 敌人 Cue 轨 + 玩家 Guard/Success/突击 Entry |
+| 极限支援 / 接触弹刀 | 🟡 P-SW2 代码已接，Play 待验；卡肉读窗；本体 `Parry` 已接线 | `WorldAssistCueBoard`、`IssueParried`、`GameplayIntentType.Parry` | 敌人 Cue 轨 + 玩家 Guard/Success/`Parry` Entry |
 | Wave4 位移（Adhesion / SoftBody / Relocate） | ✅ 已实现（吸附已验收；Relocate 已接线） | `ActionMotionAdhesion` + `ActionMotionResolver` + Bridge | Branch_02 吸附已配；Relocate 按需加 MotionCommand 轨；相机不在本 Wave |
 | 命中受击 Cue（VFX/SFX） | ✅ 已实现（A2 打击感验收 2026-08-09） | `HitImpactController` + `HitFeedbackSettings` | 接触点落点 + 随机旋转；普攻 Cue 已验 |
 | 逻辑 Hurtbox 调试线框 | ✅ 已实现 | `CombatHurtboxDebugSettings` + `CombatHurtboxDebugVisualizer` | F4 开关（F3 HUD 显示状态） |
@@ -23,7 +23,7 @@
 | GAS-lite 数值重构 | ✅ G0～G5 完成 | `NumericSystem`、`DamageNumericCalculator`、`CharacterVitality` | Effect SO 壳 |
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
-| 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch |
+| 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch / Parry |
 | 组队 PVE 状态同步 / 权威进程 | 🟡 W11 代码切面 / Play 未验收 | `ReplicationBuildOptions` + `GraphNodeKey` + FakeActionGame | 先读 `docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`；W10 出口仍待 Clumsy Play；W11 R2 未关 |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
@@ -133,9 +133,10 @@ ActClientRoomGameplay.StepPrediction
 | 支援点 | `PartyAssistPoints`：默认上限 6、开局 3、耗 1、Ult +3；数值由 `PartyLoadout` 的支援点字段覆盖 |
 | 裁定 | `PartyCombatCoordinator.TryResolveSwitch`：无 Cue → DualPresence；Gold 且能花 → InstantReplace + 扣点；0 点 / 远程点名不匹配 → Red `SwitchPerfectDodge`；突击武装中拒绝 |
 | 上场意图 | `PartySwitchApplication`：`AssistParry` / `AssistEvade` / `SwitchPerfectDodge`；不播 SwitchIn/Out |
+| 本体弹刀 | `InputButton.Parry` → `GameplayIntentType.Parry`；Producer 按下边沿产出，不走 Coordinator、不耗支援点；Graph Entry 起同一套 Guard |
 | 接触 | `IHitAbsorbQuery.IsInAssistParryWindow`；管道优先于 PD 与无敌：玩家不 OnHit，攻击者 `IssueParried` |
 | 被弹刀 | `ResolveParried()` 固定 LightStun + `CharacterReactionType.Parried` 片子；`ConfirmHitReaction(LightStun)`；禁止冲击力裁定 / Flinch / `HitReactionKind.Parried` |
-| 卡肉 | `ResolvePending` 裁定后唯一 `ApplyConfirmedHitStop`。真伤只冻进攻实例且仍受 `UseHitStop` 门控；弹刀冻敌人新受击招 + 玩家 Guard，默认 8 帧（盒勾了则用盒帧），`ArmAssistParryHitStopCarry` 把剩余帧带到 Success |
+| 卡肉 | `ResolvePending` 裁定后唯一 `ApplyConfirmedHitStop`。真伤只冻进攻实例且仍受 `UseHitStop` 门控；弹刀帧只读当前招 `AssistParryWindow.hitStopFrames`（无窗回退 8），`ArmAssistParryHitStopCarry` 把剩余帧带到 Success |
 | 突击 | `Flags.ArmAssistFollowUp`；Producer 攻击族 Pressed 优先于 PD 派生 `AssistFollowUp`；切人当帧不武装 |
 
 ### 关键参数
@@ -149,9 +150,8 @@ ActClientRoomGameplay.StepPrediction
 ### 运行时流程
 
 ```text
-SwitchCharacter
-  → Coordinator.TryResolveSwitch(上一拍 Cue + Points + Style)
-  → InstantReplace：旧 Inactive，新 ForceSelect(Cue 敌人) + Queue AssistParry
+切人弹刀：SwitchCharacter → Coordinator → Queue AssistParry
+本体弹刀：InputButton.Parry → Producer.Parry → Graph Guard（不切人、不扣点）
 敌人 Hitbox → Pipeline.IsInAssistParryWindow
   → IssueParried → ConfirmHitReaction(LightStun) → EnterHit
   → NotifyAssistParryContact → ArmAssistFollowUp + 排队 AssistParrySuccess
@@ -163,6 +163,8 @@ SwitchCharacter
 ### 已知限制
 
 - Guard / Success / AssistFollowUp / 敌人 Cue / `Parried` 反应片均需 Editor 配资产；Agent 不改 `Assets/Data/**`
+- 本体弹刀需 Input Actions 增加 `Parry`，Graph Entry 绑 `GameplayIntentType.Parry`（可与切人 Guard 同一条 Action）
+- 弹刀卡肉帧在 Guard/Success 的 `AssistParryWindow.hitStopFrames` 上配置；不再读进攻盒 UseHitStop
 - 无受击片时攻击者 `ActionSim` 已 Stop，该侧不写 freeze（不另开 HitState 冻帧）
 - 接触成功后 Success 可能晚一帧（`QueueExternalIntent` 下一次 Step 才进 buffer）
 - 客机不预测「敌人打玩家」几何卡肉；本机预测只镜像权威接触列表
@@ -177,9 +179,13 @@ SwitchCharacter
 - `Assets/Scripts/Domain/Character/Reactions/CharacterReactionService.cs`
 - `Assets/Scripts/Domain/Combat/Hitbox/CombatHitPipeline.cs`
 - `Assets/Scripts/Domain/Combat/Hitbox/AssistParryHitStop.cs`
+- `Assets/Scripts/Domain/Input/GameplayIntentProducer.cs`
+- `Assets/Scripts/Domain/Simulation/Input/GameplayIntentType.cs`
 - `Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/AssistCueNotifyState.cs`
 - `Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/AssistParryWindowNotifyState.cs`
 - `Assets/Tests/EditMode/Simulation/PartyAssistResolveTests.cs`
+- `Assets/Tests/EditMode/Domain/SelfParryIntentTests.cs`
+- `Assets/Tests/Editor/Combat/SelfParryProducerTests.cs`
 - `Assets/Tests/Editor/Combat/AssistParryPipelineTests.cs`
 - `Assets/Tests/Editor/Combat/AssistParryHitStopTests.cs`
 - `Assets/Tests/Editor/Combat/AssistParryHitStopCarryTests.cs`
@@ -1016,7 +1022,7 @@ SimulationWorld.Step
 | 输入历史 | `InputFrameBuffer` 按 `(frame, actorId)` 保存；多渲染样本边沿 OR、连续状态取最后值 |
 | 追帧展开 | 缺少下一设备样本时只延续 Move/Held；Pressed/Released 不重复、不从 Held 推导 |
 | 原始中枢 | `InputManager` 摄入量化帧，提供移动反解值与 Pressed/Held/Released bit 查询 |
-| 语义生产 | `GameplayIntentProducer`：SprintAttack、DodgeAttack、PressedThenLong；Hold 按整数帧累计 |
+| 语义生产 | `GameplayIntentProducer`：SprintAttack、DodgeAttack、PressedThenLong；Hold 按整数帧累计；`Parry` 按下边沿硬产出，不经 Profile |
 | 语义缓冲 | `GameplayIntentBuffer`：当帧事件 + 整数帧 TTL 的 Action Cancel 缓冲 |
 | 消费方 | `CharacterActionDriver` 消费动作意图；Locomotion 继续消费连续 Move 快照 |
 
@@ -1029,6 +1035,8 @@ SimulationWorld.Step
 | Attack | Button | Pressed→Attack（Sprint 时 SprintAttack；Dodge Action 中为 DodgeAttack）；HoldReached→LongPressedAttack；Released→AttackRelease |
 | Dodge | Button | Pressed→Dodge |
 | TargetSwitchLeft / Right | Button | Pressed→InputFrame 固定 bit；Locomotion/Action 中均可切换 SelectedTarget |
+| SwitchCharacter | Button | Pressed→座位协调器；从玩法 InputFrame 剥掉，不进 Producer |
+| Parry | Button | Pressed→`GameplayIntentType.Parry`（Producer 硬产出）；不走切人、不耗支援点。资产名必须为 `Parry` |
 | CameraLock | Button | 本地表现开关；无 SelectedTarget 时无效，不进入 InputFrame |
 
 ### 错误处理
@@ -1320,7 +1328,7 @@ InputFrame → CharacterTargetingState.Step
   → Camera/UI 只读表现映射
 ```
 
-**已知限制：** Input Actions 仍需人工新增 `TargetSwitchLeft/Right` 与 `CameraLock`；Camera C1 的锁定构图/Blend 未实现；完整 Snapshot Restore 归 L3。
+**已知限制：** Input Actions 仍需人工新增 `TargetSwitchLeft/Right`、`CameraLock` 与 `Parry`；Camera C1 的锁定构图/Blend 未实现；完整 Snapshot Restore 归 L3。
 
 **相关文件：**
 
@@ -1684,6 +1692,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-09-02 | 修复 Observer 二次登场残留：远端角色隐藏前回收所属 VFX；重新显形时清空退场前插值历史并直接落到当前权威位置 |
 | 2026-09-02 | 本机阵容生命周期接入同一可见性清理接口：`CharacterActor` 转入 Inactive/Dead/Empty 前回收所属 VFX，避免本机再次 SwitchIn 时复活旧特效 |
 | 2026-09-02 | 修复 P-SW1 后敌人感知根停在出生点：`RemotePlayerSeat` 使用稳定锚点并在普通切人时重挂到当前权威槽位根 |
+| 2026-09-06 | 弹刀卡肉帧改读招架窗；新增本体 `Parry` 意图（不走切人） |
 | 2026-09-05 | 弹刀卡肉：Pipeline 结算后唯一 `RequestHitStop`；双方冻，Success 续冻；事件拆开 PD/弹刀 |
 | 2026-09-05 | F3 Party 行显示支援点；上限/开局/消耗/Ult 回复由 PartyLoadout 配置 |
 | 2026-09-05 | Hurt 中普通切人：交接 SwitchOut 前必须离开 Hit，避免意图被丢掉、槽永久 Exiting |

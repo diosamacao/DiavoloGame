@@ -37,8 +37,8 @@ MonoBehaviour:
     actionEvents: []
     playVfxNotifies:
     - id: VFX_1
-      startFrame: 24
-      endFrame: 24
+      startFrame: 33
+      endFrame: 33
       priority: 0
       trackName: VFX_1
       prefab: {fileID: 5987591639799670305, guid: ebc325a85f5e59048b737f3eefdf1723, type: 3}
@@ -50,8 +50,8 @@ MonoBehaviour:
       playbackSpeed: 1
     playSfxStates:
     - id: SFX_1
-      startFrame: 25
-      endFrame: 25
+      startFrame: 34
+      endFrame: 34
       priority: 0
       trackName: SFX_1
       audioClip: {fileID: 8300000, guid: 74d55437f0aca6447b7b0a067fe64e69, type: 3}
@@ -93,8 +93,8 @@ MonoBehaviour:
     perfectDodgeWindowStates: []
     assistCueStates:
     - id: AssistCue_1
-      startFrame: 26
-      endFrame: 55
+      startFrame: 34
+      endFrame: 58
       priority: 0
       trackName: AssistCue_1
       kind: 0

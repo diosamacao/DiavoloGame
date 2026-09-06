@@ -120,7 +120,6 @@ MonoBehaviour:
         baseDamage: 10
         hitReactionId: 
         interruptLevel: 1
-        desiredReaction: 2
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -150,7 +149,6 @@ MonoBehaviour:
         baseDamage: 10
         hitReactionId: 
         interruptLevel: 2
-        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -180,7 +178,6 @@ MonoBehaviour:
         baseDamage: 10
         hitReactionId: 
         interruptLevel: 2
-        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -210,7 +207,6 @@ MonoBehaviour:
         baseDamage: 10
         hitReactionId: 
         interruptLevel: 2
-        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -240,7 +236,6 @@ MonoBehaviour:
         baseDamage: 10
         hitReactionId: 
         interruptLevel: 2
-        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -270,7 +265,6 @@ MonoBehaviour:
         baseDamage: 10
         hitReactionId: 
         interruptLevel: 2
-        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -300,7 +294,6 @@ MonoBehaviour:
         baseDamage: 10
         hitReactionId: 
         interruptLevel: 2
-        desiredReaction: 1
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -334,6 +327,8 @@ MonoBehaviour:
       allowEntryRestart: 1
       interruptResistBonus: 0
     perfectDodgeWindowStates: []
+    assistCueStates: []
+    assistParryWindowStates: []
     movementStates: []
     rotationStates:
     - id: Rotation_1
@@ -341,7 +336,7 @@ MonoBehaviour:
       endFrame: 21
       priority: 0
       trackName: Rotation_1
-      smoothTimeOverride: 0
+      smoothTimeOverride: 0.05
     motionModifierStates:
     - id: MotionModifier_1
       startFrame: 23

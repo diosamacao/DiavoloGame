@@ -496,7 +496,8 @@ public sealed class CharacterActor :
     {
         _numeric.ArmAssistFollowUp();
         if (_queuedExternalIntent == GameplayIntentType.None
-            || _queuedExternalIntent == GameplayIntentType.AssistParry)
+            || _queuedExternalIntent == GameplayIntentType.AssistParry
+            || _queuedExternalIntent == GameplayIntentType.Parry)
         {
             _queuedExternalIntent = GameplayIntentType.AssistParrySuccess;
         }

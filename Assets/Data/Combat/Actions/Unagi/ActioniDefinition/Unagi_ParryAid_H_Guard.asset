@@ -46,7 +46,7 @@ MonoBehaviour:
       endFrame: 270
       priority: 0
       trackName: Phase_1
-      kind: 0
+      kind: 2
       interruptible: 1
       allowMovementCancel: 1
       allowEntryRestart: 1
@@ -59,6 +59,7 @@ MonoBehaviour:
       endFrame: 270
       priority: 0
       trackName: AssistParry_1
+      hitStopFrames: 8
     movementStates: []
     rotationStates: []
     motionModifierStates:

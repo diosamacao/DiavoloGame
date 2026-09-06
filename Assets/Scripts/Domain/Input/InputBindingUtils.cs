@@ -48,6 +48,9 @@ public static class InputBindingUtils
             case "SwitchCharacter":
                 button = InputButton.SwitchCharacter;
                 return true;
+            case "Parry":
+                button = InputButton.Parry;
+                return true;
             default:
                 button = default;
                 return false;
