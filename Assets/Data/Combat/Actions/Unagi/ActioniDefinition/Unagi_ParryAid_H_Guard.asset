@@ -20,7 +20,7 @@ MonoBehaviour:
     crossFadeDuration: 0
   sampleRate: 60
   totalFrames: 271
-  actionType: 0
+  actionType: 2
   crossFadeDuration: 0.1
   executionPolicy:
     interruptPriority: 5

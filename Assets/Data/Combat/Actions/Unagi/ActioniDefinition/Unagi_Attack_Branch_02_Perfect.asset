@@ -316,7 +316,7 @@ MonoBehaviour:
     rotationStates:
     - id: Rotation_1
       startFrame: 0
-      endFrame: 10
+      endFrame: 6
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0.05
@@ -335,8 +335,8 @@ MonoBehaviour:
       maxAngleMilliDeg: 0
       stopOnTargetLost: 1
     - id: MotionModifier_2
-      startFrame: 7
-      endFrame: 17
+      startFrame: 6
+      endFrame: 15
       priority: 0
       trackName: MotionModifier_2
       mode: 0
