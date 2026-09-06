@@ -336,21 +336,21 @@ MonoBehaviour:
       smoothTimeOverride: 0.05
     motionModifierStates:
     - id: MotionModifier_1
-      startFrame: 7
-      endFrame: 10
+      startFrame: 4
+      endFrame: 12
       priority: 0
       trackName: MotionModifier_1
       mode: 1
       targetSource: 0
-      horizontalOffsetMm: 1500
+      horizontalOffsetMm: 1000
       lateralOffsetMm: 0
       maxCorrectionMmPerFrame: 99999
       maxAcquireDistanceMm: 99999
       maxAngleMilliDeg: 0
       stopOnTargetLost: 1
     - id: MotionModifier_2
-      startFrame: 6
-      endFrame: 12
+      startFrame: 4
+      endFrame: 13
       priority: 0
       trackName: MotionModifier_2
       mode: 0
@@ -361,22 +361,7 @@ MonoBehaviour:
       maxAcquireDistanceMm: 4500
       maxAngleMilliDeg: 0
       stopOnTargetLost: 1
-    motionCommandNotifies:
-    - id: MotionCommand_1
-      startFrame: 17
-      endFrame: 17
-      priority: 0
-      trackName: MotionCommand_1
-      commandType: 0
-      targetSource: 0
-      behindDistanceMm: 0
-      localOffsetMm: {x: 0, y: 0, z: 0}
-      facingPolicy: 0
-      collisionPolicy: 0
-      fallbackPolicy: 0
-      forwardFallbackMm: 0
-      softBodySuppressFrames: 0
-      preserveVertical: 0
+    motionCommandNotifies: []
     cameraSettings:
       restoreMode: 0
       suppressLookInput: 1
