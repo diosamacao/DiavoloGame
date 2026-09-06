@@ -12,6 +12,8 @@ public sealed class InputReader : ILocalInputSampler
     InputAction targetSwitchLeftAction;
     InputAction targetSwitchRightAction;
     InputAction switchCharacterAction;
+    /// <summary>可选 Player Action「Parry」；未配置时本体弹刀键保持未按下。</summary>
+    InputAction parryAction;
     InputActionReference[] _discreteInputs = System.Array.Empty<InputActionReference>();
     ushort _stagedMoveReferenceYaw;
 
@@ -71,6 +73,8 @@ public sealed class InputReader : ILocalInputSampler
         SampleOptionalButton(targetSwitchRightAction, InputButton.TargetSwitchRight, ref pressed, ref held, ref released);
         // 阵容切人不进入 GameplayIntentProfile，由座位级 Party 协调器消费。
         SampleOptionalButton(switchCharacterAction, InputButton.SwitchCharacter, ref pressed, ref held, ref released);
+        // 本体弹刀进入玩法 InputFrame，由 Producer 硬产出 Parry；不像切人键那样从玩法流剥掉。
+        SampleOptionalButton(parryAction, InputButton.Parry, ref pressed, ref held, ref released);
 
         Vector2 move = MoveInput;
         return new InputFrame(
@@ -103,6 +107,7 @@ public sealed class InputReader : ILocalInputSampler
         targetSwitchLeftAction = playerMap.FindAction("TargetSwitchLeft", throwIfNotFound: false);
         targetSwitchRightAction = playerMap.FindAction("TargetSwitchRight", throwIfNotFound: false);
         switchCharacterAction = playerMap.FindAction("SwitchCharacter", throwIfNotFound: false);
+        parryAction = playerMap.FindAction("Parry", throwIfNotFound: false);
     }
 
     /// <summary>把可选 Player Action 采样到稳定按钮位；资产未配置时保持未按下。</summary>

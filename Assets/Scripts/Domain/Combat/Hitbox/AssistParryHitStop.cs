@@ -1,15 +1,31 @@
-/// <summary>弹刀卡肉帧数：盒勾了 UseHitStop 用盒值，否则默认 8。真伤不走此缺省。</summary>
+/// <summary>弹刀卡肉帧数只认玩家当前招架窗；真伤仍走进攻盒 UseHitStop。</summary>
 public static class AssistParryHitStop
 {
-    /// <summary>敌人盒未勾卡肉时的弹刀默认逻辑帧（60Hz）。</summary>
-    public const int DefaultFrames = 22;
+    /// <summary>窗未配置或找不到窗时的回退逻辑帧（60Hz）。</summary>
+    public const int DefaultFrames = 8;
 
-    /// <summary>解析弹刀双方停顿帧数。空 Feedback 或未勾 UseHitStop 返回 <see cref="DefaultFrames"/>。</summary>
-    public static int ResolveFrames(HitFeedbackSettings feedback)
+    /// <summary>读窗上的帧；空窗回退 <see cref="DefaultFrames"/>。</summary>
+    public static int ResolveFrames(AssistParryWindowNotifyState window) =>
+        window != null ? window.HitStopFrames : DefaultFrames;
+
+    /// <summary>读指定招在该帧生效的招架窗；无窗回退默认帧。</summary>
+    public static int ResolveFrames(ActionDefinition action, int frame)
     {
-        if (feedback != null && feedback.UseHitStop)
-            return feedback.HitStopFrames;
+        if (action != null && action.TryGetAssistParryWindowAtFrame(frame, out AssistParryWindowNotifyState window))
+            return ResolveFrames(window);
 
         return DefaultFrames;
+    }
+
+    /// <summary>读玩家当前 ActionSim 招架窗。无活动招或无窗时回退默认帧。</summary>
+    public static int ResolveFrames(CharacterActor player)
+    {
+        if (player?.ActionSim == null || !player.ActionSim.IsActive)
+            return DefaultFrames;
+
+        ActionSimSnapshot snap = player.ActionSim.Snapshot;
+        return snap.Content is ActionDefinition action
+            ? ResolveFrames(action, snap.CurrentFrame)
+            : DefaultFrames;
     }
 }

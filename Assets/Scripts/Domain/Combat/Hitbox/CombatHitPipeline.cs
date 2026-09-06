@@ -195,10 +195,8 @@ public sealed class CombatHitPipeline
         CharacterActor player = _actorLookup?.Invoke(hit.Key.TargetId);
         player?.NotifyAssistParryContact();
 
-        HitFeedbackSettings feedback = ReadFeedback(in context);
-        int hitStopFrames = AssistParryHitStop.ResolveFrames(feedback);
-        bool oncePerAction = feedback == null || feedback.HitStopOncePerAction;
-        ApplyConfirmedHitStop(in hit, hitStopFrames, oncePerAction, bothSides: true);
+        int hitStopFrames = AssistParryHitStop.ResolveFrames(player);
+        ApplyConfirmedHitStop(in hit, hitStopFrames, oncePerAction: true, bothSides: true);
 
         HitReactionKind reactionKind = attackerReactions != null
             ? attackerReactions.LastConfirmedReactionKind

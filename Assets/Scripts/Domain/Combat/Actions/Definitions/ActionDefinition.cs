@@ -279,6 +279,10 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
     public bool IsAssistParryWindowActiveAtFrame(int frame) =>
         Timeline.IsAssistParryWindowActiveAtFrame(frame);
 
+    /// <summary>指定帧生效的招架窗；供卡肉帧读取。</summary>
+    public bool TryGetAssistParryWindowAtFrame(int frame, out AssistParryWindowNotifyState window) =>
+        Timeline.TryGetAssistParryWindowAtFrame(frame, out window);
+
     /// <summary>指定帧是否有极限支援闪光；供 CueBoard 收集。</summary>
     public bool TryGetAssistCueAtFrame(int frame, out AssistCueNotifyState cue) =>
         Timeline.TryGetAssistCueAtFrame(frame, out cue);

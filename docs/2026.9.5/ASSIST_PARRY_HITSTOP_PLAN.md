@@ -78,7 +78,7 @@ SimulationHost.StepOnce
 4. **双方停是多一个目标，不是第二套系统**：真伤 `AttackerOnly`；弹刀 `BothSides`。  
 5. **零长期兼容**：删掉 `PD \|\| 弹刀` 的事件合并；不留旧 Publish 语义。  
 6. **锁步边界不变**：权威仍在 Pipeline；本机预测只镜像已结算的接触 + 帧数。  
-7. **差异在 Feedback / 常量，不在身份 if**：帧数来自敌人盒 `HitFeedbackSettings`，缺省用代码常量。
+7. **差异在窗 / 盒 Feedback，不在身份 if**：弹刀帧读玩家 `AssistParryWindow.hitStopFrames`；真伤仍只认进攻盒 `UseHitStop`。无窗回退代码常量 8。
 
 ---
 
@@ -90,7 +90,7 @@ ResolvePending（已 Collect）
   │     不 OnHit / 不 Grant
   │     IssueParried → EnterHit（新受击实例）
   │     NotifyAssistParryContact
-  │     frames = AssistParryHitStop.ResolveFrames(feedback)
+  │     frames = AssistParryHitStop.ResolveFrames(player)
   │
   ├─ PD / 仅无敌 → 早退，不顿帧
   │
@@ -132,15 +132,15 @@ flowchart TD
 ### 3.1 关键契约
 
 ```text
-Input  → 已 Collect 的 CombatHitEvent + HitFeedbackSettings
+Input  → 已 Collect 的 CombatHitEvent + 玩家当前招架窗
 Output → 双方或单方 ActionSim.freezeFrames
        → ResolvedCombatHit.HitStopFrames / AbsorbedByAssistParry / AbsorbedByPerfectDodge
        → AttackHitEvent 同上（禁止再把弹刀并进 PD）
 
-AssistParryHitStop.ResolveFrames(feedback)
-  feedback != null && UseHitStop && HitStopFrames > 0 → HitStopFrames
-  否则弹刀 → DefaultFrames（8）
-  真伤不走此缺省：没勾 UseHitStop 则 0
+AssistParryHitStop.ResolveFrames(player / window)
+  当前招有生效 AssistParryWindow → window.HitStopFrames（0 表示不冻）
+  无窗 / 无活动招 → DefaultFrames（8）
+  真伤不走此解析：没勾 UseHitStop 则 0
 
 ApplyConfirmedHitStop
   只写当前 IsActive 实例；无实例则跳过该侧（不另做 HitState 帧冻结双轨）
@@ -193,8 +193,8 @@ ApplyConfirmedHitStop
 
 **任务**
 
-- [x] 新增 `Assets/Scripts/Domain/Combat/Hitbox/AssistParryHitStop.cs`：`DefaultFrames = 8`，`ResolveFrames(HitFeedbackSettings)`  
-- [x] EditMode：`AssistParryHitStopTests`（勾了 UseHitStop 用盒帧；未勾/空 Feedback 用 8）
+- [x] 新增 `Assets/Scripts/Domain/Combat/Hitbox/AssistParryHitStop.cs`：`DefaultFrames = 8`，`ResolveFrames` 只认招架窗  
+- [x] EditMode：`AssistParryHitStopTests`（窗上配置帧；空窗 / 无招回退 8）
 
 **验收**
 
@@ -313,7 +313,7 @@ docs/2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md
 | 无 Parried/Hit 片，攻击者 `ActionSim` 已 Stop | 该侧跳过；不延长 `HitState` 纯帧硬直（避免双轨）。Play 依赖现有受击片 |
 | 卡肉中玩家普攻取消 Success | Driver 冻结门只放行 Success |
 | 本机镜头跟预测 Actor，权威冻了预测没冻 | HS3 接触列表带帧数并镜像 |
-| 敌人盒未勾 `UseHitStop` | 弹刀仍 8 帧；真伤保持不冻 |
+| 旧招架窗未填 `hitStopFrames` | 序列化默认 8；故意填 0 表示不冻。真伤仍只认进攻盒 `UseHitStop` |
 | 客机预测弹刀几何 | 本阶段不做；伤害/接触仍只信权威 |
 
 ---
@@ -323,10 +323,11 @@ docs/2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md
 Agent **不改** `Assets/Data/**`、Prefab、非 Shader 美术。
 
 1. 打开工程，等编译通过。  
-2. 可选：敌人进攻盒勾 `UseHitStop` 并填 `HitStopFrames`，弹刀与打击共用该帧数；不勾则弹刀用默认 8。  
-3. 确认上场角色 Graph 仍有 `AssistParry` / `AssistParrySuccess`，敌人 `CharacterReactionSet` 有 Parried 或 Hit 回退片。  
-4. Play：金光切人 → 敌人出手打中招架窗 → 双方停顿 → clang / Stun 继续。  
-5. Test Runner：`AssistParryHitStopTests`、`AssistParryPipelineTests`、carry 相关测。
+2. 在 Guard（及若要连续自动格挡则 Success）Timeline 的 `AssistParryWindow` 填 **Hit Stop Frames**；旧窗未写该字段时用默认 8，填 0 表示不冻。  
+3. 确认上场角色 Graph 仍有 `AssistParry` / `AssistParrySuccess`，并新增 `Parry` Entry（可指向同一条 Guard）。敌人 `CharacterReactionSet` 有 Parried 或 Hit 回退片。  
+4. Input Actions 的 Player Map 增加名为 `Parry` 的 Action（名称必须完全一致）。  
+5. Play：金光切人弹刀、以及本体 `Parry` 举刀 → 敌人出手打中招架窗 → 双方停顿 → clang / Stun 继续。  
+6. Test Runner：`AssistParryHitStopTests`、`AssistParryPipelineTests`、`SelfParryIntentTests`、carry 相关测。
 
 ---
 
@@ -349,3 +350,4 @@ HS0 帧数解析
 |------|------|
 | 2026-09-05 | 初版：卡肉收敛为 Pipeline 结算后唯一写入；弹刀双方停；禁止 OnHit 做弹刀 |
 | 2026-09-05 | HS0～HS3 代码落地：`ApplyConfirmedHitStop`、Success carry、事件拆旗标、本机镜像 |
+| 2026-09-06 | 弹刀帧改读 `AssistParryWindow.hitStopFrames`，删除 `ResolveFrames(HitFeedbackSettings)` |

@@ -116,6 +116,7 @@ public class MyBehaviour : MonoBehaviour
 - **相机 Look**：渲染帧 Look 不进入玩法 InputFrame，由 `PlayerController.LookInput` 直接提供给 CameraManager
 - **切敌与镜头锁分离**：TargetSwitch 是 InputFrame gameplay 边沿；CameraLock 是本地表现输入。锁定键禁止选择目标或写 Character/ActionSim
 - **设备映射**：`GameplayIntentProfile` 是 InputActionReference、长按阈值与上下文映射的**项目唯一**配置源，经 `GameplayIntentSettings` 加载；**禁止**再挂到 `CharacterConfig`
+- **切人键 / 本体弹刀例外**：`SwitchCharacter` 不进 Profile，由座位协调器消费并从玩法流剥掉；`Parry` 不经 Profile 绑定，由 Producer 按下边沿硬产出 `GameplayIntentType.Parry`，且保留在玩法 InputFrame
 - **语义生产**：`GameplayIntentProducer` 在 `InputManager.IngestFrame` 后输出 `GameplayIntentType`
 - **上下文意图**：SprintAttack / DodgeAttack 由 `GameplayIntentProfile` 条件映射产生；闪避攻击使用 `IsDodging + Attack Pressed`，禁止在 Driver 中按键名特判
 - **选招层**：`ActionResolverService` → 当前模式 `ActionGraph`（多 Entry × Intent 起手 + Cancel 边）；`DirectionalActionResolver` 可作为节点 `VariantResolver`

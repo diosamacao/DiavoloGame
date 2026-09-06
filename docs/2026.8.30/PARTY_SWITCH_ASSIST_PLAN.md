@@ -9,7 +9,7 @@
 > - 数值口袋：[`../COMBAT_NUMERICS_PLAN.md`](../COMBAT_NUMERICS_PLAN.md) / [`../2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md`](../2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md)  
 > - 锁步：`SimulationWorld` → `CharacterActor.Step` → `ActionSim` → `CombatHitPipeline`  
 > - 受击真源（P-HR0～4 已关闭）：[`../2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md`](../2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md) — 真命中走冲击力对韧性；被弹刀**禁止**走该裁定  
-> - 弹刀卡肉（接触后双方停顿，未开工）：[`../2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md`](../2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md)  
+> - 弹刀卡肉（接触后双方停顿，帧数读 Guard 窗）：[`../2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md`](../2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md)  
 > - 相机换人前排：[`../2026.8.26/CAMERA_SYSTEM_PLAN.md`](../2026.8.26/CAMERA_SYSTEM_PLAN.md)（后置，不进本方案出口）
 
 ---
@@ -666,3 +666,4 @@ P-SW0 身份/Loadout
 | 2026-09-04 | 对齐已关闭的 P-HR 受击：被弹刀走 `IssueParried` 强制 LightStun，禁止冲击力×韧性 / SuperArmor / Flinch；不新增 `HitReactionKind.Parried`；P-SW3 读 `LastConfirmedReactionKind == Launch` |
 | 2026-09-04 | P-SW2 按两条 Action 落地：`AssistParry` Guard + 接触后 `AssistParrySuccess`；任务代码已勾，Play 验收保持未勾 |
 | 2026-09-05 | 弹刀成功卡肉另开 [`../2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md`](../2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md)；不改本篇吞伤 / `IssueParried` 裁定 |
+| 2026-09-06 | 本体弹刀独立 `GameplayIntentType.Parry`：不走 Coordinator、不耗支援点；接触成功仍切 Success。卡肉帧改读 `AssistParryWindow.hitStopFrames` |
