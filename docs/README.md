@@ -1,6 +1,6 @@
 # ACTGame 文档索引
 
-> 更新：2026-09-05 — 弹刀卡肉方案见 `2026.9.5`。受击档见 `2026.9.3`。换人仍见 `2026.8.30`。
+> 更新：2026-09-06 — LFS 美术本机化见 `2026.9.2`。弹刀卡肉见 `2026.9.5`。受击档见 `2026.9.3`。换人仍见 `2026.8.30`。
 
 **先读**
 
@@ -36,6 +36,7 @@
 | [2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md](./2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md) | BT 编辑器待优化（A2～A5） |
 | [ACTION_EDITOR.md](./ACTION_EDITOR.md) | Action Editor 愿景 |
 | [ACTION_EDITOR_IMPLEMENTATION.md](./ACTION_EDITOR_IMPLEMENTATION.md) | Action Editor 实现方案 |
+| [2026.9.2/LFS_ART_LOCAL_REBUILD_PLAN.md](./2026.9.2/LFS_ART_LOCAL_REBUILD_PLAN.md) | **GitHub LFS 超额**：Art / Audio / Resources 只留本机，改写历史后推新库再删旧库（LFS-0～6） |
 
 ## 方案范本（已落地，供新方案对照格式）
 
