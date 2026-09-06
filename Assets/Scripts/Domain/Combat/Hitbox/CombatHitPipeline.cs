@@ -185,7 +185,7 @@ public sealed class CombatHitPipeline
         _pending.Clear();
     }
 
-    /// <summary>玩家吞伤、攻击者强制 Stun、武装突击；不 Grant、不对玩家 OnHit。顿帧在 IssueParried 之后写新实例。</summary>
+    /// <summary>玩家吞伤、攻击者按盒政策 IssueParried、武装突击；不 Grant、不对玩家 OnHit。</summary>
     void ApplyAssistParry(in CombatHitEvent hit, in ActionHitContext context)
     {
         hit.HitReceiver?.ConfirmHit(hit.Key.ActionInstanceId);
@@ -198,9 +198,12 @@ public sealed class CombatHitPipeline
         int hitStopFrames = AssistParryHitStop.ResolveFrames(player);
         ApplyConfirmedHitStop(in hit, hitStopFrames, oncePerAction: true, bothSides: true);
 
-        HitReactionKind reactionKind = attackerReactions != null
-            ? attackerReactions.LastConfirmedReactionKind
-            : HitReactionKind.LightStun;
+        // Continue 不写 LightStun；无 Reaction 服务时 Interrupt 仍报 LightStun（与旧盒一致）。
+        HitReactionKind reactionKind = ReadParriedActionPolicy(in context) == ParriedActionPolicy.Continue
+            ? HitReactionKind.None
+            : attackerReactions != null
+                ? attackerReactions.LastConfirmedReactionKind
+                : HitReactionKind.LightStun;
 
         _resolved.Add(new ResolvedCombatHit(
             context,
@@ -246,6 +249,12 @@ public sealed class CombatHitPipeline
     /// <summary>读盒上 Feedback；无盒则为空，弹刀走默认帧、真伤不冻。</summary>
     static HitFeedbackSettings ReadFeedback(in ActionHitContext context) =>
         context.Hitbox != null ? context.Hitbox.Payload.Feedback : null;
+
+    /// <summary>无盒视为 Interrupt，保持旧 Collect 路径行为。</summary>
+    static ParriedActionPolicy ReadParriedActionPolicy(in ActionHitContext context) =>
+        context.Hitbox != null
+            ? context.Hitbox.Payload.ParriedActionPolicy
+            : ParriedActionPolicy.Interrupt;
 
     void ValidateFrame(long frame)
     {

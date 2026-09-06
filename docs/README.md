@@ -1,6 +1,6 @@
 # ACTGame 文档索引
 
-> 更新：2026-09-06 — LFS 美术本机化见 `2026.9.2`。弹刀卡肉见 `2026.9.5`。受击档见 `2026.9.3`。换人仍见 `2026.8.30`。
+> 更新：2026-09-06 — 弹刀选片/自动弹刀/断招见 `2026.9.6`。弹刀卡肉见 `2026.9.5`。换人仍见 `2026.8.30`。
 
 **先读**
 
@@ -29,6 +29,7 @@
 | [COMBAT_NUMERICS_PLAN.md](./COMBAT_NUMERICS_PLAN.md) | 资源字段与产品语义 |
 | [2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md](./2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md) | **三人编队换人 / 极限支援（弹刀）/ 支援突击**（P-SW0～5；切人不再后置） |
 | [2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md](./2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md) | **弹刀卡肉收敛**：Pipeline 结算后双方 `RequestHitStop`（HS0～HS3 代码已接，Play 待验） |
+| [2026.9.6/ASSIST_PARRY_OUTCOME_PLAN.md](./2026.9.6/ASSIST_PARRY_OUTCOME_PLAN.md) | **被弹刀选片 / 连续自动弹刀 / 是否断招**（P-PR0～P-PR2 代码已接，Play 待验） |
 | [2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md](./2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md) | **受击档位 + Additive**：冲击力对韧性已接；轻击 Play 已验 |
 | [2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md](./2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md) | 技能槽 / 完美闪避产品；切人/支援改由 8.30 篇真源 |
 | [ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](./ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md) | 模拟核 L0～L2；剩余 L1B Play / L2 斜坡 / L3 |

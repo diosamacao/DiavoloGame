@@ -144,7 +144,7 @@
 | 场景胜负流 / Boot 流程 | P2 | Demo 包装 |
 | 斜坡精确碰撞 | P2 | L2 收口 |
 | 联网 Play / W12 | P1 | 见 §3；不得称公网可用 |
-| 三人换人 / 弹刀 | P1 | [`2026.8.30`](./2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md)；P-SW2 接触成功；卡肉读窗；本体 `Parry` 意图已接线 |
+| 三人换人 / 弹刀 | P1 | [`2026.8.30`](./2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md)；选片/Continue/自动弹刀代码已接：[`2026.9.6`](./2026.9.6/ASSIST_PARRY_OUTCOME_PLAN.md) |
 
 ### 6.4 学习与工程实践轨
 

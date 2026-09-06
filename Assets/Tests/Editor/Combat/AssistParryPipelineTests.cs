@@ -253,12 +253,156 @@ public sealed class AssistParryPipelineTests
     public void ResolveParried_IgnoresToughnessAndSuperArmor()
     {
         var resolver = new CharacterReactionResolver(new CharacterReactionSet());
-        HitReactionCommand command = resolver.ResolveParried();
+        HitReactionCommand command = resolver.ResolveParried(string.Empty);
         Assert.That(command.Kind, Is.EqualTo(HitReactionKind.LightStun));
         Assert.That(command.InterruptsAction, Is.True);
         Assert.That(
             CharacterReactionResolver.ResolveKind(1, 99, superArmor: true),
             Is.EqualTo(HitReactionKind.Flinch));
+    }
+
+    /// <summary>精确 Parried Id 命中对应片子，不落到默认片。</summary>
+    [Test]
+    public void ResolveParried_ReactionId_SelectsExactParriedAction()
+    {
+        ActionDefinition left = CreateReadyAction("Hit_Parry_Left");
+        ActionDefinition right = CreateReadyAction("Hit_Parry_Right");
+        ActionDefinition fallback = CreateReadyAction("Hit_Parry_Default");
+        try
+        {
+            CharacterReactionSet set = CreateParriedReactionSet(fallback, left, right);
+            var resolver = new CharacterReactionResolver(set);
+
+            Assert.That(resolver.ResolveParried("Left").StunAction, Is.SameAs(left));
+            Assert.That(resolver.ResolveParried("Right").StunAction, Is.SameAs(right));
+            Assert.That(resolver.ResolveParried(string.Empty).StunAction, Is.SameAs(fallback));
+            Assert.That(resolver.ResolveParried("Missing").StunAction, Is.SameAs(fallback));
+            Assert.That(resolver.ResolveParried("Left").Kind, Is.EqualTo(HitReactionKind.LightStun));
+        }
+        finally
+        {
+            DestroyAction(left);
+            DestroyAction(right);
+            DestroyAction(fallback);
+        }
+    }
+
+    /// <summary>Continue：不停招、不写边沿、不 NotifyHit；Resolved 档为 None。</summary>
+    [Test]
+    public void AssistParry_Continue_DoesNotEnterHitOrNotify()
+    {
+        ActionDefinition attack = CreateReadyAction("ContinueAttack");
+        using ActorHarness attacker = ActorHarness.Create("AttackerContinue", new SimActorId(21));
+        int notifyCount = 0;
+        var attackerReactions = new CharacterReactionService(
+            attacker.Actor.Vitality,
+            attacker.Actor,
+            new CharacterReactionResolver(new CharacterReactionSet()),
+            hitSideEffect: _ => notifyCount++,
+            baseInterruptResist: 3);
+
+        ResolvedCombatHit? resolved = null;
+        var pipeline = new CombatHitPipeline(hit => resolved = hit);
+        pipeline.BindAssistParryLookups(
+            id => id.Equals(attacker.Actor.SimulationId) ? attackerReactions : null,
+            _ => null);
+
+        Assert.That(attacker.Actor.ActionSim.TryStart(ActionSimResolveResult.FromContent(attack)), Is.True);
+        int instanceId = attacker.Actor.ActionSim.InstanceId;
+        HitboxNotifyState hitbox = CreateHitbox(ParriedActionPolicy.Continue);
+        var target = new AbsorbTarget(new SimActorId(22), assistParry: true, invincible: true);
+        var context = new ActionHitContext(attack, hitbox, null, instanceId, attacker.Actor.SimulationId);
+
+        try
+        {
+            pipeline.BeginFrame(1);
+            pipeline.Collect(
+                attacker.Actor.SimulationId,
+                instanceId,
+                0,
+                target,
+                attacker.Actor.ActionSim,
+                in context,
+                Vector3.zero);
+            pipeline.ResolveBeforePostCombat(1);
+            pipeline.CompleteFrame(1);
+
+            Assert.That(resolved.HasValue, Is.True);
+            Assert.That(resolved.Value.AbsorbedByAssistParry, Is.True);
+            Assert.That(resolved.Value.ReactionKind, Is.EqualTo(HitReactionKind.None));
+            Assert.That(attacker.Actor.CurrentState, Is.Not.EqualTo(CharacterStateType.Hit));
+            Assert.That(attacker.Actor.ActionSim.IsActive, Is.True);
+            Assert.That(attacker.Actor.ActionSim.InstanceId, Is.EqualTo(instanceId));
+            Assert.That(attacker.Actor.Vitality.LastConfirmedReactionKind, Is.EqualTo(HitReactionKind.None));
+            Assert.That(attacker.Actor.Vitality.ReplicationEdge, Is.EqualTo(VitalityReplicationEdge.None));
+            Assert.That(notifyCount, Is.Zero);
+            Assert.That(target.OnHitCount, Is.Zero);
+        }
+        finally
+        {
+            attackerReactions.Dispose();
+            DestroyAction(attack);
+        }
+    }
+
+    /// <summary>已在 Success 图节点上时，二次接触不排队、不换实例。</summary>
+    [Test]
+    public void AssistParry_AlreadyPlayingSuccess_DoesNotRequeue()
+    {
+        ActionDefinition success = CreateReadyAction("AutoParrySuccess", parryHitStopFrames: 5);
+        ActionGraph graph = CreateSuccessGraph(success);
+        using ActorHarness player = ActorHarness.Create("PlayerSuccess", new SimActorId(23));
+        using ActorHarness attacker = ActorHarness.Create("AttackerSuccess", new SimActorId(24));
+        var attackerReactions = new CharacterReactionService(
+            attacker.Actor.Vitality,
+            attacker.Actor,
+            new CharacterReactionResolver(new CharacterReactionSet()),
+            baseInterruptResist: 3);
+
+        ResolvedCombatHit? resolved = null;
+        var pipeline = new CombatHitPipeline(hit => resolved = hit);
+        pipeline.BindAssistParryLookups(
+            id => id.Equals(attacker.Actor.SimulationId) ? attackerReactions : null,
+            id => id.Equals(player.Actor.SimulationId) ? player.Actor : null);
+
+        Assert.That(
+            player.Actor.ActionSim.TryStart(ActionSimResolveResult.FromGraph(
+                success,
+                graph,
+                "Success",
+                GameplayIntentType.AssistParrySuccess)),
+            Is.True);
+        int successInstance = player.Actor.ActionSim.InstanceId;
+
+        var target = new AbsorbTarget(player.Actor.SimulationId, assistParry: true, invincible: true);
+        var context = new ActionHitContext(null, null, null, 1, attacker.Actor.SimulationId);
+
+        try
+        {
+            pipeline.BeginFrame(1);
+            pipeline.Collect(
+                attacker.Actor.SimulationId,
+                1,
+                0,
+                target,
+                new HitReceiver(),
+                in context,
+                Vector3.zero);
+            pipeline.ResolveBeforePostCombat(1);
+            pipeline.CompleteFrame(1);
+
+            Assert.That(resolved.HasValue, Is.True);
+            Assert.That(resolved.Value.AbsorbedByAssistParry, Is.True);
+            Assert.That(player.Actor.ActionSim.InstanceId, Is.EqualTo(successInstance));
+            Assert.That(ReadQueuedIntent(player.Actor), Is.EqualTo(GameplayIntentType.None));
+            Assert.That(player.Actor.Numeric.Flags.HasAssistFollowUp, Is.True);
+        }
+        finally
+        {
+            attackerReactions.Dispose();
+            DestroyAction(success);
+            UnityEngine.Object.DestroyImmediate(graph);
+        }
     }
 
     static CharacterActor LookupActor(SimActorId id, ActorHarness attacker, ActorHarness player)
@@ -268,6 +412,59 @@ public sealed class AssistParryPipelineTests
         if (id.Equals(player.Actor.SimulationId))
             return player.Actor;
         return null;
+    }
+
+    static CharacterReactionSet CreateParriedReactionSet(
+        ActionDefinition defaultParried,
+        ActionDefinition left,
+        ActionDefinition right)
+    {
+        var defaultRule = new CharacterReactionRule();
+        SetField(defaultRule, "reactionType", CharacterReactionType.Parried);
+        SetField(defaultRule, "defaultRule", true);
+        SetField(defaultRule, "action", defaultParried);
+
+        var leftRule = new CharacterReactionRule();
+        SetField(leftRule, "reactionType", CharacterReactionType.Parried);
+        SetField(leftRule, "reactionId", "Left");
+        SetField(leftRule, "action", left);
+
+        var rightRule = new CharacterReactionRule();
+        SetField(rightRule, "reactionType", CharacterReactionType.Parried);
+        SetField(rightRule, "reactionId", "Right");
+        SetField(rightRule, "action", right);
+
+        var set = new CharacterReactionSet();
+        SetField(set, "rules", new[] { defaultRule, leftRule, rightRule });
+        return set;
+    }
+
+    static HitboxNotifyState CreateHitbox(ParriedActionPolicy policy, string parriedReactionId = "")
+    {
+        var hitbox = new HitboxNotifyState();
+        SetField(hitbox.Payload, "parriedActionPolicy", policy);
+        SetField(hitbox.Payload, "parriedReactionId", parriedReactionId ?? string.Empty);
+        return hitbox;
+    }
+
+    static ActionGraph CreateSuccessGraph(ActionDefinition success)
+    {
+        ActionGraph graph = ScriptableObject.CreateInstance<ActionGraph>();
+        var node = new ActionGraphNode();
+        SetField(node, "nodeId", "Success");
+        SetField(node, "action", success);
+        SetField(node, "intent", GameplayIntentType.AssistParrySuccess);
+        SetField(graph, "nodes", new[] { node });
+        return graph;
+    }
+
+    static GameplayIntentType ReadQueuedIntent(CharacterActor actor)
+    {
+        FieldInfo field = typeof(CharacterActor).GetField(
+            "_queuedExternalIntent",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.That(field, Is.Not.Null);
+        return (GameplayIntentType)field.GetValue(actor);
     }
 
     static CharacterReactionSet CreateHitReactionSet(ActionDefinition action)

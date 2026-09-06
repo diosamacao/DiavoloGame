@@ -254,6 +254,7 @@ public static class ActionNotifySelectionDrawer
             clampMinToPrimaryStart: true);
     }
 
+    /// <summary>进攻盒几何与 Payload；被弹字段查攻击者 Parried，不是对方 Hit。</summary>
     static void DrawHitbox(SerializedProperty element, ActionEditorSelectionSet batchSet)
     {
         DrawMultiProperty(batchSet, element, "shape");
@@ -268,6 +269,11 @@ public static class ActionNotifySelectionDrawer
             new GUIContent(
                 "Parent To Attach Point",
                 "勾选：每帧跟随挂点/角色根；取消：窗口进入帧写入世界空间后不再跟随（对齐 VFX）。"));
+        EditorGUILayout.HelpBox(
+            "Parried Action Policy / Parried Reaction Id 只在该盒被玩家招架窗吞掉时生效。\n"
+            + "Id 查攻击者 CharacterReactionSet 的 Parried 规则，不是对方 Hit。空 Id 走默认 Parried 片。\n"
+            + "Interrupt=进 Hit；Continue=不停招、不写受击边沿。",
+            MessageType.Info);
         DrawMultiProperty(
             batchSet,
             element,
