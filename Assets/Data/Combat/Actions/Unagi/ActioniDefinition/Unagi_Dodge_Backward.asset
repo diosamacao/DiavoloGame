@@ -24,7 +24,6 @@ MonoBehaviour:
   crossFadeDuration: 0.1
   executionPolicy:
     interruptPriority: 50
-    useRootMotion: 1
     baseMotionMode: 2
   resourceSpec:
     resourceTag: 0
@@ -37,7 +36,15 @@ MonoBehaviour:
   timeline:
     actionEvents: []
     playVfxNotifies: []
-    playSfxStates: []
+    playSfxStates:
+    - id: SFX_1
+      startFrame: 0
+      endFrame: 0
+      priority: 0
+      trackName: SFX_1
+      audioClip: {fileID: 8300000, guid: 4fe7ab52a66467542b7c634975304f46, type: 3}
+      volume: 1
+      playbackSpeed: 1
     hitboxStates: []
     hurtboxStates: []
     cancelWindowStates: []
@@ -51,20 +58,32 @@ MonoBehaviour:
       interruptible: 1
       allowMovementCancel: 1
       allowEntryRestart: 1
+      interruptResistBonus: 0
     perfectDodgeWindowStates:
     - id: PerfectDodge_1
       startFrame: 0
       endFrame: 21
       priority: 0
       trackName: PerfectDodge_1
+    assistCueStates: []
+    assistParryWindowStates: []
     movementStates: []
     rotationStates: []
+    motionModifierStates: []
+    motionCommandNotifies: []
+    cameraSettings:
+      restoreMode: 0
+      suppressLookInput: 1
+    cameraShotStates: []
     tracks:
     - trackName: Phase_1
       kind: 8
       visible: 1
     - trackName: PerfectDodge_1
       kind: 10
+      visible: 1
+    - trackName: SFX_1
+      kind: 3
       visible: 1
   bakedMotion:
     logicHz: 60

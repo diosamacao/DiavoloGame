@@ -36,7 +36,15 @@ MonoBehaviour:
   timeline:
     actionEvents: []
     playVfxNotifies: []
-    playSfxStates: []
+    playSfxStates:
+    - id: SFX_1
+      startFrame: 25
+      endFrame: 25
+      priority: 0
+      trackName: SFX_1
+      audioClip: {fileID: 8300000, guid: 74d55437f0aca6447b7b0a067fe64e69, type: 3}
+      volume: 1
+      playbackSpeed: 1
     hitboxStates:
     - id: Hitbox_1
       startFrame: 60
@@ -73,7 +81,7 @@ MonoBehaviour:
     perfectDodgeWindowStates: []
     assistCueStates:
     - id: AssistCue_1
-      startFrame: 0
+      startFrame: 26
       endFrame: 55
       priority: 0
       trackName: AssistCue_1
@@ -96,6 +104,9 @@ MonoBehaviour:
       visible: 1
     - trackName: AssistCue_1
       kind: 14
+      visible: 1
+    - trackName: SFX_1
+      kind: 3
       visible: 1
   bakedMotion:
     logicHz: 60
