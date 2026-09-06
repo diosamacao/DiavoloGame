@@ -50,7 +50,7 @@ MonoBehaviour:
     cancelWindowStates: []
     phaseStates:
     - id: Phase_1
-      startFrame: 7
+      startFrame: 8
       endFrame: 105
       priority: 0
       trackName: Phase_1

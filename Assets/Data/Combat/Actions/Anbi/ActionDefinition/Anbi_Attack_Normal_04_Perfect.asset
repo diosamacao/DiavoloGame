@@ -52,8 +52,8 @@ MonoBehaviour:
       playbackSpeed: 1
     hitboxStates:
     - id: Hitbox_1
-      startFrame: 21
-      endFrame: 23
+      startFrame: 20
+      endFrame: 28
       priority: 0
       trackName: Hitbox_1
       shape: 0
@@ -67,6 +67,8 @@ MonoBehaviour:
         baseDamage: 10
         hitReactionId: 
         interruptLevel: 2
+        parriedActionPolicy: 0
+        parriedReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -81,7 +83,7 @@ MonoBehaviour:
           impactRandomEulerMin: {x: 0, y: 0, z: 0}
           impactRandomEulerMax: {x: 0, y: 360, z: 0}
     - id: Hitbox_1_2
-      startFrame: 7
+      startFrame: 5
       endFrame: 10
       priority: 0
       trackName: Hitbox_1
@@ -96,6 +98,8 @@ MonoBehaviour:
         baseDamage: 10
         hitReactionId: 
         interruptLevel: 2
+        parriedActionPolicy: 0
+        parriedReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -112,14 +116,14 @@ MonoBehaviour:
     hurtboxStates: []
     cancelWindowStates:
     - id: NormalCancel
-      startFrame: 43
-      endFrame: 60
+      startFrame: 34
+      endFrame: 61
       priority: 0
       trackName: Cancel_1
       windowType: 0
     phaseStates:
     - id: Phase_1
-      startFrame: 61
+      startFrame: 62
       endFrame: 215
       priority: 0
       trackName: Phase_1
@@ -135,7 +139,7 @@ MonoBehaviour:
     rotationStates:
     - id: Rotation_1
       startFrame: 0
-      endFrame: 15
+      endFrame: 17
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0.05

@@ -74,6 +74,8 @@ MonoBehaviour:
         baseDamage: 0
         hitReactionId: 
         interruptLevel: 1
+        parriedActionPolicy: 1
+        parriedReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 0}
           useHitStop: 0

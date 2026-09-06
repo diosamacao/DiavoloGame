@@ -168,7 +168,7 @@
 
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
-| 三人换人 / 极限支援 | P1 | 🟡 P-SW1/P-SW2 代码完成，Graph/Play 待验。弹刀卡肉读 Guard 窗；本体 `Parry` 意图已接线（Input/Graph 待配）。方案：[`docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`](../../docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md)、[`docs/2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md`](../../docs/2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md) |
+| 三人换人 / 极限支援 | P1 | 🟡 P-SW1/P-SW2 代码完成，Graph/Play 待验。P-PR0～P-PR2 选片/Continue/Success 不重切已接线。方案：[`docs/2026.9.6/ASSIST_PARRY_OUTCOME_PLAN.md`](../../docs/2026.9.6/ASSIST_PARRY_OUTCOME_PLAN.md)、[`docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`](../../docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md) |
 | 受击档位 + Additive | P1 | ✅ P-HR0～P-HR4 Play 验收 2026-09-04。失衡条 / 击飞物理不进本轮。方案：[`docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md`](../../docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md) |
 | ActionEditorWindow | P1 | ✅ 基础版 + 菱形/Zoom/Scrub 预览 + 2026-08-04 playhead 跟视口、Create 选文件夹、左侧文件夹分组；后续增强 SFX 预览 |
 | Enemy/ + AI | P1 | ✅ 8.10 Desire/Entry Request 总出口关闭；对峙表现已验收；待优化见 8.11 Backlog / A* |
@@ -257,6 +257,7 @@
 | 2026-09-01 | P-SW1 提前落每槽稳定网络实体；单输入流由权威 ActiveSlot 路由 | DualPresence 要求 Active/Exiting 同时存在，单实体热换无法保持权威收招与命中 |
 | 2026-09-02 | P-SW2 弹刀成功以敌人出手接触为准；被弹刀复用 `HitState`，不新建 Parry 状态 | 金光在抬手、出手在 Active；上场招架 Hitbox 会提前播成功且与受击状态机脱节 |
 | 2026-09-04 | P-SW2 按两条 Action 落地：Guard 举刀，接触后切 Success；被弹刀强制 LightStun | 用户确认不做「同一条弹反冻第 0 帧」；禁止冲击力裁定 / `HitReactionKind.Parried` |
+| 2026-09-06 | P-PR0～P-PR2 代码落地：进攻盒选片/Continue；Success 不重切 | 被弹差异在 Payload + ReactionSet；不做无输入自动举刀 |
 | 2026-09-06 | 弹刀卡肉帧改读招架窗；本体弹刀独立 `Parry` 意图 | 时长由 Guard 窗决定，不跟进攻盒；上场按键举刀与切人支援解耦 |
 | 2026-09-05 | 弹刀卡肉：Pipeline 结算后唯一 `RequestHitStop`；双方冻，Success 续冻 | 不把弹刀改回 `OnHit`；不并排第二套卡肉。方案：[`docs/2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md`](../../docs/2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md) |
 | 2026-09-04 | 受击 P-HR0～P-HR4 全计划关闭 | 用户 Play 验收完成；失衡条 / 击飞物理仍另开 |

@@ -103,6 +103,8 @@ MonoBehaviour:
         baseDamage: 0
         hitReactionId: 
         interruptLevel: 2
+        parriedActionPolicy: 0
+        parriedReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 0
@@ -132,6 +134,8 @@ MonoBehaviour:
         baseDamage: 0
         hitReactionId: 
         interruptLevel: 2
+        parriedActionPolicy: 0
+        parriedReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 0
@@ -161,6 +165,8 @@ MonoBehaviour:
         baseDamage: 0
         hitReactionId: 
         interruptLevel: 2
+        parriedActionPolicy: 0
+        parriedReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 0
@@ -190,6 +196,8 @@ MonoBehaviour:
         baseDamage: 0
         hitReactionId: 
         interruptLevel: 2
+        parriedActionPolicy: 0
+        parriedReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 0
@@ -219,6 +227,8 @@ MonoBehaviour:
         baseDamage: 0
         hitReactionId: 
         interruptLevel: 2
+        parriedActionPolicy: 0
+        parriedReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 0
@@ -248,6 +258,8 @@ MonoBehaviour:
         baseDamage: 0
         hitReactionId: 
         interruptLevel: 2
+        parriedActionPolicy: 0
+        parriedReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 0
@@ -277,6 +289,8 @@ MonoBehaviour:
         baseDamage: 0
         hitReactionId: 
         interruptLevel: 1
+        parriedActionPolicy: 0
+        parriedReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -316,19 +330,19 @@ MonoBehaviour:
     rotationStates:
     - id: Rotation_1
       startFrame: 0
-      endFrame: 6
+      endFrame: 5
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0.05
     motionModifierStates:
     - id: MotionModifier_1
       startFrame: 7
-      endFrame: 14
+      endFrame: 10
       priority: 0
       trackName: MotionModifier_1
       mode: 1
       targetSource: 0
-      horizontalOffsetMm: 1000
+      horizontalOffsetMm: 1500
       lateralOffsetMm: 0
       maxCorrectionMmPerFrame: 99999
       maxAcquireDistanceMm: 99999
@@ -336,7 +350,7 @@ MonoBehaviour:
       stopOnTargetLost: 1
     - id: MotionModifier_2
       startFrame: 6
-      endFrame: 15
+      endFrame: 12
       priority: 0
       trackName: MotionModifier_2
       mode: 0

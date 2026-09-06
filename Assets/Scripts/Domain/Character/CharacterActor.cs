@@ -491,16 +491,34 @@ public sealed class CharacterActor :
         _queuedExternalIntent = intent;
     }
 
-    /// <summary>招架窗接触：武装突击并排队 Success。切人当帧不得调用。不写卡肉。</summary>
+    /// <summary>招架窗接触：武装突击；首次排队 Success，已在 Success 不重切。不写卡肉。</summary>
     public void NotifyAssistParryContact()
     {
         _numeric.ArmAssistFollowUp();
+        if (IsPlayingAssistParrySuccess()
+            || _queuedExternalIntent == GameplayIntentType.AssistParrySuccess)
+        {
+            return;
+        }
+
         if (_queuedExternalIntent == GameplayIntentType.None
             || _queuedExternalIntent == GameplayIntentType.AssistParry
             || _queuedExternalIntent == GameplayIntentType.Parry)
         {
             _queuedExternalIntent = GameplayIntentType.AssistParrySuccess;
         }
+    }
+
+    /// <summary>当前图节点已是 Success 时，连续接触不得再排队以免 Begin 新实例。</summary>
+    bool IsPlayingAssistParrySuccess()
+    {
+        if (_actionSim == null || !_actionSim.IsActive)
+            return false;
+
+        ActionSimSnapshot snap = _actionSim.Snapshot;
+        return snap.Graph is ActionGraph graph
+            && graph.TryGetNode(snap.NodeId, out ActionGraphNode node)
+            && node.Intent == GameplayIntentType.AssistParrySuccess;
     }
 
     /// <summary>记下弹刀卡肉，供 AssistParrySuccess Begin 后补写（Begin 会清 freeze）。</summary>

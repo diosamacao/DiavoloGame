@@ -50,39 +50,18 @@ MonoBehaviour:
       audioClip: {fileID: 8300000, guid: 1b64cc9091420f94e8595fbf90572fb1, type: 3}
       volume: 1
       playbackSpeed: 1
+    - id: SFX_2
+      startFrame: 0
+      endFrame: 0
+      priority: 0
+      trackName: SFX_1
+      audioClip: {fileID: 8300000, guid: 1b64cc9091420f94e8595fbf90572fb1, type: 3}
+      volume: 1
+      playbackSpeed: 1
     hitboxStates:
-    - id: Hitbox_1
-      startFrame: 8
-      endFrame: 13
-      priority: 0
-      trackName: Hitbox_1
-      shape: 0
-      attachPointId: 
-      localOffset: {x: 0, y: 1, z: 0.86}
-      localEulerAngles: {x: 0, y: 0, z: 0}
-      size: {x: 2, y: 2, z: 3}
-      parentToAttachPoint: 1
-      parentToAttachPointSchema: 1
-      payload:
-        baseDamage: 10
-        hitReactionId: 
-        interruptLevel: 2
-        feedback:
-          cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
-          useHitStop: 1
-          hitStopFrames: 4
-          hitStopOncePerAction: 0
-          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
-          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
-          hitImpactSfxVolume: 0.3
-          hitImpactWorldOffset: {x: 0, y: 0, z: 0}
-          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
-          randomizeImpactRotation: 1
-          impactRandomEulerMin: {x: 0, y: 0, z: 0}
-          impactRandomEulerMax: {x: 0, y: 360, z: 0}
     - id: Hitbox_1_2
-      startFrame: 22
-      endFrame: 25
+      startFrame: 42
+      endFrame: 49
       priority: 0
       trackName: Hitbox_1
       shape: 0
@@ -96,6 +75,8 @@ MonoBehaviour:
         baseDamage: 10
         hitReactionId: 
         interruptLevel: 2
+        parriedActionPolicy: 0
+        parriedReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -109,9 +90,9 @@ MonoBehaviour:
           randomizeImpactRotation: 1
           impactRandomEulerMin: {x: 0, y: 0, z: 0}
           impactRandomEulerMax: {x: 0, y: 360, z: 0}
-    - id: Hitbox_1_3
-      startFrame: 42
-      endFrame: 45
+    - id: Hitbox_1_2_2
+      startFrame: 10
+      endFrame: 16
       priority: 0
       trackName: Hitbox_1
       shape: 0
@@ -125,6 +106,39 @@ MonoBehaviour:
         baseDamage: 10
         hitReactionId: 
         interruptLevel: 2
+        parriedActionPolicy: 0
+        parriedReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
+          useHitStop: 1
+          hitStopFrames: 4
+          hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 0.3
+          hitImpactWorldOffset: {x: 0, y: 0, z: 0}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
+    - id: Hitbox_1_2_2_2
+      startFrame: 22
+      endFrame: 28
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 0.86}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 2, y: 2, z: 3}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
+      payload:
+        baseDamage: 10
+        hitReactionId: 
+        interruptLevel: 2
+        parriedActionPolicy: 0
+        parriedReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -141,14 +155,14 @@ MonoBehaviour:
     hurtboxStates: []
     cancelWindowStates:
     - id: NormalCancel
-      startFrame: 53
-      endFrame: 72
+      startFrame: 68
+      endFrame: 73
       priority: 0
       trackName: Cancel_1
       windowType: 0
     phaseStates:
     - id: Phase_1
-      startFrame: 73
+      startFrame: 74
       endFrame: 247
       priority: 0
       trackName: Phase_1
@@ -164,19 +178,19 @@ MonoBehaviour:
     rotationStates:
     - id: Rotation_1
       startFrame: 0
-      endFrame: 7
+      endFrame: 9
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0.05
-    - id: Rotation_1_2
-      startFrame: 16
+    - id: Rotation_2
+      startFrame: 17
       endFrame: 21
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0.05
-    - id: Rotation_1_2_2
-      startFrame: 27
-      endFrame: 38
+    - id: Rotation_3
+      startFrame: 35
+      endFrame: 41
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0.05

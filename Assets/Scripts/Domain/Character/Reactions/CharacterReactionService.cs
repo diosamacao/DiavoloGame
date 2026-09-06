@@ -2,7 +2,7 @@ using System;
 
 /// <summary>
 /// Vitality 边沿 → 档位裁定 → Actor。Flinch 不停招、不通知树；Stun+ / Death 走原路径。
-/// 被弹刀走 <see cref="IssueParried"/>，禁止复用冲击力对韧性。
+/// 被弹刀走 <see cref="IssueParried"/>（盒上 Interrupt/Continue），禁止复用冲击力对韧性。
 /// </summary>
 public sealed class CharacterReactionService : IDisposable
 {
@@ -46,15 +46,20 @@ public sealed class CharacterReactionService : IDisposable
     }
 
     /// <summary>
-    /// 被弹刀强制 Stun：0 伤、不走冲击力裁定、必须写 LightStun 边沿。
-    /// 前置：攻击者仍存活。
+    /// 被弹刀：Interrupt 才 Stun + LightStun 边沿 + NotifyHit；Continue 早退。
+    /// 不走冲击力裁定。前置：攻击者仍存活。
     /// </summary>
     public void IssueParried(in ActionHitContext context)
     {
         if (_vitality.IsDead)
             return;
 
-        HitReactionCommand command = _resolver.ResolveParried();
+        HitPayload payload = context.Hitbox != null ? context.Hitbox.Payload : null;
+        if (payload != null && payload.ParriedActionPolicy == ParriedActionPolicy.Continue)
+            return;
+
+        string reactionId = payload != null ? payload.ParriedReactionId : string.Empty;
+        HitReactionCommand command = _resolver.ResolveParried(reactionId);
         _vitality.ConfirmHitReaction(command.Kind);
         _hitSideEffect?.Invoke(context);
         _actor.EnterHit(new CharacterReactionRequest(command.StunFrames, command.StunAction));

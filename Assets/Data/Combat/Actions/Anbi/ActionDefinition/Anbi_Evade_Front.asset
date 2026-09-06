@@ -37,20 +37,20 @@ MonoBehaviour:
     actionEvents: []
     playVfxNotifies: []
     playSfxStates:
-    - id: SFX_1
+    - id: SFX_1_2
       startFrame: 0
       endFrame: 0
       priority: 0
       trackName: SFX_1
       audioClip: {fileID: 8300000, guid: 4fe7ab52a66467542b7c634975304f46, type: 3}
-      volume: 1
+      volume: 0
       playbackSpeed: 1
     hitboxStates: []
     hurtboxStates: []
     cancelWindowStates: []
     phaseStates:
     - id: Phase_1
-      startFrame: 25
+      startFrame: 24
       endFrame: 111
       priority: 0
       trackName: Phase_1
@@ -62,7 +62,7 @@ MonoBehaviour:
     perfectDodgeWindowStates:
     - id: PerfectDodge_1
       startFrame: 0
-      endFrame: 24
+      endFrame: 23
       priority: 0
       trackName: PerfectDodge_1
     assistCueStates: []
@@ -71,7 +71,7 @@ MonoBehaviour:
     rotationStates:
     - id: Rotation_1
       startFrame: 0
-      endFrame: 24
+      endFrame: 18
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0

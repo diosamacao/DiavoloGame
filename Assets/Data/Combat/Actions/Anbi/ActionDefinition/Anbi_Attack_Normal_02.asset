@@ -53,7 +53,7 @@ MonoBehaviour:
     hitboxStates:
     - id: Hitbox_1
       startFrame: 11
-      endFrame: 18
+      endFrame: 19
       priority: 0
       trackName: Hitbox_1
       shape: 0
@@ -67,6 +67,8 @@ MonoBehaviour:
         baseDamage: 10
         hitReactionId: 
         interruptLevel: 2
+        parriedActionPolicy: 0
+        parriedReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -83,14 +85,14 @@ MonoBehaviour:
     hurtboxStates: []
     cancelWindowStates:
     - id: NormalCancel
-      startFrame: 20
+      startFrame: 21
       endFrame: 36
       priority: 0
       trackName: Cancel_1
       windowType: 0
     phaseStates:
     - id: Phase_1
-      startFrame: 37
+      startFrame: 38
       endFrame: 159
       priority: 0
       trackName: Phase_1

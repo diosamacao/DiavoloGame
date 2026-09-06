@@ -50,7 +50,7 @@ MonoBehaviour:
     cancelWindowStates: []
     phaseStates:
     - id: Phase_1
-      startFrame: 24
+      startFrame: 23
       endFrame: 145
       priority: 0
       trackName: Phase_1
@@ -62,7 +62,7 @@ MonoBehaviour:
     perfectDodgeWindowStates:
     - id: PerfectDodge_1
       startFrame: 0
-      endFrame: 24
+      endFrame: 22
       priority: 0
       trackName: PerfectDodge_1
     assistCueStates: []
@@ -71,7 +71,7 @@ MonoBehaviour:
     rotationStates:
     - id: Rotation_1
       startFrame: 0
-      endFrame: 24
+      endFrame: 11
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0

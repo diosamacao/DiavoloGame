@@ -61,12 +61,13 @@ public sealed class CharacterReactionResolver
     }
 
     /// <summary>
-    /// 被弹刀：固定 LightStun + Parried 片子；缺 Parried 规则时回退 Hit 默认片。
-    /// 不读冲击力、韧性、SuperArmor。
+    /// 被弹刀选片：Parried+Id → Parried 默认 → Hit 默认。档位固定 LightStun。
+    /// 不读冲击力、韧性、SuperArmor。Id 空则只走默认链。
     /// </summary>
-    public HitReactionCommand ResolveParried()
+    public HitReactionCommand ResolveParried(string reactionId)
     {
-        ActionDefinition stunAction = _reactionSet.Resolve(CharacterReactionType.Parried, string.Empty)
+        string id = reactionId ?? string.Empty;
+        ActionDefinition stunAction = _reactionSet.Resolve(CharacterReactionType.Parried, id)
             ?? _reactionSet.Resolve(CharacterReactionType.Hit, string.Empty);
         return new HitReactionCommand(
             HitReactionKind.LightStun,

@@ -42,6 +42,8 @@ MonoBehaviour:
     cancelWindowStates: []
     phaseStates: []
     perfectDodgeWindowStates: []
+    assistCueStates: []
+    assistParryWindowStates: []
     movementStates: []
     rotationStates: []
     motionModifierStates: []

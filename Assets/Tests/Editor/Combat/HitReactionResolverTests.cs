@@ -61,7 +61,7 @@ public sealed class HitReactionResolverTests
     [Test]
     public void ResolveParried_AlwaysLightStun()
     {
-        HitReactionCommand command = _resolver.ResolveParried();
+        HitReactionCommand command = _resolver.ResolveParried(string.Empty);
         Assert.That(command.Kind, Is.EqualTo(HitReactionKind.LightStun));
         Assert.That(command.InterruptsAction, Is.True);
         Assert.That(command.StunFrames, Is.EqualTo(new CharacterReactionSet().DefaultHitStunFrames));
