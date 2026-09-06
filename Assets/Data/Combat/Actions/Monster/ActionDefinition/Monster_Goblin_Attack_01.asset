@@ -35,7 +35,19 @@ MonoBehaviour:
     clearsDecibelOnStart: 0
   timeline:
     actionEvents: []
-    playVfxNotifies: []
+    playVfxNotifies:
+    - id: VFX_1
+      startFrame: 24
+      endFrame: 24
+      priority: 0
+      trackName: VFX_1
+      prefab: {fileID: 5987591639799670305, guid: ebc325a85f5e59048b737f3eefdf1723, type: 3}
+      attachPointId: Bip001 R Hand
+      localOffset: {x: 0, y: 0, z: 0}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      localScale: {x: 0.06, y: 0.06, z: 0.06}
+      parentToAttachPoint: 1
+      playbackSpeed: 1
     playSfxStates:
     - id: SFX_1
       startFrame: 25
@@ -107,6 +119,9 @@ MonoBehaviour:
       visible: 1
     - trackName: SFX_1
       kind: 3
+      visible: 1
+    - trackName: VFX_1
+      kind: 2
       visible: 1
   bakedMotion:
     logicHz: 60
