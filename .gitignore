@@ -104,3 +104,52 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Art, audio, and Resources binaries stay local; keep metadata and serialized assets in Git.
+Assets/Art/**
+!Assets/Art/**/
+!Assets/Art/**/*.meta
+!Assets/Art/**/*.shader
+!Assets/Art/**/*.hlsl
+!Assets/Art/**/*.cginc
+!Assets/Art/**/*.shadersubgraph
+!Assets/Art/**/*.shadergraph
+!Assets/Art/**/*.anim
+!Assets/Art/**/*.controller
+!Assets/Art/**/*.overrideController
+!Assets/Art/**/*.mask
+!Assets/Art/**/*.mat
+!Assets/Art/**/*.playable
+!Assets/Art/**/*.inputactions
+
+Assets/Audio/**
+!Assets/Audio/**/
+!Assets/Audio/**/*.meta
+
+Assets/Resources/**
+!Assets/Resources/**/
+!Assets/Resources/**/*.meta
+!Assets/Resources/**/*.prefab
+!Assets/Resources/**/*.asset
+!Assets/Resources/**/*.mat
+!Assets/Resources/**/*.controller
+!Assets/Resources/**/*.overrideController
+!Assets/Resources/**/*.anim
+!Assets/Resources/**/*.mask
+!Assets/Resources/**/*.playable
+!Assets/Resources/**/*.unity
+!Assets/Resources/**/*.shader
+!Assets/Resources/**/*.hlsl
+!Assets/Resources/**/*.cginc
+!Assets/Resources/**/*.shadergraph
+!Assets/Resources/**/*.shadersubgraph
+!Assets/Resources/**/*.inputactions
+
+# MagicaCloth examples stay local; plugin Inspector icons remain tracked.
+Assets/MagicaCloth2/**/*.fbx
+Assets/MagicaCloth2/**/*.FBX
+Assets/MagicaCloth2/**/*.png
+Assets/MagicaCloth2/**/*.PNG
+Assets/MagicaCloth2/**/*.jpg
+Assets/MagicaCloth2/**/*.jpeg
+!Assets/MagicaCloth2/Res/Icon/**/*.png
