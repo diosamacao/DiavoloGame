@@ -1,3 +1,15 @@
+# Text files remain in regular Git.
+*.cs text diff=csharp
+*.shader text
+*.cginc text
+*.hlsl text
+*.json text
+*.xml text
+*.txt text
+*.md text
+*.asmdef text
+*.asmref text
+*.meta text
 *.unity !text !filter !merge !diff
 *.prefab !text !filter !merge !diff
 *.asset !text !filter !merge !diff
