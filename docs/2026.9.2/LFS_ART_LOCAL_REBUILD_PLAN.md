@@ -244,9 +244,9 @@ git filter-repo --force --invert-paths `
 
 **验收**
 
-- [x] `git branch` 仍有 `NetSync`，且 `main` / `develop` 凡远程曾存在的都还在本地。  
-- [x] `git ls-files "*.fbx"`、`git ls-files "*.png"`、`git ls-files "*.wav"` 均为空。  
-- [x] `git ls-files "Assets/Art/**/*.meta"`、`git ls-files "Assets/Scripts/**/*.cs"`、`git ls-files "Assets/Data/**/*.asset"` 非空。  
+- [x] `git branch` 仍有 `NetSync`，且 `main` / `develop` 凡远程曾存在的都还在本地。
+- [x] `git ls-files "*.fbx"`、`git ls-files "*.png"`、`git ls-files "*.wav"` 均为空。
+- [x] `git ls-files "Assets/Art/**/*.meta"`、`git ls-files "Assets/Scripts/**/*.cs"`、`git ls-files "Assets/Data/**/*.asset"` 非空。
 - [x] `path-all-sizes.txt` 里原先靠前的模型 / 贴图已不在当前树。
 
 **出口：** 全部本地分支的历史里已无美术二进制，YAML / 脚本 / meta 仍在。→ **已达成（2026-09-15）**
@@ -272,8 +272,8 @@ cd $env:REWRITE
 git lfs migrate export --everything --include="*.unity,*.prefab,*.asset,*.mat,*.controller,*.playable,*.mask,*.cubemap,*.flare,*.rendertexture,*.lighting,*.terrainlayer"
 ```
 
-- [x] **删除** `.gitattributes` 里全部 `filter=lfs` 行（含模型 / 贴图 / 音频行）。保留文本声明（`*.cs` / `*.shader` / `*.meta` 等）即可。  
-- [x] `git lfs uninstall`。  
+- [x] **删除** `.gitattributes` 里全部 `filter=lfs` 行（含模型 / 贴图 / 音频行）。保留文本声明（`*.cs` / `*.shader` / `*.meta` 等）即可。
+- [x] `git lfs uninstall`。
 - [x] `.gitignore` 追加下面整块（Art / Audio / Resources 二进制只留本机；YAML 与着色器放行）：
 
 ```gitignore
@@ -347,10 +347,10 @@ git commit -m "Keep art and VFX binaries local; stop Git LFS."
 
 **验收**
 
-- [x] `git lfs ls-files` 在每个长期分支上都为空。  
-- [x] 工作区与索引无 LFS 指针头；文档中的 `git-lfs.github.com` 示例文本不计为指针。  
-- [x] `.gitattributes` 无 `filter=lfs`。  
-- [x] `git ls-files "Assets/MagicaCloth2/Res/Icon/*.png"` 非空。  
+- [x] `git lfs ls-files` 在每个长期分支上都为空。
+- [x] 工作区与索引无 LFS 指针头；文档中的 `git-lfs.github.com` 示例文本不计为指针。
+- [x] `.gitattributes` 无 `filter=lfs`。
+- [x] `git ls-files "Assets/MagicaCloth2/Res/Icon/*.png"` 非空。
 - [x] `git status` 不把 Art / Audio / Resources 二进制列为新文件。
 
 **出口：** 新库推送路径上不再存在任何 LFS 对象。→ **已达成（2026-09-15）**
@@ -390,8 +390,8 @@ git rev-list --objects --all |
 
 **验收**
 
-- [x] `git ls-files` 对 `*.fbx` / `*.png` / `*.wav` 为空（MagicaCloth Icon 的 png 除外；若 `ls-files "*.png"` 只有 `Assets/MagicaCloth2/Res/Icon/` 下文件，算通过）。  
-- [x] 最大 blob 为脚本 / YAML / meta 量级，不是 FBX。  
+- [x] `git ls-files` 对 `*.fbx` / `*.png` / `*.wav` 为空（MagicaCloth Icon 的 png 除外；若 `ls-files "*.png"` 只有 `Assets/MagicaCloth2/Res/Icon/` 下文件，算通过）。
+- [x] 最大 blob 为脚本 / YAML / meta 量级，不是 FBX。
 - [x] `git lfs ls-files` 仍为空。
 
 **出口：** 自检通过，可以推新空库。→ **已达成（2026-09-15）**
@@ -402,8 +402,8 @@ git rev-list --objects --all |
 
 **任务**
 
-- [x] GitHub → New repository；**不要**勾 README / `.gitignore` / License。  
-- [x] 旧库还在时不能复用 `DiavoloGame`：先建 `DiavoloGame-code`（或同类临时名）。  
+- [x] GitHub → New repository；**不要**勾 README / `.gitignore` / License。
+- [x] 旧库还在时不能复用 `DiavoloGame`：先建 `DiavoloGame-code`（或同类临时名）。
 - [x] 在 REWRITE：
 
 ```powershell
@@ -416,8 +416,8 @@ git push origin --tags
 
 **验收**
 
-- [x] GitHub 上 `NetSync`、`develop`、`main`（凡推了的）都能打开。  
-- [x] 任意旧提交能看到脚本 diff；`Assets/Art`、`Assets/Resources` 只有 `.meta` / YAML / shader，没有 FBX/贴图。  
+- [x] GitHub 上 `NetSync`、`develop`、`main`（凡推了的）都能打开。
+- [x] 任意旧提交能看到脚本 diff；`Assets/Art`、`Assets/Resources` 只有 `.meta` / YAML / shader，没有 FBX/贴图。
 - [x] 新库推送无 LFS 上传，且所有分支 `git lfs ls-files` 为 0。
 
 执行记录（2026-09-15）：新库为 `https://github.com/diosamacao/DiavoloGame-code`，默认分支 `main`。
