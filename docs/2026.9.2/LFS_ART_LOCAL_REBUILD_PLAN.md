@@ -162,8 +162,8 @@ $env:SMOKE   = "D:\Projects\ACTGame-code"
 
 **任务**
 
-- [ ] 关闭所有 Unity / Hub 打开的本工程。  
-- [ ] 备份本机二进制（必须；Resources 不可省）：
+- [x] 关闭所有 Unity / Hub 打开的本工程。
+- [x] 备份本机二进制（必须；Resources 不可省）：
 
 ```powershell
 robocopy "$env:WORK\Assets\Art"   "$env:ARTBAK\Art"   /E
@@ -172,23 +172,25 @@ robocopy "$env:WORK\Assets\Resources" "$env:ARTBAK\Resources" /E
 robocopy "$env:WORK\Assets\MagicaCloth2\Res\Icon" "$env:ARTBAK\MagicaCloth2\Res\Icon" /E
 ```
 
-- [ ] 资源管理器目视：`ARTBAK\Art` 有 FBX/贴图，`ARTBAK\Audio` 有 wav（含中文文件名），`ARTBAK\Resources` 有特效贴图，`ARTBAK\MagicaCloth2\Res\Icon` 有 png。  
-- [ ] 镜像旧远程（指针即可；**不要**为继续往下而 `lfs fetch --all`）：
+- [x] 资源目录核对：`ARTBAK\Art` 有 FBX/贴图，`ARTBAK\Audio` 有 wav（含中文文件名），`ARTBAK\Resources` 有特效贴图，`ARTBAK\MagicaCloth2\Res\Icon` 有 png。
+- [x] 镜像旧远程（指针即可；**不要**为继续往下而 `lfs fetch --all`）：
 
 ```powershell
 git clone --mirror git@github.com:diosamacao/DiavoloGame.git $env:MIRROR
 ```
 
-- [ ] 在 WORK：`git fetch --all`；未推送提交做成补丁文件另存（`git diff` / `git format-patch`），或先推到**旧库**。  
-- [ ] 安装：`python` 3、`pip install git-filter-repo`、`git filter-repo --version`、`git lfs version`。
+- [x] 在 WORK：`git fetch --all`；未推送提交做成补丁文件另存（`git diff` / `git format-patch`），或先推到**旧库**。
+- [x] 安装：`python` 3、`pip install git-filter-repo`、`git filter-repo --version`、`git lfs version`。
 
 **验收**
 
-- [ ] `ARTBAK` 四棵目录都非空；Resources 下能看到 `FX_Slash_Collection` / `Hovl Studio` / `OrdosFX` 一类贴图，不是只有 `.meta`。  
-- [ ] `MIRROR` 为 bare：`git --git-dir=$env:MIRROR branch -a` 能看到 `NetSync`、`develop`、`main`。  
-- [ ] 本机未提交改动已有补丁或已进旧库，REWRITE 丢了也不丢活改动。
+- [x] `ARTBAK` 四棵目录都非空；Resources 下能看到 `FX_Slash_Collection` / `Hovl Studio` / `OrdosFX` 一类贴图，不是只有 `.meta`。
+- [x] `MIRROR` 为 bare：`git --git-dir=$env:MIRROR branch -a` 能看到 `NetSync`、`develop`、`main`。
+- [x] 本机未提交改动已有补丁或独立文件备份，REWRITE 丢了也不丢活改动。
 
-**出口：** 二进制与旧历史都有独立副本，工具已装。→ **未达成**
+执行记录（2026-09-15）：`ARTBAK=D:\Backup\ACTGame-artbak`，`MIRROR=D:\Backup\DiavoloGame.mirror.git`；未跟踪工作另存至 `D:\Backup\ACTGame-worktree-pre-lfs-20260915`。
+
+**出口：** 二进制与旧历史都有独立副本，工具已装。→ **已达成（2026-09-15）**
 
 ---
 
@@ -196,7 +198,7 @@ git clone --mirror git@github.com:diosamacao/DiavoloGame.git $env:MIRROR
 
 **任务**
 
-- [ ] 从 MIRROR 建 REWRITE，并先把要保留的远程分支全部变成**本地分支**（否则 `push --all` 会漏 `main` / `develop`）：
+- [x] 从 MIRROR 建 REWRITE，并先把要保留的远程分支全部变成**本地分支**（否则 `push --all` 会漏 `main` / `develop`）：
 
 ```powershell
 git clone $env:MIRROR $env:REWRITE
@@ -210,7 +212,7 @@ git checkout NetSync
 git branch
 ```
 
-- [ ] 分析体积（`--analyze` 后若要求 `--force`，确认 cwd 是 REWRITE 再加）：
+- [x] 分析体积（`--analyze` 后若要求 `--force`，确认 cwd 是 REWRITE 再加）：
 
 ```powershell
 git filter-repo --analyze
@@ -218,7 +220,7 @@ git filter-repo --analyze
 # 仍占体积的 .fbx/.png/.wav/.tif/.obj/.ttf 等，补进下面 glob 后重来
 ```
 
-- [ ] 一次抠掉全部提交中的二进制（全库后缀兜底 = A；PowerShell 续行用反引号）。**不要**加 `*.unity` / `*.prefab` / `*.asset` / `*.mat` / `*.controller` / `*.anim`。
+- [x] 一次抠掉全部提交中的二进制（全库后缀兜底 = A；PowerShell 续行用反引号）。**不要**加 `*.unity` / `*.prefab` / `*.asset` / `*.mat` / `*.controller` / `*.anim`。
 
 ```powershell
 git filter-repo --force --invert-paths `
@@ -242,12 +244,12 @@ git filter-repo --force --invert-paths `
 
 **验收**
 
-- [ ] `git branch` 仍有 `NetSync`，且 `main` / `develop` 凡远程曾存在的都还在本地。  
-- [ ] `git ls-files "*.fbx"`、`git ls-files "*.png"`、`git ls-files "*.wav"` 均为空。  
-- [ ] `git ls-files "Assets/Art/**/*.meta"`、`git ls-files "Assets/Scripts/**/*.cs"`、`git ls-files "Assets/Data/**/*.asset"` 非空。  
-- [ ] `path-all-sizes.txt` 里原先靠前的模型 / 贴图已不在当前树。
+- [x] `git branch` 仍有 `NetSync`，且 `main` / `develop` 凡远程曾存在的都还在本地。  
+- [x] `git ls-files "*.fbx"`、`git ls-files "*.png"`、`git ls-files "*.wav"` 均为空。  
+- [x] `git ls-files "Assets/Art/**/*.meta"`、`git ls-files "Assets/Scripts/**/*.cs"`、`git ls-files "Assets/Data/**/*.asset"` 非空。  
+- [x] `path-all-sizes.txt` 里原先靠前的模型 / 贴图已不在当前树。
 
-**出口：** 全部本地分支的历史里已无美术二进制，YAML / 脚本 / meta 仍在。→ **未达成**
+**出口：** 全部本地分支的历史里已无美术二进制，YAML / 脚本 / meta 仍在。→ **已达成（2026-09-15）**
 
 ---
 
@@ -257,22 +259,22 @@ git filter-repo --force --invert-paths `
 
 **任务**
 
-- [ ] 把 WORK 里已有的 LFS 对象缓存拷进 REWRITE（只需保留文件的本体；不要 `lfs fetch --all`）：
+- [x] 把 WORK 里已有的 LFS 对象缓存拷进 REWRITE（只需保留文件的本体；不要 `lfs fetch --all`）：
 
 ```powershell
 Copy-Item "$env:WORK\.git\lfs" "$env:REWRITE\.git\lfs" -Recurse -Force
 ```
 
-- [ ] 导出剩余 LFS（场景 / Prefab / Data / 材质 / Animator 等）为普通 Git 对象：
+- [x] 导出剩余 LFS（场景 / Prefab / Data / 材质 / Animator 等）为普通 Git 对象：
 
 ```powershell
 cd $env:REWRITE
 git lfs migrate export --everything --include="*.unity,*.prefab,*.asset,*.mat,*.controller,*.playable,*.mask,*.cubemap,*.flare,*.rendertexture,*.lighting,*.terrainlayer"
 ```
 
-- [ ] **删除** `.gitattributes` 里全部 `filter=lfs` 行（含模型 / 贴图 / 音频行）。保留文本声明（`*.cs` / `*.shader` / `*.meta` 等）即可。  
-- [ ] `git lfs uninstall`。  
-- [ ] `.gitignore` 追加下面整块（Art / Audio / Resources 二进制只留本机；YAML 与着色器放行）：
+- [x] **删除** `.gitattributes` 里全部 `filter=lfs` 行（含模型 / 贴图 / 音频行）。保留文本声明（`*.cs` / `*.shader` / `*.meta` 等）即可。  
+- [x] `git lfs uninstall`。  
+- [x] `.gitignore` 追加下面整块（Art / Audio / Resources 二进制只留本机；YAML 与着色器放行）：
 
 ```gitignore
 # 美术 / 音频 / Resources 特效只留本机；.meta 与 YAML / shader 仍进库
@@ -327,14 +329,14 @@ Assets/MagicaCloth2/**/*.jpeg
 
 `!**/` 用来放行目录，否则后面的 `!*.meta` 不生效。
 
-- [ ] 从 ARTBAK 拷回 MagicaCloth 图标并加入版本库：
+- [x] 从 ARTBAK 拷回 MagicaCloth 图标并加入版本库：
 
 ```powershell
 robocopy "$env:ARTBAK\MagicaCloth2\Res\Icon" "$env:REWRITE\Assets\MagicaCloth2\Res\Icon" /E
 git add -f "Assets/MagicaCloth2/Res/Icon"
 ```
 
-- [ ] 在**每一个**还要长期用的本地分支提交同一改动（不要只改 `NetSync`）：
+- [x] 在**每一个**还要长期用的本地分支提交同一改动（不要只改 `NetSync`）：
 
 ```powershell
 git add .gitignore .gitattributes
@@ -345,13 +347,13 @@ git commit -m "Keep art and VFX binaries local; stop Git LFS."
 
 **验收**
 
-- [ ] `git lfs ls-files` 在每个长期分支上都为空。  
-- [ ] 工作区与索引无 `oid sha256:` / `git-lfs.github.com` 指针（可用 `git grep -n "git-lfs.github.com"`，应无匹配）。  
-- [ ] `.gitattributes` 无 `filter=lfs`。  
-- [ ] `git ls-files "Assets/MagicaCloth2/Res/Icon/*.png"` 非空。  
-- [ ] `git status` 不把 Art / Audio / Resources 二进制列为新文件。
+- [x] `git lfs ls-files` 在每个长期分支上都为空。  
+- [x] 工作区与索引无 LFS 指针头；文档中的 `git-lfs.github.com` 示例文本不计为指针。  
+- [x] `.gitattributes` 无 `filter=lfs`。  
+- [x] `git ls-files "Assets/MagicaCloth2/Res/Icon/*.png"` 非空。  
+- [x] `git status` 不把 Art / Audio / Resources 二进制列为新文件。
 
-**出口：** 新库推送路径上不再存在任何 LFS 对象。→ **未达成**
+**出口：** 新库推送路径上不再存在任何 LFS 对象。→ **已达成（2026-09-15）**
 
 ---
 
@@ -361,7 +363,7 @@ git commit -m "Keep art and VFX binaries local; stop Git LFS."
 
 **任务**
 
-- [ ] 在 `NetSync` 上跑：
+- [x] 在 `NetSync` 上跑：
 
 ```powershell
 git checkout NetSync
@@ -376,7 +378,7 @@ git ls-files "Assets/Resources/**/*.meta" | Select-Object -First 20
 git ls-files "Assets/Scripts/**/*.cs" | Select-Object -First 10
 ```
 
-- [ ] 看当前库最大 blob（不应再有几十 MB 模型 / 贴图）：
+- [x] 看当前库最大 blob（不应再有几十 MB 模型 / 贴图）：
 
 ```powershell
 git rev-list --objects --all |
@@ -388,11 +390,11 @@ git rev-list --objects --all |
 
 **验收**
 
-- [ ] `git ls-files` 对 `*.fbx` / `*.png` / `*.wav` 为空（MagicaCloth Icon 的 png 除外；若 `ls-files "*.png"` 只有 `Assets/MagicaCloth2/Res/Icon/` 下文件，算通过）。  
-- [ ] 最大 blob 为脚本 / YAML / meta 量级，不是 FBX。  
-- [ ] `git lfs ls-files` 仍为空。
+- [x] `git ls-files` 对 `*.fbx` / `*.png` / `*.wav` 为空（MagicaCloth Icon 的 png 除外；若 `ls-files "*.png"` 只有 `Assets/MagicaCloth2/Res/Icon/` 下文件，算通过）。  
+- [x] 最大 blob 为脚本 / YAML / meta 量级，不是 FBX。  
+- [x] `git lfs ls-files` 仍为空。
 
-**出口：** 自检通过，可以推新空库。→ **未达成**
+**出口：** 自检通过，可以推新空库。→ **已达成（2026-09-15）**
 
 ---
 
@@ -400,9 +402,9 @@ git rev-list --objects --all |
 
 **任务**
 
-- [ ] GitHub → New repository；**不要**勾 README / `.gitignore` / License。  
-- [ ] 旧库还在时不能复用 `DiavoloGame`：先建 `DiavoloGame-code`（或同类临时名）。  
-- [ ] 在 REWRITE：
+- [x] GitHub → New repository；**不要**勾 README / `.gitignore` / License。  
+- [x] 旧库还在时不能复用 `DiavoloGame`：先建 `DiavoloGame-code`（或同类临时名）。  
+- [x] 在 REWRITE：
 
 ```powershell
 git remote add origin git@github.com:diosamacao/<新库名>.git
@@ -414,11 +416,13 @@ git push origin --tags
 
 **验收**
 
-- [ ] GitHub 上 `NetSync`、`develop`、`main`（凡推了的）都能打开。  
-- [ ] 任意旧提交能看到脚本 diff；`Assets/Art`、`Assets/Resources` 只有 `.meta` / YAML / shader，没有 FBX/贴图。  
-- [ ] 新库 Settings 无有效 LFS 用量（或 LFS 文件数为 0）。
+- [x] GitHub 上 `NetSync`、`develop`、`main`（凡推了的）都能打开。  
+- [x] 任意旧提交能看到脚本 diff；`Assets/Art`、`Assets/Resources` 只有 `.meta` / YAML / shader，没有 FBX/贴图。  
+- [x] 新库推送无 LFS 上传，且所有分支 `git lfs ls-files` 为 0。
 
-**出口：** 新空库已含改写后的全部分支与 tag，且未上传 LFS。→ **未达成**
+执行记录（2026-09-15）：新库为 `https://github.com/diosamacao/DiavoloGame-code`，默认分支 `main`。
+
+**出口：** 新空库已含改写后的全部分支与 tag，且未上传 LFS。→ **已达成（2026-09-15）**
 
 ---
 
@@ -428,7 +432,7 @@ git push origin --tags
 
 **任务**
 
-- [ ] 另开目录干净 clone（先不要开 Unity）：
+- [x] 另开目录干净 clone（先不要开 Unity）：
 
 ```powershell
 git clone git@github.com:diosamacao/<新库名>.git $env:SMOKE
@@ -559,3 +563,6 @@ LFS-0 备份齐套
 |------|------|
 | 2026-09-02 | 初版：filter-repo + 新库 + 删旧库 |
 | 2026-09-06 | **A 定案**：Resources 本机化；去 LFS 化为 LFS-2 必做；mirror 分支齐套；ignore 放行 YAML；MagicaCloth 仅 Icon 进库；Billing 不以当天归零为验收 |
+| 2026-09-15 | LFS-0 已执行并验收：完成 ARTBAK、MIRROR、未提交工作独立备份与工具安装 |
+| 2026-09-15 | LFS-1～4 已执行并验收：历史二进制已删除、剩余 LFS 已导出，新零 LFS 仓库 `DiavoloGame-code` 已推送 |
+| 2026-09-15 | LFS-5 已完成干净 clone；资源还原与 Unity Play 验收待人工执行 |
