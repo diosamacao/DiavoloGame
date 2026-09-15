@@ -440,7 +440,7 @@ cd $env:SMOKE
 git checkout NetSync
 ```
 
-- [ ] 按**相同相对路径**还原二进制：
+- [x] 按**相同相对路径**还原二进制：
 
 ```powershell
 robocopy "$env:ARTBAK\Art"   "$env:SMOKE\Assets\Art"   /E
@@ -450,18 +450,20 @@ robocopy "$env:ARTBAK\Resources" "$env:SMOKE\Assets\Resources" /E
 
 MagicaCloth Icon 已在库内，不必从 ARTBAK 再盖一层（盖了也应是同一批文件）。
 
-- [ ] 再开 Unity。首次导入 Art 可能要很久，不要中断、不要让 Editor「修复」出新 GUID。  
-- [ ] `git status`：Art / Audio / Resources 二进制不应出现在待提交；允许少量 Unity 生成的已忽略文件。  
-- [ ] **日常改用 SMOKE**。WORK 整夹封存。不要在 WORK 上 `git pull` 新历史（无关历史）。WORK 里未进库的代码用补丁迁到 SMOKE。
+- [x] 再开 Unity。首次导入 Art 可能要很久，不要中断、不要让 Editor「修复」出新 GUID。
+- [x] `git status`：Art / Audio / Resources 二进制不应出现在待提交；允许少量 Unity 生成的已忽略文件。
+- [x] **日常改用 SMOKE**。WORK 整夹封存。不要在 WORK 上 `git pull` 新历史（无关历史）。WORK 里未进库的代码用补丁迁到 SMOKE。
 
 **验收**
 
-- [ ] clone 很快、工作树无 FBX（还原前）。  
-- [ ] Play：角色网格 / 材质 / 刀光与受击特效能出来，无大面积 Missing。  
-- [ ] MagicaCloth 组件 Inspector 图标正常。  
-- [ ] `git status` 不跟踪美术 / 特效 / 音频二进制。
+- [x] clone 很快、工作树无 FBX（还原前）。
+- [x] Play：角色网格 / 材质 / 刀光与受击特效能出来，无大面积 Missing。
+- [x] MagicaCloth 组件 Inspector 图标正常。
+- [x] `git status` 不跟踪美术 / 特效 / 音频二进制。
 
-**出口：** SMOKE 可当日常工程，引用未因 GUID 断裂。→ **未达成**
+执行记录（2026-09-15）：用户完成 Art / Audio / Resources 还原并确认 Unity Play 与 MagicaCloth 图标无问题；Unity 首次导入产生的已跟踪 YAML/meta 差异未提交。
+
+**出口：** SMOKE 可当日常工程，引用未因 GUID 断裂。→ **已达成（2026-09-15）**
 
 ---
 
