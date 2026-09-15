@@ -473,17 +473,19 @@ MagicaCloth Icon 已在库内，不必从 ARTBAK 再盖一层（盖了也应是�
 
 **任务**
 
-- [ ] GitHub → 旧 `DiavoloGame` → Settings → Delete this repository。  
-- [ ] 需要的话把新库改名为 `DiavoloGame`，SMOKE 上 `git remote set-url` 同步。  
-- [ ] 若有协作者：通知旧 clone 作废；对方自备 Art / Audio / Resources，从新库 clone 后再拷，禁止 `git pull` 旧仓库。
+- [x] GitHub → 旧 `DiavoloGame` → Settings → Delete this repository。
+- [x] 需要的话把新库改名为 `DiavoloGame`，SMOKE 上 `git remote set-url` 同步。
+- [x] 若有协作者：通知旧 clone 作废；当前仅仓库所有者，无其他协作者需要通知。
 
 **验收**
 
-- [ ] 旧库 404。  
-- [ ] SMOKE 仍指向新库且 `git fetch` 正常。  
-- [ ] **不要**用「Billing 当天归零」当通过条件。现行计量下，月中删除 **不重算当月 storage**，数字可能要到下个计费周期才好看；带宽用过不退。通过 = 旧库已删 + 新库无 LFS 对象。
+- [x] 旧仓库 ID `1265332091` 删除后返回 404；新仓库 ID `1371285873` 随后占用 `DiavoloGame` 路径。
+- [x] SMOKE 仍指向新库且 `git fetch` 正常。
+- [x] **不要**用「Billing 当天归零」当通过条件。现行计量下，月中删除 **不重算当月 storage**，数字可能要到下个计费周期才好看；带宽用过不退。通过 = 旧库已删 + 新库无 LFS 对象。
 
-**出口：** 旧 LFS 对象随旧库删除；日常只走新库。→ **未达成**
+执行记录（2026-09-15）：旧库已删除；新库已更名为 `https://github.com/diosamacao/DiavoloGame`。SMOKE 的 `origin/NetSync` 与本地均为 `cb70f282`，LFS 文件数为 0；旧 WORK 已移除远程，避免误拉新历史。
+
+**出口：** 旧 LFS 对象随旧库删除；日常只走新库。→ **已达成（2026-09-15）**
 
 ---
 
@@ -568,3 +570,4 @@ LFS-0 备份齐套
 | 2026-09-15 | LFS-0 已执行并验收：完成 ARTBAK、MIRROR、未提交工作独立备份与工具安装 |
 | 2026-09-15 | LFS-1～4 已执行并验收：历史二进制已删除、剩余 LFS 已导出，新零 LFS 仓库 `DiavoloGame-code` 已推送 |
 | 2026-09-15 | LFS-5 已完成干净 clone；资源还原与 Unity Play 验收待人工执行 |
+| 2026-09-15 | LFS-5～6 已验收：SMOKE 可运行，旧仓库已删除，新零 LFS 仓库已接管 `DiavoloGame` 名称 |
