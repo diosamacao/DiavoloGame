@@ -175,8 +175,11 @@ public sealed class CharacterActor :
     /// <summary>当前 Sprint 视觉倾身（度）；非 Locomotion 为 0。不进复制快照。</summary>
     public float SprintLeanRollDegrees => _stateMachine.SprintLeanRollDegrees;
 
-    /// <summary>死亡动作是否已播放完成。</summary>
-    public bool DeathPresentationComplete => _stateMachine.DeathPresentationComplete;
+    /// <summary>死亡逻辑序列是否已完成；阵容死亡门禁以此为主信号。</summary>
+    public bool DeathSequenceComplete => _stateMachine.DeathSequenceComplete;
+
+    /// <summary>当前死亡 Action 的确定性总帧数；无死亡 Action 时为 0。</summary>
+    public int DeathActionTotalFrames => _stateMachine.DeathActionTotalFrames;
 
     /// <summary>玩法意图缓冲（只读观测 / Debug HUD）。</summary>
     public GameplayIntentBuffer IntentBuffer => _intentBuffer;
@@ -708,6 +711,7 @@ public sealed class CharacterActor :
     {
         // AI/回放 Actor 没有设备采样器，跳过
         if (_partyState != PartyMemberState.Active
+            || CurrentState == CharacterStateType.Death
             || _localInput == null
             || _inputFrames == null
             || !_actorId.IsValid)
@@ -722,6 +726,7 @@ public sealed class CharacterActor :
     public void Step(long frameIndex, float fixedDeltaSeconds, in InputFrame inputFrame)
     {
         InputFrame effectiveInput = _partyState == PartyMemberState.Active
+            && CurrentState != CharacterStateType.Death
             ? inputFrame
             : InputFrame.Empty(frameIndex, _actorId);
         // 记下本步帧号与输入，供 PostCombat / 调试快照对齐
@@ -917,8 +922,16 @@ public sealed class CharacterActor :
     /// <inheritdoc />
     public void RestoreFromAuthority(in ActorReplicationSnapshot authority)
     {
+        _motor.Sim.TeleportMm(authority.PosXMm, authority.PosYMm, authority.PosZMm);
+        _motor.Sim.SetFacingMilliDeg(authority.FacingMilliDeg);
+        LocomotionSavedState locomotion = LocomotionSavedState.FromSnapshot(in authority);
+        RestoreLocomotion(in locomotion);
+    }
+
+    /// <summary>V2 复制接口点：用完整整数帧状态恢复后再执行未确认输入 Replay。</summary>
+    public void RestoreLocomotion(in LocomotionSavedState state)
+    {
         _motor.SyncRootPoseFromSim();
-        LocomotionSavedState state = LocomotionSavedState.FromAuthority(in authority);
         LocomotionStateMachine loco = Locomotion;
         if (loco == null)
             return;

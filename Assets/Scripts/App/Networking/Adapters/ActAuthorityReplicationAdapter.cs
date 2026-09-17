@@ -17,7 +17,7 @@ public sealed class ActAuthorityReplicationAdapter
         _characterSchema = new ActCharacterSnapshotSchema(_content);
     }
 
-    /// <summary>最近一次 Capture 生成的完整权威实体集；仅供同一逻辑步构建 ReplicationFrame。</summary>
+    /// <summary>最近一次 Capture 生成的完整权威实体集；仅供同一逻辑步准备 V2 增量。</summary>
     public IReadOnlyList<ReplicationEntityState> EntityStates => _entityStates;
 
     /// <summary>
@@ -68,7 +68,8 @@ public sealed class ActAuthorityReplicationAdapter
         long currentFrame,
         SimActorId actorId,
         ClientCommand[] commands,
-        long lastAppliedHint)
+        long lastAppliedHint,
+        bool allowGameplayInput)
     {
         if (buffer == null || !actorId.IsValid)
             return new ActAuthorityInputApplyResult(false, lastAppliedHint, lastAppliedHint);
@@ -86,8 +87,15 @@ public sealed class ActAuthorityReplicationAdapter
             return new ActAuthorityInputApplyResult(false, lastAppliedHint, lastAppliedHint);
         }
 
-        if (buffer.TryGetExact(targetFrame, actorId, out InputFrame existing))
+        if (!allowGameplayInput)
+        {
+            // 死亡等待/队灭仍消费 Hint，但权威模拟只能收到空输入。
+            merged = InputFrame.Empty(targetFrame, actorId);
+        }
+        else if (buffer.TryGetExact(targetFrame, actorId, out InputFrame existing))
+        {
             merged = existing.MergeSample(in merged);
+        }
 
         // SwitchCharacter 属于座位协调命令，禁止继续进入 Active 角色的意图生产器。
         merged = merged.WithoutButton(InputButton.SwitchCharacter);

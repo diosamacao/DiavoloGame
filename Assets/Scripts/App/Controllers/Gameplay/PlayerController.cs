@@ -263,6 +263,9 @@ public class PlayerController : AppControllerBase, ILocalPlayer
     public bool TryPredictPartySwitch(long frameIndex)
     {
         if (_partyCoordinator == null
+            || !_partyCoordinator.CanAcceptGameplayInput
+            || Actor == null
+            || Actor.Vitality.IsDead
             || !_partyCoordinator.TryResolveSwitch(BuildAssistQuery(), out PartySwitchCommand command))
         {
             return false;
@@ -323,10 +326,16 @@ public class PlayerController : AppControllerBase, ILocalPlayer
     /// <summary>推进本机全部非空槽；只有 Active 槽接收当帧玩家输入。</summary>
     public void StepPartyPrediction(long frameIndex, float dt, in InputFrame input)
     {
-        if (input.WasPressed(InputButton.SwitchCharacter))
+        bool acceptsGameplay = _partyCoordinator != null
+            && _partyCoordinator.CanAcceptGameplayInput
+            && Actor != null
+            && !Actor.Vitality.IsDead;
+        if (acceptsGameplay && input.WasPressed(InputButton.SwitchCharacter))
             TryPredictPartySwitch(frameIndex);
 
-        InputFrame gameplayInput = input.WithoutButton(InputButton.SwitchCharacter);
+        InputFrame gameplayInput = acceptsGameplay
+            ? input.WithoutButton(InputButton.SwitchCharacter)
+            : InputFrame.Empty(frameIndex, Actor?.SimulationId ?? input.ActorId);
         for (int i = 0; i < _partyActors.Length; i++)
         {
             CharacterActor member = _partyActors[i];
@@ -338,6 +347,7 @@ public class PlayerController : AppControllerBase, ILocalPlayer
             member.Step(frameIndex, dt, in memberInput);
             member.ResolvePostCombat(frameIndex);
         }
+        ProcessPredictedDeathCloseout();
         CompletePredictedExits();
     }
 
@@ -380,6 +390,60 @@ public class PlayerController : AppControllerBase, ILocalPlayer
                 member.SetPartyState(_partyCoordinator.States[i]);
         }
         _facingDebugVisualizer?.Bind(Actor);
+    }
+
+    /// <summary>从 Owner 角色快照 FlagsPacked 同步指定稳定槽状态，不等待 V2 Party Meta。</summary>
+    public void SynchronizeAuthorityPartyState(SimActorId actorId, int flagsPacked)
+    {
+        if (_partyCoordinator == null || !actorId.IsValid)
+            return;
+
+        for (int i = 0; i < _partyActors.Length; i++)
+        {
+            CharacterActor member = _partyActors[i];
+            if (member == null || member.SimulationId != actorId)
+                continue;
+
+            PartyMemberState state = PartyReplicationPacking.ReadMemberState(flagsPacked);
+            _partyCoordinator.SynchronizeMemberState(i, state);
+            member.SetPartyState(state);
+            if (state == PartyMemberState.Active)
+                _facingDebugVisualizer?.Bind(member);
+            return;
+        }
+    }
+
+    /// <summary>应用 V2 Meta 的队灭终态并关闭本地预测输入。</summary>
+    public void SynchronizeAuthorityPartyWiped()
+    {
+        _partyCoordinator?.SynchronizePartyWiped();
+        _predictedSwitchFrame = -1;
+    }
+
+    /// <summary>镜像权威死亡门禁并直接 Dead→Active；禁止复用普通 Exiting/SwitchOut 收招。</summary>
+    void ProcessPredictedDeathCloseout()
+    {
+        CharacterActor active = Actor;
+        if (active == null
+            || !_partyCoordinator.TryResolveActiveDeath(
+                active.Vitality.IsDead,
+                active.DeathSequenceComplete,
+                active.DeathActionTotalFrames,
+                out PartyDeathCloseout closeout))
+        {
+            return;
+        }
+
+        CharacterActor dead = _partyActors[closeout.FromSlot];
+        dead.SetPartyState(PartyMemberState.Dead);
+        if (closeout.PartyWiped)
+            return;
+
+        CharacterActor incoming = _partyActors[closeout.ToSlot];
+        incoming.PlaceForNormalSwitchFrom(dead);
+        incoming.SetPartyState(PartyMemberState.Active);
+        incoming.QueueExternalIntent(GameplayIntentType.SwitchIn);
+        _facingDebugVisualizer?.Bind(incoming);
     }
 
     /// <summary>本机 Exiting 动作结束后隐藏该槽；与权威帧末规则一致。</summary>

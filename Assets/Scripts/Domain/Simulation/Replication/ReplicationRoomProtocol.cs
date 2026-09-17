@@ -2,7 +2,7 @@
 public static class ReplicationRoomProtocol
 {
     /// <summary>传给 SessionConfig 的线协议号。</summary>
-    public const int ProtocolVersion = 1;
+    public const int ProtocolVersion = 2;
 
     /// <summary>传给 SessionConfig 的默认空闲超时。</summary>
     public const int IdleTimeoutMs = 10000;

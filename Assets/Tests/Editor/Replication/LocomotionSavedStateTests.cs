@@ -15,40 +15,58 @@ public sealed class LocomotionSavedStateTests
             Is.EqualTo(LocomotionPhase.Stop));
     }
 
-    /// <summary>出招期间快照 Gait 常为 Walk；Clip 为 Sprint 时以片为准。</summary>
+    /// <summary>SavedState 原样保存 PhaseFrame 与整数计数，不经过归一化时间。</summary>
     [Test]
-    public void FromAuthority_SprintKey_OverridesWalkGait()
+    public void Constructor_PreservesIntegerClock()
     {
-        ActorReplicationSnapshot snapshot = new ActorReplicationSnapshot(
-            new SimActorId(1),
-            1,
-            ReplicationActorKind.Player,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            (byte)AnimationKey.Sprint,
-            (byte)LocomotionGait.Walk,
-            (byte)MoveCardinal.Forward,
-            0,
-            0,
-            0,
-            0,
-            SimActorId.Invalid,
-            100000,
-            0,
-            VitalityReplicationEdge.None,
-            250);
+        var state = new LocomotionSavedState(
+            LocomotionPhase.Gait,
+            LocomotionGait.Sprint,
+            AnimationKey.Sprint,
+            599,
+            179,
+            8,
+            MoveCardinal.Forward,
+            3,
+            AnimationKey.Start,
+            LocomotionGait.Run,
+            MoveCardinal.Forward,
+            AnimationKey.StopR,
+            false,
+            UnityEngine.Vector3.forward,
+            UnityEngine.Vector3.back,
+            UnityEngine.Vector3.forward,
+            true,
+            false,
+            AnimationKey.Sprint,
+            0f,
+            FootSide.Right,
+            true,
+            false);
 
-        LocomotionSavedState state = LocomotionSavedState.FromAuthority(in snapshot);
+        Assert.That(state.PhaseFrame, Is.EqualTo(599));
+        Assert.That(state.RunHoldFrames, Is.EqualTo(179));
+        Assert.That(state.GaitInputGapFrames, Is.EqualTo(8));
+    }
 
-        Assert.That(state.Phase, Is.EqualTo(LocomotionPhase.Gait));
-        Assert.That(state.Gait, Is.EqualTo(LocomotionGait.Sprint));
-        Assert.That(state.AnimationKey, Is.EqualTo(AnimationKey.Sprint));
-        Assert.That(state.NormalizedTime, Is.EqualTo(0.25f).Within(0.001f));
-        Assert.That(state.GaitCardinal, Is.EqualTo(MoveCardinal.Forward));
+    /// <summary>V2 Stop/Pivot 快照恢复时必须重建根位移会话，而非只恢复动画帧。</summary>
+    [Test]
+    public void FromSnapshot_Stop_RebuildsRootMotionSession()
+    {
+        var snapshot = new ActorReplicationSnapshot(
+            new SimActorId(1), 1, ReplicationActorKind.Player,
+            0, 0, 0, 90000, 0, 0,
+            (byte)AnimationKey.StopR, (byte)LocomotionGait.Run, (byte)MoveCardinal.Forward,
+            0, 0, 0, 0, SimActorId.Invalid, 1000, 0, VitalityReplicationEdge.None,
+            locomotionPhaseFrame: 12);
+
+        LocomotionSavedState state = LocomotionSavedState.FromSnapshot(in snapshot);
+        Assert.That(state.Phase, Is.EqualTo(LocomotionPhase.Stop));
+        Assert.That(state.PhaseFrame, Is.EqualTo(12));
+        Assert.That(state.RootMotionActive, Is.True);
+        Assert.That(state.RootMotionKey, Is.EqualTo(AnimationKey.StopR));
+        Assert.That(state.RootMotionBasisYaw, Is.EqualTo(90f).Within(0.001f));
+        Assert.That(state.RootMotionBasisIsCurrentFacing, Is.True);
     }
 
     /// <summary>Dodge 结束与 Host ActionState 一样跳过 Start 进 Sprint。</summary>

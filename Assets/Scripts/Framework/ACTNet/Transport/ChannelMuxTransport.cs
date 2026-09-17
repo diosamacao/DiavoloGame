@@ -2,7 +2,8 @@ using System;
 using System.Collections.Generic;
 
 /// <summary>
-/// 在现有数据报 Transport 上补通道头：Control/Event 可靠有序，Snapshot 丢旧，Command 原样交付。
+/// 在现有数据报 Transport 上补通道头：Control/Event 可靠有序，Snapshot/Command 不可靠交付。
+/// Snapshot 通道名保留，但 Tick 去重与丢旧归 ReplicationClient，允许同 Tick 互补 batch 乱序到达。
 /// W10 定案不换 LiteNetLib / Unity Transport，避免与预测提取同风险面换库。
 /// </summary>
 public sealed class ChannelMuxTransport : INetTransport
@@ -13,6 +14,7 @@ public sealed class ChannelMuxTransport : INetTransport
     const byte KindAck = 2;
     const int DefaultRetransmitMs = 50;
     const int MaxUnacked = 64;
+    const int MaxDelivered = 256;
 
     readonly INetTransport _inner;
     readonly int _maxDatagramBytes;
@@ -26,6 +28,7 @@ public sealed class ChannelMuxTransport : INetTransport
     long _packetsDropped;
     int _rttMs = -1;
     int _jitterMs = -1;
+    bool _hasClock;
     bool _disposed;
 
     /// <summary>包装底层 Transport；已是 Mux 则原样返回。</summary>
@@ -47,6 +50,15 @@ public sealed class ChannelMuxTransport : INetTransport
     /// <summary>累计因超 MTU 被拒绝的发送次数。</summary>
     public int OversizeRejected { get; private set; }
 
+    /// <summary>累计因可靠窗口已满而在发送前拒绝的次数。</summary>
+    public int ReliableBackpressureRejected { get; private set; }
+
+    /// <summary>配置的数据报 MTU。</summary>
+    public int MaxDatagramBytes => _maxDatagramBytes;
+
+    /// <summary>扣除 Mux 头后允许的 Session payload。</summary>
+    public int MaxPayloadBytes => TransportMtuGate.MaxPayloadBytes(_maxDatagramBytes);
+
     /// <inheritdoc />
     public bool IsRunning => _inner.IsRunning;
 
@@ -60,18 +72,30 @@ public sealed class ChannelMuxTransport : INetTransport
     public IReadOnlyList<NetConnectionId> Connections => _inner.Connections;
 
     /// <inheritdoc />
-    public NetMetricsSnapshot Metrics => new(
-        _inner.Connections.Count,
-        _bytesSent + _inner.Metrics.BytesSent,
-        _bytesReceived + _inner.Metrics.BytesReceived,
-        _packetsSent + _inner.Metrics.PacketsSent,
-        _packetsReceived + _inner.Metrics.PacketsReceived,
-        _packetsDropped,
-        _rttMs,
-        _jitterMs);
+    public NetMetricsSnapshot Metrics
+    {
+        get
+        {
+            NetMetricsSnapshot inner = _inner.Metrics;
+            // Inner 已统计真实数据报；Mux 计数只用于协议内部诊断，不能再次叠加造成双计数。
+            return new NetMetricsSnapshot(
+                _inner.Connections.Count,
+                inner.BytesSent,
+                inner.BytesReceived,
+                inner.PacketsSent,
+                inner.PacketsReceived,
+                inner.PacketsDropped + _packetsDropped,
+                _rttMs,
+                _jitterMs);
+        }
+    }
 
     /// <summary>推进可靠重传时钟；Session.Poll 必须先调用。</summary>
-    public void AdvanceClock(long nowMs) => _nowMs = nowMs < 0 ? 0 : nowMs;
+    public void AdvanceClock(long nowMs)
+    {
+        _nowMs = nowMs < 0 ? 0 : nowMs;
+        _hasClock = true;
+    }
 
     /// <inheritdoc />
     public void StartServer(NetEndpoint endpoint) => _inner.StartServer(endpoint);
@@ -96,6 +120,12 @@ public sealed class ChannelMuxTransport : INetTransport
 
         ConnectionState state = GetOrCreate(connectionId);
         bool reliable = IsReliable(channel);
+        // 可靠窗口必须在分配序列与底层发送之前背压，绝不能丢弃最旧未确认包。
+        if (reliable && state.Unacked.Count >= MaxUnacked)
+        {
+            ReliableBackpressureRejected++;
+            throw new InvalidOperationException($"ChannelMux 可靠发送窗口已满：{MaxUnacked}。");
+        }
         ushort seq = reliable ? state.NextReliableSend++ : state.NextUnreliableSend++;
         byte[] datagram = Encode(
             channel,
@@ -110,15 +140,30 @@ public sealed class ChannelMuxTransport : INetTransport
                 $"ChannelMux 拒绝超 MTU 发送：{datagram.Length}/{_maxDatagramBytes} channel={channel}。");
         }
 
-        _inner.Send(connectionId, channel, datagram);
+        try
+        {
+            _inner.Send(connectionId, channel, datagram);
+        }
+        catch
+        {
+            // 底层拒绝时回滚尚未进入可靠窗口的序列，避免接收端永久等待空洞。
+            if (reliable)
+                state.NextReliableSend--;
+            else
+                state.NextUnreliableSend--;
+            throw;
+        }
         _bytesSent += datagram.Length;
         _packetsSent++;
         if (!reliable)
             return;
 
-        state.Unacked.Add(new PendingReliable(seq, channel, datagram, _nowMs));
-        while (state.Unacked.Count > MaxUnacked)
-            state.Unacked.RemoveAt(0);
+        // Session 可能在首次 Poll 前发送握手；-1 表示尚无可比较时钟，避免 Unix 毫秒转 int 溢出。
+        state.Unacked.Add(new PendingReliable(
+            seq,
+            channel,
+            datagram,
+            _hasClock ? _nowMs : -1));
     }
 
     /// <inheritdoc />
@@ -172,10 +217,28 @@ public sealed class ChannelMuxTransport : INetTransport
 
         if (kind == KindReliable)
         {
-            SendAck(packet.ConnectionId, channel, seq);
-            if (SeqCompare(seq, state.NextReliableRecv) < 0)
+            int distance = SeqCompare(seq, state.NextReliableRecv);
+            if (distance < 0)
+            {
+                // 已交付重传仍需 ACK，帮助发送端结束旧包。
+                SendAck(packet.ConnectionId, channel, seq);
                 return;
-            if (seq != state.NextReliableRecv)
+            }
+            if (distance >= MaxUnacked)
+            {
+                // 超出接收窗口的未来包既不缓存也不 ACK，否则发送端会永久跳过缺口。
+                _packetsDropped++;
+                return;
+            }
+            if (distance == 0 && _delivered.Count >= MaxDelivered)
+            {
+                // 不 ACK 尚未交付的可靠包；发送端保留旧包并在消费恢复后重传。
+                _packetsDropped++;
+                return;
+            }
+
+            SendAck(packet.ConnectionId, channel, seq);
+            if (distance > 0)
             {
                 if (!state.Hold.ContainsKey(seq))
                     state.Hold[seq] = new HeldPacket(channel, payload);
@@ -189,25 +252,13 @@ public sealed class ChannelMuxTransport : INetTransport
             return;
         }
 
-        if (channel == NetChannel.SnapshotUnreliableSequenced)
+        if (_delivered.Count >= MaxDelivered)
         {
-            if (state.HasSnapshotSeq && SeqCompare(seq, state.LastSnapshotSeq) <= 0)
-            {
-                _packetsDropped++;
-                return;
-            }
-
-            if (state.HasSnapshotSeq)
-            {
-                int gap = SeqDelta(seq, state.LastSnapshotSeq) - 1;
-                if (gap > 0)
-                    _packetsDropped += gap;
-            }
-
-            state.HasSnapshotSeq = true;
-            state.LastSnapshotSeq = seq;
+            _packetsDropped++;
+            return;
         }
 
+        // 不可靠包一律交付；Snapshot 的 batch/tick 语义不等于数据报发送序号。
         Deliver(packet.ConnectionId, channel, payload);
     }
 
@@ -229,8 +280,12 @@ public sealed class ChannelMuxTransport : INetTransport
             if (state.Unacked[i].Seq != ack)
                 continue;
 
-            int rtt = (int)Math.Max(0L, _nowMs - state.Unacked[i].SentAtMs);
-            ObserveRtt(rtt);
+            long sentAtMs = state.Unacked[i].SentAtMs;
+            if (_hasClock && sentAtMs >= 0 && _nowMs >= sentAtMs)
+            {
+                long elapsed = _nowMs - sentAtMs;
+                ObserveRtt(elapsed > int.MaxValue ? int.MaxValue : (int)elapsed);
+            }
             state.Unacked.RemoveAt(i);
             return;
         }
@@ -244,6 +299,16 @@ public sealed class ChannelMuxTransport : INetTransport
             for (int i = 0; i < unacked.Count; i++)
             {
                 PendingReliable pending = unacked[i];
+                if (pending.SentAtMs < 0)
+                {
+                    // 首次获得时钟只建立重传基线，不把启动前握手误判为超时。
+                    unacked[i] = new PendingReliable(
+                        pending.Seq,
+                        pending.Channel,
+                        pending.Datagram,
+                        _nowMs);
+                    continue;
+                }
                 if (_nowMs - pending.SentAtMs < DefaultRetransmitMs)
                     continue;
 
@@ -365,16 +430,12 @@ public sealed class ChannelMuxTransport : INetTransport
 
     static int SeqCompare(ushort left, ushort right) => (short)(left - right);
 
-    static int SeqDelta(ushort newer, ushort older) => (ushort)(newer - older);
-
     sealed class ConnectionState
     {
         public ushort NextReliableSend;
         public ushort NextReliableRecv;
         public ushort LastReliableRecv;
         public ushort NextUnreliableSend;
-        public ushort LastSnapshotSeq;
-        public bool HasSnapshotSeq;
         public readonly List<PendingReliable> Unacked = new();
         public readonly Dictionary<ushort, HeldPacket> Hold = new();
     }

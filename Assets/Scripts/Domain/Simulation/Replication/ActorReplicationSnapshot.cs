@@ -27,7 +27,7 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
         int healthMilli,
         int flagsPacked,
         VitalityReplicationEdge vitalityEdge,
-        ushort locomotionNormalizedMilli = 0)
+        int locomotionPhaseFrame = 0)
     {
         ActorId = actorId;
         TeamId = teamId;
@@ -41,7 +41,7 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
         LocomotionPhase = locomotionPhase;
         Gait = gait;
         Cardinal = cardinal;
-        LocomotionNormalizedMilli = locomotionNormalizedMilli;
+        LocomotionPhaseFrame = locomotionPhaseFrame < 0 ? 0 : locomotionPhaseFrame;
         ActionId = actionId;
         GraphNodeKey = graphNodeKey;
         ActionFrame = actionFrame < 0 ? 0 : actionFrame;
@@ -88,8 +88,8 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
     /// <summary>八向 cardinal 编码；P0 可为 0。</summary>
     public byte Cardinal { get; }
 
-    /// <summary>Locomotion Clip 归一化时间 ×1000；循环片可大于 1000。幽灵按此 Seek。</summary>
-    public ushort LocomotionNormalizedMilli { get; }
+    /// <summary>当前 Locomotion 相位内的权威整数逻辑帧。</summary>
+    public int LocomotionPhaseFrame { get; }
 
     /// <summary>权威动作定义 Id；0 表示无活动动作。</summary>
     public int ActionId { get; }
@@ -139,11 +139,11 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
             HealthMilli,
             FlagsPacked,
             VitalityEdge,
-            LocomotionNormalizedMilli);
+            LocomotionPhaseFrame);
     }
 
-    /// <summary>替换 Locomotion 相位与归一化时间；供客机本地走跑表现，不改位姿/出招。</summary>
-    public ActorReplicationSnapshot WithLocomotion(byte locomotionPhase, ushort locomotionNormalizedMilli)
+    /// <summary>替换 Locomotion 相位与整数帧；供客机本地走跑恢复，不改位姿/出招。</summary>
+    public ActorReplicationSnapshot WithLocomotion(byte locomotionPhase, int locomotionPhaseFrame)
     {
         return new ActorReplicationSnapshot(
             ActorId,
@@ -166,7 +166,7 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
             HealthMilli,
             FlagsPacked,
             VitalityEdge,
-            locomotionNormalizedMilli);
+            locomotionPhaseFrame);
     }
 
     /// <summary>用预测电机位姿替换本快照的毫米坐标与朝向；其它复制字段不变。</summary>
@@ -196,7 +196,7 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
             HealthMilli,
             FlagsPacked,
             VitalityEdge,
-            LocomotionNormalizedMilli);
+            LocomotionPhaseFrame);
     }
 
     /// <summary>比较全部复制字段。</summary>
@@ -213,7 +213,7 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
         && LocomotionPhase == other.LocomotionPhase
         && Gait == other.Gait
         && Cardinal == other.Cardinal
-        && LocomotionNormalizedMilli == other.LocomotionNormalizedMilli
+        && LocomotionPhaseFrame == other.LocomotionPhaseFrame
         && ActionId == other.ActionId
         && GraphNodeKey == other.GraphNodeKey
         && ActionFrame == other.ActionFrame
@@ -239,7 +239,7 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
             hash = (hash * 397) ^ PosZMm;
             hash = (hash * 397) ^ PosYMm;
             hash = (hash * 397) ^ FacingMilliDeg;
-            hash = (hash * 397) ^ LocomotionNormalizedMilli;
+            hash = (hash * 397) ^ LocomotionPhaseFrame;
             hash = (hash * 397) ^ ActionId;
             hash = (hash * 397) ^ GraphNodeKey;
             hash = (hash * 397) ^ ActionFrame;

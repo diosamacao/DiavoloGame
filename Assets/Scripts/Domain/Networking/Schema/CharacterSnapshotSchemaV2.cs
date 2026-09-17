@@ -1,12 +1,12 @@
 using System;
 
-/// <summary>把 ACTGame 角色快照接入通用复制 Registry 的版本 1 业务 Schema。</summary>
-public sealed class CharacterSnapshotSchemaV1 : IReplicationSchema
+/// <summary>把 ACTGame 角色整数时钟快照接入通用复制 Registry 的 V2 业务 Schema。</summary>
+public sealed class CharacterSnapshotSchemaV2 : IReplicationSchema
 {
-    /// <summary>角色快照版本 1 的稳定 Schema 标识。</summary>
-    public const ushort Id = 1;
+    /// <summary>角色快照 V2 的 Schema 标识。</summary>
+    public const ushort Id = 2;
 
-    /// <summary>返回角色快照版本 1 的稳定 Schema 标识。</summary>
+    /// <summary>返回角色快照 V2 Schema 标识。</summary>
     public ushort SchemaId => Id;
 
     /// <summary>编码强类型角色快照，并复用 Simulation 中的唯一字段布局。</summary>
@@ -21,7 +21,7 @@ public sealed class CharacterSnapshotSchemaV1 : IReplicationSchema
         if (!(state is ActorReplicationSnapshot snapshot))
         {
             throw new ArgumentException(
-                $"CharacterSnapshotSchemaV1 仅接受 {nameof(ActorReplicationSnapshot)}。",
+                $"CharacterSnapshotSchemaV2 仅接受 {nameof(ActorReplicationSnapshot)}。",
                 nameof(state));
         }
 

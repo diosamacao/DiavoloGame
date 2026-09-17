@@ -263,13 +263,15 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
 
     /// <summary>
     /// 用播放头两端快照对齐出招/走跑 Clip 与视觉残差。
-    /// 片子只跟采样 to：出招 Tick+纠偏 Seek；落到走跑时必须 Play，禁止只 Tick 招尾。
+    /// 片子只跟采样 to：切段时 Seek，随后只按播放头 Tick delta 推进；落到走跑时必须 Play。
     /// </summary>
     public void PresentSampledPlayback(
         in ActorReplicationSnapshot from,
         in ActorReplicationSnapshot to,
         float interpolationAlpha,
-        float locomotionDeltaSeconds)
+        float playbackDeltaSeconds,
+        float renderDeltaSeconds,
+        bool playbackSnapped = false)
     {
         bool frozen = to.FreezeFrames > 0;
         _animationFrozen = frozen;
@@ -287,7 +289,12 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
                     to.ActionId,
                     to.ActionFrame);
             if (_animation != null)
-                PresentActionClip(action, actionTime, forceRestart, locomotionDeltaSeconds);
+                PresentActionClip(
+                    action,
+                    actionTime,
+                    forceRestart,
+                    playbackDeltaSeconds,
+                    playbackSnapped);
 
             int residualFrom = from.ActionId == to.ActionId ? from.ActionFrame : to.ActionFrame;
             _visualMotion?.SetResidualBracket(action, residualFrom, to.ActionFrame);
@@ -302,7 +309,24 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
             _visualActionActive = false;
         }
 
-        PresentLocomotionClip(in to, leavingAction, locomotionDeltaSeconds, seekTransition: true);
+        PresentLocomotionClip(
+            in to,
+            leavingAction,
+            ResolveLocomotionPresentationDelta(in to, playbackDeltaSeconds, renderDeltaSeconds),
+            seekTransition: true,
+            forceSeek: playbackSnapped);
+    }
+
+    /// <summary>Idle 没有持续快照时仍按渲染时间循环；其它相位继续严格跟随远端播放头。</summary>
+    public static float ResolveLocomotionPresentationDelta(
+        in ActorReplicationSnapshot snapshot,
+        float playbackDeltaSeconds,
+        float renderDeltaSeconds)
+    {
+        AnimationKey key = ResolveLocomotionKey(snapshot.LocomotionPhase);
+        return key == AnimationKey.Idle
+            ? Mathf.Max(0f, renderDeltaSeconds)
+            : Mathf.Max(0f, playbackDeltaSeconds);
     }
 
     /// <summary>
@@ -342,20 +366,6 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         AnimationKey? currentLocomotionKey,
         AnimationKey sampledKey) =>
         leavingAction || currentLocomotionKey != sampledKey;
-
-    /// <summary>Clip 与采样时间偏差是否超过约 1 逻辑帧，需要 Seek 纠偏。</summary>
-    public static bool ShouldCorrectActionClipSeek(
-        float currentClipSeconds,
-        float targetClipSeconds,
-        float sampleRate)
-    {
-        float rate = sampleRate > 0f ? sampleRate : ActionSim.LogicHz;
-        float threshold = 1f / rate;
-        float delta = currentClipSeconds - targetClipSeconds;
-        if (delta < 0f)
-            delta = -delta;
-        return delta > threshold;
-    }
 
     /// <summary>
     /// 本机走跑：只同步位置与 Lean，禁止 Play/Seek Locomotion（片子由 Runner 推进）。
@@ -553,7 +563,8 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
             }
         }
 
-        if (dispatchNotifies && actionActive && !frozen)
+        // HitStop 会把成功动作钉在 frame 0；Notify 仍须在首包触发，否则解冻后游标已越过起手特效。
+        if (ShouldDispatchPresentationNotifies(dispatchNotifies, actionActive))
             DispatchPresentationNotifies(action, previousActionFrame, snapshot.ActionFrame);
 
         _lastActionId = snapshot.ActionId;
@@ -583,7 +594,8 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         in ActorReplicationSnapshot snapshot,
         bool leavingAction,
         float deltaTimeSeconds,
-        bool seekTransition)
+        bool seekTransition,
+        bool forceSeek = false)
     {
         if (_animation == null)
             return;
@@ -601,7 +613,14 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
             if (seekTransition
                 && !_animationFrozen
                 && ReplicationPresentationAlign.IsTransitionPhase(key))
-                _animation.SeekLocomotionNormalized(snapshot.LocomotionNormalizedMilli / 1000f);
+                _animation.SeekClip(snapshot.LocomotionPhaseFrame / (float)ActionSim.LogicHz);
+        }
+
+        if (forceSeek && !_animationFrozen)
+        {
+            // 播放头跨越时间线安全窗时，Clip 与位姿一起吸附，不能再按墙钟慢慢补。
+            _animation.SeekClip(snapshot.LocomotionPhaseFrame / (float)ActionSim.LogicHz);
+            return;
         }
 
         if (!_animationFrozen)
@@ -616,7 +635,8 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         ActionDefinition action,
         float actionTime,
         bool forceRestart,
-        float deltaTimeSeconds)
+        float deltaTimeSeconds,
+        bool forceSeek)
     {
         _locomotionKey = null;
         int queryFrame = (int)actionTime;
@@ -654,15 +674,14 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
             return;
         }
 
-        TickAnimation(deltaTimeSeconds);
-        if (forceRestart || segmentChanged)
-            return;
-
-        if (ShouldCorrectActionClipSeek(
-                _animation.CurrentClipTimeSeconds,
-                targetLocal,
-                rate))
+        if (forceSeek)
+        {
             _animation.SeekClip(targetLocal);
+            return;
+        }
+
+        // 同段不再用渲染 Time.deltaTime 独立前进后反复 Seek；调用方传入播放头 delta。
+        TickAnimation(deltaTimeSeconds);
     }
 
     /// <summary>
@@ -707,7 +726,7 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     }
 
     /// <summary>
-    /// 同一可见动作会话按上次帧补丢包；新动作、重启或重新显形只跨当前帧，禁止回放整段历史特效。
+    /// 同一可见动作会话按上次帧补丢包；首次看到新动作时补齐起手至当前帧的表现 Notify。
     /// </summary>
     public static int ResolvePreviousNotifyFrame(
         bool forceRestart,
@@ -718,6 +737,10 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     {
         if (!forceRestart && actionId != 0 && previousActionId == actionId)
             return previousActionFrame;
+
+        // Snapshot 可能首见于 frame 1+；从 -1 补齐可确保弹刀成功等 frame 0 特效不会永久丢失。
+        if (actionId != 0 && actionId != previousActionId)
+            return -1;
 
         return Math.Max(-1, actionFrame - 1);
     }
@@ -752,6 +775,10 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     /// <summary>表现向点事件：刀光与动作音效。位移/判定命令不得走 Proxy。</summary>
     public static bool IsPresentationNotify(ActionNotify notify) =>
         notify is PlayVfxNotify || notify is PlaySfxNotify;
+
+    /// <summary>Observer 点表现只由可见性与动作存在性门控；HitStop 不得阻止 frame 0 特效。</summary>
+    public static bool ShouldDispatchPresentationNotifies(bool requested, bool actionActive) =>
+        requested && actionActive;
 
     static IActionNotifyConsumer[] CopyConsumers(IReadOnlyList<IActionNotifyConsumer> source)
     {

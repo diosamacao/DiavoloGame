@@ -109,8 +109,11 @@ public sealed class CharacterStateMachine : ICharacterStateMachine
     public bool TryChangeState(CharacterStateType next, bool force = false) =>
         _machine.TryChangeState(next, force);
 
-    /// <summary>死亡表现是否已经播放完成。</summary>
-    public bool DeathPresentationComplete => Context.DeathPresentationComplete;
+    /// <summary>死亡逻辑序列是否已经完成。</summary>
+    public bool DeathSequenceComplete => Context.DeathSequenceComplete;
+
+    /// <summary>当前死亡 Action 的确定性总帧数；无死亡 Action 时为 0。</summary>
+    public int DeathActionTotalFrames => Context.DeathActionTotalFrames;
 
     /// <summary>强制进入或重入受击状态，并覆盖上一条反应请求。</summary>
     public void EnterHit(in CharacterReactionRequest request)

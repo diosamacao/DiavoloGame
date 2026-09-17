@@ -7,33 +7,38 @@ public sealed class LocomotionGaitPolicyTests
     [Test]
     public void Evaluate_FullPolicy_RunHold_ReachesSprint()
     {
-        var policy = new LocomotionGaitPolicy(LocomotionGait.Sprint, allowPivot: true, sprintAfterRunSeconds: 3f);
-        float hold = 0f;
+        var policy = new LocomotionGaitPolicy(LocomotionGait.Sprint, allowPivot: true, sprintAfterRunFrames: 180);
+        int hold = 0;
         LocomotionGait gait = LocomotionGait.Walk;
 
         // 进 Run
-        GaitPolicyResult r0 = policy.Evaluate(new GaitPolicyInput(gait, 1f, 0.5f, 0.1f, hold));
+        GaitPolicyResult r0 = policy.Evaluate(new GaitPolicyInput(gait, 1f, 0.5f, hold));
         Assert.That(r0.NextGait, Is.EqualTo(LocomotionGait.Run));
         gait = r0.NextGait;
-        hold = r0.RunHoldSeconds;
+        hold = r0.RunHoldFrames;
 
-        // 一次累满 3s，避免 0.1f 循环加法的二进制误差。
-        GaitPolicyResult rSprint = policy.Evaluate(new GaitPolicyInput(gait, 1f, 0.5f, 3f, hold));
+        GaitPolicyResult rSprint = default;
+        for (int i = 0; i < 180; i++)
+        {
+            rSprint = policy.Evaluate(new GaitPolicyInput(gait, 1f, 0.5f, hold));
+            gait = rSprint.NextGait;
+            hold = rSprint.RunHoldFrames;
+        }
         Assert.That(rSprint.NextGait, Is.EqualTo(LocomotionGait.Sprint));
     }
 
     [Test]
     public void Evaluate_MaxGaitRun_NeverSprints()
     {
-        var policy = new LocomotionGaitPolicy(LocomotionGait.Run, allowPivot: false, sprintAfterRunSeconds: 0.1f);
+        var policy = new LocomotionGaitPolicy(LocomotionGait.Run, allowPivot: false, sprintAfterRunFrames: 6);
         LocomotionGait gait = LocomotionGait.Walk;
-        float hold = 0f;
+        int hold = 0;
 
         for (int i = 0; i < 100; i++)
         {
-            GaitPolicyResult r = policy.Evaluate(new GaitPolicyInput(gait, 1f, 0.5f, 0.1f, hold));
+            GaitPolicyResult r = policy.Evaluate(new GaitPolicyInput(gait, 1f, 0.5f, hold));
             gait = r.NextGait;
-            hold = r.RunHoldSeconds;
+            hold = r.RunHoldFrames;
         }
 
         Assert.That(gait, Is.EqualTo(LocomotionGait.Run));
@@ -43,9 +48,9 @@ public sealed class LocomotionGaitPolicyTests
     [Test]
     public void Evaluate_MaxGaitWalk_StaysWalk()
     {
-        var policy = new LocomotionGaitPolicy(LocomotionGait.Walk, allowPivot: false, sprintAfterRunSeconds: 3f);
+        var policy = new LocomotionGaitPolicy(LocomotionGait.Walk, allowPivot: false, sprintAfterRunFrames: 180);
         GaitPolicyResult r = policy.Evaluate(
-            new GaitPolicyInput(LocomotionGait.Walk, 1f, 0.5f, 0.1f, 0f));
+            new GaitPolicyInput(LocomotionGait.Walk, 1f, 0.5f, 0));
         Assert.That(r.NextGait, Is.EqualTo(LocomotionGait.Walk));
     }
 
@@ -54,9 +59,9 @@ public sealed class LocomotionGaitPolicyTests
     {
         var policy = new LocomotionGaitPolicy();
         GaitPolicyResult r = policy.Evaluate(
-            new GaitPolicyInput(LocomotionGait.Run, 0.1f, 0.5f, 0.1f, 2f));
+            new GaitPolicyInput(LocomotionGait.Run, 0.1f, 0.5f, 2));
         Assert.That(r.NextGait, Is.EqualTo(LocomotionGait.Walk));
-        Assert.That(r.RunHoldSeconds, Is.EqualTo(0f));
+        Assert.That(r.RunHoldFrames, Is.Zero);
     }
 
     [Test]

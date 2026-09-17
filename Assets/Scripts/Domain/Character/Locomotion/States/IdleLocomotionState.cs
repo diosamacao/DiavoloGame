@@ -9,8 +9,8 @@ public sealed class IdleLocomotionState : LocomotionPhaseState
     public override void Enter()
     {
         Context.Gait = LocomotionGait.Walk;
-        Context.RunHoldSeconds = 0f;
-        Context.GaitInputGapSeconds = 0f;
+        Context.RunHoldFrames = 0;
+        Context.GaitInputGapFrames = 0;
         Context.RootMotionPlayer.End();
         Context.FootCycle.Freeze();
         Context.FootCycle.SetMarkers(System.Array.Empty<FootPlantMarker>());
@@ -28,7 +28,7 @@ public sealed class IdleLocomotionState : LocomotionPhaseState
     public override void ExecuteFrame(float deltaTime)
     {
         Context.Animation.SetSpeed(1f);
-        Context.Animation.Play(AnimationKey.Idle);
+        Context.SampleLocomotion(AnimationKey.Idle);
         // 不位移、锁朝向，避免 Idle 被输入微抖转走
         Context.Motor.ApplyLocomotion(
             new LocomotionMotorCommand(

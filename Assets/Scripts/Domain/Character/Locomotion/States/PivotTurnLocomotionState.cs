@@ -31,7 +31,7 @@ public sealed class PivotTurnLocomotionState : LocomotionPhaseState
         Context.FootCycle.SetMarkers(System.Array.Empty<FootPlantMarker>());
         Context.Animation.ResetPlaybackState();
         // 转身起手硬切，避免与 Sprint CrossFade 把朝向混花
-        Context.Animation.Play(AnimationKey.PivotTurn, 0f);
+        Context.SampleLocomotion(AnimationKey.PivotTurn, 0f);
         Context.RootMotionPlayer.Begin(
             AnimationKey.PivotTurn,
             Quaternion.LookRotation(Context.PivotEnterFacing));
@@ -47,7 +47,7 @@ public sealed class PivotTurnLocomotionState : LocomotionPhaseState
         LocomotionInputSnapshot snapshot = Context.FrameSnapshot;
         bool hasMove = Context.HasMeaningfulMove(snapshot);
         if (hasMove)
-            Context.GaitInputGapSeconds = 0f;
+            Context.GaitInputGapFrames = 0;
 
         // 转身中持续刷新折返目标，结束时决定回 Sprint 还是 Stop
         if (hasMove && snapshot.WorldMoveDirection.sqrMagnitude > 0.001f)
@@ -71,15 +71,12 @@ public sealed class PivotTurnLocomotionState : LocomotionPhaseState
     public override void ExecuteFrame(float deltaTime)
     {
         Context.FootCycle.Freeze();
-        Context.Animation.Play(AnimationKey.PivotTurn);
+        Context.SampleLocomotion(AnimationKey.PivotTurn);
 
         if (!_inputAuth)
         {
-            float handoff = Context.Profile != null
-                ? Context.Profile.PivotAnimAuthNormalized
-                : 0.5f;
-            // 切段读模拟时钟；位移仍由 RootMotionPlayer 逻辑帧消费
-            if (Context.SamplePhaseNormalized() >= handoff)
+            int handoff = Context.RequireTiming(AnimationKey.PivotTurn).HandoffFrame;
+            if (Context.PhaseFrame >= handoff)
                 EnterInputAuth();
         }
 

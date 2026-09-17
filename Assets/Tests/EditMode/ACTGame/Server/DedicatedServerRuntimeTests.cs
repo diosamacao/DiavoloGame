@@ -197,7 +197,7 @@ public sealed class DedicatedServerRuntimeTests
         InputFrame input = InputFrame.Empty(3, actorId);
         var command = new ClientCommand(3, senderPlayerId: 99, in input);
         client.SendApplication(
-            (byte)RoomMessageKind.ClientCommand,
+            (byte)ActRoomMessageType.ClientCommand,
             NetChannel.CommandUnreliableRedundant,
             RoomCodec.WriteClientCommandBatch(new[] { command }));
         harness.Runtime.Poll(1);
@@ -207,9 +207,9 @@ public sealed class DedicatedServerRuntimeTests
         Assert.That(tick, Is.EqualTo(0));
     }
 
-    /// <summary>第二拍起每连接独立下发 ReplicationFrame，Sequence 不串线。</summary>
+    /// <summary>第二拍起每连接独立下发 V2 Snapshot，Tick 不串线。</summary>
     [Test]
-    public void Playing_SendsPerConnectionReplicationFrames()
+    public void Playing_SendsPerConnectionReplicationSnapshots()
     {
         using var harness = new DedicatedHarness(maxPlayers: 2, new FramingAuthorityWorld());
         ClientSession[] clients = harness.JoinClients(2);
@@ -218,17 +218,17 @@ public sealed class DedicatedServerRuntimeTests
         clients[0].Poll(20);
         clients[1].Poll(20);
 
-        ReplicationFrame frameA = DequeueFrame(clients[0]);
-        ReplicationFrame frameB = DequeueFrame(clients[1]);
-        Assert.That(frameA.Sequence.Value, Is.EqualTo(0));
-        Assert.That(frameB.Sequence.Value, Is.EqualTo(0));
+        ReplicationSnapshot frameA = DequeueSnapshot(clients[0]);
+        ReplicationSnapshot frameB = DequeueSnapshot(clients[1]);
+        Assert.That(frameA.Tick.Value, Is.EqualTo(0));
+        Assert.That(frameB.Tick.Value, Is.EqualTo(0));
         Assert.That(frameA.Tick, Is.EqualTo(frameB.Tick));
 
         harness.Runtime.Poll(40);
         clients[0].Poll(40);
         clients[1].Poll(40);
-        Assert.That(DequeueFrame(clients[0]).Sequence.Value, Is.EqualTo(1));
-        Assert.That(DequeueFrame(clients[1]).Sequence.Value, Is.EqualTo(1));
+        Assert.That(DequeueSnapshot(clients[0]).Tick.Value, Is.EqualTo(1));
+        Assert.That(DequeueSnapshot(clients[1]).Tick.Value, Is.EqualTo(1));
     }
 
     /// <summary>RequestMatchEnd 向仍在线连接下发 MatchEnd 并结束 Session。</summary>
@@ -376,11 +376,11 @@ public sealed class DedicatedServerRuntimeTests
         Assert.That(player.EntityId.Value, Is.EqualTo(40));
     }
 
-    static ReplicationFrame DequeueFrame(ClientSession client)
+    static ReplicationSnapshot DequeueSnapshot(ClientSession client)
     {
         Assert.That(client.TryDequeueApplication(out SessionApplicationPacket packet), Is.True);
-        Assert.That(packet.MessageType, Is.EqualTo((byte)RoomMessageKind.ReplicationFrame));
-        return ReplicationFrameCodec.Decode(packet.Payload);
+        Assert.That(packet.MessageType, Is.EqualTo((byte)ActRoomMessageType.ReplicationSnapshot));
+        return ReplicationProtocolV2Codec.DecodeSnapshot(packet.Payload);
     }
 
     static bool TryDequeueMatchEnd(ClientSession client, out MatchEndMessage message)
@@ -388,7 +388,7 @@ public sealed class DedicatedServerRuntimeTests
         message = default;
         while (client.TryDequeueApplication(out SessionApplicationPacket packet))
         {
-            if (packet.MessageType != (byte)RoomMessageKind.MatchEnd)
+            if (packet.MessageType != (byte)ActRoomMessageType.MatchEnd)
                 continue;
             message = RoomCodec.ReadMatchEnd(packet.Payload);
             return true;
@@ -477,7 +477,7 @@ public sealed class DedicatedServerRuntimeTests
             var command = new ClientCommand(frameHint, client.JoinAccept.PlayerId.Value, in input);
             byte[] body = RoomCodec.WriteClientCommandBatch(new[] { command });
             client.SendApplication(
-                (byte)RoomMessageKind.ClientCommand,
+                (byte)ActRoomMessageType.ClientCommand,
                 NetChannel.CommandUnreliableRedundant,
                 body);
         }
@@ -535,6 +535,15 @@ public sealed class DedicatedServerRuntimeTests
             results?.Clear();
         }
 
+        /// <inheritdoc />
+        public void ConfigureReplicationBodyBudget(int bodyBudgetBytes) { }
+
+        /// <inheritdoc />
+        public void CommitReplication(NetConnectionId connectionId, ReplicationPacketCommitToken token) { }
+
+        /// <inheritdoc />
+        public void RejectReplication(NetConnectionId connectionId, ReplicationPacketCommitToken token) { }
+
         public void DrainOutboundEvents(List<DedicatedEventSend> results)
         {
             results?.Clear();
@@ -549,7 +558,7 @@ public sealed class DedicatedServerRuntimeTests
         }
     }
 
-    /// <summary>第二拍起为每个已接纳连接编一帧空 ReplicationFrame。</summary>
+    /// <summary>第二拍起为每个已接纳连接准备一份 V2 Snapshot。</summary>
     sealed class FramingAuthorityWorld : IDedicatedAuthorityWorld
     {
         readonly Dictionary<NetConnectionId, ReplicationServer> _servers = new();
@@ -562,6 +571,7 @@ public sealed class DedicatedServerRuntimeTests
         };
         bool _hasClock;
         long _frame = -1;
+        int _bodyBudget = 1389;
 
         public long CurrentFrame => _frame;
 
@@ -596,13 +606,21 @@ public sealed class DedicatedServerRuntimeTests
             _queued.Clear();
             foreach (KeyValuePair<NetConnectionId, ReplicationServer> pair in _servers)
             {
-                ReplicationFrame frame = pair.Value.BuildFrame(
+                ReplicationTickDelta delta = pair.Value.PrepareTickDelta(
                     new NetTick(_frame),
                     Array.Empty<ReplicationEntityState>(),
-                    _emptyApplication);
-                _queued.Add(new DedicatedReplicationSend(
-                    pair.Key,
-                    ReplicationFrameCodec.Encode(frame)));
+                    _emptyApplication,
+                    _bodyBudget,
+                    NetEntityId.Invalid);
+                for (int i = 0; i < delta.Packets.Length; i++)
+                {
+                    PreparedReplicationPacket packet = delta.Packets[i];
+                    _queued.Add(new DedicatedReplicationSend(
+                        pair.Key,
+                        packet.ReliableLifecycle,
+                        packet.Body,
+                        packet.Token));
+                }
             }
         }
 
@@ -618,12 +636,22 @@ public sealed class DedicatedServerRuntimeTests
             _queued.Clear();
         }
 
+        /// <inheritdoc />
+        public void ConfigureReplicationBodyBudget(int bodyBudgetBytes) => _bodyBudget = bodyBudgetBytes;
+
+        /// <inheritdoc />
+        public void CommitReplication(NetConnectionId connectionId, ReplicationPacketCommitToken token) =>
+            _servers[connectionId].Commit(token);
+
+        /// <inheritdoc />
+        public void RejectReplication(NetConnectionId connectionId, ReplicationPacketCommitToken token) =>
+            _servers[connectionId].Reject(token);
+
         public void DrainOutboundEvents(List<DedicatedEventSend> results) => results?.Clear();
 
         public void RequestFullRecovery(NetConnectionId connectionId)
         {
-            if (_servers.TryGetValue(connectionId, out ReplicationServer server))
-                server.ResetBaseline();
+            // 该夹具只验证 Runtime 分轨发送；完整恢复由 ReplicationProtocolV2Tests 覆盖。
         }
 
         public void Dispose()

@@ -8,8 +8,8 @@ public sealed class StopLocomotionState : LocomotionPhaseState
     /// <summary>对齐急停朝向、播 StopKey、开始烘焙根位移。</summary>
     public override void Enter()
     {
-        Context.RunHoldSeconds = 0f;
-        Context.GaitInputGapSeconds = 0f;
+        Context.RunHoldFrames = 0;
+        Context.GaitInputGapFrames = 0;
         Context.PivotMoveLatched = false;
 
         Context.Motor.FaceWorldDirection(Context.StopEnterFacing);
@@ -21,7 +21,7 @@ public sealed class StopLocomotionState : LocomotionPhaseState
         float fade = hardCut
             ? 0f
             : (Context.Profile != null ? Context.Profile.InterruptFadeDuration : 0.08f);
-        Context.Animation.Play(Context.StopKey, fade);
+        Context.SampleLocomotion(Context.StopKey, fade);
         if (hardCut)
             Context.Motor.ResetRotationDamping();
         Context.RootMotionPlayer.Begin(
@@ -49,7 +49,7 @@ public sealed class StopLocomotionState : LocomotionPhaseState
     {
         Context.FootCycle.Freeze();
         float interrupt = Context.Profile != null ? Context.Profile.InterruptFadeDuration : 0.08f;
-        Context.Animation.Play(Context.StopKey, interrupt);
+        Context.SampleLocomotion(Context.StopKey, interrupt);
 
         var command = new LocomotionMotorCommand(
             false,

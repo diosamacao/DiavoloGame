@@ -53,14 +53,15 @@ public sealed class NetworkTimeEstimator
             ServerTimeOffsetMs = -(_rttMs / 2);
     }
 
-    /// <summary>插值延迟毫秒：RTT/2 + jitter + 一格，钳在 16～150。</summary>
+    /// <summary>插值延迟毫秒：只覆盖到达抖动、发送间隔与一格安全余量，钳在 16～150。</summary>
     public int InterpolationDelayMs
     {
         get
         {
-            int oneWay = _rttMs > 0 ? _rttMs / 2 : 0;
             int jitter = _jitterMs > 0 ? _jitterMs : 0;
-            int delay = oneWay + jitter + (1000 / DefaultLogicHz);
+            // latest 已经是实际到达的权威样本；再扣 RTT/2 会把单程延迟重复计算，造成远端恒慢。
+            int sendInterval = 1000 / DefaultLogicHz;
+            int delay = jitter + sendInterval + sendInterval;
             if (delay < MinDelayMs)
                 return MinDelayMs;
             return delay > MaxDelayMs ? MaxDelayMs : delay;

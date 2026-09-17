@@ -52,37 +52,41 @@ public sealed class LocomotionContext
     /// <summary>L-DIR4 Sprint 倾身状态；Visual 只读 Roll。</summary>
     public SprintLeanModel SprintLean { get; }
 
-    /// <summary>模拟相位归一化时间；权威 Capture 只读此值，不读 Animator。</summary>
-    public float SimulationNormalizedTime { get; private set; }
+    /// <summary>当前 Locomotion 动画键内的唯一整数逻辑帧；切相位或切键时归零。</summary>
+    public int PhaseFrame { get; private set; }
 
-    /// <summary>相位切换时清零模拟时钟。</summary>
-    public void ResetSimulationClock() => SimulationNormalizedTime = 0f;
+    /// <summary>当前 PhaseFrame 对应的逻辑动画键。</summary>
+    public AnimationKey PhaseAnimationKey { get; private set; } = AnimationKey.Idle;
 
-    /// <summary>纠偏恢复模拟时钟。</summary>
-    public void SetSimulationClock(float normalizedTime)
+    /// <summary>相位切换时重置唯一整数时钟。</summary>
+    public void ResetPhaseClock()
     {
-        float wrapped = normalizedTime - Mathf.Floor(normalizedTime);
-        SimulationNormalizedTime = wrapped < 0f ? 0f : wrapped;
+        PhaseFrame = 0;
+        PhaseAnimationKey = AnimationKey.Idle;
     }
 
-    /// <summary>相位采样：有播放后端时跟 Clip，否则跟模拟时钟。</summary>
-    public float SamplePhaseNormalized() =>
-        Animation != null && Animation.HasPlayback
-            ? Animation.NormalizedTime
-            : SimulationNormalizedTime;
-
-    /// <summary>按逻辑步推进模拟时钟；有播放后端时对齐 Clip，否则 0～1 循环。</summary>
-    public void AdvanceSimulationClock(float deltaTime)
+    /// <summary>恢复纠偏保存的整数时钟与键。</summary>
+    public void RestorePhaseClock(AnimationKey key, int phaseFrame)
     {
-        if (Animation != null && Animation.HasPlayback)
+        PhaseAnimationKey = key;
+        PhaseFrame = Mathf.Max(0, phaseFrame);
+    }
+
+    /// <summary>当前逻辑步完成后唯一推进一次 PhaseFrame。</summary>
+    public void AdvancePhaseFrame() => PhaseFrame++;
+
+    /// <summary>按 Key+PhaseFrame 采样 Locomotion；切键时先把相位帧归零。</summary>
+    public void SampleLocomotion(AnimationKey key, float? fadeDuration = null)
+    {
+        if (PhaseAnimationKey != key)
         {
-            SimulationNormalizedTime = Animation.NormalizedTime;
-            return;
+            PhaseAnimationKey = key;
+            PhaseFrame = 0;
+            FootCycle.ResetCycle();
         }
 
-        SimulationNormalizedTime += Mathf.Max(0f, deltaTime);
-        if (SimulationNormalizedTime >= 1f)
-            SimulationNormalizedTime -= Mathf.Floor(SimulationNormalizedTime);
+        LocomotionClipTiming timing = RequireTiming(key);
+        Animation?.SampleLocomotion(key, PhaseFrame, in timing, fadeDuration);
     }
 
     /// <summary>当前视觉倾身 Roll（度）；权威根不受影响。</summary>
@@ -139,11 +143,11 @@ public sealed class LocomotionContext
     /// <summary>Stop.Enter 以 0 fade 硬切（Pivot 结束接急停）。</summary>
     public bool StopPlayHardCut { get; set; }
 
-    /// <summary>Run 满输入累计时长；进 Sprint 或离开跑档时清零。</summary>
-    public float RunHoldSeconds { get; set; }
+    /// <summary>Run 满输入累计逻辑帧；进 Sprint 或离开跑档时清零。</summary>
+    public int RunHoldFrames { get; set; }
 
-    /// <summary>Gait 下连续无移动输入累计；未超宽限不进 Stop。</summary>
-    public float GaitInputGapSeconds { get; set; }
+    /// <summary>Gait 下连续无移动输入逻辑帧；未超宽限不进 Stop。</summary>
+    public int GaitInputGapFrames { get; set; }
 
     /// <summary>本帧输入/运动学快照；由 StateMachine.Tick 前填充。</summary>
     public LocomotionInputSnapshot FrameSnapshot { get; set; }
@@ -473,7 +477,8 @@ public sealed class LocomotionContext
         if (phase == LocomotionPhase.Stop)
             Motor.FaceWorldDirection(StopEnterFacing);
 
-        if (!RootMotionPlayer.TryConsume(
+        if (!RootMotionPlayer.TrySample(
+                PhaseFrame,
                 applyYaw,
                 out Vector3 worldDelta,
                 out float yawDelta))
@@ -484,18 +489,23 @@ public sealed class LocomotionContext
             Motor.ApplyYawDegrees(yawDelta);
     }
 
-    /// <summary>当前相位 Clip 是否播完。</summary>
+    /// <summary>当前键是否到达配置的退出帧；Full/Headless 使用同一判断。</summary>
     public bool IsCurrentPhaseClipFinished() =>
-        Animation != null && Animation.HasPlayback
-            ? Animation.HasFinishedCurrent
-            : SimulationNormalizedTime >= 0.999f;
+        PhaseFrame >= RequireTiming(PhaseAnimationKey).ExitFrame;
 
-    /// <summary>Start→Gait 归一化门槛或 Clip 结束。</summary>
+    /// <summary>Start 到达配置的 handoff 或退出帧时进入 Gait。</summary>
     public bool IsStartFinished()
     {
-        float gate = Profile != null ? Profile.StartToGaitNormalized : 1f;
-        if (gate < 0.999f && SamplePhaseNormalized() >= gate)
-            return true;
-        return IsCurrentPhaseClipFinished();
+        LocomotionClipTiming timing = RequireTiming(ActiveStartKey);
+        int gate = timing.HandoffFrame > 0 ? timing.HandoffFrame : timing.ExitFrame;
+        return PhaseFrame >= gate;
+    }
+
+    /// <summary>取得当前 Profile 的严格帧时序；缺失配置立即失败。</summary>
+    public LocomotionClipTiming RequireTiming(AnimationKey key)
+    {
+        if (Profile == null)
+            throw new System.InvalidOperationException("LocomotionContext 缺少 CharacterLocomotionProfile。");
+        return Profile.RequireClipTiming(key);
     }
 }

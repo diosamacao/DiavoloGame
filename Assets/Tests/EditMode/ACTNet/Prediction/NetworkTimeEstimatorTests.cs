@@ -17,9 +17,9 @@ public sealed class NetworkTimeEstimatorTests
         Assert.That(clock.JitterMs, Is.GreaterThan(0));
     }
 
-    /// <summary>插值延迟至少一格，且随 RTT 增加。</summary>
+    /// <summary>已到达 latest 不重复扣 RTT/2；播放缓冲只随 jitter 增加。</summary>
     [Test]
-    public void InterpolationDelay_GrowsWithRtt()
+    public void InterpolationDelay_IgnoresOneWayLatencyAndCoversJitter()
     {
         var low = new NetworkTimeEstimator();
         low.ObserveRtt(0);
@@ -27,6 +27,8 @@ public sealed class NetworkTimeEstimatorTests
         high.ObserveRtt(100);
 
         Assert.That(low.InterpolationDelayTicks, Is.GreaterThanOrEqualTo(1));
+        Assert.That(high.InterpolationDelayMs, Is.EqualTo(low.InterpolationDelayMs));
+        high.ObserveRtt(260);
         Assert.That(high.InterpolationDelayMs, Is.GreaterThan(low.InterpolationDelayMs));
         Assert.That(high.InterpolationDelayMs, Is.LessThanOrEqualTo(150));
     }

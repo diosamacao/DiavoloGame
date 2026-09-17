@@ -83,6 +83,6 @@ public sealed class ActOwnerReplicationAdapterTests
             healthMilli,
             flagsPacked: 0,
             VitalityReplicationEdge.None,
-            locomotionNormalizedMilli: 0);
+            locomotionPhaseFrame: 0);
     }
 }

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 /// <summary>服务端 Session 状态机：版本校验、玩家预留、保活、超时和应用消息路由。Transport 经 ChannelMux 补可靠控制/事件。</summary>
 public sealed class ServerSession : IDisposable
 {
+    const int MaxQueuedApplicationPackets = 256;
     readonly ChannelMuxTransport _transport;
     readonly SessionConfig _config;
     readonly ConnectionRegistry _connections = new();
@@ -12,6 +13,12 @@ public sealed class ServerSession : IDisposable
     readonly Queue<SessionApplicationPacket> _applicationPackets = new();
     readonly List<NetConnectionId> _connectionScratch = new();
     bool _disposed;
+
+    /// <summary>控制消息发送失败次数，供基础运行指标读取。</summary>
+    public int ControlSendFailures { get; private set; }
+
+    /// <summary>最近一次控制发送失败的结构化原因。</summary>
+    public string LastControlSendError { get; private set; } = string.Empty;
 
     /// <summary>创建并立即启动服务端 Transport 的 Session。</summary>
     public ServerSession(INetTransport transport, SessionConfig config, NetEndpoint endpoint)
@@ -30,6 +37,9 @@ public sealed class ServerSession : IDisposable
 
     /// <summary>底层 Transport 实际绑定端点。</summary>
     public NetEndpoint? LocalEndpoint => _transport.LocalEndpoint;
+
+    /// <summary>App 正文预算：MTU - Mux 头 - Session 信封。</summary>
+    public int MaxApplicationBodyBytes => _transport.MaxPayloadBytes - SessionCodec.EnvelopeHeaderBytes;
 
     /// <summary>轮询 Transport、处理 Session 控制消息并剔除超时连接。</summary>
     public void Poll(long nowMs)
@@ -208,6 +218,15 @@ public sealed class ServerSession : IDisposable
             return;
         if (_connections.IsJoined(packet.ConnectionId))
         {
+            if (_applicationPackets.Count >= MaxQueuedApplicationPackets)
+            {
+                // 不淘汰已排队的旧命令/恢复请求；断开制造背压的连接并清掉它自己的排队项。
+                DisconnectInternal(
+                    packet.ConnectionId,
+                    DisconnectReason.InternalError,
+                    notifyClient: true);
+                return;
+            }
             _applicationPackets.Enqueue(new SessionApplicationPacket(
                 packet.ConnectionId,
                 messageType,
@@ -289,8 +308,10 @@ public sealed class ServerSession : IDisposable
                     NetChannel.ControlReliableOrdered,
                     SessionCodec.WriteKick(kickReason));
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                ControlSendFailures++;
+                LastControlSendError = $"connection={connectionId.Value};kind=kick;error={ex.Message}";
             }
         }
 

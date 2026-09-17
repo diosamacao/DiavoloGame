@@ -13,19 +13,91 @@ MonoBehaviour:
   m_Name: Unagi_Enemy_LocomotionSO
   m_EditorClassIdentifier: 
   animationProfile: {fileID: 11400000, guid: da6e7ea8e735d7647b4c4bc99a6d6d6f, type: 2}
+  animSet:
+    walkLoopForward: 1
+    walkLoopBack: 1
+    walkLoopLeft: 9
+    walkLoopRight: 10
+    walkStartForward: 11
+    walkStartBack: 11
+    walkStartLeft: 12
+    walkStartRight: 13
+    runLoopForward: 2
+    sprintLoopForward: 7
+    runStartForward: 3
+    idle: 0
+    pivotTurn: 4
+    stopL: 5
+    stopR: 6
+    startEnd: 8
   idleInputThreshold: 0.01
   stopMinSpeedFactor: 0.5
   pivotAngleDegrees: 135
-  pivotInputUnlockSeconds: 0.08
-  pivotRotationSmoothTime: 0.5
-  gaitInputGapGraceSeconds: 0.15
+  gaitInputGapGraceFrames: 9
+  legacyGaitInputGapGraceSeconds: 0
+  legacyPivotAnimAuthNormalized: 0
+  cardinalEpsilon: 0.2
+  cardinalMinDwellFrames: 3
   gaitPolicy:
     maxGait: 2
     allowPivot: 1
-    sprintAfterRunSeconds: 3
-  gaitRotationMode: 1
-  startToGaitNormalized: 1
+    sprintAfterRunFrames: 180
+    legacySprintAfterRunSeconds: 0
+  facingMode: 1
   interruptFadeDuration: 0.08
+  legacyStartToGaitNormalized: 0
+  clipTimings:
+  - key: 0
+    durationFrames: 242
+    loop: 1
+    exitFrame: 242
+    handoffFrame: 242
+  - key: 1
+    durationFrames: 76
+    loop: 0
+    exitFrame: 76
+    handoffFrame: 76
+  - key: 2
+    durationFrames: 37
+    loop: 1
+    exitFrame: 37
+    handoffFrame: 37
+  - key: 3
+    durationFrames: 69
+    loop: 0
+    exitFrame: 69
+    handoffFrame: 69
+  - key: 4
+    durationFrames: 70
+    loop: 0
+    exitFrame: 70
+    handoffFrame: 35
+  - key: 5
+    durationFrames: 222
+    loop: 0
+    exitFrame: 222
+    handoffFrame: 222
+  - key: 6
+    durationFrames: 222
+    loop: 0
+    exitFrame: 222
+    handoffFrame: 222
+  - key: 7
+    durationFrames: 32
+    loop: 1
+    exitFrame: 32
+    handoffFrame: 32
+  - key: 8
+    durationFrames: 217
+    loop: 0
+    exitFrame: 217
+    handoffFrame: 217
+  sprintLean:
+    maxLeanDeg: 8
+    deadZoneDeg: 4
+    maxEngageYawDeg: 45
+    leanEngageSmoothTime: 0.22
+    leanRecoverSmoothTime: 0.28
   walkFootPlants: []
   runFootPlants: []
   sprintFootPlants: []
@@ -35,11 +107,10 @@ MonoBehaviour:
   footstepVolume: 1
   stopUseRootMotion: 1
   pivotUseRootMotion: 1
-  pivotApplyRootYaw: 0
   rootMotionPositionScale: 1
   startEndRootMotion:
     valid: 1
-    duration: 3.6166668
+    frameCount: 0
     localPositions:
     - {x: 0, y: 0, z: 0}
     - {x: -0.002342103, y: -0.008500099, z: 0.022405267}
@@ -480,7 +551,7 @@ MonoBehaviour:
     - -23.802948
   stopLRootMotion:
     valid: 1
-    duration: 3.6833336
+    frameCount: 0
     localPositions:
     - {x: 0, y: 0, z: 0}
     - {x: -0.0046743117, y: -0.020087838, z: 0.06976721}
@@ -931,7 +1002,7 @@ MonoBehaviour:
     - -34.695984
   stopRRootMotion:
     valid: 1
-    duration: 3.6833336
+    frameCount: 0
     localPositions:
     - {x: 0, y: 0, z: 0}
     - {x: -0.0046743117, y: -0.020087838, z: 0.06976721}
@@ -1382,7 +1453,7 @@ MonoBehaviour:
     - -34.695984
   pivotTurnRootMotion:
     valid: 1
-    duration: 1.1500001
+    frameCount: 0
     localPositions:
     - {x: 0, y: 0, z: 0}
     - {x: -0.014554732, y: -0.024154842, z: 0.14148304}

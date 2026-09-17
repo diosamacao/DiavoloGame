@@ -13,19 +13,101 @@ MonoBehaviour:
   m_Name: MonsterLocomotion
   m_EditorClassIdentifier: 
   animationProfile: {fileID: 11400000, guid: 38bb8422962bc454aa6af616a535d635, type: 2}
+  animSet:
+    walkLoopForward: 1
+    walkLoopBack: 1
+    walkLoopLeft: 9
+    walkLoopRight: 10
+    walkStartForward: 11
+    walkStartBack: 11
+    walkStartLeft: 12
+    walkStartRight: 13
+    runLoopForward: 2
+    sprintLoopForward: 7
+    runStartForward: 3
+    idle: 0
+    pivotTurn: 4
+    stopL: 5
+    stopR: 6
+    startEnd: 8
   idleInputThreshold: 0.01
   stopMinSpeedFactor: 0.5
   pivotAngleDegrees: 135
-  pivotInputUnlockSeconds: 0.08
-  pivotRotationSmoothTime: 0.5
-  gaitInputGapGraceSeconds: 0.15
+  gaitInputGapGraceFrames: 9
+  legacyGaitInputGapGraceSeconds: 0
+  legacyPivotAnimAuthNormalized: 0
+  cardinalEpsilon: 0.2
+  cardinalMinDwellFrames: 3
   gaitPolicy:
     maxGait: 1
     allowPivot: 0
-    sprintAfterRunSeconds: 3
-  gaitRotationMode: 3
-  startToGaitNormalized: 1
+    sprintAfterRunFrames: 180
+    legacySprintAfterRunSeconds: 0
+  facingMode: 3
   interruptFadeDuration: 0.08
+  legacyStartToGaitNormalized: 0
+  clipTimings:
+  - key: 0
+    durationFrames: 142
+    loop: 1
+    exitFrame: 142
+    handoffFrame: 142
+  - key: 1
+    durationFrames: 122
+    loop: 1
+    exitFrame: 122
+    handoffFrame: 122
+  - key: 2
+    durationFrames: 55
+    loop: 1
+    exitFrame: 55
+    handoffFrame: 55
+  - key: 3
+    durationFrames: 79
+    loop: 0
+    exitFrame: 79
+    handoffFrame: 79
+  - key: 5
+    durationFrames: 100
+    loop: 0
+    exitFrame: 100
+    handoffFrame: 100
+  - key: 6
+    durationFrames: 100
+    loop: 0
+    exitFrame: 100
+    handoffFrame: 100
+  - key: 8
+    durationFrames: 100
+    loop: 0
+    exitFrame: 100
+    handoffFrame: 100
+  - key: 9
+    durationFrames: 122
+    loop: 1
+    exitFrame: 122
+    handoffFrame: 122
+  - key: 10
+    durationFrames: 122
+    loop: 1
+    exitFrame: 122
+    handoffFrame: 122
+  - key: 12
+    durationFrames: 177
+    loop: 0
+    exitFrame: 177
+    handoffFrame: 177
+  - key: 13
+    durationFrames: 177
+    loop: 0
+    exitFrame: 177
+    handoffFrame: 177
+  sprintLean:
+    maxLeanDeg: 8
+    deadZoneDeg: 4
+    maxEngageYawDeg: 45
+    leanEngageSmoothTime: 0.22
+    leanRecoverSmoothTime: 0.28
   walkFootPlants: []
   runFootPlants: []
   sprintFootPlants: []
@@ -35,11 +117,10 @@ MonoBehaviour:
   footstepVolume: 1
   stopUseRootMotion: 1
   pivotUseRootMotion: 1
-  pivotApplyRootYaw: 0
   rootMotionPositionScale: 1
   startEndRootMotion:
     valid: 1
-    duration: 1.6500001
+    frameCount: 0
     localPositions:
     - {x: 0, y: 0, z: 0}
     - {x: 0.03650093, y: 0, z: 0.000000057928105}
@@ -246,7 +327,7 @@ MonoBehaviour:
     - -129.18423
   stopLRootMotion:
     valid: 1
-    duration: 1.6500001
+    frameCount: 0
     localPositions:
     - {x: 0, y: 0, z: 0}
     - {x: 0.03650093, y: 0, z: 0.000000057928105}
@@ -453,7 +534,7 @@ MonoBehaviour:
     - -129.18423
   stopRRootMotion:
     valid: 1
-    duration: 1.6500001
+    frameCount: 0
     localPositions:
     - {x: 0, y: 0, z: 0}
     - {x: 0.03650093, y: 0, z: 0.000000057928105}
@@ -660,6 +741,6 @@ MonoBehaviour:
     - -129.18423
   pivotTurnRootMotion:
     valid: 0
-    duration: 0
+    frameCount: 0
     localPositions: []
     localYaws: []

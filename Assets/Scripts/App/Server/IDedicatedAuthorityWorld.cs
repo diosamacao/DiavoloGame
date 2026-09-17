@@ -11,7 +11,7 @@ public interface IDedicatedAuthorityWorld : System.IDisposable
     /// <summary>只移除该连接的权威 Actor，不影响其他人。</summary>
     void RemovePlayer(NetConnectionId connectionId);
 
-    /// <summary>用单调时间推进权威 World；步进内会排队本步 ReplicationFrame。</summary>
+    /// <summary>用单调时间推进权威 World；步进内会排队本步 V2 下行包。</summary>
     void Advance(long nowMs);
 
     /// <summary>只读预览下一次 Advance 会步进几次；Listen 按此次数发命令，禁止按渲染帧预测。</summary>
@@ -25,6 +25,15 @@ public interface IDedicatedAuthorityWorld : System.IDisposable
 
     /// <summary>取出本拍 AfterLogicStep 编好的下行正文；调用方负责发送后列表可复用。</summary>
     void DrainOutboundReplication(System.Collections.Generic.List<DedicatedReplicationSend> results);
+
+    /// <summary>注入 App 正文预算，必须已扣除 Mux 与 Session 固定外壳。</summary>
+    void ConfigureReplicationBodyBudget(int bodyBudgetBytes);
+
+    /// <summary>发送成功后提交对应包基线。</summary>
+    void CommitReplication(NetConnectionId connectionId, ReplicationPacketCommitToken token);
+
+    /// <summary>发送异常或背压时拒绝对应包，保留基线供下 Tick 重试。</summary>
+    void RejectReplication(NetConnectionId connectionId, ReplicationPacketCommitToken token);
 
     /// <summary>取出本拍权威命中事件；只含当前帧，禁止再带 W7 冗余窗口。</summary>
     void DrainOutboundEvents(System.Collections.Generic.List<DedicatedEventSend> results);

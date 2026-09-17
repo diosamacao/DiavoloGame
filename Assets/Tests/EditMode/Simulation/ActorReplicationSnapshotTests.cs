@@ -29,7 +29,7 @@ public sealed class ActorReplicationSnapshotTests
             healthMilli: 99000,
             flagsPacked: 17,
             VitalityReplicationEdge.Hit,
-            locomotionNormalizedMilli: 1337);
+            locomotionPhaseFrame: 1337);
 
         byte[] payload = ActorReplicationSnapshotCodec.Encode(in snapshot);
         // ActorId 线值改为 -1，确认提取后仍保持既有“任意非正值均为 Invalid”语义。
@@ -94,7 +94,7 @@ public sealed class ActorReplicationSnapshotTests
         Assert.That(snapshot.ActionId, Is.Zero);
         Assert.That(snapshot.GraphNodeKey, Is.Zero);
         Assert.That(snapshot.ActionFrame, Is.Zero);
-        Assert.That(snapshot.LocomotionNormalizedMilli, Is.Zero);
+        Assert.That(snapshot.LocomotionPhaseFrame, Is.Zero);
     }
 
     /// <summary>快照类型不得包含本地表现字段。</summary>
@@ -124,8 +124,8 @@ public sealed class ActorReplicationSnapshotTests
             0ul,
             1800);
         var command = new ClientCommand(7, senderPlayerId: 1, in input);
-        ClientCommand restored = ReplicationCodec.ReadClientCommand(
-            ReplicationCodec.WriteClientCommand(in command));
+        ClientCommand restored = RoomCodec.ReadClientCommandBatch(
+            RoomCodec.WriteClientCommandBatch(new[] { command }))[0];
 
         Assert.That(restored.Equals(command), Is.True);
         Assert.That(typeof(ClientCommand).GetProperty("HealthMilli"), Is.Null);

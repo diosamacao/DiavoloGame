@@ -18,6 +18,9 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
     readonly HashSet<NetConnectionId> _pendingJoinSnapshots = new();
     readonly HashSet<NetConnectionId> _pendingFullRecovery = new();
     readonly List<ReplicationEntityState> _relevantStates = new();
+    int _replicationBodyBudget = TransportMtuGate.DefaultMaxDatagramBytes
+        - TransportMtuGate.HeaderBytes
+        - SessionCodec.EnvelopeHeaderBytes;
     bool _disposed;
 
     /// <summary>绑定已关闭自动 Tick 的 SimulationHost 与场景内容 Registry。</summary>
@@ -93,6 +96,7 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
                 out InputFrame preview,
                 out _,
                 out _)
+            && guest.CanAcceptGameplayInput
             && preview.WasPressed(InputButton.SwitchCharacter))
         {
             guest.TryResolveSwitch();
@@ -103,7 +107,8 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
             _host.CurrentFrame,
             guest.Actor.SimulationId,
             commands,
-            guest.LastAppliedFrameHint);
+            guest.LastAppliedFrameHint,
+            guest.CanAcceptGameplayInput);
         if (!result.Applied)
             return;
 
@@ -169,6 +174,28 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
     }
 
     /// <inheritdoc />
+    public void ConfigureReplicationBodyBudget(int bodyBudgetBytes)
+    {
+        if (bodyBudgetBytes < ReplicationProtocolV2Codec.SnapshotHeaderBytes)
+            throw new ArgumentOutOfRangeException(nameof(bodyBudgetBytes));
+        _replicationBodyBudget = bodyBudgetBytes;
+    }
+
+    /// <inheritdoc />
+    public void CommitReplication(NetConnectionId connectionId, ReplicationPacketCommitToken token)
+    {
+        if (_replicationByConnection.TryGetValue(connectionId, out ReplicationServer server))
+            server.Commit(token);
+    }
+
+    /// <inheritdoc />
+    public void RejectReplication(NetConnectionId connectionId, ReplicationPacketCommitToken token)
+    {
+        if (_replicationByConnection.TryGetValue(connectionId, out ReplicationServer server))
+            server.Reject(token);
+    }
+
+    /// <inheritdoc />
     public void DrainOutboundEvents(List<DedicatedEventSend> results)
     {
         if (results == null)
@@ -203,7 +230,10 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
         if (_guests.Count == 0)
             return;
         foreach (ActGameGuest guest in _guests.Values)
+        {
+            guest.ProcessDeathCloseoutAfterLogicStep();
             guest.CompleteFinishedExits();
+        }
         EnqueueFrames(authorityFrame, connections: null);
     }
 
@@ -212,6 +242,9 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
     /// </summary>
     void EnqueueFrames(long authorityFrame, HashSet<NetConnectionId> connections)
     {
+        // 一个 Poll 追赶多逻辑步时只保留最后一份未发送完整状态；先 Reject 旧票据，
+        // 避免纯 Prepare 在提交前为同一生命周期重复分配序列。
+        RejectSupersededReplication();
         CopyGuests(_guestSnapshot);
         _authority.CaptureAuthorityActors(_guestSnapshot, _host);
         ReplicatedHitEvent[] hits = _authority.CopyHits(_host.FrameHits);
@@ -224,8 +257,7 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
             if (connections != null && !connections.Contains(pair.Key))
                 continue;
             if (!_replicationByConnection.TryGetValue(pair.Key, out ReplicationServer replication)
-                || pair.Value?.Actor == null
-                || !pair.Value.Actor.SimulationId.IsValid)
+                || pair.Value == null)
             {
                 continue;
             }
@@ -233,42 +265,48 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
             // W11：Join/恢复强制全量 Spawn；平时按连接兴趣 + Compact 节拍/预算。
             long appliedHint = pair.Value.AppliedHintThisTick;
             pair.Value.AppliedHintThisTick = 0;
-            byte[] applicationBytes = ActReplicationApplicationPayloadCodec.Encode(
-                new ActReplicationApplicationPayload(
+            SimActorId[] partyIds = pair.Value.CopyPartyActorIds();
+            byte[] metadata = ActReplicationSnapshotMetaCodec.Encode(
+                new ActReplicationSnapshotMeta(
                     appliedHint,
-                    null,
-                    pair.Value.CopyPartyActorIds(),
+                    pair.Value.LastAppliedFrameHint,
+                    partyIds,
+                    pair.Value.CopyPartyFlags(),
                     pair.Value.Coordinator.ActiveIndex,
-                    pair.Value.LastAppliedFrameHint));
+                    pair.Value.Coordinator.IsPartyWiped));
             bool forceFull = connections != null
                 || _pendingFullRecovery.Remove(pair.Key);
-            if (forceFull)
-                replication.ResetBaseline();
 
-            SimActorId observerId = pair.Value.Actor.SimulationId;
+            SimActorId observerId = ResolveObserverId(pair.Value.Actor, partyIds);
             _authority.CopyRelevantStates(
                 observerId,
                 ReplicationInterest.DefaultRadiusMm,
                 _relevantStates);
-            ReplicationBuildOptions options = ReplicationBuildOptions.Compact
-                .WithPreferred(new NetEntityId(observerId.Value))
-                .WithForceFull(forceFull);
-            ReplicationFrame frame = replication.BuildFrame(
+            ReplicationTickDelta delta = replication.PrepareTickDelta(
                 new NetTick(tick),
                 _relevantStates,
-                applicationBytes,
-                options);
-            _outbound.Add(new DedicatedReplicationSend(
-                pair.Key,
-                ReplicationFrameCodec.Encode(frame)));
-            if (frame.Sequence.Value == 0)
+                metadata,
+                _replicationBodyBudget,
+                new NetEntityId(observerId.Value),
+                forceFull);
+            for (int i = 0; i < delta.Packets.Length; i++)
             {
-                Debug.Log(
-                    $"DedicatedAuthorityWorld: 首帧 Spawn connection={pair.Key} "
-                    + $"entity={pair.Value.Actor.SimulationId.Value} tick={tick} "
-                    + $"entities={_authority.EntityStates.Count}。");
+                PreparedReplicationPacket packet = delta.Packets[i];
+                _outbound.Add(new DedicatedReplicationSend(pair.Key, packet.ReliableLifecycle, packet.Body, packet.Token));
             }
         }
+    }
+
+    /// <summary>拒绝本 Poll 内尚未发送且已被更新状态覆盖的准备包。</summary>
+    void RejectSupersededReplication()
+    {
+        for (int i = 0; i < _outbound.Count; i++)
+        {
+            DedicatedReplicationSend send = _outbound[i];
+            if (_replicationByConnection.TryGetValue(send.ConnectionId, out ReplicationServer server))
+                server.Reject(send.Token);
+        }
+        _outbound.Clear();
     }
 
     /// <summary>本帧命中按连接各发一份可靠事件；不含历史窗口。</summary>
@@ -291,6 +329,16 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
         results.Clear();
         foreach (ActGameGuest guest in _guests.Values)
             results.Add(guest);
+    }
+
+    /// <summary>队灭后 Active 为空时仍以首个阵容实体维持兴趣与最终 Meta 下发。</summary>
+    static SimActorId ResolveObserverId(CharacterActor active, SimActorId[] partyIds)
+    {
+        if (active != null && active.SimulationId.IsValid)
+            return active.SimulationId;
+        for (int i = 0; i < partyIds.Length; i++)
+            if (partyIds[i].IsValid) return partyIds[i];
+        throw new InvalidOperationException("连接阵容没有可用于复制兴趣的 ActorId。");
     }
 
     static ActGameSessionServices CreateServices(ACTGameArchitecture architecture)

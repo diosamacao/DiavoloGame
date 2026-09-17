@@ -22,7 +22,7 @@ public sealed class CharacterAnimationService : IDisposable, ILocomotionAnimClip
     /// <summary>驱动骨骼的 Animator（Playable 输出目标）；供 Root Motion 等桥接使用。</summary>
     public Animator Animator => animator;
 
-    /// <summary>当前主 Clip 归一化时间；供 Locomotion 落脚与相位结束判定。</summary>
+    /// <summary>当前主 Clip 归一化时间；仅供 Observer 表现诊断，不得参与 Locomotion 状态判断。</summary>
     public float NormalizedTime => playback != null ? playback.NormalizedTime : 0f;
 
     /// <summary>当前主 Clip 时间（秒）；无片时为 0。供 Observer 与采样动作时间比偏差。</summary>
@@ -37,7 +37,7 @@ public sealed class CharacterAnimationService : IDisposable, ILocomotionAnimClip
         }
     }
 
-    /// <summary>当前主 Clip 是否已播完（循环 Clip 视为未结束）。</summary>
+    /// <summary>当前主 Clip 是否已播完；仅供非 Locomotion 表现查询。</summary>
     public bool HasFinishedCurrent =>
         playback != null && playback.CurrentClip != null && playback.HasFinished;
 
@@ -105,6 +105,28 @@ public sealed class CharacterAnimationService : IDisposable, ILocomotionAnimClip
         float fade = fadeDuration ?? profile.DefaultCrossFadeDuration;
         playback.Play(clip, fade);
         _currentKey = key;
+    }
+
+    /// <summary>以 AnimationKey + PhaseFrame 作为 Locomotion 唯一采样输入。</summary>
+    public void SampleLocomotion(
+        AnimationKey key,
+        int phaseFrame,
+        in LocomotionClipTiming timing,
+        float? fadeDuration = null)
+    {
+        if (_locked)
+            return;
+        if (!timing.IsValid || timing.Key != key)
+            throw new ArgumentException($"Locomotion timing 与动画键 {key} 不匹配。", nameof(timing));
+        if (profile == null || !profile.TryGetClip(key, out AnimationClip requiredClip) || requiredClip == null)
+            throw new InvalidOperationException($"CharacterAnimationService: {key} 缺少 AnimationClip，不能确定性采样。");
+
+        Play(key, fadeDuration);
+        if (playback == null || !playback.IsValid || playback.CurrentClip == null)
+            return;
+
+        int sampleFrame = timing.ResolveSampleFrame(phaseFrame);
+        playback.Seek(sampleFrame / (float)ActionSim.LogicHz);
     }
 
     public void PlayClip(AnimationClip clip, float fadeDuration = 0.1f)

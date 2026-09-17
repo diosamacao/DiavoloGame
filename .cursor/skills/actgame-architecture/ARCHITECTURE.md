@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-09-06（本体 Parry 意图；弹刀卡肉读窗）
+> Last audited: 2026-09-16（Locomotion PhaseFrame 整数时钟）
 
 ## 项目概述
 
@@ -195,12 +195,15 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `PartySlotSelector` | 单键按槽位正序绕回，跳过 Empty / Exiting / Dead |
 | `PartyAssistPoints` | 队共享支援点口袋；数值来自 Loadout，默认上限 6 / 开局 3 / 耗 1；扣费只在 Coordinator 裁定成功时发生 |
 | `WorldAssistCueBoard` | 权威帧收集敌人 `AssistCue`；切人读上一拍，优先锁定目标否则最小 OwnerId |
-| `PartyCombatCoordinator` | 按 Cue / 点数 / AssistStyle 输出 DualPresence 或 InstantReplace |
-| `PlayerController` | 为每个非空槽创建独立 Autonomous Actor；只让 Active 接收输入，预测切人时同时推进 Exiting |
-| `ActGameGuest` | 权威侧一座位多稳定 Actor；按同一输入边沿切 Active，全部槽独立注册、命中与复制 |
+| `PartyDeathSwitchPolicy` / `PartyDeathSwitchGate` | 纯整数帧死亡门禁：最短 15 帧，以 `DeathSequenceComplete` 为主信号，最晚在死亡 Action 总帧 + 15 提交 |
+| `PartyCombatCoordinator` | 按 Cue / 点数 / AssistStyle 输出常规切人；死亡门禁打开时原子提交 Dead→Active 或 PartyWiped |
+| `PlayerController` | 为每个非空槽创建独立 Autonomous Actor；只让 Active 接收输入，镜像死亡自动换人并用 ActiveSlot + FlagsPacked 纠正各槽 |
+| `ActGameGuest` | 权威侧一座位多稳定 Actor；按输入边沿切 Active，并在 AfterLogicStep 提交死亡自动换人/队灭 |
 | `ActReplicationApplicationPayload` | 每帧下发 Owner 槽 ActorId、ActiveSlot 与累计命令 ACK；客户端据此跳过自有 Proxy 并纠正预测 |
 
 `SwitchCharacter` 上行仍是单条 `ClientCommand`。无 Cue 时权威先裁定普通 DualPresence：旧槽空闲立即 `SwitchOut`，已有 Action/受击招时到首次 Recovery 再切 `SwitchOut`，交接前必须离开 `Hit`，最终只在 `SwitchOut` Recovery 后 Inactive。金/红 Cue 走 InstantReplace：旧槽当帧 Inactive，上场只起 `AssistParry` / `AssistEvade` / `SwitchPerfectDodge`。接触成功由 `CombatHitPipeline` 在玩家 `AssistParryWindow` 内 `IssueParried`、切 `AssistParrySuccess`，卡肉帧读该窗。上场角色另有 `GameplayIntentType.Parry` 本体举刀，不走切人协调器。Graph Entry 与 Timeline 窗仍需 Editor 配置，Play 验收前状态保持 🟡。
+
+Active 死亡后，`DedicatedAuthorityWorld.OnAfterLogicStep` 推进门禁并在同帧 Capture 前调用 `ActGameGuest.ProcessDeathCloseoutAfterLogicStep`。死亡槽直接写 `Dead`，下一存活槽直接 `Active` 并请求 `SwitchIn`；该路径禁止进入 `Exiting` 或请求 `SwitchOut`。队灭期间上行 Hint 继续 ACK，但玩法输入被清空。PartyWiped 独立 V2 Meta 尚未实现，当前由 Coordinator 权威口袋持有；各槽 `PartyMemberState` 已从角色快照 `FlagsPacked` 同步到 Owner。
 
 ### 4. 动作系统（Combat/Actions）
 
@@ -252,10 +255,10 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 |----|------|
 | `AnimationKey` | 逻辑动画键（Idle/Walk/Run/Sprint/Start/PivotTurn/StopL/StopR） |
 | `CharacterAnimationProfile` | AnimationKey → AnimationClip 映射 |
-| `CharacterLocomotionProfile` | 相位阈值、落脚标记、脚步音 |
+| `CharacterLocomotionProfile` | 每 AnimationKey 的 60Hz `LocomotionClipTiming`、帧落脚、脚步音与根位移轨；缺失配置严格失败 |
 | `IAnimationPlayback` | 可替换播放后端契约（Playable / 未来 Animancer） |
 | `PlayableAnimationPlayback` | 双槽 CrossFade PlayableGraph 实现 |
-| `CharacterAnimationService` | 调用层门面：Locomotion `Play`、招式 `PlayClip`、`SetSpeed` |
+| `CharacterAnimationService` | 调用层门面：Locomotion 只消费 `AnimationKey + PhaseFrame`，招式使用 `PlayClip` |
 
 ### 7. 输入（Input）
 

@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-/// <summary>脚步相位真源：按 Clip 归一化时间采样落脚标记，驱动脚步声与急停选脚。</summary>
+/// <summary>脚步相位真源：按 PhaseFrame 与周期帧采样落脚标记。</summary>
 public sealed class LocomotionFootCycle
 {
     FootSide _lastPlanted = FootSide.Right;
@@ -32,6 +32,14 @@ public sealed class LocomotionFootCycle
         _firedMask = 0;
     }
 
+    /// <summary>动画键切换时清除当前周期去重，但保留最近落脚。</summary>
+    public void ResetCycle()
+    {
+        _cycleIndex = -1;
+        _firedMask = 0;
+        PlantedThisFrame = null;
+    }
+
     /// <summary>冻结采样（Stop / Pivot / 离开 Locomotion）；保留 LastPlanted。</summary>
     public void Freeze()
     {
@@ -42,21 +50,18 @@ public sealed class LocomotionFootCycle
     /// <summary>恢复采样；不清除 LastPlanted。</summary>
     public void Unfreeze() => _frozen = false;
 
-    /// <summary>按归一化时间推进；越过标记时更新 LastPlanted 并置 PlantedThisFrame。</summary>
-    public void Tick(float normalizedTime)
+    /// <summary>按整数相位帧推进；越过周期内标记时更新最近落脚。</summary>
+    public void Tick(int phaseFrame, int durationFrames, bool loop)
     {
         PlantedThisFrame = null;
         if (_frozen || _activeMarkers.Length == 0)
             return;
+        if (durationFrames <= 0)
+            throw new ArgumentOutOfRangeException(nameof(durationFrames));
 
-        // 循环 Clip 的周期索引；非循环时 cycle 恒为 0。
-        float wrapped = normalizedTime - Mathf.Floor(normalizedTime);
-        int cycle = Mathf.FloorToInt(normalizedTime);
-        if (normalizedTime < 0f)
-        {
-            wrapped = 0f;
-            cycle = 0;
-        }
+        int frame = Math.Max(0, phaseFrame);
+        int cycle = loop ? frame / durationFrames : 0;
+        int frameInCycle = loop ? frame % durationFrames : Math.Min(frame, durationFrames - 1);
 
         if (cycle != _cycleIndex)
         {
@@ -71,7 +76,10 @@ public sealed class LocomotionFootCycle
                 continue;
 
             FootPlantMarker marker = _activeMarkers[i];
-            if (wrapped + 0.0001f < marker.NormalizedTime)
+            if (marker.Frame < 0 || marker.Frame >= durationFrames)
+                throw new InvalidOperationException(
+                    $"FootPlantMarker frame {marker.Frame} 超出周期 0..{durationFrames - 1}。");
+            if (frameInCycle < marker.Frame)
                 continue;
 
             _firedMask |= bit;

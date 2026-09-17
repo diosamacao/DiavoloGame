@@ -11,6 +11,7 @@ public sealed class LocalClientRuntime : IDisposable
     bool _joined;
     bool _ended;
     bool _disposed;
+    bool _recoverySent;
 
     /// <summary>绑定已启动的 ClientSession；Gameplay 在构造时创建，Join 后才开预测。</summary>
     public LocalClientRuntime(
@@ -103,7 +104,7 @@ public sealed class LocalClientRuntime : IDisposable
         }
 
         _session.SendApplication(
-            (byte)RoomMessageKind.ClientCommand,
+            (byte)ActRoomMessageType.ClientCommand,
             NetChannel.CommandUnreliableRedundant,
             body);
         _gameplay.StepPrediction();
@@ -150,18 +151,18 @@ public sealed class LocalClientRuntime : IDisposable
             EndRoom($"SessionEnded:{_session.LastDisconnectReason}");
     }
 
-    /// <summary>消费 ReplicationFrame；MatchEnd 立即结束房间 Gameplay。</summary>
+    /// <summary>消费 V2 生命周期/快照/事件；MatchEnd 立即结束房间 Gameplay。</summary>
     void DrainApplicationMessages()
     {
         while (_session.TryDequeueApplication(out SessionApplicationPacket packet))
         {
-            if (packet.MessageType == (byte)RoomMessageKind.MatchEnd)
+            if (packet.MessageType == (byte)ActRoomMessageType.MatchEnd)
             {
                 EndRoom("MatchEnded");
                 return;
             }
 
-            if (packet.MessageType == (byte)RoomMessageKind.ReplicationEvent)
+            if (packet.MessageType == (byte)ActRoomMessageType.ReplicationEvent)
             {
                 try
                 {
@@ -175,34 +176,41 @@ public sealed class LocalClientRuntime : IDisposable
                 continue;
             }
 
-            if (packet.MessageType != (byte)RoomMessageKind.ReplicationFrame)
-                continue;
-
             try
             {
-                ActClientFrameApplyStatus status =
-                    _gameplay.ApplyReplicationFrame(packet.Payload);
-                if (status == ActClientFrameApplyStatus.StaleSequence)
+                ActClientReplicationApplyStatus status;
+                if (packet.MessageType == (byte)ActRoomMessageType.ReplicationLifecycle)
+                    status = _gameplay.ApplyReplicationLifecycle(packet.Payload);
+                else if (packet.MessageType == (byte)ActRoomMessageType.ReplicationSnapshot)
+                    status = _gameplay.ApplyReplicationSnapshot(packet.Payload);
+                else
                     continue;
-                if (status == ActClientFrameApplyStatus.Rejected)
+                if (status == ActClientReplicationApplyStatus.Buffered)
+                    continue;
+                if (status == ActClientReplicationApplyStatus.Rejected)
                 {
+                    if (_recoverySent)
+                        continue;
+                    _recoverySent = true;
                     Debug.LogWarning(
-                        $"LocalClientRuntime: 复制帧被拒绝，请求全量恢复。{_gameplay.LastRejectMessage}");
+                        $"LocalClientRuntime: replication recovery requested reason={_gameplay.LastRejectMessage}");
                     _gameplay.ResetReplicationForRecovery();
                     _session.SendApplication(
-                        (byte)RoomMessageKind.ReplicationRecover,
+                        (byte)ActRoomMessageType.ReplicationRecover,
                         NetChannel.EventReliableOrdered,
                         Array.Empty<byte>());
                     continue;
                 }
 
-                if (status == ActClientFrameApplyStatus.OwnerDespawned)
+                if (status == ActClientReplicationApplyStatus.OwnerDespawned)
                 {
                     EndRoom("OwnerDespawned");
                     return;
                 }
 
                 Status = "Joined";
+                if (packet.MessageType == (byte)ActRoomMessageType.ReplicationSnapshot)
+                    _recoverySent = false;
             }
             catch (Exception ex)
             {

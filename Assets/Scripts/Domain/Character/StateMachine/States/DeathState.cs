@@ -13,7 +13,10 @@ public sealed class DeathState : CharacterState
     public override void Enter()
     {
         CharacterReactionRequest request = Context.ConsumeReactionRequest();
-        Context.DeathPresentationComplete = false;
+        Context.DeathSequenceComplete = false;
+        Context.DeathActionTotalFrames = request.ResolvedAction != null
+            ? request.ResolvedAction.TotalFrames
+            : 0;
         _deathActionInstanceId = 0;
         Context.Movement.ClearMoveSnapshot();
         Context.Animation.SetLocked(true);
@@ -21,7 +24,7 @@ public sealed class DeathState : CharacterState
 
         if (request.ResolvedAction == null)
         {
-            Context.DeathPresentationComplete = true;
+            Context.DeathSequenceComplete = true;
             return;
         }
 
@@ -30,7 +33,7 @@ public sealed class DeathState : CharacterState
         if (Context.ActionSim != null && Context.ActionSim.TryStart(in result))
             _deathActionInstanceId = Context.ActionSim.InstanceId;
         else
-            Context.DeathPresentationComplete = true;
+            Context.DeathSequenceComplete = true;
     }
 
     /// <summary>死亡状态只锁定移动；动作整数帧由 CharacterActor 统一推进。</summary>
@@ -40,13 +43,13 @@ public sealed class DeathState : CharacterState
         Context.Movement.ClearMoveSnapshot();
     }
 
-    /// <summary>命中统一结算后，以逻辑动作会话结束标记死亡表现完成。</summary>
+    /// <summary>命中统一结算后，以逻辑动作会话结束标记死亡序列完成。</summary>
     public void ResolvePostCombat()
     {
         if (_deathActionInstanceId > 0
             && Context.ActionSim?.HasEndedActionInstance(_deathActionInstanceId) == true)
         {
-            Context.DeathPresentationComplete = true;
+            Context.DeathSequenceComplete = true;
         }
     }
 }

@@ -15,7 +15,11 @@ public sealed class ActClientRoomGameplay
     readonly HashSet<SimHitKey> _playedHits = new();
     readonly List<SimHitKey> _playedHitOrder = new();
     readonly List<RemoteCharacterProxy> _softBlockers = new();
+    readonly List<SpawnRecord> _appliedSpawns = new();
+    readonly List<EntityRecord> _appliedUpdates = new();
+    readonly List<DespawnRecord> _appliedDespawns = new();
     readonly NetworkTimeEstimator _clock = new();
+    readonly ActReplicationEventCodec.OwnerAssistParryEventQueue _assistParryEvents = new();
 
     PlayerController _localPlayer;
     SessionJoinAccept _accept;
@@ -28,6 +32,9 @@ public sealed class ActClientRoomGameplay
     InputFrame _pendingPredictionInput;
     bool _hasPendingPredictionStep;
     bool _loggedOwnerPredict;
+    ActReplicationSnapshotMeta _appliedMeta;
+    bool _metadataPublishedThisCall;
+    bool _authorityRosterReady;
 
     /// <summary>创建 Client Gameplay 唯一编排入口，并装配内容、Schema、Owner 与 Observer。</summary>
     public ActClientRoomGameplay(
@@ -45,6 +52,15 @@ public sealed class ActClientRoomGameplay
         var schemaRegistry = new ReplicationSchemaRegistry();
         schemaRegistry.Register(characterSchema);
         _replicationClient = new ReplicationClient(schemaRegistry);
+        _replicationClient.Spawned += record => _appliedSpawns.Add(record);
+        _replicationClient.Updated += (record, _) => _appliedUpdates.Add(record);
+        _replicationClient.Despawned += record => _appliedDespawns.Add(record);
+        _replicationClient.MetadataApplied += (bytes, _) =>
+        {
+            _appliedMeta = ActReplicationSnapshotMetaCodec.Decode(bytes);
+            _metadataPublishedThisCall = true;
+        };
+        _replicationClient.RecoveryRequired += reason => LastRejectMessage = reason;
         _owner = new ActOwnerReplicationAdapter(_content);
         _observer = new ActObserverReplicationAdapter(
             _content,
@@ -104,6 +120,9 @@ public sealed class ActClientRoomGameplay
         _owner.BeginSession(new SimActorId(accept.EntityId.Value), _inputFrames);
         _ownerPartyActorIds = new[] { new SimActorId(accept.EntityId.Value) };
         _recentCommands.Clear();
+        _appliedMeta = null;
+        _assistParryEvents.Clear();
+        _authorityRosterReady = false;
         _localPlayer = _contentPrefill.LocalPlayer;
         _loggedOwnerPredict = false;
     }
@@ -164,68 +183,53 @@ public sealed class ActClientRoomGameplay
         _owner.RecordAutonomous(actor, _predictFrame, in _pendingPredictionInput);
     }
 
-    /// <summary>解码并原子应用一帧复制数据，随后执行 Owner/Observer 与 Hit Cue 映射。</summary>
-    public ActClientFrameApplyStatus ApplyReplicationFrame(byte[] body)
+    /// <summary>应用可靠 V2 生命周期；重复 Spawn/Despawn 不重复创建或销毁。</summary>
+    public ActClientReplicationApplyStatus ApplyReplicationLifecycle(byte[] body)
     {
         LastTickBytes = body != null ? body.Length + 2 : -1;
-        if (!_accept.EntityId.IsValid)
-        {
-            throw new InvalidOperationException(
-                "复制帧到达时 Owner Session 尚未 Begin，不能识别 Owner Spawn。");
-        }
-
-        ReplicationFrame frame = ReplicationFrameCodec.Decode(body);
-        ReplicationClientApplyResult result = _replicationClient.ApplyFrame(frame);
-        if (result.Status == ReplicationClientApplyStatus.StaleSequence)
-            return ActClientFrameApplyStatus.StaleSequence;
-        if (result.Status == ReplicationClientApplyStatus.Rejected)
-        {
-            LastRejectMessage = result.Message;
-            return ActClientFrameApplyStatus.Rejected;
-        }
-
-        ActReplicationApplicationPayload application =
-            ActReplicationApplicationPayloadCodec.Decode(frame.ApplicationPayload);
-        SimActorId[] partyActorIds = application.PartyActorIds;
-        if (_localPlayer == null
-            || partyActorIds.Length != _localPlayer.PartyActors.Count
-            || application.ActivePartySlot < 0
-            || application.ActivePartySlot >= partyActorIds.Length)
-        {
-            throw new InvalidOperationException("权威帧缺少与本机 Loadout 对齐的阵容身份。");
-        }
-        _ownerPartyActorIds = partyActorIds;
-        _localPlayer.BindPartySimulationInput(_ownerPartyActorIds, _inputFrames);
-        _localPlayer.SynchronizeAuthorityActiveSlot(
-            application.ActivePartySlot,
-            application.LastAppliedClientFrameHint);
-        SimActorId ownerId = _ownerPartyActorIds[application.ActivePartySlot];
-        _owner.SetActiveOwnerActor(ownerId);
+        _appliedSpawns.Clear();
+        _appliedUpdates.Clear();
+        _appliedDespawns.Clear();
+        _metadataPublishedThisCall = false;
+        ReplicationLifecycle lifecycle = ReplicationProtocolV2Codec.DecodeLifecycle(body);
+        if (!_replicationClient.ApplyLifecycle(lifecycle))
+            return ActClientReplicationApplyStatus.Rejected;
+        SimActorId ownerId = ResolveCurrentOwnerId();
         ActorReplicationSnapshot self = default;
         bool hasSelf = false;
-        _clock.ObserveAuthorityTick(
-            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            frame.Tick.Value);
         _observer.ApplySpawns(
-            result.Spawns,
+            _appliedSpawns.ToArray(),
             _ownerPartyActorIds,
             ownerId,
-            frame.Tick.Value,
+            lifecycle.Tick.Value,
+            ApplyOwnerPartySnapshot,
             ref self,
             ref hasSelf);
-        _observer.ApplyUpdates(
-            result.Updates,
-            _ownerPartyActorIds,
-            ownerId,
-            frame.Tick.Value,
-            ref self,
-            ref hasSelf);
-        if (!_observer.ApplyDespawns(result.Despawns, _ownerPartyActorIds, ownerId))
-            return ActClientFrameApplyStatus.OwnerDespawned;
+        if (!_observer.ApplyDespawns(_appliedDespawns.ToArray(), _ownerPartyActorIds, ownerId))
+            return ActClientReplicationApplyStatus.OwnerDespawned;
+        // ApplyLifecycle 会同步释放已越过屏障的 Snapshot；必须在同次调用完成玩法侧纠正。
+        if (_metadataPublishedThisCall)
+            ApplyCollectedAuthorityState(_replicationClient.LatestSnapshotTick);
+        return ActClientReplicationApplyStatus.Applied;
+    }
 
-        LastAuthorityFrame = frame.Tick.Value;
-        if (hasSelf)
-            _owner.ApplySnapshot(_localPlayer, in self, application.AppliedClientFrameHint);
+    /// <summary>应用或缓冲 V2 快照，并在 Meta 后执行 Owner/Observer 权威纠正。</summary>
+    public ActClientReplicationApplyStatus ApplyReplicationSnapshot(byte[] body)
+    {
+        LastTickBytes = body != null ? body.Length + 2 : -1;
+        _appliedUpdates.Clear();
+        _metadataPublishedThisCall = false;
+        ReplicationSnapshot snapshot = ReplicationProtocolV2Codec.DecodeSnapshot(body);
+        ReplicationSnapshotApplyResult applied = _replicationClient.ApplySnapshot(snapshot);
+        if (_replicationClient.RecoveryRequested)
+            return ActClientReplicationApplyStatus.Rejected;
+        if (applied == ReplicationSnapshotApplyResult.Buffered)
+            return ActClientReplicationApplyStatus.Buffered;
+        // 同 Tick 多批只发布一次 Meta，后续批复用该 Tick 已验证的同一份 Meta。
+        if (_appliedMeta == null)
+            throw new InvalidOperationException("V2 Snapshot 缺少 ACT Meta。");
+
+        ApplyCollectedAuthorityState(snapshot.Tick.Value);
         if (!_loggedOwnerPredict && _owner.CanPredict)
         {
             _loggedOwnerPredict = true;
@@ -234,7 +238,71 @@ public sealed class ActClientRoomGameplay
                 + $"actor={_accept.EntityId.Value}。");
         }
 
-        return ActClientFrameApplyStatus.Applied;
+        return ActClientReplicationApplyStatus.Applied;
+    }
+
+    /// <summary>把本次 ReplicationClient 已发布的 Meta/Update 原子落到 Owner 与 Observer。</summary>
+    void ApplyCollectedAuthorityState(long authorityTick)
+    {
+        ApplyAuthorityMeta(_appliedMeta);
+        SimActorId ownerId = ResolveCurrentOwnerId();
+        ActorReplicationSnapshot self = default;
+        bool hasSelf = false;
+        _clock.ObserveAuthorityTick(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), authorityTick);
+        _observer.ApplyUpdates(
+            _appliedUpdates.ToArray(),
+            _ownerPartyActorIds,
+            ownerId,
+            authorityTick,
+            ApplyOwnerPartySnapshot,
+            ref self,
+            ref hasSelf);
+        LastAuthorityFrame = authorityTick;
+        if (hasSelf)
+            // ACK 使用累计值；单拍 Meta 丢失后仍能在后续 Snapshot 收敛预测历史。
+            _owner.ApplySnapshot(_localPlayer, in self, _appliedMeta.LastAppliedClientFrameHint);
+    }
+
+    /// <summary>应用 Party ids/flags、ActiveSlot 与 PartyWiped 的权威 Meta。</summary>
+    void ApplyAuthorityMeta(ActReplicationSnapshotMeta meta)
+    {
+        SimActorId[] ids = meta.PartyActorIds;
+        int[] flags = meta.PartyFlags;
+        if (_localPlayer == null || ids.Length != _localPlayer.PartyActors.Count)
+            throw new InvalidOperationException("V2 Meta 阵容与本机 Loadout 不一致。");
+        _ownerPartyActorIds = ids;
+        _localPlayer.BindPartySimulationInput(ids, _inputFrames);
+        for (int i = 0; i < ids.Length; i++)
+            _localPlayer.SynchronizeAuthorityPartyState(ids[i], flags[i]);
+        if (meta.PartyWiped)
+        {
+            _localPlayer.SynchronizeAuthorityPartyWiped();
+        }
+        else
+        {
+            _localPlayer.SynchronizeAuthorityActiveSlot(meta.ActivePartySlot, meta.LastAppliedClientFrameHint);
+            _owner.SetActiveOwnerActor(ids[meta.ActivePartySlot]);
+        }
+
+        _authorityRosterReady = true;
+        // 可靠 Event 与 Snapshot 分通道到达；身份绑定完成后重试早到的 Owner 弹刀接触。
+        _assistParryEvents.Retry(_ownerPartyActorIds, TryApplyOwnerAssistParry);
+    }
+
+    /// <summary>返回当前活动 Owner；队灭时退回 Session Owner 仅用于幂等 Despawn 判断。</summary>
+    SimActorId ResolveCurrentOwnerId()
+    {
+        if (_appliedMeta != null && !_appliedMeta.PartyWiped)
+            return _appliedMeta.PartyActorIds[_appliedMeta.ActivePartySlot];
+        return _accept.EntityId.IsValid ? new SimActorId(_accept.EntityId.Value) : SimActorId.Invalid;
+    }
+
+    /// <summary>把每个 Owner 槽快照中的 FlagsPacked 阵容状态同步到本地预测镜像。</summary>
+    void ApplyOwnerPartySnapshot(ActorReplicationSnapshot snapshot)
+    {
+        _localPlayer?.SynchronizeAuthorityPartyState(
+            snapshot.ActorId,
+            snapshot.FlagsPacked);
     }
 
     /// <summary>应用可靠命中事件；按 SimHitKey 只播一次。</summary>
@@ -274,7 +342,9 @@ public sealed class ActClientRoomGameplay
     {
         _observer.DisposeViews();
         _owner.Reset();
-        _replicationClient.ResetRegistry();
+        _replicationClient.ResetForRecovery();
+        _assistParryEvents.Clear();
+        _authorityRosterReady = false;
         _loggedOwnerPredict = false;
     }
 
@@ -286,6 +356,8 @@ public sealed class ActClientRoomGameplay
         _recentCommands.Clear();
         _playedHits.Clear();
         _playedHitOrder.Clear();
+        _assistParryEvents.Clear();
+        _authorityRosterReady = false;
     }
 
     /// <summary>保留最近若干命令，供下一应用包冗余重发。</summary>
@@ -369,6 +441,17 @@ public sealed class ActClientRoomGameplay
         for (int i = 0; i < hits.Length; i++)
         {
             ReplicatedHitEvent hit = hits[i];
+            if (hit.AbsorbedByAssistParry)
+            {
+                // 该事件没有足够的 Observer Action 身份；只做 Owner 接触，不编造第二套动作状态。
+                _assistParryEvents.ApplyOrPend(
+                    in hit,
+                    _ownerPartyActorIds,
+                    _authorityRosterReady,
+                    TryApplyOwnerAssistParry);
+                continue;
+            }
+
             if (!RememberHit(hit.Key))
                 continue;
 
@@ -406,6 +489,25 @@ public sealed class ActClientRoomGameplay
                 }
             }
         }
+    }
+
+    /// <summary>按 PartyActors 稳定 SimulationId 应用弹刀；支持本体招架与切人后的非当前槽。</summary>
+    bool TryApplyOwnerAssistParry(ReplicatedHitEvent hit)
+    {
+        IReadOnlyList<CharacterActor> party = _localPlayer?.PartyActors;
+        if (party == null)
+            return false;
+        for (int i = 0; i < party.Count; i++)
+        {
+            CharacterActor actor = party[i];
+            if (actor == null || actor.SimulationId != hit.Key.TargetId)
+                continue;
+
+            actor.NotifyAssistParryContact();
+            actor.ArmAssistParryHitStopCarry(hit.HitStopFrames);
+            return true;
+        }
+        return false;
     }
 
     /// <summary>记录已播放命中并限制去重窗口大小。</summary>

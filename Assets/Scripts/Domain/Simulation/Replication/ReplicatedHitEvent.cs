@@ -1,7 +1,7 @@
 using System;
 
 /// <summary>
-/// 权威命中边沿。Key 供去重；ActionId 与落点供 Cue；ReactionKind 供客机 Flinch Additive。
+/// 权威命中边沿。Key 供去重；ActionId 与落点供 Cue；防御吸收结果驱动 Owner 的权威派生动作。
 /// </summary>
 public readonly struct ReplicatedHitEvent : IEquatable<ReplicatedHitEvent>
 {
@@ -21,7 +21,9 @@ public readonly struct ReplicatedHitEvent : IEquatable<ReplicatedHitEvent>
         int hitYMm,
         int hitZMm,
         int dirXMm,
-        int dirZMm)
+        int dirZMm,
+        bool absorbedByAssistParry = false,
+        int hitStopFrames = 0)
     {
         Frame = frame;
         Key = key;
@@ -32,6 +34,8 @@ public readonly struct ReplicatedHitEvent : IEquatable<ReplicatedHitEvent>
         HitZMm = hitZMm;
         DirXMm = dirXMm;
         DirZMm = dirZMm;
+        AbsorbedByAssistParry = absorbedByAssistParry;
+        HitStopFrames = hitStopFrames > 0 ? hitStopFrames : 0;
     }
 
     /// <summary>命中所属权威逻辑帧。</summary>
@@ -61,9 +65,26 @@ public readonly struct ReplicatedHitEvent : IEquatable<ReplicatedHitEvent>
     /// <summary>水平命中方向 Z（毫米）。</summary>
     public int DirZMm { get; }
 
-    /// <summary>补写 Catalog ActionId 并保留落点与档位。</summary>
+    /// <summary>该命中是否被协防弹刀吸收；Owner 收到后必须排队同一 Success 动作。</summary>
+    public bool AbsorbedByAssistParry { get; }
+
+    /// <summary>弹刀成功需要继承到 Success 动作的逻辑卡肉帧。</summary>
+    public int HitStopFrames { get; }
+
+    /// <summary>补写 Catalog ActionId 并保留落点、档位与防御结果。</summary>
     public ReplicatedHitEvent WithActionId(int actionId) =>
-        new(Frame, Key, actionId, ReactionKind, HitXMm, HitYMm, HitZMm, DirXMm, DirZMm);
+        new(
+            Frame,
+            Key,
+            actionId,
+            ReactionKind,
+            HitXMm,
+            HitYMm,
+            HitZMm,
+            DirXMm,
+            DirZMm,
+            AbsorbedByAssistParry,
+            HitStopFrames);
 
     /// <summary>比较键、招式 Id、档位与落点。</summary>
     public bool Equals(ReplicatedHitEvent other) =>
@@ -75,7 +96,9 @@ public readonly struct ReplicatedHitEvent : IEquatable<ReplicatedHitEvent>
         && HitYMm == other.HitYMm
         && HitZMm == other.HitZMm
         && DirXMm == other.DirXMm
-        && DirZMm == other.DirZMm;
+        && DirZMm == other.DirZMm
+        && AbsorbedByAssistParry == other.AbsorbedByAssistParry
+        && HitStopFrames == other.HitStopFrames;
 
     /// <inheritdoc />
     public override bool Equals(object obj) =>

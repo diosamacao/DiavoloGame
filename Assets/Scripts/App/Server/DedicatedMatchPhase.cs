@@ -7,7 +7,7 @@ public enum DedicatedMatchPhase : byte
     /// <summary>已接纳至少一名玩家，本 Poll 末转入 Playing。</summary>
     Starting = 1,
 
-    /// <summary>权威步进并按连接下发 ReplicationFrame。</summary>
+    /// <summary>权威步进并按连接下发 V2 生命周期与快照。</summary>
     Playing = 2,
 
     /// <summary>向仍在线连接可靠下发 MatchEnd。</summary>

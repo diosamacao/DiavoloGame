@@ -10,8 +10,8 @@ public sealed class StartLocomotionState : LocomotionPhaseState
     /// <summary>缺起步 Clip 时直接进 Gait；否则按进入瞬间输入锁定起步槽。</summary>
     public override void Enter()
     {
-        Context.RunHoldSeconds = 0f;
-        Context.GaitInputGapSeconds = 0f;
+        Context.RunHoldFrames = 0;
+        Context.GaitInputGapFrames = 0;
         Context.RootMotionPlayer.End();
         if (!Context.HasAnyStartClip())
         {
@@ -60,8 +60,9 @@ public sealed class StartLocomotionState : LocomotionPhaseState
     public override void ExecuteFrame(float deltaTime)
     {
         Context.FootCycle.Unfreeze();
-        Context.FootCycle.Tick(Context.SamplePhaseNormalized());
-        Context.Animation.Play(Context.ActiveStartKey);
+        Context.SampleLocomotion(Context.ActiveStartKey);
+        LocomotionClipTiming timing = Context.RequireTiming(Context.ActiveStartKey);
+        Context.FootCycle.Tick(Context.PhaseFrame, timing.DurationFrames, timing.Loop);
         Context.Motor.ApplyLocomotion(
             new LocomotionMotorCommand(
                 true,
@@ -95,6 +96,6 @@ public sealed class StartLocomotionState : LocomotionPhaseState
         AnimationKey next = Context.ResolveAndLatchStartKey(snapshot.Magnitude, snapshot.MoveIntent);
         float fade = Context.Profile != null ? Context.Profile.InterruptFadeDuration : 0.08f;
         Context.Animation.ResetPlaybackState();
-        Context.Animation.Play(next, fade);
+        Context.SampleLocomotion(next, fade);
     }
 }

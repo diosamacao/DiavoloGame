@@ -51,8 +51,8 @@ public sealed class LocomotionStateMachine
     /// <summary>进入顶层 Locomotion；可消费 Action 边界传入的一次性步态恢复请求。</summary>
     public void Enter(in LocomotionResumeRequest resumeRequest)
     {
-        Context.RunHoldSeconds = 0f;
-        Context.GaitInputGapSeconds = 0f;
+        Context.RunHoldFrames = 0;
+        Context.GaitInputGapFrames = 0;
         Context.PivotMoveLatched = false;
         Context.PendingGaitHardCutPlay = false;
         Context.PendingGaitFaceDirection = Vector3.zero;
@@ -61,7 +61,7 @@ public sealed class LocomotionStateMachine
         Context.FootCycle.Unfreeze();
         Context.FootCycle.SetMarkers(System.Array.Empty<FootPlantMarker>());
         Context.SprintLean.Reset();
-        Context.ResetSimulationClock();
+        Context.ResetPhaseClock();
 
         bool canResume = resumeRequest.IsValid
             && (!resumeRequest.RequireMoveIntent || Context.Input.HasMoveIntent);
@@ -85,8 +85,8 @@ public sealed class LocomotionStateMachine
     {
         Context.FootCycle.Freeze();
         Context.RootMotionPlayer.End();
-        Context.RunHoldSeconds = 0f;
-        Context.GaitInputGapSeconds = 0f;
+        Context.RunHoldFrames = 0;
+        Context.GaitInputGapFrames = 0;
         Context.PivotMoveLatched = false;
         Context.SprintLean.Reset();
     }
@@ -97,17 +97,15 @@ public sealed class LocomotionStateMachine
         Context.RootMotionPlayer.Capture(
             out bool rmActive,
             out AnimationKey rmKey,
-            out int rmFrame,
             out float rmYaw);
         AnimationKey animKey = ResolveCaptureAnimationKey();
-        float normalized = Context.SimulationNormalizedTime;
         return new LocomotionSavedState(
             Phase,
             Context.Gait,
             animKey,
-            normalized,
-            Context.RunHoldSeconds,
-            Context.GaitInputGapSeconds,
+            Context.PhaseFrame,
+            Context.RunHoldFrames,
+            Context.GaitInputGapFrames,
             Context.GaitCardinal,
             Context.GaitCardinalDwellFrames,
             Context.ActiveStartKey,
@@ -121,7 +119,6 @@ public sealed class LocomotionStateMachine
             Context.PivotMoveLatched,
             rmActive,
             rmKey,
-            rmFrame,
             rmYaw,
             Context.FootCycle.LastPlanted,
             Context.FootCycle.HasPlantRecord,
@@ -134,8 +131,8 @@ public sealed class LocomotionStateMachine
     /// </summary>
     public void Restore(in LocomotionSavedState state)
     {
-        Context.RunHoldSeconds = state.RunHoldSeconds;
-        Context.GaitInputGapSeconds = state.GaitInputGapSeconds;
+        Context.RunHoldFrames = state.RunHoldFrames;
+        Context.GaitInputGapFrames = state.GaitInputGapFrames;
         Context.Gait = state.Gait;
         Context.PendingGait = state.Gait;
         Context.PendingGaitHardCutPlay = false;
@@ -151,12 +148,21 @@ public sealed class LocomotionStateMachine
         Context.StopEnterFacing = state.StopEnterFacing.sqrMagnitude > 0.0001f
             ? state.StopEnterFacing
             : Vector3.forward;
+        float rootMotionBasisYaw = state.RootMotionBasisYaw;
+        if (state.RootMotionBasisIsCurrentFacing
+            && state.RootMotionActive
+            && state.Phase == LocomotionPhase.PivotTurn)
+        {
+            // Pivot 快照朝向已包含此前烘焙偏航；减去累计量才能恢复进入轨道时的局部→世界基。
+            LocomotionRootMotionTrack track = Context.Profile != null
+                ? Context.Profile.GetRootMotionTrack(state.RootMotionKey)
+                : LocomotionRootMotionTrack.Empty;
+            rootMotionBasisYaw -= track.GetAccumulatedYawDegrees(state.PhaseFrame);
+        }
         Context.PivotTargetDirection = state.PivotTarget.sqrMagnitude > 0.0001f
             ? state.PivotTarget
             : Vector3.forward;
-        Context.PivotEnterFacing = state.PivotEnterFacing.sqrMagnitude > 0.0001f
-            ? state.PivotEnterFacing
-            : Vector3.forward;
+        Context.PivotEnterFacing = Quaternion.Euler(0f, rootMotionBasisYaw, 0f) * Vector3.forward;
         Context.PivotMoveLatched = state.PivotMoveLatched;
         Context.SprintLean.Reset();
         Context.FootCycle.SetMarkers(Context.GetMarkersForPhase(state.Phase));
@@ -164,18 +170,20 @@ public sealed class LocomotionStateMachine
         Context.RootMotionPlayer.Restore(
             state.RootMotionActive,
             state.RootMotionKey,
-            state.RootMotionFrame,
-            state.RootMotionBasisYaw);
+            rootMotionBasisYaw);
 
         _machine.RestoreCurrent(Context, state.Phase);
-        Context.SetSimulationClock(state.NormalizedTime);
+        Context.RestorePhaseClock(state.AnimationKey, state.PhaseFrame);
 
         if (Context.Animation != null)
         {
             Context.Animation.ResetPlaybackState();
-            Context.Animation.Play(state.AnimationKey, 0f);
-            if (state.NormalizedTime > 0f)
-                Context.Animation.SeekLocomotionNormalized(state.NormalizedTime);
+            LocomotionClipTiming timing = Context.RequireTiming(state.AnimationKey);
+            Context.Animation.SampleLocomotion(
+                state.AnimationKey,
+                state.PhaseFrame,
+                in timing,
+                0f);
         }
     }
 
@@ -192,7 +200,7 @@ public sealed class LocomotionStateMachine
         // 再执行当前相位的位移/动画/脚步
         if (_phases.TryGetValue(_machine.CurrentStateId, out LocomotionPhaseState phase))
             phase.ExecuteFrame(Context.DeltaTime);
-        Context.AdvanceSimulationClock(Context.DeltaTime);
+        Context.AdvancePhaseFrame();
         // 冲刺倾身只写视觉 Roll
         UpdateSprintLean(Context.DeltaTime);
     }
@@ -238,7 +246,7 @@ public sealed class LocomotionStateMachine
         LocomotionPhase before = Phase;
         bool changed = _machine.TryChangeState(next, force);
         if (changed && Phase != before)
-            Context.ResetSimulationClock();
+            Context.ResetPhaseClock();
         return changed;
     }
 

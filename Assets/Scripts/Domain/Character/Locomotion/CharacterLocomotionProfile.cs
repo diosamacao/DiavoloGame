@@ -20,10 +20,12 @@ public class CharacterLocomotionProfile : ScriptableObject
     [SerializeField] float stopMinSpeedFactor = 0.5f;
     [Tooltip("Sprint 下与输入方向夹角达到该值触发转身（度）；对齐 zzzdemo turnBackAngle。")]
     [SerializeField] float pivotAngleDegrees = 135f;
-    [Tooltip("PivotTurn AnimAuth 占比：NormalizedTime 达此值后切 InputAuth（FollowInput）。")]
-    [SerializeField, Range(0f, 1f)] float pivotAnimAuthNormalized = 0.5f;
-    [Tooltip("Gait 下松手后仍保持当前步态的宽限秒数；用于键盘换向空窗，避免立刻 Stop 导致无法 Pivot。")]
-    [SerializeField] float gaitInputGapGraceSeconds = 0.15f;
+    [Tooltip("Gait 下松手后仍保持当前步态的宽限逻辑帧；用于键盘换向空窗。")]
+    [SerializeField, Min(0)] int gaitInputGapGraceFrames = 9;
+    [FormerlySerializedAs("gaitInputGapGraceSeconds")]
+    [SerializeField, HideInInspector] float legacyGaitInputGapGraceSeconds;
+    [FormerlySerializedAs("pivotAnimAuthNormalized")]
+    [SerializeField, HideInInspector] float legacyPivotAnimAuthNormalized;
     [Tooltip("Cardinal 死区；与 DirectionModel 共用。")]
     [SerializeField, Min(0.01f)] float cardinalEpsilon = LocomotionDirectionModel.DefaultEpsilon;
     [Tooltip("Gait 循环 Cardinal 最短驻留逻辑帧；防对角线微抖换片。")]
@@ -34,8 +36,13 @@ public class CharacterLocomotionProfile : ScriptableObject
     [Tooltip("朝向策略：玩家 FollowMove；对峙敌 FaceCamera。值对齐旧 GaitRotationMode 以迁移资产。")]
     [FormerlySerializedAs("gaitRotationMode")]
     [SerializeField] LocomotionFacingMode facingMode = LocomotionFacingMode.FollowMove;
-    [SerializeField, Range(0f, 1f)] float startToGaitNormalized = 1f;
     [SerializeField] float interruptFadeDuration = 0.08f;
+    [FormerlySerializedAs("startToGaitNormalized")]
+    [SerializeField, HideInInspector] float legacyStartToGaitNormalized;
+
+    [Header("Integer Clip Timing (60Hz)")]
+    [Tooltip("每个实际使用的 AnimationKey 必须有且仅有一条时序；由人工 Baker 写入。")]
+    [SerializeField] LocomotionClipTiming[] clipTimings = Array.Empty<LocomotionClipTiming>();
 
     [Header("Sprint Lean (L-DIR4)")]
     [Tooltip("疾跑转弯视觉倾身；敌人对峙建议 MaxLeanDeg=0。")]
@@ -73,9 +80,6 @@ public class CharacterLocomotionProfile : ScriptableObject
     public float StopMinSpeedFactor => stopMinSpeedFactor;
     public float PivotAngleDegrees => pivotAngleDegrees;
 
-    /// <summary>PivotTurn 前半 AnimAuth 归一化门槛；之后 InputAuth。</summary>
-    public float PivotAnimAuthNormalized => Mathf.Clamp01(pivotAnimAuthNormalized);
-
     /// <summary>Cardinal 死区。</summary>
     public float CardinalEpsilon => Mathf.Max(0.01f, cardinalEpsilon);
 
@@ -112,11 +116,12 @@ public class CharacterLocomotionProfile : ScriptableObject
         }
     }
 
-    /// <summary>Run→Sprint 秒数（真源在 GaitPolicy）。</summary>
-    public float SprintAfterRunSeconds => GaitPolicy.SprintAfterRunSeconds;
+    /// <summary>Run→Sprint 逻辑帧数（真源在 GaitPolicy）。</summary>
+    public int SprintAfterRunFrames => GaitPolicy.SprintAfterRunFrames;
 
-    public float GaitInputGapGraceSeconds => gaitInputGapGraceSeconds;
-    public float StartToGaitNormalized => startToGaitNormalized;
+    /// <summary>Gait 无输入宽限逻辑帧。</summary>
+    public int GaitInputGapGraceFrames => Mathf.Max(0, gaitInputGapGraceFrames);
+
     public float InterruptFadeDuration => interruptFadeDuration;
     public float FootstepVolume => footstepVolume;
 
@@ -134,6 +139,84 @@ public class CharacterLocomotionProfile : ScriptableObject
     public bool StopUseRootMotion => stopUseRootMotion;
     public bool PivotUseRootMotion => pivotUseRootMotion;
     public float RootMotionPositionScale => rootMotionPositionScale;
+
+    /// <summary>严格查找 AnimationKey 的整数帧时序；缺失或重复均返回 false。</summary>
+    public bool TryGetClipTiming(AnimationKey key, out LocomotionClipTiming timing)
+    {
+        timing = default;
+        int matches = 0;
+        LocomotionClipTiming[] entries = clipTimings ?? Array.Empty<LocomotionClipTiming>();
+        for (int i = 0; i < entries.Length; i++)
+        {
+            if (entries[i].Key != key)
+                continue;
+            timing = entries[i];
+            matches++;
+        }
+
+        return matches == 1 && timing.IsValid;
+    }
+
+    /// <summary>取得必需时序；资产未迁移或配置非法时立即失败，禁止运行时默认值。</summary>
+    public LocomotionClipTiming RequireClipTiming(AnimationKey key)
+    {
+        if (TryGetClipTiming(key, out LocomotionClipTiming timing))
+            return timing;
+
+        throw new InvalidOperationException(
+            $"CharacterLocomotionProfile「{name}」缺少唯一有效的 {key} LocomotionClipTiming；请运行人工 Timing Baker。");
+    }
+
+#if UNITY_EDITOR
+    /// <summary>仅供人工 Editor Baker 整体写入时序；运行时不得调用。</summary>
+    public void SetClipTimings(LocomotionClipTiming[] timings) =>
+        clipTimings = timings ?? Array.Empty<LocomotionClipTiming>();
+
+    /// <summary>人工 Baker 读取旧比例并清空迁移载荷；运行时从不读取这些值。</summary>
+    public void BakeLegacyFrameSettings()
+    {
+        if (legacyGaitInputGapGraceSeconds > 0f)
+        {
+            gaitInputGapGraceFrames = Mathf.CeilToInt(
+                legacyGaitInputGapGraceSeconds * ActionSim.LogicHz);
+        }
+
+        gaitPolicy ??= new LocomotionGaitPolicy();
+        gaitPolicy.BakeLegacyFrames();
+        legacyGaitInputGapGraceSeconds = 0f;
+    }
+
+    /// <summary>返回旧 Start/Pivot 比例，仅供本次手工资产迁移计算 handoff。</summary>
+    public void GetLegacyHandoffRatios(out float startRatio, out float pivotRatio)
+    {
+        startRatio = legacyStartToGaitNormalized > 0f
+            ? Mathf.Clamp01(legacyStartToGaitNormalized)
+            : 1f;
+        pivotRatio = legacyPivotAnimAuthNormalized > 0f
+            ? Mathf.Clamp01(legacyPivotAnimAuthNormalized)
+            : 0.5f;
+        legacyStartToGaitNormalized = 0f;
+        legacyPivotAnimAuthNormalized = 0f;
+    }
+
+    /// <summary>人工 Baker 用代表键周期把旧落脚比例迁成帧；数组本身仍由 Profile 持有。</summary>
+    public void BakeLegacyFootMarkers()
+    {
+        BakeMarkers(walkFootPlants, AnimationKey.Walk);
+        BakeMarkers(runFootPlants, AnimationKey.Run);
+        BakeMarkers(sprintFootPlants, AnimationKey.Sprint);
+        BakeMarkers(startFootPlants, AnimationKey.Start);
+    }
+
+    /// <summary>按已烘焙 timing 原地转换一组旧落脚标记。</summary>
+    void BakeMarkers(FootPlantMarker[] markers, AnimationKey key)
+    {
+        if (markers == null || markers.Length == 0 || !TryGetClipTiming(key, out LocomotionClipTiming timing))
+            return;
+        for (int i = 0; i < markers.Length; i++)
+            markers[i] = markers[i].BakeLegacyFrame(timing.DurationFrames);
+    }
+#endif
 
     /// <summary>按 AnimationKey 取烘焙根位移轨。</summary>
     public LocomotionRootMotionTrack GetRootMotionTrack(AnimationKey key)
@@ -211,7 +294,7 @@ public class CharacterLocomotionProfile : ScriptableObject
         return footstepRight != null ? footstepRight : footstepLeft;
     }
 
-    /// <summary>校验已挂 AnimationProfile 且含 Idle/Walk/Run。</summary>
+    /// <summary>严格校验动画映射与整数帧时序；缺失数据不得使用默认值启动。</summary>
     public bool Validate(UnityEngine.Object context)
     {
         if (animationProfile == null)
@@ -221,7 +304,11 @@ public class CharacterLocomotionProfile : ScriptableObject
         }
 
         gaitPolicy ??= new LocomotionGaitPolicy();
-        return animationProfile.ValidateClips(context != null ? context : this);
+        bool valid = animationProfile.ValidateClips(context != null ? context : this);
+        valid &= ValidateRequiredTiming(AnimationKey.Idle, context);
+        valid &= ValidateRequiredTiming(AnimationKey.Walk, context);
+        valid &= ValidateRequiredTiming(AnimationKey.Run, context);
+        return valid;
     }
 
 #if UNITY_EDITOR
@@ -232,15 +319,47 @@ public class CharacterLocomotionProfile : ScriptableObject
         animSet ??= LocomotionAnimSet.CreateDefault();
     }
 #endif
+
+    /// <summary>校验必需键恰有一条有效整数帧时序。</summary>
+    bool ValidateRequiredTiming(AnimationKey key, UnityEngine.Object context)
+    {
+        if (TryGetClipTiming(key, out _))
+            return true;
+
+        Debug.LogError(
+            $"CharacterLocomotionProfile: {key} 缺少唯一有效 LocomotionClipTiming，请先运行 Timing Baker。",
+            context != null ? context : this);
+        return false;
+    }
 }
 
-/// <summary>单条落脚标记：相对循环 Clip 一周期的归一化时间。</summary>
+/// <summary>单条落脚标记：当前 AnimationKey 周期内的整数逻辑帧。</summary>
 [Serializable]
 public struct FootPlantMarker
 {
-    [Range(0f, 1f)] public float normalizedTime;
+    [Min(0)] public int frame;
+    [FormerlySerializedAs("normalizedTime")]
+    [SerializeField, HideInInspector] float legacyNormalizedTime;
     public FootSide foot;
 
-    public float NormalizedTime => normalizedTime;
+    /// <summary>周期内触发帧。</summary>
+    public int Frame => frame;
+
+    /// <summary>触发脚。</summary>
     public FootSide Foot => foot;
+
+#if UNITY_EDITOR
+    /// <summary>人工 Baker 将旧归一化标记迁成当前 Clip 周期帧。</summary>
+    public FootPlantMarker BakeLegacyFrame(int durationFrames)
+    {
+        FootPlantMarker baked = this;
+        if (legacyNormalizedTime > 0f)
+            baked.frame = Mathf.Clamp(
+                Mathf.RoundToInt(legacyNormalizedTime * durationFrames),
+                0,
+                Mathf.Max(0, durationFrames - 1));
+        baked.legacyNormalizedTime = 0f;
+        return baked;
+    }
+#endif
 }

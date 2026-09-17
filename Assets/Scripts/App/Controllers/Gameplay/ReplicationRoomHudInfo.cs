@@ -45,7 +45,7 @@ public readonly struct ReplicationRoomHudInfo
     /// <summary>Listening / Joined / Rejected 等短状态。</summary>
     public string Status { get; }
 
-    /// <summary>最近权威帧；客机为最近成功应用的 ReplicationFrame.Tick。</summary>
+    /// <summary>最近权威帧；客机为最近成功应用的 V2 Snapshot.Tick。</summary>
     public long AuthorityFrame { get; }
 
     /// <summary>本机 Client RTT 毫秒；尚未测到时为 -1。</summary>
@@ -54,7 +54,7 @@ public readonly struct ReplicationRoomHudInfo
     /// <summary>本机最近生命毫值；未知为 -1。</summary>
     public int HealthMilli { get; }
 
-    /// <summary>最近一包完整 ReplicationFrame 房间载荷字节数；未知为 -1。</summary>
+    /// <summary>最近一包 V2 生命周期或快照房间载荷字节数；未知为 -1。</summary>
     public int TickBytes { get; }
 
     /// <summary>最近一包完整 ClientCommandBatch 房间载荷字节数；未知为 -1。</summary>

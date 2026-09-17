@@ -66,7 +66,7 @@ public sealed class EnemyHandle :
     public bool IsDead => _actor.Vitality.IsDead;
     public bool IsReadyToDespawn =>
         IsDead
-        && _actor.DeathPresentationComplete
+        && _actor.DeathSequenceComplete
         && _deathReadyElapsed >= _definition.BrainProfile.DeathDespawnDelaySeconds;
 
     /// <summary>兼容 Controller 调用；敌人无设备/Writer 输入壳。</summary>
@@ -102,7 +102,7 @@ public sealed class EnemyHandle :
         // 与玩家同一套 CharacterActor 推进
         _actor.Step(frameIndex, fixedDeltaSeconds, in inputFrame);
         // 死亡表现播完后累计回收等待，供帧末 Commit 注销
-        if (IsDead && _actor.DeathPresentationComplete)
+        if (IsDead && _actor.DeathSequenceComplete)
             _deathReadyElapsed += Mathf.Max(0f, fixedDeltaSeconds);
     }
 

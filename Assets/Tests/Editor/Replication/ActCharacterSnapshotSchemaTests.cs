@@ -1,7 +1,7 @@
 using System;
 using NUnit.Framework;
 
-/// <summary>验证生产 Character Schema 统一提供 Capture 门禁与 V1 线格式。</summary>
+/// <summary>验证生产 Character Schema 统一提供 Capture 门禁与 V2 线格式。</summary>
 public sealed class ActCharacterSnapshotSchemaTests
 {
     /// <summary>空 CharacterActor 必须在 Capture 边界立即拒绝。</summary>
@@ -13,7 +13,7 @@ public sealed class ActCharacterSnapshotSchemaTests
         Assert.Throws<ArgumentNullException>(() => schema.Capture(null));
     }
 
-    /// <summary>生产 Schema 编解码必须保持纯 C# CharacterSnapshotSchemaV1 的字段布局。</summary>
+    /// <summary>生产 Schema 编解码必须保持纯 C# CharacterSnapshotSchemaV2 的字段布局。</summary>
     [Test]
     public void EncodeDecode_RoundTrip_PreservesSnapshot()
     {
@@ -39,12 +39,24 @@ public sealed class ActCharacterSnapshotSchemaTests
             healthMilli: 99000,
             flagsPacked: 0,
             vitalityEdge: VitalityReplicationEdge.None,
-            locomotionNormalizedMilli: 750);
+            locomotionPhaseFrame: 45);
 
         byte[] payload = schema.Encode(in snapshot);
         ActorReplicationSnapshot restored = schema.DecodeSnapshot(payload);
 
         Assert.That(restored, Is.EqualTo(snapshot));
         Assert.That(schema.SchemaId, Is.EqualTo(ActCharacterSnapshotSchema.Id));
+    }
+
+    /// <summary>Idle Capture 固定输出 0 降低 payload churn；移动相位仍保留整数帧。</summary>
+    [Test]
+    public void ResolveReplicatedPhaseFrame_IdleIsStable_OtherPhasesAdvance()
+    {
+        Assert.That(
+            ActCharacterSnapshotSchema.ResolveReplicatedPhaseFrame(AnimationKey.Idle, 99),
+            Is.Zero);
+        Assert.That(
+            ActCharacterSnapshotSchema.ResolveReplicatedPhaseFrame(AnimationKey.Walk, 99),
+            Is.EqualTo(99));
     }
 }

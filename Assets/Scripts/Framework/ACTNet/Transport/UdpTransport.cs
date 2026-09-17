@@ -7,6 +7,7 @@ using System.Net.Sockets;
 public sealed class UdpTransport : INetTransport
 {
     static readonly NetConnectionId ClientServerConnection = new(1);
+    const int MaxReceivedPackets = 256;
 
     readonly List<NetConnectionId> _connections = new();
     readonly Dictionary<NetConnectionId, IPEndPoint> _remoteByConnection = new();
@@ -19,6 +20,7 @@ public sealed class UdpTransport : INetTransport
     long _bytesReceived;
     long _packetsSent;
     long _packetsReceived;
+    long _packetsDropped;
     bool _disposed;
 
     /// <inheritdoc />
@@ -48,7 +50,7 @@ public sealed class UdpTransport : INetTransport
         _bytesReceived,
         _packetsSent,
         _packetsReceived,
-        packetsDropped: 0,
+        packetsDropped: _packetsDropped,
         rttMs: -1,
         jitterMs: -1);
 
@@ -95,6 +97,12 @@ public sealed class UdpTransport : INetTransport
 
             _bytesReceived += payload.Length;
             _packetsReceived++;
+            if (_received.Count >= MaxReceivedPackets)
+            {
+                // 原始可靠包尚未到 Mux，因此无 ACK；发送端会重传，旧排队包不会被丢弃。
+                _packetsDropped++;
+                continue;
+            }
             _received.Enqueue(new NetPacket(connectionId, NetChannel.Unspecified, payload));
         }
     }
@@ -148,13 +156,7 @@ public sealed class UdpTransport : INetTransport
             return;
         _disposed = true;
 
-        try
-        {
-            _udp?.Close();
-        }
-        catch (SocketException)
-        {
-        }
+        _udp?.Close();
 
         _udp = null;
         _clientServerEndPoint = null;

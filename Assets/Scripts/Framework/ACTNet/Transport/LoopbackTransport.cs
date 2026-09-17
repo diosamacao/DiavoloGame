@@ -5,6 +5,7 @@ using System.Collections.Generic;
 public sealed class LoopbackTransport : INetTransport
 {
     internal static readonly NetConnectionId ClientServerConnection = new(1);
+    const int MaxReceivedPackets = 256;
 
     readonly LoopbackNetwork _network;
     readonly List<NetConnectionId> _connections = new();
@@ -13,6 +14,7 @@ public sealed class LoopbackTransport : INetTransport
     long _bytesReceived;
     long _packetsSent;
     long _packetsReceived;
+    long _packetsDropped;
     bool _disposed;
 
     /// <summary>创建绑定到指定内存网络的 Transport 端点。</summary>
@@ -40,7 +42,7 @@ public sealed class LoopbackTransport : INetTransport
         _bytesReceived,
         _packetsSent,
         _packetsReceived,
-        packetsDropped: 0,
+        packetsDropped: _packetsDropped,
         rttMs: -1,
         jitterMs: _network.LatencyMs);
 
@@ -146,6 +148,12 @@ public sealed class LoopbackTransport : INetTransport
     {
         if (!IsRunning || !_connections.Contains(packet.ConnectionId))
             return;
+        if (_received.Count >= MaxReceivedPackets)
+        {
+            // 与 UDP 一致丢弃最新原始包；可靠包未 ACK，发送端会保留并重传。
+            _packetsDropped++;
+            return;
+        }
 
         _received.Enqueue(packet);
         _bytesReceived += packet.Payload.Length;

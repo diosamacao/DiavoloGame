@@ -274,10 +274,11 @@ public sealed class SimulationHost : AppControllerBase
             _assistParryContacts.Add(new AssistParryContact(hit.Key.TargetId, hit.HitStopFrames));
 
         if (!hit.AbsorbedByPerfectDodge
-            && !hit.AbsorbedByAssistParry
             && hit.Key.AttackerId.IsValid
             && hit.Key.TargetId.IsValid)
         {
+            // 协防弹刀同样必须进入可靠事件轨；否则 Dedicated Owner 没有本地接触回调，
+            // 只能看到权威 ActionId，却无法排队 AssistParrySuccess 动作。
             _frameHits.Add(new ReplicatedHitEvent(
                 _world.CurrentFrame,
                 hit.Key,
@@ -287,7 +288,9 @@ public sealed class SimulationHost : AppControllerBase
                 MotionQuantization.MetersToMm(hit.HitPoint.y),
                 MotionQuantization.MetersToMm(hit.HitPoint.z),
                 MotionQuantization.MetersToMm(hit.HitDirection.x),
-                MotionQuantization.MetersToMm(hit.HitDirection.z)));
+                MotionQuantization.MetersToMm(hit.HitDirection.z),
+                hit.AbsorbedByAssistParry,
+                hit.HitStopFrames));
         }
 
         SendCommand(new PublishAttackHitCommand(hit));

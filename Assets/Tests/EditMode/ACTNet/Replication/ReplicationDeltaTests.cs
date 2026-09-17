@@ -1,189 +1,93 @@
 using System;
 using NUnit.Framework;
 
-/// <summary>W11：未变跳过、节拍、预算、baseline 恢复。不引用 ACT。</summary>
+/// <summary>验证 V2 增量基线只由成功提交推进。</summary>
 public sealed class ReplicationDeltaTests
 {
-    /// <summary>相同载荷的第二帧不得再发 Update。</summary>
+    /// <summary>Reject 后同实体仍产生 Spawn/Update；Commit 后未变状态跳过。</summary>
     [Test]
-    public void UnchangedPayload_SkipsUpdate()
+    public void RejectRetriesAndCommitAdvancesBaseline()
     {
         var server = new ReplicationServer();
-        ReplicationEntityState state = State(1, 10, 4);
-        server.BuildFrame(new NetTick(1), new[] { state }, Array.Empty<byte>());
+        ReplicationEntityState state = State(1, 7);
 
-        ReplicationFrame second = server.BuildFrame(
-            new NetTick(2),
-            new[] { State(1, 10, 4) },
-            Array.Empty<byte>());
+        ReplicationTickDelta first = server.PrepareTickDelta(
+            new NetTick(1), new[] { state }, Array.Empty<byte>(), 128, new NetEntityId(1));
+        RejectAll(server, first);
+        ReplicationTickDelta retry = server.PrepareTickDelta(
+            new NetTick(2), new[] { state }, Array.Empty<byte>(), 128, new NetEntityId(1));
+        Assert.That(Count(retry, lifecycle: true), Is.EqualTo(1));
+        Assert.That(CountUpdates(retry), Is.EqualTo(1));
+        CommitAll(server, retry);
 
-        Assert.That(second.Updates, Is.Empty);
-        Assert.That(second.Spawns, Is.Empty);
-        Assert.That(second.Despawns, Is.Empty);
-        Assert.That(server.LastSkippedUnchanged, Is.EqualTo(1));
+        ReplicationTickDelta unchanged = server.PrepareTickDelta(
+            new NetTick(3), new[] { state }, Array.Empty<byte>(), 128, new NetEntityId(1));
+        Assert.That(CountUpdates(unchanged), Is.Zero);
     }
 
-    /// <summary>非优先实体只在间隔 Tick 刷新；Owner 变脏立刻发出。</summary>
+    /// <summary>未变化完整状态达到 MaxSilenceTicks 后必须重新发送。</summary>
     [Test]
-    public void Cadence_OwnerSendsOffInterval_OtherWaits()
+    public void MaxSilenceTicks_ResendsUnchangedState()
     {
         var server = new ReplicationServer();
-        var options = new ReplicationBuildOptions(
-            skipUnchanged: true,
-            maxUpdateBytes: 0,
-            snapshotIntervalTicks: 2,
-            preferredEntity: new NetEntityId(1),
-            forceFull: false);
-        server.BuildFrame(
-            new NetTick(1),
-            new[] { State(1, 10, 1), State(2, 20, 1) },
-            Array.Empty<byte>(),
-            options);
+        ReplicationEntityState state = State(1, 9);
+        CommitAll(server, server.PrepareTickDelta(
+            new NetTick(1), new[] { state }, Array.Empty<byte>(), 128, new NetEntityId(1)));
 
-        ReplicationFrame odd = server.BuildFrame(
-            new NetTick(3),
-            new[] { State(1, 10, 2), State(2, 20, 2) },
-            Array.Empty<byte>(),
-            options);
-
-        Assert.That(odd.Updates, Has.Length.EqualTo(1));
-        Assert.That(odd.Updates[0].EntityId.Value, Is.EqualTo(1));
-
-        ReplicationFrame even = server.BuildFrame(
-            new NetTick(4),
-            new[] { State(1, 10, 2), State(2, 20, 2) },
-            Array.Empty<byte>(),
-            options);
-        Assert.That(even.Updates, Has.Length.EqualTo(1));
-        Assert.That(even.Updates[0].EntityId.Value, Is.EqualTo(2));
+        Assert.That(CountUpdates(server.PrepareTickDelta(
+            new NetTick(ReplicationServer.MaxSilenceTicks), new[] { state }, Array.Empty<byte>(), 128, new NetEntityId(1))), Is.Zero);
+        Assert.That(CountUpdates(server.PrepareTickDelta(
+            new NetTick(ReplicationServer.MaxSilenceTicks + 1), new[] { state }, Array.Empty<byte>(), 128, new NetEntityId(1))), Is.EqualTo(1));
     }
 
-    /// <summary>Urgent 实体在奇数 Tick 也必须发出，不能等节拍。</summary>
+    /// <summary>非 Urgent payload 变化遵守 30Hz 节拍；Urgent 变化仍在当前 Tick 发送。</summary>
     [Test]
-    public void Urgent_SendsOffInterval()
+    public void ChangedPayload_RespectsNonUrgentCadence_WhileUrgentBypasses()
     {
         var server = new ReplicationServer();
-        var options = new ReplicationBuildOptions(
-            skipUnchanged: true,
-            maxUpdateBytes: 0,
-            snapshotIntervalTicks: 2,
-            preferredEntity: new NetEntityId(1),
-            forceFull: false);
-        server.BuildFrame(
-            new NetTick(1),
-            new[] { State(1, 10, 1), State(2, 20, 1) },
-            Array.Empty<byte>(),
-            options);
+        CommitAll(server, server.PrepareTickDelta(
+            new NetTick(1), new[] { State(1, 1) }, Array.Empty<byte>(), 128, new NetEntityId(1)));
 
-        ReplicationFrame odd = server.BuildFrame(
-            new NetTick(3),
-            new[] { State(1, 10, 1), State(2, 20, 2, urgent: true) },
-            Array.Empty<byte>(),
-            options);
+        Assert.That(CountUpdates(server.PrepareTickDelta(
+            new NetTick(2), new[] { State(1, 2) }, Array.Empty<byte>(), 128, new NetEntityId(1))), Is.Zero);
+        Assert.That(CountUpdates(server.PrepareTickDelta(
+            new NetTick(3), new[] { State(1, 2) }, Array.Empty<byte>(), 128, new NetEntityId(1))), Is.EqualTo(1));
 
-        Assert.That(odd.Updates, Has.Length.EqualTo(1));
-        Assert.That(odd.Updates[0].EntityId.Value, Is.EqualTo(2));
+        var urgent = new ReplicationEntityState(
+            new NetEntityId(1), new NetArchetypeId(10), 1, new byte[] { 3 }, urgent: true);
+        Assert.That(CountUpdates(server.PrepareTickDelta(
+            new NetTick(2), new[] { urgent }, Array.Empty<byte>(), 128, new NetEntityId(1))), Is.EqualTo(1));
     }
 
-    /// <summary>预算先装 Owner，装不下的敌人保持脏以便下帧重试。</summary>
-    [Test]
-    public void Budget_PrefersOwner_ThenRetriesRemainder()
+    static ReplicationEntityState State(int id, byte value) =>
+        new(new NetEntityId(id), new NetArchetypeId(10), 1, new[] { value });
+
+    static int Count(ReplicationTickDelta delta, bool lifecycle)
     {
-        var server = new ReplicationServer();
-        var options = new ReplicationBuildOptions(
-            skipUnchanged: true,
-            maxUpdateBytes: 16,
-            snapshotIntervalTicks: 1,
-            preferredEntity: new NetEntityId(1),
-            forceFull: false);
-        server.BuildFrame(
-            new NetTick(1),
-            new[] { State(1, 10, 1), State(2, 20, 1) },
-            Array.Empty<byte>(),
-            options);
-
-        ReplicationFrame first = server.BuildFrame(
-            new NetTick(2),
-            new[] { State(1, 10, 2), State(2, 20, 2) },
-            Array.Empty<byte>(),
-            options);
-        Assert.That(first.Updates, Has.Length.EqualTo(1));
-        Assert.That(first.Updates[0].EntityId.Value, Is.EqualTo(1));
-
-        ReplicationFrame second = server.BuildFrame(
-            new NetTick(3),
-            new[] { State(1, 10, 2), State(2, 20, 2) },
-            Array.Empty<byte>(),
-            options);
-        Assert.That(second.Updates, Has.Length.EqualTo(1));
-        Assert.That(second.Updates[0].EntityId.Value, Is.EqualTo(2));
+        int count = 0;
+        for (int i = 0; i < delta.Packets.Length; i++)
+            if (delta.Packets[i].ReliableLifecycle == lifecycle) count++;
+        return count;
     }
 
-    /// <summary>ResetBaseline 后下一帧把仍在场的实体重新 Spawn。</summary>
-    [Test]
-    public void ResetBaseline_RespawnsLivingEntities()
+    static int CountUpdates(ReplicationTickDelta delta)
     {
-        var server = new ReplicationServer();
-        ReplicationClient client = CreateClient();
-        client.ApplyFrame(server.BuildFrame(
-            new NetTick(1),
-            new[] { State(1, 10, 1) },
-            Array.Empty<byte>()));
-
-        server.ResetBaseline();
-        client.ResetRegistry();
-        ReplicationFrame recovered = server.BuildFrame(
-            new NetTick(2),
-            new[] { State(1, 10, 1) },
-            Array.Empty<byte>(),
-            ReplicationBuildOptions.Compatible.WithForceFull(true));
-
-        Assert.That(recovered.Spawns, Has.Length.EqualTo(1));
-        Assert.That(client.ApplyFrame(recovered).Status, Is.EqualTo(ReplicationClientApplyStatus.Applied));
-        Assert.That(client.Registry.Count, Is.EqualTo(1));
+        int count = 0;
+        for (int i = 0; i < delta.Packets.Length; i++)
+            if (!delta.Packets[i].ReliableLifecycle)
+                count += ReplicationProtocolV2Codec.DecodeSnapshot(delta.Packets[i].Body).Updates.Length;
+        return count;
     }
 
-    /// <summary>兴趣半径外的实体不进入 relevant set，因而会被 Despawn。</summary>
-    [Test]
-    public void Interest_FarEntity_IsNotRelevant()
+    static void CommitAll(ReplicationServer server, ReplicationTickDelta delta)
     {
-        Assert.That(
-            ReplicationInterest.IsRelevant(false, false, 50000, 0, ReplicationInterest.DefaultRadiusMm),
-            Is.False);
-        Assert.That(
-            ReplicationInterest.IsRelevant(true, false, 50000, 0, ReplicationInterest.DefaultRadiusMm),
-            Is.True);
-        Assert.That(
-            ReplicationInterest.IsRelevant(false, true, 50000, 0, ReplicationInterest.DefaultRadiusMm),
-            Is.True);
+        for (int i = 0; i < delta.Packets.Length; i++)
+            server.Commit(delta.Packets[i].Token);
     }
 
-    static ReplicationClient CreateClient()
+    static void RejectAll(ReplicationServer server, ReplicationTickDelta delta)
     {
-        var schemas = new ReplicationSchemaRegistry();
-        schemas.Register(new OneByteSchema());
-        return new ReplicationClient(schemas);
-    }
-
-    static ReplicationEntityState State(int entityId, int archetypeId, byte value, bool urgent = false) =>
-        new ReplicationEntityState(
-            new NetEntityId(entityId),
-            new NetArchetypeId(archetypeId),
-            1,
-            new[] { value },
-            urgent);
-
-    sealed class OneByteSchema : IReplicationSchema
-    {
-        public ushort SchemaId => 1;
-
-        public byte[] Encode(object state) => new[] { Convert.ToByte(state) };
-
-        public object Decode(byte[] payload)
-        {
-            if (payload == null || payload.Length != 1)
-                throw new FormatException("payload 必须恰好包含一个字节。");
-            return payload[0];
-        }
+        for (int i = 0; i < delta.Packets.Length; i++)
+            server.Reject(delta.Packets[i].Token);
     }
 }

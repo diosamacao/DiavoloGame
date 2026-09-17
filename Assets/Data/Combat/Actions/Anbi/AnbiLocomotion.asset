@@ -33,17 +33,65 @@ MonoBehaviour:
   idleInputThreshold: 0.01
   stopMinSpeedFactor: 0.5
   pivotAngleDegrees: 135
-  pivotAnimAuthNormalized: 0.5
-  gaitInputGapGraceSeconds: 0.15
+  gaitInputGapGraceFrames: 9
+  legacyGaitInputGapGraceSeconds: 0
+  legacyPivotAnimAuthNormalized: 0
   cardinalEpsilon: 0.2
   cardinalMinDwellFrames: 3
   gaitPolicy:
     maxGait: 2
     allowPivot: 1
-    sprintAfterRunSeconds: 3
+    sprintAfterRunFrames: 180
+    legacySprintAfterRunSeconds: 0
   facingMode: 1
-  startToGaitNormalized: 1
   interruptFadeDuration: 0.08
+  legacyStartToGaitNormalized: 0
+  clipTimings:
+  - key: 0
+    durationFrames: 243
+    loop: 0
+    exitFrame: 243
+    handoffFrame: 243
+  - key: 1
+    durationFrames: 35
+    loop: 1
+    exitFrame: 35
+    handoffFrame: 35
+  - key: 2
+    durationFrames: 35
+    loop: 1
+    exitFrame: 35
+    handoffFrame: 35
+  - key: 4
+    durationFrames: 71
+    loop: 0
+    exitFrame: 71
+    handoffFrame: 36
+  - key: 5
+    durationFrames: 101
+    loop: 0
+    exitFrame: 101
+    handoffFrame: 101
+  - key: 6
+    durationFrames: 101
+    loop: 0
+    exitFrame: 101
+    handoffFrame: 101
+  - key: 7
+    durationFrames: 27
+    loop: 1
+    exitFrame: 27
+    handoffFrame: 27
+  - key: 8
+    durationFrames: 101
+    loop: 0
+    exitFrame: 101
+    handoffFrame: 101
+  - key: 11
+    durationFrames: 74
+    loop: 0
+    exitFrame: 74
+    handoffFrame: 74
   sprintLean:
     maxLeanDeg: 15
     deadZoneDeg: 15
@@ -62,7 +110,7 @@ MonoBehaviour:
   rootMotionPositionScale: 1
   startEndRootMotion:
     valid: 1
-    duration: 1.6666667
+    frameCount: 101
     localPositions:
     - {x: 0, y: 0, z: 0}
     - {x: -0.000057280064, y: -0.0011700392, z: 0.026295334}
@@ -271,7 +319,7 @@ MonoBehaviour:
     - -0.025848389
   stopLRootMotion:
     valid: 1
-    duration: 1.6666667
+    frameCount: 101
     localPositions:
     - {x: 0, y: 0, z: 0}
     - {x: -0.000057280064, y: -0.0011700392, z: 0.026295334}
@@ -480,7 +528,7 @@ MonoBehaviour:
     - -0.025848389
   stopRRootMotion:
     valid: 1
-    duration: 1.6666667
+    frameCount: 101
     localPositions:
     - {x: 0, y: 0, z: 0}
     - {x: -0.000057280064, y: -0.0011700392, z: 0.026295334}
@@ -689,7 +737,7 @@ MonoBehaviour:
     - -0.025848389
   pivotTurnRootMotion:
     valid: 1
-    duration: 1.1666667
+    frameCount: 71
     localPositions:
     - {x: 0, y: 0, z: 0}
     - {x: 0.01585323, y: -0.041164458, z: 0.14820346}

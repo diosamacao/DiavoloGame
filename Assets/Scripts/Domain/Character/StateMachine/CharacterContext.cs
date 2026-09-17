@@ -37,8 +37,11 @@ public class CharacterContext
     /// <summary>动作状态下的转向服务。</summary>
     public ActionRotationDriver ActionRotation { get; set; }
 
-    /// <summary>死亡表现是否已播放完成；供生命周期控制器决定何时回收。</summary>
-    public bool DeathPresentationComplete { get; set; }
+    /// <summary>死亡逻辑序列是否结束；Party 门禁以它为主信号，并由确定性帧上限兜底。</summary>
+    public bool DeathSequenceComplete { get; set; }
+
+    /// <summary>本次死亡 Action 的确定性总帧数；无死亡 Action 时为 0。</summary>
+    public int DeathActionTotalFrames { get; set; }
 
     /// <summary>写入 Action→Locomotion 的一次性恢复请求；后写入覆盖前请求。</summary>
     public void SetLocomotionResumeRequest(in LocomotionResumeRequest request)

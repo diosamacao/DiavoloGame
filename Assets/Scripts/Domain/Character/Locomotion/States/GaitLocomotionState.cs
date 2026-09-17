@@ -17,7 +17,7 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
             : new LocomotionGaitPolicy();
         LocomotionGait gait = policy.ClampGait(Context.PendingGait);
         if (gait != LocomotionGait.Sprint)
-            Context.RunHoldSeconds = 0f;
+            Context.RunHoldFrames = 0;
 
         Context.SetGait(gait);
         Context.ResetGaitCardinal();
@@ -26,7 +26,7 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
         if (Context.PendingGaitHardCutPlay)
         {
             Context.Animation.ResetPlaybackState();
-            Context.Animation.Play(Context.ResolveLocomotionAnimationKey(), 0f);
+            Context.SampleLocomotion(Context.ResolveLocomotionAnimationKey(), 0f);
             Context.PendingGaitHardCutPlay = false;
         }
 
@@ -44,17 +44,17 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
         LocomotionInputSnapshot snapshot = Context.FrameSnapshot;
         bool hasMove = Context.HasMeaningfulMove(snapshot);
         if (hasMove)
-            Context.GaitInputGapSeconds = 0f;
+            Context.GaitInputGapFrames = 0;
 
         if (!hasMove)
         {
             // 宽限内仍保持当前循环，避免点按松手立刻切 Idle
-            Context.GaitInputGapSeconds += deltaTime;
-            float grace = Context.Profile != null ? Context.Profile.GaitInputGapGraceSeconds : 0.15f;
-            if (Context.GaitInputGapSeconds < grace)
+            Context.GaitInputGapFrames++;
+            int grace = Context.Profile != null ? Context.Profile.GaitInputGapGraceFrames : 9;
+            if (Context.GaitInputGapFrames < grace)
                 return;
 
-            Context.GaitInputGapSeconds = 0f;
+            Context.GaitInputGapFrames = 0;
             float stopMin = Context.Motor.RunSpeed
                 * (Context.Profile != null ? Context.Profile.StopMinSpeedFactor : 0.5f);
             // 仍有速度或跑/冲刺档：走急停；否则直接 Idle
@@ -73,24 +73,26 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
         }
 
         // Policy 评估走/跑/冲刺升降档
-        UpdateGaitWhileMoving(snapshot.Magnitude, deltaTime);
+        UpdateGaitWhileMoving(snapshot.Magnitude);
     }
 
     /// <summary>跟输入移动；播当前步态循环并采样落脚。</summary>
     public override void ExecuteFrame(float deltaTime)
     {
         Context.FootCycle.Unfreeze();
-        Context.FootCycle.Tick(Context.SamplePhaseNormalized());
         AnimationKey key = Context.ResolveLocomotionAnimationKey();
         // 降档用短淡入（非 0）：既避免长时间停在 Run，又比硬切自然
         if (Context.PendingGaitHardCutPlay)
         {
             float fade = Context.Profile != null ? Context.Profile.InterruptFadeDuration : 0.08f;
-            Context.Animation.Play(key, fade);
+            Context.SampleLocomotion(key, fade);
             Context.PendingGaitHardCutPlay = false;
         }
         else
-            Context.Animation.Play(key);
+            Context.SampleLocomotion(key);
+
+        LocomotionClipTiming timing = Context.RequireTiming(key);
+        Context.FootCycle.Tick(Context.PhaseFrame, timing.DurationFrames, timing.Loop);
 
         // 跟输入位移 + 当前步态旋转模式
         Context.Motor.ApplyLocomotion(
@@ -131,7 +133,7 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
     }
 
     /// <summary>委托 GaitPolicy.Evaluate 升档。</summary>
-    void UpdateGaitWhileMoving(float magnitude, float deltaTime)
+    void UpdateGaitWhileMoving(float magnitude)
     {
         LocomotionGaitPolicy policy = Context.Profile != null
             ? Context.Profile.GaitPolicy
@@ -141,10 +143,9 @@ public sealed class GaitLocomotionState : LocomotionPhaseState
             Context.Gait,
             magnitude,
             Context.Motor.RunThreshold,
-            deltaTime,
-            Context.RunHoldSeconds));
+            Context.RunHoldFrames));
 
-        Context.RunHoldSeconds = result.RunHoldSeconds;
+        Context.RunHoldFrames = result.RunHoldFrames;
         if (result.NextGait == Context.Gait)
             return;
 

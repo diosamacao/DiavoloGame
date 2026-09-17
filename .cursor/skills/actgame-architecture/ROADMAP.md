@@ -153,6 +153,8 @@
 - [x] 2026-08-02 L2/M1：表就绪时查表位移并禁用 Animator RM（仍经 CharacterController）
 - [x] 2026-08-02 L2：`ActionSim.freezeFrames` 逻辑 HitStop（Pipeline 写入；表现跟帧）
 - [x] 2026-08-02 L2：Locomotion Stop/Pivot 烘焙位移整数帧索引
+- [x] 2026-09-16 L0/L1/L2 收口：Locomotion `PhaseFrame` 唯一时钟；Gait/落脚/Start/Pivot/RootMotion 全帧化，Full/Headless 状态判定不读播放头
+- [ ] Locomotion 资产迁移出口：逐个 Profile 执行 Root Motion Bake 并通过 `LocomotionTimingAudit`；当前仍有旧轨 `frameCount=0`
 - [x] 2026-08-02 L2：`CharacterMotorSim` 水平权威（空场地碰撞）；CC 仅临时重力/跟随
 - [x] 2026-08-02 L2：角色圆盘软弹开（World 帧末 `SoftBodySeparation`）
 - [x] 2026-08-02 L2：Hitbox/Hurtbox 逻辑坐标（MotorSim 根 + 相对根挂点局部）

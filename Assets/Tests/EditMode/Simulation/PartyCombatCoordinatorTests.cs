@@ -149,6 +149,113 @@ public sealed class PartyCombatCoordinatorTests
         Assert.That(packed & existingFlags, Is.EqualTo(existingFlags));
     }
 
+    /// <summary>完成信号提前到达也必须等待满 15 帧，随后立即打开死亡门禁。</summary>
+    [Test]
+    public void DeathGate_SequenceComplete_StillWaitsMinimumFrames()
+    {
+        var gate = new PartyDeathSwitchGate();
+        for (int frame = 1; frame < PartyDeathSwitchPolicy.MinimumCloseoutFrames; frame++)
+        {
+            Assert.That(
+                gate.Advance(0, isDead: true, deathSequenceComplete: true, deathActionTotalFrames: 60),
+                Is.False);
+        }
+
+        Assert.That(
+            gate.Advance(0, isDead: true, deathSequenceComplete: true, deathActionTotalFrames: 60),
+            Is.True);
+    }
+
+    /// <summary>完成信号缺失时必须在死亡 Action 总帧数加 15 的确定性上限提交。</summary>
+    [Test]
+    public void DeathGate_MissingSignal_UsesDeterministicActionCap()
+    {
+        var gate = new PartyDeathSwitchGate();
+        int cap = PartyDeathSwitchPolicy.ResolveDeterministicCap(5);
+        for (int frame = 1; frame < cap; frame++)
+        {
+            Assert.That(
+                gate.Advance(0, isDead: true, deathSequenceComplete: false, deathActionTotalFrames: 5),
+                Is.False);
+        }
+
+        Assert.That(
+            gate.Advance(0, isDead: true, deathSequenceComplete: false, deathActionTotalFrames: 5),
+            Is.True);
+    }
+
+    /// <summary>死亡收尾必须原子 Dead→Active，不能产生 Exiting 状态。</summary>
+    [Test]
+    public void Coordinator_ActiveDeath_AutoSwitchesWithoutExiting()
+    {
+        var coordinator = new PartyCombatCoordinator(new[] { true, true, true }, 0);
+        PartyDeathCloseout closeout = default;
+        for (int frame = 0; frame < PartyDeathSwitchPolicy.MinimumCloseoutFrames; frame++)
+        {
+            coordinator.TryResolveActiveDeath(
+                isDead: true,
+                deathSequenceComplete: true,
+                deathActionTotalFrames: 30,
+                out closeout);
+        }
+
+        Assert.That(closeout.FromSlot, Is.Zero);
+        Assert.That(closeout.ToSlot, Is.EqualTo(1));
+        Assert.That(closeout.PartyWiped, Is.False);
+        Assert.That(coordinator.States[0], Is.EqualTo(PartyMemberState.Dead));
+        Assert.That(coordinator.States[1], Is.EqualTo(PartyMemberState.Active));
+        Assert.That(coordinator.States, Has.None.EqualTo(PartyMemberState.Exiting));
+    }
+
+    /// <summary>最后成员死亡后提交 PartyWiped，并永久关闭切人和玩法输入。</summary>
+    [Test]
+    public void Coordinator_LastMemberDeath_ClosesGameplayInput()
+    {
+        var coordinator = new PartyCombatCoordinator(new[] { true }, 0);
+        PartyDeathCloseout closeout = default;
+        for (int frame = 0; frame < PartyDeathSwitchPolicy.MinimumCloseoutFrames; frame++)
+        {
+            coordinator.TryResolveActiveDeath(
+                isDead: true,
+                deathSequenceComplete: true,
+                deathActionTotalFrames: 0,
+                out closeout);
+        }
+
+        Assert.That(closeout.PartyWiped, Is.True);
+        Assert.That(coordinator.IsPartyWiped, Is.True);
+        Assert.That(coordinator.States[0], Is.EqualTo(PartyMemberState.Dead));
+        Assert.That(coordinator.CanAcceptGameplayInput, Is.False);
+        Assert.That(coordinator.TryResolveSwitchIn(out _), Is.False);
+    }
+
+    /// <summary>Active 死亡时仍在退场的存活槽必须被召回，不能误判 PartyWiped。</summary>
+    [Test]
+    public void Coordinator_ActiveDeath_RecallsSurvivingExitingMember()
+    {
+        var coordinator = new PartyCombatCoordinator(new[] { true, true, true }, 0);
+        Assert.That(coordinator.TryResolveSwitchIn(out _), Is.True);
+        Assert.That(coordinator.TryResolveSwitchIn(out _), Is.True);
+        Assert.That(coordinator.States[0], Is.EqualTo(PartyMemberState.Exiting));
+        Assert.That(coordinator.States[1], Is.EqualTo(PartyMemberState.Exiting));
+
+        PartyDeathCloseout closeout = default;
+        for (int frame = 0; frame < PartyDeathSwitchPolicy.MinimumCloseoutFrames; frame++)
+        {
+            coordinator.TryResolveActiveDeath(
+                isDead: true,
+                deathSequenceComplete: true,
+                deathActionTotalFrames: 30,
+                out closeout);
+        }
+
+        Assert.That(closeout.FromSlot, Is.EqualTo(2));
+        Assert.That(closeout.ToSlot, Is.Zero);
+        Assert.That(closeout.PartyWiped, Is.False);
+        Assert.That(coordinator.States[0], Is.EqualTo(PartyMemberState.Active));
+        Assert.That(coordinator.IsPartyWiped, Is.False);
+    }
+
     /// <summary>普通换人落点必须跟随旧角色局部右向，而不是固定世界轴或相机朝向。</summary>
     [TestCase(0, 1600, 2000)]
     [TestCase(90000, 1000, 1400)]

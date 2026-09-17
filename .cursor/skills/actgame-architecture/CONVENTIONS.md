@@ -102,6 +102,8 @@ public class MyBehaviour : MonoBehaviour
 - 播放走纯 C# `CharacterAnimationService`；后端为 `IAnimationPlayback`（当前 `PlayableAnimationPlayback`，可换 Animancer）
 - 需要独占时 `SetLocked(true)`；卡肉用 `SetSpeed(0)`，禁止业务直写 `Animator.speed`
 - Locomotion：`applyRootMotion = false`，水平位移经 `CharacterMotor` → `CharacterMotorSim`；Transform/CC 跟随 XZ
+- Locomotion 时钟：`LocomotionContext.PhaseFrame` 是唯一权威；状态结束、Start/Pivot handoff、GaitPolicy、落脚与根位移只读整数帧。Full/Headless 禁止读取播放后端 `NormalizedTime/HasFinished` 做状态判断
+- Locomotion 资产：每个实际使用的 `AnimationKey` 必须配置唯一有效 `LocomotionClipTiming(duration/loop/exit/handoff frames)`；缺失时严格失败，禁止按 Clip 秒长运行时回退
 - 角色互撞（定案）：逻辑圆盘软弹开，按 `softBodyMass` 分配推力；大体型勾 `softBodyImmovable`；禁止 Unity Physics/CC 互撞权威；静态障碍烘焙硬挡
 - 联网（定案）：组队 PVE 为 Dedicated 权威状态同步（Listen = 同进程再开 LocalClient）；上行量化 `InputFrame`，下行 `ReplicationFrame`；命中只在权威 `CombatHitPipeline`。禁止全端同构输入广播作为产品主路径，禁止客户端上报伤害结果，禁止以齐帧停等作为手感模型。锁步 L0～L2 模拟核仍适用。服务器写法见下方「服务器 / 权威进程」。阅读：`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`
 - Action：烘焙表就绪时查表写 MotorSim；未烘焙且 `UseRootMotion` 时由 `CharacterRootMotionDriver` 经 Motor 写入；否则可用 `MovementNotifyState` 脚本位移

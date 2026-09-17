@@ -46,6 +46,7 @@ public sealed class ActObserverReplicationAdapter
         IReadOnlyList<SimActorId> ownerActorIds,
         SimActorId activeOwnerActorId,
         long authorityTick,
+        Action<ActorReplicationSnapshot> applyOwnerPartySnapshot,
         ref ActorReplicationSnapshot ownerSnapshot,
         ref bool hasOwnerSnapshot)
     {
@@ -71,6 +72,7 @@ public sealed class ActObserverReplicationAdapter
             {
                 if (snapshot.Kind != ReplicationActorKind.Player)
                     throw new InvalidOperationException("Owner 阵容 Spawn 必须是 Player 原型。");
+                applyOwnerPartySnapshot?.Invoke(snapshot);
                 if (snapshot.ActorId == activeOwnerActorId)
                 {
                     ownerSnapshot = snapshot;
@@ -102,6 +104,7 @@ public sealed class ActObserverReplicationAdapter
         IReadOnlyList<SimActorId> ownerActorIds,
         SimActorId activeOwnerActorId,
         long authorityTick,
+        Action<ActorReplicationSnapshot> applyOwnerPartySnapshot,
         ref ActorReplicationSnapshot ownerSnapshot,
         ref bool hasOwnerSnapshot)
     {
@@ -117,6 +120,7 @@ public sealed class ActObserverReplicationAdapter
                 record.Payload);
             if (IsOwned(snapshot.ActorId, ownerActorIds))
             {
+                applyOwnerPartySnapshot?.Invoke(snapshot);
                 if (snapshot.ActorId == activeOwnerActorId)
                 {
                     ownerSnapshot = snapshot;
@@ -249,6 +253,7 @@ public sealed class ActObserverReplicationAdapter
             }
 
             bool hasPlayback = _playbackTicks.TryGetValue(pair.Key, out double playback);
+            double previousPlayback = playback;
             playback = RemotePlaybackClock.Advance(
                 playback,
                 hasPlayback,
@@ -258,6 +263,13 @@ public sealed class ActObserverReplicationAdapter
                 deltaTimeSeconds,
                 SimulationConfig.DefaultLogicHz);
             _playbackTicks[pair.Key] = playback;
+            float playbackDeltaSeconds = hasPlayback
+                ? (float)((playback - previousPlayback) / SimulationConfig.DefaultLogicHz)
+                : 0f;
+            if (playbackDeltaSeconds < 0f)
+                playbackDeltaSeconds = 0f;
+            bool playbackSnapped = hasPlayback
+                && playback - previousPlayback > RemotePlaybackClock.MaxAdvancePerRender;
 
             if (!timeline.TrySampleAt(
                     playback,
@@ -272,7 +284,14 @@ public sealed class ActObserverReplicationAdapter
             }
 
             proxy.SetPresentationBracket(in from, in to);
-            proxy.PresentSampledPlayback(in from, in to, alpha, deltaTimeSeconds);
+            // Action/特殊 Locomotion 跟播放头；Idle 无持续快照时由渲染时钟维持纯表现循环。
+            proxy.PresentSampledPlayback(
+                in from,
+                in to,
+                alpha,
+                playbackDeltaSeconds,
+                deltaTimeSeconds,
+                playbackSnapped);
             proxy.Render(alpha);
         }
     }

@@ -11,6 +11,24 @@ public sealed class CharacterLocomotionProfileEditor : Editor
 
         var profile = (CharacterLocomotionProfile)target;
         EditorGUILayout.Space(8f);
+        EditorGUILayout.LabelField("Integer Timing (60Hz)", EditorStyles.boldLabel);
+        if (GUILayout.Button("人工烘焙 Clip Timing / 迁移旧落脚标记"))
+        {
+            Undo.RecordObject(profile, "Bake Locomotion Integer Timing");
+            int count = LocomotionTimingBaker.Bake(profile);
+            EditorUtility.SetDirty(profile);
+            AssetDatabase.SaveAssets();
+            Debug.Log($"LocomotionTiming: 已人工烘焙 {count} 个键到「{profile.name}」。", profile);
+        }
+
+        if (GUILayout.Button("只读审计 Timing"))
+            LocomotionTimingAudit.Validate(profile, logSuccess: true);
+
+        EditorGUILayout.HelpBox(
+            "迁移不会自动运行。请先备份，再逐个 Profile 点击烘焙并检查 duration/loop/exit/handoff frames。",
+            MessageType.Warning);
+
+        EditorGUILayout.Space(8f);
         EditorGUILayout.LabelField("Root Motion Bake", EditorStyles.boldLabel);
 
         CharacterAnimationProfile bakeSource = profile.AnimationProfile;

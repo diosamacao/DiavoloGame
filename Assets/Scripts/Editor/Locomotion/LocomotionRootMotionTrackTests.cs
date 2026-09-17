@@ -46,6 +46,35 @@ public sealed class LocomotionRootMotionTrackTests
         Assert.That(clamped.z, Is.EqualTo(lastDelta.z).Within(0.0001f));
     }
 
+    /// <summary>Generic Clip 必须从同一根 path 取通道，不能被后枚举的手脚骨位移覆盖。</summary>
+    [Test]
+    public void Bake_GenericClip_SelectsRootPathInsteadOfChildBone()
+    {
+        var clip = new AnimationClip { legacy = true };
+        clip.SetCurve(
+            "Root",
+            typeof(Transform),
+            "m_LocalPosition.z",
+            AnimationCurve.Linear(0f, 0f, 1f, 2f));
+        clip.SetCurve(
+            "Root/Hand",
+            typeof(Transform),
+            "m_LocalPosition.z",
+            AnimationCurve.Linear(0f, 0f, 1f, 9f));
+
+        LocomotionRootMotionTrack track = LocomotionRootMotionBaker.Bake(clip);
+        Vector3 accumulated = Vector3.zero;
+        for (int frame = 0; frame < track.FrameCount; frame++)
+        {
+            Assert.That(
+                track.TryGetFrameDelta(frame, ActionSim.LogicHz, out Vector3 delta, out _),
+                Is.True);
+            accumulated += delta;
+        }
+
+        Assert.That(accumulated.z, Is.EqualTo(2f).Within(0.01f));
+    }
+
     static LocomotionRootMotionTrack CreateLinearTrack(float duration, float endZ)
     {
         int count = Mathf.Max(2, Mathf.CeilToInt(duration * ActionSim.LogicHz) + 1);
@@ -58,6 +87,6 @@ public sealed class LocomotionRootMotionTrackTests
             yaws[i] = 0f;
         }
 
-        return LocomotionRootMotionTrack.Create(duration, positions, yaws);
+        return LocomotionRootMotionTrack.Create(count - 1, positions, yaws);
     }
 }

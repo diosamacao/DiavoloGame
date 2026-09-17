@@ -113,8 +113,10 @@ public sealed class ActOwnerReplicationAdapter
             PredictedReconcileResult locomotionResult = _driver.Reconcile(
                 appliedHint,
                 in self,
-                actor,
-                ActionMotionReconcileGate.ResolveSnapThresholdMm(
+                // 只有误差超过门槛时才由 Driver 原子执行 Restore + 未确认输入 Replay。
+                // 每包无条件 Restore 会把本地转向退回延迟权威姿态，并让动作表现持续被纠偏打断。
+                replay: actor,
+                snapThresholdMm: ActionMotionReconcileGate.ResolveSnapThresholdMm(
                     actor,
                     in self,
                     authorityAction));

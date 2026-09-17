@@ -1,13 +1,13 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-09-06（被弹选片 / Continue / Success 不重切）
+> Last updated: 2026-09-17（Observer 弹刀特效、Idle 循环与根运动迁移审计）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
 
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
-| 三人阵容 / 单键换人 | 🟡 P-SW1 运行时/权威代码完成，Editor 验收待办 | `PartyLoadout`、`PartyCombatCoordinator`、`ActGameGuest` | 空格已进 Input Actions；需各角色 Graph 配 `SwitchIn/SwitchOut` Entry |
+| 三人阵容 / 单键换人 / 死亡接替 | 🟡 运行时/权威代码完成，Editor 验收待办 | `PartyLoadout`、`PartyCombatCoordinator`、`PartyDeathSwitchPolicy`、`ActGameGuest` | 空格已进 Input Actions；需各角色 Graph 配 `SwitchIn/SwitchOut` Entry |
 | 极限支援 / 接触弹刀 | 🟡 P-SW2 代码已接，Play 待验；选片/Continue/自动弹刀已接线 | `WorldAssistCueBoard`、`IssueParried`、`ParriedActionPolicy` | 敌人 Parried 规则 + 进攻盒 Id；Success 继续铺窗 |
 | Wave4 位移（Adhesion / SoftBody / Relocate） | ✅ 已实现（吸附已验收；Relocate 已接线） | `ActionMotionAdhesion` + `ActionMotionResolver` + Bridge | Branch_02 吸附已配；Relocate 按需加 MotionCommand 轨；相机不在本 Wave |
 | 命中受击 Cue（VFX/SFX） | ✅ 已实现（A2 打击感验收 2026-08-09） | `HitImpactController` + `HitFeedbackSettings` | 接触点落点 + 随机旋转；普攻 Cue 已验 |
@@ -61,12 +61,14 @@
 | 输入 | `InputButton.SwitchCharacter` 固定 bit 9；`InputReader` 可选采样同名 Input Action |
 | 顺序选择 | `PartySlotSelector` 从 Active 后一槽正序绕回，只接受 `Inactive` |
 | 普通切裁定 | `PartyCombatCoordinator.TryResolveSwitchIn` 输出 `DualPresence`，旧槽 Active→Exiting，新槽 Inactive→Active |
+| 死亡收尾 | `PartyDeathSwitchPolicy/Gate` 最短等待 15 帧；`DeathSequenceComplete` 为主信号，缺信号时按死亡 Action 总帧 + 15 强制提交 |
+| 死亡接替 | `PartyCombatCoordinator.TryResolveActiveDeath` 原子写死亡槽 `Dead`，下一存活槽 `Active`；无存活槽则 `IsPartyWiped`，禁止复用 `Exiting/SwitchOut` |
 | 普通切落点 | `PartySwitchPlacement` 按旧角色 Motor 朝向取局部右侧 600mm；`CharacterActor.PlaceForNormalSwitchFrom` 从旧位置经新角色静态碰撞世界解析后落地 |
 | 退场时序 | `CharacterActor.BeginPartyExit/AdvancePartyExitAfterPostCombat`：空闲立即注入 `SwitchOut`；切人输入到达时已在 Recovery 则在下一次 Action Step 前立即交接，否则到首次 Recovery 停止并排队 `SwitchOut`；交接前必须离开 `Hit`（Driver 只从 Locomotion 起 SwitchOut）；`IsPartyExitReady` 只认 SwitchOut 实例的 Recovery |
 | 运行时槽 | `PlayerController` / `ActGameGuest` 均按非空槽创建独立 `CharacterActor`；Inactive 空输入且不参与软碰撞/受击 |
 | 稳定身份 | 每槽独立 `SimActorId` / `NetEntityId`；禁止单 Actor 热换 Config |
-| Owner 复制 | V2 应用载荷下发槽 ActorId、ActiveSlot、累计命令 ACK；自有后台槽不会创建 Observer Proxy |
-| 状态复制 | `PartyMemberState` 编入角色快照 `FlagsPacked` 低三位；Observer 仅显示 Active / Exiting |
+| Owner 复制 | 应用载荷下发槽 ActorId、ActiveSlot、累计命令 ACK；角色快照 `FlagsPacked` 逐槽纠正本机 `PartyState`，自有后台槽不会创建 Observer Proxy |
+| 状态复制 | `PartyMemberState` 编入角色快照 `FlagsPacked` 低三位；Observer 仅显示 Active / Exiting；PartyWiped V2 Meta 尚未接 |
 | 内容预填 | Client / Server 登记 Loadout 全部角色 Archetype 与动作 |
 
 ### 运行时流程
@@ -92,6 +94,15 @@ ActClientRoomGameplay.StepPrediction
   → PlayerController.StepPartyPrediction
   → Active 收输入；Exiting/Inactive 收空输入
   → 累计 ACK 未覆盖预测切人帧时，不用旧快照撤销切人
+
+Active 死亡：
+CharacterActor.ResolvePostCombat → DeathSequenceComplete
+  → DedicatedAuthorityWorld.AfterLogicStep
+  → PartyDeathSwitchGate（至少 15 帧；cap = DeathAction.TotalFrames + 15）
+  → ActGameGuest：死亡槽直接 Dead；下一槽直接 Active + SwitchIn
+      → 无下一槽：PartyWiped，继续 ACK 但清空玩法输入
+  → 同帧 Capture：ActiveSlot + 各槽 FlagsPacked
+  → PlayerController 镜像同一门禁，并由 ActiveSlot / FlagsPacked 纠正
 ```
 
 ### 已知限制
@@ -102,6 +113,7 @@ ActClientRoomGameplay.StepPrediction
 - `SwitchOut` 必须配置 Recovery Phase；缺失时角色不会被静默隐藏，便于暴露资产错误。
 - 本轮已通过解决方案编译；Unity Test Runner 与 Listen Play 尚未验收，因此功能状态仍为 🟡。
 - P-SW2 代码已接（Cue / 点数 / Guard→Success / `IssueParried` / 突击派生）；Graph 与 Timeline 资产、Play 验收未做。
+- PartyWiped 仍只在 Coordinator 口袋内；独立 V2 Party Meta、队灭 UI/Match 结果留给 replication todo。
 
 ### 相关文件
 
@@ -116,6 +128,10 @@ ActClientRoomGameplay.StepPrediction
 - `Assets/Scripts/Domain/Simulation/Input/InputButton.cs`
 - `Assets/Scripts/Infrastructure/Input/InputReader.cs`
 - `docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`
+
+### 变更日志
+
+- 2026-09-16：新增 Party 死亡 15 帧门禁、确定性 Action cap、AfterLogicStep 自动接替/队灭、Owner FlagsPacked 槽状态纠正与队灭输入门禁。
 
 ---
 
@@ -137,6 +153,7 @@ ActClientRoomGameplay.StepPrediction
 | 接触 | `IHitAbsorbQuery.IsInAssistParryWindow`；管道优先于 PD 与无敌：玩家不 OnHit，攻击者 `IssueParried` |
 | 被弹刀 | `HitPayload.ParriedActionPolicy`：`Interrupt` 才 `ResolveParried(parriedReactionId)` + LightStun 边沿 + `EnterHit`；`Continue` 不停招、不写边沿。选片：`Parried+Id` → Parried 默认 → Hit 默认。禁止冲击力裁定 / `HitReactionKind.Parried` |
 | 卡肉 | `ResolvePending` 裁定后唯一 `ApplyConfirmedHitStop`。真伤只冻进攻实例且仍受 `UseHitStop` 门控；弹刀帧只读当前招 `AssistParryWindow.hitStopFrames`（无窗回退 8），`ArmAssistParryHitStopCarry` 把剩余帧带到 Success |
+| Dedicated Owner | 吸收结果随 `ReplicatedHitEvent` 可靠下行；按 `PlayerController.PartyActors[].SimulationId` 找目标，Meta 早到/晚到均经有界 pending 重试；成功应用或确认非本阵容后才完成去重 |
 | 突击 | `Flags.ArmAssistFollowUp`；Producer 攻击族 Pressed 优先于 PD 派生 `AssistFollowUp`；切人当帧不武装 |
 
 ### 关键参数
@@ -436,7 +453,7 @@ ActAuthorityReplicationAdapter
 |----|------|
 | 捕获 | `ActCharacterSnapshotSchema.Capture` + `ActContentRegistry.Actions` |
 | 传输 | 房间 `UdpTransport`；Loopback 仅单测 |
-| 应用 | `RemoteCharacterProxy`：位姿写 Motor；招式切段 Seek；Locomotion 硬切 + `SeekLocomotionNormalized`；关掉 Animator RM |
+| 应用 | `RemoteCharacterProxy`：位姿写 Motor；招式/特殊 Locomotion 跟 `RemotePlaybackClock`；Idle 无新快照时按渲染时钟维持纯表现循环；关掉 Animator RM |
 | 朝向调试 | 客机幽灵挂同一套黄/品红箭；wish 走快照 `moveV*`，与延迟位姿成对 |
 | 插值 | 复用 `CharacterPresentationBridge.Render(alpha)` |
 | 装配 | `ActRemoteProxyFactory`，**不**走 `CharacterActorFactory` |
@@ -459,7 +476,7 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 
 - PivotTurn 根朝向仍只跟快照 facing（不在幽灵侧重跑 AnimAuth）；Clip 已按权威归一化时间 Seek
 - Catalog 已改为资产名稳定 Id（NS5）
-- 幽灵不进权威花名册、无 Hurtbox Collect；同一动作按前后 ActionFrame 补齐 VFX/SFX；新动作或帧回绕只派发当前跨帧。本机 `CharacterActor` 与远端 Proxy 在阵容成员隐藏前都由 `IActionVisibilityResetConsumer` 回收仍挂在角色下的 VFX；远端重新显形时另清空旧 `SnapshotTimeline` 并重置插值双端
+- 幽灵不进权威花名册、无 Hurtbox Collect；同一动作按前后 ActionFrame 补齐 VFX/SFX，首次看到新动作时从 frame -1 补到当前帧，避免弹刀成功等起手特效因首包已到 frame 1+ 而永久漏播；同动作重启仍只跨当前帧。本机 `CharacterActor` 与远端 Proxy 在阵容成员隐藏前都由 `IActionVisibilityResetConsumer` 回收仍挂在角色下的 VFX；远端重新显形时另清空旧 `SnapshotTimeline` 并重置插值双端
 - 多种敌人通过 `NetArchetypeId` 精确解析各自配置；未知 Archetype 明确拒绝，不做首敌回退
 
 ### 相关文件
@@ -855,7 +872,7 @@ Update：PollAndApply → SampleRenderInput → 按 PeekAdvanceSteps 发命令�
 
 ### 功能说明
 
-预测算法骨架可复用；ACT 2m Gate / 连招 / Hit-Death 仍归业务层。Control/Event 可靠有序，命中不再用帧内 8 条冗余。远端 Proxy 按插值延迟取样；Listen 本机 delay=0。公网 Play 未验收。
+预测算法骨架可复用；ACT 2m Gate / 连招 / Hit-Death 仍归业务层。Control/Event 可靠有序，命中不再用帧内 8 条冗余。远端 Proxy 保持稳定播放延迟并有限追赶。公网 Play 未验收。
 
 ### 实现方案
 
@@ -863,8 +880,8 @@ Update：PollAndApply → SampleRenderInput → 按 PeekAdvanceSteps 发命令�
 |----|------|
 | 通用协调 | `PredictionCoordinator` + Command/State History；不读 ActionId |
 | ACT 策略 | `ActCharacterPredictionModel.ResolvePolicy` |
-| 远端 | `SnapshotTimeline` 丢旧 Tick；`NetworkTimeEstimator` 算 delayTicks |
-| 通道 | Session 包装 `ChannelMuxTransport`；定案不换 LiteNetLib / Unity Transport |
+| 远端 | `SnapshotTimeline` 丢旧 Tick；`NetworkTimeEstimator` 只以 jitter + 发送间隔/余量算 delayTicks；`RemotePlaybackClock` 以 1.2 倍有限追赶 |
+| 通道 | Session 包装 `ChannelMuxTransport`；Snapshot 名称保留但 packet-level 不丢旧，同 Tick batch 由 `ReplicationClient` 应用层判定 |
 | 命中 | `ActReplicationEventCodec` + `EventReliableOrdered` |
 | MTU | 默认 1400；超限拒绝 |
 
@@ -874,7 +891,7 @@ Update：PollAndApply → SampleRenderInput → 按 PeekAdvanceSteps 发命令�
 |------|------|------|
 | `TransportMtuGate.DefaultMaxDatagramBytes` | 1400 | 含 9 字节通道头 |
 | Mux 重传间隔 | 50ms | Control/Event |
-| 插值延迟 | 远端：RTT/2 + jitter + 16ms | 钳 16～150ms，至少 1 Tick。Listen 本机 Observer 强制 0 |
+| 插值延迟 | 远端：jitter + 2 个发送间隔 | 钳 16～150ms，至少 1 Tick；latest 已到达，不重复扣 RTT/2 |
 
 ### 运行时流程
 
@@ -882,6 +899,7 @@ Update：PollAndApply → SampleRenderInput → 按 PeekAdvanceSteps 发命令�
 Owner：Record → PeekError → ResolvePolicy → ReceiveAuthority
 Observer：TryPush → ApplySnapshot(判定/Notify) → RemotePlaybackClock → PresentSampledPlayback + Render(alpha)
 Hit：CopyHits(本帧) → FlushEvents → ApplyReplicationEvents → 去重播放
+AssistParry：可靠吸收事件 → PartyActors 稳定 Id / pending → Owner NotifyAssistParryContact → 下一逻辑帧 AssistParrySuccess
 ```
 
 ### 已知限制
@@ -912,7 +930,7 @@ Hit：CopyHits(本帧) → FlushEvents → ApplyReplicationEvents → 去重播�
 | 项 | 方案 |
 |----|------|
 | 未变跳过 | `ReplicationServer` 对比上次已发送 payload |
-| 节拍 / 预算 | `ReplicationBuildOptions.Compact`：间隔 2 Tick、1200 字节、Owner 优先 |
+| 节拍 / 预算 | `ReplicationServer`：非 Urgent payload 变化最短间隔 2 Tick；移动/Action/Vitality 仍 Urgent；MaxSilence=30 |
 | 兴趣 | `ReplicationInterest`：Owner/玩家 Always；敌人平面距离 |
 | 恢复 | `ReplicationRecover` → `ResetBaseline` → 全量 Spawn |
 | 节点 | `GraphNodeKey.FromStableName`（FNV-1a） |
@@ -942,7 +960,7 @@ Observer.Render → RemotePlaybackClock（Listen delay=1）
 - W10 / W11 Play 均未用户验收
 - 无字段级 change mask、无超 MTU 拆包
 - `RoomCodec` 仍在 Simulation；未宣称只经 Networking Adapter
-- 远端隔步快照：播放头插值锚点并独切 Clip；出招 Tick 走片，偏差超约 1 逻辑帧才 Seek；落到走跑必须再 Play；走跑/出招/受击 `Urgent` 每 Tick 下发；Notify 随快照到达立即派发
+- 远端隔步快照：播放头插值锚点并驱动 Clip delta；停头即停片、1.2 倍追赶时同步追赶，只在切招/切段 Seek；落到走跑必须再 Play；走跑/出招/受击 `Urgent` 每 Tick 下发；Notify 随快照到达立即派发
 - 不得称 R2 完成或公网可用
 
 ### 相关文件
@@ -1128,7 +1146,8 @@ SimulationWorld.Step
 | 项 | 方案 |
 |----|------|
 | 内层机 | `LocomotionStateMachine` + `LocomotionContext`；Tick = 转换后 `ExecuteFrame` |
-| 步态策略 | `LocomotionGaitPolicy`：MaxGait / AllowPivot / SprintAfterRunSeconds |
+| 唯一时钟 | `LocomotionContext.PhaseFrame`；切相位或切 AnimationKey 清零，每逻辑步末只推进一次 |
+| 步态策略 | `LocomotionGaitPolicy`：MaxGait / AllowPivot / SprintAfterRunFrames |
 | 选片 | `DefaultLocomotionAnimResolver`：gait + `MoveIntent` → `AnimationKey` |
 | 相位 State | `Idle/Start/Gait/PivotTurn/StopLocomotionState` |
 | 逻辑键 | Idle/Walk/WalkLeft/WalkRight/WalkStart/WalkStartLeft/WalkStartRight/Run/Sprint/Start/StartEnd/PivotTurn/StopL/StopR |
@@ -1139,11 +1158,11 @@ SimulationWorld.Step
 | FollowInput 位移 | 沿**当前朝向**；朝向以 `CharacterConfig.RotationSmoothTime` 追 wish（单参控制 W→WD 转向时长） |
 | 起步选片 | Walk 横向 → `WalkStartLeft/Right`（缺则 `WalkStart`→`Start`）；正向 `WalkStart`；Run → `Start` |
 | 映射 | `CharacterAnimationProfile` → `AnimationClip` |
-| 相位参数 | `CharacterLocomotionProfile`（阈值、落脚、GaitPolicy、脚步音） |
-| 脚步 | `LocomotionFootCycle` 按 `NormalizedTime` 采样标记 |
-| 门面 | `CharacterAnimationService.Play`（兼 `ILocomotionAnimClipQuery`） |
-| Root Motion | StartEnd/Stop/Pivot 烘焙轨；Pivot：**AnimAuth**（bake pos+yaw）→ **InputAuth**（FollowInput，同 Gait） |
-| Pivot handoff | `CharacterLocomotionProfile.pivotAnimAuthNormalized`（默认 0.5） |
+| 相位参数 | `CharacterLocomotionProfile.clipTimings[]`：每 AnimationKey 明确 duration/loop/exit/handoff frames |
+| 脚步 | `LocomotionFootCycle` 按 `PhaseFrame + durationFrames` 采样整数帧标记 |
+| 门面 | `CharacterAnimationService.SampleLocomotion(AnimationKey, PhaseFrame, timing)` |
+| Root Motion | StartEnd/Stop/Pivot 烘焙轨直接按 `PhaseFrame` 取 Δ，不维护第二游标 |
+| Pivot handoff | `LocomotionClipTiming.HandoffFrame` |
 
 ### 相位规则（摘要）
 
@@ -1167,8 +1186,8 @@ Dodge 恢复                            → Gait（PendingGait 经 MaxGait 钳�
 | `pivotAngleDegrees` | 135 | Pivot 夹角 |
 | `gaitPolicy.maxGait` | Sprint | 玩家 Full；敌人近战建议 Run |
 | `gaitPolicy.allowPivot` | true | 仅 Sprint 可 Pivot |
-| `gaitPolicy.sprintAfterRunSeconds` | 3 | Run→Sprint 累计（真源在 Policy） |
-| `gaitInputGapGraceSeconds` | 0.15 | Gait 松手宽限 |
+| `gaitPolicy.sprintAfterRunFrames` | 180 | Run→Sprint 累计逻辑帧 |
+| `gaitInputGapGraceFrames` | 9 | Gait 松手宽限逻辑帧 |
 | Motor `sprintSpeed` | 9 | 冲刺水平速度 |
 | `sprintLean.maxLeanDeg` | 8 | L-DIR4 Visual 倾身；FaceCamera 路径不启用 |
 | `sprintLean.leanEngageSmoothTime` | 0.22 | 切入满倾平滑（秒） |
@@ -1184,7 +1203,7 @@ Dodge 恢复                            → Gait（PendingGait 经 MaxGait 钳�
 | WalkLeft / WalkRight | 对峙横移（敌人战斗 Profile 必绑） |
 | Start / StartEnd / PivotTurn / StopL / StopR | 玩家相位；StartEnd=Run_Start_End |
 
-资产：`Assets/Data/CharacterLocomotion/`（AnimationProfile）；LocomotionProfile 在 CharacterConfig 上引用（可空，运行时默认阈值）。
+资产：`Assets/Data/CharacterLocomotion/`。现有 Profile 必须由用户在 Inspector 分别点击 Timing Baker 与 Root Motion Bake；运行时不提供 duration/handoff/落脚或旧根运动轨回退。`LocomotionTimingAudit` 同时检查 Timing 和已启用的 StartEnd/StopL/StopR/PivotTurn 根运动轨。
 
 ### Action 状态下的动画锁
 
@@ -1193,7 +1212,8 @@ Dodge 恢复                            → Gait（PendingGait 经 MaxGait 钳�
 ### 已知限制
 
 - 急停减速曲线等旧 Phase D：**明确不做**（2026-08-12）；Stop/Pivot 靠烘焙根位移
-- Start/Stop/Pivot Clip 与落脚标记需人工配置
+- Start/Stop/Pivot Clip、落脚标记与根运动轨需人工配置并通过只读审计
+- V2 `ActorReplicationSnapshot` 显式携带 AnimationKey 与 `LocomotionPhaseFrame`；Owner 仅在需要 Reconcile 时恢复，Observer 特殊相位跟播放头，Idle 循环不反写模拟
 
 ### 相关文件
 
@@ -1689,6 +1709,9 @@ CombatHitPipeline（全体 Actor Step 后）
 
 | 日期 | 变更 |
 |------|------|
+| 2026-09-17 | Observer 首见新动作时补齐起手 VFX/SFX，修复弹刀成功特效漏播；Idle 在无持续 Snapshot 时按渲染时钟循环；Timing Audit 增加 Root Motion 有效性检查 |
+| 2026-09-16 | 修复 Owner 弹刀跨通道身份竞态；远端播放头有限追赶、缓冲不重复扣 RTT/2、Clip 跟播放 Tick；Idle Capture 固定 PhaseFrame=0；非 Urgent 30Hz；Snapshot Mux 丢旧下沉到应用层 |
+| 2026-09-16 | Locomotion L0/L1/L2：PhaseFrame 唯一时钟；ClipTiming/Gait/落脚/Start/Pivot/RootMotion 全帧化；新增手工 Baker/Audit，V1 不复用旧时间字段 |
 | 2026-08-31 | Party P-SW0 / P-SW1 骨架：CharacterId/Definition/Loadout、单键 SwitchCharacter、顺序槽位协调器；PlayerController 切到 Loadout，三 Actor 与联网尚未接 |
 | 2026-09-01 | Party P-SW1：每槽稳定 Actor/网络实体、Active/Exiting 输入与显隐、SwitchIn 外部意图、Owner 阵容载荷、累计切人 ACK 和 Debug HUD；Editor Graph/Test/Play 待验 |
 | 2026-09-01 | Party 普通退场改为双规则：空闲播完整 SwitchOut；有招进入首次 Recovery 后停止并隐藏，不再等待整个 Action |

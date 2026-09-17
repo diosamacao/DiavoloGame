@@ -46,7 +46,7 @@ public static class ActorReplicationSnapshotCodec
         writer.WriteInt32(snapshot.HealthMilli);
         writer.WriteInt32(snapshot.FlagsPacked);
         writer.WriteByte((byte)snapshot.VitalityEdge);
-        writer.WriteUInt16(snapshot.LocomotionNormalizedMilli);
+        writer.WriteInt32(snapshot.LocomotionPhaseFrame);
     }
 
     /// <summary>按固定字段顺序读取快照字段；不校验外层尾部，仅供外层协议嵌入。</summary>
@@ -76,7 +76,7 @@ public static class ActorReplicationSnapshotCodec
             reader.ReadInt32(),
             reader.ReadInt32(),
             (VitalityReplicationEdge)reader.ReadByte(),
-            reader.ReadUInt16());
+            reader.ReadInt32());
     }
 
     /// <summary>保持既有协议语义：非正线值统一还原为 Invalid。</summary>

@@ -20,6 +20,7 @@ public enum ClientSessionState : byte
 /// <summary>客户端 Session 状态机：Join、自动心跳、RTT/jitter、权威超时和应用消息路由。Transport 经 ChannelMux 补可靠控制/事件。</summary>
 public sealed class ClientSession : IDisposable
 {
+    const int MaxQueuedApplicationPackets = 256;
     readonly ChannelMuxTransport _transport;
     readonly SessionConfig _config;
     readonly Queue<SessionApplicationPacket> _applicationPackets = new();
@@ -52,6 +53,9 @@ public sealed class ClientSession : IDisposable
 
     /// <summary>通道层指标，含丢包与 Mux RTT。</summary>
     public NetMetricsSnapshot TransportMetrics => _transport.Metrics;
+
+    /// <summary>App 正文预算：MTU - Mux 头 - Session 信封。</summary>
+    public int MaxApplicationBodyBytes => _transport.MaxPayloadBytes - SessionCodec.EnvelopeHeaderBytes;
 
     /// <summary>Session 结束原因；运行中为 None。</summary>
     public DisconnectReason LastDisconnectReason { get; private set; }
@@ -222,6 +226,12 @@ public sealed class ClientSession : IDisposable
             return;
         if (State == ClientSessionState.Joined)
         {
+            if (_applicationPackets.Count >= MaxQueuedApplicationPackets)
+            {
+                // 可靠生命周期不可丢旧包；消费端持续落后时结束连接并走完整恢复。
+                End(DisconnectReason.InternalError);
+                return;
+            }
             _applicationPackets.Enqueue(new SessionApplicationPacket(
                 packet.ConnectionId,
                 messageType,

@@ -13,6 +13,7 @@ public sealed class DedicatedServerRuntime : IDisposable
     readonly List<DedicatedReplicationSend> _outbound = new();
     readonly List<DedicatedEventSend> _outboundEvents = new();
     readonly List<NetConnectionId> _playerScratch = new();
+    readonly HashSet<NetConnectionId> _replicationBlocked = new();
     bool _disposed;
     bool _pendingCompletedEnd;
     bool _endingMatch;
@@ -30,6 +31,7 @@ public sealed class DedicatedServerRuntime : IDisposable
         _session = session;
         _match = match;
         _authority = authority ?? throw new ArgumentNullException(nameof(authority));
+        _authority.ConfigureReplicationBodyBudget(_session.MaxApplicationBodyBytes);
         _session.Disconnected += OnSessionDisconnected;
         ExitCode = ServerExitCode.Success;
         IsListening = true;
@@ -104,7 +106,7 @@ public sealed class DedicatedServerRuntime : IDisposable
         }
     }
 
-    /// <summary>泵 Session、接纳玩家、灌命令、步进并按连接发送 ReplicationFrame。</summary>
+    /// <summary>泵 Session、接纳玩家、灌命令、步进并按连接发送 V2 生命周期与快照。</summary>
     public void Poll(long nowMs)
     {
         EnsureNotDisposed();
@@ -236,13 +238,13 @@ public sealed class DedicatedServerRuntime : IDisposable
     {
         while (_session.TryDequeueApplication(out SessionApplicationPacket packet))
         {
-            if (packet.MessageType == (byte)RoomMessageKind.ReplicationRecover)
+            if (packet.MessageType == (byte)ActRoomMessageType.ReplicationRecover)
             {
                 _authority.RequestFullRecovery(packet.ConnectionId);
                 continue;
             }
 
-            if (packet.MessageType != (byte)RoomMessageKind.ClientCommand)
+            if (packet.MessageType != (byte)ActRoomMessageType.ClientCommand)
                 continue;
             if (!_players.TryGetValue(packet.ConnectionId, out DedicatedPlayerRuntime player))
                 continue;
@@ -264,9 +266,9 @@ public sealed class DedicatedServerRuntime : IDisposable
                     + $"player={player.Slot.PlayerId.Value} entity={player.EntityId.Value} "
                     + $"tick={_authority.CurrentFrame} hint={newestHint}。");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // 非法正文不影响其他连接。
+                Debug.LogWarning($"DedicatedServerRuntime: 非法命令 connection={packet.ConnectionId} error={ex.Message}");
             }
         }
     }
@@ -313,23 +315,46 @@ public sealed class DedicatedServerRuntime : IDisposable
             return;
 
         _authority.DrainOutboundReplication(_outbound);
+        _replicationBlocked.Clear();
         for (int i = 0; i < _outbound.Count; i++)
         {
             DedicatedReplicationSend send = _outbound[i];
-            if (!_players.ContainsKey(send.ConnectionId) || send.Body == null || send.Body.Length == 0)
+            if (_replicationBlocked.Contains(send.ConnectionId))
+            {
+                _authority.RejectReplication(send.ConnectionId, send.Token);
                 continue;
+            }
+            if (!_players.ContainsKey(send.ConnectionId) || send.Body == null || send.Body.Length == 0)
+            {
+                _authority.RejectReplication(send.ConnectionId, send.Token);
+                _replicationBlocked.Add(send.ConnectionId);
+                continue;
+            }
 
             try
             {
                 _session.SendApplication(
                     send.ConnectionId,
-                    (byte)RoomMessageKind.ReplicationFrame,
-                    NetChannel.SnapshotUnreliableSequenced,
+                    send.IsLifecycle
+                        ? (byte)ActRoomMessageType.ReplicationLifecycle
+                        : (byte)ActRoomMessageType.ReplicationSnapshot,
+                    send.IsLifecycle
+                        ? NetChannel.EventReliableOrdered
+                        : NetChannel.SnapshotUnreliableSequenced,
                     send.Body);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _authority.RejectReplication(send.ConnectionId, send.Token);
+                _replicationBlocked.Add(send.ConnectionId);
+                Debug.LogWarning(
+                    $"DedicatedServerRuntime: replication send rejected connection={send.ConnectionId} "
+                    + $"kind={(send.IsLifecycle ? "lifecycle" : "snapshot")} bytes={send.Body.Length} error={ex.Message}");
+                continue;
             }
+
+            // 只有 Session/Mux 已接受数据报后才提交基线；内部 Commit 错误不得再次 Reject 同一票据。
+            _authority.CommitReplication(send.ConnectionId, send.Token);
         }
     }
 
@@ -350,12 +375,13 @@ public sealed class DedicatedServerRuntime : IDisposable
             {
                 _session.SendApplication(
                     send.ConnectionId,
-                    (byte)RoomMessageKind.ReplicationEvent,
+                    (byte)ActRoomMessageType.ReplicationEvent,
                     NetChannel.EventReliableOrdered,
                     send.Body);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Debug.LogWarning($"DedicatedServerRuntime: event send failed connection={send.ConnectionId} error={ex.Message}");
             }
         }
     }
@@ -389,8 +415,9 @@ public sealed class DedicatedServerRuntime : IDisposable
             {
                 _session.Disconnect(_playerScratch[i], DisconnectReason.ServerShutdown);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Debug.LogWarning($"DedicatedServerRuntime: disconnect failed connection={_playerScratch[i]} error={ex.Message}");
             }
         }
 
@@ -413,12 +440,13 @@ public sealed class DedicatedServerRuntime : IDisposable
             {
                 _session.SendApplication(
                     _playerScratch[i],
-                    (byte)RoomMessageKind.MatchEnd,
+                    (byte)ActRoomMessageType.MatchEnd,
                     NetChannel.ControlReliableOrdered,
                     body);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Debug.LogWarning($"DedicatedServerRuntime: match-end send failed connection={_playerScratch[i]} error={ex.Message}");
             }
         }
     }

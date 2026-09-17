@@ -2,52 +2,45 @@ using UnityEngine;
 
 /// <summary>
 /// 内层走跑可恢复态。字段来自现有 Context / RootMotion / FootCycle，不是第二套相位袋。
-/// 权威纠偏用 <see cref="FromAuthority"/>；本机 Tick 后可用 <see cref="LocomotionStateMachine.Capture"/>。
+/// 本机 Tick 后由 <see cref="LocomotionStateMachine.Capture"/> 捕获；V2 协议需显式携带 PhaseFrame。
 /// </summary>
 public readonly struct LocomotionSavedState
 {
-    /// <summary>从权威快照填相位/步态/归一化时间；烘焙帧用归一化时间近似。</summary>
-    public static LocomotionSavedState FromAuthority(in ActorReplicationSnapshot snapshot)
+    /// <summary>把 V2 完整角色快照转换为可恢复的整数走跑状态。</summary>
+    public static LocomotionSavedState FromSnapshot(in ActorReplicationSnapshot snapshot)
     {
-        AnimationKey key = AnimationKey.Idle;
-        if (ReplicationPresentationAlign.TryReadPhase(in snapshot, out AnimationKey decoded))
-            key = decoded;
-
+        var key = (AnimationKey)snapshot.LocomotionPhase;
         LocomotionPhase phase = PhaseFromAnimationKey(key);
         LocomotionGait gait = DecodeGait(snapshot.Gait, key);
         MoveCardinal cardinal = DecodeCardinal(snapshot.Cardinal);
-        float normalized = snapshot.LocomotionNormalizedMilli / 1000f;
         Vector3 facing = FacingFromMilliDeg(snapshot.FacingMilliDeg);
-
+        bool rootMotionActive = phase == LocomotionPhase.Stop
+            || phase == LocomotionPhase.PivotTurn;
         return new LocomotionSavedState(
             phase,
             gait,
             key,
-            normalized,
-            runHoldSeconds: 0f,
-            gaitInputGapSeconds: 0f,
+            snapshot.LocomotionPhaseFrame,
+            0,
+            0,
             cardinal,
-            gaitCardinalDwellFrames: 0,
-            activeStartKey: AnimationKey.Start,
-            activeStartGait: gait,
-            activeStartCardinal: cardinal,
-            stopKey: key == AnimationKey.StopL || key == AnimationKey.StartEnd
-                ? key
-                : AnimationKey.StopR,
-            stopFromStart: key == AnimationKey.StartEnd,
-            stopEnterFacing: facing,
-            pivotTarget: facing,
-            pivotEnterFacing: facing,
-            pivotMoveLatched: false,
-            rootMotionActive: phase == LocomotionPhase.Stop || phase == LocomotionPhase.PivotTurn,
-            rootMotionKey: key,
-            rootMotionFrame: 0,
-            rootMotionBasisYaw: facing.sqrMagnitude > 0.0001f
-                ? Mathf.Atan2(facing.x, facing.z) * Mathf.Rad2Deg
-                : 0f,
-            lastPlanted: FootSide.Right,
-            hasPlantRecord: false,
-            footFrozen: phase != LocomotionPhase.Gait && phase != LocomotionPhase.Start);
+            0,
+            key,
+            gait,
+            cardinal,
+            key,
+            key == AnimationKey.StartEnd,
+            facing,
+            facing,
+            facing,
+            false,
+            rootMotionActive,
+            key,
+            MotionQuantization.MilliDegToDegrees(snapshot.FacingMilliDeg),
+            FootSide.Left,
+            false,
+            phase != LocomotionPhase.Gait && phase != LocomotionPhase.Start,
+            rootMotionBasisIsCurrentFacing: true);
     }
 
     /// <summary>AnimationKey（快照 LocomotionPhase 字节）映射到内层相位。</summary>
@@ -82,9 +75,9 @@ public readonly struct LocomotionSavedState
         LocomotionPhase phase,
         LocomotionGait gait,
         AnimationKey animationKey,
-        float normalizedTime,
-        float runHoldSeconds,
-        float gaitInputGapSeconds,
+        int phaseFrame,
+        int runHoldFrames,
+        int gaitInputGapFrames,
         MoveCardinal gaitCardinal,
         int gaitCardinalDwellFrames,
         AnimationKey activeStartKey,
@@ -98,18 +91,18 @@ public readonly struct LocomotionSavedState
         bool pivotMoveLatched,
         bool rootMotionActive,
         AnimationKey rootMotionKey,
-        int rootMotionFrame,
         float rootMotionBasisYaw,
         FootSide lastPlanted,
         bool hasPlantRecord,
-        bool footFrozen)
+        bool footFrozen,
+        bool rootMotionBasisIsCurrentFacing = false)
     {
         Phase = phase;
         Gait = gait;
         AnimationKey = animationKey;
-        NormalizedTime = normalizedTime;
-        RunHoldSeconds = runHoldSeconds;
-        GaitInputGapSeconds = gaitInputGapSeconds;
+        PhaseFrame = phaseFrame;
+        RunHoldFrames = runHoldFrames;
+        GaitInputGapFrames = gaitInputGapFrames;
         GaitCardinal = gaitCardinal;
         GaitCardinalDwellFrames = gaitCardinalDwellFrames;
         ActiveStartKey = activeStartKey;
@@ -123,11 +116,11 @@ public readonly struct LocomotionSavedState
         PivotMoveLatched = pivotMoveLatched;
         RootMotionActive = rootMotionActive;
         RootMotionKey = rootMotionKey;
-        RootMotionFrame = rootMotionFrame;
         RootMotionBasisYaw = rootMotionBasisYaw;
         LastPlanted = lastPlanted;
         HasPlantRecord = hasPlantRecord;
         FootFrozen = footFrozen;
+        RootMotionBasisIsCurrentFacing = rootMotionBasisIsCurrentFacing;
     }
 
     /// <summary>内层相位。</summary>
@@ -136,12 +129,12 @@ public readonly struct LocomotionSavedState
     public LocomotionGait Gait { get; }
     /// <summary>当前 Clip 键。</summary>
     public AnimationKey AnimationKey { get; }
-    /// <summary>Clip 归一化时间。</summary>
-    public float NormalizedTime { get; }
-    /// <summary>Run 满输入累计秒。</summary>
-    public float RunHoldSeconds { get; }
-    /// <summary>Gait 无输入宽限累计秒。</summary>
-    public float GaitInputGapSeconds { get; }
+    /// <summary>当前动画键内的整数逻辑帧。</summary>
+    public int PhaseFrame { get; }
+    /// <summary>Run 满输入累计逻辑帧。</summary>
+    public int RunHoldFrames { get; }
+    /// <summary>Gait 无输入宽限累计逻辑帧。</summary>
+    public int GaitInputGapFrames { get; }
     /// <summary>Gait 循环滞回 cardinal。</summary>
     public MoveCardinal GaitCardinal { get; }
     /// <summary>当前 cardinal 驻留帧。</summary>
@@ -168,8 +161,6 @@ public readonly struct LocomotionSavedState
     public bool RootMotionActive { get; }
     /// <summary>烘焙轨 Key。</summary>
     public AnimationKey RootMotionKey { get; }
-    /// <summary>烘焙下一帧表下标。</summary>
-    public int RootMotionFrame { get; }
     /// <summary>烘焙局部→世界基偏航。</summary>
     public float RootMotionBasisYaw { get; }
     /// <summary>最近落脚。</summary>
@@ -178,9 +169,11 @@ public readonly struct LocomotionSavedState
     public bool HasPlantRecord { get; }
     /// <summary>落脚采样是否冻结。</summary>
     public bool FootFrozen { get; }
+    /// <summary>true 表示复制仅携带当前朝向，Restore 需反推 Pivot 进入基；本地 Capture 为 false。</summary>
+    public bool RootMotionBasisIsCurrentFacing { get; }
 
     /// <summary>Clip 为 Sprint 时以片为准，避免出招期间快照 Gait 被写成 Walk。</summary>
-    static LocomotionGait DecodeGait(byte raw, AnimationKey key)
+    public static LocomotionGait DecodeGait(byte raw, AnimationKey key)
     {
         if (key == AnimationKey.Sprint)
             return LocomotionGait.Sprint;
@@ -193,7 +186,8 @@ public readonly struct LocomotionSavedState
         return LocomotionGait.Walk;
     }
 
-    static MoveCardinal DecodeCardinal(byte raw)
+    /// <summary>把复制字节严格映射为 Cardinal；未知值返回 None。</summary>
+    public static MoveCardinal DecodeCardinal(byte raw)
     {
         if (raw == (byte)MoveCardinal.Back)
             return MoveCardinal.Back;
@@ -206,7 +200,8 @@ public readonly struct LocomotionSavedState
         return MoveCardinal.None;
     }
 
-    static Vector3 FacingFromMilliDeg(int facingMilliDeg)
+    /// <summary>把整数毫度偏航还原为水平单位方向。</summary>
+    public static Vector3 FacingFromMilliDeg(int facingMilliDeg)
     {
         float yaw = MotionQuantization.MilliDegToDegrees(facingMilliDeg);
         return Quaternion.Euler(0f, yaw, 0f) * Vector3.forward;

@@ -23,7 +23,8 @@ public sealed class ActAuthorityReplicationAdapterTests
             currentFrame: 39,
             actorId,
             commands,
-            lastAppliedHint: 10);
+            lastAppliedHint: 10,
+            allowGameplayInput: true);
 
         Assert.That(result.Applied, Is.True);
         Assert.That(result.FirstAppliedHint, Is.EqualTo(11));
@@ -53,11 +54,42 @@ public sealed class ActAuthorityReplicationAdapterTests
             currentFrame: 8,
             actorId,
             commands,
-            lastAppliedHint: 4);
+            lastAppliedHint: 4,
+            allowGameplayInput: true);
 
         Assert.That(result.Applied, Is.False);
         Assert.That(result.NewestHint, Is.EqualTo(4));
         Assert.That(buffer.TryGetExact(9, actorId, out InputFrame preserved), Is.True);
         Assert.That(preserved, Is.EqualTo(existing));
+    }
+
+    /// <summary>死亡或队灭门禁应继续确认新 Hint，但写入权威帧的玩法输入必须清空。</summary>
+    [Test]
+    public void ApplyGuestCommands_GameplayBlocked_AcksAndWritesEmptyInput()
+    {
+        var adapter = new ActAuthorityReplicationAdapter(new ActContentRegistry());
+        var buffer = new InputFrameBuffer();
+        var actorId = new SimActorId(3);
+        ulong attack = InputButtonMask.Of(InputButton.Attack);
+        var commands = new[]
+        {
+            new ClientCommand(
+                5,
+                2,
+                new InputFrame(5, actorId, 50, 80, attack, attack, 0ul)),
+        };
+
+        ActAuthorityInputApplyResult result = adapter.ApplyGuestCommands(
+            buffer,
+            currentFrame: 8,
+            actorId,
+            commands,
+            lastAppliedHint: 4,
+            allowGameplayInput: false);
+
+        Assert.That(result.Applied, Is.True);
+        Assert.That(result.NewestHint, Is.EqualTo(5));
+        Assert.That(buffer.TryGetExact(9, actorId, out InputFrame blocked), Is.True);
+        Assert.That(blocked, Is.EqualTo(InputFrame.Empty(9, actorId)));
     }
 }

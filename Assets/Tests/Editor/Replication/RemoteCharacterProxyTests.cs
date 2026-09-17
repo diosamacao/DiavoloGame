@@ -187,6 +187,17 @@ public sealed class RemoteCharacterProxyTests
         Assert.That(RemoteCharacterProxy.IsPresentationNotify(null), Is.False);
     }
 
+    /// <summary>HitStop 不能成为 Observer 点特效门禁；动作 frame 0 冻结时仍须派发一次。</summary>
+    [Test]
+    public void ShouldDispatchPresentationNotifies_ActionActive_DispatchesDuringHitStop()
+    {
+        Assert.That(
+            RemoteCharacterProxy.ShouldDispatchPresentationNotifies(
+                requested: true,
+                actionActive: true),
+            Is.True);
+    }
+
     /// <summary>无 Catalog 时不得假装能还原受击 Feedback。</summary>
     [Test]
     public void TryResolveFeedback_NullCatalog_ReturnsFalse()
@@ -225,21 +236,6 @@ public sealed class RemoteCharacterProxyTests
             Is.True);
         Assert.That(
             RemoteCharacterProxy.ShouldPlaySampledLocomotion(false, null, AnimationKey.Idle),
-            Is.True);
-    }
-
-    /// <summary>Clip 偏差不超过约 1 逻辑帧不 Seek；超过才纠偏。</summary>
-    [Test]
-    public void ShouldCorrectActionClipSeek_OnlyWhenDriftExceedsOneLogicFrame()
-    {
-        Assert.That(
-            RemoteCharacterProxy.ShouldCorrectActionClipSeek(0.10f, 0.10f, 60f),
-            Is.False);
-        Assert.That(
-            RemoteCharacterProxy.ShouldCorrectActionClipSeek(0.10f, 0.11f, 60f),
-            Is.False);
-        Assert.That(
-            RemoteCharacterProxy.ShouldCorrectActionClipSeek(0.10f, 0.12f, 60f),
             Is.True);
     }
 
@@ -299,9 +295,9 @@ public sealed class RemoteCharacterProxyTests
             Is.False);
     }
 
-    /// <summary>新动作首见于中段时只跨当前帧，禁止从 -1 补播此前全部 VFX/SFX。</summary>
+    /// <summary>新动作首见于中段时补齐起手表现 Notify，避免 frame 0 弹刀成功特效永久丢失。</summary>
     [Test]
-    public void ResolvePreviousNotifyFrame_NewMidAction_DoesNotReplayHistory()
+    public void ResolvePreviousNotifyFrame_NewMidAction_ReplaysPresentationHistory()
     {
         int previousFrame = RemoteCharacterProxy.ResolvePreviousNotifyFrame(
             forceRestart: false,
@@ -310,7 +306,7 @@ public sealed class RemoteCharacterProxyTests
             actionId: 6,
             actionFrame: 134);
 
-        Assert.That(previousFrame, Is.EqualTo(133));
+        Assert.That(previousFrame, Is.EqualTo(-1));
     }
 
     /// <summary>同一动作正常前进仍从上次快照补齐间隔内 Notify，避免普通丢包漏特效。</summary>
@@ -339,6 +335,27 @@ public sealed class RemoteCharacterProxyTests
             actionFrame: 0);
 
         Assert.That(previousFrame, Is.EqualTo(-1));
+    }
+
+    /// <summary>播放头停住时 Idle 仍按渲染时钟循环，特殊相位仍只能跟随权威播放头。</summary>
+    [Test]
+    public void ResolveLocomotionPresentationDelta_IdleUsesRenderClock_TransitionUsesPlaybackClock()
+    {
+        ActorReplicationSnapshot idle = CreatePoseSnapshot(0, 0);
+        ActorReplicationSnapshot stop = idle.WithLocomotion((byte)AnimationKey.StopL, 4);
+
+        Assert.That(
+            RemoteCharacterProxy.ResolveLocomotionPresentationDelta(
+                in idle,
+                playbackDeltaSeconds: 0f,
+                renderDeltaSeconds: 0.016f),
+            Is.EqualTo(0.016f));
+        Assert.That(
+            RemoteCharacterProxy.ResolveLocomotionPresentationDelta(
+                in stop,
+                playbackDeltaSeconds: 0.033f,
+                renderDeltaSeconds: 0.016f),
+            Is.EqualTo(0.033f));
     }
 
     /// <summary>远端角色离场时须在父节点停用前清理可见性相关表现。</summary>

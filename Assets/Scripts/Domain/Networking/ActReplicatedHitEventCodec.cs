@@ -1,10 +1,10 @@
-/// <summary>权威命中事件的唯一线布局；Snapshot 载荷与可靠事件通道共用。</summary>
+/// <summary>权威命中事件的唯一线布局；包含 Owner 派生防御动作所需结果。</summary>
 public static class ActReplicatedHitEventCodec
 {
-    /// <summary>Version 2 起携带 ReactionKind；旧 V1 不再解码。</summary>
-    public const byte Version = 2;
+    /// <summary>Version 3 增加协防弹刀吸收标记与卡肉帧；不保留旧版解码。</summary>
+    public const byte Version = 3;
 
-    /// <summary>写入 EventFrame → SimHitKey → ActionId → ReactionKind → 落点 → 水平方向。</summary>
+    /// <summary>写入命中身份、表现字段及协防弹刀结果。</summary>
     public static void Write(NetBufferWriter writer, in ReplicatedHitEvent hit)
     {
         writer.WriteInt64(hit.Frame);
@@ -20,6 +20,8 @@ public static class ActReplicatedHitEventCodec
         writer.WriteInt32(hit.HitZMm);
         writer.WriteInt32(hit.DirXMm);
         writer.WriteInt32(hit.DirZMm);
+        writer.WriteByte(hit.AbsorbedByAssistParry ? (byte)1 : (byte)0);
+        writer.WriteInt32(hit.HitStopFrames);
     }
 
     /// <summary>与 Write 严格对称；非正 ActorId 按 Invalid 处理。</summary>
@@ -41,6 +43,8 @@ public static class ActReplicatedHitEventCodec
             reader.ReadInt32(),
             reader.ReadInt32(),
             reader.ReadInt32(),
+            reader.ReadInt32(),
+            reader.ReadByte() != 0,
             reader.ReadInt32());
     }
 

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 
-/// <summary>通道 Mux：可靠有序重传、Snapshot 丢旧、超 MTU 拒绝。不引用 ACT。</summary>
+/// <summary>通道 Mux：可靠有序重传、Snapshot 不可靠交付、超 MTU 拒绝。不引用 ACT。</summary>
 public sealed class ChannelMuxTransportTests
 {
     static readonly NetEndpoint Endpoint = new("mux-loopback", 1);
@@ -58,9 +58,29 @@ public sealed class ChannelMuxTransportTests
         Assert.That(DrainPayloads(server), Is.Empty);
     }
 
-    /// <summary>旧 Snapshot 序号必须丢弃，不得回滚到更旧正文。</summary>
+    /// <summary>首次 Poll 前发送的握手没有时钟基线；ACK 后 RTT 仍应保持未知而非整数溢出。</summary>
     [Test]
-    public void Snapshot_OldSequence_IsDropped()
+    public void Reliable_SendBeforeClock_DoesNotProduceNegativeMetrics()
+    {
+        using var link = new DuplexLink();
+        ChannelMuxTransport server = ChannelMuxTransport.Wrap(link.Server);
+        ChannelMuxTransport client = ChannelMuxTransport.Wrap(link.Client);
+        server.StartServer(Endpoint);
+        client.StartClient(Endpoint);
+
+        client.Send(client.Connections[0], NetChannel.ControlReliableOrdered, new byte[] { 1 });
+        server.AdvanceClock(1_700_000_000_000L);
+        server.Poll();
+        client.AdvanceClock(1_700_000_000_001L);
+        client.Poll();
+
+        Assert.That(client.Metrics.RttMs, Is.EqualTo(-1));
+        Assert.That(client.Metrics.JitterMs, Is.EqualTo(-1));
+    }
+
+    /// <summary>Snapshot 数据报不在 Mux 丢旧；同 Tick 多 batch 的判定归 ReplicationClient。</summary>
+    [Test]
+    public void Snapshot_OutOfOrderPackets_AreBothDelivered()
     {
         using var link = new DuplexLink();
         ChannelMuxTransport server = ChannelMuxTransport.Wrap(link.Server);
@@ -78,8 +98,8 @@ public sealed class ChannelMuxTransportTests
 
         link.InjectToClient(stale);
         client.Poll();
-        Assert.That(DrainPayloads(client), Is.Empty);
-        Assert.That(client.Metrics.PacketsDropped, Is.GreaterThan(0));
+        Assert.That(DrainPayloads(client), Is.EqualTo(new[] { 10 }));
+        Assert.That(client.Metrics.PacketsDropped, Is.Zero);
     }
 
     /// <summary>超 MTU 的发送被拒绝且不进入底层。</summary>
@@ -96,6 +116,82 @@ public sealed class ChannelMuxTransportTests
                 new byte[64]));
         Assert.That(client.OversizeRejected, Is.EqualTo(1));
         Assert.That(link.ClientToServer.Count, Is.Zero);
+    }
+
+    /// <summary>可靠窗口满时在底层发送前背压，并保留全部最旧未确认包。</summary>
+    [Test]
+    public void Reliable_WindowFull_RejectsNewestWithoutDroppingOldest()
+    {
+        using var link = new DuplexLink { HoldClientSends = true };
+        ChannelMuxTransport client = ChannelMuxTransport.Wrap(link.Client);
+        client.StartClient(Endpoint);
+        for (int i = 0; i < 64; i++)
+            client.Send(client.Connections[0], NetChannel.EventReliableOrdered, new[] { (byte)i });
+
+        Assert.Throws<System.InvalidOperationException>(
+            () => client.Send(client.Connections[0], NetChannel.EventReliableOrdered, new byte[] { 64 }));
+        Assert.That(link.HeldClientSends.Count, Is.EqualTo(64));
+        Assert.That(client.ReliableBackpressureRejected, Is.EqualTo(1));
+    }
+
+    /// <summary>超出可靠接收窗口的未来包不得缓存或 ACK，避免无界 Hold 与永久序列缺口。</summary>
+    [Test]
+    public void Reliable_FutureOutsideWindow_IsDroppedWithoutAck()
+    {
+        using var link = new DuplexLink();
+        ChannelMuxTransport server = ChannelMuxTransport.Wrap(link.Server);
+        server.StartServer(Endpoint);
+        link.Server.Inbox.Enqueue(EncodeReliable(seq: 64, payload: 9));
+
+        server.Poll();
+
+        Assert.That(DrainPayloads(server), Is.Empty);
+        Assert.That(link.Client.Inbox.Count, Is.Zero);
+        Assert.That(server.Metrics.PacketsDropped, Is.EqualTo(1));
+    }
+
+    /// <summary>Mux 交付队列达到硬上限后拒绝最新不可靠包，不允许无界增长。</summary>
+    [Test]
+    public void DeliveredQueue_IsBounded()
+    {
+        using var link = new DuplexLink();
+        ChannelMuxTransport server = ChannelMuxTransport.Wrap(link.Server);
+        server.StartServer(Endpoint);
+        for (ushort seq = 0; seq < 257; seq++)
+            link.Server.Inbox.Enqueue(EncodeUnreliable(seq, (byte)seq));
+
+        server.Poll();
+
+        Assert.That(DrainPayloads(server), Has.Length.EqualTo(256));
+        Assert.That(server.Metrics.PacketsDropped, Is.EqualTo(1));
+    }
+
+    /// <summary>构造测试用 Mux V1 可靠数据报。</summary>
+    static byte[] EncodeReliable(ushort seq, byte payload)
+    {
+        var writer = new NetBufferWriter(10);
+        writer.WriteByte(1);
+        writer.WriteByte((byte)NetChannel.EventReliableOrdered);
+        writer.WriteByte(1);
+        writer.WriteUInt16(seq);
+        writer.WriteUInt16(0);
+        writer.WriteUInt16(1);
+        writer.WriteByte(payload);
+        return writer.ToArray();
+    }
+
+    /// <summary>构造测试用 Mux V1 不可靠数据报。</summary>
+    static byte[] EncodeUnreliable(ushort seq, byte payload)
+    {
+        var writer = new NetBufferWriter(10);
+        writer.WriteByte(1);
+        writer.WriteByte((byte)NetChannel.CommandUnreliableRedundant);
+        writer.WriteByte(0);
+        writer.WriteUInt16(seq);
+        writer.WriteUInt16(0);
+        writer.WriteUInt16(1);
+        writer.WriteByte(payload);
+        return writer.ToArray();
     }
 
     static int[] DrainPayloads(ChannelMuxTransport mux)

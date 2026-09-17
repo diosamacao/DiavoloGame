@@ -3,6 +3,9 @@ using System;
 /// <summary>通用 Session 信封及 Join、Heartbeat、Kick 控制消息编解码。</summary>
 public static class SessionCodec
 {
+    /// <summary>Session version 与 message type 固定开销。</summary>
+    public const int EnvelopeHeaderBytes = 2;
+
     /// <summary>冻结既有房间信封版本。</summary>
     public const byte EnvelopeVersion = 1;
 
