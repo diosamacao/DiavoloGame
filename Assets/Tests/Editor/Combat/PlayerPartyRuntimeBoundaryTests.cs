@@ -37,7 +37,7 @@ public sealed class PlayerPartyRuntimeBoundaryTests
     [Test]
     public void ClientGameplay_UsesPartyRuntimeContract()
     {
-        string source = ReadScript("App/Networking/Services/ActClientRoomGameplay.cs");
+        string source = ReadScript("App/Networking/Services/OwnerPredictionCoordinator.cs");
 
         Assert.That(source, Does.Contain("_localPlayer.Party.StepPrediction("));
         Assert.That(source, Does.Contain("_localPlayer.Party.BindSimulationInput("));

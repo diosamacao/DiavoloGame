@@ -326,10 +326,10 @@ Heartbeat：默认 500ms 一发；服务端回显 `EchoTimeMs`；客机算 `RttM
 
 ```mermaid
 flowchart LR
-    Sample["ActClientRoomGameplay.SampleRenderInput\nInputFrameBuffer.MergeLocalSample"]
+    Sample["ActClientRoomGameplay.SampleRenderInput\n→ OwnerPredictionCoordinator"]
     Build["TryBuildCommand\n_predictFrame++ / ResolveLocal"]
     Send["LocalClientRuntime.SendCommandAndPredict\nRoomMessageKind.ClientCommand"]
-    Pred["ActClientRoomGameplay.StepPrediction\nCharacterActor.Step + RecordAutonomous"]
+    Pred["OwnerPredictionCoordinator.StepPrediction\nCharacterActor.Step + RecordAutonomous"]
     Drain["DedicatedServerRuntime.DrainCommands"]
     Merge["RoomRemoteInputMerge.TryMergeUnapplied"]
     Apply["ActAuthorityReplicationAdapter.ApplyGuestCommands\nInputFrameBuffer.Set targetFrame+1"]
@@ -541,17 +541,17 @@ sequenceDiagram
     participant CHP as CombatHitPipeline
     participant SH as SimulationHost.PublishResolvedHit
     participant AUTH as ActAuthorityReplicationAdapter.CopyHits
-    participant DAW as DedicatedAuthorityWorld.EnqueueHitEvents
+    participant ARP as AuthorityReplicationPublisher
     participant DSR as DedicatedServerRuntime.FlushEvents
     participant LCR as LocalClientRuntime
-    participant CUE as ActClientRoomGameplay.PlayReplicatedHits
+    participant CUE as ReplicatedFeedbackCoordinator
 
     HD->>CHP: Collect
     SH->>CHP: BeginFrame / Resolve / CompleteFrame
     CHP->>SH: PublishResolvedHit
     Note over SH: AfterLogicStep 内拷贝，随后 Clear
-    AUTH->>DAW: 补 ActionId
-    DAW->>DAW: ActReplicationEventCodec.Encode
+    AUTH->>ARP: 补 ActionId
+    ARP->>ARP: ActReplicationEventCodec.Encode
     DSR->>LCR: RoomMessageKind.ReplicationEvent EventReliableOrdered
     LCR->>CUE: SimHitKey 去重后 HitImpactCuePlayer.TryPlay
 ```

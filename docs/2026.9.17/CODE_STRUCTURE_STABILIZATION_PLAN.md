@@ -390,7 +390,7 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 - [x] `PlayerController` 只保留 Scene 生命周期、本地设备输入入口和 Party Runtime 装配。
 - [x] 提取 `PlayerPartyRuntime`，承接三槽创建、ActiveSlot、权威同步和预测切人。
 - [x] 将 `DedicatedAuthorityWorld` 拆为 Guest Registry、Authority Step Coordinator、Replication Publisher。
-- [ ] 将 `ActClientRoomGameplay` 拆为 Owner Prediction Coordinator、Observer Replication Coordinator、Replicated Feedback Coordinator。
+- [x] 将 `ActClientRoomGameplay` 拆为 Owner Prediction Coordinator、Observer Replication Coordinator、Replicated Feedback Coordinator。
 - [ ] `DedicatedServerRuntime` 只负责 Session/Match/Poll/Flush 生命周期，不解释角色状态。
 - [ ] 删除 Controller 中运行时 `FindObjectOfType` 业务依赖，改由 Composition Root 显式注入。
 
@@ -413,6 +413,9 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 - 新增 `AuthorityGuestRegistry`、`AuthorityStepCoordinator`、`AuthorityReplicationPublisher`：分别独占 Headless Guest 生命周期、命令/时钟/PostLogic 顺序、逐连接复制基线与可靠事件。
 - `DedicatedAuthorityWorld` 收敛为 `IDedicatedAuthorityWorld` 组合门面；Join/Remove、Advance、Prepare/Commit/Reject 均直接委托所属组件，不保留旧集合或算法。
 - 新增 `AuthorityWorldCoordinatorBoundaryTests`，锁定 PostLogic 生命周期提交先于 Capture/Publish，并禁止复制算法回流 World 门面；Editor Test Runner / Listen + Dedicated 待验收。
+- 新增 `OwnerPredictionCoordinator`、`ObserverReplicationCoordinator`、`ReplicatedFeedbackCoordinator`：分别独占输入/命令/预测与 Owner Meta、V2 Lifecycle/Snapshot/Observer 播放时钟、命中去重/弹刀竞态/预测卡肉与软体分离。
+- `ActClientRoomGameplay` 收敛为三个 Client Coordinator 的组合门面；删除命令历史、ReplicationClient 应用列表、Owner 阵容、命中去重与表现算法旧字段。
+- 新增 `ClientGameplayCoordinatorBoundaryTests` 并更新 `PlayerPartyRuntimeBoundaryTests` 的真实调用方；`ACTGame.App.csproj` 已构建通过，Editor Test Runner / Listen + Client 待验收。
 
 ---
 

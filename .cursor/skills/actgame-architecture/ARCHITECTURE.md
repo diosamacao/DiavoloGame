@@ -108,7 +108,10 @@ CS2A 期间 Character/Combat/Enemy/Party/Camera 只编入一个 `ACTGame.Domain.
 | `ActContentRegistry` | App/Networking 的 ACT 内容唯一真源：集中持有 PartyLoadout、Action Catalog、全部槽 Character Archetype 与 EnemyDefinition 映射 |
 | `ActCharacterSnapshotSchema` | App/Networking 的角色生产 Schema：统一 CharacterActor Capture；纯 C# `CharacterSnapshotSchemaV2` 是唯一角色线格式实现 |
 | `ActContentPrefillService` | App 场景内容接缝：唯一扫描 Player/Enemy 配置并幂等预填 `ActContentRegistry`；Room 不再查找 Gameplay 组件 |
-| `ActClientRoomGameplay` / `LocalClientRuntime` | Client Gameplay 编排与 Session 运行时：Owner 预测、Observer、Hit Cue；Listen 本机与远端 Client 共用 |
+| `ActClientRoomGameplay` / `LocalClientRuntime` | Client Gameplay 与 Session 薄门面；前者只组合 Owner、Observer、Feedback 三个协调器，Listen 本机与远端 Client 共用 |
+| `OwnerPredictionCoordinator` | 本机输入采样、命令冗余、阵容预测 Step、Owner ACK/Reconcile 与 Party Meta 纠正唯一入口 |
+| `ObserverReplicationCoordinator` | V2 Lifecycle/Snapshot/Meta 原子应用、Observer Proxy 生命周期与远端播放时钟唯一入口 |
+| `ReplicatedFeedbackCoordinator` | 可靠命中 Cue、SimHitKey 去重、弹刀跨通道暂存、预测卡肉与本机对 Proxy 软体分离唯一入口 |
 | `ListenServerBootstrap` / `ReplicationRoomClient` | Listen 组合 ServerRuntime+LocalClient；远端 Client 薄 Facade 只驱动 Runtime 与逻辑步发送 |
 | `DedicatedServerBootstrap` / `DedicatedServerRuntime` | 唯一权威运行时：Session/Match、每连接 ACK、Lifecycle/Snapshot/Event / `MatchEnd`；Listen 复用，Dedicated 单独启动 |
 | `ServerLaunchConfigResolver` | Dedicated 启动覆盖：CLI > Env > File > Default；不写密钥日志 |

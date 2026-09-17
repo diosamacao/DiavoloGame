@@ -21,7 +21,7 @@
 
 **目标**：按 CS0～CS7 依次完成基线门禁、Net 单轨清理、Assembly 分层、Character/App 职责拆分、Content 单入口和模拟/表现硬边界；结构总出口关闭前冻结普通功能开发，仅允许独立的编译/数据安全阻塞修复。
 
-**状态**：CS0/CS1/CS2A/CS3 已验收；CS4 已提取 `PlayerPartyRuntime`，并将 `DedicatedAuthorityWorld` 拆为 Guest Registry、Step Coordinator、Replication Publisher。剩余 Client Gameplay、Server Runtime 与 Scene 查找边界待继续；Character/Combat/Enemy 终态切分在 CS5 解环后执行 CS2B。
+**状态**：CS0/CS1/CS2A/CS3 已验收；CS4 已提取 `PlayerPartyRuntime`，Authority 与 Client Gameplay 均已拆为三个唯一协调器。剩余 `DedicatedServerRuntime` 角色语义清理与 Scene 查找边界待继续；Character/Combat/Enemy 终态切分在 CS5 解环后执行 CS2B。
 
 ### [P1] 移动职责迁移
 

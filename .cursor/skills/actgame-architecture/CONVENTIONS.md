@@ -53,6 +53,7 @@
 - **复制目录 Prefill**：必须收录 Graph 节点 `Action` 与 `VariantResolver` 变体（六向闪避）。只预填 `node.Action` 时客机侧/后闪 `TryGet` 失败，只有位移没有 Clip
 - **网络 Room 薄 Facade**：`ListenServerBootstrap` / `ReplicationRoomClient` 只做组合或 Session 调度与 HUD；CharacterConfig/PlayerController/EnemySpawnController/RemoteProxy/Hit Cue/HitStop 实现必须留在 `App/Networking` Service/Adapter，禁止迁回 Facade 或恢复 `ReplicationRoomHost`
 - **Authority 编排边界**：`DedicatedAuthorityWorld` 只实现 `IDedicatedAuthorityWorld` 门面；Guest 创建/销毁归 `AuthorityGuestRegistry`，命令与固定帧归 `AuthorityStepCoordinator`，连接级 Prepare/Commit/Reject 与可靠事件归 `AuthorityReplicationPublisher`
+- **Client 编排边界**：`ActClientRoomGameplay` 只组合三个协调器；输入/命令/Owner 纠偏归 `OwnerPredictionCoordinator`，V2 应用与 Observer 生命周期归 `ObserverReplicationCoordinator`，命中去重/弹刀竞态/卡肉与软体表现归 `ReplicatedFeedbackCoordinator`
 - **预测位移**：通用历史与 Restore+Replay 在 `PredictionCoordinator`。`ActCharacterPredictionModel` 持电机与 2m/宽限/出招受击策略，禁止把 ActionId 写进 Coordinator。走跑带 `IPredictedLocomotionReplay` 时默认硬吸阈 `AutonomousHardSnapMm`（2m），禁止房间再传 50mm。无 replay 的旧 Predict 单测仍用 50mm。超 2m：`RestoreFromAuthority` + `ReplayTick`，禁止对走跑步 `ApplyInput`。Listen 本机与远端客机同一套 Owner 预测。纠偏可改预测电机，禁止把表现 Pose 写回权威 Motor。Lean 不进 Snapshot
 - **纠偏后表现**：仅走跑真正 `Snapped`（≥ 2m）或权威 **Hit/Death** 才 `SnapPresentationToSimulation`。出招/闪避禁止每包硬切表现，否则插值被掐死、位移和相机一起跳。刚吸附后 8 包内 ≤ 150mm 只 Ack
 - **出招中相机**：`CameraManager` 在 `ILocalPlayer.IsPresentingAction` 时暂停 L-DIR5 跟朝向，避免连闪 yaw 追权威朝向台阶

@@ -399,7 +399,7 @@ P-HR0 出口：**人眼 + F3 状态**，不要求 EditMode 反应单测，不要
 **待办**
 
 - [x] 可靠命中事件带 `HitReactionKind`（`ActReplicatedHitEventCodec` V2）。
-- [x] Observer Proxy：Action 快照连续 Seek，Flinch 另叠 Additive（`ActClientRoomGameplay.PlayReplicatedHits`）。
+- [x] Observer Proxy：Action 快照连续 Seek，Flinch 由 `ReplicatedFeedbackCoordinator` 另叠 Additive。
 - [x] Owner Flinch **不**走受击硬吸（`ConfirmHitReaction` → Flinch 时 `VitalityEdge.None`）。
 - [x] F3：`ReactionKind` / Additive 权重（`CharacterDebugSnapshot` + Proxy 裁档）。
 

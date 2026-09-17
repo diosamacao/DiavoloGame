@@ -73,7 +73,19 @@ public sealed class RoomArchitectureBoundaryTests
         string local = ReadScript("App/Networking/Services/LocalClientRuntime.cs");
         string gameplay = ReadScript("App/Networking/Services/ActClientRoomGameplay.cs");
         string owner = ReadScript("App/Networking/Adapters/ActOwnerReplicationAdapter.cs");
-        string combined = room + local + gameplay + owner;
+        string ownerCoordinator =
+            ReadScript("App/Networking/Services/OwnerPredictionCoordinator.cs");
+        string observerCoordinator =
+            ReadScript("App/Networking/Services/ObserverReplicationCoordinator.cs");
+        string feedbackCoordinator =
+            ReadScript("App/Networking/Services/ReplicatedFeedbackCoordinator.cs");
+        string combined = room
+            + local
+            + gameplay
+            + owner
+            + ownerCoordinator
+            + observerCoordinator
+            + feedbackCoordinator;
 
         Assert.That(combined, Does.Not.Contain("HitboxFrameConsumer"));
         Assert.That(combined, Does.Not.Contain("RegisterFrameConsumer"));

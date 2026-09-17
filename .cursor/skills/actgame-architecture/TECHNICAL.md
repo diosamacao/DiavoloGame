@@ -91,7 +91,7 @@ InputReader.Sample → InputFrame.SwitchCharacter
   → ReplicationLifecycle/Snapshot（全部槽快照 + Owner ActiveSlot Meta）
 
 客户端同帧：
-ActClientRoomGameplay.StepPrediction
+ActClientRoomGameplay.StepPrediction → OwnerPredictionCoordinator.StepPrediction
   → PlayerPartyRuntime.StepPrediction
   → Active 收输入；Exiting/Inactive 收空输入
   → 累计 ACK 未覆盖预测切人帧时，不用旧快照撤销切人
@@ -400,7 +400,7 @@ EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
 | W4 内容真源 | `ActContentRegistry` 唯一持有 Action Catalog、Character Archetype 与 Unity 配置映射；Room/Adapter 禁止另建动作目录 |
 | W4 Capture 真源 | `ActCharacterSnapshotSchema.Capture` 统一 CharacterActor → Snapshot 与 V2 编解码；独立 `CharacterReplicationCapture` 已删除 |
 | W4 Room 边界 | `ListenServerBootstrap` / `ReplicationRoomClient` 仅做组合或 Session 调度与 HUD；不再引用 Character/配置/Proxy/Hit Cue 具体类型 |
-| W4 Gameplay Service | `DedicatedAuthorityWorld` 只组合 `AuthorityGuestRegistry` / `AuthorityStepCoordinator` / `AuthorityReplicationPublisher`；`ActClientRoomGameplay` 承接 Owner 预测、Observer、Hit Cue/HitStop/软碰撞；`ActContentPrefillService` 是场景内容扫描唯一入口 |
+| W4 Gameplay Service | `DedicatedAuthorityWorld` 只组合 Authority 三协调器；`ActClientRoomGameplay` 只组合 `OwnerPredictionCoordinator` / `ObserverReplicationCoordinator` / `ReplicatedFeedbackCoordinator`；`ActContentPrefillService` 是场景内容扫描唯一入口 |
 | 通用身份 | `NetConnectionId` / `NetPlayerId` / `NetEntityId` / `NetArchetypeId`；`SimActorNetIdAdapter` 显式映射 Simulation Actor |
 | 版本基础 | `NetworkProtocolVersion` + 128 位 `ContentFingerprint` 已定义；握手切换留在 Content Manifest Wave |
 | 传输 | `INetTransport` / `LoopbackTransport` / `UdpTransport`（`ACTNet.Transport`，按 ConnectionId 定向） |
@@ -459,7 +459,7 @@ ActAuthorityReplicationAdapter
 | 朝向调试 | 客机幽灵挂同一套黄/品红箭；wish 走快照 `moveV*`，与延迟位姿成对 |
 | 插值 | 复用 `CharacterPresentationBridge.Render(alpha)` |
 | 装配 | `ActRemoteProxyFactory`，**不**走 `CharacterActorFactory` |
-| 入口 | `LocalClientRuntime` 分发 Lifecycle/Snapshot 给 `ActClientRoomGameplay`，再由 Observer Adapter 应用 |
+| 入口 | `LocalClientRuntime` 分发 Lifecycle/Snapshot 给 `ActClientRoomGameplay`，由 `ObserverReplicationCoordinator` 原子提交 Meta、Owner 与 Observer |
 
 ### 关键参数
 
@@ -469,9 +469,9 @@ ActAuthorityReplicationAdapter
 
 ```
 Host.Step → AfterLogicStep
-  → Capture full set → ReplicationServer.PrepareTickDelta → UDP
-客机 Pump → RemoteProxy.ApplySnapshot
-LateUpdate → proxy.Render(Host.InterpolationAlpha)
+  → AuthorityReplicationPublisher → ReplicationServer.PrepareTickDelta → UDP
+客机 Pump → ObserverReplicationCoordinator → RemoteProxy.ApplySnapshot
+LateUpdate → ObserverReplicationCoordinator.Render → RemotePlaybackClock
 ```
 
 ### 已知限制
@@ -1541,7 +1541,7 @@ CombatHitPipeline.OnHit → Vitality.HitReceived
        Flinch → Actor.IssueFlinch → HitFlinchPlaybackController / HitFlinchPresentation.PlayAdditive
        Stun+  → NotifyHit + EnterHit
        None   → 只保留已结算伤害
-  PublishResolvedHit → ReplicatedHitEvent(ReactionKind) → 客机 PlayReplicatedHits → Proxy Additive
+  PublishResolvedHit → ReplicatedHitEvent(ReactionKind) → ReplicatedFeedbackCoordinator → Proxy Additive
 ```
 
 **已知限制：** 失衡条 / 击飞抛物线物理仍本轮不做。韧性与冲击数字可继续在 Editor 调。Listen 已验，不宣称公网 / W10。方案已关闭：`docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md`。
@@ -1719,6 +1719,7 @@ CombatHitPipeline（全体 Actor Step 后）
 
 | 日期 | 变更 |
 |------|------|
+| 2026-09-17 | 结构稳定化 CS4：`ActClientRoomGameplay` 拆为 `OwnerPredictionCoordinator`、`ObserverReplicationCoordinator`、`ReplicatedFeedbackCoordinator`；Room Gameplay 收敛为 Client 组合门面 |
 | 2026-09-17 | 结构稳定化 CS4：`DedicatedAuthorityWorld` 拆为 `AuthorityGuestRegistry`、`AuthorityStepCoordinator`、`AuthorityReplicationPublisher`；World 收敛为 `IDedicatedAuthorityWorld` 组合门面 |
 | 2026-09-17 | 结构稳定化 CS4：提取 `PlayerPartyRuntime`，集中本机三槽创建/释放、预测切人、死亡接替与权威槽同步；`PlayerController` 删除 Party 数组、协调器和旧转发方法 |
 | 2026-09-17 | 修复 Observer 移动取消表现：正常 Action→Locomotion 使用默认 CrossFade，不再因离开动作或进入 Start 而零时长硬切；播放头吸附仍保持硬切 |
