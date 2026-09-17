@@ -1,0 +1,18 @@
+{
+    "name": "ACTGame.Infrastructure",
+    "rootNamespace": "",
+    "references": [
+        "ACTGame.Simulation",
+        "ACTGame.Domain.Input",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

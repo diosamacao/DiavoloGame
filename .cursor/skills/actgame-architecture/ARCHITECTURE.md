@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-09-16（Locomotion PhaseFrame 整数时钟）
+> Last audited: 2026-09-17（结构稳定化 CS3 完成；CS4 拆分 Player 与 Authority 编排）
 
 ## 项目概述
 
@@ -33,13 +33,12 @@ Assets/
 │   │   ├── Input/             # 原始帧、意图与输入中枢
 │   │   ├── Party/             # CharacterDefinition / PartyLoadout Unity 配置壳
 │   │   ├── Simulation/        # 固定帧核 + Party 纯规则 + Replication + Prediction（无 Unity）
-│   │   ├── Net/               # ACTGame 网络身份 Adapter（ACTGame.Net）
-│   │   └── Networking/        # Character Schema 与稳定 Archetype Catalog（纯 C#）
+│   │   └── Networking/        # Character Schema、稳定 Archetype Catalog 与 Identity Adapter（纯 C#）
 │   ├── Framework/ACTNet/
 │   │   ├── Core/              # 稳定网络身份、版本、结果、Metrics 与有界小端 Buffer（纯 C#）
 │   │   ├── Transport/         # INetTransport + 多连接 Loopback / UDP Adapter（纯 C#）
 │   │   ├── Session/           # Join、注册表、Heartbeat、Kick 与应用消息路由（纯 C#）
-│   │   └── Replication/       # Frame、Schema、实体生命周期与 Sequence 门禁（纯 C#）
+│   │   └── Replication/       # V2 Protocol、Schema、实体生命周期、屏障与 Prepare/Commit（纯 C#）
 │   ├── App/
 │   │   ├── Architecture/      # QFramework 风格强类型 Architecture / 能力接口 / 基类
 │   │   ├── Controllers/       # Player / Enemy / Camera / Combat / SimulationHost Unity 入口
@@ -51,7 +50,8 @@ Assets/
 │   │   └── Events/            # IArchitectureEvent 事件
 │   ├── Infrastructure/
 │   │   ├── Input/             # Input System 与 AI 输入源适配
-│   │   └── Net/               # 预留 Unity Transport；当前 UDP 在 Domain/Net
+│   │   └── Net/               # 预留 Unity Transport Adapter；通用 UDP 在 Framework/ACTNet/Transport
+│   ├── Previews/              # 独立 ACTGame.Previews；仅开发期场景展示，不进入 Gameplay Domain
 │   └── Editor/Combat/         # ActionDefinition 预览 Editor；Editor/Net 房间菜单
 ├── Data/                      # ScriptableObject 配置
 ├── Prefabs/Player/            # 玩家 Prefab
@@ -61,31 +61,21 @@ Assets/
 ## 分层依赖
 
 ```mermaid
-flowchart TB
-    subgraph gameplay [Gameplay Layer]
-        Player
-        Enemy
-        Combat
-        Camera
-        UI
-    end
-    subgraph character [Character Layer]
-        CharAnim[Character/Animation]
-        CharSM[Character/StateMachine]
-    end
-    subgraph core [Core Layer]
-        CoreSM[Core/StateMachine]
-    end
-    Input --> Player
-    Player --> CharSM
-    Player --> Combat
-    CharSM --> CoreSM
-    CharSM --> CharAnim
-    Combat --> CharAnim
-    Camera --> Input
-    Enemy --> CharSM
-    Enemy --> Combat
+flowchart BT
+    ACTNet["ACTNet.*"] --> Simulation["ACTGame.Simulation"]
+    ACTNet --> Networking["ACTGame.Networking"]
+    Core["ACTGame.Core"] --> Gameplay["ACTGame.Domain.Gameplay（CS2A）"]
+    Simulation --> Input["ACTGame.Domain.Input"]
+    Simulation --> Gameplay
+    Input --> Gameplay
+    Networking --> Gameplay
+    Gameplay --> App["ACTGame.App"]
+    Infrastructure["ACTGame.Infrastructure"] --> App
+    ACTNet --> App
+    Server["ACTGame.Server"] --> App
 ```
+
+CS2A 期间 Character/Combat/Enemy/Party/Camera 只编入一个 `ACTGame.Domain.Gameplay`，用于先关闭 Domain→App 与默认程序集泄漏。CS3/CS5 解开实现和 SO 类型环后，CS2B 会以 Character/Combat/Enemy 三个终态程序集替换并删除该粗粒度程序集。
 
 ## 核心子系统
 
@@ -98,26 +88,35 @@ flowchart TB
 | `ISimulationActor` | 玩家 `CharacterActor` 与敌人 `EnemyHandle` 的固定帧契约 |
 | `FixedStepAccumulator` | 把可变渲染时间转换为有追帧上限但不丢欠账的固定步数 |
 | `ActionSim` | `ACTGame.Simulation` 内无 Unity 依赖的 60Hz 动作核：帧推进、Cancel、Graph 衔接、命中确认与 Snapshot/Event |
+| `ACTGame.Core` | 通用 StateMachine 与对象池；当前因 `GameObjectPool` 保留 UnityEngine 引用 |
+| `ACTGame.Domain.Input` | 设备无关输入状态、Intent Profile/Buffer/Producer；角色状态条件由 Character 注入 |
+| `ACTGame.Domain.Gameplay` | CS2A 粗边界：Character/Combat/Enemy/Party/Camera；CS2B 必须被终态程序集替换并删除 |
+| `ACTGame.Infrastructure` | 客户端设备采样适配；当前仅 `InputReader`，依赖 Input System |
+| `ACTGame.App` | Scene Composition Root、Controller、Architecture、联网编排；单向引用 Domain/Infrastructure/ACTNet/Server |
+| `ACTGame.Previews` | 独立开发期预览程序集；不依赖 Gameplay/App，Editor 工具可单向引用 |
 | `ACTNet.Core` | 零依赖纯 C# 网络基础：稳定 Id/Tick/Sequence、`NetProcessRole`、协议/内容版本、结果、Metrics 与有界小端 Reader/Writer |
 | `ACTNet.Transport` | 只依赖 Core：按 `NetConnectionId` 定向收发；`ChannelMuxTransport` 为 Control/Event 做可靠有序，Snapshot 丢旧；`TransportMtuGate` 拒超 MTU |
 | `ACTNet.Session` | 只依赖 Core/Transport：多连接 Join、Player 分配、Heartbeat/RTT/jitter、超时/Kick；构造时包装 ChannelMux |
-| `ACTNet.Replication` | 只依赖 Core：显式 Spawn/Update/Despawn、未变跳过、兴趣/预算/节拍、baseline 恢复；Frame Codec V1 |
+| `ACTNet.Replication` | 只依赖 Core：V2 Lifecycle/Snapshot 语义拆包、屏障缓冲、未变跳过、兴趣/预算/节拍、Prepare/Commit baseline 恢复 |
 | `ACTNet.Prediction` | 只依赖 Core：`CommandHistory` / `PredictedStateHistory` / `PredictionCoordinator` / `SnapshotTimeline` / `NetworkTimeEstimator`；不解读 ActionId 或 Hit/Death |
-| `ACTGame.Networking` | 依赖 Simulation 与 ACTNet Core/Replication：`CharacterSnapshotSchemaV1`、稳定 Character Archetype 映射；不含 Unity 资产引用 |
+| `ACTGame.Networking` | 依赖 Simulation 与 ACTNet Core/Replication：`CharacterSnapshotSchemaV2`、Snapshot Meta/Event Codec、稳定 Character Archetype 映射；不含 Unity 资产引用 |
 | `ActAuthorityReplicationAdapter` | App/Networking 的 ACT 权威映射：远端输入灌入、Guest/敌人 Capture 与 FrameHits 补 ActionId；不再拍场景 LocalPlayer |
 | `ActGameSessionHandler` | App/Networking 的加入生命周期映射：按 Loadout 创建最多三个稳定 Guest Authority Actor、注册 App/Simulation 并在断线时逆序清理 |
 | `ActOwnerReplicationAdapter` | App/Networking 的 Autonomous 映射：跟随 Active 槽切换 Owner ActorId，处理 HP、Action Ack、Locomotion Reconcile 与 Hit/Death 硬吸 |
 | `ActCharacterPredictionModel` | ACT 走跑策略：2m Gate、宽限、出招/受击禁止走跑 Replay；连招 Cancel 仍在 `PredictedActionAckQueue` |
 | `ActObserverReplicationAdapter` / `ActRemoteProxyFactory` | Observer 映射：RemotePlaybackClock 取样（Listen delay=1）；ApplySnapshot 不切 Clip，PresentSampledPlayback 跟采样 to；走跑 Urgent；Proxy 不跑权威位移 |
 | `ActContentRegistry` | App/Networking 的 ACT 内容唯一真源：集中持有 PartyLoadout、Action Catalog、全部槽 Character Archetype 与 EnemyDefinition 映射 |
-| `ActCharacterSnapshotSchema` | App/Networking 的角色生产 Schema：统一 CharacterActor Capture 与 V1 编解码；纯 C# `CharacterSnapshotSchemaV1` 仍是线格式实现 |
+| `ActCharacterSnapshotSchema` | App/Networking 的角色生产 Schema：统一 CharacterActor Capture；纯 C# `CharacterSnapshotSchemaV2` 是唯一角色线格式实现 |
 | `ActContentPrefillService` | App 场景内容接缝：唯一扫描 Player/Enemy 配置并幂等预填 `ActContentRegistry`；Room 不再查找 Gameplay 组件 |
 | `ActClientRoomGameplay` / `LocalClientRuntime` | Client Gameplay 编排与 Session 运行时：Owner 预测、Observer、Hit Cue；Listen 本机与远端 Client 共用 |
 | `ListenServerBootstrap` / `ReplicationRoomClient` | Listen 组合 ServerRuntime+LocalClient；远端 Client 薄 Facade 只驱动 Runtime 与逻辑步发送 |
-| `DedicatedServerBootstrap` / `DedicatedServerRuntime` | 唯一权威运行时：Session/Match、每连接 ACK、`ReplicationFrame` / `MatchEnd`；Listen 复用，Dedicated 单独启动 |
+| `DedicatedServerBootstrap` / `DedicatedServerRuntime` | 唯一权威运行时：Session/Match、每连接 ACK、Lifecycle/Snapshot/Event / `MatchEnd`；Listen 复用，Dedicated 单独启动 |
 | `ServerLaunchConfigResolver` | Dedicated 启动覆盖：CLI > Env > File > Default；不写密钥日志 |
 | `ServerSimulationRunner` / `SimulationStepKernel` | 单调时钟 + 固定 60Hz 追帧；Listen 与 Dedicated 共用 `SimulationHost.StepOnce` |
-| `DedicatedAuthorityWorld` | Dedicated 权威世界：Headless Actor、命令合并进下一权威帧、外部时钟步进、步末每连接构帧 |
+| `DedicatedAuthorityWorld` | `IDedicatedAuthorityWorld` 组合门面：只装配并委托 Guest Registry、Authority Step Coordinator 与 Replication Publisher |
+| `AuthorityGuestRegistry` | Dedicated 连接→Headless Guest 唯一注册表：创建、查询、PostLogic 阵容生命周期与对称销毁 |
+| `AuthorityStepCoordinator` | Authority 命令合并与外部固定时钟入口；固定保持 Guest 生命周期提交先于帧末复制发布 |
+| `AuthorityReplicationPublisher` | 每连接 `ReplicationServer`、Join/Recover 全量、Prepare/Commit/Reject、Snapshot/Lifecycle 与可靠命中事件唯一所有者 |
 | `MatchCoordinator` | 房间身份与出生：PlayerId/Entity/Team/Spawn/Archetype；出生为槽位 × 2000mm，不读 Host Root |
 | `IRenderFrameSampler` | 可选渲染帧输入汇聚契约，避免高 FPS 无逻辑 Step 时丢 Pressed/Released |
 | `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
@@ -131,7 +130,7 @@ flowchart TB
 | `CharacterMotorSim` / `ISimCollisionWorld` | 水平+竖直毫米权威；静态 AABB 硬挡或空场地；重力/着地在 Sim |
 | `StaticCollisionBake` / `SimStaticCollisionWorld` | Editor 烘焙场景 Collider→XZ AABB；Host 共享给全体 Actor |
 | `SoftBodySeparation` / `ISimSoftBodyParticipant` | World 帧末角色圆盘软弹开；死亡不参与 |
-| 复制契约（NS1～NS5 / W3） | `ClientCommand` 上行；`ReplicationFrame` 下行显式生命周期与 Sequence 门禁；Loopback/UDP；`RemoteCharacterProxy` 跟状态 |
+| 复制契约（V2） | `ClientCommand` 上行；Lifecycle 可靠、Snapshot 不可靠并带 Lifecycle Sequence 屏障、Event 可靠；Loopback/UDP；`RemoteCharacterProxy` 跟状态 |
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只负责装配和注册，不再实现 Actor `Update` Tick。
 
@@ -158,18 +157,20 @@ NetSync W0～W9 已验收。W10/W11 代码切面已落地，Play / R2 未关，�
 | `ActionState` | 只执行 Action 旋转与状态快照；动作帧由 CharacterActor 统一 Step，PostCombat 后按会话结果退出 |
 | `CharacterConfig` | 角色装配根配置：模型、输入、动画、LocomotionProfile、移动、战斗 |
 | `CharacterMotor` | 移动执行：水平/竖直写 `CharacterMotorSim` 并同步 Transform；CC 仅表现代理不 Move |
-| `CharacterActor` | 单角色纯 C# Actor：输入、Motor、状态机、动作、旋转与非权威表现插值 |
+| `CharacterActor` | 单角色聚合根：持有生命周期与对外能力，并作为 `ISimulationActor` / PostCombat 唯一入口 |
+| `CharacterSimulationPipeline` | CS3 固定帧编排真源：独占 Step/PostCombat 顺序、逐帧输入快照与动作横移调试采样 |
+| `CharacterPredictionRuntime` | Autonomous 预测端口：实现 `IPredictedLocomotionReplay`，独占权威恢复、未确认输入 Replay 与动作 ACK 取消 |
 | `CharacterTargetingState` | 每逻辑帧在 Action 前维护唯一 `SelectedTargetId`；自动最近、滞回保持、动作中左右切敌 |
 | `CharacterActorFactory` | 通过 `CharacterConfig` + `ILocalInputSampler` + 共享 `CombatHitPipeline` 创建角色实例 |
 
 **数据流（玩家）**：
 
 ```
-CharacterConfig → PlayerController（Empty 根创建玩家输入源）
+PartyLoadout → PlayerController（Scene/Input 装配）→ PlayerPartyRuntime（槽 Actor 创建与预测阵容）
                     ↓
 CombatWorldController → SimulationHost.Update → SampleRenderFrame + 60Hz SimulationWorld.Step
                     ↓（SimActorId 稳定顺序）
-CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（SelectedTarget）
+CharacterActor.Step(InputFrame) → CharacterSimulationPipeline.Step → InputManager → CharacterTargetingState（SelectedTarget）
                     ↓
               GameplayIntentProducer / GameplayIntentBuffer（整数帧）
                     ↓
@@ -178,11 +179,12 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
               CharacterStateMachine
                     ├─ LocomotionState → LocomotionStateMachine → 各相位 State → Motor + Animation
                     └─ ActionState.Tick → ActionRotationDriver
-                    ↓ CharacterActor 唯一调用 ActionSim.Step（ActionSim.CurrentFrame 权威）
+                    ↓ CharacterSimulationPipeline 唯一调用 ActionSim.Step（ActionSim.CurrentFrame 权威）
               CharacterActionPresentationBridge（只读 Snapshot/Event → Clip Seek / Timeline）
               HitboxFrameConsumer（只 Collect）/ ActionVfxPlayer + ActionSfxPlayer（IActionNotifyConsumer）
                     ↓（全体 Actor Step 完成）
-              CombatHitPipeline.SortAndResolve → CharacterActor.ResolvePostCombat → 帧末 App 表现事件
+              CombatHitPipeline.SortAndResolve → CharacterActor.ResolvePostCombat
+                    → CharacterSimulationPipeline.ResolvePostCombat → 帧末 App 表现事件
 ```
 
 ### 3.1 玩家阵容与换人（Party，P-SW0～P-SW2）
@@ -197,9 +199,11 @@ CharacterActor.Step(InputFrame) → InputManager → CharacterTargetingState（S
 | `WorldAssistCueBoard` | 权威帧收集敌人 `AssistCue`；切人读上一拍，优先锁定目标否则最小 OwnerId |
 | `PartyDeathSwitchPolicy` / `PartyDeathSwitchGate` | 纯整数帧死亡门禁：最短 15 帧，以 `DeathSequenceComplete` 为主信号，最晚在死亡 Action 总帧 + 15 提交 |
 | `PartyCombatCoordinator` | 按 Cue / 点数 / AssistStyle 输出常规切人；死亡门禁打开时原子提交 Dead→Active 或 PartyWiped |
-| `PlayerController` | 为每个非空槽创建独立 Autonomous Actor；只让 Active 接收输入，镜像死亡自动换人并用 ActiveSlot + FlagsPacked 纠正各槽 |
+| `CharacterPartyLifecycle` | 单角色 Party 端口：槽状态、普通退场、支援意图/卡肉转移、动作起手事件与换人落位唯一所有者 |
+| `PlayerController` | 本机玩家 Scene 入口：校验配置、创建设备输入与 `PlayerPartyRuntime`，向相机/本地服务暴露当前 Actor；不实现阵容算法 |
+| `PlayerPartyRuntime` | 本机阵容运行时：创建/释放最多三个 Autonomous Actor，独占预测切人、阵容 Step/Render、死亡接替及 ActiveSlot/FlagsPacked 权威同步 |
 | `ActGameGuest` | 权威侧一座位多稳定 Actor；按输入边沿切 Active，并在 AfterLogicStep 提交死亡自动换人/队灭 |
-| `ActReplicationApplicationPayload` | 每帧下发 Owner 槽 ActorId、ActiveSlot 与累计命令 ACK；客户端据此跳过自有 Proxy 并纠正预测 |
+| `ActReplicationSnapshotMeta` | Snapshot Meta 下发 Owner 槽 ActorId、ActiveSlot、PartyFlags、PartyWiped 与累计命令 ACK；客户端据此跳过自有 Proxy 并纠正预测 |
 
 `SwitchCharacter` 上行仍是单条 `ClientCommand`。无 Cue 时权威先裁定普通 DualPresence：旧槽空闲立即 `SwitchOut`，已有 Action/受击招时到首次 Recovery 再切 `SwitchOut`，交接前必须离开 `Hit`，最终只在 `SwitchOut` Recovery 后 Inactive。金/红 Cue 走 InstantReplace：旧槽当帧 Inactive，上场只起 `AssistParry` / `AssistEvade` / `SwitchPerfectDodge`。接触成功由 `CombatHitPipeline` 在玩家 `AssistParryWindow` 内 `IssueParried`、切 `AssistParrySuccess`，卡肉帧读该窗。上场角色另有 `GameplayIntentType.Parry` 本体举刀，不走切人协调器。Graph Entry 与 Timeline 窗仍需 Editor 配置，Play 验收前状态保持 🟡。
 
@@ -237,14 +241,15 @@ Active 死亡后，`DedicatedAuthorityWorld.OnAfterLogicStep` 推进门禁并在
 | `CharacterVitality` | Health Attribute 边沿（扣血 / Hit / Death） |
 | `ActionEnergyFormSelector` | Special 同键：可负担则 ExSpecial，否则普通 Special |
 
-**当前 Logic Tick**：Runtime 由 `CharacterActor` 在每个 `SimulationWorld` 固定帧唯一调用一次 `ActionSim.Step`；Action 内容严格为 60Hz。表现桥只读事件与 Snapshot；Hitbox 仅收集事件，Host 在全 Actor Step 后统一 Resolve；PostCombat 排队自动 Transition，目标 frame 0 下一 World 帧提交。
+**当前 Logic Tick**：`CharacterActor` 保留 `SimulationWorld` 契约入口，内部由唯一 `CharacterSimulationPipeline` 在每个固定帧调用一次 `ActionSim.Step`；Action 内容严格为 60Hz。表现桥只读事件与 Snapshot；Hitbox 仅收集事件，Host 在全 Actor Step 后统一 Resolve；Pipeline 的 PostCombat 排队自动 Transition，目标 frame 0 下一 World 帧提交。
 
 ### 5. 玩家（Player）
 
 | 类 | 职责 |
 |----|------|
 | `PlayerController` | Scene Empty 上唯一玩家脚本；创建 `InputReader` 并向 SimulationHost 注册/注销 Actor |
-| `CharacterActor` | 实现 `ISimulationActor`；固定帧输入采集、动作路由、重力与状态机 Step |
+| `CharacterActor` | 实现 `ISimulationActor` 并持有角色生命周期；固定帧入口转交 `CharacterSimulationPipeline` |
+| `CharacterSimulationPipeline` | 输入、动作路由、重力、状态机、表现同步和 Numeric 的固定顺序编排 |
 | `CharacterMotor` | Locomotion 位移、相机相对方向、起手面向、移动快照 |
 
 **注意**：`PlayerController` 现在是 Scene 空物体上的装配入口；通过 `CharacterConfig` 生成模型与纯 C# runtime。Player 根对象运行时只保留 `PlayerController` + `CharacterController`，不再挂载业务脚本。
@@ -289,9 +294,9 @@ Active 死亡后，`DedicatedAuthorityWorld.OnAfterLogicStep` 推进门禁并在
 | 类 | 职责 |
 |----|------|
 | `ActorReplicationSnapshot` / `ClientCommand` | 无 Unity业务状态与上行命令契约；旧 `AuthorityTick` 已删除 |
-| `ReplicationServer` / `ReplicationFrameCodec` / `ReplicationClient` | Host full set 生成显式 Spawn/Update/Despawn；Client 原子应用并丢弃旧 Sequence |
-| `ActorReplicationSnapshotCodec` / `CharacterSnapshotSchemaV1` / `ReplicationPoseApplier` | Snapshot 字段唯一布局 → Schema payload；客户端解码后写回 MotorSim |
-| `ActReplicationApplicationPayloadCodec` | 帧级 V1 载荷：本步 applied hint；生产路径 hits 为空，命中改走 `ActReplicationEventCodec` |
+| `ReplicationServer` / `ReplicationProtocolV2Codec` / `ReplicationClient` | Server Prepare Lifecycle/Snapshot，发送成功再 Commit；Client 以 RequiredLifecycleSequence 缓冲和应用 |
+| `ActorReplicationSnapshotCodec` / `CharacterSnapshotSchemaV2` / `ReplicationPoseApplier` | Snapshot 字段唯一布局 → Schema payload；客户端解码后写回 MotorSim |
+| `ActReplicationSnapshotMetaCodec` / `ActReplicationEventCodec` | Owner 阵容/ACK 随 Snapshot Meta；命中与弹反结果走可靠 Event |
 | `GraphNodeKey` / `ReplicationBuildOptions` | 节点稳定整数；Compact 节拍/预算；Recover 重置 baseline |
 | `ActReplicationEventCodec` / `DedicatedEventSend` | 本帧命中可靠事件包；Runtime 按连接走 `EventReliableOrdered` |
 | `SessionCodec` / `ServerSession` / `ClientSession` | Session 信封与控制消息唯一真源；每连接注册、版本/容量校验、心跳、超时和 Kick |
@@ -301,7 +306,7 @@ Active 死亡后，`DedicatedAuthorityWorld.OnAfterLogicStep` 推进门禁并在
 | `ActContentRegistry.Actions` / `ActCharacterSnapshotSchema.Capture` | 资产名稳定 Id（含 VariantResolver 变体）；从权威 Actor 填充并编码快照 |
 | `RemoteCharacterProxy` / `ActRemoteProxyFactory` / `ReplicationPresentationAlign` | 他人 Seek；本机走跑只 Sync Motor；过渡相位硬切在 Align |
 | `ReplicationSeat` | Authority / Autonomous 工厂能力图；Autonomous 不 Collect、不进 World |
-| `CharacterActor`（Autonomous） | 客机本机同一类实例；实现 `IPredictedLocomotionReplay`；表现走 `CharacterActionPresentationBridge` |
+| `CharacterActor`（Autonomous） | 客机本机同一聚合根；通过 `CharacterPredictionRuntime` 提供 `IPredictedLocomotionReplay`；表现走 `CharacterActionPresentationBridge` |
 | `PredictedActionAckQueue` | 出招预测 Ack；未起手/变体分叉/Hit 则 Stop；连招超前只 Ack |
 | `LocomotionSavedState` | 内层机 Capture/Restore；权威 FromAuthority |
 | `PredictedLocomotionDriver` | 走跑门面：电机推进 + Gate；历史与 Replay 交给 `PredictionCoordinator` |

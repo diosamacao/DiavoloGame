@@ -33,6 +33,35 @@ public static class ArchitectureBoundaryValidator
         ValidateLowerLayersDoNotReferenceEnemyTypes();
     }
 
+    /// <summary>扫描当前结构债务并以 Warning 输出；CS7 前用于建立基线，不阻断 Editor 导入。</summary>
+    [MenuItem("ACTGame/Architecture/Audit Structure Debt")]
+    public static void AuditStructureDebt()
+    {
+        string[] issues = StructureAuditRuleSet.AuditProject(ProjectRoot);
+        for (int i = 0; i < issues.Length; i++)
+            Debug.LogWarning($"StructureAudit: {issues[i]}");
+        Debug.Log($"StructureAudit: 完成，发现 {issues.Length} 项结构债务。");
+    }
+
+    /// <summary>供 Unity -executeMethod 调用；任一结构债务都会以非零退出码阻断批处理。</summary>
+    public static void ValidateBatchMode()
+    {
+        string[] issues = StructureAuditRuleSet.AuditProject(ProjectRoot);
+        for (int i = 0; i < issues.Length; i++)
+            Debug.LogError($"StructureAudit: {issues[i]}");
+
+        if (!Application.isBatchMode)
+        {
+            Debug.Log($"StructureAudit: 非 BatchMode，仅报告 {issues.Length} 项问题。");
+            return;
+        }
+
+        EditorApplication.Exit(issues.Length == 0 ? 0 : 1);
+    }
+
+    /// <summary>当前 Unity 工程根目录。</summary>
+    static string ProjectRoot => Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+
     static void ValidateScripts(string searchPath, string suffix, Type requiredInterface)
     {
         foreach (Type type in LoadTypes(searchPath))

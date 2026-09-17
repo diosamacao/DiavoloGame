@@ -193,7 +193,7 @@ public sealed class CombatHitPipeline
         attackerReactions?.IssueParried(in context);
 
         CharacterActor player = _actorLookup?.Invoke(hit.Key.TargetId);
-        player?.NotifyAssistParryContact();
+        player?.PartyLifecycle.NotifyAssistParryContact();
 
         int hitStopFrames = AssistParryHitStop.ResolveFrames(player);
         ApplyConfirmedHitStop(in hit, hitStopFrames, oncePerAction: true, bothSides: true);
@@ -243,7 +243,7 @@ public sealed class CombatHitPipeline
 
         CharacterActor player = _actorLookup?.Invoke(hit.Key.TargetId);
         player?.TryRequestHitStopOnCurrentAction(frames, oncePerAction);
-        player?.ArmAssistParryHitStopCarry(frames);
+        player?.PartyLifecycle.ArmAssistParryHitStopCarry(frames);
     }
 
     /// <summary>读盒上 Feedback；无盒则为空，弹刀走默认帧、真伤不冻。</summary>

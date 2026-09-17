@@ -18,7 +18,7 @@ public sealed class AssistParryHitStopCarryTests
             Assert.That(
                 harness.Actor.ActionSim.TryStart(ActionSimResolveResult.FromContent(guard)),
                 Is.True);
-            harness.Actor.ArmAssistParryHitStopCarry(8);
+            harness.Actor.PartyLifecycle.ArmAssistParryHitStopCarry(8);
             Assert.That(harness.Actor.TryRequestHitStopOnCurrentAction(8, oncePerAction: true), Is.True);
             Assert.That(harness.Actor.ActionSim.FreezeFrames, Is.EqualTo(8));
 
@@ -28,7 +28,8 @@ public sealed class AssistParryHitStopCarryTests
                 Is.True);
             Assert.That(harness.Actor.ActionSim.FreezeFrames, Is.Zero);
 
-            harness.Actor.NotifyActionBegun(GameplayIntentType.AssistParrySuccess);
+            harness.Actor.PartyLifecycle.NotifyActionBegun(
+                GameplayIntentType.AssistParrySuccess);
             Assert.That(harness.Actor.ActionSim.FreezeFrames, Is.EqualTo(8));
             Assert.That(harness.Actor.ActionSim.CurrentFrame, Is.Zero);
         }
@@ -47,14 +48,15 @@ public sealed class AssistParryHitStopCarryTests
         ActionDefinition next = CreateReadyAction("Attack");
         try
         {
-            harness.Actor.ArmAssistParryHitStopCarry(8);
+            harness.Actor.PartyLifecycle.ArmAssistParryHitStopCarry(8);
             Assert.That(
                 harness.Actor.ActionSim.TryStart(ActionSimResolveResult.FromContent(next)),
                 Is.True);
-            harness.Actor.NotifyActionBegun(GameplayIntentType.Attack);
+            harness.Actor.PartyLifecycle.NotifyActionBegun(GameplayIntentType.Attack);
             Assert.That(harness.Actor.ActionSim.FreezeFrames, Is.Zero);
 
-            harness.Actor.NotifyActionBegun(GameplayIntentType.AssistParrySuccess);
+            harness.Actor.PartyLifecycle.NotifyActionBegun(
+                GameplayIntentType.AssistParrySuccess);
             Assert.That(harness.Actor.ActionSim.FreezeFrames, Is.Zero);
         }
         finally

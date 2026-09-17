@@ -606,8 +606,11 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         AnimationKey key = ResolveLocomotionKey(snapshot.LocomotionPhase);
         if (ShouldPlaySampledLocomotion(leavingAction, _locomotionKey, key))
         {
-            bool hardCut = leavingAction
-                || ReplicationPresentationAlign.ShouldHardCut(_locomotionKey, key);
+            bool hardCut = ShouldHardCutSampledLocomotion(
+                leavingAction,
+                forceSeek,
+                _locomotionKey,
+                key);
             _animation.Play(key, hardCut ? 0f : (float?)null);
             _locomotionKey = key;
             if (seekTransition
@@ -625,6 +628,22 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
 
         if (!_animationFrozen)
             TickAnimation(deltaTimeSeconds);
+    }
+
+    /// <summary>正常 Action→Locomotion 保留默认混合；播放头吸附或 Locomotion 特殊相位切换才硬切。</summary>
+    public static bool ShouldHardCutSampledLocomotion(
+        bool leavingAction,
+        bool playbackSnapped,
+        AnimationKey? currentLocomotionKey,
+        AnimationKey sampledKey)
+    {
+        if (playbackSnapped)
+            return true;
+        if (leavingAction)
+            return false;
+        return ReplicationPresentationAlign.ShouldHardCut(
+            currentLocomotionKey,
+            sampledKey);
     }
 
     /// <summary>

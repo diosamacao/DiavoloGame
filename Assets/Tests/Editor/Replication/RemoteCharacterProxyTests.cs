@@ -239,6 +239,46 @@ public sealed class RemoteCharacterProxyTests
             Is.True);
     }
 
+    /// <summary>正常收招到起步须保留 CrossFade；只有播放头吸附仍立即硬切。</summary>
+    [Test]
+    public void ShouldHardCutSampledLocomotion_LeavingAction_BlendsUnlessSnapped()
+    {
+        Assert.That(
+            RemoteCharacterProxy.ShouldHardCutSampledLocomotion(
+                leavingAction: true,
+                playbackSnapped: false,
+                currentLocomotionKey: null,
+                sampledKey: AnimationKey.Start),
+            Is.False);
+        Assert.That(
+            RemoteCharacterProxy.ShouldHardCutSampledLocomotion(
+                leavingAction: true,
+                playbackSnapped: true,
+                currentLocomotionKey: null,
+                sampledKey: AnimationKey.Start),
+            Is.True);
+    }
+
+    /// <summary>非 Action 边界的一次性 Locomotion 相位继续沿用硬切策略。</summary>
+    [Test]
+    public void ShouldHardCutSampledLocomotion_LocomotionTransition_RemainsHardCut()
+    {
+        Assert.That(
+            RemoteCharacterProxy.ShouldHardCutSampledLocomotion(
+                leavingAction: false,
+                playbackSnapped: false,
+                currentLocomotionKey: AnimationKey.Run,
+                sampledKey: AnimationKey.PivotTurn),
+            Is.True);
+        Assert.That(
+            RemoteCharacterProxy.ShouldHardCutSampledLocomotion(
+                leavingAction: false,
+                playbackSnapped: false,
+                currentLocomotionKey: AnimationKey.Idle,
+                sampledKey: AnimationKey.Run),
+            Is.False);
+    }
+
     /// <summary>播放头出招帧：同招按 alpha 取整，切招与回绕贴 to。</summary>
     [Test]
     public void ResolvePresentationActionFrame_LerpsSameAction_SnapsOnSwitchOrRewind()

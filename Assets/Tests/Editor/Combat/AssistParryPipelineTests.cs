@@ -460,11 +460,11 @@ public sealed class AssistParryPipelineTests
 
     static GameplayIntentType ReadQueuedIntent(CharacterActor actor)
     {
-        FieldInfo field = typeof(CharacterActor).GetField(
+        FieldInfo field = typeof(CharacterPartyLifecycle).GetField(
             "_queuedExternalIntent",
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.That(field, Is.Not.Null);
-        return (GameplayIntentType)field.GetValue(actor);
+        return (GameplayIntentType)field.GetValue(actor.PartyLifecycle);
     }
 
     static CharacterReactionSet CreateHitReactionSet(ActionDefinition action)

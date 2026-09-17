@@ -14,20 +14,10 @@ public sealed class CharacterActor :
     ISimulationPostCombatActor,
     ISimSoftBodyParticipant,
     ILocalCameraTargetSource,
-    ICharacterFacingDebugTarget,
-    IPredictedLocomotionReplay
+    ICharacterFacingDebugTarget
 {
-    /// <summary>退场角色先等待原招 Recovery，再进入专用 SwitchOut。</summary>
-    enum PartyExitMode
-    {
-        None = 0,
-        WaitForCurrentRecovery = 1,
-        PlayingSwitchOut = 2,
-    }
-
     readonly ILocalInputSampler _localInput;
     readonly InputManager _inputManager;
-    readonly GameplayIntentProducer _intentProducer;
     readonly CharacterMotor _motor;
     readonly CharacterStateMachine _stateMachine;
     readonly CharacterActionDriver _actionDriver;
@@ -43,21 +33,11 @@ public sealed class CharacterActor :
     readonly CharacterTargetingState _targetingState;
     readonly Transform _simulationRoot;
     readonly ReplicationSeat _seat;
-    readonly float _fixedDeltaSeconds;
+    readonly CharacterPartyLifecycle _partyLifecycle;
+    readonly CharacterPredictionRuntime _prediction;
+    readonly CharacterSimulationPipeline _simulationPipeline;
     InputFrameBuffer _inputFrames;
-    InputFrame _lastSimulationInput;
     SimActorId _actorId;
-    long _currentFrameIndex = -1;
-    bool _wasActionActive;
-    int _actionLateralPeakMm;
-    int _prevMotorXMm;
-    int _prevMotorZMm;
-    bool _hasPrevMotorSample;
-    PartyMemberState _partyState = PartyMemberState.Active;
-    GameplayIntentType _queuedExternalIntent = GameplayIntentType.None;
-    PartyExitMode _partyExitMode;
-    int _switchOutActionInstanceId;
-    int _assistParryHitStopCarryFrames;
 
     static readonly GameplayIntentType[] EmptyIntents = Array.Empty<GameplayIntentType>();
     static readonly BufferedIntentDebug[] EmptyBuffers = Array.Empty<BufferedIntentDebug>();
@@ -75,14 +55,14 @@ public sealed class CharacterActor :
     /// <summary>是否会把 Hitbox 写入共享流水线。</summary>
     public bool CollectsCombatHits =>
         _seat == ReplicationSeat.Authority
-        && (_partyState == PartyMemberState.Active
-            || _partyState == PartyMemberState.Exiting);
+        && (_partyLifecycle.State == PartyMemberState.Active
+            || _partyLifecycle.State == PartyMemberState.Exiting);
 
     /// <summary>内层走跑机；纠偏 Restore/Replay 用。</summary>
     public LocomotionStateMachine Locomotion => _stateMachine?.Locomotion;
 
     /// <summary>最近一次权威 Step 摄入的量化输入；未步进时为空帧。</summary>
-    public InputFrame LastSimulationInput => _lastSimulationInput;
+    public InputFrame LastSimulationInput => _simulationPipeline.LastSimulationInput;
 
     /// <summary>本地相机使用的渲染帧 Look；AI 与回放 Actor 返回零。</summary>
     public Vector2 LookInput => _localInput?.LookInput ?? Vector2.zero;
@@ -102,7 +82,8 @@ public sealed class CharacterActor :
 
     /// <summary>死亡或软体抑制窗内不参与互撞软弹开。</summary>
     public bool ParticipatesInSoftBodySeparation =>
-        (_partyState == PartyMemberState.Active || _partyState == PartyMemberState.Exiting)
+        (_partyLifecycle.State == PartyMemberState.Active
+            || _partyLifecycle.State == PartyMemberState.Exiting)
         && CurrentState != CharacterStateType.Death
         && (_motor == null || !_motor.Sim.IsSoftBodySuppressed);
 
@@ -207,31 +188,11 @@ public sealed class CharacterActor :
     /// <summary>Health 边沿（扣血 / Hit / Death 事件）。</summary>
     public CharacterVitality Vitality => _vitality;
 
-    /// <summary>当前阵容槽状态；非 Party 角色默认保持 Active。</summary>
-    public PartyMemberState PartyState => _partyState;
+    /// <summary>角色 Party 生命周期唯一入口；状态、退场和支援意图均由其维护。</summary>
+    public CharacterPartyLifecycle PartyLifecycle => _partyLifecycle;
 
-    /// <summary>招式起手成功；座位用它给 Ult 支援点，不写 Action 权威。</summary>
-    public event Action<GameplayIntentType> ActionBegun;
-
-    /// <summary>
-    /// 当前退场条件是否满足：已启动的 SwitchOut 自身进入 Recovery。
-    /// </summary>
-    public bool IsPartyExitReady
-    {
-        get
-        {
-            if (_partyState != PartyMemberState.Exiting)
-                return false;
-
-            ActionSimSnapshot action = _actionSim.Snapshot;
-            return _partyExitMode == PartyExitMode.PlayingSwitchOut
-                && _switchOutActionInstanceId > 0
-                && action.IsActive
-                && action.InstanceId == _switchOutActionInstanceId
-                && action.Content is ActionDefinition definition
-                && definition.IsRecoveryAtFrame(action.CurrentFrame);
-        }
-    }
+    /// <summary>Autonomous 权威恢复与重放入口；Authority 路径不得主动调用。</summary>
+    public CharacterPredictionRuntime Prediction => _prediction;
 
     /// <summary>创建角色实例；所有依赖由工厂一次性注入。</summary>
     public CharacterActor(
@@ -257,7 +218,6 @@ public sealed class CharacterActor :
     {
         _localInput = localInput;
         _inputManager = inputManager;
-        _intentProducer = intentProducer;
         _motor = motor;
         _stateMachine = stateMachine;
         _actionDriver = actionDriver;
@@ -273,9 +233,48 @@ public sealed class CharacterActor :
         _targetingState = targetingState ?? throw new ArgumentNullException(nameof(targetingState));
         _simulationRoot = simulationRoot;
         _seat = seat;
-        _fixedDeltaSeconds = fixedDeltaSeconds > 0f
+        float effectiveFixedDeltaSeconds = fixedDeltaSeconds > 0f
             ? fixedDeltaSeconds
             : 1f / SimulationConfig.DefaultLogicHz;
+        _partyLifecycle = new CharacterPartyLifecycle(
+            motor,
+            stateMachine,
+            actionSim,
+            actionPresentation,
+            animation,
+            presentation,
+            numeric,
+            intentBuffer,
+            targetingState,
+            () => _actorId,
+            ClearControlledInput,
+            AlignSimulationRootToMotor,
+            SnapPresentationToSimulation);
+        _prediction = new CharacterPredictionRuntime(
+            inputManager,
+            motor,
+            stateMachine,
+            actionSim,
+            intentBuffer,
+            animation,
+            effectiveFixedDeltaSeconds);
+        _simulationPipeline = new CharacterSimulationPipeline(
+            inputManager,
+            intentProducer,
+            motor,
+            stateMachine,
+            actionDriver,
+            actionSim,
+            actionPresentation,
+            animation,
+            presentation,
+            visualMotion,
+            numeric,
+            vitality,
+            targetingState,
+            simulationRoot,
+            _partyLifecycle.EmitQueuedExternalIntent,
+            _partyLifecycle.AdvanceAfterPostCombat);
     }
 
     /// <summary>组装只读调试快照；供 CombatDebugHudController LateUpdate 采样。</summary>
@@ -361,7 +360,7 @@ public sealed class CharacterActor :
             motor.FacingMilliDeg,
             motor.SoftBodyMass,
             motor.SoftBodyImmovable,
-            _actionLateralPeakMm,
+            _simulationPipeline.ActionLateralPeakMm,
             frameIntents,
             buffers,
             _animation != null ? _animation.AdditiveWeight : 0f,
@@ -406,130 +405,6 @@ public sealed class CharacterActor :
     /// <summary>禁用本地设备采样；AI Actor 无设备源时为空操作。</summary>
     public void Disable() => _localInput?.Disable();
 
-    /// <summary>
-    /// 切换阵容生命周期并同步表现显隐；Inactive/Dead 会清空新输入与动作缓冲。
-    /// Exiting 保持可见，但后续逻辑帧只接收空输入。
-    /// </summary>
-    public void SetPartyState(PartyMemberState state)
-    {
-        bool wasVisible =
-            _partyState == PartyMemberState.Active || _partyState == PartyMemberState.Exiting;
-        bool visible = state == PartyMemberState.Active || state == PartyMemberState.Exiting;
-        if (wasVisible && !visible)
-        {
-            // 必须在表现根停用前回收挂点 VFX；否则粒子会冻结并在下次 SwitchIn 随父节点复活。
-            _actionPresentation?.ResetForVisibilityLoss();
-            _animation?.StopAdditive();
-        }
-
-        _partyState = state;
-        if (_presentation?.PresentationRoot != null)
-            _presentation.PresentationRoot.gameObject.SetActive(visible);
-
-        if (state == PartyMemberState.Inactive
-            || state == PartyMemberState.Dead
-            || state == PartyMemberState.Empty)
-        {
-            // 权威纠正也可能强制 Active/Exiting 回后台，必须终止未完成动作，禁止隐藏后继续衔接。
-            if (state == PartyMemberState.Inactive)
-                StopActionForPartyTransition();
-            _partyExitMode = PartyExitMode.None;
-            _switchOutActionInstanceId = 0;
-            _queuedExternalIntent = GameplayIntentType.None;
-            ClearControlledInput();
-        }
-    }
-
-    /// <summary>
-    /// 开始普通退场：空闲时立即请求 SwitchOut；已有 Action/受击招在当前或后续首次 Recovery 交接。
-    /// SwitchOut 只能从 Locomotion Entry 起手，交接前必须离开 Hit。
-    /// </summary>
-    public void BeginPartyExit()
-    {
-        if (_partyState != PartyMemberState.Active)
-            throw new InvalidOperationException("只有 Active 角色可以开始普通退场。");
-
-        ActionSimSnapshot action = _actionSim.Snapshot;
-        bool hasActiveAction = action.IsActive;
-        bool alreadyInRecovery = hasActiveAction
-            && action.Content is ActionDefinition definition
-            && definition.IsRecoveryAtFrame(action.CurrentFrame);
-        SetPartyState(PartyMemberState.Exiting);
-        _partyExitMode = hasActiveAction
-            ? PartyExitMode.WaitForCurrentRecovery
-            : PartyExitMode.PlayingSwitchOut;
-        _switchOutActionInstanceId = 0;
-        if (!hasActiveAction)
-        {
-            // 纯帧硬直 Hurt 没有 ActionSim，仍停在 Hit；不先回走跑则 Driver 丢掉 SwitchOut。
-            ReleaseHitOrActionForPartyTransition();
-            QueueExternalIntent(GameplayIntentType.SwitchOut);
-        }
-        else if (alreadyInRecovery)
-        {
-            // 切人输入到达时已在 Recovery，须在下一次 Action Step 前交接，禁止旧招多泄漏一帧 Notify。
-            BeginSwitchOutAfterCurrentAction();
-        }
-    }
-
-    /// <summary>SwitchOut 进入 Recovery 后转入后台；Recovery 后半段不得继续模拟。</summary>
-    public void CompletePartyExit()
-    {
-        if (!IsPartyExitReady)
-            throw new InvalidOperationException("角色尚未满足普通退场条件。");
-
-        SetPartyState(PartyMemberState.Inactive);
-    }
-
-    /// <summary>
-    /// 排队一个由座位协调器裁定的外部意图；下一次 Actor.Step 在设备意图之后注入。
-    /// 同帧重复排队视为编程错误，避免无序覆盖支援/切人结果。
-    /// </summary>
-    public void QueueExternalIntent(GameplayIntentType intent)
-    {
-        if (intent == GameplayIntentType.None)
-            throw new ArgumentException("外部意图不能为 None。", nameof(intent));
-        if (_queuedExternalIntent != GameplayIntentType.None)
-            throw new InvalidOperationException("同一 Actor 已有待处理的外部意图。");
-        _queuedExternalIntent = intent;
-    }
-
-    /// <summary>招架窗接触：武装突击；首次排队 Success，已在 Success 不重切。不写卡肉。</summary>
-    public void NotifyAssistParryContact()
-    {
-        _numeric.ArmAssistFollowUp();
-        if (IsPlayingAssistParrySuccess()
-            || _queuedExternalIntent == GameplayIntentType.AssistParrySuccess)
-        {
-            return;
-        }
-
-        if (_queuedExternalIntent == GameplayIntentType.None
-            || _queuedExternalIntent == GameplayIntentType.AssistParry
-            || _queuedExternalIntent == GameplayIntentType.Parry)
-        {
-            _queuedExternalIntent = GameplayIntentType.AssistParrySuccess;
-        }
-    }
-
-    /// <summary>当前图节点已是 Success 时，连续接触不得再排队以免 Begin 新实例。</summary>
-    bool IsPlayingAssistParrySuccess()
-    {
-        if (_actionSim == null || !_actionSim.IsActive)
-            return false;
-
-        ActionSimSnapshot snap = _actionSim.Snapshot;
-        return snap.Graph is ActionGraph graph
-            && graph.TryGetNode(snap.NodeId, out ActionGraphNode node)
-            && node.Intent == GameplayIntentType.AssistParrySuccess;
-    }
-
-    /// <summary>记下弹刀卡肉，供 AssistParrySuccess Begin 后补写（Begin 会清 freeze）。</summary>
-    public void ArmAssistParryHitStopCarry(int frames)
-    {
-        _assistParryHitStopCarryFrames = frames > 0 ? frames : 0;
-    }
-
     /// <summary>对当前活动 Action 实例写 freeze；无活动实例则跳过。</summary>
     public bool TryRequestHitStopOnCurrentAction(int frames, bool oncePerAction)
     {
@@ -538,112 +413,6 @@ public sealed class CharacterActor :
 
         return _actionSim.RequestHitStop(_actionSim.InstanceId, frames, oncePerAction);
     }
-
-    /// <summary>当前 Action 若在闪光窗则写入 CueBoard。</summary>
-    public bool TryPublishAssistCue(WorldAssistCueBoard board)
-    {
-        if (board == null || _actionSim == null || !_actionSim.IsActive)
-            return false;
-        if (_actionSim.Snapshot.Content is not ActionDefinition action)
-            return false;
-        if (!action.TryGetAssistCueAtFrame(_actionSim.CurrentFrame, out AssistCueNotifyState state))
-            return false;
-
-        Vector3 parry = state.ParryLocalOffsetMm;
-        Vector3 evade = state.EvadeLocalOffsetMm;
-        board.Publish(new AssistCue(
-            SimulationId,
-            state.Kind,
-            state.RequiresRanged,
-            state.RemainingFramesAt(_actionSim.CurrentFrame),
-            Mathf.RoundToInt(parry.x),
-            Mathf.RoundToInt(parry.y),
-            Mathf.RoundToInt(parry.z),
-            Mathf.RoundToInt(evade.x),
-            Mathf.RoundToInt(evade.y),
-            Mathf.RoundToInt(evade.z)));
-        return true;
-    }
-
-    /// <summary>ActionSim 起手回调；Success 起手时把弹刀卡肉写到新实例，其它起手只清空 carry。</summary>
-    public void NotifyActionBegun(GameplayIntentType intent)
-    {
-        if (intent == GameplayIntentType.AssistParrySuccess && _assistParryHitStopCarryFrames > 0)
-            TryRequestHitStopOnCurrentAction(_assistParryHitStopCarryFrames, oncePerAction: true);
-
-        _assistParryHitStopCarryFrames = 0;
-        ActionBegun?.Invoke(intent);
-    }
-
-    /// <summary>
-    /// InstantReplace 上场：先落到旧角色位置，有 Cue 再经碰撞挪到弹刀/回避点。
-    /// 后台角色不会跟着当前角色走，禁止仍停在出生点再靠 Adhesion 远距离拉。
-    /// </summary>
-    public void PlaceForAssistSwitchFrom(CharacterActor outgoing, in AssistCue cue, bool evade)
-    {
-        if (outgoing == null)
-            throw new ArgumentNullException(nameof(outgoing));
-
-        CharacterMotorSim outgoingMotor = outgoing.MotorSim;
-        SimVec2 from = outgoingMotor.PositionMm;
-        _motor.Sim.TeleportMm(from.X, outgoingMotor.YMm, from.Z);
-
-        if (cue.IsValid && _targetingState.TryGetSelectedCombatPose(out SimCombatPose pose))
-        {
-            Vector3 localM = new(
-                MotionQuantization.MmToMeters(evade ? cue.EvadeLocalXMm : cue.ParryLocalXMm),
-                0f,
-                MotionQuantization.MmToMeters(evade ? cue.EvadeLocalZMm : cue.ParryLocalZMm));
-            Vector3 world = pose.TransformPoint(localM);
-            int desiredX = MotionQuantization.MetersToMm(world.x);
-            int desiredZ = MotionQuantization.MetersToMm(world.z);
-            _motor.Sim.TryMoveWorldMm(desiredX - from.X, desiredZ - from.Z);
-        }
-
-        AlignSwitchFacing(outgoingMotor.FacingMilliDeg);
-        AlignSimulationRootToMotor();
-        SnapPresentationToSimulation();
-    }
-
-    /// <summary>
-    /// 普通换人时落到退场角色局部右侧；先从旧位置经静态碰撞解析，再同步逻辑根与表现根。
-    /// </summary>
-    public void PlaceForNormalSwitchFrom(CharacterActor outgoing)
-    {
-        if (outgoing == null)
-            throw new ArgumentNullException(nameof(outgoing));
-
-        CharacterMotorSim outgoingMotor = outgoing.MotorSim;
-        SimVec2 outgoingPosition = outgoingMotor.PositionMm;
-        SimVec2 desired = PartySwitchPlacement.ResolveNormalSwitchPosition(
-            outgoingPosition,
-            outgoingMotor.FacingMilliDeg);
-
-        // 从旧角色位置向右移动，使现有 CollisionWorld 能在墙边缩短或阻止偏移。
-        _motor.Sim.TeleportMm(
-            outgoingPosition.X,
-            outgoingMotor.YMm,
-            outgoingPosition.Z);
-        _motor.Sim.TryMoveWorldMm(
-            desired.X - outgoingPosition.X,
-            desired.Z - outgoingPosition.Z);
-        AlignSwitchFacing(outgoingMotor.FacingMilliDeg);
-        AlignSimulationRootToMotor();
-        SnapPresentationToSimulation();
-    }
-
-    /// <summary>普通切人继承旧朝向；若本槽已有 SelectedTarget，则立即朝向其逻辑位置。</summary>
-    public void AlignSwitchFacing(int inheritedFacingMilliDeg)
-    {
-        int facingMilliDeg = inheritedFacingMilliDeg;
-        if (_targetingState.TryGetSelectedDirection(_motor.Sim, out Vector3 direction))
-        {
-            float facingDegrees = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
-            facingMilliDeg = Mathf.RoundToInt(facingDegrees * 1000f);
-        }
-        _motor.Sim.SetFacingMilliDeg(facingMilliDeg);
-    }
-
     /// <summary>暂存本地 Orbit yaw；下一次渲染采样将其固化进 InputFrame。</summary>
     public void StageMoveReferenceYaw(float yawDegrees) =>
         _localInput?.StageMoveReferenceYaw(yawDegrees);
@@ -673,16 +442,7 @@ public sealed class CharacterActor :
         // 受击打断时模型短时回锚（若动作 Stop 事件未到也兜底）
         _visualMotion?.EndAction(VisualResidualExitPolicy.BlendToZero);
         _visualMotion?.SetLeanRollDegrees(0f);
-        // 退场中再受击会掐掉已起的 SwitchOut；回到等 Recovery，避免槽永久 Exiting。
-        if (_partyState == PartyMemberState.Exiting
-            && _partyExitMode == PartyExitMode.PlayingSwitchOut)
-        {
-            _partyExitMode = PartyExitMode.WaitForCurrentRecovery;
-            _switchOutActionInstanceId = 0;
-            if (_queuedExternalIntent == GameplayIntentType.SwitchOut)
-                _queuedExternalIntent = GameplayIntentType.None;
-        }
-
+        _partyLifecycle.NotifyEnteredHit();
         _stateMachine.EnterHit(in request);
     }
 
@@ -710,7 +470,7 @@ public sealed class CharacterActor :
     public void SampleRenderFrame(long targetFrame)
     {
         // AI/回放 Actor 没有设备采样器，跳过
-        if (_partyState != PartyMemberState.Active
+        if (_partyLifecycle.State != PartyMemberState.Active
             || CurrentState == CharacterStateType.Death
             || _localInput == null
             || _inputFrames == null
@@ -723,179 +483,17 @@ public sealed class CharacterActor :
     }
 
     /// <summary>由 SimulationWorld 按固定顺序推进输入、动作路由、重力、状态机与动画淡入。</summary>
-    public void Step(long frameIndex, float fixedDeltaSeconds, in InputFrame inputFrame)
-    {
-        InputFrame effectiveInput = _partyState == PartyMemberState.Active
-            && CurrentState != CharacterStateType.Death
-            ? inputFrame
-            : InputFrame.Empty(frameIndex, _actorId);
-        // 记下本步帧号与输入，供 PostCombat / 调试快照对齐
-        _currentFrameIndex = frameIndex;
-        _lastSimulationInput = effectiveInput;
-        // 边沿只活一帧：本步结算前清掉，AfterLogicStep 才能读到本帧 Hit/Death
-        _vitality?.ClearReplicationEdge();
-        // 锁定表现锚点，逻辑位移期间禁止插值读半帧
-        _presentation.BeginSimulationStep();
-        // 逻辑步内残差贴帧，避免挂点读到上一渲染插值
-        _visualMotion?.ApplyLogicLocalPose();
-        try
-        {
-            // 软体抑制倒计时：须在本帧 ApplyStep 置位之前递减
-            _motor?.Sim.TickSoftBodySuppress();
-            // 量化输入灌入 InputManager（按钮边沿 / 移动意图）
-            _inputManager.IngestFrame(effectiveInput);
-            // Targeting 必须先于 Action 路由/推进，使同帧切敌立即作用于尚未解析的动作逻辑。
-            _targetingState.Step(_actorId, _motor.Sim, in effectiveInput);
-            // 按钮生命周期 → 当帧意图 + Cancel 缓冲
-            _intentProducer.Step();
-            if (_queuedExternalIntent != GameplayIntentType.None)
-            {
-                // Coordinator 意图必须在 Producer.BeginFrame 之后注入，避免被当帧清空。
-                _intentBuffer.Emit(_queuedExternalIntent);
-                _queuedExternalIntent = GameplayIntentType.None;
-            }
-            // Graph 起手/取消后推进 ActionSim 一帧
-            StepActionClock();
-            // 查表位移 / Timeline 表现桥消费本帧 Action 快照
-            _actionPresentation?.ApplyStep(fixedDeltaSeconds);
-            // 重力与着地（MotorSim 权威）
-            _motor.TickGravity(fixedDeltaSeconds);
-            // 顶层状态机：Locomotion / Action / Hit / Death
-            _stateMachine.Tick(fixedDeltaSeconds);
-            // L-DIR4：倾身只写 VisualMotionRoot，不改 Motor/Sim 权威朝向
-            _visualMotion?.SetLeanRollDegrees(_stateMachine.SprintLeanRollDegrees);
-            // Manual Playable：同帧末推进时间与 CrossFade。
-            // 未烘焙招式仍可能由此 Evaluate 产生 Native RM delta；已烘焙招式 RM 在 ApplyStep 已关闭。
-            _animation?.Tick(fixedDeltaSeconds);
-            // Wave 0：记录招式横摆峰峰值，对照是否进了逻辑根
-            UpdateActionLateralPeakSample();
-
-            // 卡肉或权威 Freeze 覆盖期间暂停 Numeric.Step
-            if (_actionSim != null && !_actionSim.IsFrozen)
-            {
-                // 出招/受击期间刷新接战门闩，供回能与 HUD
-                if (_actionSim.IsActive
-                    || CurrentState == CharacterStateType.Hit
-                    || CurrentState == CharacterStateType.Action)
-                {
-                    _numeric.NotifyInCombat();
-                }
-
-                // 回能 / 旗标递减 / 闪避充能 / Effect
-                _numeric.Step();
-            }
-        }
-        finally
-        {
-            // 解锁表现锚点并记下本步终点 Pose
-            _presentation.EndSimulationStep();
-            // 逻辑步结束再贴一次残差，避免 Render 前挂点漂移
-            _visualMotion?.ApplyLogicLocalPose();
-        }
-    }
-
-    /// <summary>
-    /// Wave 0：记录招式会话内 Motor 世界位移在角色右向的峰峰值，用于对照横摆是否进了逻辑根。
-    /// </summary>
-    void UpdateActionLateralPeakSample()
-    {
-        bool active = _actionSim != null && _actionSim.IsActive;
-        CharacterMotorSim motor = _motor.Sim;
-        if (active && !_wasActionActive)
-        {
-            _actionLateralPeakMm = 0;
-            _hasPrevMotorSample = false;
-        }
-
-        if (active && _hasPrevMotorSample && _simulationRoot != null)
-        {
-            int dx = motor.PositionMm.X - _prevMotorXMm;
-            int dz = motor.PositionMm.Z - _prevMotorZMm;
-            Vector3 worldDelta = new(
-                MotionQuantization.MmToMeters(dx),
-                0f,
-                MotionQuantization.MmToMeters(dz));
-            float lateralMeters = Vector3.Dot(worldDelta, _simulationRoot.right);
-            int lateralMm = Mathf.Abs(MotionQuantization.MetersToMm(lateralMeters));
-            if (lateralMm > _actionLateralPeakMm)
-                _actionLateralPeakMm = lateralMm;
-        }
-
-        _prevMotorXMm = motor.PositionMm.X;
-        _prevMotorZMm = motor.PositionMm.Z;
-        _hasPrevMotorSample = true;
-        _wasActionActive = active;
-    }
+    public void Step(long frameIndex, float fixedDeltaSeconds, in InputFrame inputFrame) =>
+        _simulationPipeline.Step(
+            frameIndex,
+            fixedDeltaSeconds,
+            in inputFrame,
+            _actorId,
+            _partyLifecycle.State);
 
     /// <summary>在整帧命中结算后处理 OnHitConfirm/OnWhiff 等自动衔接与自然结束。</summary>
-    public void ResolvePostCombat(long frameIndex)
-    {
-        if (frameIndex != _currentFrameIndex)
-            throw new InvalidOperationException("CharacterActor PostCombat 必须与最近 Step 属于同一逻辑帧。");
-
-        // OnHitConfirm/OnWhiff 自动衔接与自然结束排队
-        _actionSim?.ResolvePostCombat();
-        // Action/Hit/Death 按会话结束标记退出
-        _stateMachine.ResolvePostCombat();
-        // 同帧新增的 Started/Stopped 再派发给表现桥
-        _actionPresentation?.ApplyPostCombat();
-        AdvancePartyExitAfterPostCombat();
-    }
-
-    /// <summary>在动作帧与自动衔接结算后推进“原招 Recovery → SwitchOut”退场序列。</summary>
-    void AdvancePartyExitAfterPostCombat()
-    {
-        if (_partyState != PartyMemberState.Exiting)
-            return;
-
-        ActionSimSnapshot action = _actionSim.Snapshot;
-        if (_partyExitMode == PartyExitMode.WaitForCurrentRecovery)
-        {
-            bool reachedHandoff = !action.IsActive
-                || (action.Content is ActionDefinition definition
-                    && definition.IsRecoveryAtFrame(action.CurrentFrame));
-            if (!reachedHandoff)
-                return;
-
-            BeginSwitchOutAfterCurrentAction();
-            return;
-        }
-
-        if (_partyExitMode == PartyExitMode.PlayingSwitchOut
-            && _switchOutActionInstanceId == 0
-            && action.IsActive)
-        {
-            _switchOutActionInstanceId = action.InstanceId;
-        }
-    }
-
-    /// <summary>终止已到交接点的原招/受击，并让下一逻辑帧从独立 SwitchOut Entry 起手。</summary>
-    void BeginSwitchOutAfterCurrentAction()
-    {
-        StopActionForPartyTransition();
-        _partyExitMode = PartyExitMode.PlayingSwitchOut;
-        _switchOutActionInstanceId = 0;
-        QueueExternalIntent(GameplayIntentType.SwitchOut);
-    }
-
-    /// <summary>切入 SwitchOut 或隐入后台前终止原招及其缓冲，并回到可从 Entry 起手的 Locomotion。</summary>
-    void StopActionForPartyTransition()
-    {
-        if (_actionSim.IsActive)
-            _actionSim.Stop();
-        _intentBuffer.ClearAllBuffers();
-        ReleaseHitOrActionForPartyTransition();
-    }
-
-    /// <summary>
-    /// Driver 只从 Locomotion 起 SwitchOut；Hit 不能转 Action，且 Hit.Exit 会 Stop 刚起的招。
-    /// </summary>
-    void ReleaseHitOrActionForPartyTransition()
-    {
-        CharacterStateType state = CurrentState;
-        if (state == CharacterStateType.Action || state == CharacterStateType.Hit)
-            _stateMachine.TryChangeState(CharacterStateType.Locomotion, force: true);
-    }
+    public void ResolvePostCombat(long frameIndex) =>
+        _simulationPipeline.ResolvePostCombat(frameIndex);
 
     /// <summary>软弹开提交后同步 Transform，并刷新本帧表现终点 Pose。</summary>
     public void OnSoftBodySeparationApplied()
@@ -904,61 +502,11 @@ public sealed class CharacterActor :
         _presentation.RefreshCurrentPoseFromSimulationRoot();
     }
 
-    /// <summary>Ack 取消本地招并回走跑；不写 Numeric、不 Collect。</summary>
-    public void StopAutonomousAction()
-    {
-        _actionSim?.Stop();
-        _intentBuffer?.ClearAllBuffers();
-        if (CurrentState == CharacterStateType.Action)
-            _stateMachine.TryChangeState(CharacterStateType.Locomotion, force: true);
-    }
-
     /// <summary>把逻辑根位置与朝向写成 MotorSim，供首份快照/预览对齐。不改插值锚点。</summary>
     public void AlignSimulationRootToMotor() => _motor?.SyncRootPoseFromSim();
 
     /// <summary>纠偏/受击后掐断表现插值，避免回拉扫成一顿。</summary>
     public void SnapPresentationToSimulation() => _presentation?.SnapToSimulationRoot();
-
-    /// <inheritdoc />
-    public void RestoreFromAuthority(in ActorReplicationSnapshot authority)
-    {
-        _motor.Sim.TeleportMm(authority.PosXMm, authority.PosYMm, authority.PosZMm);
-        _motor.Sim.SetFacingMilliDeg(authority.FacingMilliDeg);
-        LocomotionSavedState locomotion = LocomotionSavedState.FromSnapshot(in authority);
-        RestoreLocomotion(in locomotion);
-    }
-
-    /// <summary>V2 复制接口点：用完整整数帧状态恢复后再执行未确认输入 Replay。</summary>
-    public void RestoreLocomotion(in LocomotionSavedState state)
-    {
-        _motor.SyncRootPoseFromSim();
-        LocomotionStateMachine loco = Locomotion;
-        if (loco == null)
-            return;
-
-        if (CurrentState != CharacterStateType.Locomotion)
-            _stateMachine.TryChangeState(CharacterStateType.Locomotion, force: true);
-        loco.Restore(in state);
-    }
-
-    /// <inheritdoc />
-    public void ReplayTick(in InputFrame input)
-    {
-        // 纠偏 Replay：只重放走跑，不重跑 Targeting/Action/Numeric
-        _inputManager.IngestFrame(input);
-        _motor.TickGravity(_fixedDeltaSeconds);
-        Locomotion?.Tick(_fixedDeltaSeconds);
-        _animation?.SetSpeed(1f);
-        _animation?.Tick(_fixedDeltaSeconds);
-    }
-
-    /// <summary>推进 ActionSim：起手/取消后推一帧。卡肉由本机 RequestHitStop 写入 freeze。</summary>
-    void StepActionClock()
-    {
-        // 先消费意图起手/取消，再推进整数帧
-        _actionDriver.ProcessGameplayInput();
-        _actionSim?.Step();
-    }
 
     /// <summary>把前后逻辑 Pose 插值到表现锚点，再插值视觉残差到模型根。</summary>
     public void Render(float interpolationAlpha)
@@ -984,7 +532,7 @@ public sealed class CharacterActor :
     void ClearControlledInput()
     {
         _inputManager.IngestFrame(InputFrame.Empty(
-            Math.Max(0, _currentFrameIndex),
+            Math.Max(0, _simulationPipeline.CurrentFrameIndex),
             _actorId));
         _inputManager.ClearBufferedMoveIntent();
         _actionDriver.ClearPendingActions();

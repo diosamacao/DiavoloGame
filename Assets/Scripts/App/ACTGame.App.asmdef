@@ -1,0 +1,31 @@
+{
+    "name": "ACTGame.App",
+    "rootNamespace": "",
+    "references": [
+        "ACTGame.Core",
+        "ACTGame.Domain.Input",
+        "ACTGame.Domain.Gameplay",
+        "ACTGame.Simulation",
+        "ACTGame.Networking",
+        "ACTGame.Combat.Numeric",
+        "ACTGame.Combat.Resources",
+        "ACTGame.Infrastructure",
+        "ACTGame.Server",
+        "ACTNet.Core",
+        "ACTNet.Transport",
+        "ACTNet.Session",
+        "ACTNet.Replication",
+        "ACTNet.Prediction",
+        "Cinemachine",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

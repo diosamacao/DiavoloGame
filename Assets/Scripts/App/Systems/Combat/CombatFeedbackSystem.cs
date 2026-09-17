@@ -17,6 +17,8 @@ public sealed class CombatFeedbackSystem : ArchitectureSystemBase
     {
         IsHitStopActive = true;
         ActiveHitStopAttackerRoot = attackerRoot;
+        if (VFXManager.TryGetInstance(out VFXManager vfxManager))
+            vfxManager.BeginHitStop(attackerRoot);
         this.SendEvent(new HitStopBeganEvent(attackerRoot));
     }
 
@@ -28,6 +30,8 @@ public sealed class CombatFeedbackSystem : ArchitectureSystemBase
 
         IsHitStopActive = false;
         ActiveHitStopAttackerRoot = null;
+        if (VFXManager.TryGetInstance(out VFXManager vfxManager))
+            vfxManager.EndHitStop();
         this.SendEvent(HitStopEndedEvent.Instance);
     }
 }

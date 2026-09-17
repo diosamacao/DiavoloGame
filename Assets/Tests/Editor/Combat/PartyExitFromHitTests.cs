@@ -14,9 +14,11 @@ public sealed class PartyExitFromHitTests
         harness.Actor.EnterHit(new CharacterReactionRequest(12, resolvedAction: null));
 
         Assert.That(harness.Actor.CurrentState, Is.EqualTo(CharacterStateType.Hit));
-        harness.Actor.BeginPartyExit();
+        harness.Actor.PartyLifecycle.BeginExit();
 
-        Assert.That(harness.Actor.PartyState, Is.EqualTo(PartyMemberState.Exiting));
+        Assert.That(
+            harness.Actor.PartyLifecycle.State,
+            Is.EqualTo(PartyMemberState.Exiting));
         Assert.That(harness.Actor.CurrentState, Is.EqualTo(CharacterStateType.Locomotion));
     }
 
@@ -32,9 +34,11 @@ public sealed class PartyExitFromHitTests
             Assert.That(harness.Actor.CurrentState, Is.EqualTo(CharacterStateType.Hit));
             Assert.That(harness.Actor.ActionSim.IsActive, Is.True);
 
-            harness.Actor.BeginPartyExit();
+            harness.Actor.PartyLifecycle.BeginExit();
 
-            Assert.That(harness.Actor.PartyState, Is.EqualTo(PartyMemberState.Exiting));
+            Assert.That(
+                harness.Actor.PartyLifecycle.State,
+                Is.EqualTo(PartyMemberState.Exiting));
             Assert.That(harness.Actor.CurrentState, Is.EqualTo(CharacterStateType.Locomotion));
             Assert.That(harness.Actor.ActionSim.IsActive, Is.False);
         }

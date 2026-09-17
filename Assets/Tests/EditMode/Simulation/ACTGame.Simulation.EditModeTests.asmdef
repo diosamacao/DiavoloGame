@@ -3,7 +3,6 @@
     "rootNamespace": "",
     "references": [
         "ACTGame.Simulation",
-        "ACTGame.Net",
         "ACTGame.Networking",
         "ACTNet.Core",
         "ACTNet.Session",

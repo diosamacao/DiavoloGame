@@ -7,9 +7,7 @@ public sealed class GameplayIntentProducer
     readonly GameplayIntentProfile _profile;
     readonly InputManager _input;
     readonly GameplayIntentBuffer _output;
-    readonly ICharacterStateMachine _stateMachine;
-    readonly LocomotionStateMachine _locomotion;
-    readonly ActionSim _actionSim;
+    readonly Func<GameplayIntentCondition, bool> _matchesContext;
     readonly Func<bool> _hasPerfectDodgeCounter;
     readonly Func<bool> _hasAssistFollowUp;
     readonly InputButton[] _buttons;
@@ -19,25 +17,21 @@ public sealed class GameplayIntentProducer
     /// <summary>
     /// 创建意图生产器；多数按钮由 Profile 映射。
     /// <see cref="InputButton.Parry"/> 不经 Profile，按下边沿硬产出 <see cref="GameplayIntentType.Parry"/>。
-    /// stateMachine 只读 CurrentStateId（权威 SM 或客机播招探针）。
+    /// matchesContext 由 Character 层注入，Input 层不依赖角色状态机或战斗类型。
     /// hasAssistFollowUp 优先于 hasPerfectDodgeCounter：攻击族 Pressed 分别派生 AssistFollowUp / PerfectDodgeAttack。
     /// </summary>
     public GameplayIntentProducer(
         GameplayIntentProfile profile,
         InputManager input,
         GameplayIntentBuffer output,
-        ICharacterStateMachine stateMachine,
-        LocomotionStateMachine locomotion,
-        ActionSim actionSim,
+        Func<GameplayIntentCondition, bool> matchesContext,
         Func<bool> hasPerfectDodgeCounter = null,
         Func<bool> hasAssistFollowUp = null)
     {
         _profile = profile;
         _input = input;
         _output = output;
-        _stateMachine = stateMachine;
-        _locomotion = locomotion;
-        _actionSim = actionSim;
+        _matchesContext = matchesContext;
         _hasPerfectDodgeCounter = hasPerfectDodgeCounter;
         _hasAssistFollowUp = hasAssistFollowUp;
         _buttons = CollectButtons(profile);
@@ -169,28 +163,12 @@ public sealed class GameplayIntentProducer
         return true;
     }
 
-    /// <summary>评估意图规则的角色状态条件；Sprint 仅指 Locomotion 的稳态 Sprint Gait。</summary>
+    /// <summary>Always 由 Input 层直接接受；角色状态条件必须由 Character 层注入解析。</summary>
     bool MatchesContext(GameplayIntentCondition condition)
     {
-        switch (condition)
-        {
-            case GameplayIntentCondition.IsSprinting:
-                return _stateMachine != null
-                    && _stateMachine.CurrentStateId == CharacterStateType.Locomotion
-                    && _locomotion != null
-                    && _locomotion.Phase == LocomotionPhase.Gait
-                    && _locomotion.Gait == LocomotionGait.Sprint;
-            case GameplayIntentCondition.IsDodging:
-                ActionDefinition currentAction = _actionSim?.Snapshot.Content as ActionDefinition;
-                return _stateMachine != null
-                    && _stateMachine.CurrentStateId == CharacterStateType.Action
-                    && currentAction != null
-                    && currentAction.ActionType == CombatActionType.Dodge;
-            case GameplayIntentCondition.HasPerfectDodgeCounter:
-                return _hasPerfectDodgeCounter != null && _hasPerfectDodgeCounter();
-            default:
-                return true;
-        }
+        if (condition == GameplayIntentCondition.Always)
+            return true;
+        return _matchesContext != null && _matchesContext(condition);
     }
 
     /// <summary>

@@ -173,9 +173,9 @@ public sealed class ActClientRoomGameplay
             return;
 
         float dt = _world.SimulationHost.FixedDeltaSeconds;
-        _localPlayer.StepPartyPrediction(_predictFrame, dt, in _pendingPredictionInput);
+        _localPlayer.Party.StepPrediction(_predictFrame, dt, in _pendingPredictionInput);
         actor = _localPlayer.Actor;
-        int activeSlot = _localPlayer.ActivePartySlot;
+        int activeSlot = _localPlayer.Party.ActiveSlot;
         if (activeSlot >= 0 && activeSlot < _ownerPartyActorIds.Length)
             _owner.SetActiveOwnerActor(_ownerPartyActorIds[activeSlot]);
         PresentPredictedHitStop(actor);
@@ -268,19 +268,21 @@ public sealed class ActClientRoomGameplay
     {
         SimActorId[] ids = meta.PartyActorIds;
         int[] flags = meta.PartyFlags;
-        if (_localPlayer == null || ids.Length != _localPlayer.PartyActors.Count)
+        if (_localPlayer?.Party == null || ids.Length != _localPlayer.Party.Actors.Count)
             throw new InvalidOperationException("V2 Meta 阵容与本机 Loadout 不一致。");
         _ownerPartyActorIds = ids;
-        _localPlayer.BindPartySimulationInput(ids, _inputFrames);
+        _localPlayer.Party.BindSimulationInput(ids, _inputFrames);
         for (int i = 0; i < ids.Length; i++)
-            _localPlayer.SynchronizeAuthorityPartyState(ids[i], flags[i]);
+            _localPlayer.Party.SynchronizeMemberState(ids[i], flags[i]);
         if (meta.PartyWiped)
         {
-            _localPlayer.SynchronizeAuthorityPartyWiped();
+            _localPlayer.Party.SynchronizePartyWiped();
         }
         else
         {
-            _localPlayer.SynchronizeAuthorityActiveSlot(meta.ActivePartySlot, meta.LastAppliedClientFrameHint);
+            _localPlayer.Party.SynchronizeActiveSlot(
+                meta.ActivePartySlot,
+                meta.LastAppliedClientFrameHint);
             _owner.SetActiveOwnerActor(ids[meta.ActivePartySlot]);
         }
 
@@ -300,9 +302,7 @@ public sealed class ActClientRoomGameplay
     /// <summary>把每个 Owner 槽快照中的 FlagsPacked 阵容状态同步到本地预测镜像。</summary>
     void ApplyOwnerPartySnapshot(ActorReplicationSnapshot snapshot)
     {
-        _localPlayer?.SynchronizeAuthorityPartyState(
-            snapshot.ActorId,
-            snapshot.FlagsPacked);
+        _localPlayer?.Party?.SynchronizeMemberState(snapshot.ActorId, snapshot.FlagsPacked);
     }
 
     /// <summary>应用可靠命中事件；按 SimHitKey 只播一次。</summary>
@@ -330,7 +330,7 @@ public sealed class ActClientRoomGameplay
             return;
 
         float alpha = host.InterpolationAlpha;
-        _localPlayer?.RenderParty(alpha);
+        _localPlayer?.Party?.Render(alpha);
         int delayTicks = _world.Role == ReplicationRole.ListenHost
             ? 1
             : _clock.InterpolationDelayTicks;
@@ -494,7 +494,7 @@ public sealed class ActClientRoomGameplay
     /// <summary>按 PartyActors 稳定 SimulationId 应用弹刀；支持本体招架与切人后的非当前槽。</summary>
     bool TryApplyOwnerAssistParry(ReplicatedHitEvent hit)
     {
-        IReadOnlyList<CharacterActor> party = _localPlayer?.PartyActors;
+        IReadOnlyList<CharacterActor> party = _localPlayer?.Party?.Actors;
         if (party == null)
             return false;
         for (int i = 0; i < party.Count; i++)
@@ -503,8 +503,8 @@ public sealed class ActClientRoomGameplay
             if (actor == null || actor.SimulationId != hit.Key.TargetId)
                 continue;
 
-            actor.NotifyAssistParryContact();
-            actor.ArmAssistParryHitStopCarry(hit.HitStopFrames);
+            actor.PartyLifecycle.NotifyAssistParryContact();
+            actor.PartyLifecycle.ArmAssistParryHitStopCarry(hit.HitStopFrames);
             return true;
         }
         return false;
@@ -534,9 +534,9 @@ public sealed class ActClientRoomGameplay
         {
             if (_ownerPartyActorIds[i] != actorId)
                 continue;
-            CharacterActor member = _localPlayer != null
-                && i < _localPlayer.PartyActors.Count
-                    ? _localPlayer.PartyActors[i]
+            CharacterActor member = _localPlayer?.Party != null
+                && i < _localPlayer.Party.Actors.Count
+                    ? _localPlayer.Party.Actors[i]
                     : null;
             return member?.PresentationRoot != null
                 ? member.PresentationRoot

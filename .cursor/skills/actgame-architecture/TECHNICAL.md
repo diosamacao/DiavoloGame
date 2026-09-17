@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-09-17（Observer 弹刀特效、Idle 循环与根运动迁移审计）
+> Last updated: 2026-09-17（结构稳定化 CS3：SimulationPipeline、PartyLifecycle 与 PredictionRuntime 提取）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -63,9 +63,10 @@
 | 普通切裁定 | `PartyCombatCoordinator.TryResolveSwitchIn` 输出 `DualPresence`，旧槽 Active→Exiting，新槽 Inactive→Active |
 | 死亡收尾 | `PartyDeathSwitchPolicy/Gate` 最短等待 15 帧；`DeathSequenceComplete` 为主信号，缺信号时按死亡 Action 总帧 + 15 强制提交 |
 | 死亡接替 | `PartyCombatCoordinator.TryResolveActiveDeath` 原子写死亡槽 `Dead`，下一存活槽 `Active`；无存活槽则 `IsPartyWiped`，禁止复用 `Exiting/SwitchOut` |
-| 普通切落点 | `PartySwitchPlacement` 按旧角色 Motor 朝向取局部右侧 600mm；`CharacterActor.PlaceForNormalSwitchFrom` 从旧位置经新角色静态碰撞世界解析后落地 |
-| 退场时序 | `CharacterActor.BeginPartyExit/AdvancePartyExitAfterPostCombat`：空闲立即注入 `SwitchOut`；切人输入到达时已在 Recovery 则在下一次 Action Step 前立即交接，否则到首次 Recovery 停止并排队 `SwitchOut`；交接前必须离开 `Hit`（Driver 只从 Locomotion 起 SwitchOut）；`IsPartyExitReady` 只认 SwitchOut 实例的 Recovery |
-| 运行时槽 | `PlayerController` / `ActGameGuest` 均按非空槽创建独立 `CharacterActor`；Inactive 空输入且不参与软碰撞/受击 |
+| 角色侧生命周期 | `CharacterPartyLifecycle` 独占槽状态、普通退场、Assist 意图/卡肉转移、动作起手事件和换人落位；`CharacterActor` 不保留旧字段或转发方法 |
+| 普通切落点 | `PartySwitchPlacement` 按旧角色 Motor 朝向取局部右侧 600mm；`CharacterPartyLifecycle.PlaceForNormalSwitchFrom` 从旧位置经新角色静态碰撞世界解析后落地 |
+| 退场时序 | `CharacterPartyLifecycle.BeginExit/AdvanceAfterPostCombat`：空闲立即注入 `SwitchOut`；切人输入到达时已在 Recovery 则在下一次 Action Step 前立即交接，否则到首次 Recovery 停止并排队 `SwitchOut`；交接前必须离开 `Hit`（Driver 只从 Locomotion 起 SwitchOut）；`IsExitReady` 只认 SwitchOut 实例的 Recovery |
+| 运行时槽 | `PlayerPartyRuntime` / `ActGameGuest` 均按非空槽创建独立 `CharacterActor`；`PlayerController` 只装配本机 Runtime 与设备输入；Inactive 空输入且不参与软碰撞/受击 |
 | 稳定身份 | 每槽独立 `SimActorId` / `NetEntityId`；禁止单 Actor 热换 Config |
 | Owner 复制 | 应用载荷下发槽 ActorId、ActiveSlot、累计命令 ACK；角色快照 `FlagsPacked` 逐槽纠正本机 `PartyState`，自有后台槽不会创建 Observer Proxy |
 | 状态复制 | `PartyMemberState` 编入角色快照 `FlagsPacked` 低三位；Observer 仅显示 Active / Exiting；PartyWiped V2 Meta 尚未接 |
@@ -76,28 +77,28 @@
 ```text
 InputReader.Sample → InputFrame.SwitchCharacter
   → ClientCommand（仍是一座位一条输入流）
-  → DedicatedAuthorityWorld 预合并未应用命令
+  → DedicatedAuthorityWorld → AuthorityStepCoordinator 预合并未应用命令
   → ActGameGuest.TryResolveSwitch
-      → from.BeginPartyExit；to = Active
-      → from 空闲（含纯帧 Hurt）：离开 Hit 后 QueueExternalIntent(SwitchOut)
-      → from 有招/受击招：首次 Recovery 后 Stop 并离开 Hit，再 QueueExternalIntent(SwitchOut)
-      → SwitchOut 首次 Recovery：CompletePartyExit
+      → from.PartyLifecycle.BeginExit；to.PartyLifecycle = Active
+      → from 空闲（含纯帧 Hurt）：离开 Hit 后 PartyLifecycle.QueueExternalIntent(SwitchOut)
+      → from 有招/受击招：首次 Recovery 后 Stop 并离开 Hit，再由 PartyLifecycle 排队 SwitchOut
+      → SwitchOut 首次 Recovery：PartyLifecycle.CompleteExit
       → to 从旧槽逻辑根沿旧角色局部右向偏移 600mm（静态碰撞解析）
       → to 优先朝向 SelectedTarget
-      → to.QueueExternalIntent(SwitchIn)
+      → to.PartyLifecycle.QueueExternalIntent(SwitchIn)
   → 输入写入新 Active ActorId
   → SimulationWorld.Step（Active + Exiting + Inactive 独立 Actor）
-  → ReplicationFrame（全部槽快照 + Owner ActiveSlot）
+  → ReplicationLifecycle/Snapshot（全部槽快照 + Owner ActiveSlot Meta）
 
 客户端同帧：
 ActClientRoomGameplay.StepPrediction
-  → PlayerController.StepPartyPrediction
+  → PlayerPartyRuntime.StepPrediction
   → Active 收输入；Exiting/Inactive 收空输入
   → 累计 ACK 未覆盖预测切人帧时，不用旧快照撤销切人
 
 Active 死亡：
 CharacterActor.ResolvePostCombat → DeathSequenceComplete
-  → DedicatedAuthorityWorld.AfterLogicStep
+  → AuthorityStepCoordinator.OnAfterLogicStep
   → PartyDeathSwitchGate（至少 15 帧；cap = DeathAction.TotalFrames + 15）
   → ActGameGuest：死亡槽直接 Dead；下一槽直接 Active + SwitchIn
       → 无下一槽：PartyWiped，继续 ACK 但清空玩法输入
@@ -113,7 +114,7 @@ CharacterActor.ResolvePostCombat → DeathSequenceComplete
 - `SwitchOut` 必须配置 Recovery Phase；缺失时角色不会被静默隐藏，便于暴露资产错误。
 - 本轮已通过解决方案编译；Unity Test Runner 与 Listen Play 尚未验收，因此功能状态仍为 🟡。
 - P-SW2 代码已接（Cue / 点数 / Guard→Success / `IssueParried` / 突击派生）；Graph 与 Timeline 资产、Play 验收未做。
-- PartyWiped 仍只在 Coordinator 口袋内；独立 V2 Party Meta、队灭 UI/Match 结果留给 replication todo。
+- PartyWiped 已进入 V2 Snapshot Meta；队灭 UI/Match 结果仍留给后续功能阶段。
 
 ### 相关文件
 
@@ -124,7 +125,7 @@ CharacterActor.ResolvePostCombat → DeathSequenceComplete
 - `Assets/Scripts/App/Networking/Content/ActServerContentProbe.cs`
 - `Assets/Scripts/App/Networking/Adapters/ActGameSessionHandler.cs`
 - `Assets/Scripts/App/Networking/Services/DedicatedAuthorityWorld.cs`
-- `Assets/Scripts/Domain/Networking/ActReplicationApplicationPayload*.cs`
+- `Assets/Scripts/Domain/Networking/ActReplicationSnapshotMeta*.cs`
 - `Assets/Scripts/Domain/Simulation/Input/InputButton.cs`
 - `Assets/Scripts/Infrastructure/Input/InputReader.cs`
 - `docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`
@@ -153,7 +154,7 @@ CharacterActor.ResolvePostCombat → DeathSequenceComplete
 | 接触 | `IHitAbsorbQuery.IsInAssistParryWindow`；管道优先于 PD 与无敌：玩家不 OnHit，攻击者 `IssueParried` |
 | 被弹刀 | `HitPayload.ParriedActionPolicy`：`Interrupt` 才 `ResolveParried(parriedReactionId)` + LightStun 边沿 + `EnterHit`；`Continue` 不停招、不写边沿。选片：`Parried+Id` → Parried 默认 → Hit 默认。禁止冲击力裁定 / `HitReactionKind.Parried` |
 | 卡肉 | `ResolvePending` 裁定后唯一 `ApplyConfirmedHitStop`。真伤只冻进攻实例且仍受 `UseHitStop` 门控；弹刀帧只读当前招 `AssistParryWindow.hitStopFrames`（无窗回退 8），`ArmAssistParryHitStopCarry` 把剩余帧带到 Success |
-| Dedicated Owner | 吸收结果随 `ReplicatedHitEvent` 可靠下行；按 `PlayerController.PartyActors[].SimulationId` 找目标，Meta 早到/晚到均经有界 pending 重试；成功应用或确认非本阵容后才完成去重 |
+| Dedicated Owner | 吸收结果随 `ReplicatedHitEvent` 可靠下行；按 `PlayerController.Party.Actors[].SimulationId` 找目标，Meta 早到/晚到均经有界 pending 重试；成功应用或确认非本阵容后才完成去重 |
 | 突击 | `Flags.ArmAssistFollowUp`；Producer 攻击族 Pressed 优先于 PD 派生 `AssistFollowUp`；切人当帧不武装 |
 
 ### 关键参数
@@ -272,7 +273,7 @@ AppControllerBase
 | 固定频率 | `SimulationConfig.DefaultLogicHz = 60` |
 | 追帧 | `FixedStepAccumulator` 单渲染帧最多 8 Step；超额欠账保留，不丢逻辑时间 |
 | Actor 身份 | World 从 1 单调分配 `SimActorId`，会话内不复用 |
-| Actor 顺序 | `CharacterActor` / `EnemyHandle` 实现 `ISimulationActor`，按注册 Id 升序执行 |
+| Actor 顺序 | `CharacterActor` / `EnemyHandle` 实现 `ISimulationActor`，按注册 Id 升序执行；角色入口内部唯一转交 `CharacterSimulationPipeline` |
 | 渲染输入 | `IRenderFrameSampler` 每渲染帧汇聚设备边沿；无逻辑 Step 时 Pressed/Released 保留到下一 Step |
 | 输入帧 | `InputFrame` 使用 sbyte Move、MoveReferenceYaw、稳定按钮 bitset、frame 与 SimActorId；World 持有 `InputFrameBuffer` 历史 |
 | 输入阶段 | 每帧先调用 `ISimulationInputProducer`；AI 基于 Actor Step 前的 N-1 已提交状态写 N 帧输入 |
@@ -294,9 +295,10 @@ SimulationHost.Update
   → 重复 N 次 SimulationWorld.Step
       → ISimulationInputProducer.ProduceInput（AI）
       → InputFrameBuffer.ResolveLocal
-      → CharacterActor.Step / EnemyHandle.Step（Control / Motion / Hit Collect）
+      → CharacterActor.Step → CharacterSimulationPipeline.Step / EnemyHandle.Step（Control / Motion / Hit Collect）
   → CombatHitPipeline.ResolveBeforePostCombat（稳定排序、伤害、Reaction、ConfirmHit）
-  → SimulationWorld.ResolvePostCombat（自动 Transition / 动作结束）
+  → SimulationWorld.ResolvePostCombat
+      → CharacterActor.ResolvePostCombat → CharacterSimulationPipeline.ResolvePostCombat（自动 Transition / 动作结束）
   → CombatHitPipeline.CompleteFrame（Transition frame 0 命中 + 只读 App 结果）
   → CommitEnemyLifecycle（死亡注销与 Despawn Command）
 SimulationHost.LateUpdate
@@ -318,7 +320,7 @@ SimulationHost.LateUpdate
 - L2/M2：`Bake All` / `Bake Dirty Only` + Inspector Dirty 黄条 + `ACTGame/Motion/Validate Motion Dirty`。
 - L2 软弹开：`SimulationWorld` 帧末按 Id 序对 `ISimSoftBodyParticipant` 执行 `SoftBodySeparation`（默认 factor=500‰、迭代 3）；按 `softBodyMass` 分配推力，`softBodyImmovable` 像墙；死亡不参与。
 - L2 命中：`SimCombatPose` 从 MotorSim 取水平根；Hitbox 挂点只提供相对根局部 TRS；Hurtbox 用 `GetLogicalHurtbox`；自身排除用 `SimActorId`。
-- 联网定案：Dedicated 权威状态同步；上行 `InputFrame`，下行 `ReplicationFrame`；命中只在权威 Pipeline。锁步 L5 已取消。阅读：[`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)。纠偏合同：[`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
+- 联网定案：Dedicated 权威状态同步；上行 `InputFrame`，下行 V2 Lifecycle/Snapshot/Event；命中只在权威 Pipeline。锁步 L5 已取消。阅读：[`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)。纠偏合同：[`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
 
 ### 相关文件
 
@@ -380,25 +382,25 @@ EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
 
 ### 功能说明
 
-权威世界把完整角色状态差分为 `ReplicationFrame`；实体生命周期由显式 Spawn/Update/Despawn 表达。
+权威世界把完整角色状态拆为 V2 Lifecycle 与 Snapshot；Spawn/Despawn 可靠有序，Update 不可靠并以 Lifecycle Sequence 为屏障。
 
 ### 实现方案
 
 | 项 | 方案 |
 |----|------|
-| 下行 | `ReplicationFrame`：`ActCharacterSnapshotSchema` 生产记录（线格式委托 `CharacterSnapshotSchemaV1`）+ 显式生命周期 + Sequence |
+| 下行 | `ReplicationLifecycle` + `ReplicationSnapshot` + `ReplicationEvent`；角色线格式委托 `CharacterSnapshotSchemaV2` |
 | 上行 | `ClientCommand`（frameHint + playerId + `InputFrame`） |
 | 组装 | `ReplicationSnapshotBuilder.FromAuthority`（Motor + Action 快照 + 传入 healthMilli） |
-| 字节 | `ActorReplicationSnapshotCodec` 是 Snapshot 字段布局唯一真源；`ReplicationFrameCodec` 编码实体记录，`ReplicationCodec` / `RoomCodec` 仅保留上行命令 |
-| W3/W4 业务适配 | `ActCharacterSnapshotSchema` 接入生产 Schema Registry 并复用纯 C# V1 线格式；`ActContentRegistry` 持有 Archetype、配置与动作 Catalog |
+| 字节 | `ActorReplicationSnapshotCodec` 是角色字段布局唯一真源；`ReplicationProtocolV2Codec` 编码 Lifecycle/Snapshot，`RoomCodec` 仅保留上行命令 |
+| W3/W4 业务适配 | `ActCharacterSnapshotSchema` 接入生产 Schema Registry 并复用纯 C# V2 线格式；`ActContentRegistry` 持有 Archetype、配置与动作 Catalog |
 | W4 权威适配 | `ActAuthorityReplicationAdapter` 独占远端输入灌入、Gameplay Actor Capture 与 FrameHits ActionId 映射；RoomHost 只调度并构建/发送 Frame |
 | W4 加入适配 | `ActGameSessionHandler` 创建/销毁 Guest Authority Actor；RoomHost 注入 App 注册委托并独占 `ServerSession.Accept/Reject` |
 | W4 Owner 适配 | `ActOwnerReplicationAdapter` 独占 Owner HP、Action Ack、Locomotion Reconcile、Hit/Death 硬吸和预测历史；Client Room 只转发快照 |
 | W4 Observer 适配 | `ActObserverReplicationAdapter` 独占 Schema/Archetype 校验、Proxy Spawn/Update/Despawn、TargetSystem 与 View 生命周期；`ActRemoteProxyFactory` 是唯一装配入口 |
 | W4 内容真源 | `ActContentRegistry` 唯一持有 Action Catalog、Character Archetype 与 Unity 配置映射；Room/Adapter 禁止另建动作目录 |
-| W4 Capture 真源 | `ActCharacterSnapshotSchema.Capture` 统一 CharacterActor → Snapshot 与 V1 编解码；独立 `CharacterReplicationCapture` 已删除 |
+| W4 Capture 真源 | `ActCharacterSnapshotSchema.Capture` 统一 CharacterActor → Snapshot 与 V2 编解码；独立 `CharacterReplicationCapture` 已删除 |
 | W4 Room 边界 | `ListenServerBootstrap` / `ReplicationRoomClient` 仅做组合或 Session 调度与 HUD；不再引用 Character/配置/Proxy/Hit Cue 具体类型 |
-| W4 Gameplay Service | `DedicatedAuthorityWorld` 承接 Guest/Input/Capture；`ActClientRoomGameplay` 承接 Owner 预测、Observer、Hit Cue/HitStop/软碰撞；`ActContentPrefillService` 是场景内容扫描唯一入口 |
+| W4 Gameplay Service | `DedicatedAuthorityWorld` 只组合 `AuthorityGuestRegistry` / `AuthorityStepCoordinator` / `AuthorityReplicationPublisher`；`ActClientRoomGameplay` 承接 Owner 预测、Observer、Hit Cue/HitStop/软碰撞；`ActContentPrefillService` 是场景内容扫描唯一入口 |
 | 通用身份 | `NetConnectionId` / `NetPlayerId` / `NetEntityId` / `NetArchetypeId`；`SimActorNetIdAdapter` 显式映射 Simulation Actor |
 | 版本基础 | `NetworkProtocolVersion` + 128 位 `ContentFingerprint` 已定义；握手切换留在 Content Manifest Wave |
 | 传输 | `INetTransport` / `LoopbackTransport` / `UdpTransport`（`ACTNet.Transport`，按 ConnectionId 定向） |
@@ -413,9 +415,9 @@ Loopback `LatencyMs` 默认 0。`actionId` 由 `ActionReplicationCatalog` 按资
 ActAuthorityReplicationAdapter
   → RoomRemoteInputMerge → InputFrameBuffer
   → ActCharacterSnapshotSchema.Capture/Encode → ReplicationEntityState full set
-  → FrameHits + Snapshot ActionId → ActReplicationApplicationPayload
-  → ReplicationServer.BuildFrame → ReplicationFrameCodec
-  → Session/Transport → ReplicationClient.ApplyFrame
+  → ActReplicationSnapshotMeta + ReplicatedHitEvent
+  → ReplicationServer.PrepareTickDelta → ReplicationProtocolV2Codec
+  → Session/Transport → ReplicationClient.ApplyLifecycle/ApplySnapshot
   → ActClientRoomGameplay → Owner reconcile / Observer Proxy / ACT 表现
 ```
 
@@ -434,7 +436,7 @@ ActAuthorityReplicationAdapter
 - `Assets/Scripts/Domain/Simulation/Replication/*`
 - `Assets/Scripts/Domain/Networking/*`
 - `Assets/Scripts/Framework/ACTNet/Core/*`
-- `Assets/Scripts/Domain/Net/Identity/SimActorNetIdAdapter.cs`
+- `Assets/Scripts/Domain/Networking/Identity/SimActorNetIdAdapter.cs`
 - `Assets/Scripts/Framework/ACTNet/Transport/*`
 - `Assets/Tests/EditMode/Simulation/ActorReplicationSnapshotTests.cs`
 - `Assets/Tests/EditMode/ACTNet/Transport/LoopbackTransportTests.cs`
@@ -445,7 +447,7 @@ ActAuthorityReplicationAdapter
 
 ### 功能说明
 
-客机用 `RemoteCharacterProxy` 播他人与敌人：只跟 `ReplicationFrame` 的 Character 记录 Seek，不跑第二份命中。Host 同机 ±2m 预览已删除。
+客机用 `RemoteCharacterProxy` 播他人与敌人：只跟 V2 Snapshot 的 Character 记录，不跑第二份命中。Host 同机 ±2m 预览已删除。
 
 ### 实现方案
 
@@ -457,7 +459,7 @@ ActAuthorityReplicationAdapter
 | 朝向调试 | 客机幽灵挂同一套黄/品红箭；wish 走快照 `moveV*`，与延迟位姿成对 |
 | 插值 | 复用 `CharacterPresentationBridge.Render(alpha)` |
 | 装配 | `ActRemoteProxyFactory`，**不**走 `CharacterActorFactory` |
-| 入口 | `ReplicationRoomClient` 收帧后交 `ActClientRoomGameplay.ApplyReplicationFrame`，再由 Observer Adapter 应用 |
+| 入口 | `LocalClientRuntime` 分发 Lifecycle/Snapshot 给 `ActClientRoomGameplay`，再由 Observer Adapter 应用 |
 
 ### 关键参数
 
@@ -467,7 +469,7 @@ ActAuthorityReplicationAdapter
 
 ```
 Host.Step → AfterLogicStep
-  → Capture full set → ReplicationServer.BuildFrame → UDP
+  → Capture full set → ReplicationServer.PrepareTickDelta → UDP
 客机 Pump → RemoteProxy.ApplySnapshot
 LateUpdate → proxy.Render(Host.InterpolationAlpha)
 ```
@@ -476,6 +478,7 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 
 - PivotTurn 根朝向仍只跟快照 facing（不在幽灵侧重跑 AnimAuth）；Clip 已按权威归一化时间 Seek
 - Catalog 已改为资产名稳定 Id（NS5）
+- Observer 正常 Action→Locomotion（含移动取消）使用 AnimationProfile 默认 CrossFade；只有播放头吸附或 Locomotion 特殊相位间切换才硬切
 - 幽灵不进权威花名册、无 Hurtbox Collect；同一动作按前后 ActionFrame 补齐 VFX/SFX，首次看到新动作时从 frame -1 补到当前帧，避免弹刀成功等起手特效因首包已到 frame 1+ 而永久漏播；同动作重启仍只跨当前帧。本机 `CharacterActor` 与远端 Proxy 在阵容成员隐藏前都由 `IActionVisibilityResetConsumer` 回收仍挂在角色下的 VFX；远端重新显形时另清空旧 `SnapshotTimeline` 并重置插值双端
 - 多种敌人通过 `NetArchetypeId` 精确解析各自配置；未知 Archetype 明确拒绝，不做首敌回退
 
@@ -495,13 +498,13 @@ LateUpdate → proxy.Render(Host.InterpolationAlpha)
 
 ### 功能说明
 
-Listen 本机与远端客机都用本地 `InputFrame` 立刻推进位移。**房间走跑由 Autonomous `CharacterActor.Step` 写 MotorSim**；`Predict`/`ApplyInput` 仅留单测。历史与 Restore+Replay 由 `PredictionCoordinator` 编排，2m Gate 在 `ActCharacterPredictionModel`。已删除 Runner / 猜片 / Host 同机预览。
+Listen 本机与远端客机都用本地 `InputFrame` 立刻推进位移。**房间走跑由 Autonomous `CharacterActor.Step` 写 MotorSim**；`Predict`/`ApplyInput` 仅留单测。历史和解由 `PredictionCoordinator` 编排，角色侧 Restore+Replay 端口为 `CharacterPredictionRuntime`，2m Gate 在 `ActCharacterPredictionModel`。已删除 Runner / 猜片 / Host 同机预览。
 
 ### 实现方案
 
 | 项 | 方案 |
 |----|------|
-| 走跑步进 | Autonomous `CharacterActor.Step`（同一套内层机） |
+| 走跑步进 | Autonomous `CharacterActor.Step`（正常预测）；`CharacterPredictionRuntime.ReplayTick`（纠偏重放，同一套内层机） |
 | 互撞 | 不进 World；`AutonomousSoftBodySolver` 把本机从只读幽灵圆盘推出 |
 | 出招位移 | 表现桥烘焙 + TargetAdhesion / Relocate（WorldQuery 读只读 Proxy Pose） |
 | 缓存 | `PredictionCoordinator.Record` → CommandHistory + StateHistory |
@@ -544,6 +547,7 @@ Listen 本机与远端客机都用本地 `InputFrame` 立刻推进位移。**房
 
 - `Assets/Scripts/Framework/ACTNet/Prediction/*`
 - `Assets/Scripts/Domain/Simulation/Prediction/*`
+- `Assets/Scripts/Domain/Character/Prediction/CharacterPredictionRuntime.cs`
 - `Assets/Scripts/App/Networking/Services/ActClientRoomGameplay.cs`
 - `Assets/Tests/EditMode/ACTNet/Prediction/FakeLinearEntityPredictionTests.cs`
 - `Assets/Tests/EditMode/Simulation/PredictedLocomotionReconcileTests.cs`
@@ -561,11 +565,11 @@ Listen 本机与远端客机都用本地 `InputFrame` 立刻推进位移。**房
 | 项 | 方案 |
 |----|------|
 | 出招预测 | Autonomous `CharacterActor` + `ActionSim` + 表现桥；Ack 用 `PredictedActionAckQueue` |
-| 取消 | 该帧权威 ActionId=0，或 Vitality Hit/Death → `StopAutonomousAction` / `EnterHit`；连招超前不 Cancel |
+| 取消 | 该帧权威 ActionId=0 时走 `CharacterPredictionRuntime.StopAutonomousAction`；Vitality Hit/Death 仍走 Actor 反应入口；连招超前不 Cancel |
 | 表现所有权 | 本机 Clip 由 Actor 桥推进；禁止对自 `ApplySnapshot`；仅受击走 `EnterHit` |
 | 卡肉 | 客机 `PredictedHitStopConsumer` 几何重叠后 `RequestHitStop`；禁止用延迟权威 Freeze 再拖时钟。伤害只信权威下行 |
 | 跟招 | 已删除 `FollowAuthorityAction`；本机 Clip 只跟本地 ActionSim |
-| 命中下行 | 本帧 `ReplicatedHitEvent` 走 `RoomMessageKind.ReplicationEvent` 可靠通道；Snapshot 应用载荷不再带 hits。`VitalityReplicationEdge` 仍在角色快照 |
+| 命中下行 | 本帧 `ReplicatedHitEvent` 走 `ActRoomMessageType.ReplicationEvent` 可靠通道；Snapshot Meta 不带 hits。`VitalityReplicationEdge` 仍在角色快照 |
 | 他人/敌人 | `RemoteCharacterProxy` 跟 `SnapshotTimeline` 延迟取样；`VitalityEdge.Hit` 或动作帧回绕时硬切重播受击 |
 | Listen | 本机也走 Owner 预测；`HitboxFrameConsumer` 只挂权威工厂 |
 
@@ -688,7 +692,7 @@ Client：ReplicationRoomClient Poll → LocalClient 采样 → 逻辑步构命�
 | 启动 | `CombatWorldController` 只 `EnsureDedicatedBootstrap()`；先 `ServerLaunchConfigResolver` 再 `TryStart` |
 | 退出码 | `ServerExitCode.ConfigFailed=10`、`BindFailed=20`；玩家构建 `Application.Quit` |
 | 身份 | `MatchCoordinator` 分配 PlayerId / EntityId / Team / Spawn（槽位 × 2000mm X） |
-| 每连接 | `DedicatedPlayerRuntime` 持 Hint ACK；`ReplicationServer` 在 `DedicatedAuthorityWorld` 按连接持有 |
+| 每连接 | `DedicatedPlayerRuntime` 持 Hint ACK；`AuthorityReplicationPublisher` 按连接持有 `ReplicationServer` 与 Prepare/Commit 票据 |
 | JoinAccept | `AuthorityEntityId` 可为 Invalid；线格式 0 |
 
 ### 关键参数
@@ -726,7 +730,7 @@ CombatWorldController.Awake（Dedicated）
 
 ### 功能说明
 
-无本地玩家的 Dedicated 进入 Playing 后，按连接下发与 Listen 相同的 `ReplicationFrame`；Owner 预测、Observer Proxy 复用 W4 Client Adapter。对局可结束并回到 Lobby；玩家构建在 `ExitOnMatchEnd` 时接着退出进程。
+无本地玩家的 Dedicated 进入 Playing 后，按连接下发与 Listen 相同的 V2 Lifecycle/Snapshot/Event；Owner 预测、Observer Proxy 复用 W4 Client Adapter。对局可结束并回到 Lobby；玩家构建在 `ExitOnMatchEnd` 时接着退出进程。
 
 ### 实现方案
 
@@ -736,9 +740,9 @@ CombatWorldController.Awake（Dedicated）
 | Join | Playing 可晚加入；Ending 之后拒收 |
 | 实体 Id | JoinAccept 写 World `SimulationId`，供 Client `CanPredict` 对齐 |
 | 命令 | 只灌本连接 PlayerId；冗余批合并进下一权威帧；下行 appliedHint=本批第一条 Hint |
-| 构帧 | `AfterLogicStep` Capture + 每连接 `ReplicationServer.BuildFrame`；Runtime 发送 Snapshot |
+| 构帧 | `AfterLogicStep` Capture + 每连接 `ReplicationServer.PrepareTickDelta`；Runtime 发送成功后 Commit |
 | 命中 | 本帧事件走 `EventReliableOrdered`；Client `SimHitKey` 去重只播一次 |
-| 结束 | `RoomMessageKind.MatchEnd=8` + Kick；Client 先 Drain 再 Sync Session |
+| 结束 | `ActRoomMessageType.MatchEnd=8` + Kick；Client 先 Drain 再 Sync Session |
 
 ### 关键参数
 
@@ -765,6 +769,9 @@ DedicatedServerRuntime.Poll
 
 - `Assets/Scripts/App/Server/DedicatedServerRuntime.cs`
 - `Assets/Scripts/App/Networking/Services/DedicatedAuthorityWorld.cs`
+- `Assets/Scripts/App/Networking/Services/AuthorityGuestRegistry.cs`
+- `Assets/Scripts/App/Networking/Services/AuthorityStepCoordinator.cs`
+- `Assets/Scripts/App/Networking/Services/AuthorityReplicationPublisher.cs`
 - `Assets/Scripts/Domain/Simulation/Replication/RoomCodec.cs`
 - `Assets/Tests/EditMode/ACTGame/Server/DedicatedServerRuntimeTests.cs`
 
@@ -948,7 +955,7 @@ AssistParry：可靠吸收事件 → PartyActors 稳定 Id / pending → Owner N
 ### 运行时流程
 
 ```
-Capture → CopyRelevantStates → BuildFrame(Compact)
+Capture → CopyRelevantStates → PrepareTickDelta
 Rejected → ResetReplicationForRecovery → ReplicationRecover → ResetBaseline
 ApplyUpdates → ApplySnapshot(立即写判定/受击/Notify，不切 Clip)
 Observer.Render → RemotePlaybackClock（Listen delay=1）
@@ -1082,7 +1089,7 @@ SimulationWorld.Step
 
 ### 功能说明
 
-状态机驱动角色逻辑；角色侧通过 `CharacterActor.Step` 在固定 60Hz 逻辑帧摄入输入并 Tick 当前 State。
+状态机驱动角色逻辑；`CharacterActor.Step` 保留固定 60Hz 世界契约入口，实际摄入输入与 Tick 当前 State 的顺序由 `CharacterSimulationPipeline` 独占。
 
 ### 实现方案
 
@@ -1099,11 +1106,12 @@ StateMachine<TStateId, TContext>
 **Character 层**
 
 - `CharacterStateMachine` 是纯 C# 宿主：构造时组装 `CharacterContext`，注册 State，初始 `Locomotion`
-- 每次 `CharacterActor.Step` 调 `_machine.Tick(1/60f)`
+- 每次 `CharacterActor.Step` 转交 `CharacterSimulationPipeline.Step`，Pipeline 调 `_machine.Tick(1/60f)`
 
 **Player 层**
 
-- `CharacterActor`：采集输入、处理动作路由、推进重力，再 Tick `CharacterStateMachine`
+- `CharacterActor`：角色聚合根与 SimulationWorld 契约入口
+- `CharacterSimulationPipeline`：采集输入、处理动作路由、推进重力，再 Tick `CharacterStateMachine`
 
 ### 已注册状态
 
@@ -1117,6 +1125,7 @@ StateMachine<TStateId, TContext>
 ```
 SimulationWorld.Step
   → CharacterActor.Step
+  → CharacterSimulationPipeline.Step
   → InputFrameBuffer.ResolveLocal → InputManager.IngestFrame
   → GameplayIntentProducer.Step
   → CharacterActionDriver.ProcessGameplayInput
@@ -1132,6 +1141,7 @@ SimulationWorld.Step
 - `Assets/Scripts/Core/StateMachine/*`
 - `Assets/Scripts/Domain/Character/StateMachine/*`
 - `Assets/Scripts/Domain/Character/CharacterActor.cs`
+- `Assets/Scripts/Domain/Character/CharacterSimulationPipeline.cs`
 
 ---
 
@@ -1390,7 +1400,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 - 构造纯 C# `InputReader`、`CharacterAnimationService`、`CombatModeService`、`ActionResolverService`、`ActionSim`、`CharacterActionDriver`、`CharacterStateMachine`
 - 注册纯 C# `HitboxFrameConsumer` 为 Logic Tick 消费者；注册 `ActionVfxPlayer` 为 `IActionNotifyConsumer`
 - `PlayerController.OnEnable` 向 `SimulationHost` 注册 `CharacterActor`，OnDisable 对称注销
-- `CharacterActor.Step` 统一输入采集、动作路由、重力和状态机；状态自身调度 Locomotion 移动或 Action 旋转
+- `CharacterActor.Step` 只保留世界入口并转交 `CharacterSimulationPipeline`；Pipeline 统一输入、动作路由、重力、状态机和 PostCombat 顺序
 
 ### Editor 操作
 
@@ -1420,7 +1430,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 | 时间轴数据 | `ActionDefinition.Timeline`：`ActionNotify` 点事件（Event/VFX/SFX）+ `ActionNotifyState` 区间窗口 |
 | 移动取消 | `CharacterActionDriver` + `CancelWindowNotifyState(Movement)` |
 | 招式旋转 | `ActionRotationDriver` + `RotationNotifyState`；节点只声明是否消费 SelectedTarget/平滑覆盖，目标由角色逐帧提供 |
-| Runtime Logic Tick | `SimulationWorld` → `CharacterActor.Step` → 唯一 `ActionSim.Step`；窗口、Graph 与结束只读整数帧 |
+| Runtime Logic Tick | `SimulationWorld` → `CharacterActor.Step` → `CharacterSimulationPipeline.Step` → 唯一 `ActionSim.Step`；窗口、Graph 与结束只读整数帧 |
 | 逻辑 / 表现边界 | `ActionSimSnapshot` / `ActionSimEvent` → `CharacterActionPresentationBridge` → Clip Seek / Timeline |
 | 命中回流 | `HitboxFrameConsumer` Collect → `CombatHitPipeline` 帧末 Resolve → `IActionHitReceiver.NotifyHit` |
 | 命中去重 | 单次动作会话内按 `(HitboxIndex, TargetSimActorId)` 去重；排序键为纯模拟 `SimHitKey` |
@@ -1428,7 +1438,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 | 帧边界切招 | Cancel / Recovery / 自动衔接在判定帧只排队；下一 World 帧提交目标 frame 0 |
 | 卡肉边界 | `AttackHitEvent` 只冻结动画/VFX 表现；禁止 Event Handler 回写 `ActionSim` |
 | Graph 策略编辑 | Graph Editor 在普通节点和顺序组子节点内嵌策略折叠区，直接编辑 Intent、索敌、起手行为、战斗模式切换与自动衔接 |
-| Motor | `CharacterMotor`（Locomotion 位移）+ `CharacterActor`（重力调度） |
+| Motor | `CharacterMotor`（Locomotion 位移）+ `CharacterSimulationPipeline`（重力调度） |
 
 ### 关键参数（打断）
 
@@ -1485,7 +1495,7 @@ SimulationHost 帧末
 | 事件 | `AttackHitEvent.HitPoint` / `AbsorbedByPerfectDodge` / `AbsorbedByAssistParry` / `HitStopFrames` |
 | App | `HitImpactController`：落点=接触点+Offset；`LookRotation * Random.Euler` |
 | 调试 | F4 → `CombatHurtboxDebugSettings.ShowHurtboxes` 画逻辑 Hurtbox |
-| 卡肉 | 火花 `VfxPooledInstance.SetSpawnOwner(attacker)`，与刀光同窗暂停 |
+| 卡肉 | App `CombatFeedbackSystem` 单向调用 `VFXManager.BeginHitStop/EndHitStop`；Manager 按 SpawnOwner 暂停对应池实例，Domain VFX 不反向访问 App |
 
 **关键参数：** `hitImpactWorldOffset` 默认 `0`（相对接触点）；`randomizeImpactRotation` 默认开，Y `0～360`；SFX Volume `0～1`。
 
@@ -1553,7 +1563,7 @@ CombatHitPipeline.OnHit → Vitality.HitReceived
 - `Assets/Scripts/App/Events/Combat/HitFlinchEvent.cs`
 - `Assets/Tests/Editor/Combat/HitReactionResolverTests.cs`
 
-VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强制 Despawn；池化实例由 `VfxPooledInstance` 按粒子与 Animator clip 的较长自然时长（含 `playbackSpeed` / 卡肉冻结）自行回池。Spawn 时 `Rebind`+从头 `Play` Animator；卡肉同步 `Animator.speed=0`。无 `VFXManager` 时回退 `Destroy(lifetime)`。C1 展示包源资产位于 `Assets/Resources/Effect-C1/EffectPackage/`（Prefab 经 `PlayVfxNotify` 引用，非 `Resources.Load` 硬编码路径）。
+VFX 生命周期：`ActionVfxPlayer` 在招式结束 / 连招切招时**不**强制 Despawn；池化实例由 `VfxPooledInstance` 按粒子与 Animator clip 的较长自然时长（含 `playbackSpeed` / 卡肉冻结）自行回池。Spawn 时 `Rebind`+从头 `Play` Animator；`VFXManager` 维护活跃租约和当前攻击者卡肉状态，新生成实例在绑定 SpawnOwner 后立即继承暂停状态。无 `VFXManager` 时回退 `Destroy(lifetime)`。C1 展示包源资产位于 `Assets/Resources/Effect-C1/EffectPackage/`（Prefab 经 `PlayVfxNotify` 引用，非 `Resources.Load` 硬编码路径）。
 
 SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSource`（与脚步声隔离）；`OnActionEnded` 对仍在播的声道做 **0.1s（unscaled）** 淡出；连招新 `PlaySfx` 走空闲声道，不 Cancel 正在淡出的旧声道。
 
@@ -1709,6 +1719,15 @@ CombatHitPipeline（全体 Actor Step 后）
 
 | 日期 | 变更 |
 |------|------|
+| 2026-09-17 | 结构稳定化 CS4：`DedicatedAuthorityWorld` 拆为 `AuthorityGuestRegistry`、`AuthorityStepCoordinator`、`AuthorityReplicationPublisher`；World 收敛为 `IDedicatedAuthorityWorld` 组合门面 |
+| 2026-09-17 | 结构稳定化 CS4：提取 `PlayerPartyRuntime`，集中本机三槽创建/释放、预测切人、死亡接替与权威槽同步；`PlayerController` 删除 Party 数组、协调器和旧转发方法 |
+| 2026-09-17 | 修复 Observer 移动取消表现：正常 Action→Locomotion 使用默认 CrossFade，不再因离开动作或进入 Start 而零时长硬切；播放头吸附仍保持硬切 |
+| 2026-09-17 | 结构稳定化 CS3：提取 `CharacterPredictionRuntime`，独占权威 Locomotion Restore、未确认输入 Replay 与动作 ACK 取消；Owner Adapter 不再把 Actor 当 Replay 实现 |
+| 2026-09-17 | 结构稳定化 CS3：提取 `CharacterPartyLifecycle`，集中槽状态、普通退场、Assist 队列/卡肉转移、动作起手事件和换人落位；调用点迁移后删除 Actor 旧入口 |
+| 2026-09-17 | CS2A 边界收口：生产 asmdef 改为逐程序集精确引用白名单，未知模块和白名单外同层引用默认拒绝；Gameplay 意图上下文恢复 `internal` |
+| 2026-09-17 | 结构稳定化 CS3：提取 `CharacterSimulationPipeline`，集中固定帧 Step/PostCombat 顺序、输入快照和动作横移调试采样；`CharacterActor` 保留 World 契约入口 |
+| 2026-09-17 | CS2A 数据迁移：行为树具体节点声明从旧 `Assembly-CSharp` 到 `ACTGame.Domain.Gameplay` 的 `MovedFrom` 映射；新增生产行为树 ManagedReference 完整性测试，资产本体保持只读 |
+| 2026-09-17 | 结构稳定化 CS2A：建立 Core/Input/Gameplay/Infrastructure/App 编译边界；Input 角色条件改为注入；`BufferedIntentDebug` 下沉 Simulation；VFX 卡肉改为 App→VFXManager 单向端口 |
 | 2026-09-17 | Observer 首见新动作时补齐起手 VFX/SFX，修复弹刀成功特效漏播；Idle 在无持续 Snapshot 时按渲染时钟循环；Timing Audit 增加 Root Motion 有效性检查 |
 | 2026-09-16 | 修复 Owner 弹刀跨通道身份竞态；远端播放头有限追赶、缓冲不重复扣 RTT/2、Clip 跟播放 Tick；Idle Capture 固定 PhaseFrame=0；非 Urgent 30Hz；Snapshot Mux 丢旧下沉到应用层 |
 | 2026-09-16 | Locomotion L0/L1/L2：PhaseFrame 唯一时钟；ClipTiming/Gait/落脚/Start/Pivot/RootMotion 全帧化；新增手工 Baker/Audit，V1 不复用旧时间字段 |

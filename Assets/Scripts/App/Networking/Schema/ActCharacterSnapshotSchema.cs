@@ -65,7 +65,9 @@ public sealed class ActCharacterSnapshotSchema : IReplicationSchema
             actionId,
             actor.TargetingSnapshot.SelectedTargetId,
             healthMilli,
-            flagsPacked: PartyReplicationPacking.WithMemberState(0, actor.PartyState),
+            flagsPacked: PartyReplicationPacking.WithMemberState(
+                0,
+                actor.PartyLifecycle.State),
             actor.Vitality != null
                 ? actor.Vitality.ReplicationEdge
                 : VitalityReplicationEdge.None,

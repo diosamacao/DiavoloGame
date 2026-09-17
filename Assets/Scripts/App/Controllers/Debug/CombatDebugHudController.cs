@@ -150,15 +150,16 @@ public sealed class CombatDebugHudController : AppControllerBase
     /// <summary>输出本机阵容槽、ActorId、状态，以及预测口袋支援点。</summary>
     static void AppendPartyLine(StringBuilder sb, PlayerController player)
     {
-        if (player?.PartyLoadout == null)
+        PlayerPartyRuntime party = player?.Party;
+        if (party == null)
             return;
 
         sb.Append("Party: ");
-        for (int i = 0; i < player.PartyActors.Count; i++)
+        for (int i = 0; i < party.Actors.Count; i++)
         {
             if (i > 0)
                 sb.Append(" | ");
-            CharacterActor member = player.PartyActors[i];
+            CharacterActor member = party.Actors[i];
             sb.Append('[').Append(i).Append("] ");
             if (member == null)
             {
@@ -166,12 +167,12 @@ public sealed class CombatDebugHudController : AppControllerBase
                 continue;
             }
 
-            sb.Append(member.PartyState)
+            sb.Append(member.PartyLifecycle.State)
                 .Append(" #")
                 .Append(member.SimulationId.Value);
         }
 
-        PartyAssistPoints points = player.AssistPoints;
+        PartyAssistPoints points = party.AssistPoints;
         if (points != null)
         {
             sb.AppendLine();

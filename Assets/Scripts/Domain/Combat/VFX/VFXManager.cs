@@ -10,8 +10,10 @@ public class VFXManager : MonoBehaviour
     [SerializeField] int defaultPrewarmCount = 2;
 
     readonly Dictionary<int, GameObject> _prefabRegistry = new();
+    readonly HashSet<VfxPooledInstance> _activeInstances = new();
     ObjectPoolGroup<int, GameObject> _poolGroup;
     Transform _inactiveRoot;
+    Transform _hitStopAttackerRoot;
 
     /// <summary>场景内 VFXManager 单例；未放置时返回 null。</summary>
     public static VFXManager Instance => s_instance;
@@ -115,6 +117,38 @@ public class VFXManager : MonoBehaviour
         _poolGroup.Prewarm(prefab.GetInstanceID(), count);
     }
 
+    /// <summary>暂停属于指定攻击者的活跃特效，并让卡肉期间新生成的特效继承该状态。</summary>
+    public void BeginHitStop(Transform attackerRoot)
+    {
+        _hitStopAttackerRoot = attackerRoot;
+        foreach (VfxPooledInstance instance in _activeInstances)
+            instance?.ApplyHitStop(active: true, attackerRoot: attackerRoot);
+    }
+
+    /// <summary>恢复全部活跃特效并清除后续 Spawn 的卡肉继承状态。</summary>
+    public void EndHitStop()
+    {
+        _hitStopAttackerRoot = null;
+        foreach (VfxPooledInstance instance in _activeInstances)
+            instance?.ApplyHitStop(active: false, attackerRoot: null);
+    }
+
+    /// <summary>记录当前池租约，供全局卡肉状态遍历。</summary>
+    internal void RegisterActive(VfxPooledInstance instance)
+    {
+        if (instance == null)
+            return;
+        _activeInstances.Add(instance);
+        RefreshHitStop(instance);
+    }
+
+    /// <summary>移除已经归还池的实例，避免后续卡肉访问旧租约。</summary>
+    internal void UnregisterActive(VfxPooledInstance instance)
+    {
+        if (instance != null)
+            _activeInstances.Remove(instance);
+    }
+
     /// <summary>注册 Prefab 并取出池实例；OnGet 会触发 IPoolable。</summary>
     GameObject SpawnInternal(GameObject prefab)
     {
@@ -159,13 +193,25 @@ public class VFXManager : MonoBehaviour
     }
 
     /// <summary>绑定特效所属攻击者，供卡肉时暂停对应粒子。</summary>
-    static void BindSpawnOwner(GameObject instance, Transform ownerRoot)
+    void BindSpawnOwner(GameObject instance, Transform ownerRoot)
     {
         if (instance == null || ownerRoot == null)
             return;
 
         VfxPooledInstance pooled = instance.GetComponent<VfxPooledInstance>();
-        pooled?.SetSpawnOwner(ownerRoot);
+        if (pooled == null)
+            return;
+
+        pooled.SetSpawnOwner(ownerRoot);
+        RefreshHitStop(pooled);
+    }
+
+    /// <summary>按 Manager 当前卡肉状态刷新单个实例；绑定攻击者后再次调用以获得正确筛选。</summary>
+    void RefreshHitStop(VfxPooledInstance instance)
+    {
+        if (instance == null)
+            return;
+        instance.ApplyHitStop(_hitStopAttackerRoot != null, _hitStopAttackerRoot);
     }
 
     void EnsureInactiveRoot()

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -14,31 +13,16 @@ public class PlayerController : AppControllerBase, ILocalPlayer
     [Tooltip("Play 时在脚底画 wish（黄）与模型朝向（品红）实心箭头。")]
     [SerializeField] bool drawFacingDebugArrows = true;
 
-    CharacterActor[] _partyActors = Array.Empty<CharacterActor>();
-    GameObject[] _partyRoots = Array.Empty<GameObject>();
-    PartyCombatCoordinator _partyCoordinator;
-    SimulationHost simulationHost;
+    PlayerPartyRuntime _partyRuntime;
     CharacterFacingDebugVisualizer _facingDebugVisualizer;
     ILocalInputSampler _inputSampler;
     bool _clientSeat;
-    long _predictedSwitchFrame = -1;
 
     /// <summary>当前 Active 角色 Actor；供预测、相机、HUD 与 Scene Gizmo 只读访问。</summary>
-    public CharacterActor Actor =>
-        _partyCoordinator != null
-        && _partyCoordinator.ActiveIndex >= 0
-        && _partyCoordinator.ActiveIndex < _partyActors.Length
-            ? _partyActors[_partyCoordinator.ActiveIndex]
-            : null;
+    public CharacterActor Actor => _partyRuntime?.ActiveActor;
 
-    /// <summary>按 Loadout 槽位对齐的本机 Actor；空槽对应 null。</summary>
-    public IReadOnlyList<CharacterActor> PartyActors => _partyActors;
-
-    /// <summary>本机预测口袋；F3 只读。权威 Guest 另有一份，Listen 上可能短暂不一致。</summary>
-    public PartyAssistPoints AssistPoints => _partyCoordinator?.AssistPoints;
-
-    /// <summary>当前预测或权威 Active 槽索引；尚未初始化时为 -1。</summary>
-    public int ActivePartySlot => _partyCoordinator?.ActiveIndex ?? -1;
+    /// <summary>本机阵容预测与权威同步的唯一入口。</summary>
+    public PlayerPartyRuntime Party => _partyRuntime;
 
     /// <summary>本座位声明的 1～3 人出战阵容。</summary>
     public PartyLoadout PartyLoadout => partyLoadout;
@@ -56,11 +40,11 @@ public class PlayerController : AppControllerBase, ILocalPlayer
         {
             if (partyLoadout == null)
                 return null;
-            int index = _partyCoordinator != null
-                ? _partyCoordinator.ActiveIndex
-                : partyLoadout.StartingSlot;
-            return index >= 0 && index < partyLoadout.Members.Count
-                ? partyLoadout.Members[index]
+            if (_partyRuntime != null)
+                return _partyRuntime.ActiveDefinition;
+            int startingSlot = partyLoadout.StartingSlot;
+            return startingSlot >= 0 && startingSlot < partyLoadout.Members.Count
+                ? partyLoadout.Members[startingSlot]
                 : null;
         }
     }
@@ -105,12 +89,7 @@ public class PlayerController : AppControllerBase, ILocalPlayer
 
     /// <summary>表现根；敌人感知应走权威 RemotePlayerSeat，不读本机预测根。</summary>
     public Transform Root =>
-        _partyCoordinator != null
-        && _partyCoordinator.ActiveIndex >= 0
-        && _partyCoordinator.ActiveIndex < _partyRoots.Length
-        && _partyRoots[_partyCoordinator.ActiveIndex] != null
-            ? _partyRoots[_partyCoordinator.ActiveIndex].transform
-            : transform;
+        _partyRuntime?.ActiveRoot != null ? _partyRuntime.ActiveRoot : transform;
 
     /// <summary>Listen / Client 本机座位恒为 true；Dedicated 不装配本机玩家。</summary>
     public bool IsLocalPredicted => _clientSeat;
@@ -215,14 +194,12 @@ public class PlayerController : AppControllerBase, ILocalPlayer
             return;
 
         _inputSampler?.Disable();
-        if (simulationHost != null)
-            simulationHost.AfterLogicStep -= OnAssistParryAuthorityContact;
-        for (int i = 0; i < _partyActors.Length; i++)
-            _partyActors[i]?.Dispose();
-        _partyActors = Array.Empty<CharacterActor>();
-        _partyRoots = Array.Empty<GameObject>();
-        _partyCoordinator = null;
-        simulationHost = null;
+        if (_partyRuntime != null)
+        {
+            _partyRuntime.ActiveActorChanged -= OnActiveActorChanged;
+            _partyRuntime.Dispose();
+            _partyRuntime = null;
+        }
     }
 
     /// <summary>由 CameraManager 暂存 Orbit yaw，下一次采样写入 InputFrame。</summary>
@@ -232,233 +209,6 @@ public class PlayerController : AppControllerBase, ILocalPlayer
             _inputSampler.StageMoveReferenceYaw(yawDegrees);
         else
             Actor?.StageMoveReferenceYaw(yawDegrees);
-    }
-
-    /// <summary>把权威槽身份绑定到本机各 Actor；空槽必须对应 Invalid。</summary>
-    public void BindPartySimulationInput(
-        IReadOnlyList<SimActorId> actorIds,
-        InputFrameBuffer inputFrames)
-    {
-        if (actorIds == null || actorIds.Count != _partyActors.Length)
-            throw new ArgumentException("权威阵容身份数量与本机 PartyLoadout 不一致。", nameof(actorIds));
-        if (inputFrames == null)
-            throw new ArgumentNullException(nameof(inputFrames));
-
-        for (int i = 0; i < _partyActors.Length; i++)
-        {
-            CharacterActor member = _partyActors[i];
-            if (member == null)
-            {
-                if (actorIds[i].IsValid)
-                    throw new InvalidOperationException("本机空槽收到有效权威 ActorId。");
-                continue;
-            }
-            if (!actorIds[i].IsValid)
-                throw new InvalidOperationException("本机角色槽缺少有效权威 ActorId。");
-            member.BindSimulationInput(actorIds[i], inputFrames);
-        }
-    }
-
-    /// <summary>客户端预测一次切人；有 Cue 时 InstantReplace，否则 DualPresence。</summary>
-    public bool TryPredictPartySwitch(long frameIndex)
-    {
-        if (_partyCoordinator == null
-            || !_partyCoordinator.CanAcceptGameplayInput
-            || Actor == null
-            || Actor.Vitality.IsDead
-            || !_partyCoordinator.TryResolveSwitch(BuildAssistQuery(), out PartySwitchCommand command))
-        {
-            return false;
-        }
-
-        CharacterActor from = _partyActors[command.FromSlot];
-        CharacterActor to = _partyActors[command.ToSlot];
-        if (command.Presentation == PartySwitchPresentation.InstantReplace)
-        {
-            from.SetPartyState(PartyMemberState.Inactive);
-            to.SetPartyState(PartyMemberState.Active);
-            if (command.CueOwnerId.IsValid)
-                to.ForceSelectTarget(command.CueOwnerId);
-            AssistCue cue = default;
-            simulationHost?.AssistCues.TryGetActive(command.CueOwnerId, out cue);
-            to.PlaceForAssistSwitchFrom(
-                from,
-                in cue,
-                PartySwitchApplication.UsesEvadeOffset(command.Kind));
-            to.QueueExternalIntent(PartySwitchApplication.ToIncomingIntent(command.Kind));
-        }
-        else
-        {
-            to.PlaceForNormalSwitchFrom(from);
-            from.BeginPartyExit();
-            to.SetPartyState(PartyMemberState.Active);
-            to.QueueExternalIntent(GameplayIntentType.SwitchIn);
-        }
-
-        _predictedSwitchFrame = frameIndex;
-        _facingDebugVisualizer?.Bind(to);
-        return true;
-    }
-
-    /// <summary>读本机 Host CueBoard；远端客机无 Cue 时退回普通切。</summary>
-    PartyAssistResolveQuery BuildAssistQuery()
-    {
-        CharacterActor active = Actor;
-        bool followUp = active != null && active.Numeric.Flags.HasAssistFollowUp;
-        SimActorId preferred = default;
-        if (active != null && active.TryGetSelectedTarget(out ITargetable target))
-            preferred = target.SimulationId;
-
-        if (simulationHost != null
-            && simulationHost.AssistCues.TryGetActive(preferred, out AssistCue cue))
-        {
-            return new PartyAssistResolveQuery(
-                true,
-                cue.Kind,
-                cue.RequiresRanged,
-                followUp,
-                cue.OwnerId);
-        }
-
-        return new PartyAssistResolveQuery(false, AssistCueKind.Gold, false, followUp);
-    }
-
-    /// <summary>推进本机全部非空槽；只有 Active 槽接收当帧玩家输入。</summary>
-    public void StepPartyPrediction(long frameIndex, float dt, in InputFrame input)
-    {
-        bool acceptsGameplay = _partyCoordinator != null
-            && _partyCoordinator.CanAcceptGameplayInput
-            && Actor != null
-            && !Actor.Vitality.IsDead;
-        if (acceptsGameplay && input.WasPressed(InputButton.SwitchCharacter))
-            TryPredictPartySwitch(frameIndex);
-
-        InputFrame gameplayInput = acceptsGameplay
-            ? input.WithoutButton(InputButton.SwitchCharacter)
-            : InputFrame.Empty(frameIndex, Actor?.SimulationId ?? input.ActorId);
-        for (int i = 0; i < _partyActors.Length; i++)
-        {
-            CharacterActor member = _partyActors[i];
-            if (member == null)
-                continue;
-            InputFrame memberInput = i == _partyCoordinator.ActiveIndex
-                ? gameplayInput
-                : InputFrame.Empty(frameIndex, member.SimulationId);
-            member.Step(frameIndex, dt, in memberInput);
-            member.ResolvePostCombat(frameIndex);
-        }
-        ProcessPredictedDeathCloseout();
-        CompletePredictedExits();
-    }
-
-    /// <summary>渲染 Active 与尚在收招的 Exiting 槽。</summary>
-    public void RenderParty(float interpolationAlpha)
-    {
-        for (int i = 0; i < _partyActors.Length; i++)
-            _partyActors[i]?.Render(interpolationAlpha);
-    }
-
-    /// <summary>当权威 Active 槽与预测不一致时回滚槽状态；位姿由随后 Owner Snapshot 纠正。</summary>
-    public void SynchronizeAuthorityActiveSlot(
-        int activeSlot,
-        long lastAppliedClientFrameHint)
-    {
-        if (_partyCoordinator == null)
-            return;
-        if (_partyCoordinator.ActiveIndex == activeSlot)
-        {
-            if (_predictedSwitchFrame >= 0
-                && lastAppliedClientFrameHint >= _predictedSwitchFrame)
-            {
-                _predictedSwitchFrame = -1;
-            }
-            return;
-        }
-        // 延迟到达的旧快照不能撤销尚未被权威处理的本地切人边沿。
-        if (_predictedSwitchFrame >= 0
-            && lastAppliedClientFrameHint < _predictedSwitchFrame)
-        {
-            return;
-        }
-
-        _partyCoordinator.SynchronizeActive(activeSlot);
-        _predictedSwitchFrame = -1;
-        for (int i = 0; i < _partyActors.Length; i++)
-        {
-            CharacterActor member = _partyActors[i];
-            if (member != null)
-                member.SetPartyState(_partyCoordinator.States[i]);
-        }
-        _facingDebugVisualizer?.Bind(Actor);
-    }
-
-    /// <summary>从 Owner 角色快照 FlagsPacked 同步指定稳定槽状态，不等待 V2 Party Meta。</summary>
-    public void SynchronizeAuthorityPartyState(SimActorId actorId, int flagsPacked)
-    {
-        if (_partyCoordinator == null || !actorId.IsValid)
-            return;
-
-        for (int i = 0; i < _partyActors.Length; i++)
-        {
-            CharacterActor member = _partyActors[i];
-            if (member == null || member.SimulationId != actorId)
-                continue;
-
-            PartyMemberState state = PartyReplicationPacking.ReadMemberState(flagsPacked);
-            _partyCoordinator.SynchronizeMemberState(i, state);
-            member.SetPartyState(state);
-            if (state == PartyMemberState.Active)
-                _facingDebugVisualizer?.Bind(member);
-            return;
-        }
-    }
-
-    /// <summary>应用 V2 Meta 的队灭终态并关闭本地预测输入。</summary>
-    public void SynchronizeAuthorityPartyWiped()
-    {
-        _partyCoordinator?.SynchronizePartyWiped();
-        _predictedSwitchFrame = -1;
-    }
-
-    /// <summary>镜像权威死亡门禁并直接 Dead→Active；禁止复用普通 Exiting/SwitchOut 收招。</summary>
-    void ProcessPredictedDeathCloseout()
-    {
-        CharacterActor active = Actor;
-        if (active == null
-            || !_partyCoordinator.TryResolveActiveDeath(
-                active.Vitality.IsDead,
-                active.DeathSequenceComplete,
-                active.DeathActionTotalFrames,
-                out PartyDeathCloseout closeout))
-        {
-            return;
-        }
-
-        CharacterActor dead = _partyActors[closeout.FromSlot];
-        dead.SetPartyState(PartyMemberState.Dead);
-        if (closeout.PartyWiped)
-            return;
-
-        CharacterActor incoming = _partyActors[closeout.ToSlot];
-        incoming.PlaceForNormalSwitchFrom(dead);
-        incoming.SetPartyState(PartyMemberState.Active);
-        incoming.QueueExternalIntent(GameplayIntentType.SwitchIn);
-        _facingDebugVisualizer?.Bind(incoming);
-    }
-
-    /// <summary>本机 Exiting 动作结束后隐藏该槽；与权威帧末规则一致。</summary>
-    void CompletePredictedExits()
-    {
-        for (int i = 0; i < _partyActors.Length; i++)
-        {
-            CharacterActor member = _partyActors[i];
-            if (member == null || member.PartyState != PartyMemberState.Exiting)
-                continue;
-            if (!member.IsPartyExitReady)
-                continue;
-            member.CompletePartyExit();
-            _partyCoordinator.CompleteExit(i);
-        }
     }
 
     /// <summary>
@@ -480,101 +230,24 @@ public class PlayerController : AppControllerBase, ILocalPlayer
         reader.ConfigureDiscreteInputs(intentProfile.CollectInputReferences());
         _inputSampler = reader;
         CombatWorldController combatWorld = EnsureCombatWorldController();
-        simulationHost = combatWorld != null ? combatWorld.EnsureSimulationHost() : null;
-        BuildPartyActors(reader);
-        if (simulationHost != null)
-        {
-            simulationHost.AfterLogicStep -= OnAssistParryAuthorityContact;
-            simulationHost.AfterLogicStep += OnAssistParryAuthorityContact;
-        }
+        SimulationHost simulationHost = combatWorld != null
+            ? combatWorld.EnsureSimulationHost()
+            : null;
+        _partyRuntime = new PlayerPartyRuntime(
+            partyLoadout,
+            transform,
+            reader,
+            () => SendQuery(new GetActiveTargetsQuery()),
+            simulationHost);
+        _partyRuntime.ActiveActorChanged += OnActiveActorChanged;
 
         GetSystem<LocalPlayerService>()?.Register(this, isLocalOwner: true);
         EnsureFacingDebugVisualizer();
     }
 
-    /// <summary>权威招架接触后镜像 Success 排队与卡肉；否则镜头跟着的 Guard 不会停、也不会切 Success。</summary>
-    void OnAssistParryAuthorityContact(long _)
-    {
-        if (simulationHost == null)
-            return;
-
-        IReadOnlyList<AssistParryContact> contacts = simulationHost.FrameAssistParryContacts;
-        for (int c = 0; c < contacts.Count; c++)
-        {
-            AssistParryContact contact = contacts[c];
-            for (int i = 0; i < _partyActors.Length; i++)
-            {
-                CharacterActor member = _partyActors[i];
-                if (member == null || !member.SimulationId.Equals(contact.TargetId))
-                    continue;
-
-                member.NotifyAssistParryContact();
-                if (contact.HitStopFrames <= 0)
-                    continue;
-
-                member.TryRequestHitStopOnCurrentAction(contact.HitStopFrames, oncePerAction: true);
-                member.ArmAssistParryHitStopCarry(contact.HitStopFrames);
-            }
-        }
-    }
-
-    /// <summary>按槽位创建独立运行时根和 Actor，并将空槽传给纯协调器。</summary>
-    void BuildPartyActors(InputReader reader)
-    {
-        int count = partyLoadout.Count;
-        _partyActors = new CharacterActor[count];
-        _partyRoots = new GameObject[count];
-        var occupied = new bool[count];
-        var assistStyles = new CharacterAssistStyle[count];
-        for (int i = 0; i < count; i++)
-        {
-            occupied[i] = partyLoadout.Members[i] != null;
-            assistStyles[i] = partyLoadout.Members[i] != null
-                ? partyLoadout.Members[i].AssistStyle
-                : CharacterAssistStyle.MeleeParry;
-        }
-        _partyCoordinator = new PartyCombatCoordinator(
-            occupied,
-            partyLoadout.StartingSlot,
-            assistStyles,
-            partyLoadout.AssistPointSettings);
-
-        for (int i = 0; i < count; i++)
-        {
-            CharacterDefinition definition = partyLoadout.Members[i];
-            if (definition == null)
-                continue;
-
-            var slotRoot = new GameObject($"PartySlot_{i}_{definition.Id}");
-            slotRoot.transform.SetParent(transform, false);
-            _partyRoots[i] = slotRoot;
-            CharacterConfig config = definition.CharacterConfig;
-            CharacterActor member = CharacterActorFactory.Create(
-                slotRoot,
-                slotRoot.transform,
-                config,
-                config.Combat.TeamId,
-                reader,
-                () => SendQuery(new GetActiveTargetsQuery()),
-                null,
-                out ActionSim _,
-                out CharacterAnimationService _,
-                simulationHost != null ? simulationHost.CollisionWorld : null,
-                null,
-                null,
-                ReplicationSeat.Autonomous);
-            member.SetPartyState(_partyCoordinator.States[i]);
-            member.ActionBegun += OnPartyActionBegun;
-            _partyActors[i] = member;
-        }
-    }
-
-    /// <summary>本机预测：终结技起手回复支援点，与权威同一口袋规则。</summary>
-    void OnPartyActionBegun(GameplayIntentType intent)
-    {
-        if (intent == GameplayIntentType.Ultimate)
-            _partyCoordinator?.AssistPoints.GrantUltimate();
-    }
+    /// <summary>Active Actor 改变后只刷新 Controller 持有的本地调试表现绑定。</summary>
+    void OnActiveActorChanged(CharacterActor actor) =>
+        _facingDebugVisualizer?.Bind(actor);
 
     /// <summary>玩家装配前确保场景存在统一战斗世界入口并返回该入口。</summary>
     CombatWorldController EnsureCombatWorldController()

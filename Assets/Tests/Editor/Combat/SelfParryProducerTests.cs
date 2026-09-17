@@ -16,9 +16,7 @@ public sealed class SelfParryProducerTests
             profile,
             input,
             buffer,
-            stateMachine: null,
-            locomotion: null,
-            actionSim: null);
+            matchesContext: null);
 
         try
         {
@@ -44,9 +42,7 @@ public sealed class SelfParryProducerTests
             profile: null,
             input,
             buffer,
-            stateMachine: null,
-            locomotion: null,
-            actionSim: null);
+            matchesContext: null);
 
         StepWithParryPressed(input, producer);
 

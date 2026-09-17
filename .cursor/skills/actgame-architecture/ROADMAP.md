@@ -15,6 +15,14 @@
 
 ## 进行中的结构迁移
 
+### [P0] 代码结构稳定化（功能修复前置）
+
+**方案**：[`docs/2026.9.17/CODE_STRUCTURE_STABILIZATION_PLAN.md`](../../docs/2026.9.17/CODE_STRUCTURE_STABILIZATION_PLAN.md)
+
+**目标**：按 CS0～CS7 依次完成基线门禁、Net 单轨清理、Assembly 分层、Character/App 职责拆分、Content 单入口和模拟/表现硬边界；结构总出口关闭前冻结普通功能开发，仅允许独立的编译/数据安全阻塞修复。
+
+**状态**：CS0/CS1/CS2A/CS3 已验收；CS4 已提取 `PlayerPartyRuntime`，并将 `DedicatedAuthorityWorld` 拆为 Guest Registry、Step Coordinator、Replication Publisher。剩余 Client Gameplay、Server Runtime 与 Scene 查找边界待继续；Character/Combat/Enemy 终态切分在 CS5 解环后执行 CS2B。
+
 ### [P1] 移动职责迁移
 
 **现状**：`LocomotionState.Tick` 调用 `CharacterMotor.TickLocomotion` 执行水平位移并选择动画 key；`CharacterActor` 只保留输入、动作路由、重力和状态机调度。
@@ -114,11 +122,11 @@
 **排期**：[`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)  
 **纠偏合同**：[`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)
 
-**目标**：Dedicated 独跑现有 `SimulationWorld`；Listen 只是同进程再开 LocalClient。客户端上行 `InputFrame`、下行 `ReplicationFrame`；本机 Autonomous 预测走跑与出招；命中只在权威逻辑盒结算。
+**目标**：Dedicated 独跑现有 `SimulationWorld`；Listen 只是同进程再开 LocalClient。客户端上行 `InputFrame`、下行 V2 Lifecycle/Snapshot/Event；本机 Autonomous 预测走跑与出招；命中只在权威逻辑盒结算。
 
 **状态**：NS0～NS5 / W0～W9 已验收。W10/W11 代码切面已落地，Play / R2 未关，不得称公网可用。同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。命中 **P0 仍权威 Collect**；`NS-PVP` 未开，禁止现在分叉两套盒。
 
-**下行带宽（方案，未实现）**：整包 67B 脏检测的后续三项，按序 [`docs/2026.8.24/README.md`](../../docs/2026.8.24/README.md) — `RS-M` 分块掩码 → `RS-S` 同实体分频 → `RS-C` 动作本地推帧。不改权威 Collect，不双轨 V1。
+**下行带宽（方案，未实现）**：整包 67B 脏检测的后续三项，按序 [`docs/2026.8.24/README.md`](../../docs/2026.8.24/README.md) — `RS-M` 分块掩码 → `RS-S` 同实体分频 → `RS-C` 动作本地推帧。不改权威 Collect，不恢复旧协议双轨。
 
 ### [P1] Lockstep 模拟核迁移
 

@@ -5,7 +5,7 @@ using UnityEngine;
 /// 池化 VFX 实例：Spawn 时重启粒子与 Animator，生命周期结束后回池；卡肉时同步暂停两者。
 /// </summary>
 [DisallowMultipleComponent]
-public sealed class VfxPooledInstance : AppControllerBase, IPoolable
+public sealed class VfxPooledInstance : MonoBehaviour, IPoolable
 {
     [SerializeField] float fallbackLifetime = 2f;
 
@@ -34,26 +34,6 @@ public sealed class VfxPooledInstance : AppControllerBase, IPoolable
     public bool IsOwnedBy(Transform ownerRoot) =>
         ownerRoot != null && _spawnOwner == ownerRoot;
 
-    void OnEnable()
-    {
-        RegisterEvent<HitStopBeganEvent>(HandleHitStopBegan);
-        RegisterEvent<HitStopEndedEvent>(HandleHitStopEnded);
-
-        CombatFeedbackSystem feedbackSystem = GetSystem<CombatFeedbackSystem>();
-        if (feedbackSystem != null
-            && feedbackSystem.IsHitStopActive
-            && ShouldPauseForHitStop(feedbackSystem.ActiveHitStopAttackerRoot))
-        {
-            PausePresentation();
-        }
-    }
-
-    void OnDisable()
-    {
-        UnregisterEvent<HitStopBeganEvent>(HandleHitStopBegan);
-        UnregisterEvent<HitStopEndedEvent>(HandleHitStopEnded);
-    }
-
     /// <summary>从池中取出后调用：重启粒子/Animator 并安排自动回收。</summary>
     public void OnSpawnFromPool()
     {
@@ -61,6 +41,7 @@ public sealed class VfxPooledInstance : AppControllerBase, IPoolable
         ClearHitStopAnimatorCache();
         RestartParticleSystems();
         RestartAnimators();
+        _manager?.RegisterActive(this);
 
         if (_autoReturnCoroutine != null)
             StopCoroutine(_autoReturnCoroutine);
@@ -71,6 +52,7 @@ public sealed class VfxPooledInstance : AppControllerBase, IPoolable
     /// <summary>回池前停止粒子/Animator 与自动回收协程。</summary>
     public void OnReturnToPool()
     {
+        _manager?.UnregisterActive(this);
         if (_autoReturnCoroutine != null)
         {
             StopCoroutine(_autoReturnCoroutine);
@@ -84,18 +66,14 @@ public sealed class VfxPooledInstance : AppControllerBase, IPoolable
         StopAnimators();
     }
 
-    void HandleHitStopBegan(HitStopBeganEvent hitStopEvent)
+    /// <summary>由 VFXManager 根据当前全局卡肉状态暂停或恢复本实例。</summary>
+    internal void ApplyHitStop(bool active, Transform attackerRoot)
     {
-        if (!ShouldPauseForHitStop(hitStopEvent.AttackerRoot))
+        if (active && ShouldPauseForHitStop(attackerRoot))
+        {
+            PausePresentation();
             return;
-
-        PausePresentation();
-    }
-
-    void HandleHitStopEnded(HitStopEndedEvent hitStopEvent)
-    {
-        if (!_presentationPausedForHitStop)
-            return;
+        }
 
         ResumePresentation();
     }
@@ -236,10 +214,7 @@ public sealed class VfxPooledInstance : AppControllerBase, IPoolable
     /// <summary>攻击者卡肉期间冻结该实例的生命周期计时。</summary>
     bool IsLifetimeFrozen()
     {
-        CombatFeedbackSystem feedbackSystem = GetSystem<CombatFeedbackSystem>();
-        return feedbackSystem != null
-            && feedbackSystem.IsHitStopActive
-            && ShouldPauseForHitStop(feedbackSystem.ActiveHitStopAttackerRoot);
+        return _presentationPausedForHitStop;
     }
 
     /// <summary>

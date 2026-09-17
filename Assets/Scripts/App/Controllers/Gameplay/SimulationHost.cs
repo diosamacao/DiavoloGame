@@ -264,7 +264,7 @@ public sealed class SimulationHost : AppControllerBase
     void CollectAssistCues()
     {
         foreach (KeyValuePair<SimActorId, CharacterActor> pair in _actorsById)
-            pair.Value?.TryPublishAssistCue(_assistCues);
+            pair.Value?.PartyLifecycle.TryPublishAssistCue(_assistCues);
     }
 
     /// <summary>把帧末只读命中结果发布给镜头、动画与 VFX 等表现订阅者。</summary>

@@ -134,17 +134,20 @@ public static class CharacterActorFactory
                     numeric.ClearPerfectDodgeCounter();
                 if (intent == GameplayIntentType.AssistFollowUp)
                     numeric.ClearAssistFollowUp();
-                actor?.NotifyActionBegun(intent);
+                actor?.PartyLifecycle.NotifyActionBegun(intent);
             });
         context.ActionSim = actionSim;
 
+        var intentContext = new CharacterGameplayIntentContext(
+            stateMachine,
+            locomotionStateMachine,
+            actionSim,
+            () => numeric.Flags.HasPerfectDodgeCounter);
         var intentProducer = new GameplayIntentProducer(
             intentProfile,
             sharedInput,
             intentBuffer,
-            stateMachine,
-            locomotionStateMachine,
-            actionSim,
+            intentContext.Matches,
             hasPerfectDodgeCounter: () => numeric.Flags.HasPerfectDodgeCounter,
             hasAssistFollowUp: () => numeric.Flags.HasAssistFollowUp);
 

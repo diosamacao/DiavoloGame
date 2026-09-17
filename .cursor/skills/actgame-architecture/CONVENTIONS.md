@@ -24,6 +24,7 @@
 - `CharacterController` 仅作表现代理（半径/高度配置与根跟随）；逻辑位移/重力/着地权威在 `CharacterMotorSim`，禁止 `CharacterController.Move` 进逻辑路径
 - 新架构代码遵循 `Controller / System / Model / Command / Event / Query / Actor / Executor / Service` 后缀语义；禁止新增泛化 `Runtime` 后缀业务类
 - `Controller` 仅用于 `App/Controllers` 下的 Unity 入口 `MonoBehaviour`，并继承 `AppControllerBase` 或实现 `IArchitectureController`
+- 本机阵容算法归 `PlayerPartyRuntime`；`PlayerController` 只装配 Scene、设备输入与 Runtime，并通过 `Party` 暴露该契约。联网/HUD 禁止要求 Controller 恢复 Party 方法转发器
 - `System` 后缀仅用于 `App/Systems` 下注册进 `ACTGameArchitecture` 的架构系统，并继承 `ArchitectureSystemBase` 或实现 `IArchitectureSystem`
 - `Domain` 纯 C# 业务类优先使用 `Service` / `Actor` / `Executor` / `Resolver` / `Detector` / `Consumer`，不得直接访问 `ACTGameArchitecture.Interface`
 - **动作系统目录分层**：`Combat/Actions/` 下按职责分四个子目录——`Definitions/`（动作数据 Schema，含 `Definitions/Timeline/`）、`Resolution/`（输入 → 动作选招）、`Execution/`（播放/帧推进/输入路由/旋转）、`Frames/`（Logic Tick 帧上下文契约）；核心脚本不散落在 `Actions/` 根目录
@@ -44,19 +45,20 @@
 - **本机玩家入口**：玩法与相机通过 `LocalPlayerService` / `GetLocalPlayerQuery` / `GetPlayerRootsQuery` 取玩家；禁止 `FindObjectOfType<PlayerController>()`（仅 Editor Gizmo 可留）。Listen / Client 本机 `PlayerController.IsLocalPredicted` 为 true，敌人感知必须跳过该根、改跟权威 `RemotePlayerSeat`
 - **客机相机跟朝向**：`CameraManager.ApplyFollowFacingYaw` 必须读 `ILocalPlayer.HasMoveIntent`、`MoveInput` 与 `PresentationRoot`。相机相对后退（`MoveInput.y` 为负）不跟朝向，避免与后退 wish 互追转圈。客机有 Autonomous `CharacterActor`，`PresentationRoot` 来自 Actor。他人/敌人 `RemoteCharacterProxy` 只读登记 `TargetSystem`；`OnHit` 空操作，禁止 Collect
 - **朝向调试箭头**：`CharacterFacingDebugVisualizer` 只绑 `ICharacterFacingDebugTarget`（本机 Actor 或 RemoteProxy）；禁止再 Bind `PlayerController`。幽灵 wish 必须与对应 Tick 成对，禁止用当前帧本机输入画延迟模型
-- **复制契约**：上行唯一为 `ClientCommand` 命令批；下行唯一为 `ACTNet.Replication.ReplicationFrame`。`ReplicationServer` 从权威 full set 生成显式 Spawn/Update/Despawn，`ReplicationClient` 原子应用并丢弃旧 Sequence；禁止恢复 `AuthorityTick` 全量数组、缺席即销毁或双轨 Codec。`ActorReplicationSnapshotCodec` 是角色快照字段布局唯一真源；`CharacterSnapshotSchemaV1` 只做 Schema 适配。`ActReplicationApplicationPayloadCodec` 承载本步 applied hint、累计命令 ACK、Owner 阵容槽 ActorId 与 ActiveSlot，生产路径 hits 为空；命中走 `RoomMessageKind.ReplicationEvent`。一座位多角色时每槽必须有稳定 `SimActorId/NetEntityId`，禁止热换单 Actor Config；`PartyMemberState` 统一编码进角色快照 Flags。Tick 由 Frame 承载。Session 信封、Join、Heartbeat、Kick 的唯一真源是 `ACTNet.Session`；禁止在 Room/App 恢复控制消息 switch 或 Endpoint/IdleTracker 状态。稳定网络身份使用 `Net*Id`；Character Archetype 由明确 stableKey 经 Catalog 映射，未知 Id 必须失败，禁止默认取首个敌人配置。传输唯一入口为 `INetTransport`（Session 外包 `ChannelMuxTransport`）。禁止把 CameraLock/Look/Lean 写入 Snapshot；禁止 ClientCommand 带 HP/坐标/招式名。`appliedClientFrameHint` 仅本步真正灌入远端命令时非 0，CarryForward 必须下发 0。装配用 `ReplicationSeat`，禁止 `if (isClient)` 开第二套 Actor
+- **复制契约**：上行唯一为 `ClientCommand` 命令批；下行唯一为 V2 `ReplicationLifecycle + ReplicationSnapshot + ReplicationEvent`。Lifecycle 可靠有序，Snapshot 不可靠并以 `RequiredLifecycleSequence` 为屏障，命中事件可靠有序；`ReplicationServer.PrepareTickDelta` 只准备，发送成功后才 Commit。`ActorReplicationSnapshotCodec` + `CharacterSnapshotSchemaV2` 是角色线格式唯一真源，Owner 阵容/ACK 使用 `ActReplicationSnapshotMetaCodec`；禁止恢复 V1 `ReplicationFrame`、ApplicationPayload 或双轨 Codec。一座位多角色时每槽必须有稳定 `SimActorId/NetEntityId`，禁止热换单 Actor Config；`PartyMemberState` 统一编码进角色快照 Flags。Session 信封、Join、Heartbeat、Kick 的唯一真源是 `ACTNet.Session`；禁止在 Room/App 恢复控制消息 switch 或 Endpoint/IdleTracker 状态。稳定网络身份使用 `Net*Id`；Character Archetype 由明确 stableKey 经 Catalog 映射，未知 Id 必须失败，禁止默认取首个敌人配置。传输唯一入口为 `INetTransport`（Session 外包 `ChannelMuxTransport`）。禁止把 CameraLock/Look/Lean 写入 Snapshot；禁止 ClientCommand 带 HP/坐标/招式名。装配用 `ReplicationSeat`，禁止 `if (isClient)` 开第二套 Actor
 - **RemoteProxy**：他人/敌人幽灵只应用 Snapshot（`Domain/Character/Replication/`），禁止 `CharacterActorFactory`、`HitboxFrameConsumer`、`EnemyBrain.Step`。可按 ActionFrame 过点派发 VFX/SFX，禁止派发 Hitbox/MotionCommand。Host 用 `AfterLogicStep` 打包，不得只在渲染帧漏步发送。禁止再挂 Host 同机 ±2m 预览（`RemoteGhostViewController` / `PredictedClientPreviewController` 已删）
 - **幽灵 Locomotion（他人）**：切 `AnimationKey` 时一次性相位硬切并可 Seek；Idle↔走跑冲刺用 Profile 默认 CrossFade。同键只 `Tick`。播放头刚出招落到走跑时必须再 `Play`，禁止因键未变只 Tick 招尾
 - **客机本机走跑**：本机 Autonomous `CharacterActor` 跑同一套 `LocomotionStateMachine`；纠偏合同见 [`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。他人仍 Snapshot。禁止猜片 / 摇杆硬映射 Idle/Walk/Run。已废止 Runner/CreateAutonomous
 - **客机表现节拍**：本机 Clip/VFX 由 `CharacterActor.Step` + `CharacterActionPresentationBridge` 推进。禁止对自角色 `ApplySnapshot` Seek。权威 Tick 只更新纠偏与 HP/受击边沿。禁止同一逻辑帧 Tick 两次 Clip。走跑 Replay 外禁止每帧 `SyncRootPoseFromSim`（会清零转向阻尼）
 - **复制目录 Prefill**：必须收录 Graph 节点 `Action` 与 `VariantResolver` 变体（六向闪避）。只预填 `node.Action` 时客机侧/后闪 `TryGet` 失败，只有位移没有 Clip
 - **网络 Room 薄 Facade**：`ListenServerBootstrap` / `ReplicationRoomClient` 只做组合或 Session 调度与 HUD；CharacterConfig/PlayerController/EnemySpawnController/RemoteProxy/Hit Cue/HitStop 实现必须留在 `App/Networking` Service/Adapter，禁止迁回 Facade 或恢复 `ReplicationRoomHost`
+- **Authority 编排边界**：`DedicatedAuthorityWorld` 只实现 `IDedicatedAuthorityWorld` 门面；Guest 创建/销毁归 `AuthorityGuestRegistry`，命令与固定帧归 `AuthorityStepCoordinator`，连接级 Prepare/Commit/Reject 与可靠事件归 `AuthorityReplicationPublisher`
 - **预测位移**：通用历史与 Restore+Replay 在 `PredictionCoordinator`。`ActCharacterPredictionModel` 持电机与 2m/宽限/出招受击策略，禁止把 ActionId 写进 Coordinator。走跑带 `IPredictedLocomotionReplay` 时默认硬吸阈 `AutonomousHardSnapMm`（2m），禁止房间再传 50mm。无 replay 的旧 Predict 单测仍用 50mm。超 2m：`RestoreFromAuthority` + `ReplayTick`，禁止对走跑步 `ApplyInput`。Listen 本机与远端客机同一套 Owner 预测。纠偏可改预测电机，禁止把表现 Pose 写回权威 Motor。Lean 不进 Snapshot
 - **纠偏后表现**：仅走跑真正 `Snapped`（≥ 2m）或权威 **Hit/Death** 才 `SnapPresentationToSimulation`。出招/闪避禁止每包硬切表现，否则插值被掐死、位移和相机一起跳。刚吸附后 8 包内 ≤ 150mm 只 Ack
 - **出招中相机**：`CameraManager` 在 `ILocalPlayer.IsPresentingAction` 时暂停 L-DIR5 跟朝向，避免连闪 yaw 追权威朝向台阶
 - **闪避回走跑**：Host `ActionState.Exit` 写 `SprintAfterDodge`；客机 Runner 再 Enter 必须 `LocomotionResumeRequest.AfterAction`，禁止 `Enter(default)` 从 Idle 重计 Sprint
 - **预测出招**：本机 Autonomous `CharacterActor` 跑 `ActionSim` + 表现桥（Graph 起手 + Cancel 窗 + 推帧 + 烘焙位移 + Adhesion/Relocate）。禁止 Collect、进 World。Adhesion 读只读 Proxy 逻辑 Pose。卡肉由 `PredictedHitStopConsumer` 几何重叠后 `RequestHitStop`，禁止用延迟权威 `FreezeFrames` 再拖本机时钟。伤害只信权威下行。Ack 用 `PredictedActionAckQueue`：同招不 Seek 回旧帧；权威 `ActionId==0` 或 Hit/Death 则 `StopAutonomousAction`。本机已连到下一招、权威还停在上一招：只 Ack，不 Cancel。穿敌吸附 / SoftBodySuppress 窗、权威卡肉、或本机/权威正在 Dodge：`ActionMotionReconcileGate` 禁止 2m 硬吸位姿。Listen 本机也走同一套 Owner 预测
-- **命中复制**：`CombatHitPipeline` 只在权威 Actor 收集；下行可靠 `RoomMessageKind.ReplicationEvent` + 快照里的 `VitalityReplicationEdge`。禁止再做 W7 最近 8 条帧内冗余。幽灵/预测不得再跑命中或扣血。边沿由 `CharacterVitality` 记一帧，`CharacterActor.Step` 开头清空
+- **命中复制**：`CombatHitPipeline` 只在权威 Actor 收集；下行可靠 `ActRoomMessageType.ReplicationEvent` + 快照里的 `VitalityReplicationEdge`。禁止再做 W7 最近 8 条帧内冗余。幽灵/预测不得再跑命中或扣血。边沿由 `CharacterVitality` 记一帧，`CharacterActor.Step` 开头清空
 - **移动参考闭包**：相机相对移动只消费 `InputFrame.MoveReferenceYawQuantized`；CameraManager 只能 staged yaw，禁止把 PlanarBasis/Camera Transform 直接写入 Motor
 - **输入阶段先于 Actor**：World 每帧先调用 `ISimulationInputProducer`，再按 Id 执行 Actor；AI Brain 在该阶段写通用命令槽并为统一时序提交空 `InputFrame`
 - **命中延迟结算**：Hitbox 几何检测只写共享 `CombatHitPipeline`；全体 Actor Step 完成后按 `SimHitKey` 排序，再统一伤害、Reaction 与命中确认
@@ -105,10 +107,31 @@ public class MyBehaviour : MonoBehaviour
 - Locomotion 时钟：`LocomotionContext.PhaseFrame` 是唯一权威；状态结束、Start/Pivot handoff、GaitPolicy、落脚与根位移只读整数帧。Full/Headless 禁止读取播放后端 `NormalizedTime/HasFinished` 做状态判断
 - Locomotion 资产：每个实际使用的 `AnimationKey` 必须配置唯一有效 `LocomotionClipTiming(duration/loop/exit/handoff frames)`；缺失时严格失败，禁止按 Clip 秒长运行时回退
 - 角色互撞（定案）：逻辑圆盘软弹开，按 `softBodyMass` 分配推力；大体型勾 `softBodyImmovable`；禁止 Unity Physics/CC 互撞权威；静态障碍烘焙硬挡
-- 联网（定案）：组队 PVE 为 Dedicated 权威状态同步（Listen = 同进程再开 LocalClient）；上行量化 `InputFrame`，下行 `ReplicationFrame`；命中只在权威 `CombatHitPipeline`。禁止全端同构输入广播作为产品主路径，禁止客户端上报伤害结果，禁止以齐帧停等作为手感模型。锁步 L0～L2 模拟核仍适用。服务器写法见下方「服务器 / 权威进程」。阅读：`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`
+- 联网（定案）：组队 PVE 为 Dedicated 权威状态同步（Listen = 同进程再开 LocalClient）；上行量化 `InputFrame`，下行 V2 Lifecycle/Snapshot/Event；命中只在权威 `CombatHitPipeline`。禁止全端同构输入广播作为产品主路径，禁止客户端上报伤害结果，禁止以齐帧停等作为手感模型。锁步 L0～L2 模拟核仍适用。服务器写法见下方「服务器 / 权威进程」。阅读：`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`
 - Action：烘焙表就绪时查表写 MotorSim；未烘焙且 `UseRootMotion` 时由 `CharacterRootMotionDriver` 经 Motor 写入；否则可用 `MovementNotifyState` 脚本位移
 - 同 key 不重复 Play（门面 `_currentKey` 去重）；无 Animator Controller 业务依赖
 - 角色销毁时 `CharacterActor.Dispose()` 释放 PlayableGraph
+
+## ScriptableObject 配置约定
+
+- **职责单一**：SO 只表达作者配置，不持有运行时注册表、可变缓存或场景对象查找逻辑
+- **稳定身份**：联网/存档内容必须声明稳定 Id；禁止以 `UnityEngine.Object.name` 作为产品身份或运行中动态分配 Id
+- **引用方向**：`PartyLoadout → CharacterDefinition → CharacterConfig → CombatMode/Locomotion`；下层 Profile 禁止反向引用 Party、Controller 或 Scene
+- **空值语义**：必填字段由 `Validate` 明确失败；可选字段必须在属性/Tooltip 中声明 null 表示禁用、默认或继承中的唯一一种
+- **校验单轨**：单资产 `Validate`、全库 Content Audit 和启动校验复用同一规则；禁止 Editor 与 Runtime 各写一套判断
+- **运行时编译**：SO 只作为 `GameContentBootstrap` 输入；Gameplay 消费冻结的只读 Catalog/Config，Tick 中禁止 `AssetDatabase`、`Resources.Load` 或场景扫描
+- **配置分类**：Party/Character/Enemy 为身份与组合；Action/Combat/Locomotion/BT 为玩法作者配置；Input/Camera/Debug 为 Client-only Settings，不进入 Dedicated Gameplay Content
+- **迁移删除**：新字段和调用点切换后必须迁移资产并删除 `legacy*`/旧字段；未经明确迁移窗口不得长期双读
+- **资产操作**：Agent 只修改 SO 的 C# 定义与审计工具；`Assets/Data/**` 实例、Prefab、动画和非 Shader 美术由 Editor 人工调整
+
+## 程序集约定
+
+- `ACTNet.*` 禁止引用任何 `ACTGame.*`；`Domain/*` 禁止引用 `ACTGame.App`
+- `ACTGame.Simulation` 与 `ACTGame.Networking` 保持 `noEngineReferences=true`
+- CS2A 的 `ACTGame.Domain.Gameplay` 是 Character/Combat SO 类型环拆除前的唯一粗边界；CS2B 创建终态 Character/Combat/Enemy 后必须在同次迁移删除，禁止粗细双轨
+- 设备采样只在 `ACTGame.Infrastructure`；`ACTGame.Domain.Input` 通过委托/接口接受角色上下文，不引用 Character/Combat 实现
+- App 是 Unity Composition Root，可引用 Domain、Infrastructure、Server 与 ACTNet；反向依赖必须通过下层契约或 App 主动调用端口消除
+- 新增生产 asmdef 必须先在 `StructureAuditRuleSet` 登记精确引用白名单，并由 `AssemblyReferenceBoundaryTests` 遍历覆盖；未登记程序集、白名单外同层依赖和未声明第三方引用均不得合入
 
 ## 输入约定
 
@@ -200,7 +223,7 @@ public class MyBehaviour : MonoBehaviour
 
 | 管线 | 频率 | 载荷 | 写法 |
 |------|------|------|------|
-| **战斗流** | 逻辑帧 | `ClientCommand` ↔ `ReplicationFrame` | Authority 收命令、Step、按连接构帧；无逐技能 Handler |
+| **战斗流** | 逻辑帧 | `ClientCommand` ↔ V2 Lifecycle/Snapshot/Event | Authority 收命令、Step、按连接准备并提交复制批；无逐技能 Handler |
 | **元数据 RPC** | 点一次 | 登录、背包、领奖（NS5 后另开） | 可学 DemoServer `Req*_Handler` / `RpcHandler`；**禁止**改 HP、硬直、`ActionSim` |
 
 ### Handler 与房间（学 DemoServer 的壳，不学它的战斗权威）
@@ -208,7 +231,7 @@ public class MyBehaviour : MonoBehaviour
 - Handler 只做：Session → `playerId`、校验房间、把 `InputFrame` 入队或调用元数据 Service。示例对照：`DemoServer/ZZZServer/Handler/Account/ReqLogin_Handler.cs`（薄 Handler）
 - Handler **禁止**：`MotorSim.Step`、`ActionSim.Step`、`CombatHitPipeline.Collect`、写 HP、写世界坐标
 - 房间时钟 = `SimulationWorld.Step`（60Hz 整数帧），不是 `Room.Update(float dt)` 里手写怪 AI。AI 仍走权威端 `EnemyBrain`（`Assets/Scripts/Domain/Enemy/EnemyBrain.cs`）
-- 下行走 `ReplicationFrame`；命中走可靠事件通道，HP 在 Character Snapshot 里。不要为攻击者单独发「你打中了」作为唯一血量通道
+- 下行走 V2 Lifecycle/Snapshot；命中走可靠 Event 通道，HP 在 Character Snapshot 里。不要为攻击者单独发「你打中了」作为唯一血量通道
 - 复制 Update 默认可跳过未变 payload；敌人按兴趣半径裁剪；Owner 优先占预算。禁止再每 Tick 全量广播
 - Graph 节点线上只发 `GraphNodeKey` 整数，禁止再写 UTF-8 节点名
 - 复制帧被拒绝时请求 `ReplicationRecover` 并重置 Client Registry，禁止直接结束房间
@@ -234,13 +257,13 @@ public class MyBehaviour : MonoBehaviour
 Domain/Simulation/Replication/   # Snapshot / Tick / Command / PoseApplier，无 Unity
 Domain/Simulation/Prediction/    # ActCharacterPredictionModel / Driver，无 Unity
 Domain/Character/Replication/    # Catalog / Capture / RemoteProxy（有 Unity，无 Collect）
-Domain/Net/                      # ACTGame 身份/内容 Adapter；不得重新放通用 Transport
+Domain/Networking/Identity/      # ACTGame 模拟身份 ↔ 网络身份映射；不得重新放通用 Transport
 Domain/Networking/               # Character Schema / Archetype Catalog；纯 C#，依赖 Simulation + ACTNet
 Framework/ACTNet/Core/           # 零依赖 Id / Tick / Version / Result / Metrics / 有界小端 Buffer
 Framework/ACTNet/Transport/      # INetTransport / Udp / Loopback / ChannelMux / MTU；只引用 Core
 Framework/ACTNet/Prediction/     # Coordinator / Timeline / Clock；只引用 Core；禁止 ACT 类型
 Framework/ACTNet/Session/        # ServerSession / ClientSession / Registry / SessionCodec；纯 C#
-Framework/ACTNet/Replication/    # Frame / Schema / Entity Registry / Server / Client；只引用 Core
+Framework/ACTNet/Replication/    # V2 Protocol / Schema / Entity Registry / Server / Client；只引用 Core
 Infrastructure/Net/              # 预留 Unity Transport；不得被 ACTGame.Simulation 引用
 App/Controllers/Gameplay/        # ListenServerBootstrap / ReplicationRoomClient / RemotePlayerSeat
 App/Networking/Services/         # ACT 内容扫描、LocalClient / Authority World 编排；Facade 不实现具体 Gameplay
@@ -255,7 +278,7 @@ App/Server/                      # Dedicated 独立运行时（ACTGame.Server）
 - **修正位移纠偏**：本机或权威处于 Dodge / 吸附/关碰撞招 / 烘焙位移时，`ActionMotionReconcileGate` 整段推迟 2m 硬吸；权威 `ActionId==0` 也不得 `StopAutonomousAction` 这些招
 - **外部时钟**：Dedicated 设 `SimulationHost.DriveFromExternalClock`，由 `ServerSimulationRunner` 调 `StepOnce`；禁止再写一套 Step 顺序
 - **Gameplay 指纹**：`ServerContentManifest` 只哈希版本 / 碰撞 Id / Archetype / Action Id；VFX 名不进指纹
-- **Dedicated 构帧**：`DedicatedAuthorityWorld` 在 `AfterLogicStep` 按连接 `ReplicationServer.BuildFrame`；Runtime 只发送。禁止再写一套 Host Room 构帧
+- **Dedicated 构帧**：`DedicatedAuthorityWorld` 在 `AfterLogicStep` 按连接 `ReplicationServer.PrepareTickDelta`；Runtime 发送成功后 Commit、失败 Reject。禁止再写一套 Host Room 构帧
 - **MatchEnd**：应用消息类型 8（避开 Session Kick=7）；先 Drain 再 Sync Session，避免 Kick 丢掉同拍 MatchEnd
 - **JoinAccept 实体**：Dedicated 必须写 World `SimulationId`，禁止只回 Match 槽位占位 Id
 - **启动覆盖**：Dedicated 只认 `ServerLaunchConfigResolver`，优先级 CLI > Env > File > Default；密钥键忽略且不得打进日志

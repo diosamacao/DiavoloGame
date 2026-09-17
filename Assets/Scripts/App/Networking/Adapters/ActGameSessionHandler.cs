@@ -82,7 +82,7 @@ public sealed class ActGameSessionHandler
                 out CharacterAnimationService animation,
                 host.CollisionWorld,
                 presentation: presentation);
-            actor.SetPartyState(coordinator.States[i]);
+            actor.PartyLifecycle.SetState(coordinator.States[i]);
             // 玩家站立抗打断同样只读 CombatConfig，与敌人同一 Service。
             // 玩家韧性同样只读 CombatConfig，与敌人同一裁定入口。
             var reactions = new CharacterReactionService(
@@ -100,8 +100,8 @@ public sealed class ActGameSessionHandler
                 () => actor.SimulationId,
                 actor.MotorSim,
                 id => host.LookupNumeric(id),
-                () => actor.PartyState == PartyMemberState.Active
-                    || actor.PartyState == PartyMemberState.Exiting);
+                () => actor.PartyLifecycle.State == PartyMemberState.Active
+                    || actor.PartyLifecycle.State == PartyMemberState.Exiting);
 
             _services.RegisterCombatActor?.Invoke(slotRoot.transform, actor, animation);
             _services.RegisterTarget?.Invoke(hurtbox);
@@ -109,7 +109,7 @@ public sealed class ActGameSessionHandler
             SimActorRegistration registration = host.RegisterPlayer(actor);
             host.RegisterNumeric(actor.SimulationId, actor.Numeric);
             host.RegisterCombatParticipant(actor, reactions);
-            actor.ActionBegun += intent =>
+            actor.PartyLifecycle.ActionBegun += intent =>
             {
                 if (intent == GameplayIntentType.Ultimate)
                     coordinator.AssistPoints.GrantUltimate();
@@ -257,26 +257,27 @@ public sealed class ActGameGuest
         ActGameGuestMember to = _members[command.ToSlot];
         if (command.Presentation == PartySwitchPresentation.InstantReplace)
         {
-            from.Actor.SetPartyState(PartyMemberState.Inactive);
-            to.Actor.SetPartyState(PartyMemberState.Active);
+            from.Actor.PartyLifecycle.SetState(PartyMemberState.Inactive);
+            to.Actor.PartyLifecycle.SetState(PartyMemberState.Active);
             if (command.CueOwnerId.IsValid)
                 to.Actor.ForceSelectTarget(command.CueOwnerId);
             AssistCue cue = default;
             CombatWorldController world = CombatWorldController.Current;
             SimulationHost host = world != null ? world.SimulationHost : null;
             host?.AssistCues.TryGetActive(command.CueOwnerId, out cue);
-            to.Actor.PlaceForAssistSwitchFrom(
+            to.Actor.PartyLifecycle.PlaceForAssistSwitchFrom(
                 from.Actor,
                 in cue,
                 PartySwitchApplication.UsesEvadeOffset(command.Kind));
-            to.Actor.QueueExternalIntent(PartySwitchApplication.ToIncomingIntent(command.Kind));
+            to.Actor.PartyLifecycle.QueueExternalIntent(
+                PartySwitchApplication.ToIncomingIntent(command.Kind));
         }
         else
         {
-            to.Actor.PlaceForNormalSwitchFrom(from.Actor);
-            from.Actor.BeginPartyExit();
-            to.Actor.SetPartyState(PartyMemberState.Active);
-            to.Actor.QueueExternalIntent(GameplayIntentType.SwitchIn);
+            to.Actor.PartyLifecycle.PlaceForNormalSwitchFrom(from.Actor);
+            from.Actor.PartyLifecycle.BeginExit();
+            to.Actor.PartyLifecycle.SetState(PartyMemberState.Active);
+            to.Actor.PartyLifecycle.QueueExternalIntent(GameplayIntentType.SwitchIn);
         }
 
         Seat.Bind(to.Actor, to.Root);
@@ -302,14 +303,14 @@ public sealed class ActGameGuest
         }
 
         ActGameGuestMember dead = _members[closeout.FromSlot];
-        dead.Actor.SetPartyState(PartyMemberState.Dead);
+        dead.Actor.PartyLifecycle.SetState(PartyMemberState.Dead);
         if (closeout.PartyWiped)
             return true;
 
         ActGameGuestMember incoming = _members[closeout.ToSlot];
-        incoming.Actor.PlaceForNormalSwitchFrom(dead.Actor);
-        incoming.Actor.SetPartyState(PartyMemberState.Active);
-        incoming.Actor.QueueExternalIntent(GameplayIntentType.SwitchIn);
+        incoming.Actor.PartyLifecycle.PlaceForNormalSwitchFrom(dead.Actor);
+        incoming.Actor.PartyLifecycle.SetState(PartyMemberState.Active);
+        incoming.Actor.PartyLifecycle.QueueExternalIntent(GameplayIntentType.SwitchIn);
         Seat.Bind(incoming.Actor, incoming.Root);
         return true;
     }
@@ -337,12 +338,13 @@ public sealed class ActGameGuest
         for (int i = 0; i < _members.Length; i++)
         {
             ActGameGuestMember member = _members[i];
-            if (member?.Actor == null || member.Actor.PartyState != PartyMemberState.Exiting)
+            if (member?.Actor == null
+                || member.Actor.PartyLifecycle.State != PartyMemberState.Exiting)
                 continue;
-            if (!member.Actor.IsPartyExitReady)
+            if (!member.Actor.PartyLifecycle.IsExitReady)
                 continue;
 
-            member.Actor.CompletePartyExit();
+            member.Actor.PartyLifecycle.CompleteExit();
             Coordinator.CompleteExit(i);
         }
     }
