@@ -9,6 +9,14 @@ using UnityEngine.Serialization;
 [CreateAssetMenu(fileName = "CharacterLocomotionProfile", menuName = "ACT/Character/Locomotion Profile")]
 public class CharacterLocomotionProfile : ScriptableObject
 {
+    static readonly AnimationKey[] RootMotionKeys =
+    {
+        AnimationKey.StartEnd,
+        AnimationKey.StopL,
+        AnimationKey.StopR,
+        AnimationKey.PivotTurn,
+    };
+
     [Header("Animation")]
     [Tooltip("Idle/Walk/Run 等 Clip 映射；必填。")]
     [SerializeField] CharacterAnimationProfile animationProfile = null;
@@ -297,17 +305,46 @@ public class CharacterLocomotionProfile : ScriptableObject
     /// <summary>严格校验动画映射与整数帧时序；缺失数据不得使用默认值启动。</summary>
     public bool Validate(UnityEngine.Object context)
     {
+        string requestedBy = context != null ? context.name : "(unknown)";
         if (animationProfile == null)
         {
-            Debug.LogError("CharacterLocomotionProfile: AnimationProfile 未配置。", context != null ? context : this);
+            Debug.LogError(
+                $"CharacterLocomotionProfile: '{name}' 未配置 AnimationProfile（引用方：'{requestedBy}'）。",
+                this);
             return false;
         }
 
         gaitPolicy ??= new LocomotionGaitPolicy();
-        bool valid = animationProfile.ValidateClips(context != null ? context : this);
-        valid &= ValidateRequiredTiming(AnimationKey.Idle, context);
-        valid &= ValidateRequiredTiming(AnimationKey.Walk, context);
-        valid &= ValidateRequiredTiming(AnimationKey.Run, context);
+        bool valid = animationProfile.ValidateClips(this);
+        foreach (AnimationKey key in Enum.GetValues(typeof(AnimationKey)))
+        {
+            if (key == AnimationKey.HitShake
+                || !animationProfile.TryGetClip(key, out AnimationClip clip)
+                || clip == null)
+            {
+                continue;
+            }
+            valid &= ValidateRequiredTiming(key, requestedBy);
+        }
+
+        for (int i = 0; i < RootMotionKeys.Length; i++)
+        {
+            AnimationKey key = RootMotionKeys[i];
+            if (!IsRootMotionEnabled(key)
+                || !animationProfile.TryGetClip(key, out AnimationClip clip)
+                || clip == null
+                || GetRootMotionTrack(key).IsValid)
+            {
+                continue;
+            }
+
+            Debug.LogError(
+                $"CharacterLocomotionProfile: '{name}' 的 {key} 已启用根运动，"
+                + $"但 Clip '{clip.name}' 对应烘焙轨无效（frameCount={GetRootMotionTrack(key).FrameCount}，"
+                + $"AnimationProfile='{animationProfile.name}'，引用方='{requestedBy}'）。",
+                this);
+            valid = false;
+        }
         return valid;
     }
 
@@ -321,14 +358,17 @@ public class CharacterLocomotionProfile : ScriptableObject
 #endif
 
     /// <summary>校验必需键恰有一条有效整数帧时序。</summary>
-    bool ValidateRequiredTiming(AnimationKey key, UnityEngine.Object context)
+    bool ValidateRequiredTiming(AnimationKey key, string requestedBy)
     {
         if (TryGetClipTiming(key, out _))
             return true;
 
+        animationProfile.TryGetClip(key, out AnimationClip clip);
         Debug.LogError(
-            $"CharacterLocomotionProfile: {key} 缺少唯一有效 LocomotionClipTiming，请先运行 Timing Baker。",
-            context != null ? context : this);
+            $"CharacterLocomotionProfile: '{name}' 的 {key} Clip '{(clip != null ? clip.name : "(missing)")}' "
+            + $"缺少唯一有效 LocomotionClipTiming（AnimationProfile='{animationProfile.name}'，"
+            + $"引用方='{requestedBy}'），请先运行 Timing Baker。",
+            this);
         return false;
     }
 }

@@ -121,6 +121,7 @@ public class MyBehaviour : MonoBehaviour
 - **引用方向**：`PartyLoadout → CharacterDefinition → CharacterConfig → CombatMode/Locomotion`；下层 Profile 禁止反向引用 Party、Controller 或 Scene
 - **空值语义**：必填字段由 `Validate` 明确失败；可选字段必须在属性/Tooltip 中声明 null 表示禁用、默认或继承中的唯一一种
 - **校验单轨**：单资产 `Validate`、全库 Content Audit 和启动校验复用同一规则；禁止 Editor 与 Runtime 各写一套判断
+- **启动深校验**：全部 CombatMode 条目、Graph 节点 Action、Action 60Hz 动画段、已绑定 Locomotion Clip Timing 与启用的 StartEnd/Stop/Pivot RootMotion 必须在 Catalog Freeze 前通过；Editor Audit 只能调用同一 Domain `Validate`
 - **运行时编译**：SO 只作为 `GameContentBootstrap` 输入；Gameplay 消费冻结的只读 Catalog/Config，Tick 中禁止 `AssetDatabase`、`Resources.Load` 或场景扫描
 - **内容单入口**：`CombatWorldController` 每次场景生命周期只调用一次 `GameContentBootstrap.ValidateAndBuild`；Listen Authority/Client 必须共享同一 `GameContentCatalog` 实例，远端 Client 与 Dedicated 使用同一 Build 算法
 - **Catalog 冻结**：Action/Archetype 只在 Build 阶段登记；`ActCharacterSnapshotSchema`、Owner、Authority 与 Guest Join 只能 `RequireId/GetArchetypeId`，禁止运行时 `GetOrAdd/Register/Prefill`

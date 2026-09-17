@@ -26,6 +26,16 @@ public sealed class ActionReplicationCatalog
             results.Add(id);
     }
 
+    /// <summary>复制已登记动作资产，供启动期内容完整性校验。</summary>
+    public void CopyActions(List<ActionDefinition> results)
+    {
+        if (results == null)
+            throw new ArgumentNullException(nameof(results));
+        results.Clear();
+        foreach (ActionDefinition action in _toId.Keys)
+            results.Add(action);
+    }
+
     /// <summary>按角色配置预填 Graph 节点、VariantResolver 变体与受击反应，保证 Host/Client 同名同 Id。</summary>
     public void Prefill(CharacterConfig config)
     {
@@ -97,6 +107,13 @@ public sealed class ActionReplicationCatalog
         }
 
         int id = ComputeStableId(action.name);
+        if (_fromId.TryGetValue(id, out ActionDefinition sameId)
+            && sameId != action
+            && string.Equals(sameId.name, action.name, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"动作 stable name '{action.name}' 被多份资产占用。");
+        }
         while (_fromId.TryGetValue(id, out ActionDefinition mapped)
                && mapped != action
                && !string.Equals(mapped.name, action.name, StringComparison.Ordinal))

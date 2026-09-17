@@ -77,6 +77,16 @@ public static class GameContentBootstrap
             catalog.AddEnemy(definition);
         }
 
+        var actions = new List<ActionDefinition>();
+        catalog.Actions.CopyActions(actions);
+        if (actions.Count == 0)
+        {
+            Debug.LogError("GameContentBootstrap: 未收集到任何 ActionDefinition。", context);
+            valid = false;
+        }
+        for (int i = 0; i < actions.Count; i++)
+            valid &= actions[i].ValidateContent(context);
+
         if (!valid)
             throw new InvalidOperationException("Gameplay 内容校验失败；请修复此前输出的配置错误。");
 

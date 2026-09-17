@@ -21,7 +21,7 @@
 
 **目标**：按 CS0～CS7 依次完成基线门禁、Net 单轨清理、Assembly 分层、Character/App 职责拆分、Content 单入口和模拟/表现硬边界；结构总出口关闭前冻结普通功能开发，仅允许独立的编译/数据安全阻塞修复。
 
-**状态**：CS0～CS4 已验收；CS5.1 已落地 `GameContentBootstrap + GameContentCatalog`，删除三套旧扫描/动态登记路径并冻结稳定 Id。CS5 尚余完整 Action/RootMotion 启动校验、Client Runtime Configuration 与 Editor/Resources fallback 清理；Character/Combat/Enemy 终态切分在 CS5 解环后执行 CS2B。
+**状态**：CS0～CS4 已验收；CS5.1/5.2 已落地单入口冻结 Catalog 与完整 Action/CombatMode/Locomotion/RootMotion 启动校验。CS5 尚余 Client Runtime Configuration 与 Editor/Resources fallback 清理；Character/Combat/Enemy 终态切分在 CS5 解环后执行 CS2B。
 
 ### [P1] 移动职责迁移
 

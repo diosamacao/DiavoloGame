@@ -69,6 +69,20 @@ public sealed class GameContentCatalogTests
         DestroyAll(known, unknown);
     }
 
+    /// <summary>同一 Catalog 内两份同名动作必须失败，避免 stable action id 指向不确定资产。</summary>
+    [Test]
+    public void Actions_DuplicateStableName_Throws()
+    {
+        var catalog = new GameContentCatalog();
+        ActionDefinition first = CreateNamed<ActionDefinition>("Attack_Duplicate");
+        ActionDefinition second = CreateNamed<ActionDefinition>("Attack_Duplicate");
+        catalog.Actions.GetOrAdd(first);
+
+        Assert.Throws<System.InvalidOperationException>(
+            () => catalog.Actions.GetOrAdd(second));
+        DestroyAll(first, second);
+    }
+
     /// <summary>创建只存在于测试内存中的命名 ScriptableObject。</summary>
     static T CreateNamed<T>(string name) where T : ScriptableObject
     {

@@ -58,6 +58,23 @@ public sealed class GameContentBootstrapBoundaryTests
         Assert.That(authority + session, Does.Not.Contain(".PrefillActions("));
     }
 
+    /// <summary>Build 必须覆盖 Action、Graph、Timing 与 RootMotion，不能只登记网络 Id。</summary>
+    [Test]
+    public void ContentBuild_InvokesDeepGameplayValidation()
+    {
+        string bootstrap =
+            ReadScript("App/Networking/Content/GameContentBootstrap.cs");
+        string combatModes =
+            ReadScript("Domain/Combat/CombatModeProfile.cs");
+        string locomotion =
+            ReadScript("Domain/Character/Locomotion/CharacterLocomotionProfile.cs");
+
+        Assert.That(bootstrap, Does.Contain("ValidateContent(context)"));
+        Assert.That(combatModes, Does.Contain("ValidateGraphActions"));
+        Assert.That(locomotion, Does.Contain("ValidateRequiredTiming"));
+        Assert.That(locomotion, Does.Contain("GetRootMotionTrack(key).IsValid"));
+    }
+
     /// <summary>从 Assets 相对路径读取生产脚本。</summary>
     static string ReadScript(string relativePath) =>
         File.ReadAllText(ScriptPath(relativePath));

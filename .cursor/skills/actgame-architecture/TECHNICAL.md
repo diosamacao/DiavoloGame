@@ -1721,7 +1721,8 @@ CombatHitPipeline（全体 Actor Step 后）
 
 | 日期 | 变更 |
 |------|------|
-| 2026-09-17 | 结构稳定化 CS5.1：新增 `GameContentBootstrap.ValidateAndBuild` 与冻结 `GameContentCatalog`；在 `CombatWorldController.Start` 等场景装载完成后单次 Build，Local/Listen/Dedicated 共用，Capture/Join 删除动态内容登记，并移除三条旧入口 |
+| 2026-09-17 | Content 校验诊断：Locomotion Timing/RootMotion 错误输出 Profile、AnimationProfile、Clip、轨帧数与引用方，Console 上下文直接指向可修复的 Profile 资产 |
+| 2026-09-17 | 结构稳定化 CS5.1/5.2：新增 `GameContentBootstrap.ValidateAndBuild` 与冻结 `GameContentCatalog`；在场景装载完成后单次 Build，集中校验全部 CombatMode/Graph Action、60Hz 动画段、Locomotion Timing 与启用的 RootMotion；Capture/Join 删除动态登记，并移除三条旧入口 |
 | 2026-09-17 | 结构稳定化 CS4 收口：`DedicatedServerRuntime` 锁定为 Session/Match/Poll/Flush 宿主；运行时 Controller 删除 Scene Find 与自行创建 World 的旧 fallback，统一走 Composition Root、同物体组件或 Architecture/Simulation 注册表 |
 | 2026-09-17 | 结构稳定化 CS4：`ActClientRoomGameplay` 拆为 `OwnerPredictionCoordinator`、`ObserverReplicationCoordinator`、`ReplicatedFeedbackCoordinator`；Room Gameplay 收敛为 Client 组合门面 |
 | 2026-09-17 | 结构稳定化 CS4：`DedicatedAuthorityWorld` 拆为 `AuthorityGuestRegistry`、`AuthorityStepCoordinator`、`AuthorityReplicationPublisher`；World 收敛为 `IDedicatedAuthorityWorld` 组合门面 |

@@ -13,11 +13,6 @@ MonoBehaviour:
   m_Name: Unagi_Attack_03
   m_EditorClassIdentifier: 
   animationSegments:
-  - clip: {fileID: 0}
-    startFrame: 0
-    endFrame: -1
-    hasCrossFadeOverride: 0
-    crossFadeDuration: 0
   - clip: {fileID: 4937721433030198098, guid: e88c1ff535edb0d4b82348e3fc6ab17b, type: 3}
     startFrame: 0
     endFrame: -1
@@ -96,7 +91,8 @@ MonoBehaviour:
         baseDamage: 10
         hitReactionId: 
         interruptLevel: 2
-        desiredReaction: 1
+        parriedActionPolicy: 0
+        parriedReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -126,7 +122,8 @@ MonoBehaviour:
         baseDamage: 10
         hitReactionId: 
         interruptLevel: 2
-        desiredReaction: 1
+        parriedActionPolicy: 0
+        parriedReactionId: 
         feedback:
           cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
           useHitStop: 1
@@ -166,6 +163,8 @@ MonoBehaviour:
       allowEntryRestart: 1
       interruptResistBonus: 0
     perfectDodgeWindowStates: []
+    assistCueStates: []
+    assistParryWindowStates: []
     movementStates: []
     rotationStates:
     - id: Rotation_1

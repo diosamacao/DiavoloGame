@@ -75,6 +75,32 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
     public bool IsSimulationReady =>
         HasAnimation && sampleRate == ActionSim.LogicHz && totalFrames > 0;
 
+    /// <summary>启动期校验 60Hz、总帧与每个动画段；失败时记录具体资产与段索引。</summary>
+    public bool ValidateContent(UnityEngine.Object context)
+    {
+        UnityEngine.Object logContext = context != null ? context : this;
+        bool valid = true;
+        if (sampleRate != ActionSim.LogicHz || totalFrames <= 0 || animationSegments == null || animationSegments.Length == 0)
+        {
+            Debug.LogError(
+                $"ActionDefinition: '{name}' 必须包含有效动画段、正总帧并使用 {ActionSim.LogicHz}Hz。",
+                logContext);
+            valid = false;
+        }
+
+        ActionAnimationSegment[] segments = AnimationSegments;
+        for (int i = 0; i < segments.Length; i++)
+        {
+            if (segments[i].clip != null && segments[i].GetFrameCount(ActionSim.LogicHz) > 0)
+                continue;
+            Debug.LogError(
+                $"ActionDefinition: '{name}' 的 AnimationSegment[{i}] 缺少 Clip 或有效帧。",
+                logContext);
+            valid = false;
+        }
+        return valid;
+    }
+
     /// <summary>动作硬打断优先级，直接转发只读执行策略。</summary>
     public int InterruptPriority => ExecutionPolicy.InterruptPriority;
 

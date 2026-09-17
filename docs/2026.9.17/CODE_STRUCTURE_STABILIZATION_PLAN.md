@@ -429,7 +429,7 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 
 - [x] 定义 `GameContentBootstrap.ValidateAndBuild` 和只读 `GameContentCatalog`。
 - [x] 合并 `ActContentPrefillService`、`ActServerContentProbe`、`ActContentRegistry` 的重复扫描/登记职责。
-- [ ] Character、Action、Archetype、Party、Locomotion、CombatMode 在 Build 阶段一次性校验。
+- [x] Character、Action、Archetype、Party、Locomotion、CombatMode 在 Build 阶段一次性校验。
 - [ ] InputAction / GameplayIntent 设置移入 Client Runtime Configuration，不参与 Dedicated Content。
 - [ ] 删除运行时 Editor Fallback、默认首项、隐式 `Resources.Load` 多入口。
 - [x] Catalog 完成后冻结；运行中禁止 `GetOrAdd` 改变稳定 Content Id。
@@ -437,7 +437,7 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 **验收**
 
 - [x] Local、Listen、Dedicated 从同一 Content Catalog 构建 Gameplay 内容。
-- [ ] 缺 Action、重复 stable id、无效 Timing/RootMotion、未知 Archetype 在启动前失败。
+- [x] 缺 Action、重复 stable id、无效 Timing/RootMotion、未知 Archetype 在启动前失败。
 - [x] Content Fingerprint 只基于 Catalog 稳定内容。
 - [ ] `ActContentRegistryTests`、Manifest、Archetype、Action Catalog 测试通过。
 - [ ] `rg` 无生产路径 Editor `FindAssets` 或配置默认首项回退。
@@ -453,7 +453,11 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 - 删除 `ActContentPrefillService`、`ActServerContentProbe`、`ActContentRegistry` 及对应 Meta，不保留兼容层。
 - 新增 `GameContentCatalogTests` 与 `GameContentBootstrapBoundaryTests`；`ACTGame.App.csproj` 构建 0 错误，Unity Test Runner 待验收。
 - Content Build 从 `CombatWorldController.Awake` 延后到 `Start`，确保场景完成装载后再读取 Root；Awake 仅保留 Role、SimulationHost、碰撞与客户端反馈装配。
-- CS5 尚余：完整 Action/RootMotion 启动校验、Client Runtime Configuration、删除 Editor/Resources 默认首项 fallback。
+- `CombatModeProfile.Validate` 扩展为全部模式校验：拒绝重复 Mode、空 Graph、缺 Action 节点，并逐项校验 Locomotion。
+- `ActionDefinition.ValidateContent` 在启动期拒绝非 60Hz、无总帧、缺 Clip 或无有效帧的动画段；同一 Catalog 内同名动作资产直接视为 stable id 冲突。
+- `CharacterLocomotionProfile.Validate` 覆盖全部已绑定 Clip Timing 和启用的 StartEnd/Stop/Pivot RootMotion；`LocomotionTimingAudit` 删除重复规则并委托同一 Domain 校验。
+- Locomotion 校验错误输出具体 `CharacterLocomotionProfile`、`AnimationProfile`、`AnimationClip`、根运动轨帧数与引用方，并将 Console 上下文指向 Profile 资产，支持双击定位。
+- CS5 尚余：Client Runtime Configuration、删除 Editor/Resources 默认首项 fallback。
 
 ---
 

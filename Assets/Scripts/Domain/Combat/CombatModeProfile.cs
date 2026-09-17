@@ -99,18 +99,71 @@ public class CombatModeProfile : ScriptableObject
         return false;
     }
 
-    /// <summary>校验默认模式：Graph + LocomotionProfile（含 AnimationProfile / Idle·Walk·Run）。</summary>
+    /// <summary>启动期校验全部模式的唯一性、Graph Action 与完整 Locomotion 内容。</summary>
     public bool Validate(UnityEngine.Object context)
     {
-        if (!TryGetActionGraph(DefaultMode, out _)
-            || !TryGetLocomotionProfile(DefaultMode, out CharacterLocomotionProfile loco))
+        UnityEngine.Object logContext = context != null ? context : this;
+        if (entries == null || entries.Length == 0)
         {
-            Debug.LogError(
-                $"CombatModeProfile: defaultMode={DefaultMode} 必须同时配置 ActionGraph 与 LocomotionProfile。",
-                context != null ? context : this);
+            Debug.LogError("CombatModeProfile: 至少需要一个模式条目。", logContext);
             return false;
         }
 
-        return loco.Validate(context != null ? context : this);
+        bool valid = true;
+        bool foundDefault = false;
+        var seenModes = new HashSet<CombatModeType>();
+        for (int i = 0; i < entries.Length; i++)
+        {
+            CombatModeEntry entry = entries[i];
+            if (!seenModes.Add(entry.Mode))
+            {
+                Debug.LogError($"CombatModeProfile: 模式 {entry.Mode} 重复。", logContext);
+                valid = false;
+            }
+            if (!entry.IsValid)
+            {
+                Debug.LogError(
+                    $"CombatModeProfile: 条目[{i}] 必须同时配置 ActionGraph 与 LocomotionProfile。",
+                    logContext);
+                valid = false;
+                continue;
+            }
+
+            foundDefault |= entry.Mode == DefaultMode;
+            valid &= ValidateGraphActions(entry.ActionGraph, logContext);
+            valid &= entry.LocomotionProfile.Validate(this);
+        }
+
+        if (!foundDefault)
+        {
+            Debug.LogError(
+                $"CombatModeProfile: defaultMode={DefaultMode} 没有对应有效条目。",
+                logContext);
+            valid = false;
+        }
+        return valid;
+    }
+
+    /// <summary>每个 Graph 必须有节点，且节点必须绑定 ActionDefinition。</summary>
+    static bool ValidateGraphActions(ActionGraph graph, UnityEngine.Object context)
+    {
+        IReadOnlyList<ActionGraphNode> nodes = graph.Nodes;
+        if (nodes.Count == 0)
+        {
+            Debug.LogError($"CombatModeProfile: ActionGraph '{graph.name}' 没有节点。", context);
+            return false;
+        }
+
+        bool valid = true;
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            if (nodes[i] != null && nodes[i].Action != null)
+                continue;
+            Debug.LogError(
+                $"CombatModeProfile: ActionGraph '{graph.name}' 的节点[{i}] 未绑定 ActionDefinition。",
+                context);
+            valid = false;
+        }
+        return valid;
     }
 }
