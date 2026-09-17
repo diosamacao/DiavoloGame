@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -50,27 +51,42 @@ public static class HitFlinchAdditiveProbe
         return true;
     }
 
-    /// <summary>优先玩家 SelectedTarget 对应敌人，否则场上第一个存活且非 Hit 的敌人。</summary>
-    public static CharacterActor ResolveTarget(PlayerController player)
+    /// <summary>优先玩家 SelectedTarget，否则从注入的 Target 注册表选首个存活且非 Hit 的 Actor。</summary>
+    public static CharacterActor ResolveTarget(
+        PlayerController player,
+        SimulationHost simulationHost,
+        IReadOnlyList<IHurtboxTarget> targets)
     {
         if (player?.Actor != null
             && player.Actor.TryGetSelectedTarget(out ITargetable selected)
             && selected != null)
         {
-            CharacterActor fromLock = FindEnemyBySimulationId(selected.SimulationId);
+            CharacterActor fromLock = FindActorBySimulationId(
+                selected.SimulationId,
+                simulationHost);
             if (fromLock != null)
                 return fromLock;
         }
 
-        EnemyController[] enemies = Object.FindObjectsOfType<EnemyController>();
-        for (int i = 0; i < enemies.Length; i++)
+        if (targets != null)
         {
-            CharacterActor actor = enemies[i] != null ? enemies[i].Actor : null;
-            if (actor == null || actor.CurrentState == CharacterStateType.Death)
-                continue;
-            if (actor.CurrentState == CharacterStateType.Hit)
-                continue;
-            return actor;
+            for (int i = 0; i < targets.Count; i++)
+            {
+                IHurtboxTarget target = targets[i];
+                if (target == null)
+                    continue;
+                CharacterActor actor = FindActorBySimulationId(
+                    target.SimulationId,
+                    simulationHost);
+                if (actor == null
+                    || actor == player?.Actor
+                    || actor.CurrentState == CharacterStateType.Death
+                    || actor.CurrentState == CharacterStateType.Hit)
+                {
+                    continue;
+                }
+                return actor;
+            }
         }
 
         return player != null ? player.Actor : null;
@@ -120,22 +136,11 @@ public static class HitFlinchAdditiveProbe
             $"LiveProxy={live}）。等 Observer 出模型后再按 F6。";
     }
 
-    /// <summary>按稳定模拟 Id 找到场上敌人 Actor。</summary>
-    public static CharacterActor FindEnemyBySimulationId(SimActorId id)
-    {
-        if (!id.IsValid)
-            return null;
-
-        EnemyController[] enemies = Object.FindObjectsOfType<EnemyController>();
-        for (int i = 0; i < enemies.Length; i++)
-        {
-            CharacterActor actor = enemies[i] != null ? enemies[i].Actor : null;
-            if (actor != null && actor.SimulationId.Equals(id))
-                return actor;
-        }
-
-        return null;
-    }
+    /// <summary>按稳定模拟 Id 从固定帧 Host 注册表解析 Actor。</summary>
+    public static CharacterActor FindActorBySimulationId(
+        SimActorId id,
+        SimulationHost simulationHost) =>
+        id.IsValid ? simulationHost?.LookupActor(id) : null;
 
     /// <summary>探针前后各打一行；via=proxy 表示打在 Observer 可见体上。</summary>
     static void LogProbe(

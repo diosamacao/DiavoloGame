@@ -21,7 +21,10 @@ public static class HitFlinchAdditiveProbeMenu
         if (target == null)
         {
             PlayerController player = Object.FindObjectOfType<PlayerController>();
-            target = HitFlinchAdditiveProbe.ResolveTarget(player);
+            target = HitFlinchAdditiveProbe.ResolveTarget(
+                player,
+                CombatWorldController.Current?.SimulationHost,
+                targets: null);
         }
 
         if (!HitFlinchAdditiveProbe.TryPlay(target, clip, mask, fade, out string error))

@@ -119,7 +119,9 @@ public sealed class EnemyController : AppControllerBase
         if (!enemyDefinition.Validate(this))
             return false;
 
-        CombatWorldController combatWorld = EnsureCombatWorldController();
+        CombatWorldController combatWorld = ResolveCombatWorldController();
+        if (combatWorld == null)
+            return false;
         _simulationHost = combatWorld.EnsureSimulationHost();
         // Listen / Dedicated 权威敌人无头；本机可见体走 Observer Proxy，避免与权威模型叠画。
         CharacterPresentationMode presentation =
@@ -231,16 +233,15 @@ public sealed class EnemyController : AppControllerBase
         _registered = false;
     }
 
-    /// <summary>确保敌人独立运行时也存在统一战斗世界锚点并返回该入口。</summary>
-    CombatWorldController EnsureCombatWorldController()
+    /// <summary>解析场景 Composition Root；缺失时拒绝装配，禁止敌人自行扫描或创建第二个 World。</summary>
+    CombatWorldController ResolveCombatWorldController()
     {
         CombatWorldController world = CombatWorldController.Current;
-        if (world == null)
-            world = FindObjectOfType<CombatWorldController>();
         if (world != null)
             return world;
-
-        var worldObject = new GameObject("CombatWorldController");
-        return worldObject.AddComponent<CombatWorldController>();
+        Debug.LogError(
+            "EnemyController: 场景缺少先行初始化的 CombatWorldController Composition Root。",
+            this);
+        return null;
     }
 }

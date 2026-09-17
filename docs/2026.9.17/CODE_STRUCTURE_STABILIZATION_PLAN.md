@@ -391,18 +391,18 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 - [x] 提取 `PlayerPartyRuntime`，承接三槽创建、ActiveSlot、权威同步和预测切人。
 - [x] 将 `DedicatedAuthorityWorld` 拆为 Guest Registry、Authority Step Coordinator、Replication Publisher。
 - [x] 将 `ActClientRoomGameplay` 拆为 Owner Prediction Coordinator、Observer Replication Coordinator、Replicated Feedback Coordinator。
-- [ ] `DedicatedServerRuntime` 只负责 Session/Match/Poll/Flush 生命周期，不解释角色状态。
-- [ ] 删除 Controller 中运行时 `FindObjectOfType` 业务依赖，改由 Composition Root 显式注入。
+- [x] `DedicatedServerRuntime` 只负责 Session/Match/Poll/Flush 生命周期，不解释角色状态。
+- [x] 删除 Controller 中运行时 `FindObjectOfType` 业务依赖，改由 Composition Root、同物体组件与运行时注册表解析。
 
 **验收**
 
-- [ ] Controller 不包含 Party、Replication、Combat 算法。
-- [ ] Authority/Owner/Observer 三席位分别有唯一 Coordinator。
-- [ ] Room Facade/Bootstrap 不引用具体 Character State、VFX 或 ActionDefinition。
+- [x] Controller 不包含 Party、Replication、Combat 算法。
+- [x] Authority/Owner/Observer 三席位分别有唯一 Coordinator。
+- [x] Room Facade/Bootstrap 不引用具体 Character State、VFX 或 ActionDefinition。
 - [ ] `DedicatedServerRuntimeTests`、Authority/Owner/Observer Adapter 测试通过。
-- [ ] Listen 和 Dedicated 使用同一 Authority Coordinator。
+- [x] Listen 和 Dedicated 使用同一 Authority Coordinator。
 
-**出口：** App 只装配和编排，不再成为第二个 Domain。→ **未达成**
+**出口：** App 只装配和编排，不再成为第二个 Domain。→ **代码完成，Editor Test Runner / Play 验收后关闭**
 
 **2026-09-17 执行记录**
 
@@ -416,6 +416,10 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 - 新增 `OwnerPredictionCoordinator`、`ObserverReplicationCoordinator`、`ReplicatedFeedbackCoordinator`：分别独占输入/命令/预测与 Owner Meta、V2 Lifecycle/Snapshot/Observer 播放时钟、命中去重/弹刀竞态/预测卡肉与软体分离。
 - `ActClientRoomGameplay` 收敛为三个 Client Coordinator 的组合门面；删除命令历史、ReplicationClient 应用列表、Owner 阵容、命中去重与表现算法旧字段。
 - 新增 `ClientGameplayCoordinatorBoundaryTests` 并更新 `PlayerPartyRuntimeBoundaryTests` 的真实调用方；`ACTGame.App.csproj` 已构建通过，Editor Test Runner / Listen + Client 待验收。
+- `DedicatedServerRuntime` 经边界测试锁定为 Session/Match/Poll/Flush 宿主，禁止引用 Character State、ActionDefinition、Animation 或 HitReaction 语义。
+- `PlayerController` / `EnemyController` 删除扫描并自动创建 `CombatWorldController` 的旧路径；关键 Composition Root 缺失时明确报错并停用装配。
+- `CombatWorldController`、Camera、Combat Debug Controller 删除运行时 Scene Find fallback；本机 Runtime 只取同物体组件，调试目标改走 `TargetSystem + SimulationHost` 注册表。
+- 新增 `AppCompositionBoundaryTests`，遍历全部运行时 Controller 禁止 Scene Find API，并锁定 Dedicated Runtime 的角色语义边界；`ACTGame.App.csproj` 已构建通过，Editor Test Runner / Listen + Client + Dedicated 待验收。
 
 ---
 

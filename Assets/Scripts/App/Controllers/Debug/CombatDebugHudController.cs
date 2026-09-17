@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
@@ -34,7 +35,10 @@ public sealed class CombatDebugHudController : AppControllerBase
     {
         if (playerController == null)
             playerController = SendQuery(new GetLocalPlayerQuery()) as PlayerController;
-        _cameraManager = FindObjectOfType<CameraManager>();
+        CombatWorldController world = CombatWorldController.Current;
+        _cameraManager = world != null
+            ? world.GetComponentInChildren<CameraManager>(true)
+            : GetComponent<CameraManager>();
 
         EnsureHurtboxVisualizer();
     }
@@ -57,7 +61,7 @@ public sealed class CombatDebugHudController : AppControllerBase
     /// <summary>对锁定敌人或场上第一名敌人叠 Hit_Shake；失败只打日志。</summary>
     void PlayFlinchProbe()
     {
-        CharacterActor target = HitFlinchAdditiveProbe.ResolveTarget(playerController);
+        CharacterActor target = ResolveFlinchProbeTarget();
         if (!HitFlinchAdditiveProbe.TryPlay(
                 target,
                 flinchProbeClip,
@@ -72,12 +76,11 @@ public sealed class CombatDebugHudController : AppControllerBase
     /// <summary>确保场景有 Hurtbox 线框绘制器（可挂本物体上）。</summary>
     void EnsureHurtboxVisualizer()
     {
-        if (GetComponent<CombatHurtboxDebugVisualizer>() != null)
+        CombatWorldController world = CombatWorldController.Current;
+        GameObject owner = world != null ? world.gameObject : gameObject;
+        if (owner.GetComponent<CombatHurtboxDebugVisualizer>() != null)
             return;
-        if (FindObjectOfType<CombatHurtboxDebugVisualizer>() != null)
-            return;
-
-        gameObject.AddComponent<CombatHurtboxDebugVisualizer>();
+        owner.AddComponent<CombatHurtboxDebugVisualizer>();
     }
 
     void LateUpdate()
@@ -93,7 +96,7 @@ public sealed class CombatDebugHudController : AppControllerBase
         if (playerController != null && playerController.Actor != null)
             _cached = playerController.Actor.BuildDebugSnapshot();
 
-        CharacterActor probeTarget = HitFlinchAdditiveProbe.ResolveTarget(playerController);
+        CharacterActor probeTarget = ResolveFlinchProbeTarget();
         if (probeTarget != null
             && (playerController == null || probeTarget != playerController.Actor))
         {
@@ -114,6 +117,16 @@ public sealed class CombatDebugHudController : AppControllerBase
         {
             _hasTargetSnapshot = false;
         }
+    }
+
+    /// <summary>通过 Architecture Target 注册表与 SimulationHost 解析调试目标，不扫描场景。</summary>
+    CharacterActor ResolveFlinchProbeTarget()
+    {
+        IReadOnlyList<IHurtboxTarget> targets = SendQuery(new GetActiveTargetsQuery());
+        return HitFlinchAdditiveProbe.ResolveTarget(
+            playerController,
+            CombatWorldController.Current?.SimulationHost,
+            targets);
     }
 
     void OnGUI()

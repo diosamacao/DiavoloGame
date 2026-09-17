@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-09-17（结构稳定化 CS3：SimulationPipeline、PartyLifecycle 与 PredictionRuntime 提取）
+> Last updated: 2026-09-17（结构稳定化 CS4：App 编排协调器与 Scene 查找边界收口）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -615,8 +615,9 @@ Listen 与 Dedicated 共用 `DedicatedServerRuntime`。Listen 另加本机 `Loca
 | 角色 | 默认 Listen Host；ParrelSync 克隆自动 Client；菜单可切 Dedicated（`Use Dedicated Server`） |
 | 传输 / Session | `UdpTransport` 按 `NetConnectionId` 定向收发；`ServerSession/ClientSession` 独占信封、Join、Heartbeat、Kick，`RoomCodec` 只编 ACT 应用正文 |
 | Listen | `ListenServerBootstrap` = `DedicatedServerRuntime` + `LocalClientRuntime`；本机也走 Command / Snapshot / ACK |
-| Dedicated | `DedicatedServerBootstrap` → 同一 `DedicatedServerRuntime`；`MatchCoordinator` 分配身份与出生；JoinAccept 无房主实体 |
-| Client | 薄 `ReplicationRoomClient` 驱动 `LocalClientRuntime`；`ActClientRoomGameplay` 每渲染帧合并输入、本机 `CharacterActor.Step`、他人 Proxy Seek |
+| Dedicated | `DedicatedServerBootstrap` → 同一 `DedicatedServerRuntime`；Runtime 只管 Session/Match/Poll/Flush，角色状态解释委托 `DedicatedAuthorityWorld`；JoinAccept 无房主实体 |
+| Client | 薄 `ReplicationRoomClient` 驱动 `LocalClientRuntime`；`ActClientRoomGameplay` 只组合 Owner Prediction、Observer Replication、Replicated Feedback 三个协调器 |
+| App 装配 | Controller 禁止运行时 Scene Find；战斗入口取 `CombatWorldController` 生命周期锚点，相机取同物体/Root 子树，调试目标取 `TargetSystem + SimulationHost` 注册表 |
 | 动作 Id | `ActionReplicationCatalog` 按资产名稳定哈希，两端 Prefill Graph 节点、`VariantResolver` 变体与反应 |
 | 掉线 | `ServerSession.ConnectionRegistry` 按连接记录活动时刻；10s 超时仅 Kick 对应连接 |
 | HUD | F3 Room 行：角色 / 状态 / authorityFrame / RTT / jitter；Net 行追加 Tick/Command 字节、Proxy、pending、loss‰、delay、snap、replay |
@@ -1719,6 +1720,7 @@ CombatHitPipeline（全体 Actor Step 后）
 
 | 日期 | 变更 |
 |------|------|
+| 2026-09-17 | 结构稳定化 CS4 收口：`DedicatedServerRuntime` 锁定为 Session/Match/Poll/Flush 宿主；运行时 Controller 删除 Scene Find 与自行创建 World 的旧 fallback，统一走 Composition Root、同物体组件或 Architecture/Simulation 注册表 |
 | 2026-09-17 | 结构稳定化 CS4：`ActClientRoomGameplay` 拆为 `OwnerPredictionCoordinator`、`ObserverReplicationCoordinator`、`ReplicatedFeedbackCoordinator`；Room Gameplay 收敛为 Client 组合门面 |
 | 2026-09-17 | 结构稳定化 CS4：`DedicatedAuthorityWorld` 拆为 `AuthorityGuestRegistry`、`AuthorityStepCoordinator`、`AuthorityReplicationPublisher`；World 收敛为 `IDedicatedAuthorityWorld` 组合门面 |
 | 2026-09-17 | 结构稳定化 CS4：提取 `PlayerPartyRuntime`，集中本机三槽创建/释放、预测切人、死亡接替与权威槽同步；`PlayerController` 删除 Party 数组、协调器和旧转发方法 |

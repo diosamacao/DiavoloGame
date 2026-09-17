@@ -123,15 +123,20 @@ public class PlayerController : AppControllerBase, ILocalPlayer
             return;
         }
 
-        CombatWorldController combatWorld = EnsureCombatWorldController();
+        CombatWorldController combatWorld = ResolveCombatWorldController();
+        if (combatWorld == null)
+        {
+            enabled = false;
+            return;
+        }
         // Dedicated 进程禁止装配本机玩家座位；权威角色只由远端 Join 创建。
-        if (combatWorld != null && combatWorld.Role == ReplicationRole.DedicatedServer)
+        if (combatWorld.Role == ReplicationRole.DedicatedServer)
         {
             enabled = false;
             return;
         }
 
-        BuildClientSeat(inputActions);
+        BuildClientSeat(inputActions, combatWorld);
     }
 
     /// <summary>装配前校验阵容中每个非空角色，避免后台槽直到切出时才暴露缺失配置。</summary>
@@ -215,7 +220,9 @@ public class PlayerController : AppControllerBase, ILocalPlayer
     /// 本机按 Loadout 装配最多三个 Autonomous Actor；均不进 World、不挂 Hurtbox。
     /// 开局槽可见，其余槽保留独立 Numeric/Action 状态但隐藏。
     /// </summary>
-    void BuildClientSeat(InputActionAsset inputActions)
+    void BuildClientSeat(
+        InputActionAsset inputActions,
+        CombatWorldController combatWorld)
     {
         _clientSeat = true;
         var reader = new InputReader(inputActions);
@@ -229,10 +236,7 @@ public class PlayerController : AppControllerBase, ILocalPlayer
 
         reader.ConfigureDiscreteInputs(intentProfile.CollectInputReferences());
         _inputSampler = reader;
-        CombatWorldController combatWorld = EnsureCombatWorldController();
-        SimulationHost simulationHost = combatWorld != null
-            ? combatWorld.EnsureSimulationHost()
-            : null;
+        SimulationHost simulationHost = combatWorld.EnsureSimulationHost();
         _partyRuntime = new PlayerPartyRuntime(
             partyLoadout,
             transform,
@@ -249,16 +253,15 @@ public class PlayerController : AppControllerBase, ILocalPlayer
     void OnActiveActorChanged(CharacterActor actor) =>
         _facingDebugVisualizer?.Bind(actor);
 
-    /// <summary>玩家装配前确保场景存在统一战斗世界入口并返回该入口。</summary>
-    CombatWorldController EnsureCombatWorldController()
+    /// <summary>解析由更早执行的场景 Composition Root；缺失时明确失败，禁止自行扫描或创建第二个 World。</summary>
+    CombatWorldController ResolveCombatWorldController()
     {
         CombatWorldController world = CombatWorldController.Current;
-        if (world == null)
-            world = FindObjectOfType<CombatWorldController>();
         if (world != null)
             return world;
-
-        var worldObject = new GameObject("CombatWorldController");
-        return worldObject.AddComponent<CombatWorldController>();
+        Debug.LogError(
+            "PlayerController: 场景缺少先行初始化的 CombatWorldController Composition Root。",
+            this);
+        return null;
     }
 }

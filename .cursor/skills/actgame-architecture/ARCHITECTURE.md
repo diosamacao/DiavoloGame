@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-09-17（结构稳定化 CS3 完成；CS4 拆分 Player 与 Authority 编排）
+> Last audited: 2026-09-17（结构稳定化 CS3 完成；CS4 App 编排瘦身代码完成）
 
 ## 项目概述
 
@@ -113,7 +113,7 @@ CS2A 期间 Character/Combat/Enemy/Party/Camera 只编入一个 `ACTGame.Domain.
 | `ObserverReplicationCoordinator` | V2 Lifecycle/Snapshot/Meta 原子应用、Observer Proxy 生命周期与远端播放时钟唯一入口 |
 | `ReplicatedFeedbackCoordinator` | 可靠命中 Cue、SimHitKey 去重、弹刀跨通道暂存、预测卡肉与本机对 Proxy 软体分离唯一入口 |
 | `ListenServerBootstrap` / `ReplicationRoomClient` | Listen 组合 ServerRuntime+LocalClient；远端 Client 薄 Facade 只驱动 Runtime 与逻辑步发送 |
-| `DedicatedServerBootstrap` / `DedicatedServerRuntime` | 唯一权威运行时：Session/Match、每连接 ACK、Lifecycle/Snapshot/Event / `MatchEnd`；Listen 复用，Dedicated 单独启动 |
+| `DedicatedServerBootstrap` / `DedicatedServerRuntime` | 唯一权威运行时宿主：只负责 Session/Match/Poll/Flush、每连接 ACK 与 `MatchEnd`；角色状态解释全部委托 Authority World，Listen 复用 |
 | `ServerLaunchConfigResolver` | Dedicated 启动覆盖：CLI > Env > File > Default；不写密钥日志 |
 | `ServerSimulationRunner` / `SimulationStepKernel` | 单调时钟 + 固定 60Hz 追帧；Listen 与 Dedicated 共用 `SimulationHost.StepOnce` |
 | `DedicatedAuthorityWorld` | `IDedicatedAuthorityWorld` 组合门面：只装配并委托 Guest Registry、Authority Step Coordinator 与 Replication Publisher |
@@ -135,7 +135,7 @@ CS2A 期间 Character/Combat/Enemy/Party/Camera 只编入一个 `ACTGame.Domain.
 | `SoftBodySeparation` / `ISimSoftBodyParticipant` | World 帧末角色圆盘软弹开；死亡不参与 |
 | 复制契约（V2） | `ClientCommand` 上行；Lifecycle 可靠、Snapshot 不可靠并带 Lifecycle Sequence 屏障、Event 可靠；Loopback/UDP；`RemoteCharacterProxy` 跟状态 |
 
-`CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只负责装配和注册，不再实现 Actor `Update` Tick。
+`CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只从该先行 Composition Root 装配和注册，缺失时明确失败，不扫描场景或自行创建第二个 World。Camera/Debug Controller 只取同物体组件、Composition Root 子树或 Architecture/Simulation 注册表。
 
 NetSync W0～W9 已验收。W10/W11 代码切面已落地，Play / R2 未关，不得称公网可用。阅读：[`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)。
 

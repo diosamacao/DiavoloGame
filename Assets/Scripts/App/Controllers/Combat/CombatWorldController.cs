@@ -89,18 +89,14 @@ public class CombatWorldController : AppControllerBase
         return RemoteCharacterProxy.TryFindLivePresentation(actorId, out animation);
     }
 
-    /// <summary>Listen 用 Bootstrap 本机 Client；远端 Client 用 Room Facade。同物体找不到时再扫场景。</summary>
+    /// <summary>Listen 与 Client Runtime 都由本 Composition Root 挂在同一物体，禁止跨场景扫描。</summary>
     LocalClientRuntime ResolveLocalClientRuntime()
     {
         ListenServerBootstrap listen = GetComponent<ListenServerBootstrap>();
-        if (listen == null)
-            listen = FindObjectOfType<ListenServerBootstrap>();
         if (listen != null && listen.LocalClient != null)
             return listen.LocalClient;
 
         ReplicationRoomClient room = GetComponent<ReplicationRoomClient>();
-        if (room == null)
-            room = FindObjectOfType<ReplicationRoomClient>();
         return room != null ? room.Runtime : null;
     }
 

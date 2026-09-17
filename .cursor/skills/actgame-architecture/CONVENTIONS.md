@@ -24,6 +24,7 @@
 - `CharacterController` 仅作表现代理（半径/高度配置与根跟随）；逻辑位移/重力/着地权威在 `CharacterMotorSim`，禁止 `CharacterController.Move` 进逻辑路径
 - 新架构代码遵循 `Controller / System / Model / Command / Event / Query / Actor / Executor / Service` 后缀语义；禁止新增泛化 `Runtime` 后缀业务类
 - `Controller` 仅用于 `App/Controllers` 下的 Unity 入口 `MonoBehaviour`，并继承 `AppControllerBase` 或实现 `IArchitectureController`
+- 运行时 `Controller` 禁止 `FindObjectOfType*` / `FindObjectsOfType*` 场景扫描；场景级依赖由先行 `CombatWorldController` Composition Root、同物体/Root 子树或 Architecture/Simulation 注册表提供。关键 Root 缺失必须报错并停止装配，禁止自行创建第二个 World
 - 本机阵容算法归 `PlayerPartyRuntime`；`PlayerController` 只装配 Scene、设备输入与 Runtime，并通过 `Party` 暴露该契约。联网/HUD 禁止要求 Controller 恢复 Party 方法转发器
 - `System` 后缀仅用于 `App/Systems` 下注册进 `ACTGameArchitecture` 的架构系统，并继承 `ArchitectureSystemBase` 或实现 `IArchitectureSystem`
 - `Domain` 纯 C# 业务类优先使用 `Service` / `Actor` / `Executor` / `Resolver` / `Detector` / `Consumer`，不得直接访问 `ACTGameArchitecture.Interface`
@@ -83,7 +84,7 @@ public class MyBehaviour : MonoBehaviour
 }
 ```
 
-- 依赖用 `GetComponent` 在 Awake 解析，避免每帧 Find
+- 依赖用 `GetComponent` 或 Composition Root 显式提供，禁止运行时 Scene Find
 - 需要运行时装配的业务逻辑优先做纯 C# 构造函数注入；不要用 `AddComponent` 伪装装配
 - 可选引用用 `[SerializeField]` + null 回退（如 `Camera.main`）
 - 缺失关键引用：`Debug.LogError` + `enabled = false`（见 InputReader）

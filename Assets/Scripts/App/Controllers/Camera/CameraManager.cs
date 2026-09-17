@@ -174,13 +174,19 @@ public class CameraManager : AppControllerBase
         ResolveLocalPlayer()?.StageMoveReferenceYaw(yaw);
     }
 
+    /// <summary>只从 MainCamera 入口装配 Brain；缺少标签时明确失败，不扫描场景。</summary>
     void EnsureBrain()
     {
         Camera camera = Camera.main;
         if (camera == null)
-            camera = FindObjectOfType<Camera>();
+        {
+            Debug.LogError(
+                "CameraManager: 场景缺少标记为 MainCamera 的 Camera，无法装配 CinemachineBrain。",
+                this);
+            return;
+        }
 
-        if (camera != null && camera.GetComponent<CinemachineBrain>() == null)
+        if (camera.GetComponent<CinemachineBrain>() == null)
             camera.gameObject.AddComponent<CinemachineBrain>();
     }
 

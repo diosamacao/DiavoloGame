@@ -118,8 +118,6 @@ public class CameraShakeController : AppControllerBase
             return;
 
         cameraManager = GetComponent<CameraManager>();
-        if (cameraManager == null)
-            cameraManager = FindObjectOfType<CameraManager>();
     }
 
     bool EnsureImpulseSource()
@@ -156,7 +154,7 @@ public class CameraShakeController : AppControllerBase
         ResolveCameraManager();
         CinemachineVirtualCamera virtualCamera = cameraManager != null
             ? cameraManager.VirtualCamera
-            : FindObjectOfType<CinemachineVirtualCamera>();
+            : null;
 
         if (virtualCamera == null || virtualCamera == _boundVirtualCamera)
             return;
