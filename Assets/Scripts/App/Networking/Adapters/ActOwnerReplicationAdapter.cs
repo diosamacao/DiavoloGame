@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>ACT Owner 复制适配器：维护预测历史，并应用 HP、Action 与 Locomotion 权威和解。</summary>
 public sealed class ActOwnerReplicationAdapter
 {
-    readonly ActContentRegistry _content;
+    readonly GameContentCatalog _content;
     PredictedActionAckQueue _actionAck = new();
     PredictedLocomotionDriver _driver;
     SimActorId _ownerActorId;
@@ -13,7 +13,7 @@ public sealed class ActOwnerReplicationAdapter
     int _selfHealthMilli = -1;
 
     /// <summary>创建绑定当前房间动作目录的 Owner 适配器。</summary>
-    public ActOwnerReplicationAdapter(ActContentRegistry content)
+    public ActOwnerReplicationAdapter(GameContentCatalog content)
     {
         _content = content ?? throw new ArgumentNullException(nameof(content));
     }
@@ -184,7 +184,7 @@ public sealed class ActOwnerReplicationAdapter
         if (actor?.ActionSim == null || !actor.ActionSim.IsActive)
             return 0;
         if (actor.ActionSim.Snapshot.Content is ActionDefinition definition)
-            return _content.Actions.GetOrAdd(definition);
+            return _content.Actions.RequireId(definition);
         return 0;
     }
 

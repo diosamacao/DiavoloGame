@@ -11,6 +11,7 @@ public sealed class ListenServerBootstrap : AppControllerBase
     ServerLaunchConfig _config;
     IDedicatedAuthorityWorld _authority;
     CombatWorldController _world;
+    GameContentCatalog _content;
     bool _configured;
 
     /// <summary>权威运行时；绑定失败时为 null。</summary>
@@ -19,25 +20,32 @@ public sealed class ListenServerBootstrap : AppControllerBase
     /// <summary>本机 Client；尚未 Start 或连接失败时为 null。</summary>
     public LocalClientRuntime LocalClient => _local;
 
-    /// <summary>由 Composition Root 注入配置、权威世界与战斗入口；重复调用会先释放旧组合。</summary>
+    /// <summary>由 Composition Root 注入配置、权威世界、战斗入口与冻结内容；重复调用先释放旧组合。</summary>
     public void Configure(
         ServerLaunchConfig config,
         IDedicatedAuthorityWorld authority,
-        CombatWorldController world)
+        CombatWorldController world,
+        GameContentCatalog content)
     {
         Shutdown();
         _config = config;
         _authority = authority;
         _world = world;
+        _content = content;
         _configured = true;
         if (isActiveAndEnabled)
+        {
             StartServer();
+            StartLocalClient();
+        }
     }
 
     void OnEnable()
     {
         if (_configured && _server == null)
             StartServer();
+        if (_configured && _local == null)
+            StartLocalClient();
     }
 
     void Start()
@@ -125,7 +133,8 @@ public sealed class ListenServerBootstrap : AppControllerBase
                 session,
                 GetArchitecture(),
                 transform,
-                ReplicationRole.ListenHost);
+                ReplicationRole.ListenHost,
+                _content);
             Debug.Log($"ListenServerBootstrap: 本机 Client 已请求加入 127.0.0.1:{port}。", this);
         }
         catch (Exception ex)

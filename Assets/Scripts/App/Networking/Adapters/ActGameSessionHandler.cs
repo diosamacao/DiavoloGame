@@ -5,12 +5,12 @@ using UnityEngine;
 /// <summary>把已通过网络 Session 校验的玩家请求映射为 ACT 权威三槽 Guest 生命周期。</summary>
 public sealed class ActGameSessionHandler
 {
-    readonly ActContentRegistry _content;
+    readonly GameContentCatalog _content;
     readonly ActGameSessionServices _services;
 
     /// <summary>创建使用指定内容目录与 App 注册服务的 Gameplay Session Handler。</summary>
     public ActGameSessionHandler(
-        ActContentRegistry content,
+        GameContentCatalog content,
         ActGameSessionServices services)
     {
         _content = content ?? throw new ArgumentNullException(nameof(content));
@@ -26,7 +26,6 @@ public sealed class ActGameSessionHandler
         MatchSpawnPose spawn,
         SimulationHost host,
         NetConnectionId connectionId,
-        Action prefillEnemyCatalog,
         out ActGameGuest guest,
         CharacterPresentationMode presentation = CharacterPresentationMode.Full)
     {
@@ -114,17 +113,15 @@ public sealed class ActGameSessionHandler
                 if (intent == GameplayIntentType.Ultimate)
                     coordinator.AssistPoints.GrantUltimate();
             };
-            _content.PrefillActions(config);
             members[i] = new ActGameGuestMember(
                 slotRoot.transform,
                 actor,
                 registration,
                 reactions,
                 hurtbox,
-                _content.RegisterPlayer(config));
+                _content.GetArchetypeId(config));
         }
 
-        prefillEnemyCatalog?.Invoke();
         guest = new ActGameGuest(connectionId, seat, coordinator, members);
         ActGameGuestMember activeMember = guest.ActiveMember;
         if (activeMember == null)

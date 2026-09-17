@@ -5,7 +5,7 @@ using System.Collections.Generic;
 public sealed class AuthorityGuestRegistry : IDisposable
 {
     readonly SimulationHost _host;
-    readonly ActContentRegistry _content;
+    readonly GameContentCatalog _content;
     readonly ActGameSessionHandler _gameSession;
     readonly Dictionary<NetConnectionId, ActGameGuest> _guests = new();
 
@@ -13,7 +13,7 @@ public sealed class AuthorityGuestRegistry : IDisposable
     public AuthorityGuestRegistry(
         SimulationHost host,
         ACTGameArchitecture architecture,
-        ActContentRegistry content)
+        GameContentCatalog content)
     {
         _host = host ?? throw new ArgumentNullException(nameof(host));
         _content = content ?? throw new ArgumentNullException(nameof(content));
@@ -39,7 +39,6 @@ public sealed class AuthorityGuestRegistry : IDisposable
                 slot.Spawn,
                 _host,
                 slot.ConnectionId,
-                prefillEnemyCatalog: null,
                 out ActGameGuest guest,
                 CharacterPresentationMode.AuthorityHeadless)
             || guest.Actor == null

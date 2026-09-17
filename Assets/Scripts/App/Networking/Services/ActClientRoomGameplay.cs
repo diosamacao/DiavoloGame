@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>Client ACT Gameplay 门面：组合 Owner 预测、Observer 复制与可靠反馈协调器。</summary>
 public sealed class ActClientRoomGameplay
 {
-    readonly ActContentPrefillService _contentPrefill;
+    readonly ACTGameArchitecture _architecture;
     readonly OwnerPredictionCoordinator _owner;
     readonly ObserverReplicationCoordinator _observer;
     readonly ReplicatedFeedbackCoordinator _feedback;
@@ -14,15 +14,17 @@ public sealed class ActClientRoomGameplay
     public ActClientRoomGameplay(
         CombatWorldController world,
         ACTGameArchitecture architecture,
-        Transform proxyParent)
+        Transform proxyParent,
+        GameContentCatalog content)
     {
         if (world == null)
             throw new ArgumentNullException(nameof(world));
         if (architecture == null)
             throw new ArgumentNullException(nameof(architecture));
+        if (content == null)
+            throw new ArgumentNullException(nameof(content));
+        _architecture = architecture;
 
-        var content = new ActContentRegistry();
-        _contentPrefill = new ActContentPrefillService(architecture, content);
         var characterSchema = new ActCharacterSnapshotSchema(content);
         var observerAdapter = new ActObserverReplicationAdapter(
             content,
@@ -41,8 +43,7 @@ public sealed class ActClientRoomGameplay
             _owner,
             observerAdapter,
             characterSchema);
-        _contentPrefill.InitializeFromScene();
-        _localPlayer = _contentPrefill.LocalPlayer;
+        _localPlayer = architecture.SendQuery(new GetLocalPlayerQuery()) as PlayerController;
     }
 
     /// <summary>最近成功应用的权威帧；尚未入房时为 -1。</summary>
@@ -82,9 +83,9 @@ public sealed class ActClientRoomGameplay
     /// <summary>Session Join 后初始化内容、本机玩家及 Owner/Observer 时钟。</summary>
     public void BeginSession(in SessionJoinAccept accept)
     {
-        // PlayerController 可能晚于 Room Start 登记；Join 时再做一次幂等内容扫描。
-        _contentPrefill.InitializeFromScene();
-        _localPlayer = _contentPrefill.LocalPlayer;
+        // PlayerController 可能晚于 Room Start 登记；Join 时只重查运行时玩家，不再重建内容。
+        _localPlayer = _localPlayer
+            ?? _architecture.SendQuery(new GetLocalPlayerQuery()) as PlayerController;
         _owner.BeginSession(in accept, _localPlayer);
         _observer.BeginSession(in accept, _localPlayer);
     }

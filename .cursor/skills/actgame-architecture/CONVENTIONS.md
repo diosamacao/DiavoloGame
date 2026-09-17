@@ -122,6 +122,8 @@ public class MyBehaviour : MonoBehaviour
 - **空值语义**：必填字段由 `Validate` 明确失败；可选字段必须在属性/Tooltip 中声明 null 表示禁用、默认或继承中的唯一一种
 - **校验单轨**：单资产 `Validate`、全库 Content Audit 和启动校验复用同一规则；禁止 Editor 与 Runtime 各写一套判断
 - **运行时编译**：SO 只作为 `GameContentBootstrap` 输入；Gameplay 消费冻结的只读 Catalog/Config，Tick 中禁止 `AssetDatabase`、`Resources.Load` 或场景扫描
+- **内容单入口**：`CombatWorldController` 每次场景生命周期只调用一次 `GameContentBootstrap.ValidateAndBuild`；Listen Authority/Client 必须共享同一 `GameContentCatalog` 实例，远端 Client 与 Dedicated 使用同一 Build 算法
+- **Catalog 冻结**：Action/Archetype 只在 Build 阶段登记；`ActCharacterSnapshotSchema`、Owner、Authority 与 Guest Join 只能 `RequireId/GetArchetypeId`，禁止运行时 `GetOrAdd/Register/Prefill`
 - **配置分类**：Party/Character/Enemy 为身份与组合；Action/Combat/Locomotion/BT 为玩法作者配置；Input/Camera/Debug 为 Client-only Settings，不进入 Dedicated Gameplay Content
 - **迁移删除**：新字段和调用点切换后必须迁移资产并删除 `legacy*`/旧字段；未经明确迁移窗口不得长期双读
 - **资产操作**：Agent 只修改 SO 的 C# 定义与审计工具；`Assets/Data/**` 实例、Prefab、动画和非 Shader 美术由 Editor 人工调整

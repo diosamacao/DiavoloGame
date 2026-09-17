@@ -8,7 +8,7 @@ public sealed class ActCharacterSnapshotSchemaTests
     [Test]
     public void Capture_NullActor_Throws()
     {
-        var schema = new ActCharacterSnapshotSchema(new ActContentRegistry());
+        var schema = new ActCharacterSnapshotSchema(new GameContentCatalog());
 
         Assert.Throws<ArgumentNullException>(() => schema.Capture(null));
     }
@@ -17,7 +17,7 @@ public sealed class ActCharacterSnapshotSchemaTests
     [Test]
     public void EncodeDecode_RoundTrip_PreservesSnapshot()
     {
-        var schema = new ActCharacterSnapshotSchema(new ActContentRegistry());
+        var schema = new ActCharacterSnapshotSchema(new GameContentCatalog());
         var snapshot = new ActorReplicationSnapshot(
             new SimActorId(7),
             teamId: 2,

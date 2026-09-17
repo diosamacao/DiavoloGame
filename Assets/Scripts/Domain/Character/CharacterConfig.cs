@@ -49,7 +49,7 @@ public class CharacterConfig : ScriptableObject
     /// <summary>检查玩家必需配置（含全局 Input）。</summary>
     public bool ValidateForPlayer(UnityEngine.Object context)
     {
-        bool valid = ValidateShared(context);
+        bool valid = ValidateGameplayContent(context);
         if (GameInputSettings.Active == null)
         {
             Debug.LogError(
@@ -57,31 +57,28 @@ public class CharacterConfig : ScriptableObject
                 context);
             valid = false;
         }
+        if (GameplayIntentSettings.Active == null)
+        {
+            Debug.LogError(
+                "CharacterConfig: Client Runtime GameplayIntentProfile 未就绪。",
+                context);
+            valid = false;
+        }
 
         return valid;
     }
 
-    /// <summary>检查敌人角色配置；输入走全局，不要求本资产挂 InputActions。</summary>
-    public bool ValidateForEnemy(UnityEngine.Object context)
-    {
-        return ValidateShared(context);
-    }
+    /// <summary>检查敌人角色 Gameplay 内容；不校验 Client-only Input/Intent 设置。</summary>
+    public bool ValidateForEnemy(UnityEngine.Object context) =>
+        ValidateGameplayContent(context);
 
-    /// <summary>校验模型、Locomotion 参数、全局意图与 CombatMode。</summary>
-    bool ValidateShared(UnityEngine.Object context)
+    /// <summary>校验模型、CombatMode、Locomotion 与受击内容；可供 Client、Listen、Dedicated 共用。</summary>
+    public bool ValidateGameplayContent(UnityEngine.Object context)
     {
         bool valid = true;
         if (modelPrefab == null)
         {
             Debug.LogError("CharacterConfig: ModelPrefab 未配置。", context);
-            valid = false;
-        }
-
-        if (GameplayIntentSettings.Active == null)
-        {
-            Debug.LogError(
-                "CharacterConfig: 全局 GameplayIntentProfile 未就绪（GameplayIntentSettings）。",
-                context);
             valid = false;
         }
 

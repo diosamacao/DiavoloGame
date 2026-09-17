@@ -4,14 +4,14 @@ using System.Collections.Generic;
 /// <summary>ACT 权威侧复制适配器：灌入远端输入，并把 Gameplay Actor 与命中映射为通用复制数据。</summary>
 public sealed class ActAuthorityReplicationAdapter
 {
-    readonly ActContentRegistry _content;
+    readonly GameContentCatalog _content;
     readonly ActCharacterSnapshotSchema _characterSchema;
     readonly List<EnemyController> _enemies = new();
     readonly List<ActorReplicationSnapshot> _snapshots = new();
     readonly List<ReplicationEntityState> _entityStates = new();
 
     /// <summary>创建绑定当前房间 ACT 内容目录的权威适配器。</summary>
-    public ActAuthorityReplicationAdapter(ActContentRegistry content)
+    public ActAuthorityReplicationAdapter(GameContentCatalog content)
     {
         _content = content ?? throw new ArgumentNullException(nameof(content));
         _characterSchema = new ActCharacterSnapshotSchema(_content);
@@ -144,8 +144,8 @@ public sealed class ActAuthorityReplicationAdapter
             if (definition == null)
                 throw new InvalidOperationException("运行中敌人缺少 EnemyDefinition，无法确定网络原型。");
 
-            // 动态生成的 Definition 允许幂等登记；相同 key 指向不同资产时 Registry 会明确拒绝。
-            NetArchetypeId archetypeId = _content.RegisterEnemy(definition);
+            // 敌人定义必须在场景 Content Build 阶段登记；运行中禁止改变稳定 Archetype 集合。
+            NetArchetypeId archetypeId = _content.GetArchetypeId(definition);
             ActorReplicationSnapshot snapshot = _characterSchema.Capture(
                 enemy,
                 ReplicationActorKind.Enemy);

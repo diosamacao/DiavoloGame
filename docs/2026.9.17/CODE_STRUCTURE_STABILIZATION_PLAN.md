@@ -427,22 +427,33 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 
 **任务**
 
-- [ ] 定义 `GameContentBootstrap.ValidateAndBuild` 和只读 `GameContentCatalog`。
-- [ ] 合并 `ActContentPrefillService`、`ActServerContentProbe`、`ActContentRegistry` 的重复扫描/登记职责。
+- [x] 定义 `GameContentBootstrap.ValidateAndBuild` 和只读 `GameContentCatalog`。
+- [x] 合并 `ActContentPrefillService`、`ActServerContentProbe`、`ActContentRegistry` 的重复扫描/登记职责。
 - [ ] Character、Action、Archetype、Party、Locomotion、CombatMode 在 Build 阶段一次性校验。
 - [ ] InputAction / GameplayIntent 设置移入 Client Runtime Configuration，不参与 Dedicated Content。
 - [ ] 删除运行时 Editor Fallback、默认首项、隐式 `Resources.Load` 多入口。
-- [ ] Catalog 完成后冻结；运行中禁止 `GetOrAdd` 改变稳定 Content Id。
+- [x] Catalog 完成后冻结；运行中禁止 `GetOrAdd` 改变稳定 Content Id。
 
 **验收**
 
-- [ ] Local、Listen、Dedicated 从同一 Content Catalog 构建 Gameplay 内容。
+- [x] Local、Listen、Dedicated 从同一 Content Catalog 构建 Gameplay 内容。
 - [ ] 缺 Action、重复 stable id、无效 Timing/RootMotion、未知 Archetype 在启动前失败。
-- [ ] Content Fingerprint 只基于 Catalog 稳定内容。
+- [x] Content Fingerprint 只基于 Catalog 稳定内容。
 - [ ] `ActContentRegistryTests`、Manifest、Archetype、Action Catalog 测试通过。
 - [ ] `rg` 无生产路径 Editor `FindAssets` 或配置默认首项回退。
 
 **出口：** 配置链由多段查找收敛为一次验证、一次构建。→ **未达成**
+
+**2026-09-17 执行记录（CS5.1）**
+
+- 新增 `GameContentBootstrap.ValidateAndBuild`：单次遍历当前场景声明，统一收集唯一 `PartyLoadout` 与全部 `EnemyDefinition`，按稳定顺序校验并构建内容。
+- 新增 `GameContentCatalog`：集中持有 Player/Enemy Archetype、CharacterConfig 与 Action Catalog；Build 后冻结，对外只暴露精确查询。
+- `CombatWorldController` 成为唯一 Content Build 入口；Listen Authority/LocalClient 共享同一 Catalog 实例，远端 Client 与 Dedicated 使用相同 Build 算法。
+- `ActionReplicationCatalog` 增加 Freeze/RequireId；Snapshot Capture、Owner 预测、Guest Join、Enemy Capture 删除运行时 `GetOrAdd` / Register / Prefill。
+- 删除 `ActContentPrefillService`、`ActServerContentProbe`、`ActContentRegistry` 及对应 Meta，不保留兼容层。
+- 新增 `GameContentCatalogTests` 与 `GameContentBootstrapBoundaryTests`；`ACTGame.App.csproj` 构建 0 错误，Unity Test Runner 待验收。
+- Content Build 从 `CombatWorldController.Awake` 延后到 `Start`，确保场景完成装载后再读取 Root；Awake 仅保留 Role、SimulationHost、碰撞与客户端反馈装配。
+- CS5 尚余：完整 Action/RootMotion 启动校验、Client Runtime Configuration、删除 Editor/Resources 默认首项 fallback。
 
 ---
 

@@ -8,9 +8,13 @@ public sealed class ActionReplicationCatalog
 {
     readonly Dictionary<ActionDefinition, int> _toId = new();
     readonly Dictionary<int, ActionDefinition> _fromId = new();
+    bool _frozen;
 
     /// <summary>已登记的动作条数（不含 Id=0）。</summary>
     public int Count => _toId.Count;
+
+    /// <summary>Build 完成后为 true；冻结后禁止登记新动作。</summary>
+    public bool IsFrozen => _frozen;
 
     /// <summary>复制已登记动作 Id，供 Gameplay 指纹哈希。</summary>
     public void CopyActionIds(List<int> results)
@@ -86,6 +90,11 @@ public sealed class ActionReplicationCatalog
 
         if (_toId.TryGetValue(action, out int existing))
             return existing;
+        if (_frozen)
+        {
+            throw new InvalidOperationException(
+                $"动作目录已冻结，未登记动作 '{action.name}' 不得在运行时加入。");
+        }
 
         int id = ComputeStableId(action.name);
         while (_fromId.TryGetValue(id, out ActionDefinition mapped)
@@ -98,6 +107,19 @@ public sealed class ActionReplicationCatalog
         _toId[action] = id;
         _fromId[id] = action;
         return id;
+    }
+
+    /// <summary>冻结目录；后续只能查询 Build 阶段已经登记的动作。</summary>
+    public void Freeze() => _frozen = true;
+
+    /// <summary>返回已登记动作 Id；未知动作明确失败，禁止 Capture 时动态登记。</summary>
+    public int RequireId(ActionDefinition action)
+    {
+        if (action == null)
+            return 0;
+        if (_toId.TryGetValue(action, out int id))
+            return id;
+        throw new KeyNotFoundException($"动作 '{action.name}' 未进入冻结内容目录。");
     }
 
     /// <summary>按复制 Id 取回本进程动作资产；0 或未登记返回 false。</summary>

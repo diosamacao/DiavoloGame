@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-09-17（结构稳定化 CS4：App 编排协调器与 Scene 查找边界收口）
+> Last updated: 2026-09-17（结构稳定化 CS5.1：Gameplay Content 单入口与冻结 Catalog）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -121,8 +121,8 @@ CharacterActor.ResolvePostCombat → DeathSequenceComplete
 - `Assets/Scripts/Domain/Party/*`
 - `Assets/Scripts/Domain/Simulation/Party/*`
 - `Assets/Scripts/App/Controllers/Gameplay/PlayerController.cs`
-- `Assets/Scripts/App/Networking/Services/ActContentPrefillService.cs`
-- `Assets/Scripts/App/Networking/Content/ActServerContentProbe.cs`
+- `Assets/Scripts/App/Networking/Content/GameContentBootstrap.cs`
+- `Assets/Scripts/App/Networking/Content/GameContentCatalog.cs`
 - `Assets/Scripts/App/Networking/Adapters/ActGameSessionHandler.cs`
 - `Assets/Scripts/App/Networking/Services/DedicatedAuthorityWorld.cs`
 - `Assets/Scripts/Domain/Networking/ActReplicationSnapshotMeta*.cs`
@@ -392,15 +392,15 @@ EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
 | 上行 | `ClientCommand`（frameHint + playerId + `InputFrame`） |
 | 组装 | `ReplicationSnapshotBuilder.FromAuthority`（Motor + Action 快照 + 传入 healthMilli） |
 | 字节 | `ActorReplicationSnapshotCodec` 是角色字段布局唯一真源；`ReplicationProtocolV2Codec` 编码 Lifecycle/Snapshot，`RoomCodec` 仅保留上行命令 |
-| W3/W4 业务适配 | `ActCharacterSnapshotSchema` 接入生产 Schema Registry 并复用纯 C# V2 线格式；`ActContentRegistry` 持有 Archetype、配置与动作 Catalog |
+| W3/W4 业务适配 | `ActCharacterSnapshotSchema` 接入生产 Schema Registry 并复用纯 C# V2 线格式；`GameContentCatalog` 持有冻结 Archetype、配置与动作 Catalog |
 | W4 权威适配 | `ActAuthorityReplicationAdapter` 独占远端输入灌入、Gameplay Actor Capture 与 FrameHits ActionId 映射；RoomHost 只调度并构建/发送 Frame |
 | W4 加入适配 | `ActGameSessionHandler` 创建/销毁 Guest Authority Actor；RoomHost 注入 App 注册委托并独占 `ServerSession.Accept/Reject` |
 | W4 Owner 适配 | `ActOwnerReplicationAdapter` 独占 Owner HP、Action Ack、Locomotion Reconcile、Hit/Death 硬吸和预测历史；Client Room 只转发快照 |
 | W4 Observer 适配 | `ActObserverReplicationAdapter` 独占 Schema/Archetype 校验、Proxy Spawn/Update/Despawn、TargetSystem 与 View 生命周期；`ActRemoteProxyFactory` 是唯一装配入口 |
-| W4 内容真源 | `ActContentRegistry` 唯一持有 Action Catalog、Character Archetype 与 Unity 配置映射；Room/Adapter 禁止另建动作目录 |
+| W4/CS5 内容真源 | `GameContentBootstrap.ValidateAndBuild` 一次构建 `GameContentCatalog`；唯一持有 Action Catalog、Character Archetype 与 Unity 配置映射，Room/Adapter 只查询 |
 | W4 Capture 真源 | `ActCharacterSnapshotSchema.Capture` 统一 CharacterActor → Snapshot 与 V2 编解码；独立 `CharacterReplicationCapture` 已删除 |
 | W4 Room 边界 | `ListenServerBootstrap` / `ReplicationRoomClient` 仅做组合或 Session 调度与 HUD；不再引用 Character/配置/Proxy/Hit Cue 具体类型 |
-| W4 Gameplay Service | `DedicatedAuthorityWorld` 只组合 Authority 三协调器；`ActClientRoomGameplay` 只组合 `OwnerPredictionCoordinator` / `ObserverReplicationCoordinator` / `ReplicatedFeedbackCoordinator`；`ActContentPrefillService` 是场景内容扫描唯一入口 |
+| W4 Gameplay Service | `DedicatedAuthorityWorld` 只组合 Authority 三协调器；`ActClientRoomGameplay` 只组合 `OwnerPredictionCoordinator` / `ObserverReplicationCoordinator` / `ReplicatedFeedbackCoordinator`；内容由 Composition Root 注入 |
 | 通用身份 | `NetConnectionId` / `NetPlayerId` / `NetEntityId` / `NetArchetypeId`；`SimActorNetIdAdapter` 显式映射 Simulation Actor |
 | 版本基础 | `NetworkProtocolVersion` + 128 位 `ContentFingerprint` 已定义；握手切换留在 Content Manifest Wave |
 | 传输 | `INetTransport` / `LoopbackTransport` / `UdpTransport`（`ACTNet.Transport`，按 ConnectionId 定向） |
@@ -453,7 +453,7 @@ ActAuthorityReplicationAdapter
 
 | 项 | 方案 |
 |----|------|
-| 捕获 | `ActCharacterSnapshotSchema.Capture` + `ActContentRegistry.Actions` |
+| 捕获 | `ActCharacterSnapshotSchema.Capture` + `GameContentCatalog.Actions.RequireId` |
 | 传输 | 房间 `UdpTransport`；Loopback 仅单测 |
 | 应用 | `RemoteCharacterProxy`：位姿写 Motor；招式/特殊 Locomotion 跟 `RemotePlaybackClock`；Idle 无新快照时按渲染时钟维持纯表现循环；关掉 Animator RM |
 | 朝向调试 | 客机幽灵挂同一套黄/品红箭；wish 走快照 `moveV*`，与延迟位姿成对 |
@@ -668,7 +668,8 @@ Client：ReplicationRoomClient Poll → LocalClient 采样 → 逻辑步构命�
 - `Assets/Scripts/App/Controllers/Gameplay/ReplicationRoomClient.cs`
 - `Assets/Scripts/App/Networking/Services/LocalClientRuntime.cs`
 - `Assets/Scripts/App/Networking/Services/ActClientRoomGameplay.cs`
-- `Assets/Scripts/App/Networking/Services/ActContentPrefillService.cs`
+- `Assets/Scripts/App/Networking/Content/GameContentBootstrap.cs`
+- `Assets/Scripts/App/Networking/Content/GameContentCatalog.cs`
 - `Assets/Scripts/Domain/Combat/VFX/HitImpactCuePlayer.cs`
 - `Assets/Scripts/Editor/Net/ReplicationRoomMenu.cs`
 - `Assets/Tests/EditMode/Simulation/RoomCodecTests.cs`
@@ -1720,6 +1721,7 @@ CombatHitPipeline（全体 Actor Step 后）
 
 | 日期 | 变更 |
 |------|------|
+| 2026-09-17 | 结构稳定化 CS5.1：新增 `GameContentBootstrap.ValidateAndBuild` 与冻结 `GameContentCatalog`；在 `CombatWorldController.Start` 等场景装载完成后单次 Build，Local/Listen/Dedicated 共用，Capture/Join 删除动态内容登记，并移除三条旧入口 |
 | 2026-09-17 | 结构稳定化 CS4 收口：`DedicatedServerRuntime` 锁定为 Session/Match/Poll/Flush 宿主；运行时 Controller 删除 Scene Find 与自行创建 World 的旧 fallback，统一走 Composition Root、同物体组件或 Architecture/Simulation 注册表 |
 | 2026-09-17 | 结构稳定化 CS4：`ActClientRoomGameplay` 拆为 `OwnerPredictionCoordinator`、`ObserverReplicationCoordinator`、`ReplicatedFeedbackCoordinator`；Room Gameplay 收敛为 Client 组合门面 |
 | 2026-09-17 | 结构稳定化 CS4：`DedicatedAuthorityWorld` 拆为 `AuthorityGuestRegistry`、`AuthorityStepCoordinator`、`AuthorityReplicationPublisher`；World 收敛为 `IDedicatedAuthorityWorld` 组合门面 |

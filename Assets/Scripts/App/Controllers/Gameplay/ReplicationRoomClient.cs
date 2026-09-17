@@ -8,18 +8,23 @@ public sealed class ReplicationRoomClient : AppControllerBase
 {
     CombatWorldController _world;
     ClientSession _session;
+    GameContentCatalog _content;
     LocalClientRuntime _runtime;
 
     /// <summary>本机 Client 运行时；尚未 Ensure 时为 null。</summary>
     public LocalClientRuntime Runtime => _runtime;
 
-    /// <summary>由 CombatWorldController 注入战斗世界与已启动的客户端 Session。</summary>
-    public void Configure(CombatWorldController world, ClientSession session)
+    /// <summary>由 CombatWorldController 注入战斗世界、已启动 Session 与冻结内容 Catalog。</summary>
+    public void Configure(
+        CombatWorldController world,
+        ClientSession session,
+        GameContentCatalog content)
     {
         UnsubscribeHost();
         ShutdownRuntime();
         _world = world;
         _session = session;
+        _content = content;
         if (isActiveAndEnabled)
             SubscribeHost();
     }
@@ -57,7 +62,7 @@ public sealed class ReplicationRoomClient : AppControllerBase
     /// <summary>Start 或首帧 Update 再创建 Runtime，保证场景 PlayerController 已登记。</summary>
     void EnsureRuntime()
     {
-        if (_runtime != null || _world == null || _session == null)
+        if (_runtime != null || _world == null || _session == null || _content == null)
             return;
 
         _runtime = new LocalClientRuntime(
@@ -65,7 +70,8 @@ public sealed class ReplicationRoomClient : AppControllerBase
             _session,
             GetArchitecture(),
             transform,
-            ReplicationRole.Client);
+            ReplicationRole.Client,
+            _content);
     }
 
     void ShutdownRuntime()

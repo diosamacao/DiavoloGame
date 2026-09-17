@@ -18,6 +18,7 @@ public class CombatWorldController : AppControllerBase
     [SerializeField] int contentVersion = 1;
 
     ContentFingerprint _gameplayFingerprint;
+    GameContentCatalog _contentCatalog;
 
     /// <summary>当前场景战斗世界；系统查询只把它作为生命周期锚点，不作为业务单例入口。</summary>
     public static CombatWorldController Current { get; private set; }
@@ -113,17 +114,23 @@ public class CombatWorldController : AppControllerBase
         ResolveRoleFromEditorPrefs();
         EnsureSimulationHost();
         ApplyStaticCollisionBake();
-        ActContentRegistry roomContent = CreateRoomContent(out _gameplayFingerprint);
+        if (Role != ReplicationRole.DedicatedServer)
+            EnsureFeedbackController();
+    }
+
+    /// <summary>场景完成装载后再构建 Content 与网络组合，避免 Awake 阶段拿到无效 Scene 句柄。</summary>
+    void Start()
+    {
+        _contentCatalog = CreateRoomContent(out _gameplayFingerprint);
         if (Role == ReplicationRole.DedicatedServer)
         {
-            EnsureDedicatedBootstrap(roomContent);
+            EnsureDedicatedBootstrap(_contentCatalog);
             return;
         }
 
-        EnsureFeedbackController();
         if (Role == ReplicationRole.ListenHost)
         {
-            EnsureListenBootstrap(roomContent);
+            EnsureListenBootstrap(_contentCatalog);
             return;
         }
 
@@ -194,17 +201,16 @@ public class CombatWorldController : AppControllerBase
     }
 
     /// <summary>扫描场景玩法配置并计算 Gameplay 指纹；Listen 与 Dedicated 使用同一算法。</summary>
-    ActContentRegistry CreateRoomContent(out ContentFingerprint fingerprint)
+    GameContentCatalog CreateRoomContent(out ContentFingerprint fingerprint)
     {
-        var content = new ActContentRegistry();
-        ActServerContentProbe.PrefillFromScene(content);
+        GameContentCatalog content = GameContentBootstrap.ValidateAndBuild(this);
         string bakeId = staticCollisionBake != null ? staticCollisionBake.name : string.Empty;
-        fingerprint = ServerContentManifest.FromRegistry(content, contentVersion, bakeId).Fingerprint;
+        fingerprint = ServerContentManifest.FromCatalog(content, contentVersion, bakeId).Fingerprint;
         return content;
     }
 
     /// <summary>Dedicated 只移交给 Bootstrap；启动覆盖 CLI &gt; Env &gt; File &gt; Inspector。Editor 强制不退出进程。</summary>
-    void EnsureDedicatedBootstrap(ActContentRegistry content)
+    void EnsureDedicatedBootstrap(GameContentCatalog content)
     {
         SimulationHost host = EnsureSimulationHost();
         var authority = new DedicatedAuthorityWorld(host, GetArchitecture(), content);
@@ -235,7 +241,7 @@ public class CombatWorldController : AppControllerBase
         if (config.ContentVersion != contentVersion)
         {
             contentVersion = config.ContentVersion;
-            _gameplayFingerprint = ServerContentManifest.FromRegistry(
+            _gameplayFingerprint = ServerContentManifest.FromCatalog(
                 content,
                 contentVersion,
                 staticCollisionBake != null ? staticCollisionBake.name : string.Empty).Fingerprint;
@@ -256,7 +262,7 @@ public class CombatWorldController : AppControllerBase
     }
 
     /// <summary>Listen 只组合 ServerRuntime + LocalClient；不挂 DedicatedServerBootstrap，避免双 Poll。</summary>
-    void EnsureListenBootstrap(ActContentRegistry content)
+    void EnsureListenBootstrap(GameContentCatalog content)
     {
         SimulationHost host = EnsureSimulationHost();
         var authority = new DedicatedAuthorityWorld(host, GetArchitecture(), content);
@@ -276,7 +282,7 @@ public class CombatWorldController : AppControllerBase
         ListenServerBootstrap bootstrap = GetComponent<ListenServerBootstrap>();
         if (bootstrap == null)
             bootstrap = gameObject.AddComponent<ListenServerBootstrap>();
-        bootstrap.Configure(config, authority, this);
+        bootstrap.Configure(config, authority, this, content);
     }
 
     /// <summary>只读配置文件正文；缺失或读失败返回 null，由解析器记 ConfigFailed。不把正文打进日志。</summary>
@@ -301,7 +307,7 @@ public class CombatWorldController : AppControllerBase
         ReplicationRoomClient client = GetComponent<ReplicationRoomClient>();
         if (client == null)
             client = gameObject.AddComponent<ReplicationRoomClient>();
-        client.Configure(this, TryCreateClientSession(sessionConfig));
+        client.Configure(this, TryCreateClientSession(sessionConfig), _contentCatalog);
     }
 
     /// <summary>把场景配置转换为纯 C# Session 参数；远端容量不再由 Room 常量控制。</summary>

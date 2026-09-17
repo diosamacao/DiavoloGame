@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-09-17（结构稳定化 CS3 完成；CS4 App 编排瘦身代码完成）
+> Last audited: 2026-09-17（结构稳定化 CS4 完成；CS5.1 Content 单入口与冻结 Catalog）
 
 ## 项目概述
 
@@ -105,9 +105,9 @@ CS2A 期间 Character/Combat/Enemy/Party/Camera 只编入一个 `ACTGame.Domain.
 | `ActOwnerReplicationAdapter` | App/Networking 的 Autonomous 映射：跟随 Active 槽切换 Owner ActorId，处理 HP、Action Ack、Locomotion Reconcile 与 Hit/Death 硬吸 |
 | `ActCharacterPredictionModel` | ACT 走跑策略：2m Gate、宽限、出招/受击禁止走跑 Replay；连招 Cancel 仍在 `PredictedActionAckQueue` |
 | `ActObserverReplicationAdapter` / `ActRemoteProxyFactory` | Observer 映射：RemotePlaybackClock 取样（Listen delay=1）；ApplySnapshot 不切 Clip，PresentSampledPlayback 跟采样 to；走跑 Urgent；Proxy 不跑权威位移 |
-| `ActContentRegistry` | App/Networking 的 ACT 内容唯一真源：集中持有 PartyLoadout、Action Catalog、全部槽 Character Archetype 与 EnemyDefinition 映射 |
+| `GameContentCatalog` | App/Networking 的冻结内容真源：集中持有 PartyLoadout、Action Catalog、全部槽 Character Archetype 与 EnemyDefinition 映射；运行时只读 |
+| `GameContentBootstrap` | 场景内容唯一 Build 入口：`CombatWorldController.Start` 在场景完成装载后一次收集、稳定排序、集中校验并冻结 Catalog；Local/Listen/Dedicated 共用算法 |
 | `ActCharacterSnapshotSchema` | App/Networking 的角色生产 Schema：统一 CharacterActor Capture；纯 C# `CharacterSnapshotSchemaV2` 是唯一角色线格式实现 |
-| `ActContentPrefillService` | App 场景内容接缝：唯一扫描 Player/Enemy 配置并幂等预填 `ActContentRegistry`；Room 不再查找 Gameplay 组件 |
 | `ActClientRoomGameplay` / `LocalClientRuntime` | Client Gameplay 与 Session 薄门面；前者只组合 Owner、Observer、Feedback 三个协调器，Listen 本机与远端 Client 共用 |
 | `OwnerPredictionCoordinator` | 本机输入采样、命令冗余、阵容预测 Step、Owner ACK/Reconcile 与 Party Meta 纠正唯一入口 |
 | `ObserverReplicationCoordinator` | V2 Lifecycle/Snapshot/Meta 原子应用、Observer Proxy 生命周期与远端播放时钟唯一入口 |
@@ -306,7 +306,7 @@ Active 死亡后，`DedicatedAuthorityWorld.OnAfterLogicStep` 推进门禁并在
 | `RoomCodec` / `RoomRemoteInputMerge` | 只编码 ACT 上行命令批；未应用 Hint 边沿合并，不处理 Session 或下行 Frame |
 | `SimActorNetIdAdapter` | 在 ACTGame 边界显式映射 `SimActorId ↔ NetEntityId`；首版数值相同 |
 | `INetTransport` / `LoopbackTransport` / `UdpTransport` / `ChannelMuxTransport` | 通用多连接字节传输；Session 外包 Mux 做可靠控制/事件；UDP 本身仍是数据报 |
-| `ActContentRegistry.Actions` / `ActCharacterSnapshotSchema.Capture` | 资产名稳定 Id（含 VariantResolver 变体）；从权威 Actor 填充并编码快照 |
+| `GameContentCatalog.Actions` / `ActCharacterSnapshotSchema.Capture` | Build 阶段生成稳定 Id（含 VariantResolver 变体）并冻结；Capture 只 `RequireId`，禁止动态登记 |
 | `RemoteCharacterProxy` / `ActRemoteProxyFactory` / `ReplicationPresentationAlign` | 他人 Seek；本机走跑只 Sync Motor；过渡相位硬切在 Align |
 | `ReplicationSeat` | Authority / Autonomous 工厂能力图；Autonomous 不 Collect、不进 World |
 | `CharacterActor`（Autonomous） | 客机本机同一聚合根；通过 `CharacterPredictionRuntime` 提供 `IPredictedLocomotionReplay`；表现走 `CharacterActionPresentationBridge` |

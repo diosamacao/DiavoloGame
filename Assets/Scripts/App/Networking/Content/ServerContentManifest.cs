@@ -5,7 +5,7 @@ using System.Text;
 /// <summary>服务器 Gameplay 内容闭包：指纹只含玩法身份，不含 Model/VFX/Audio。</summary>
 public readonly struct ServerContentManifest
 {
-    /// <summary>由已登记 Registry 计算指纹。</summary>
+    /// <summary>由冻结 Catalog 计算指纹。</summary>
     public ServerContentManifest(
         int contentVersion,
         string collisionBakeId,
@@ -25,14 +25,16 @@ public readonly struct ServerContentManifest
     /// <summary>Gameplay 指纹；Join 双方必须一致。</summary>
     public ContentFingerprint Fingerprint { get; }
 
-    /// <summary>从 Registry 的 Archetype / Action Id 生成指纹；VFX 资产名不进入哈希。</summary>
-    public static ServerContentManifest FromRegistry(
-        ActContentRegistry content,
+    /// <summary>从冻结 Catalog 的 Archetype / Action Id 生成指纹；VFX 资产名不进入哈希。</summary>
+    public static ServerContentManifest FromCatalog(
+        GameContentCatalog content,
         int contentVersion,
         string collisionBakeId)
     {
         if (content == null)
             throw new ArgumentNullException(nameof(content));
+        if (!content.IsFrozen)
+            throw new InvalidOperationException("Gameplay 指纹只能从冻结 Content Catalog 生成。");
 
         var archetypeIds = new List<int>();
         content.CopyArchetypeIds(archetypeIds);

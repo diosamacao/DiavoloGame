@@ -13,7 +13,7 @@ public sealed class DedicatedAuthorityWorld : IDedicatedAuthorityWorld
     public DedicatedAuthorityWorld(
         SimulationHost host,
         ACTGameArchitecture architecture,
-        ActContentRegistry content)
+        GameContentCatalog content)
     {
         if (host == null)
             throw new ArgumentNullException(nameof(host));

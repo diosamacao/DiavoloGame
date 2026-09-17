@@ -7,7 +7,7 @@ public static class ActRemoteProxyFactory
     /// <summary>按与权威相同的模型/动画配置生成 RemoteProxy；不注册 World、不挂 Hurtbox。</summary>
     public static RemoteCharacterProxy Create(
         CharacterConfig config,
-        ActContentRegistry content,
+        GameContentCatalog content,
         ISimCollisionWorld collisionWorld,
         Vector3 worldOffset,
         float fixedDeltaSeconds,
@@ -26,7 +26,7 @@ public static class ActRemoteProxyFactory
     /// <summary>装配幽灵表现图；Motor 绑空意图，位移只跟 Snapshot。</summary>
     static BuiltGhost BuildGhost(
         CharacterConfig config,
-        ActContentRegistry content,
+        GameContentCatalog content,
         ISimCollisionWorld collisionWorld,
         Vector3 worldOffset,
         float fixedDeltaSeconds,

@@ -4,14 +4,14 @@ using UnityEngine;
 /// <summary>ACT 角色生产 Schema：统一 CharacterActor Capture 与 V2 整数时钟编解码入口。</summary>
 public sealed class ActCharacterSnapshotSchema : IReplicationSchema
 {
-    readonly ActContentRegistry _content;
+    readonly GameContentCatalog _content;
     readonly CharacterSnapshotSchemaV2 _wireSchema = new();
 
     /// <summary>ACT 角色快照 V2 Schema Id。</summary>
     public const ushort Id = CharacterSnapshotSchemaV2.Id;
 
-    /// <summary>创建绑定当前房间内容 Registry 的角色生产 Schema。</summary>
-    public ActCharacterSnapshotSchema(ActContentRegistry content)
+    /// <summary>创建绑定当前房间冻结内容 Catalog 的角色生产 Schema。</summary>
+    public ActCharacterSnapshotSchema(GameContentCatalog content)
     {
         _content = content ?? throw new ArgumentNullException(nameof(content));
     }
@@ -33,7 +33,7 @@ public sealed class ActCharacterSnapshotSchema : IReplicationSchema
         ActionSimSnapshot action = actor.ActionSim.Snapshot;
         int actionId = 0;
         if (action.IsActive && action.Content is ActionDefinition definition)
-            actionId = _content.Actions.GetOrAdd(definition);
+            actionId = _content.Actions.RequireId(definition);
 
         byte locomotionPhase = 0;
         int locomotionPhaseFrame = 0;

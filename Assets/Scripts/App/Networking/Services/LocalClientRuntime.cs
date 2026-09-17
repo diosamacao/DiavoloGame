@@ -13,13 +13,14 @@ public sealed class LocalClientRuntime : IDisposable
     bool _disposed;
     bool _recoverySent;
 
-    /// <summary>绑定已启动的 ClientSession；Gameplay 在构造时创建，Join 后才开预测。</summary>
+    /// <summary>绑定已启动 Session 与冻结内容；Gameplay 在构造时创建，Join 后才开预测。</summary>
     public LocalClientRuntime(
         CombatWorldController world,
         ClientSession session,
         ACTGameArchitecture architecture,
         Transform proxyParent,
-        ReplicationRole hudRole)
+        ReplicationRole hudRole,
+        GameContentCatalog content)
     {
         _world = world ?? throw new ArgumentNullException(nameof(world));
         _session = session ?? throw new ArgumentNullException(nameof(session));
@@ -28,8 +29,14 @@ public sealed class LocalClientRuntime : IDisposable
             throw new ArgumentNullException(nameof(architecture));
         if (proxyParent == null)
             throw new ArgumentNullException(nameof(proxyParent));
+        if (content == null)
+            throw new ArgumentNullException(nameof(content));
 
-        _gameplay = new ActClientRoomGameplay(world, architecture, proxyParent);
+        _gameplay = new ActClientRoomGameplay(
+            world,
+            architecture,
+            proxyParent,
+            content);
         Status = "Connecting";
         RefreshHud();
     }

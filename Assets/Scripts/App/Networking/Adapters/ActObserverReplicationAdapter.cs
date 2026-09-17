@@ -5,7 +5,7 @@ using UnityEngine;
 /// <summary>ACT Observer 复制适配器：解析角色生命周期记录并管理只读 Remote Proxy 与 TargetSystem 注册。</summary>
 public sealed class ActObserverReplicationAdapter
 {
-    readonly ActContentRegistry _content;
+    readonly GameContentCatalog _content;
     readonly ActCharacterSnapshotSchema _characterSchema;
     readonly Func<SimulationHost> _getSimulationHost;
     readonly Transform _parent;
@@ -18,7 +18,7 @@ public sealed class ActObserverReplicationAdapter
 
     /// <summary>创建绑定内容目录、Schema、Proxy 父节点和 TargetSystem 接缝的 Observer 适配器。</summary>
     public ActObserverReplicationAdapter(
-        ActContentRegistry content,
+        GameContentCatalog content,
         ActCharacterSnapshotSchema characterSchema,
         Func<SimulationHost> getSimulationHost,
         Transform parent,

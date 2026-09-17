@@ -6,7 +6,7 @@ using UnityEngine;
 public sealed class ReplicatedFeedbackCoordinator
 {
     readonly CombatWorldController _world;
-    readonly ActContentRegistry _content;
+    readonly GameContentCatalog _content;
     readonly ActObserverReplicationAdapter _observer;
     readonly HashSet<SimHitKey> _playedHits = new();
     readonly List<SimHitKey> _playedHitOrder = new();
@@ -22,7 +22,7 @@ public sealed class ReplicatedFeedbackCoordinator
     /// <summary>绑定世界表现组件、动作目录与 Observer Proxy 注册表。</summary>
     public ReplicatedFeedbackCoordinator(
         CombatWorldController world,
-        ActContentRegistry content,
+        GameContentCatalog content,
         ActObserverReplicationAdapter observer)
     {
         _world = world ?? throw new ArgumentNullException(nameof(world));

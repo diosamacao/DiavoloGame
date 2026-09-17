@@ -7,7 +7,7 @@ public sealed class ActAuthorityReplicationAdapterTests
     [Test]
     public void ApplyGuestCommands_MergesUnappliedCommandsIntoNextAuthorityFrame()
     {
-        var adapter = new ActAuthorityReplicationAdapter(new ActContentRegistry());
+        var adapter = new ActAuthorityReplicationAdapter(new GameContentCatalog());
         var buffer = new InputFrameBuffer();
         var actorId = new SimActorId(8);
         ulong attack = InputButtonMask.Of(InputButton.Attack);
@@ -39,7 +39,7 @@ public sealed class ActAuthorityReplicationAdapterTests
     [Test]
     public void ApplyGuestCommands_AllHintsApplied_PreservesExistingInput()
     {
-        var adapter = new ActAuthorityReplicationAdapter(new ActContentRegistry());
+        var adapter = new ActAuthorityReplicationAdapter(new GameContentCatalog());
         var buffer = new InputFrameBuffer();
         var actorId = new SimActorId(3);
         var existing = new InputFrame(9, actorId, 7, 9, 0ul, 0ul, 0ul);
@@ -67,7 +67,7 @@ public sealed class ActAuthorityReplicationAdapterTests
     [Test]
     public void ApplyGuestCommands_GameplayBlocked_AcksAndWritesEmptyInput()
     {
-        var adapter = new ActAuthorityReplicationAdapter(new ActContentRegistry());
+        var adapter = new ActAuthorityReplicationAdapter(new GameContentCatalog());
         var buffer = new InputFrameBuffer();
         var actorId = new SimActorId(3);
         ulong attack = InputButtonMask.Of(InputButton.Attack);
