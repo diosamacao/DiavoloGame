@@ -10,6 +10,7 @@ public static class EnemyActorFactory
         GameObject owner,
         Transform root,
         EnemyDefinition definition,
+        GameplayIntentProfile intentProfile,
         Func<IReadOnlyList<Transform>> playerRootsProvider,
         Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider,
         CombatHitPipeline combatHitPipeline,
@@ -20,11 +21,6 @@ public static class EnemyActorFactory
         CharacterConfig config = definition.CharacterConfig;
         var actionEntryRequests = new ActionEntryRequestBuffer();
         var locomotionDesires = new LocomotionDesireBuffer();
-        // CharacterActor 装配仍依赖全局 Intent Profile（玩家同管线）；敌人出招不经 Intent
-        if (GameplayIntentSettings.Active == null)
-            throw new InvalidOperationException(
-                "EnemyActorFactory: 全局 GameplayIntentProfile 未就绪。");
-
         var facingProxyObject = new GameObject($"{definition.DisplayName}_FacingProxy");
         Transform facingProxy = facingProxyObject.transform;
         facingProxy.position = root.position;
@@ -34,6 +30,7 @@ public static class EnemyActorFactory
             owner,
             root,
             config,
+            intentProfile,
             definition.TeamId,
             null,
             activeTargetsProvider,

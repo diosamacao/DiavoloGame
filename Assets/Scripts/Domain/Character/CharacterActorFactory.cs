@@ -14,6 +14,7 @@ public static class CharacterActorFactory
         GameObject owner,
         Transform root,
         CharacterConfig config,
+        GameplayIntentProfile intentProfile,
         int teamId,
         ILocalInputSampler localInput,
         Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider,
@@ -50,10 +51,9 @@ public static class CharacterActorFactory
         var sharedInput = new InputManager();
         // 玩家默认读 InputFrame；AI/脚本控制可在构造时注入独立移动命令源
         IMoveIntentSource effectiveMoveIntent = moveIntentSource ?? sharedInput;
-        GameplayIntentProfile intentProfile = GameplayIntentSettings.Active;
         if (intentProfile == null)
             throw new InvalidOperationException(
-                "CharacterActorFactory: 全局 GameplayIntentProfile 未就绪。");
+                "CharacterActorFactory: 未注入 GameplayIntentProfile。");
 
         localInput?.ConfigureDiscreteInputs(intentProfile.CollectInputReferences());
         ISimCollisionWorld world = collisionWorld ?? OpenFieldSimCollisionWorld.Instance;

@@ -8,6 +8,7 @@ using UnityEngine;
 public sealed class PlayerPartyRuntime : IDisposable
 {
     readonly PartyLoadout _loadout;
+    readonly GameplayIntentProfile _gameplayIntents;
     readonly SimulationHost _simulationHost;
     readonly CharacterActor[] _actors;
     readonly GameObject[] _roots;
@@ -50,12 +51,15 @@ public sealed class PlayerPartyRuntime : IDisposable
     /// <summary>创建并完整装配本机 Autonomous 阵容；所有 Actor 共用同一设备输入采样器。</summary>
     public PlayerPartyRuntime(
         PartyLoadout loadout,
+        GameplayIntentProfile gameplayIntents,
         Transform ownerRoot,
         ILocalInputSampler inputSampler,
         Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider,
         SimulationHost simulationHost)
     {
         _loadout = loadout ?? throw new ArgumentNullException(nameof(loadout));
+        _gameplayIntents = gameplayIntents
+            ?? throw new ArgumentNullException(nameof(gameplayIntents));
         if (ownerRoot == null)
             throw new ArgumentNullException(nameof(ownerRoot));
         if (inputSampler == null)
@@ -283,6 +287,7 @@ public sealed class PlayerPartyRuntime : IDisposable
                 slotRoot,
                 slotRoot.transform,
                 config,
+                _gameplayIntents,
                 config.Combat.TeamId,
                 inputSampler,
                 activeTargetsProvider,

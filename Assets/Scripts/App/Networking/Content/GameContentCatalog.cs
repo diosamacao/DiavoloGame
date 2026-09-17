@@ -14,6 +14,7 @@ public sealed class GameContentCatalog
     readonly Dictionary<NetArchetypeId, CharacterConfig> _configsById = new();
     readonly Dictionary<NetArchetypeId, ReplicationActorKind> _kindsById = new();
     PartyLoadout _playerLoadout;
+    GameplayIntentProfile _gameplayIntents;
     bool _frozen;
 
     /// <summary>仅 Bootstrap 与同程序集测试装配可创建；生产运行时必须使用 ValidateAndBuild。</summary>
@@ -26,6 +27,9 @@ public sealed class GameContentCatalog
 
     /// <summary>当前房间声明的玩家阵容；Dedicated Join 使用同一槽序。</summary>
     public PartyLoadout PlayerLoadout => _playerLoadout;
+
+    /// <summary>Authority 与预测端共享的确定性按钮意图映射；不包含设备采样生命周期。</summary>
+    public GameplayIntentProfile GameplayIntents => _gameplayIntents;
 
     /// <summary>目录是否完成构建并禁止后续登记。</summary>
     public bool IsFrozen => _frozen;
@@ -95,6 +99,17 @@ public sealed class GameContentCatalog
         }
     }
 
+    /// <summary>Build 阶段登记唯一 Gameplay Intent 解释规则。</summary>
+    internal void SetGameplayIntents(GameplayIntentProfile profile)
+    {
+        EnsureMutable();
+        if (profile == null)
+            throw new ArgumentNullException(nameof(profile));
+        if (_gameplayIntents != null && _gameplayIntents != profile)
+            throw new InvalidOperationException("Gameplay Catalog 已登记另一份 GameplayIntentProfile。");
+        _gameplayIntents = profile;
+    }
+
     /// <summary>Build 阶段登记敌人定义及其角色配置。</summary>
     internal void AddEnemy(EnemyDefinition definition)
     {
@@ -121,6 +136,8 @@ public sealed class GameContentCatalog
         EnsureMutable();
         if (_playerLoadout == null)
             throw new InvalidOperationException("Gameplay 内容缺少 PartyLoadout。");
+        if (_gameplayIntents == null)
+            throw new InvalidOperationException("Gameplay 内容缺少 GameplayIntentProfile。");
         _actions.Freeze();
         _frozen = true;
     }

@@ -39,4 +39,24 @@ public sealed class ServerContentManifestTests
 
         Assert.That(a, Is.EqualTo(b));
     }
+
+    /// <summary>同一 InputFrame 使用不同确定性意图规则时必须拒绝互联。</summary>
+    [Test]
+    public void ComputeFingerprint_IntentRulesChange_ChangesHash()
+    {
+        ContentFingerprint a = ServerContentManifest.ComputeFingerprint(
+            1,
+            "bake",
+            new[] { 10 },
+            new[] { 1 },
+            new[] { "buffer:9", "0:1:0:1:0:21:0" });
+        ContentFingerprint b = ServerContentManifest.ComputeFingerprint(
+            1,
+            "bake",
+            new[] { 10 },
+            new[] { 1 },
+            new[] { "buffer:12", "0:1:0:1:0:21:0" });
+
+        Assert.That(a, Is.Not.EqualTo(b));
+    }
 }

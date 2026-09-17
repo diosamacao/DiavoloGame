@@ -73,6 +73,7 @@ public sealed class ActGameSessionHandler
                 slotRoot,
                 slotRoot.transform,
                 config,
+                _content.GameplayIntents,
                 config.Combat.TeamId,
                 localInput: null,
                 _services.GetActiveTargets,

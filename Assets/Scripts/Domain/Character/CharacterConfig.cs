@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// 角色装配根配置。Locomotion（含 Clip）在 CombatMode；输入/意图为项目全局；
+/// 角色装配根配置。Locomotion（含 Clip）在 CombatMode；输入/意图由运行时与 Content Catalog 注入；
 /// 本资产只保留模型、Motor、战斗身体与资源。
 /// </summary>
 [CreateAssetMenu(fileName = "CharacterConfig", menuName = "ACT/Character/Character Config")]
@@ -45,28 +45,6 @@ public class CharacterConfig : ScriptableObject
 
     /// <summary>玩法资源上限与回复；未序列化时用默认骨架值。</summary>
     public CharacterResourceConfig Resources => resources ?? CharacterResourceConfig.Default;
-
-    /// <summary>检查玩家必需配置（含全局 Input）。</summary>
-    public bool ValidateForPlayer(UnityEngine.Object context)
-    {
-        bool valid = ValidateGameplayContent(context);
-        if (GameInputSettings.Active == null)
-        {
-            Debug.LogError(
-                "CharacterConfig: 全局 InputActionAsset 未就绪（GameInputSettings）。",
-                context);
-            valid = false;
-        }
-        if (GameplayIntentSettings.Active == null)
-        {
-            Debug.LogError(
-                "CharacterConfig: Client Runtime GameplayIntentProfile 未就绪。",
-                context);
-            valid = false;
-        }
-
-        return valid;
-    }
 
     /// <summary>检查敌人角色 Gameplay 内容；不校验 Client-only Input/Intent 设置。</summary>
     public bool ValidateForEnemy(UnityEngine.Object context) =>

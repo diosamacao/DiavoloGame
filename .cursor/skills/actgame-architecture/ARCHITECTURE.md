@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-09-17（结构稳定化 CS4 完成；CS5.1 Content 单入口与冻结 Catalog）
+> Last audited: 2026-09-17（结构稳定化 CS5：Content 与 Client Runtime Configuration 单入口）
 
 ## 项目概述
 
@@ -105,8 +105,9 @@ CS2A 期间 Character/Combat/Enemy/Party/Camera 只编入一个 `ACTGame.Domain.
 | `ActOwnerReplicationAdapter` | App/Networking 的 Autonomous 映射：跟随 Active 槽切换 Owner ActorId，处理 HP、Action Ack、Locomotion Reconcile 与 Hit/Death 硬吸 |
 | `ActCharacterPredictionModel` | ACT 走跑策略：2m Gate、宽限、出招/受击禁止走跑 Replay；连招 Cancel 仍在 `PredictedActionAckQueue` |
 | `ActObserverReplicationAdapter` / `ActRemoteProxyFactory` | Observer 映射：RemotePlaybackClock 取样（Listen delay=1）；ApplySnapshot 不切 Clip，PresentSampledPlayback 跟采样 to；走跑 Urgent；Proxy 不跑权威位移 |
-| `GameContentCatalog` | App/Networking 的冻结内容真源：集中持有 PartyLoadout、Action Catalog、全部槽 Character Archetype 与 EnemyDefinition 映射；运行时只读 |
-| `GameContentBootstrap` | 场景内容唯一 Build 入口：`CombatWorldController.Start` 在场景完成装载后一次收集、稳定排序并校验 Party/Character/CombatMode/Action/Locomotion/RootMotion，再冻结 Catalog；Local/Listen/Dedicated 共用算法 |
+| `GameContentCatalog` | App/Networking 的冻结内容真源：集中持有 PartyLoadout、GameplayIntent 确定性规则、Action Catalog、全部槽 Character Archetype 与 EnemyDefinition 映射；运行时只读 |
+| `GameContentBootstrap` | 场景内容唯一 Build 入口：`CombatWorldController.Start` 一次收集、排序并校验 Party/Character/CombatMode/Action/Locomotion/RootMotion/GameplayIntent，再冻结 Catalog；Local/Listen/Dedicated 共用算法 |
+| `ClientRuntimeConfiguration` | 非 Dedicated 的设备输入入口：从固定路径一次加载并校验 InputActionAsset，由 Composition Root 注入 Player；不进入 Gameplay Fingerprint |
 | `ActCharacterSnapshotSchema` | App/Networking 的角色生产 Schema：统一 CharacterActor Capture；纯 C# `CharacterSnapshotSchemaV2` 是唯一角色线格式实现 |
 | `ActClientRoomGameplay` / `LocalClientRuntime` | Client Gameplay 与 Session 薄门面；前者只组合 Owner、Observer、Feedback 三个协调器，Listen 本机与远端 Client 共用 |
 | `OwnerPredictionCoordinator` | 本机输入采样、命令冗余、阵容预测 Step、Owner ACK/Reconcile 与 Party Meta 纠正唯一入口 |

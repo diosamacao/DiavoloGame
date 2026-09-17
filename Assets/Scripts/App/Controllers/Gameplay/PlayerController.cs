@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -94,35 +93,9 @@ public class PlayerController : AppControllerBase, ILocalPlayer
     /// <summary>Listen / Client 本机座位恒为 true；Dedicated 不装配本机玩家。</summary>
     public bool IsLocalPredicted => _clientSeat;
 
-    void Awake()
+    /// <summary>等待 CombatWorldController 完成 Content 与 Client Configuration 构建后装配本机座位。</summary>
+    void Start()
     {
-        if (partyLoadout == null)
-        {
-            Debug.LogError("PlayerController: 未绑定 PartyLoadout。", this);
-            enabled = false;
-            return;
-        }
-
-        if (!partyLoadout.Validate(this))
-        {
-            enabled = false;
-            return;
-        }
-
-        if (!ValidatePartyForPlayer())
-        {
-            enabled = false;
-            return;
-        }
-
-        InputActionAsset inputActions = GameInputSettings.Active;
-        if (inputActions == null)
-        {
-            Debug.LogError("PlayerController: 全局 InputActionAsset 未就绪（GameInputSettings）。", this);
-            enabled = false;
-            return;
-        }
-
         CombatWorldController combatWorld = ResolveCombatWorldController();
         if (combatWorld == null)
         {
@@ -136,22 +109,24 @@ public class PlayerController : AppControllerBase, ILocalPlayer
             return;
         }
 
-        BuildClientSeat(inputActions, combatWorld);
-    }
-
-    /// <summary>装配前校验阵容中每个非空角色，避免后台槽直到切出时才暴露缺失配置。</summary>
-    bool ValidatePartyForPlayer()
-    {
-        bool valid = true;
-        IReadOnlyList<CharacterDefinition> members = partyLoadout.Members;
-        for (int i = 0; i < members.Count; i++)
+        GameContentCatalog content = combatWorld.ContentCatalog;
+        ClientRuntimeConfiguration client = combatWorld.ClientConfiguration;
+        if (content == null || client == null)
         {
-            CharacterConfig config = members[i]?.CharacterConfig;
-            if (config != null && !config.ValidateForPlayer(this))
-                valid = false;
+            Debug.LogError(
+                "PlayerController: CombatWorld 尚未完成 Content/Client Runtime Configuration。",
+                this);
+            enabled = false;
+            return;
+        }
+        if (content.PlayerLoadout != partyLoadout)
+        {
+            Debug.LogError("PlayerController: PartyLoadout 与冻结 Content Catalog 不一致。", this);
+            enabled = false;
+            return;
         }
 
-        return valid;
+        BuildClientSeat(client.InputActions, content.GameplayIntents, combatWorld);
     }
 
     void OnEnable()
@@ -222,23 +197,16 @@ public class PlayerController : AppControllerBase, ILocalPlayer
     /// </summary>
     void BuildClientSeat(
         InputActionAsset inputActions,
+        GameplayIntentProfile gameplayIntents,
         CombatWorldController combatWorld)
     {
         _clientSeat = true;
         var reader = new InputReader(inputActions);
-        GameplayIntentProfile intentProfile = GameplayIntentSettings.Active;
-        if (intentProfile == null)
-        {
-            Debug.LogError("PlayerController: 全局 GameplayIntentProfile 未就绪。", this);
-            enabled = false;
-            return;
-        }
-
-        reader.ConfigureDiscreteInputs(intentProfile.CollectInputReferences());
         _inputSampler = reader;
         SimulationHost simulationHost = combatWorld.EnsureSimulationHost();
         _partyRuntime = new PlayerPartyRuntime(
             partyLoadout,
+            gameplayIntents,
             transform,
             reader,
             () => SendQuery(new GetActiveTargetsQuery()),
@@ -247,6 +215,8 @@ public class PlayerController : AppControllerBase, ILocalPlayer
 
         GetSystem<LocalPlayerService>()?.Register(this, isLocalOwner: true);
         EnsureFacingDebugVisualizer();
+        if (isActiveAndEnabled)
+            _inputSampler.Enable();
     }
 
     /// <summary>Active Actor 改变后只刷新 Controller 持有的本地调试表现绑定。</summary>

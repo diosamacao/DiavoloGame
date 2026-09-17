@@ -17,9 +17,10 @@ public sealed class EnemyController : AppControllerBase
     bool _despawnRequested;
     SimulationHost _simulationHost;
     SimActorRegistration _simulationRegistration;
+
     string _lastLoggedDebugKey;
 
-    /// <summary>当前敌人定义。</summary>
+    /// <summary>场景或生成器声明的敌人内容定义；供启动 Catalog 收集。</summary>
     public EnemyDefinition Definition => enemyDefinition;
 
     /// <summary>已装配的权威角色；未创建时为 null。</summary>
@@ -107,7 +108,7 @@ public sealed class EnemyController : AppControllerBase
             Destroy(gameObject);
     }
 
-    /// <summary>校验配置并创建纯 C# 敌人服务图。</summary>
+    /// <summary>从冻结 Catalog 取得已校验配置并创建纯 C# 敌人服务图。</summary>
     bool TryBuild()
     {
         if (enemyDefinition == null)
@@ -116,12 +117,17 @@ public sealed class EnemyController : AppControllerBase
             return false;
         }
 
-        if (!enemyDefinition.Validate(this))
-            return false;
-
         CombatWorldController combatWorld = ResolveCombatWorldController();
         if (combatWorld == null)
             return false;
+        GameContentCatalog content = combatWorld.ContentCatalog;
+        if (content == null)
+        {
+            Debug.LogError("EnemyController: CombatWorld 尚未完成 Content Catalog 构建。", this);
+            return false;
+        }
+        // 精确查询用于拒绝运行中未被场景 Bootstrap 声明的敌人定义。
+        content.GetArchetypeId(enemyDefinition);
         _simulationHost = combatWorld.EnsureSimulationHost();
         // Listen / Dedicated 权威敌人无头；本机可见体走 Observer Proxy，避免与权威模型叠画。
         CharacterPresentationMode presentation =
@@ -133,6 +139,7 @@ public sealed class EnemyController : AppControllerBase
             gameObject,
             transform,
             enemyDefinition,
+            content.GameplayIntents,
             ResolvePlayerRoots,
             () => SendQuery(new GetActiveTargetsQuery()),
             _simulationHost.CombatHits,

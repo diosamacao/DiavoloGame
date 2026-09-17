@@ -19,12 +19,19 @@ public class CombatWorldController : AppControllerBase
 
     ContentFingerprint _gameplayFingerprint;
     GameContentCatalog _contentCatalog;
+    ClientRuntimeConfiguration _clientConfiguration;
 
     /// <summary>当前场景战斗世界；系统查询只把它作为生命周期锚点，不作为业务单例入口。</summary>
     public static CombatWorldController Current { get; private set; }
 
     /// <summary>当前战斗世界唯一固定帧宿主。</summary>
     public SimulationHost SimulationHost { get; private set; }
+
+    /// <summary>启动后冻结的 Gameplay 内容；Player/Enemy 只能从此处取得已校验规则。</summary>
+    public GameContentCatalog ContentCatalog => _contentCatalog;
+
+    /// <summary>非 Dedicated 进程的设备输入配置；Dedicated 始终为空。</summary>
+    public ClientRuntimeConfiguration ClientConfiguration => _clientConfiguration;
 
     /// <summary>本机房间角色；Awake 后已合并 EditorPrefs 覆盖。</summary>
     public ReplicationRole Role { get; private set; }
@@ -122,6 +129,8 @@ public class CombatWorldController : AppControllerBase
     void Start()
     {
         _contentCatalog = CreateRoomContent(out _gameplayFingerprint);
+        if (Role != ReplicationRole.DedicatedServer)
+            _clientConfiguration = ClientRuntimeConfiguration.LoadRequired(this);
         if (Role == ReplicationRole.DedicatedServer)
         {
             EnsureDedicatedBootstrap(_contentCatalog);

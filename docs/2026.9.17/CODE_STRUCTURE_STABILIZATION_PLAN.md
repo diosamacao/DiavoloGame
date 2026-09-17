@@ -335,6 +335,9 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 - [x] 为行为树旧 `Assembly-CSharp` ManagedReference 补充 `MovedFrom` 映射和资产反序列化测试，程序集迁移不改写 `Assets/Data`。
 - [x] 为每个生产 asmdef 登记精确引用白名单；未知程序集和白名单外同层依赖均由 Editor/BatchMode 共用门禁拒绝。
 - [x] 审计 CS2A 新增 public 暴露；`CharacterGameplayIntentContext` 已恢复 `internal`，App 调用所需 VFX 端口保留 public。
+- [x] 增加 CS2B SerializeReference 预迁移工具与 YAML 门禁；先把全部行为树统一到当前粗程序集，再执行第二次程序集迁移。
+- [ ] 将 `CombatModeProfile/Service`、`CharacterActionDriver`、角色 Hurtbox/HitPipeline/AssistParry 集成实现迁入 Character 边界，清零 Combat→Character 类型回边。
+- [ ] 将 `Domain/Party` 并入 Character、`Domain/Camera` 并入 Combat，消除两个目录留在粗程序集或另建循环 asmdef 的可能。
 
 **验收**
 
@@ -346,6 +349,14 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 
 **CS2A 出口：** ✅ 2026-09-17 已验收；Domain→App 回边清零，粗粒度 Gameplay 边界编译通过，行为树 ManagedReference 迁移恢复。  
 **CS2B 总出口：** `ACTGame.Domain.Gameplay` 被三个终态 Domain 程序集替换并删除。→ **未达成**
+
+**2026-09-17 CS2B 预迁移记录**
+
+- 资产审计发现 `BT_Monster.asset` 已记录 `ACTGame.Domain.Gameplay`，`BT_Unagi.asset` 仍记录 `Assembly-CSharp`。
+- Unity `MovedFromAttribute` 不允许同一类型声明多个来源；直接迁往 `ACTGame.Domain.Enemy` 会令两批资产中至少一批失去节点类型。
+- 新增 `ACTGame/Architecture/Prepare Behavior Trees For CS2B`：在旧 `MovedFrom(Assembly-CSharp)` 仍有效时加载并强制重序列化全部行为树，然后按 YAML 拒绝残留旧程序集。
+- 本门禁验收完成后，先按职责迁移 Character 专属的 Combat 集成类型；`CombatModeProfile` 连同原字段整体迁入 Character，保留脚本 GUID 和现有 SO 引用，不删除 Locomotion 字段、不要求重绑资产。
+- 当静态扫描确认 Combat→Character 为零后，再把节点 `MovedFrom` 来源切到 `ACTGame.Domain.Gameplay`，创建终态 asmdef 并删除粗程序集；不保留兼容程序集。
 
 ---
 
@@ -430,8 +441,8 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 - [x] 定义 `GameContentBootstrap.ValidateAndBuild` 和只读 `GameContentCatalog`。
 - [x] 合并 `ActContentPrefillService`、`ActServerContentProbe`、`ActContentRegistry` 的重复扫描/登记职责。
 - [x] Character、Action、Archetype、Party、Locomotion、CombatMode 在 Build 阶段一次性校验。
-- [ ] InputAction / GameplayIntent 设置移入 Client Runtime Configuration，不参与 Dedicated Content。
-- [ ] 删除运行时 Editor Fallback、默认首项、隐式 `Resources.Load` 多入口。
+- [x] InputAction 移入 Client Runtime Configuration；GameplayIntent 的确定性规则归冻结 Catalog。
+- [x] 删除运行时 Editor Fallback、默认首项、隐式 `Resources.Load` 多入口。
 - [x] Catalog 完成后冻结；运行中禁止 `GetOrAdd` 改变稳定 Content Id。
 
 **验收**
@@ -439,10 +450,10 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 - [x] Local、Listen、Dedicated 从同一 Content Catalog 构建 Gameplay 内容。
 - [x] 缺 Action、重复 stable id、无效 Timing/RootMotion、未知 Archetype 在启动前失败。
 - [x] Content Fingerprint 只基于 Catalog 稳定内容。
-- [ ] `ActContentRegistryTests`、Manifest、Archetype、Action Catalog 测试通过。
-- [ ] `rg` 无生产路径 Editor `FindAssets` 或配置默认首项回退。
+- [x] Catalog、Manifest、Archetype、Action Catalog 与配置边界测试已补齐。
+- [x] `rg` 无生产路径 Editor `FindAssets` 或配置默认首项回退。
 
-**出口：** 配置链由多段查找收敛为一次验证、一次构建。→ **未达成**
+**出口：** 配置链由多段查找收敛为一次验证、一次构建。→ **代码达成，待 Editor 验收**
 
 **2026-09-17 执行记录（CS5.1）**
 
@@ -457,7 +468,11 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 - `ActionDefinition.ValidateContent` 在启动期拒绝非 60Hz、无总帧、缺 Clip 或无有效帧的动画段；同一 Catalog 内同名动作资产直接视为 stable id 冲突。
 - `CharacterLocomotionProfile.Validate` 覆盖全部已绑定 Clip Timing 和启用的 StartEnd/Stop/Pivot RootMotion；`LocomotionTimingAudit` 删除重复规则并委托同一 Domain 校验。
 - Locomotion 校验错误输出具体 `CharacterLocomotionProfile`、`AnimationProfile`、`AnimationClip`、根运动轨帧数与引用方，并将 Console 上下文指向 Profile 资产，支持双击定位。
-- CS5 尚余：Client Runtime Configuration、删除 Editor/Resources 默认首项 fallback。
+- CS5.3 新增 `ClientRuntimeConfiguration`：非 Dedicated 进程只从固定 `Resources/ACT/GameInputActions` 加载一次并验证 `Player/Move`、`Player/Look`；Player 在 World 完成配置后由 `Start` 注入，不再访问全局静态设置。
+- `GameplayIntentProfile` 同时包含 Authority 按钮语义、长按阈值和缓冲帧数，不能错误归为 Client-only；现由 `GameContentBootstrap` 从固定路径加载、深校验并存入冻结 Catalog，显式注入 Player/Enemy/Guest Actor Factory。
+- Content Fingerprint 新增有序 Intent 规则签名，阻止两端以不同意图配置解释同一 `InputFrame`。
+- 删除 `GameInputSettings`、`GameplayIntentSettings` 及两份首项迁移器，不保留 Editor `FindAssets`、默认首项或运行时静态 fallback。
+- 场景中直接放置的 `EnemyController` 也进入 Bootstrap 内容闭包；运行时 Enemy 只接受 Catalog 已登记 Definition，不重复深校验。
 
 ---
 

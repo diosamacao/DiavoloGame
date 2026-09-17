@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-09-17（结构稳定化 CS5.1：Gameplay Content 单入口与冻结 Catalog）
+> Last updated: 2026-09-17（结构稳定化 CS5：Gameplay Content 与 Client Runtime Configuration 单入口）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -27,7 +27,7 @@
 | 组队 PVE 状态同步 / 权威进程 | 🟡 W11 代码切面 / Play 未验收 | `ReplicationBuildOptions` + `GraphNodeKey` + FakeActionGame | 先读 `docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`；W10 出口仍待 Clumsy Play；W11 R2 未关 |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
-| 全局 Input + Locomotion 收敛 | ✅ B2/B3 | `GameInputSettings`；Mode→`LocomotionProfile`（内含 Anim） | Config 不再挂 Input/Locomotion |
+| Input + Locomotion 收敛 | ✅ CS5 | `ClientRuntimeConfiguration` + Catalog GameplayIntent；Mode→`LocomotionProfile` | Config 不再挂 Input/Intent/Locomotion |
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
 | 架构通信框架 | ✅ 已实现 | `ACTGameArchitecture`、`ArchitectureSystemBase`、`AppControllerBase`、Command / Query / Event | — |
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionStateMachine` + `LocomotionState` | AnimationProfile + `CharacterLocomotionProfile` |
@@ -397,7 +397,7 @@ EnemyPerception.Capture → GetPlayerRootsQuery → 最近根
 | W4 加入适配 | `ActGameSessionHandler` 创建/销毁 Guest Authority Actor；RoomHost 注入 App 注册委托并独占 `ServerSession.Accept/Reject` |
 | W4 Owner 适配 | `ActOwnerReplicationAdapter` 独占 Owner HP、Action Ack、Locomotion Reconcile、Hit/Death 硬吸和预测历史；Client Room 只转发快照 |
 | W4 Observer 适配 | `ActObserverReplicationAdapter` 独占 Schema/Archetype 校验、Proxy Spawn/Update/Despawn、TargetSystem 与 View 生命周期；`ActRemoteProxyFactory` 是唯一装配入口 |
-| W4/CS5 内容真源 | `GameContentBootstrap.ValidateAndBuild` 一次构建 `GameContentCatalog`；唯一持有 Action Catalog、Character Archetype 与 Unity 配置映射，Room/Adapter 只查询 |
+| W4/CS5 内容真源 | `GameContentBootstrap.ValidateAndBuild` 一次构建 `GameContentCatalog`；唯一持有 GameplayIntent、Action Catalog、Character Archetype 与 Unity 配置映射，Room/Adapter 只查询 |
 | W4 Capture 真源 | `ActCharacterSnapshotSchema.Capture` 统一 CharacterActor → Snapshot 与 V2 编解码；独立 `CharacterReplicationCapture` 已删除 |
 | W4 Room 边界 | `ListenServerBootstrap` / `ReplicationRoomClient` 仅做组合或 Session 调度与 HUD；不再引用 Character/配置/Proxy/Hit Cue 具体类型 |
 | W4 Gameplay Service | `DedicatedAuthorityWorld` 只组合 Authority 三协调器；`ActClientRoomGameplay` 只组合 `OwnerPredictionCoordinator` / `ObserverReplicationCoordinator` / `ReplicatedFeedbackCoordinator`；内容由 Composition Root 注入 |
@@ -1075,7 +1075,7 @@ SimulationWorld.Step
 
 ### 错误处理
 
-未分配 `inputActions`（玩家）或全局 `GameplayIntentProfile` 未就绪时校验/工厂失败。意图经 `GameplayIntentSettings`（Resources `ACT/GameplayIntentProfile`，菜单可迁移）。木桩：Brain `enableCombatActions=false`。L0B 帧阈值：Intent 缓冲常见 60；EnemyBrainProfile 建议攻击冷却 72、失败重试 12、朝向刷新 6。
+固定路径缺少 `InputActionAsset` 时 Client Runtime Configuration 立即失败；缺少或无效 `GameplayIntentProfile` 时 Content Catalog 不冻结。Intent 规则纳入 Content Fingerprint 并显式注入 Actor Factory。木桩：Brain `enableCombatActions=false`。L0B 帧阈值：Intent 缓冲常见 60；EnemyBrainProfile 建议攻击冷却 72、失败重试 12、朝向刷新 6。
 
 ### 相关文件
 
@@ -1721,6 +1721,8 @@ CombatHitPipeline（全体 Actor Step 后）
 
 | 日期 | 变更 |
 |------|------|
+| 2026-09-17 | CS2B 预迁移门禁：新增行为树 SerializeReference 强制重序列化与 YAML 审计，先统一 Assembly-CSharp/Gameplay 两批资产再切换终态 Enemy 程序集 |
+| 2026-09-17 | 结构稳定化 CS5.3：新增 Client Runtime Configuration 单次加载 InputAction；GameplayIntent 归冻结 Catalog 并纳入指纹；删除两套静态 Settings、Editor 首项 fallback 与迁移器 |
 | 2026-09-17 | Content 校验诊断：Locomotion Timing/RootMotion 错误输出 Profile、AnimationProfile、Clip、轨帧数与引用方，Console 上下文直接指向可修复的 Profile 资产 |
 | 2026-09-17 | 结构稳定化 CS5.1/5.2：新增 `GameContentBootstrap.ValidateAndBuild` 与冻结 `GameContentCatalog`；在场景装载完成后单次 Build，集中校验全部 CombatMode/Graph Action、60Hz 动画段、Locomotion Timing 与启用的 RootMotion；Capture/Join 删除动态登记，并移除三条旧入口 |
 | 2026-09-17 | 结构稳定化 CS4 收口：`DedicatedServerRuntime` 锁定为 Session/Match/Poll/Flush 宿主；运行时 Controller 删除 Scene Find 与自行创建 World 的旧 fallback，统一走 Composition Root、同物体组件或 Architecture/Simulation 注册表 |

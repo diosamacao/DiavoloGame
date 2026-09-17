@@ -41,7 +41,7 @@ public sealed class InputReader : ILocalInputSampler
         InitializeActions();
     }
 
-    /// <summary>由工厂根据全局 GameplayIntentProfile 注入离散 Action，无需在 Prefab 重复配置。</summary>
+    /// <summary>由角色工厂根据冻结 Catalog 的 GameplayIntentProfile 注入离散 Action。</summary>
     public void ConfigureDiscreteInputs(InputActionReference[] references)
     {
         _discreteInputs = references ?? Array.Empty<InputActionReference>();

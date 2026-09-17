@@ -6,6 +6,8 @@ using UnityEngine.SceneManagement;
 /// <summary>Gameplay 内容唯一构建入口：扫描当前场景声明、集中校验、登记并冻结 Catalog。</summary>
 public static class GameContentBootstrap
 {
+    const string GameplayIntentResourcesPath = "ACT/GameplayIntentProfile";
+
     /// <summary>验证当前场景的 Party、Character、Enemy、CombatMode、Locomotion 与 Action，并返回冻结目录。</summary>
     public static GameContentCatalog ValidateAndBuild(UnityEngine.Object context)
     {
@@ -21,6 +23,16 @@ public static class GameContentBootstrap
         var visitedEnemies = new HashSet<EnemyDefinition>();
         PartyLoadout playerLoadout = null;
         bool valid = true;
+        GameplayIntentProfile gameplayIntents =
+            Resources.Load<GameplayIntentProfile>(GameplayIntentResourcesPath);
+        if (gameplayIntents == null)
+        {
+            throw new InvalidOperationException(
+                "Gameplay Content 缺少 "
+                + $"'Assets/Resources/{GameplayIntentResourcesPath}.asset'。");
+        }
+        valid &= gameplayIntents.ValidateContent(context);
+        catalog.SetGameplayIntents(gameplayIntents);
 
         GameObject[] roots = scene.GetRootGameObjects();
         for (int i = 0; i < roots.Length; i++)
@@ -51,6 +63,15 @@ public static class GameContentBootstrap
                     if (definition != null)
                         visitedEnemies.Add(definition);
                 }
+            }
+
+            EnemyController[] sceneEnemies =
+                roots[i].GetComponentsInChildren<EnemyController>(true);
+            for (int e = 0; e < sceneEnemies.Length; e++)
+            {
+                EnemyDefinition definition = sceneEnemies[e].Definition;
+                if (definition != null)
+                    visitedEnemies.Add(definition);
             }
         }
 

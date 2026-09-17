@@ -125,7 +125,7 @@ public class MyBehaviour : MonoBehaviour
 - **运行时编译**：SO 只作为 `GameContentBootstrap` 输入；Gameplay 消费冻结的只读 Catalog/Config，Tick 中禁止 `AssetDatabase`、`Resources.Load` 或场景扫描
 - **内容单入口**：`CombatWorldController` 每次场景生命周期只调用一次 `GameContentBootstrap.ValidateAndBuild`；Listen Authority/Client 必须共享同一 `GameContentCatalog` 实例，远端 Client 与 Dedicated 使用同一 Build 算法
 - **Catalog 冻结**：Action/Archetype 只在 Build 阶段登记；`ActCharacterSnapshotSchema`、Owner、Authority 与 Guest Join 只能 `RequireId/GetArchetypeId`，禁止运行时 `GetOrAdd/Register/Prefill`
-- **配置分类**：Party/Character/Enemy 为身份与组合；Action/Combat/Locomotion/BT 为玩法作者配置；Input/Camera/Debug 为 Client-only Settings，不进入 Dedicated Gameplay Content
+- **配置分类**：Party/Character/Enemy 为身份与组合；Action/Combat/Locomotion/BT 与 GameplayIntent 语义规则属于确定性 Gameplay Content；InputActionAsset/Camera/Debug 属于 Client-only Settings
 - **迁移删除**：新字段和调用点切换后必须迁移资产并删除 `legacy*`/旧字段；未经明确迁移窗口不得长期双读
 - **资产操作**：Agent 只修改 SO 的 C# 定义与审计工具；`Assets/Data/**` 实例、Prefab、动画和非 Shader 美术由 Editor 人工调整
 
@@ -145,7 +145,7 @@ public class MyBehaviour : MonoBehaviour
 - **原始中枢**：`InputManager` 由 `CharacterActor` 持有；只摄入量化 Move 与 Pressed/Held/Released bitset，不承担 AI Move 覆盖或动作缓冲
 - **相机 Look**：渲染帧 Look 不进入玩法 InputFrame，由 `PlayerController.LookInput` 直接提供给 CameraManager
 - **切敌与镜头锁分离**：TargetSwitch 是 InputFrame gameplay 边沿；CameraLock 是本地表现输入。锁定键禁止选择目标或写 Character/ActionSim
-- **设备映射**：`GameplayIntentProfile` 是 InputActionReference、长按阈值与上下文映射的**项目唯一**配置源，经 `GameplayIntentSettings` 加载；**禁止**再挂到 `CharacterConfig`
+- **设备映射**：`GameplayIntentProfile` 是按钮语义、长按阈值与上下文映射的**项目唯一**配置源，由 `GameContentBootstrap` 固定路径加载、纳入 Fingerprint 并经 Catalog 注入；**禁止**静态 Settings 或 CharacterConfig 多入口
 - **切人键 / 本体弹刀例外**：`SwitchCharacter` 不进 Profile，由座位协调器消费并从玩法流剥掉；`Parry` 不经 Profile 绑定，由 Producer 按下边沿硬产出 `GameplayIntentType.Parry`，且保留在玩法 InputFrame
 - **语义生产**：`GameplayIntentProducer` 在 `InputManager.IngestFrame` 后输出 `GameplayIntentType`
 - **上下文意图**：SprintAttack / DodgeAttack 由 `GameplayIntentProfile` 条件映射产生；闪避攻击使用 `IsDodging + Attack Pressed`，禁止在 Driver 中按键名特判
@@ -163,7 +163,7 @@ public class MyBehaviour : MonoBehaviour
 - **后摇窗口**：Timeline 的 `ActionPhaseNotifyState(Recovery)` 同时配置 `allowMovementCancel` 与 `allowEntryRestart`；禁止创建 Recovery CancelWindow、独立 phases 或回根显式边
 - **CancelWindow**：每个 Action 必须且只能有一个 Normal，可选一个 Perfect；两个窗口可重叠，同一 Intent 始终优先 Perfect；禁止重新引入分割帧、槽 Id 或同类型多窗口
 - 其它系统不直接读 `InputReader` 做玩法判断（移动执行在 `CharacterMotor` / State）
-- **玩家装配**：`InputActionAsset` / `GameplayIntentProfile` 均为项目全局（`GameInputSettings` / `GameplayIntentSettings`）；不在 Prefab / CharacterConfig 重复配置
+- **玩家装配**：`InputActionAsset` 只经 `ClientRuntimeConfiguration` 注入；`GameplayIntentProfile` 只经冻结 `GameContentCatalog` 注入；Dedicated 不加载 Client Runtime Configuration
 - **Locomotion 单一挂点**：`CharacterLocomotionProfile` 内含 `AnimationProfile` + 相位/落脚/烘焙；仅 `CombatModeEntry` 挂 Loco；`CharacterConfig` 不配 Locomotion
 - **敌人木桩**：`EnemyBrainProfile.enableCombatActions = false` 关闭追打，保留受击/死亡；不以空 Graph / aggro=0 定义木桩
 - **AI 命令**：BT Task 只写黑板；Brain 写通用 `LocomotionDesireBuffer` / `ActionEntryRequestBuffer`；Character / Combat 仅依赖只读接口；**禁止**节点 `TryStart` / 改 Numeric

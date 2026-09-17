@@ -32,6 +32,45 @@ public sealed class GameplayIntentProfile : ScriptableObject
 
         return InputBindingUtils.CollectUniqueReferences(references);
     }
+
+    /// <summary>启动期校验确定性意图映射；空项或无效 InputActionReference 均阻止 Catalog 冻结。</summary>
+    public bool ValidateContent(UnityEngine.Object context)
+    {
+        if (Bindings.Count == 0)
+        {
+            Debug.LogError($"GameplayIntentProfile: '{name}' 未配置任何意图映射。", this);
+            return false;
+        }
+
+        bool valid = true;
+        for (int i = 0; i < Bindings.Count; i++)
+        {
+            if (Bindings[i].IsValid)
+                continue;
+            Debug.LogError(
+                $"GameplayIntentProfile: '{name}' 的 bindings[{i}] 缺少有效输入引用或 GameplayIntentType。",
+                this);
+            valid = false;
+        }
+
+        return valid;
+    }
+
+    /// <summary>按序复制影响 Authority 解释结果的稳定字段，供 Content Fingerprint 使用。</summary>
+    public void CopyStableSignatures(List<string> results)
+    {
+        if (results == null)
+            throw new ArgumentNullException(nameof(results));
+        results.Clear();
+        results.Add($"buffer:{ActionBufferDurationFrames}");
+        for (int i = 0; i < Bindings.Count; i++)
+        {
+            GameplayIntentBinding binding = Bindings[i];
+            results.Add(
+                $"{i}:{(int)binding.Button}:{(int)binding.Phase}:{(int)binding.Intent}:"
+                + $"{(int)binding.Condition}:{binding.HoldFrames}:{binding.Priority}");
+        }
+    }
 }
 
 /// <summary>单条物理输入到玩法意图的映射及其上下文限制。</summary>

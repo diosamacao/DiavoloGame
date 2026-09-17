@@ -40,11 +40,14 @@ public readonly struct ServerContentManifest
         content.CopyArchetypeIds(archetypeIds);
         var actionIds = new List<int>();
         content.Actions.CopyActionIds(actionIds);
+        var intentSignatures = new List<string>();
+        content.GameplayIntents.CopyStableSignatures(intentSignatures);
         ContentFingerprint fingerprint = ComputeFingerprint(
             contentVersion,
             collisionBakeId,
             archetypeIds,
-            actionIds);
+            actionIds,
+            intentSignatures);
         return new ServerContentManifest(contentVersion, collisionBakeId, fingerprint);
     }
 
@@ -55,6 +58,22 @@ public readonly struct ServerContentManifest
         IReadOnlyList<int> archetypeIds,
         IReadOnlyList<int> actionIds)
     {
+        return ComputeFingerprint(
+            contentVersion,
+            collisionBakeId,
+            archetypeIds,
+            actionIds,
+            Array.Empty<string>());
+    }
+
+    /// <summary>稳定哈希同时覆盖有序 Gameplay Intent 规则，防止两端用不同映射解释同一 InputFrame。</summary>
+    public static ContentFingerprint ComputeFingerprint(
+        int contentVersion,
+        string collisionBakeId,
+        IReadOnlyList<int> archetypeIds,
+        IReadOnlyList<int> actionIds,
+        IReadOnlyList<string> intentSignatures)
+    {
         var builder = new StringBuilder(128);
         builder.Append(contentVersion);
         builder.Append('|');
@@ -63,10 +82,23 @@ public readonly struct ServerContentManifest
         AppendSorted(builder, archetypeIds);
         builder.Append("|c");
         AppendSorted(builder, actionIds);
+        builder.Append("|i");
+        AppendOrdered(builder, intentSignatures);
         Hash128(builder.ToString(), out ulong high, out ulong low);
         if (high == 0ul && low == 0ul)
             low = 1ul;
         return new ContentFingerprint(high, low);
+    }
+
+    static void AppendOrdered(StringBuilder builder, IReadOnlyList<string> values)
+    {
+        if (values == null)
+            return;
+        for (int i = 0; i < values.Count; i++)
+        {
+            builder.Append(',');
+            builder.Append(values[i] ?? string.Empty);
+        }
     }
 
     static void AppendSorted(StringBuilder builder, IReadOnlyList<int> values)

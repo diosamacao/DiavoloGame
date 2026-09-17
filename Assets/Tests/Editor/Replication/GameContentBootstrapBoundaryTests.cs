@@ -16,6 +16,8 @@ public sealed class GameContentBootstrapBoundaryTests
         Assert.That(
             File.Exists(ScriptPath("App/Networking/Services/ActContentPrefillService.cs")),
             Is.False);
+        Assert.That(File.Exists(ScriptPath("Domain/Input/GameInputSettings.cs")), Is.False);
+        Assert.That(File.Exists(ScriptPath("Domain/Input/GameplayIntentSettings.cs")), Is.False);
     }
 
     /// <summary>CombatWorld 单次 Build 后把同一 Catalog 注入 Authority 与 Client 组合链。</summary>
@@ -73,6 +75,23 @@ public sealed class GameContentBootstrapBoundaryTests
         Assert.That(combatModes, Does.Contain("ValidateGraphActions"));
         Assert.That(locomotion, Does.Contain("ValidateRequiredTiming"));
         Assert.That(locomotion, Does.Contain("GetRootMotionTrack(key).IsValid"));
+    }
+
+    /// <summary>客户端输入只从固定配置入口加载；运行时与 Editor 均不得扫描默认首项。</summary>
+    [Test]
+    public void RuntimeConfiguration_HasNoEditorOrFirstAssetFallback()
+    {
+        string client =
+            ReadScript("App/Configuration/ClientRuntimeConfiguration.cs");
+        string bootstrap =
+            ReadScript("App/Networking/Content/GameContentBootstrap.cs");
+        string production = client + bootstrap;
+
+        Assert.That(production, Does.Contain("ACT/GameInputActions"));
+        Assert.That(production, Does.Contain("ACT/GameplayIntentProfile"));
+        Assert.That(production, Does.Not.Contain("AssetDatabase.FindAssets"));
+        Assert.That(production, Does.Not.Contain("FindEditorFallback"));
+        Assert.That(production, Does.Not.Contain("guids[0]"));
     }
 
     /// <summary>从 Assets 相对路径读取生产脚本。</summary>
