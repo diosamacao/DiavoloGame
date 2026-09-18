@@ -25,6 +25,7 @@ public static class BehaviorTreeAssemblyMigrationTool
                 AssetDatabase.LoadAssetAtPath<EnemyBehaviorTreeAsset>(paths[i]);
             if (asset == null)
                 throw new InvalidOperationException($"CS2B: 无法加载行为树资产 '{paths[i]}'。");
+            ReassignManagedReferenceRoot(asset);
             EditorUtility.SetDirty(asset);
         }
 
@@ -83,6 +84,31 @@ public static class BehaviorTreeAssemblyMigrationTool
         for (int i = 0; i < guids.Length; i++)
             paths[i] = AssetDatabase.GUIDToAssetPath(guids[i]);
         return paths;
+    }
+
+    /// <summary>
+    /// 先从 SerializedProperty 脱离旧 managed-reference 注册项，再用同一运行时对象重新登记；
+    /// 普通 ForceReserialize 不会改写 MovedFrom 解析出的历史程序集名。
+    /// </summary>
+    static void ReassignManagedReferenceRoot(EnemyBehaviorTreeAsset asset)
+    {
+        var serialized = new SerializedObject(asset);
+        SerializedProperty rootProperty = serialized.FindProperty("customRoot");
+        object root = rootProperty?.managedReferenceValue;
+        if (root == null)
+        {
+            throw new InvalidOperationException(
+                $"CS2B: 行为树 '{asset.name}' 的 customRoot 无法反序列化，已停止迁移。");
+        }
+
+        rootProperty.managedReferenceValue = null;
+        serialized.ApplyModifiedPropertiesWithoutUndo();
+        serialized.Update();
+
+        rootProperty = serialized.FindProperty("customRoot");
+        rootProperty.managedReferenceValue = root;
+        serialized.ApplyModifiedPropertiesWithoutUndo();
+        asset.PrepareForGraphEditor();
     }
 
     /// <summary>读取序列化正文并返回仍未迁移的资产，不依赖对象加载后的内存表现。</summary>
