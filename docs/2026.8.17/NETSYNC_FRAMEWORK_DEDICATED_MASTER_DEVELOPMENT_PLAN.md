@@ -5,7 +5,7 @@
 > 现行实现：[`../2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)  
 > 纠偏合同：[`../2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)  
 > 启动：[`../2026.8.19/DEDICATED_SERVER_LAUNCH.md`](../2026.8.19/DEDICATED_SERVER_LAUNCH.md)  
-> **执行决策：** W0～W9 已关；先关 W10/W11 Play，再做 W12 公网与运维。不得称公网可用。
+> **执行决策：** W0～W10 已关；先关 W11 / R2，再做 W12 公网与运维。W11 关闭前不得称 R2 框架完成。
 
 ---
 
@@ -421,12 +421,12 @@ W5 起额外要求：
 **验收**
 
 - [x] Fake linear entity 可预测、注入分歧、Restore + Replay。
-- [ ] ACT 2m Gate、连招超前、Hit/Death 行为与 W0 一致。（待 Editor Play）
-- [ ] 100ms RTT、20ms jitter、5% 丢包下可完成对局。
-- [ ] 旧 Snapshot 不回滚 Proxy；死亡/关键事件最终到达且只播一次。（乱序丢旧已有单测；Play 未验）
+- [x] ACT 2m Gate、连招超前、Hit/Death 行为与 W0 一致。（2026-09-19 用户 Play 验收）
+- [x] 100ms RTT、20ms jitter、5% 丢包下可完成对局。（2026-09-19 用户验收）
+- [x] 旧 Snapshot 不回滚 Proxy；死亡/关键事件最终到达且只播一次。（2026-09-19 用户 Play 验收）
 - [x] 单包不超过配置 MTU。
 
-**出口：** 通用网络基础设施达到公网 Demo 基线。→ **未达成（2026-08-20 代码切面；不得称公网可用）**
+**出口：** 通用网络基础设施达到公网 Demo 基线。→ **已达成（2026-09-19 用户验收）**
 
 ---
 
@@ -454,7 +454,7 @@ W5 起额外要求：
 - [ ] 当前游戏只通过 `ACTGame.Networking` Adapter 接框架。
 - [x] 无新旧 Controller 双轨。
 
-**出口：** R2 级可复用 ACT 网络框架形成。→ **未达成（2026-08-22 代码切面；W10 Play 仍开放）**
+**出口：** R2 级可复用 ACT 网络框架形成。→ **未达成（2026-08-22 代码切面；W11 V2 证据仍开放）**
 
 ---
 
@@ -555,8 +555,8 @@ Codec Golden Bytes
 ```
 
 W0 已于 2026-08-18 关闭，W1～W4 搬迁均受其基线保护。
-W5～W8 / M2 已于 2026-08-19 用户验收。W9 Listen 组合已于 2026-08-20 用户验收。W10 代码切面已落地，出口待 Play（用户暂缓 Clumsy 验收）。W11 代码切面已落地，R2 出口未关。
-W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
+W5～W8 / M2 已于 2026-08-19 用户验收。W9 Listen 组合已于 2026-08-20 用户验收。W10 已于 2026-09-19 完成用户验收。W11 代码切面已落地，R2 出口未关。
+W11 / R2 关闭前，不宣称可复用网络框架已经完成；W12 公网部署与运维仍未开始。
 
 ---
 
@@ -601,5 +601,6 @@ W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 | 2026-08-20 | W10 代码切面：ACTNet.Prediction + ChannelMux + 可靠命中事件；出口待 Play |
 | 2026-08-22 | W11 代码切面：Delta/兴趣/预算、GraphNodeKey、Recover；R2 出口未关 |
 | 2026-09-19 | 审计发现 V1→V2 清理时删除 `FakeActionGameLoopbackTests`，当前 FakeActionGame 测试程序集为空；W11 需先在 V2 上重建 10+ Actor / 兴趣 / Owner 预算证据 |
+| 2026-09-19 | W10 用户验收完成：2m Gate / 连招 / Hit-Death、100ms RTT + 20ms jitter + 5% loss、旧 Snapshot 与可靠关键事件出口关闭 |
 
 

@@ -1,7 +1,7 @@
 # NetSync 网络架构搭建问题回顾
 
 > 撰写：2026-08-20  
-> 范围：NS0～NS5 + W0～W11（W10/W11 为代码切面，Play 未验收）  
+> 范围：NS0～NS5 + W0～W11（W10 于 2026-09-19 用户验收；W11 / R2 未关）
 > 角色：**踩坑与合同备忘**，不是排期真源  
 > 排期：[`../2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)  
 > 实现阅读：[`../2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)
@@ -33,7 +33,7 @@
 | W5～W6 | 2026-08-19 | 独立 Runtime + Headless | 无 Host 玩家则不 Accept；工厂必 Instantitate 模型 |
 | W7～W8 | 2026-08-19 | Dedicated 可打 + 出包 | Owner 建成 Proxy、命令慢放、Hint 和解、Editor 误 Quit |
 | W9 | 2026-08-20 | Listen = Server + LocalClient | 本机按渲染帧预测；Host 本机仍是特殊座位 |
-| W10 | 2026-08-20 | Prediction + ChannelMux + 可靠命中 | 代码已切；100ms/5% Play 未打穿 |
+| W10 | 2026-09-19 | Prediction + ChannelMux + 可靠命中 | 代码与故障网络 Play 已由用户验收 |
 | W11 | 2026-08-22 | Delta / Relevancy / GraphNodeKey | 代码已切；远敌裁剪 Play 未打穿 |
 
 ---
@@ -329,10 +329,9 @@ W0 审计列出的阻塞（后在 W5～W9 逐条拆掉）：
 
 ## 10. 仍开放（不是本文「已踩坑」）
 
-W10 **代码已落地**、Play 未打穿；其后能力仍开放：
+W10 已于 2026-09-19 完成用户验收；其后能力仍开放：
 
-- 100ms RTT / 20ms jitter / 5% 丢包完整对局（W10 出口）
-- Play 上验证 2m Gate、连招超前、Hit Cue 只播一次
+- 100ms RTT / 20ms jitter / 5% 丢包完整对局与 2m Gate、连招、Hit Cue 已随 W10 用户验收关闭
 - Delta / Relevancy（W11 代码已切；Play 未验）
 - 超 MTU 拆包（仍拒绝，未做）
 - 重连、安全、容器、压测（W12）
@@ -340,7 +339,7 @@ W10 **代码已落地**、Play 未打穿；其后能力仍开放：
 
 已从「未做」划出：可靠 Control/Event、通用 CommandHistory / StateHistory / SnapshotTimeline、MTU 拒绝门禁、W7 命中 8 条冗余删除。
 
-W10 出口关闭前只称 **LAN Demo**，不称公网可用。
+W10 已关闭；W11 / R2 与 W12 公网部署、运维仍需分别验收，不把 W10 完成等同于整套公网产品化完成。
 
 ---
 

@@ -19,9 +19,9 @@
 
 **方案**：[`docs/2026.9.19/PROJECT_WIDE_OPTIMIZATION_PLAN.md`](../../../docs/2026.9.19/PROJECT_WIDE_OPTIMIZATION_PLAN.md)
 
-**目标**：不再重复拆分现有程序集；按 PWO0～PWO6 补齐 PlayMode 场景自动化、W10/W11 可靠性出口、内容迁移清零、Camera/Observer 装配边界、性能预算与文档单一真源。
+**目标**：不再重复拆分现有程序集；按 PWO0～PWO6 补齐 PlayMode 场景自动化、W11 / R2 可靠性出口、内容迁移清零、Camera/Observer 装配边界、性能预算与文档单一真源。
 
-**状态**：🟡 2026-09-19 方案已建立，按需穿插实施，不抢占近期学习主线。优先保留 PWO0/PWO1 小型回归安全网与 PWO2 W10/W11 出口；PWO4/PWO6 后置。
+**状态**：🟡 2026-09-19 方案已建立，按需穿插实施，不抢占近期学习主线。W10 已验收；优先保留 PWO0/PWO1 小型回归安全网与 PWO2 W11 / R2 出口；PWO4/PWO6 后置。
 
 ### [P0] 代码结构稳定化（功能修复前置）
 
@@ -132,7 +132,7 @@
 
 **目标**：Dedicated 独跑现有 `SimulationWorld`；Listen 只是同进程再开 LocalClient。客户端上行 `InputFrame`、下行 V2 Lifecycle/Snapshot/Event；本机 Autonomous 预测走跑与出招；命中只在权威逻辑盒结算。
 
-**状态**：NS0～NS5 / W0～W9 已验收。W10/W11 代码切面已落地，Play / R2 未关，不得称公网可用。2026-09-19 审计发现旧 `FakeActionGameLoopbackTests` 随 V1 清理删除，W11 必须先在 V2 上重建 10+ Actor、兴趣裁剪与 Owner 预算证据。同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。命中 **P0 仍权威 Collect**；`NS-PVP` 未开。
+**状态**：NS0～NS5 / W0～W10 已验收。W11 代码切面已落地，R2 未关。2026-09-19 审计发现旧 `FakeActionGameLoopbackTests` 随 V1 清理删除，W11 必须先在 V2 上重建 10+ Actor、兴趣裁剪与 Owner 预算证据。同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。命中 **P0 仍权威 Collect**；`NS-PVP` 未开。
 
 **下行带宽（方案，未实现）**：整包 67B 脏检测的后续三项，按序 [`docs/2026.8.24/README.md`](../../docs/2026.8.24/README.md) — `RS-M` 分块掩码 → `RS-S` 同实体分频 → `RS-C` 动作本地推帧。不改权威 Collect，不恢复旧协议双轨。
 
@@ -222,7 +222,7 @@
 - [x] 2026-08-19：NetSync W7——Dedicated Match 状态机、每连接 ReplicationFrame、MatchEnd；Editor Play 已验收
 - [x] 2026-08-19：NetSync W8 / M2——Dedicated 启动覆盖、READY、出包与 H-DS-D 用户验收；LAN DS-Demo 关闭
 - [x] 2026-08-20：NetSync W9——Listen = `DedicatedServerRuntime` + `LocalClientRuntime`；删除特殊 Host Room / Capture；用户验收关闭
-- [x] 2026-08-20：NetSync W10 代码切面——`ACTNet.Prediction`、ChannelMux、可靠命中事件、SnapshotTimeline；出口待 Play，不得称公网可用
+- [x] 2026-09-19：NetSync W10——`ACTNet.Prediction`、ChannelMux、可靠命中事件、SnapshotTimeline 与故障网络 Play 用户验收关闭
 - [x] 2026-08-22：NetSync W11 代码切面——Delta/兴趣/预算、`GraphNodeKey`、Recover、FakeActionGame；R2 出口未关
 
 ## 已完成

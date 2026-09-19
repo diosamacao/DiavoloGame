@@ -48,7 +48,7 @@
 | 相机 | 🟡 | 日常跟随 + Director + SkillShot Spline 已有；待 C-SP Test/Editor/Play、UI 展示舱与 Cutscene；Lock-On 暂时舍弃 |
 | 正式 UI / 血条 | ⬜ | 仅 Debug HUD；MVVM UI 调整为近期学习主线 |
 | 吸附 / 绕背 | ✅ | Wave 4 位移出口 |
-| 预测 / 联网 | 🟡 | W10/W11 代码切面；Play 未关；不得称公网可用 |
+| 预测 / 联网 | 🟡 | W10 已验收；W11 V2 证据与 R2 未关 |
 | 打击感木桩 / 命中 Cue | ✅ | 2026-08-08 / 08-09 验收 |
 | 三人换人 / 极限支援 | ✅ | P-SW0～P-SW2 Graph、资产与 Play 已验收（2026-09-19）；P-SW3～P-SW5 是独立后续扩展 |
 | 学习/工程实践轨 | 🟡 | UI、性能、A*、AB/Lua、SDK、剧情编辑器进入近期并行学习主线（§6.4） |
@@ -57,11 +57,11 @@
 
 ## 3. 当前焦点
 
-**并行焦点 A（联网）：** 继续关闭 W10 Clumsy Play 与 W11 远敌裁剪 / Owner 不被饿死 / R2 出口；关闭前仍不得称公网可用。
+**并行焦点 A（联网）：** W10 已于 2026-09-19 用户验收；继续关闭 W11 的 V2 FakeActionGame、10+ Actor、远敌裁剪 / Owner 不被饿死与 R2 出口。
 
 **并行焦点 B（学习主线）：** 按“MVVM UI → 性能基线 → A* → 剧情编辑器 → AssetBundle/Lua → SDK 打包”形成可独立运行的小型切片；不得绕过现有 60Hz Sim / Numeric / Content Catalog 边界。
 
-下行带宽三项方案已立、**未实现**：[`2026.8.24/README.md`](./2026.8.24/README.md)（`RS-M` 掩码 → `RS-S` 分频 → `RS-C` 推帧）。未点名实现前不挡 W10/W11 Play。
+下行带宽三项方案已立、**未实现**：[`2026.8.24/README.md`](./2026.8.24/README.md)（`RS-M` 掩码 → `RS-S` 分频 → `RS-C` 推帧）。未点名实现前不挡 W11 / R2 验收。
 
 - 实现阅读：[`2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](./2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)
 - 排期：[`2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](./2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)
@@ -104,8 +104,8 @@
 | L1B Play Mode 回归 + `ActionSim*` | ⬜ |
 | L2 斜坡/网格精确碰撞 | ⬜ |
 | L3 可导出复制快照（纠偏用，非 GGPO） | ⬜ |
-| NS0～NS5 / W0～W9 | ✅ |
-| W10 预测 / 可靠通道 / 网络时间 | 🟡 代码切面；Play 暂缓 |
+| NS0～NS5 / W0～W10 | ✅ |
+| W10 预测 / 可靠通道 / 网络时间 | ✅ 2026-09-19 用户验收 |
 | W11 Delta / Relevancy / FakeActionGame | 🟡 Delta/Relevancy V2 代码切面；V2 FakeActionGame 测试需重建，R2 未关 |
 | W12 公网 / 重连 / 运维 | ⬜ |
 | 复制带宽 RS-M / RS-S / RS-C | ⬜ 方案 [`2026.8.24`](./2026.8.24/README.md) |

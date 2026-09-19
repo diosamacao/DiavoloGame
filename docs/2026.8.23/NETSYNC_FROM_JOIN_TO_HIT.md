@@ -8,7 +8,7 @@
 > 踩坑：[`../2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md`](../2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md)
 
 **本文覆盖到 2026-08-23 的生产路径**：W9 Listen 组合 + W10 通道/预测骨架 + W11 Compact + 远端播放头 / Urgent / 战斗立刻 Apply。  
-**明确未关出口**：W10 Clumsy Play、W11 远敌裁剪 Play、R2。不得称公网可用。
+**状态更新（2026-09-19）**：W10 已完成用户验收；W11 的 V2 FakeActionGame、10+ Actor、远敌裁剪 / Owner 预算与 R2 仍未关。
 
 ---
 
@@ -615,7 +615,7 @@ Owner **不**在客机跑 `CombatHitPipeline.Collect`（`RoomArchitectureBoundar
 | Host 本机 Capture / ±2m 预览 | 已删 |
 | 固定 `GuestPlayerId = 2` | `PlayerRegistry` 从 1 递增 |
 | 字段级 change mask / 超 MTU 拆包 | **未做** |
-| 公网 / R2 / W10·W11 Play 出口 | **未关** |
+| W11 / R2 出口 | **未关；W10 已于 2026-09-19 用户验收** |
 | 客机权威命中结算 | **不做** |
 
 `ReplicationRoomClient`、`ActClientRoomGameplay`、`ActGameSessionHandler.TryCreateGuest` **仍存活**，职责已迁到 Dedicated 组合上。

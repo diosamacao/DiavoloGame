@@ -154,7 +154,7 @@ CS2B 已删除粗粒度 `ACTGame.Domain.Gameplay`。Camera 与 Action Timeline �
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只从该先行 Composition Root 装配和注册，缺失时明确失败，不扫描场景或自行创建第二个 World。Camera/Debug Controller 只取同物体组件、Composition Root 子树或 Architecture/Simulation 注册表。
 
-NetSync W0～W9 已验收。W10/W11 代码切面已落地，Play / R2 未关，不得称公网可用。阅读：[`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)。
+NetSync W0～W10 已验收。W11 代码切面已落地，但 V2 FakeActionGame、10+ Actor、兴趣裁剪 / Owner 预算与 R2 出口未关。阅读：[`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)。
 
 ### 2. 泛型状态机（Core）
 
