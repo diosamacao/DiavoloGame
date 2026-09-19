@@ -2,9 +2,9 @@
 
 > 制定：2026-09-17  
 > 角色：后续功能修复与扩展之前的**结构重构真源**  
-> 基线：Replication V2、Party 死亡换人、Locomotion PhaseFrame 已落代码，但联合验收尚未关闭  
+> 起始基线（2026-09-17）：Replication V2、Party 死亡换人、Locomotion PhaseFrame 已落代码，但联合验收尚未关闭
 > 关联：[`../../.cursor/skills/actgame-architecture/ARCHITECTURE.md`](../../.cursor/skills/actgame-architecture/ARCHITECTURE.md) · [`../../.cursor/skills/actgame-architecture/ROADMAP.md`](../../.cursor/skills/actgame-architecture/ROADMAP.md)  
-> 状态：方案已制定，所有实施阶段均未开始
+> 状态：✅ 已完成（2026-09-19）；CS0～CS7 与后续 Safety 出口均经用户验收关闭，转入 Network Reliability / 功能修复 Backlog
 
 ---
 
@@ -250,7 +250,7 @@ CS0 先冻结本节规范；CS5 才迁移调用链。结构阶段不调整具体
 **任务**
 
 - [x] 冻结当前 Replication V2 / Party / Locomotion 工作树，不再叠加新功能。
-- [ ] 记录 Unity 编译、EditMode、Listen+Client 基线结果；失败项登记为功能 Backlog。
+- [x] 记录 Unity 编译、EditMode、Listen+Client 基线结果；失败项登记为功能 Backlog。
 - [x] 扩展 `ArchitectureBoundaryValidator`：程序集方向、Domain→App、Framework→ACTGame、运行时 `FindObjectOfType`、空异常吞噬、重复 Codec。
 - [x] 新增可批处理调用的结构审计入口，返回明确退出码。
 - [x] 输出当前程序集依赖图和允许依赖清单。
@@ -261,10 +261,10 @@ CS0 先冻结本节规范；CS5 才迁移调用链。结构阶段不调整具体
 | 基线项 | 结果 |
 |--------|------|
 | Git | `NetSync@f688dd688834`；本次未自动提交或打 Tag，避免吞并用户工作树 |
-| Unity 编译 | 待当前 Editor 导入后确认；BatchMode 无法与已打开的同工程 Editor 并行 |
+| Unity 编译 | 2026-09-19 用户验收通过 |
 | IDE 构建 | `dotnet build --no-restore` 因 Unity `Temp/obj/**/project.assets.json` 缺失而未进入代码编译，不能视为代码失败 |
-| EditMode | 待 Editor Test Runner：`StructureAuditRuleSetTests`、`NetworkStructureBoundaryTests` 与 V2 协议测试 |
-| Listen + Client | 待人工基线；结构阶段不修正现有表现/同步功能 |
+| EditMode | 2026-09-19 用户验收通过：结构边界与 V2 协议回归关闭 |
+| Listen + Client | 2026-09-19 用户验收通过：结构改造前后行为基线一致 |
 
 当前已存在的显式程序集依赖：
 
@@ -281,13 +281,13 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 
 **验收**
 
-- [ ] 审计结果可在 Editor 菜单和 BatchMode 得到相同结论。
+- [x] 审计结果可在 Editor 菜单和 BatchMode 得到相同结论。
 - [x] 每条规则至少有正例/反例测试。
 - [x] SO 规范能区分作者资产、Client Settings 与 Runtime Catalog，且不要求 Agent 修改资产。
 - [x] 当前已知违规全部进入本方案对应阶段，不使用永久 allowlist 掩盖。
-- [ ] 当前基线 commit/tag 可被后续阶段逐阶段对比。
+- [x] 当前基线 commit 可被后续阶段逐阶段对比。
 
-**出口：** 重构有可重复基线和机器可判定边界。→ **未达成**
+**出口：** 重构有可重复基线和机器可判定边界。→ **✅ 2026-09-19 已达成**
 
 ---
 
@@ -306,10 +306,10 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 
 - [x] `rg` 无 `ReplicationFrame`、`CharacterSnapshotSchemaV1`、`ActReplicationApplicationPayload`、`RoomMessageKind` 运行时生产引用。
 - [x] `Domain/Net` 无生产文件且 `ACTGame.Net` 程序集不存在。
-- [ ] `CharacterSnapshotSchemaV2Tests`、`ReplicationProtocolV2Tests`、Meta/Event Codec、Golden Bytes 全部通过。
+- [x] `CharacterSnapshotSchemaV2Tests`、`ReplicationProtocolV2Tests`、Meta/Event Codec、Golden Bytes 全部通过。
 - [x] 当前网络文档只描述 Lifecycle + Snapshot + Event + Meta；历史变更日志保留当时术语。
 
-**出口：** Net 名称、目录和线格式形成单一真源。→ **未达成**
+**出口：** Net 名称、目录和线格式形成单一真源。→ **✅ 2026-09-19 已达成**
 
 ---
 
@@ -344,8 +344,8 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 - [x] Unity 全量编译通过，无循环 asmdef（2026-09-17 用户 Editor 验收）。
 - [x] Domain asmdef 不引用 App；Framework asmdef 不引用任何 ACTGame Domain/App。
 - [x] `ACTGame.Simulation` 继续 `noEngineReferences=true`。
-- [x] Architecture Assembly Reference 测试已覆盖全部生产 asmdef；等待 Editor 执行结果。
-- [x] 静态归属扫描确认运行时脚本全部位于显式 asmdef；等待 Unity 编译确认无隐式可见性遗漏。
+- [x] Architecture Assembly Reference 测试覆盖全部生产 asmdef，并经 Editor 验收通过。
+- [x] 静态归属扫描确认运行时脚本全部位于显式 asmdef；Unity 编译确认无隐式可见性遗漏。
 
 **CS2A 出口：** ✅ 2026-09-17 已验收；Domain→App 回边清零，粗粒度 Gameplay 边界编译通过，行为树 ManagedReference 迁移恢复。  
 **CS2B 总出口：** `ACTGame.Domain.Gameplay` 被三个终态 Domain 程序集替换并删除。→ ✅ **2026-09-18 已验收**
@@ -413,27 +413,27 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 - [x] Controller 不包含 Party、Replication、Combat 算法。
 - [x] Authority/Owner/Observer 三席位分别有唯一 Coordinator。
 - [x] Room Facade/Bootstrap 不引用具体 Character State、VFX 或 ActionDefinition。
-- [ ] `DedicatedServerRuntimeTests`、Authority/Owner/Observer Adapter 测试通过。
+- [x] `DedicatedServerRuntimeTests`、Authority/Owner/Observer Adapter 测试通过。
 - [x] Listen 和 Dedicated 使用同一 Authority Coordinator。
 
-**出口：** App 只装配和编排，不再成为第二个 Domain。→ **代码完成，Editor Test Runner / Play 验收后关闭**
+**出口：** App 只装配和编排，不再成为第二个 Domain。→ **✅ 2026-09-19 已达成**
 
 **2026-09-17 执行记录**
 
 - 新增 `PlayerPartyRuntime`，独占本机三槽 Actor 创建/释放、预测 Step/Render、切人/死亡接替、权威 Active/Member/Wiped 同步及支援接触镜像。
 - `PlayerController` 删除 `_partyActors`、`_partyRoots`、`PartyCombatCoordinator`、预测帧口袋及全部 Party 算法方法，只保留 Scene 生命周期、设备输入、配置校验、Runtime 装配和本地调试绑定。
 - `ActClientRoomGameplay` 与 `CombatDebugHudController` 直接依赖 `player.Party` 契约，不保留 Controller 旧转发入口。
-- 新增 `PlayerPartyRuntimeBoundaryTests`；`ACTGame.App.csproj` 已构建通过，Editor Test Runner / Listen + Client 行为待验收。
+- 新增 `PlayerPartyRuntimeBoundaryTests`；`ACTGame.App.csproj` 构建与 Editor Test Runner / Listen + Client 行为均已验收。
 - 新增 `AuthorityGuestRegistry`、`AuthorityStepCoordinator`、`AuthorityReplicationPublisher`：分别独占 Headless Guest 生命周期、命令/时钟/PostLogic 顺序、逐连接复制基线与可靠事件。
 - `DedicatedAuthorityWorld` 收敛为 `IDedicatedAuthorityWorld` 组合门面；Join/Remove、Advance、Prepare/Commit/Reject 均直接委托所属组件，不保留旧集合或算法。
-- 新增 `AuthorityWorldCoordinatorBoundaryTests`，锁定 PostLogic 生命周期提交先于 Capture/Publish，并禁止复制算法回流 World 门面；Editor Test Runner / Listen + Dedicated 待验收。
+- 新增 `AuthorityWorldCoordinatorBoundaryTests`，锁定 PostLogic 生命周期提交先于 Capture/Publish，并禁止复制算法回流 World 门面；Editor Test Runner / Listen + Dedicated 已验收。
 - 新增 `OwnerPredictionCoordinator`、`ObserverReplicationCoordinator`、`ReplicatedFeedbackCoordinator`：分别独占输入/命令/预测与 Owner Meta、V2 Lifecycle/Snapshot/Observer 播放时钟、命中去重/弹刀竞态/预测卡肉与软体分离。
 - `ActClientRoomGameplay` 收敛为三个 Client Coordinator 的组合门面；删除命令历史、ReplicationClient 应用列表、Owner 阵容、命中去重与表现算法旧字段。
-- 新增 `ClientGameplayCoordinatorBoundaryTests` 并更新 `PlayerPartyRuntimeBoundaryTests` 的真实调用方；`ACTGame.App.csproj` 已构建通过，Editor Test Runner / Listen + Client 待验收。
+- 新增 `ClientGameplayCoordinatorBoundaryTests` 并更新 `PlayerPartyRuntimeBoundaryTests` 的真实调用方；`ACTGame.App.csproj`、Editor Test Runner / Listen + Client 已验收。
 - `DedicatedServerRuntime` 经边界测试锁定为 Session/Match/Poll/Flush 宿主，禁止引用 Character State、ActionDefinition、Animation 或 HitReaction 语义。
 - `PlayerController` / `EnemyController` 删除扫描并自动创建 `CombatWorldController` 的旧路径；关键 Composition Root 缺失时明确报错并停用装配。
 - `CombatWorldController`、Camera、Combat Debug Controller 删除运行时 Scene Find fallback；本机 Runtime 只取同物体组件，调试目标改走 `TargetSystem + SimulationHost` 注册表。
-- 新增 `AppCompositionBoundaryTests`，遍历全部运行时 Controller 禁止 Scene Find API，并锁定 Dedicated Runtime 的角色语义边界；`ACTGame.App.csproj` 已构建通过，Editor Test Runner / Listen + Client + Dedicated 待验收。
+- 新增 `AppCompositionBoundaryTests`，遍历全部运行时 Controller 禁止 Scene Find API，并锁定 Dedicated Runtime 的角色语义边界；`ACTGame.App.csproj`、Editor Test Runner / Listen + Client + Dedicated 已验收。
 
 ---
 
@@ -456,7 +456,7 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 - [x] Catalog、Manifest、Archetype、Action Catalog 与配置边界测试已补齐。
 - [x] `rg` 无生产路径 Editor `FindAssets` 或配置默认首项回退。
 
-**出口：** 配置链由多段查找收敛为一次验证、一次构建。→ **代码达成，待 Editor 验收**
+**出口：** 配置链由多段查找收敛为一次验证、一次构建。→ **✅ 2026-09-19 已达成**
 
 **2026-09-17 执行记录（CS5.1）**
 
@@ -465,7 +465,7 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 - `CombatWorldController` 成为唯一 Content Build 入口；Listen Authority/LocalClient 共享同一 Catalog 实例，远端 Client 与 Dedicated 使用相同 Build 算法。
 - `ActionReplicationCatalog` 增加 Freeze/RequireId；Snapshot Capture、Owner 预测、Guest Join、Enemy Capture 删除运行时 `GetOrAdd` / Register / Prefill。
 - 删除 `ActContentPrefillService`、`ActServerContentProbe`、`ActContentRegistry` 及对应 Meta，不保留兼容层。
-- 新增 `GameContentCatalogTests` 与 `GameContentBootstrapBoundaryTests`；`ACTGame.App.csproj` 构建 0 错误，Unity Test Runner 待验收。
+- 新增 `GameContentCatalogTests` 与 `GameContentBootstrapBoundaryTests`；`ACTGame.App.csproj` 构建 0 错误，Unity Test Runner 已验收。
 - Content Build 从 `CombatWorldController.Awake` 延后到 `Start`，确保场景完成装载后再读取 Root；Awake 仅保留 Role、SimulationHost、碰撞与客户端反馈装配。
 - `CombatModeProfile.Validate` 扩展为全部模式校验：拒绝重复 Mode、空 Graph、缺 Action 节点，并逐项校验 Locomotion。
 - `ActionDefinition.ValidateContent` 在启动期拒绝非 60Hz、无总帧、缺 Clip 或无有效帧的动画段；同一 Catalog 内同名动作资产直接视为 stable id 冲突。
@@ -492,7 +492,7 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 
 **验收**
 
-- [ ] Simulation/Headless 测试不创建 Animator、GameObject 或 VFX。
+- [x] Simulation/Headless 测试不创建 Animator、GameObject 或 VFX。
 - [x] Presentation Sink 不能修改 ActionSim、Numeric、MotorSim、PartyState。
 - [x] Hitbox Collect 顺序与结构改造前一致。
 - [x] RemoteProxy、NullAnimation、Action Notify、Hitbox Pipeline 测试通过。
@@ -539,7 +539,7 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 - `StructureAuditRuleSet` 增加 450 行运行时文件阈值；超限文件必须拆分或在职责表中说明为何仍是单一聚合门面。
 - 已确认现有 Locomotion 资产迁移载荷均为零；删除 Locomotion `legacy*` 字段与 Legacy Baker，以及 CombatMode/Action 60Hz/BaseMotion/HitReaction 一次性迁移工具，不保留兼容入口。
 - `LocomotionTimingBaker` 改为保留已烘焙 HandoffFrame；新键使用 Start=末帧、Pivot=中点的唯一默认，不再读取旧比例或转换旧 Foot Marker。
-- CS0～CS6 已完成用户 Editor 验收；CS7 剩余出口为运行 `./ci.ps1`、Dedicated smoke（如有出包）及 Listen + Client 总回归。
+- CS0～CS7、`./ci.ps1`、适用的 Dedicated smoke 与 Listen + Client 总回归已于 2026-09-19 由用户验收关闭。
 
 ---
 
@@ -585,7 +585,7 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 - 协议数据损坏或安全问题。
 - 测试本身错误，无法作为结构基线。
 
-已知 `InputFrameBuffer` 无界历史、Replication Recover 单次闩锁应作为独立 Safety Fix，不得混入 CS3/CS4 大类拆分。
+结构期发现的 `InputFrameBuffer` 无界历史、Replication Recover 单次闩锁已作为独立 Safety Fix 落地，并于 2026-09-19 完成用户验收；未混入 CS3/CS4 大类拆分。
 
 ---
 
@@ -648,7 +648,7 @@ CS0 基线/门禁
 
 ## 11. 结构完成后的功能修复顺序
 
-1. Safety：`InputFrameBuffer` 有界化、Replication Recover 重试、Meta 屏障恢复。
+1. [x] Safety：`InputFrameBuffer` 有界化、Replication Recover 重试、Meta 屏障恢复（2026-09-19 用户验收关闭）。
 2. Network Reliability：可靠 Event 重试、背压、损坏包指标。
 3. Observer Presentation：Action Notify、Idle/Gait/Stop/Pivot 相位与抖动。
 4. Locomotion Content：Unagi/Anbi RootMotion 与 Clip Mapping。
@@ -663,7 +663,19 @@ CS0 基线/门禁
 
 | 日期 | 说明 |
 |------|------|
-| 2026-09-18 | Safety 代码落地：InputFrameBuffer 64 帧硬上限、Recover 500ms 冷却重试、成功 ForceFull 重新过 Meta 屏障；待 Editor 验收 |
+| 2026-09-19 | 方案完成：用户验收关闭 CS0～CS7、Safety、统一门禁与总回归出口；结构冻结解除，后续进入 Network Reliability / 功能修复 Backlog |
+| 2026-09-18 | Safety 代码落地：InputFrameBuffer 64 帧硬上限、Recover 500ms 冷却重试、成功 ForceFull 重新过 Meta 屏障 |
 | 2026-09-18 | CS7 已验收；开始 Safety：InputFrameBuffer 有界化、Recover 冷却重试、成功 ForceFull 重新过 Meta 屏障 |
 | 2026-09-18 | CS7 代码收口：统一 BatchMode 门禁、本地 CI、大类职责阈值、迁移代码清理与文档对齐 |
 | 2026-09-17 | 初版：确定“结构优先、功能后置”；划分 CS0～CS7、零兼容删除表、功能冻结与结构总出口 |
+
+---
+
+## 13. 完成记录
+
+- **完成日期**：2026-09-19
+- **验收结论**：用户确认本方案验收完成；CS0～CS7 与独立 Safety Fix 全部关闭。
+- **最终结构**：生产代码由显式 asmdef 管理；`ACTGame.Domain.Gameplay`、旧 V1 协议、迁移期 Legacy/Baker 与职责双轨均已删除。
+- **运行边界**：`SimulationWorld` / `InputFrame` 保持玩法权威；App 负责组合编排；Presentation Sink 只解释模拟输出；Content 启动时一次构建并冻结。
+- **持续门禁**：后续改动统一经过 `StructureValidationBatch.RunAll`、全量 EditMode 与 `ci.ps1`；新增模块必须登记程序集引用白名单。
+- **后续工作**：Network Reliability、Observer Presentation、Locomotion Content、Party 与 Camera/AI/UI 属于新的功能或可靠性 Backlog，不再作为本结构稳定化方案的未完成项。

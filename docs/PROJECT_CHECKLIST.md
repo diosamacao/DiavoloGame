@@ -176,7 +176,7 @@
 
 完成后回写 ROADMAP：
 
-- [ ] 业务程序集仍多在 Assembly-CSharp（仅 `Domain/Simulation` 已拆 asmdef）
+- [x] 2026-09-19：生产业务已迁入显式 asmdef，删除粗粒度 `ACTGame.Domain.Gameplay`，运行时代码不再依赖默认 Assembly-CSharp 跨层可见性
 - [ ] Action YAML 可能残留孤儿字段，需 Editor 重存清洗
 
 ---

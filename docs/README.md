@@ -1,6 +1,6 @@
 # ACTGame 文档索引
 
-> 更新：2026-09-06 — 弹刀选片/自动弹刀/断招见 `2026.9.6`。弹刀卡肉见 `2026.9.5`。换人仍见 `2026.8.30`。
+> 更新：2026-09-19 — 代码结构稳定化 CS0～CS7 与 Safety 已验收完成；现行功能方案仍按下表阅读。
 
 **先读**
 
@@ -43,6 +43,7 @@
 
 | 文档 | 角色 |
 |------|------|
+| [2026.9.17/CODE_STRUCTURE_STABILIZATION_PLAN.md](./2026.9.17/CODE_STRUCTURE_STABILIZATION_PLAN.md) | 已完成方案：Assembly 分层、职责拆分、Content 单入口、模拟/表现边界与统一门禁（CS0～CS7 + Safety） |
 | [2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md](./2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md) | 结构范本：对峙循环 + GaitPolicy |
 | [2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md](./2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md) | 阶段勾选范本：Numeric / Effect（G0～G5 已关） |
 
