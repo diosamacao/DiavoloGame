@@ -15,6 +15,14 @@
 
 ## 进行中的结构迁移
 
+### [P0/P1] 项目级质量与交付优化（结构稳定化后续）
+
+**方案**：[`docs/2026.9.19/PROJECT_WIDE_OPTIMIZATION_PLAN.md`](../../../docs/2026.9.19/PROJECT_WIDE_OPTIMIZATION_PLAN.md)
+
+**目标**：不再重复拆分现有程序集；按 PWO0～PWO6 补齐 PlayMode 场景自动化、W10/W11 可靠性出口、内容迁移清零、Camera/Observer 装配边界、性能预算与文档单一真源。
+
+**状态**：🟡 2026-09-19 方案已建立，按需穿插实施，不抢占近期学习主线。优先保留 PWO0/PWO1 小型回归安全网与 PWO2 W10/W11 出口；PWO4/PWO6 后置。
+
 ### [P0] 代码结构稳定化（功能修复前置）
 
 **方案**：[`docs/2026.9.17/CODE_STRUCTURE_STABILIZATION_PLAN.md`](../../docs/2026.9.17/CODE_STRUCTURE_STABILIZATION_PLAN.md)
@@ -92,7 +100,7 @@
 
 - [x] TargetAdhesion + SoftBodySuppress；Branch_02 验收（目标已于 2026-08-13 迁为逐帧 SelectedTarget）
 - [x] RelocateBehind / MotionCommand → `ActionMotionResolver` 接线（P3）
-- ~~Lock-On（原 4.5～4.6）~~ → 已撤出 Wave 4；排期见 [`docs/2026.8.26/CAMERA_SYSTEM_PLAN.md`](../../docs/2026.8.26/CAMERA_SYSTEM_PLAN.md)
+- ~~Lock-On（原 4.5～4.6）~~ → 已撤出 Wave 4，并于 2026-09-19 暂时舍弃；不再作为当前相机待办
 
 **打击感优化（木桩 / Cue / 吸附行程）至此告一段落；Relocate 按需配资产。**
 
@@ -104,7 +112,7 @@
 
 **目标**：MoveReferenceYaw 固化进 `InputFrame`；角色只保存一个自动维护且 Action 中可切换的 `SelectedTargetId`，Action/Motion/Camera 共用；`CameraLockEnabled` 仅为本地表现；删除 PlanarBasis Motor 旁路、`ActionTargetId`、Transform 索敌与 Presentation late-bind。
 
-**状态：🟡 C-AT0～C-AT3 代码重构完成（2026-08-13）**；已删除旧权威路径并补确定性 Resolver 测试。待 Editor 绑定 TargetSwitch/CameraLock、Unity 编译/Test Runner/Play 回归后关闭出口，再进入 Camera C1。
+**状态：🟡 C-AT0～C-AT3 代码重构完成（2026-08-13）**；已删除旧权威路径并补确定性 Resolver 测试。`SelectedTargetId` 继续供 Action/Motion/SkillShot 使用；Lock-On 暂时舍弃，不再要求绑定 CameraLock。TargetSwitch 仅在需要手动切敌时再验收。
 
 ### [P1] Camera Director / SkillShot / UI 展示舱
 
@@ -112,9 +120,9 @@
 **方案（大招机位 + 镜头拉伸）**：[`docs/2026.8.29/CAMERA_SKILLSHOT_AND_STRETCH_PLAN.md`](../../docs/2026.8.29/CAMERA_SKILLSHOT_AND_STRETCH_PLAN.md)（CS0～CS3；对照 ZZZACTGame / zzzdemo / DemoClient）
 **方案（样条轨迹接替）**：[`docs/2026.8.29/CAMERA_SPLINE_INTEGRATION_PLAN.md`](../../docs/2026.8.29/CAMERA_SPLINE_INTEGRATION_PLAN.md)（C-SP0～C-SP3；替换单 localOffset/Dolly 与固定机位枚举）
 
-**目标**：`CameraDirector` 栈做战斗多机位（LockOn / 大招 SkillShot）；招式窗 `FollowHold` 做镜头拉伸；UI 用独立展示舱 + RenderTexture，不拧战斗 VCam。吸收 Demo 最近候选/回写 yaw/HoldFollow 与 zzzdemo 机位池思想；拒绝 State SetActive / StateDriven 时钟 / `Time.timeScale` 当镜头时钟 / VCam.forward 玩法朝向。
+**目标**：`CameraDirector` 栈负责 Free / 大招 SkillShot / Cutscene；招式窗 `FollowHold` 做镜头拉伸；UI 用独立展示舱 + RenderTexture，不拧战斗 VCam。Lock-On 暂时撤出当前产品范围；拒绝 State SetActive / StateDriven 时钟 / `Time.timeScale` 当镜头时钟 / VCam.forward 玩法朝向。
 
-**状态：🟡 Camera C-SP0～C-SP3 已编译（2026-08-30），Test/Play 待验收**。保持 Cinemachine 2.10.7，接入 Unity Splines 2.8.4；机位位置只读 Action 内嵌官方 Spline，常规作者使用端点驱动 Linear/上下左右 Arc 规则，Custom 才开放完整 Knot/Tangent；独立 Action Camera View 预览实际构图，SceneView 不再被 Debug 接管；Director 内部 A/B 抢权，旧 localOffset/Dolly/VcamKey/Anchor 路径已删除。8.26 C1 完整 LockOn 构图与 C5 UI 展示舱仍未开工。
+**状态：🟡 Camera C-SP0～C-SP3 已编译（2026-08-30），Test/Editor/Play 待验收**。保持 Cinemachine 2.10.7，接入 Unity Splines 2.8.4；Director 内部 A/B 抢权，旧 localOffset/Dolly/VcamKey/Anchor 路径已删除。近期剩余项为 C-SP 产品验收、C5 UI 展示舱，以及配合剧情编辑器的 CS4 Cutscene 抢权；Lock-On 不再是待办。
 
 ### [P1] 组队 PVE · Dedicated 权威状态同步
 
@@ -124,7 +132,7 @@
 
 **目标**：Dedicated 独跑现有 `SimulationWorld`；Listen 只是同进程再开 LocalClient。客户端上行 `InputFrame`、下行 V2 Lifecycle/Snapshot/Event；本机 Autonomous 预测走跑与出招；命中只在权威逻辑盒结算。
 
-**状态**：NS0～NS5 / W0～W9 已验收。W10/W11 代码切面已落地，Play / R2 未关，不得称公网可用。同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。命中 **P0 仍权威 Collect**；`NS-PVP` 未开，禁止现在分叉两套盒。
+**状态**：NS0～NS5 / W0～W9 已验收。W10/W11 代码切面已落地，Play / R2 未关，不得称公网可用。2026-09-19 审计发现旧 `FakeActionGameLoopbackTests` 随 V1 清理删除，W11 必须先在 V2 上重建 10+ Actor、兴趣裁剪与 Owner 预算证据。同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。命中 **P0 仍权威 Collect**；`NS-PVP` 未开。
 
 **下行带宽（方案，未实现）**：整包 67B 脏检测的后续三项，按序 [`docs/2026.8.24/README.md`](../../docs/2026.8.24/README.md) — `RS-M` 分块掩码 → `RS-S` 同实体分频 → `RS-C` 动作本地推帧。不改权威 Collect，不恢复旧协议双轨。
 
@@ -178,21 +186,21 @@
 
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
-| 三人换人 / 极限支援 | P1 | 🟡 P-SW1/P-SW2 代码完成，Graph/Play 待验。P-PR0～P-PR2 选片/Continue/Success 不重切已接线。方案：[`docs/2026.9.6/ASSIST_PARRY_OUTCOME_PLAN.md`](../../docs/2026.9.6/ASSIST_PARRY_OUTCOME_PLAN.md)、[`docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`](../../docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md) |
+| 三人换人 / 极限支援 | P1 | ✅ P-SW0～P-SW2、P-PR 与卡肉 Graph/资产/Play 于 2026-09-19 用户验收；P-SW3 快速支援、P-SW4 连携、P-SW5 后续复制仍为独立扩展。方案：[`docs/2026.9.6/ASSIST_PARRY_OUTCOME_PLAN.md`](../../docs/2026.9.6/ASSIST_PARRY_OUTCOME_PLAN.md)、[`docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`](../../docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md) |
 | 受击档位 + Additive | P1 | ✅ P-HR0～P-HR4 Play 验收 2026-09-04。失衡条 / 击飞物理不进本轮。方案：[`docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md`](../../docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md) |
 | ActionEditorWindow | P1 | ✅ 基础版 + 菱形/Zoom/Scrub 预览 + 2026-08-04 playhead 跟视口、Create 选文件夹、左侧文件夹分组；后续增强 SFX 预览 |
 | Enemy/ + AI | P1 | ✅ 8.10 Desire/Entry Request 总出口关闭；对峙表现已验收；待优化见 8.11 Backlog / A* |
-| UI/（MVVM） | P2 | HUD、血条；View/ViewModel 分层，不直写 Domain 权威 |
+| UI/（MVVM） | P1 | 近期学习主线：HUD、血条、菜单；View/ViewModel 分层，不直写 Domain 权威 |
 | 事件总线 | P2 | 轻量 C# event；定稿前不引入第三方 |
 | 行为树编辑器 | P2 | ✅ MVP（A1）；待打磨见 `docs/2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md`（建议 A3） |
 | 敌人对峙循环 + GaitPolicy | P2 | ✅ 拓扑/秒制落地；对峙表现已验收；见 `docs/2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md` |
 | Locomotion AnimSet / 倾身 / 绕圈 | P1 | ✅ Play 验收 2026-08-12 |
 | PivotTurn 两段式朝向 | P1 | ✅ Play 验收 2026-08-12 |
-| A\* 寻路 | P2 | 学习实现；路径 → AI 移动意图；锁步确定性边界待定 |
-| 性能优化实践 | P2 | 木桩/多敌人基线 + Profiler 对照；见 `docs/PROJECT_CHECKLIST.md` §6.4 |
-| 剧情编辑器 | P3 | 对话/镜头节点或时间轴；与 Gameplay 用事件解耦 |
-| AssetBundle + Lua 热更 | P3 | 学习沙盒；热更不得改 ActionSim/Numeric 权威 |
-| SDK 打包流程 | P3 | 渠道 SDK / 多包体 / 与热更产物衔接演练 |
+| A\* 寻路 | P1 | 近期学习切片；路径 → AI 移动意图；先锁定确定性边界 |
+| 性能优化实践 | P1 | 近期学习切片；木桩/多敌人基线 + Profiler 对照；见 `docs/PROJECT_CHECKLIST.md` §6.4 |
+| 剧情编辑器 | P1 | 近期学习切片；对话/镜头节点或 Timeline，经事件解耦并复用 Director Cutscene |
+| AssetBundle + Lua 热更 | P1 | 近期独立沙盒；热更不得改 ActionSim/Numeric 权威 |
+| SDK 打包流程 | P2 | 渠道 SDK / 多包体 / 与热更产物衔接演练 |
 
 总清单一页表：[`docs/PROJECT_CHECKLIST.md`](../../docs/PROJECT_CHECKLIST.md) §6.3～§6.4。
 

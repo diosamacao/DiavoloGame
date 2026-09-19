@@ -1,6 +1,7 @@
 # 三人阵容换人 / 极限支援（弹刀）— 需求与实施真源
 
 > 制定：2026-08-30  
+> 状态更新：2026-09-19 — **P-SW0～P-SW2 Graph、正式资产与 Play 用户验收完成**；P-SW3～P-SW5 保持独立后续阶段
 > 角色：**编队换人、极限支援（招架/回避）、支援突击、快速支援** 的结构与排期真源（先文档，后实现）  
 > 产品参考：绝区零战斗（换人无 CD、金/红闪光、支援点、连携技）  
 > 相关：  
@@ -426,10 +427,10 @@ QuickAssist         → InstantReplace
 **验收**
 
 - [ ] EditMode：Loadout 3 槽校验（重复 Id 失败、空槽允许、越界 startingSlot 失败）  
-- [ ] 单槽 Loadout Play：进关、相机、出招与改前单 Config 等价  
+- [x] 单槽 Loadout Play：进关、相机、出招与改前单 Config 等价（2026-09-19 用户验收）
 - [x] `rg "SerializeField] CharacterConfig characterConfig"` 在 `PlayerController` 无匹配
 
-**出口：** 养成可挂 Id，战斗仍可单人。→ **未达成**
+**出口：** 养成可挂 Id，战斗仍可单人。→ **可玩出口已达成（2026-09-19）；EditMode 证据仍待单独归档**
 
 ### P-SW1 — 三 Actor 普通切人
 
@@ -447,12 +448,12 @@ QuickAssist         → InstantReplace
 
 **验收**
 
-- [ ] Play：空格按槽位顺序循环（0→1→2→0）；上场播登场 Action（无资产时可空 Timeline 但必须进 Action 态）  
-- [ ] 下场未结束时再切回该槽：忽略  
-- [ ] 无时间 CD；空闲立即 SwitchOut；已有 Action 在首次 Recovery 切 SwitchOut；切人时已处于 Recovery 不得再泄漏一帧旧招 Notify；仅 SwitchOut Recovery 隐藏
+- [x] Play：空格按槽位顺序循环（0→1→2→0）；上场播登场 Action（2026-09-19 用户验收）
+- [x] 下场未结束时再切回该槽：忽略（2026-09-19 用户验收）
+- [x] 无时间 CD；空闲立即 SwitchOut；已有 Action 在首次 Recovery 切 SwitchOut；切人时已处于 Recovery 不得再泄漏一帧旧招 Notify；仅 SwitchOut Recovery 隐藏（2026-09-19 用户验收）
 - [ ] `PartyCoordinatorTests`：空槽/死亡/Exiting 拒绝  
 
-**出口：** 无闪光也能三人轮换。→ **未达成**
+**出口：** 无闪光也能三人轮换。→ **已达成（2026-09-19，Graph / 资产 / Play）**
 
 ### P-SW2 — 金/红 Cue、支援点、接触弹刀与突击
 
@@ -477,19 +478,19 @@ QuickAssist         → InstantReplace
 
 **验收**
 
-- [ ] Play：木桩 Gold 窗内切近战 → 当场角色立刻消失，下一角色出现在弹刀点**举刀**（无 SwitchIn、无 clang）  
-- [ ] Play：敌人 Active 命中前不得出现招架成功特效；命中后才播 Success，敌人进入 `Hit` 并停掉攻击 Action  
-- [ ] 同一次切人不得同时看到 SwitchIn + AssistParry  
-- [ ] Guard 结束前敌人未出手 → 玩家回 Locomotion，敌人不进 `Hit`，不可派生突击  
-- [ ] 远程上场 Gold → 回避点 Relocate，不走招架节点  
-- [ ] 0 点 Gold 窗切人 → 换人闪，不耗点  
+- [x] Play：木桩 Gold 窗内切近战 → 当场角色立刻消失，下一角色出现在弹刀点**举刀**（无 SwitchIn、无 clang）（2026-09-19 用户验收）
+- [x] Play：敌人 Active 命中前不得出现招架成功特效；命中后才播 Success，敌人进入 `Hit` 并停掉攻击 Action（2026-09-19 用户验收）
+- [x] 同一次切人不得同时看到 SwitchIn + AssistParry（2026-09-19 用户验收）
+- [x] Guard 结束前敌人未出手 → 玩家回 Locomotion，敌人不进 `Hit`，不可派生突击（2026-09-19 用户验收）
+- [x] 远程上场 Gold → 回避点 Relocate，不走招架节点（2026-09-19 用户验收）
+- [x] 0 点 Gold 窗切人 → 换人闪，不耗点（2026-09-19 用户验收）
 - [x] `PartyAssistResolveTests`：裁定表覆盖（代码已写；Unity Test Runner 待 Editor 跑）  
 - [x] `AssistParryPipelineTests`：窗内命中 → 玩家不 `EnterHit`、攻击者 `EnterHit`、武装突击；仅无敌不武装（代码已写；Unity Test Runner 待 Editor 跑）  
 - [x] 同测：攻击者 SuperArmor / 韧性 3 仍 `EnterHit`，**不是** Flinch；`VitalityEdge == Hit`；`LastConfirmedReactionKind == LightStun`  
 - [x] `rg CharacterStateType.Parry` 与 `rg HitReactionKind.Parried` 玩法目录无匹配  
 - [x] 禁止 `Time.timeScale`（`rg` 玩法目录无新增）  
 
-**出口：** 金光切入、出手接触、敌人受击、突击派生可玩。→ **未达成**
+**出口：** 金光切入、出手接触、敌人受击、突击派生可玩。→ **已达成（2026-09-19，Graph / 资产 / Play）**
 
 ### P-SW3 — 快速支援（击飞档）
 
@@ -668,4 +669,5 @@ P-SW0 身份/Loadout
 | 2026-09-04 | P-SW2 按两条 Action 落地：`AssistParry` Guard + 接触后 `AssistParrySuccess`；任务代码已勾，Play 验收保持未勾 |
 | 2026-09-05 | 弹刀成功卡肉另开 [`../2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md`](../2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md)；不改本篇吞伤 / `IssueParried` 裁定 |
 | 2026-09-06 | 本体弹刀独立 `GameplayIntentType.Parry`：不走 Coordinator、不耗支援点；接触成功仍切 Success。卡肉帧改读 `AssistParryWindow.hitStopFrames` |
+| 2026-09-19 | 用户验收关闭 P-SW0～P-SW2 的 Graph、正式资产与 Play 出口；P-SW3～P-SW5 不随本次验收关闭 |
 | 2026-09-06 | 被弹选片 / 连续自动弹刀 / 断招政策另开 [`../2026.9.6/ASSIST_PARRY_OUTCOME_PLAN.md`](../2026.9.6/ASSIST_PARRY_OUTCOME_PLAN.md)；本篇接触成功与禁止冲击力裁定不变 |

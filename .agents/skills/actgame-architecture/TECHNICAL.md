@@ -1,14 +1,14 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-09-19（结构稳定化 CS0～CS7 与 Safety 用户验收完成）
+> Last updated: 2026-09-19（三人换人 / 接触弹刀 Graph、资产与 Play 用户验收完成；Lock-On 暂时舍弃）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
 
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
-| 三人阵容 / 单键换人 / 死亡接替 | 🟡 运行时/权威代码完成，Editor 验收待办 | `PartyLoadout`、`PartyCombatCoordinator`、`PartyDeathSwitchPolicy`、`ActGameGuest` | 空格已进 Input Actions；需各角色 Graph 配 `SwitchIn/SwitchOut` Entry |
-| 极限支援 / 接触弹刀 | 🟡 P-SW2 代码已接，Play 待验；选片/Continue/自动弹刀已接线 | `WorldAssistCueBoard`、`IssueParried`、`ParriedActionPolicy` | 敌人 Parried 规则 + 进攻盒 Id；Success 继续铺窗 |
+| 三人阵容 / 单键换人 / 死亡接替 | ✅ P-SW0～P-SW1 Graph、资产与 Play 已验收（2026-09-19） | `PartyLoadout`、`PartyCombatCoordinator`、`PartyDeathSwitchPolicy`、`ActGameGuest` | 各角色 Graph 已配置 `SwitchIn/SwitchOut` Entry |
+| 极限支援 / 接触弹刀 | ✅ P-SW2 + P-PR + 卡肉 Graph、资产与 Play 已验收（2026-09-19） | `WorldAssistCueBoard`、`IssueParried`、`ParriedActionPolicy` | Guard/Success、Parried 规则、进攻盒 Id 与连续弹刀窗已配置 |
 | Wave4 位移（Adhesion / SoftBody / Relocate） | ✅ 已实现（吸附已验收；Relocate 已接线） | `ActionMotionAdhesion` + `ActionMotionResolver` + Bridge | Branch_02 吸附已配；Relocate 按需加 MotionCommand 轨；相机不在本 Wave |
 | 命中受击 Cue（VFX/SFX） | ✅ 已实现（A2 打击感验收 2026-08-09） | `HitImpactController` + `HitFeedbackSettings` | 接触点落点 + 随机旋转；普攻 Cue 已验 |
 | 逻辑 Hurtbox 调试线框 | ✅ 已实现 | `CombatHurtboxDebugSettings` + `CombatHurtboxDebugVisualizer` | F4 开关（F3 HUD 显示状态） |
@@ -24,8 +24,8 @@
 | GAS-lite 数值重构 | ✅ G0～G5 完成 | `NumericSystem`、`DamageNumericCalculator`、`CharacterVitality` | Effect SO 壳 |
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
-| 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch / Parry |
-| 组队 PVE 状态同步 / 权威进程 | 🟡 W11 代码切面 / Play 未验收 | `ReplicationBuildOptions` + `GraphNodeKey` + FakeActionGame | 先读 `docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`；W10 出口仍待 Clumsy Play；W11 R2 未关 |
+| 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Parry 已随 P-SW2 验收，TargetSwitch 仅在需要手动切敌时再绑定 |
+| 组队 PVE 状态同步 / 权威进程 | 🟡 W10/W11 代码切面 / Play 未验收 | `ReplicationBuildOptions` + `GraphNodeKey` + Replication V2 | W10 待 Clumsy Play；W11 的 V2 FakeActionGame / 10+ Actor 证据需重建，R2 未关 |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet 与一次性迁移器 |
 | Input + Locomotion 收敛 | ✅ CS7 | `ClientRuntimeConfiguration` + Catalog GameplayIntent；Mode→`LocomotionProfile` | Config 不再挂 Input/Intent/Locomotion；Legacy timing 字段已删 |
@@ -34,7 +34,7 @@
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionStateMachine` + `LocomotionState` | AnimationProfile + `CharacterLocomotionProfile` |
 | Locomotion 起步/急停/转身 | ✅ Play 2026-08-12 | 内层相位 + L-DIR1～5 + Pivot 两段式 | 旧 Phase D 减速曲线不做 |
 | Sprint 倾身 / 相机跟朝向 | ✅ Play 2026-08-12 | `SprintLeanModel` + `CameraManager` Follow Facing | 出招时暂停跟朝向 |
-| 第三人称相机 | 🟡 SkillShot Spline 代码完成，C1 构图待做 | `CameraManager` + `CameraDirector` | CM2 保留；Unity Splines 2.8.4；Editor/Play 待验 |
+| 第三人称相机 | 🟡 Director + SkillShot Spline 代码完成；Lock-On 暂时舍弃 | `CameraManager` + `CameraDirector` + `CameraShotPlayer` | CM2 + Unity Splines 2.8.4；C-SP Test/Editor/Play、UI 展示舱与 Cutscene 接入待做 |
 | 唯一战斗目标 | 🟡 代码完成、输入资产与 Play 待验 | `CharacterTargetingState` + `DeterministicTargetResolver` | 自动最近、滞回保持、Action 中 TargetSwitch |
 | 动作系统（整数帧 / 选招 / 取消 / 连段 / 高优打断 / 战斗模式） | ✅ L1B 已实现（Play Mode 待回归） | `ActionSim` + `CharacterActionPresentationBridge` + `ActionFrameQuery` | 60Hz Action + `ActionGraph` |
 | Action Editor（时间轴编辑） | 🟡 骨架/部分 | `ActionEditorWindow` + `ActionTimeline` 手动加轨/窗口 | Menu：`ACT/Action Editor` |
@@ -153,12 +153,11 @@ CharacterActor.ResolvePostCombat → DeathSequenceComplete
 
 ### 已知限制
 
-- `SwitchIn/SwitchOut` 只提供代码意图；每个角色 ActionGraph 仍需 Editor 人工配置同名 Entry/Action。
+- `SwitchIn/SwitchOut` Graph 与正式资产已于 2026-09-19 完成用户 Play 验收。
 - 原 Action 没有 Recovery Phase 时，等其自然结束后再切 `SwitchOut`，避免在 Startup/Active 中硬掐。
 - `Hit` 不能转 `Action`；退场交接若不停在 Hit，`SwitchOut` 意图被丢掉，槽永久 `Exiting`，无法切回。
 - `SwitchOut` 必须配置 Recovery Phase；缺失时角色不会被静默隐藏，便于暴露资产错误。
-- 本轮已通过解决方案编译；Unity Test Runner 与 Listen Play 尚未验收，因此功能状态仍为 🟡。
-- P-SW2 代码已接（Cue / 点数 / Guard→Success / `IssueParried` / 突击派生）；Graph 与 Timeline 资产、Play 验收未做。
+- P-SW0～P-SW2 的 Graph、Timeline 资产与 Play 已于 2026-09-19 用户验收；未在本次文档回写中重新运行自动化 Test Runner。
 - PartyWiped 已进入 V2 Snapshot Meta；队灭 UI/Match 结果仍留给后续功能阶段。
 
 ### 相关文件
@@ -227,8 +226,7 @@ CharacterActor.ResolvePostCombat → DeathSequenceComplete
 
 ### 已知限制
 
-- Guard / Success / AssistFollowUp / 敌人 Cue / `Parried` 反应片均需 Editor 配资产；Agent 不改 `Assets/Data/**`
-- 本体弹刀需 Input Actions 增加 `Parry`，Graph Entry 绑 `GameplayIntentType.Parry`（可与切人 Guard 同一条 Action）
+- Guard / Success / AssistFollowUp / 敌人 Cue / `Parried` 反应片与本体 `Parry` 输入/Graph 已于 2026-09-19 完成用户 Play 验收；Agent 仍不直接修改 `Assets/Data/**`
 - 弹刀卡肉帧在 Guard/Success 的 `AssistParryWindow.hitStopFrames` 上配置；不再读进攻盒 UseHitStop
 - 被弹选片：进攻盒 `Parried Reaction Id` + 敌人 `ReactionSet` 的 `Parried` 规则；`Continue` 盒不停招
 - 连续自动弹刀：Success 上继续铺 `AssistParryWindow`；已在 Success 不重切 clang
@@ -1288,7 +1286,7 @@ Dodge 恢复                            → Gait（PendingGait 经 MaxGait 钳�
 
 ### 功能说明
 
-Cinemachine 2 第三人称跟随；鼠标控制 yaw/pitch；碰撞遮挡；启动时锁定光标。`CameraRig` 对 `CameraRoot` 做滤左右 / SmoothDamp，并支持 Action Camera 窗的 `FollowHold`。`CameraDirector` 持有 CameraLock 与 SkillShot 优先级栈；`CameraShotPlayer` 按本机逻辑动作帧求值内嵌官方 Spline，并在 Director 内部 A/B VCam 间切段。
+Cinemachine 2 第三人称跟随；鼠标控制 yaw/pitch；碰撞遮挡；启动时锁定光标。`CameraRig` 对 `CameraRoot` 做滤左右 / SmoothDamp，并支持 Action Camera 窗的 `FollowHold`。`CameraDirector` 持有 Free / SkillShot / Cutscene 优先级栈；`CameraShotPlayer` 按本机逻辑动作帧求值内嵌官方 Spline，并在 Director 内部 A/B VCam 间切段。代码中的 CameraLock 槽当前不启用。
 
 ### 实现方案
 
@@ -1340,7 +1338,7 @@ CameraManager + CameraRig + CameraDirector + CameraShotPlayer（场景对象）
 - 是否后退：读本机设备 `ILocalPlayer.MoveInput.y`；低于 `followFacingBackwardDeadzone`（默认 -0.2）则暂停跟朝向，避免后退 wish 与镜头互追转圈
 - 出招/闪避/受击：读 `IsPresentingAction`，暂停跟朝向，避免连闪甩镜头
 - 朝向源优先 `PresentationRoot`（客机预测体插值锚点）；空座位 `transform` 不转，跟它无法 A/D 绕圈
-- `CameraLock` 只请求 `CameraDirector.CameraLockEnabled`；SelectedTarget 无效时不能开启/自动关闭，不写 Targeting/Action/InputFrame
+- `CameraLock` / `CameraMode.LockOn` 为暂留未启用入口；当前产品范围不绑定按键、不建设 LockOn VCam，且不得影响 Targeting/Action/InputFrame
 
 **初始化**
 
@@ -1372,7 +1370,7 @@ CameraManager + CameraRig + CameraDirector + CameraShotPlayer（场景对象）
 
 - 平滑仅抹平位置顿挫；未按 Action/Locomotion 切换不同 `followSmoothTime`（可后续做方案 C）
 - LookAt 已切到 `orbitPivot`，角色急速冲刺时镜头会略滞后于角色身体
-- Camera C1 的 LockOn VCam、TargetGroup 与切敌短 Blend尚未实现；Director 当前保留 LockOn 栈槽
+- Lock-On 暂时舍弃；Director 当前保留未启用栈槽，但 LockOn VCam、TargetGroup 与切敌 Blend 不进入近期待办
 - SkillShot Spline / FollowHold / Scene 预览已通过 Unity 脚本编译；Test Runner 与 Play 仍待人工验收
 - 自定义 `AnchorId` 需要用户在角色 Prefab 配置 `CameraAnchorProvider`；解析失败时 Shot 不抢权
 - LookAt 首版仍是 `lookAtBinding + lookAtLocalPosition`，未提供第二条观察点 Spline 或 Roll 曲线
@@ -1416,7 +1414,7 @@ InputFrame → CharacterTargetingState.Step
   → Camera/UI 只读表现映射
 ```
 
-**已知限制：** Input Actions 仍需人工新增 `TargetSwitchLeft/Right`、`CameraLock` 与 `Parry`；Camera C1 的锁定构图/Blend 未实现；完整 Snapshot Restore 归 L3。
+**已知限制：** `Parry` 已随 P-SW2 完成用户验收；`TargetSwitchLeft/Right` 仅在需要手动切敌时再绑定；`CameraLock` 不进入当前范围。完整 Snapshot Restore 归 L3。
 
 **相关文件：**
 
@@ -1769,6 +1767,8 @@ CombatHitPipeline（全体 Actor Step 后）
 
 | 日期 | 变更 |
 |------|------|
+| 2026-09-19 | W11 证据审计：旧 `FakeActionGameLoopbackTests` 已随 V1 清理删除；V2 FakeActionGame / 10+ Actor / 兴趣与 Owner 预算证据需重建后才能关闭 R2 |
+| 2026-09-19 | 三人换人 / 接触弹刀 P-SW0～P-SW2、P-PR 与卡肉 Graph/资产/Play 用户验收完成；Lock-On 暂时舍弃；学习与工程实践轨提前 |
 | 2026-09-19 | 结构稳定化方案完成：用户验收关闭 CS0～CS7、Safety、统一门禁与总回归出口；后续转入 Network Reliability / 功能修复 Backlog |
 | 2026-09-18 | Safety：`InputFrameBuffer` 硬上限 64 帧；`ApplySnapshot` 失败返回 Rejected；Recover 500ms 冷却重试；恢复后成功 ForceFull 可重新发布 Meta |
 | 2026-09-18 | 结构稳定化 CS7：新增统一 BatchMode 结构/内容审计与根目录 `ci.ps1`，增加 450 行职责门禁；删除 Locomotion Legacy 字段/Baker 和五个一次性 Combat/Action 迁移器 |
@@ -2047,7 +2047,7 @@ SimulationWorld 帧末 SoftBodySeparation（抑制者不参与）
 
 ### 已知限制
 
-- Lock-On / SkillShot / UI 展示舱不在 Wave 4/5；排期见 `docs/2026.8.26/CAMERA_SYSTEM_PLAN.md`
+- SkillShot / UI 展示舱不在 Wave 4/5；排期见 `docs/2026.8.26/CAMERA_SYSTEM_PLAN.md`。Lock-On 于 2026-09-19 暂时舍弃
 - Relocate 挡墙精细候选（FindNearestValid 首版≈ ResolveMove）可后续加强
 - 共线退化（玩家与敌人水平重合）本帧不吸
 - **打击感吸附已验收；Relocate 需在招上配 MotionCommand 点事件后 Play 验**

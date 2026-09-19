@@ -1,6 +1,7 @@
 # 弹刀卡肉收敛 — 接触确认后双方停顿
 
 > 制定：2026-09-05  
+> 状态更新：2026-09-19 — Graph、正式资产与 Play 用户验收完成；本次仅回写人工验收，不补记未运行的 Test Runner
 > 角色：**弹刀成功卡肉**的结构/排期真源（先文档，后实现）；不改写换人裁定  
 > 相关：  
 > - 极限支援真源：[`../2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`](../2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md)  
@@ -256,10 +257,10 @@ ApplyConfirmedHitStop
 
 - [x] `rg "AbsorbedByPerfectDodge \\|\\| .*AssistParry" Assets/Scripts/App/Commands` 无匹配  
 - [x] `PublishAttackHitCommand` 分旗标转发  
-- [ ] Play：金光弹刀接触，双方模型停约 8 逻辑帧（或盒上配置帧），随后 Success clang 与敌人 Stun 继续  
+- [x] Play：金光弹刀接触，双方模型停约 8 逻辑帧（或盒上配置帧），随后 Success clang 与敌人 Stun 继续（2026-09-19 用户验收）
 - [ ] Test Runner：相关测在 Editor 确认  
 
-**出口：** 权威、本机预测、VFX 与骨骼都跟同一套帧数；无 PD/弹刀旗标混用。→ **代码已达成（2026-09-05）；Play 待 Editor**
+**出口：** 权威、本机预测、VFX 与骨骼都跟同一套帧数；无 PD/弹刀旗标混用。→ **Play 已达成（2026-09-19）；Test Runner 证据仍待单独归档**
 
 ---
 
@@ -351,3 +352,4 @@ HS0 帧数解析
 | 2026-09-05 | 初版：卡肉收敛为 Pipeline 结算后唯一写入；弹刀双方停；禁止 OnHit 做弹刀 |
 | 2026-09-05 | HS0～HS3 代码落地：`ApplyConfirmedHitStop`、Success carry、事件拆旗标、本机镜像 |
 | 2026-09-06 | 弹刀帧改读 `AssistParryWindow.hitStopFrames`，删除 `ResolveFrames(HitFeedbackSettings)` |
+| 2026-09-19 | 用户验收 Graph、正式资产与 Play：双方停顿、Success clang 与敌人 Stun 链路关闭 |

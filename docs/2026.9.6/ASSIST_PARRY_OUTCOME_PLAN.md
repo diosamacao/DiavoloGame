@@ -1,6 +1,7 @@
 # 弹刀选片 / 连续自动弹刀 / 被弹是否断招 — 方案
 
 > 制定：2026-09-06  
+> 状态更新：2026-09-19 — Graph、正式资产、Inspector 与 Play 用户验收完成；本次不补记未运行的 Test Runner
 > 角色：**被弹刀选招、连续自动弹刀、进攻盒断招策略** 的结构/排期真源（先文档，后实现）  
 > 相关：  
 > - 极限支援真源：[`../2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`](../2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md)  
@@ -202,7 +203,7 @@ public enum ParriedActionPolicy
 - [ ] Test Runner：选片 / Continue 用例（Editor 确认）  
 - [ ] Unity 编译在 Editor 确认通过  
 
-**出口：** 被弹播哪张片、是否断招只由进攻盒 + ReactionSet 决定。→ **已达成（2026-09-06，Play/Test Runner 待 Editor）**
+**出口：** 被弹播哪张片、是否断招只由进攻盒 + ReactionSet 决定。→ **Play 已达成（2026-09-19）；Test Runner 证据仍待单独归档**
 
 ### P-PR1 — 连续自动弹刀
 
@@ -217,7 +218,7 @@ public enum ParriedActionPolicy
 - [x] Success 无招架窗、仅无敌 = 第二次不 `IssueParried`（现有 `InvincibleOnly` 语义保持）  
 - [ ] Test Runner：连续接触不重切 Success（Editor 确认）  
 
-**出口：** 多段刀打在 Success 窗上只 clang 一次，后续自动弹、不重播成功段。→ **已达成（2026-09-06，Play/Test Runner 待 Editor）**
+**出口：** 多段刀打在 Success 窗上只 clang 一次，后续自动弹、不重播成功段。→ **Play 已达成（2026-09-19）；Test Runner 证据仍待单独归档**
 
 ### P-PR2 — Editor 说明与文档
 
@@ -229,10 +230,10 @@ public enum ParriedActionPolicy
 
 **验收**
 
-- [ ] 选中进攻盒能看到两个新字段（Editor 确认）  
+- [x] 选中进攻盒能看到两个新字段（2026-09-19 用户验收）
 - [x] ROADMAP / 本文变更日志已写实现日期  
 
-**出口：** 策划能在盒上配完，不必读代码。→ **已达成（2026-09-06，Inspector/Play 待 Editor）**
+**出口：** 策划能在盒上配完，不必读代码。→ **已达成（2026-09-19，Inspector / 资产 / Play）**
 
 ---
 
@@ -316,3 +317,4 @@ P-PR0 盒政策 + 选片
 |------|------|
 | 2026-09-06 | 初版：选片走 Parried+Id；断招政策在进攻盒；自动弹刀 = 窗内连续接触且 Success 不重切 |
 | 2026-09-06 | P-PR0～P-PR2 代码落地：删除无参 `ResolveParried()`；Continue 早退；Success 不重切 |
+| 2026-09-19 | 用户验收 Graph、正式资产、Inspector 与 Play：差异选片、Continue 与连续弹刀不重切关闭 |

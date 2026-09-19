@@ -15,6 +15,7 @@
 
 | 文档 | 角色 |
 |------|------|
+| [2026.9.19/PROJECT_WIDE_OPTIMIZATION_PLAN.md](./2026.9.19/PROJECT_WIDE_OPTIMIZATION_PLAN.md) | **项目级优化总计划**：结构稳定化后的自动化验收、内容迁移、网络可靠性、表现边界、性能预算与文档收口（PWO0～PWO6） |
 | [2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md](./2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md) | **联网实现阅读入口**：Join → 命中现行调用链 |
 | [2026.8.24/README.md](./2026.8.24/README.md) | 下行角色快照带宽：掩码 / 分频 / 本地推帧（方案，未实现） |
 | [2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md](./2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md) | 联网排期：W10/W11 Play 与 W12 未关 |
@@ -24,12 +25,12 @@
 | [2026.8.6/MASTER_IMPLEMENTATION_PLAN.md](./2026.8.6/MASTER_IMPLEMENTATION_PLAN.md) | 战斗 / 位移 Wave 排期（0～4 已关；相机独立） |
 | [2026.8.29/CAMERA_SKILLSHOT_AND_STRETCH_PLAN.md](./2026.8.29/CAMERA_SKILLSHOT_AND_STRETCH_PLAN.md) | **大招多机位 + 镜头拉伸** 排期真源（CS0～CS3） |
 | [2026.8.29/CAMERA_SPLINE_INTEGRATION_PLAN.md](./2026.8.29/CAMERA_SPLINE_INTEGRATION_PLAN.md) | **Action Camera 样条轨迹接替**实施真源（C-SP0～C-SP3） |
-| [2026.8.26/CAMERA_SYSTEM_PLAN.md](./2026.8.26/CAMERA_SYSTEM_PLAN.md) | 相机总览：Director / Lock-On / UI 展示舱（C5） |
+| [2026.8.26/CAMERA_SYSTEM_PLAN.md](./2026.8.26/CAMERA_SYSTEM_PLAN.md) | 相机总览：Director / SkillShot / Cutscene / UI 展示舱；Lock-On 暂时舍弃 |
 | [2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md](./2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md) | Camera C1 前置：MoveReferenceYaw + SelectedTarget |
 | [COMBAT_NUMERICS_PLAN.md](./COMBAT_NUMERICS_PLAN.md) | 资源字段与产品语义 |
 | [2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md](./2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md) | **三人编队换人 / 极限支援（弹刀）/ 支援突击**（P-SW0～5；切人不再后置） |
-| [2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md](./2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md) | **弹刀卡肉收敛**：Pipeline 结算后双方 `RequestHitStop`（HS0～HS3 代码已接，Play 待验） |
-| [2026.9.6/ASSIST_PARRY_OUTCOME_PLAN.md](./2026.9.6/ASSIST_PARRY_OUTCOME_PLAN.md) | **被弹刀选片 / 连续自动弹刀 / 是否断招**（P-PR0～P-PR2 代码已接，Play 待验） |
+| [2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md](./2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md) | **弹刀卡肉收敛**：Pipeline 结算后双方 `RequestHitStop`（Graph/资产/Play 2026-09-19 已验收） |
+| [2026.9.6/ASSIST_PARRY_OUTCOME_PLAN.md](./2026.9.6/ASSIST_PARRY_OUTCOME_PLAN.md) | **被弹刀选片 / 连续自动弹刀 / 是否断招**（Graph/资产/Play 2026-09-19 已验收） |
 | [2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md](./2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md) | **受击档位 + Additive**：冲击力对韧性已接；轻击 Play 已验 |
 | [2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md](./2026.8.6/SKILL_AND_RESOURCE_SYSTEM_PLAN.md) | 技能槽 / 完美闪避产品；切人/支援改由 8.30 篇真源 |
 | [ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](./ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md) | 模拟核 L0～L2；剩余 L1B Play / L2 斜坡 / L3 |

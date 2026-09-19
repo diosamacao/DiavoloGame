@@ -441,13 +441,13 @@ W5 起额外要求：
 - [x] `GraphNodeId` 迁为稳定整数。
 - [x] 增加 Visibility / Priority / per-connection byte budget。
 - [x] 删除旧 `IReplicationTransport`、混合 RoomCodec 入口、Actors diff 生命周期和重复 Role/Id。（Transport/Host/隐式销毁已在前序删除；RoomCodec 仍留 Simulation）
-- [x] 建 FakeActionGame：移动 Entity + Owner 预测 + Observer 插值。
+- [ ] 以 Replication V2 重建 FakeActionGame：移动 Entity + Owner 预测 + Observer 插值。旧 `FakeActionGameLoopbackTests` 随 2026-09-17 V1 清理删除，当前空 asmdef 不构成验收证据。
 - [x] 输出程序集依赖图、接入说明、协议说明、调试指南。（现行阅读：`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`）
 - [x] 稳定前保持项目内 Framework；达到出口后再决定 Unity Package。
 
 **验收**
 
-- [x] 10+ Actor 平均下行显著低于 W0 全量 60Hz 基线。（`FakeActionGameLoopbackTests.Compact_TenPlusIdleActors_BeatsFullRateBytes`；Play 未验）
+- [ ] 10+ Actor 平均下行显著低于 W0 全量 60Hz 基线。原 `FakeActionGameLoopbackTests.Compact_TenPlusIdleActors_BeatsFullRateBytes` 已随 V1 清理删除，需在 V2 fixture 上重建并重新取证。
 - [ ] 不相关 Entity 不发给连接；Owner 关键状态不被饿死。（代码已裁兴趣；待 Editor Play）
 - [x] baseline 丢失后可恢复 full state。（`ReplicationDeltaTests.ResetBaseline_RespawnsLivingEntities`）
 - [x] FakeActionGame 不引用 ACT Character 即可跑 Loopback。
@@ -599,6 +599,7 @@ W10 出口关闭前，只宣称 LAN DS-Demo，不宣称公网可用。
 | 2026-08-20 | W9 Listen 组合代码切面：同一 `DedicatedServerRuntime` + `LocalClientRuntime`；旧 Host Room 删除 |
 | 2026-08-20 | W9 Listen 组合用户验收；预测按权威步数；下一联网切面为 W10 |
 | 2026-08-20 | W10 代码切面：ACTNet.Prediction + ChannelMux + 可靠命中事件；出口待 Play |
-| 2026-08-22 | W11 代码切面：Delta/兴趣/预算、GraphNodeKey、Recover、FakeActionGame；R2 出口未关 |
+| 2026-08-22 | W11 代码切面：Delta/兴趣/预算、GraphNodeKey、Recover；R2 出口未关 |
+| 2026-09-19 | 审计发现 V1→V2 清理时删除 `FakeActionGameLoopbackTests`，当前 FakeActionGame 测试程序集为空；W11 需先在 V2 上重建 10+ Actor / 兴趣 / Owner 预算证据 |
 
 

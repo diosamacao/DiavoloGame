@@ -3,7 +3,8 @@
 > 制定：2026-08-26  
 > 修订：2026-08-29 — **大招 SkillShot 数据真源**改挂 [2026.8.29 篇](../2026.8.29/CAMERA_SKILLSHOT_AND_STRETCH_PLAN.md)：`timeline.cameraShotStates`；**不再**以独立 `CameraShotSequence` SO 为入口（本文 C3 任务中的 Sequence SO 条目作废，以 8.29 为准）
 > 修订：2026-08-29 — SkillShot / FollowHold 实施勾选改挂 8.29 篇；本文保留总览与 C5
-> 角色：**相机表现层总览 / UI 展示舱排期真源**；SkillShot+拉伸以 8.29 篇为准
+> 修订：2026-09-19 — **Lock-On 暂时舍弃**：C1 LockOn VCam / TargetGroup 不再是当前待办；保留 `SelectedTargetId` 给 Action/Motion/SkillShot，近期聚焦 C-SP 验收、C5 UI 展示舱与 CS4 Cutscene
+> 角色：**相机表现层总览 / UI 展示舱排期真源**；SkillShot+拉伸以 8.29 篇为准；Lock-On 不在当前范围
 > 接替：[2026.8.6/CAMERA_SYSTEM_PLAN.md](../2026.8.6/CAMERA_SYSTEM_PLAN.md)（C0～C4 设计细节仍有效）
 > 前置（不重做）：[2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md](../2026.8.13/CAMERA_AUTHORITY_AND_TARGETING_REFACTOR_PLAN.md)（C-AT0～3 代码已切；Input 资产仍待 Editor）  
 > 对照实现（只读吸收）：`D:\Projects\DemoClient` 的 `PlayerSystem` / `RoleCtrl` / `DialogueSystem` / Timeline 相机 Notify  
@@ -13,7 +14,7 @@
 
 ## 0. 一句话
 
-用 **`CameraDirector` 优先级栈 + 多 VCam 租用池** 做战斗多机位（Free / LockOn / SkillShot / Cutscene），用 **独立展示舱 + 第二台相机 + RenderTexture** 做 UI 场景/角色橱窗；时钟只认 `ActionSim` 逻辑帧；**禁止**用展示舱或演出 VCam 写 `InputFrame` / Motor，禁止 `if (某界面)` 切机位，禁止把 DemoClient 的 `VCam.transform.forward` 玩法朝向搬回来。
+用 **`CameraDirector` 优先级栈 + 多 VCam 租用池** 做 Free / SkillShot / Cutscene 多机位，用 **独立展示舱 + 第二台相机 + RenderTexture** 做 UI 场景/角色橱窗；Lock-On 暂时舍弃，时钟只认 `ActionSim` 逻辑帧；**禁止**用展示舱或演出 VCam 写 `InputFrame` / Motor，禁止 `if (某界面)` 切机位。
 
 ---
 
@@ -241,7 +242,9 @@ C-AT 仍以 8.13 篇为前置真源：C1 Play 前必须在 Input Actions 绑好 
 
 **出口：** 日常跟随只由 `CameraRig` 写入，CameraManager 不再兼算法。→ **未达成**
 
-### C1 — CameraDirector + LockOn 双机位
+### C1 — CameraDirector + LockOn 双机位（暂时舍弃）
+
+> 2026-09-19 决策：本阶段不进入当前排期，以下任务保留为历史设计，不计入近期相机出口。现有 `CameraMode.LockOn` / CameraLock 输入路径可暂留未启用，但不得阻塞 SkillShot、UI 或剧情编辑器。
 
 **任务**
 
@@ -263,7 +266,7 @@ C-AT 仍以 8.13 篇为前置真源：C1 Play 前必须在 Input Actions 绑好 
 - [ ] CameraLock 开关前后 `SelectedTargetId` / FacingMode / ActionSim 不变
 - [ ] Unity 编译 / Play 在 Editor 确认通过
 
-**出口：** 战斗域有唯一导演栈，LockOn 可进出且不写玩法权威。→ **未达成**
+**出口：** 战斗域有唯一导演栈，LockOn 可进出且不写玩法权威。→ **暂时舍弃（2026-09-19，不计当前出口）**
 
 ### C2 — Predict、FollowHold、反馈扩展
 
@@ -446,8 +449,9 @@ docs/2026.8.26/CAMERA_SYSTEM_PLAN.md
 ```text
 C-AT Input 资产（Editor，不挡 C0/C3 编码）
   → C0 CameraRig 收口
-  → C1 CameraDirector（先栈 + 暂停 Look，再 LockOn VCam）
-  → C3 SkillShot 与 C5 UI Showcase 可并行（C5 不依赖 LockOn 构图）
+  → 8.29 C-SP0～C-SP3 Test / Editor / Play 验收
+  → C5 UI Showcase
+  → CS4 Cutscene 抢权（服务剧情编辑器）
   → C2 FollowHold / Feedback / 可选变焦
   → C4 Finisher / 对话 TargetGroup
 ```
@@ -460,7 +464,7 @@ C-AT Input 资产（Editor，不挡 C0/C3 编码）
 
 同时满足：
 
-1. 战斗多机位只经 `CameraDirector`；SkillShot 按逻辑帧切段并可恢复 Free/LockOn。  
+1. 战斗多机位只经 `CameraDirector`；SkillShot 按逻辑帧切段并恢复 Free；Lock-On 不计当前完成定义。
 2. UI 橱窗只经 `UiShowcaseProfile` + Booth + RT；战斗 Follow 不被展台改写。  
 3. Motor / InputFrame 仍只消费量化 MoveReferenceYaw；展示舱与 Shot 不写权威。  
 4. Demo 已拒绝项（VCam.forward 移动、POV 玩法权威、Find 场景 VCam）仓库无回归。  
@@ -474,3 +478,4 @@ C-AT Input 资产（Editor，不挡 C0/C3 编码）
 |------|------|
 | 2026-08-26 | 初版：接替 8.6 篇为排期真源；吸收 DemoClient 多 VCam / 最近候选 / 回写 yaw / HoldFollow；新增 C5 UI 展示舱；阶段改为任务/验收/出口 |
 | 2026-08-29 | SkillShot / FollowHold 实施勾选改挂 8.29 篇；本文保留总览与 C5 |
+| 2026-09-19 | Lock-On 暂时撤出当前排期；剩余相机工作收敛为 C-SP 验收、C5 UI 展示舱与 CS4 Cutscene |

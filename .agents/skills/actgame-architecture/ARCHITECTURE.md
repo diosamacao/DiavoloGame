@@ -1,10 +1,10 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-09-19（结构稳定化 CS0～CS7 与 Safety 用户验收完成）
+> Last audited: 2026-09-19（三人换人 / 弹刀 Play 验收完成；Lock-On 暂时撤出当前范围）
 
 ## 项目概述
 
-Unity ACT（动作）游戏。当前重点：60Hz 模拟核、数据驱动动作 / 数值、Dedicated 权威状态同步；相机 SkillShot Spline 已落地，完整 Lock-On 构图与正式 UI 未做。
+Unity ACT（动作）游戏。当前重点：60Hz 模拟核、数据驱动动作 / 数值、Dedicated 权威状态同步，以及 UI、性能、A*、热更、SDK、剧情编辑器等近期学习切片；相机 SkillShot Spline 已落地，Lock-On 暂时舍弃，正式 UI 尚未实现。
 
 > 各功能的实现细节、参数与运行时流程见 [TECHNICAL.md](TECHNICAL.md)。
 
@@ -303,7 +303,7 @@ Active 死亡后，`DedicatedAuthorityWorld.OnAfterLogicStep` 推进门禁并在
 |----|------|
 | `CameraManager` | 日常 Look、锚点装配与 Orbit yaw staged；不再持有滤左右或 CameraLock 真源 |
 | `CameraRig` | 日常 FollowAnchor 唯一写入器：滤左右、FollowHold、Orbit/Pitch |
-| `CameraDirector` / `CameraDirectorStack` | Free/LockOn/SkillShot/Cutscene 优先级栈、CM2 A/B SkillShot VCam、Look 门控与退出 yaw 回写 |
+| `CameraDirector` / `CameraDirectorStack` | Free/SkillShot/Cutscene 优先级栈、CM2 A/B SkillShot VCam、Look 门控与退出 yaw 回写；代码保留未启用的 LockOn 模式，但当前产品范围不建设 LockOn 构图 |
 | `CameraShotPlayer` | 只读本机 `ActionSimSnapshot`，捕获 Snapshot Binding 并按逻辑帧驱动 Spline |
 | `CameraAnchorProvider` | 把模型无关 `AnchorId` 映射为实际 Transform；空 Id 直接使用 Root |
 | `CameraSplineCurveRuleUtility` / `CameraSplineEvaluator` / `CameraShotPoseResolver` | 端点预设几何编译、官方 Spline 恒速求值；Binding + 局部路径 → 世界 Position/LookAt/FOV |
