@@ -441,20 +441,20 @@ W5 起额外要求：
 - [x] `GraphNodeId` 迁为稳定整数。
 - [x] 增加 Visibility / Priority / per-connection byte budget。
 - [x] 删除旧 `IReplicationTransport`、混合 RoomCodec 入口、Actors diff 生命周期和重复 Role/Id。（Transport/Host/隐式销毁已在前序删除；RoomCodec 仍留 Simulation）
-- [ ] 以 Replication V2 重建 FakeActionGame：移动 Entity + Owner 预测 + Observer 插值。旧 `FakeActionGameLoopbackTests` 随 2026-09-17 V1 清理删除，当前空 asmdef 不构成验收证据。
+- [x] 以 Replication V2 重建 FakeActionGame：移动 Entity + Owner 预测 + Observer 插值。（2026-09-19：`FakeActionGameV2LoopbackTests` 已恢复，生成工程编译 0 error）
 - [x] 输出程序集依赖图、接入说明、协议说明、调试指南。（现行阅读：`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`）
 - [x] 稳定前保持项目内 Framework；达到出口后再决定 Unity Package。
 
 **验收**
 
-- [ ] 10+ Actor 平均下行显著低于 W0 全量 60Hz 基线。原 `FakeActionGameLoopbackTests.Compact_TenPlusIdleActors_BeatsFullRateBytes` 已随 V1 清理删除，需在 V2 fixture 上重建并重新取证。
-- [ ] 不相关 Entity 不发给连接；Owner 关键状态不被饿死。（代码已裁兴趣；待 Editor Play）
+- [ ] 10+ Actor 平均下行显著低于 W0 全量 60Hz 基线。V2 fixture 与断言已恢复；待 Unity Test Runner 生成通过记录。
+- [ ] 不相关 Entity 不发给连接；Owner 关键状态不被饿死。V2 自动测试已补兴趣裁剪、Owner 优先与预算后续补发；待 Test Runner + Editor Play 最终验收。
 - [x] baseline 丢失后可恢复 full state。（`ReplicationDeltaTests.ResetBaseline_RespawnsLivingEntities`）
 - [x] FakeActionGame 不引用 ACT Character 即可跑 Loopback。
-- [ ] 当前游戏只通过 `ACTGame.Networking` Adapter 接框架。
+- [x] 采用 2026-09-17 稳定化后的边界：Gameplay Domain 不直接编排网络框架；`ACTGame.App` Composition 允许组合 `ACTGame.Networking` 与 `ACTNet.*`，由结构门禁约束依赖方向。旧“App 也不得直接调用 ACTNet”判据作废。
 - [x] 无新旧 Controller 双轨。
 
-**出口：** R2 级可复用 ACT 网络框架形成。→ **未达成（2026-08-22 代码切面；W11 V2 证据仍开放）**
+**出口：** R2 级可复用 ACT 网络框架形成。→ **未达成（2026-09-19 V2 fixture / 预算实现已补；待 Test Runner 与 Editor Play）**
 
 ---
 
@@ -602,5 +602,6 @@ W11 / R2 关闭前，不宣称可复用网络框架已经完成；W12 公网部�
 | 2026-08-22 | W11 代码切面：Delta/兴趣/预算、GraphNodeKey、Recover；R2 出口未关 |
 | 2026-09-19 | 审计发现 V1→V2 清理时删除 `FakeActionGameLoopbackTests`，当前 FakeActionGame 测试程序集为空；W11 需先在 V2 上重建 10+ Actor / 兴趣 / Owner 预算证据 |
 | 2026-09-19 | W10 用户验收完成：2m Gate / 连招 / Hit-Death、100ms RTT + 20ms jitter + 5% loss、旧 Snapshot 与可靠关键事件出口关闭 |
+| 2026-09-19 | W11 收尾实现：V2 FakeActionGame 重建；`ReplicationBuildOptions.Compact` 接回生产路径；连接级 1200B Update 预算、Owner 优先与延后实体重试均有测试，待 Unity Test Runner / Play 验收 |
 
 

@@ -25,7 +25,7 @@
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
 | 第三人称移动 | ✅ 已实现 | `PlayerController` + `CharacterActor` + `CharacterConfig` | Scene Empty + CharacterConfig |
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Parry 已随 P-SW2 验收，TargetSwitch 仅在需要手动切敌时再绑定 |
-| 组队 PVE 状态同步 / 权威进程 | 🟡 W10 已验收 / W11 R2 未关 | `ReplicationBuildOptions` + `GraphNodeKey` + Replication V2 | W10 于 2026-09-19 用户验收；W11 的 V2 FakeActionGame / 10+ Actor 证据需重建，R2 未关 |
+| 组队 PVE 状态同步 / 权威进程 | 🟡 W10 已验收 / W11 待最终验收 | `ReplicationBuildOptions` + `GraphNodeKey` + Replication V2 | V2 FakeActionGame、10+ Actor / 兴趣 / Owner 预算测试已补并编译；待 Unity Test Runner + Play 关闭 R2 |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
 | CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet 与一次性迁移器 |
 | Input + Locomotion 收敛 | ✅ CS7 | `ClientRuntimeConfiguration` + Catalog GameplayIntent；Mode→`LocomotionProfile` | Config 不再挂 Input/Intent/Locomotion；Legacy timing 字段已删 |
@@ -983,7 +983,7 @@ AssistParry：可靠吸收事件 → PartyActors 稳定 Id / pending → Owner N
 | 项 | 方案 |
 |----|------|
 | 未变跳过 | `ReplicationServer` 对比上次已发送 payload |
-| 节拍 / 预算 | `ReplicationServer`：非 Urgent payload 变化最短间隔 2 Tick；移动/Action/Vitality 仍 Urgent；MaxSilence=30 |
+| 节拍 / 预算 | `ReplicationServer`：`Compact` 使用 2 Tick 普通节拍与连接级 1200B Update 预算；Owner/Urgent 优先，装不下者保持旧 baseline 后续补发；MaxSilence=30 |
 | 兴趣 | `ReplicationInterest`：Owner/玩家 Always；敌人平面距离 |
 | 恢复 | `Rejected` 按 500ms 冷却重发 `ReplicationRecover`；成功快照清冷却。协议闩不把后续 ForceFull 当失败 |
 | 节点 | `GraphNodeKey.FromStableName`（FNV-1a） |
@@ -1013,9 +1013,9 @@ Observer.Render → RemotePlaybackClock（Listen delay=1）
 
 ### 已知限制
 
-- W10 已于 2026-09-19 用户验收；W11 V2 FakeActionGame / 10+ Actor / R2 仍未验收
+- W10 已于 2026-09-19 用户验收；W11 V2 fixture 与预算实现已补且生成工程编译通过，仍待 Unity Test Runner / Editor Play 后关闭 R2
 - 无字段级 change mask、无超 MTU 拆包
-- `RoomCodec` 仍在 Simulation；未宣称只经 Networking Adapter
+- `RoomCodec` 仍在 Simulation；现行边界允许 `ACTGame.App` Composition 组合 `ACTGame.Networking` 与 `ACTNet.*`，Gameplay Domain 不直接编排网络框架
 - 远端隔步快照：播放头插值锚点并驱动 Clip delta；停头即停片、1.2 倍追赶时同步追赶，只在切招/切段 Seek；落到走跑必须再 Play；走跑/出招/受击 `Urgent` 每 Tick 下发；Notify 随快照到达立即派发
 - 不得称 R2 完成或公网可用
 
@@ -1994,6 +1994,7 @@ CombatHitPipeline（全体 Actor Step 后）
 | 2026-08-20 | NetSync W10 代码切面：`ACTNet.Prediction`、ChannelMux、可靠命中事件、SnapshotTimeline；出口待 Play |
 | 2026-08-22 | NetSync W11 代码切面：Delta/兴趣/预算、`GraphNodeKey`、Recover、FakeActionGame；R2 出口未关 |
 | 2026-09-19 | NetSync W10 用户验收完成；W11 / R2 保持开放，继续补 V2 FakeActionGame 与 10+ Actor / 兴趣 / Owner 预算证据 |
+| 2026-09-19 | NetSync W11 收尾代码：恢复 `FakeActionGameV2LoopbackTests`；生产接回 `ReplicationBuildOptions.Compact`；连接级 Update 预算、Owner 优先和延后重试具备测试；生成工程 0 error，待 Test Runner / Play |
 | 2026-08-22 | 远端隔步快照：时间线改为向后括号取样；Proxy 按跳过 Tick 补动画时间 |
 | 2026-08-22 | 方案 B：`RemotePlaybackClock` + `TickAnimation`；不再用本机 InterpolationAlpha 取样远端 |
 | 2026-08-22 | 远端战斗立即提交：判定/受击/Notify 不等播放头；Urgent 破节拍 |

@@ -164,8 +164,9 @@ public sealed class AuthorityReplicationPublisher : IDisposable
                 _relevantStates,
                 metadata,
                 _bodyBudget,
-                new NetEntityId(observerId.Value),
-                forceFull);
+                ReplicationBuildOptions.Compact
+                    .WithPreferred(new NetEntityId(observerId.Value))
+                    .WithForceFull(forceFull));
             for (int i = 0; i < delta.Packets.Length; i++)
             {
                 PreparedReplicationPacket packet = delta.Packets[i];

@@ -39,17 +39,17 @@ public sealed class ReplicationProtocolV2Tests
     {
         var server = new ReplicationServer();
         ReplicationEntityState state = State(1, new byte[] { 7 });
-        ReplicationTickDelta first = server.PrepareTickDelta(new NetTick(1), new[] { state }, Array.Empty<byte>(), 128, new NetEntityId(1));
+        ReplicationTickDelta first = server.PrepareTickDelta(new NetTick(1), new[] { state }, Array.Empty<byte>(), 128, Options(1));
 
         Assert.That(server.Registry.Count, Is.Zero);
         for (int i = 0; i < first.Packets.Length; i++) server.Reject(first.Packets[i].Token);
 
-        ReplicationTickDelta retry = server.PrepareTickDelta(new NetTick(2), new[] { state }, Array.Empty<byte>(), 128, new NetEntityId(1));
+        ReplicationTickDelta retry = server.PrepareTickDelta(new NetTick(2), new[] { state }, Array.Empty<byte>(), 128, Options(1));
         Assert.That(Array.Exists(retry.Packets, packet => packet.ReliableLifecycle), Is.True);
         CommitAll(server, retry);
         Assert.That(server.Registry.Count, Is.EqualTo(1));
 
-        ReplicationTickDelta unchanged = server.PrepareTickDelta(new NetTick(3), new[] { state }, Array.Empty<byte>(), 128, new NetEntityId(1));
+        ReplicationTickDelta unchanged = server.PrepareTickDelta(new NetTick(3), new[] { state }, Array.Empty<byte>(), 128, Options(1));
         Assert.That(CountUpdates(unchanged), Is.Zero);
     }
 
@@ -60,7 +60,7 @@ public sealed class ReplicationProtocolV2Tests
         var owner = new ReplicationServer();
         var other = new ReplicationServer();
         ReplicationTickDelta delta = owner.PrepareTickDelta(
-            new NetTick(1), new[] { State(1, new byte[] { 1 }) }, Array.Empty<byte>(), 128, new NetEntityId(1));
+            new NetTick(1), new[] { State(1, new byte[] { 1 }) }, Array.Empty<byte>(), 128, Options(1));
         ReplicationPacketCommitToken token = delta.Packets[0].Token;
 
         Assert.Throws<InvalidOperationException>(() => other.Commit(token));
@@ -79,7 +79,7 @@ public sealed class ReplicationProtocolV2Tests
         for (int i = 1; i <= 24; i++) states.Add(State(i, new byte[20], urgent: i == 2));
         var server = new ReplicationServer();
 
-        ReplicationTickDelta delta = server.PrepareTickDelta(new NetTick(1), states, Array.Empty<byte>(), 80, new NetEntityId(24));
+        ReplicationTickDelta delta = server.PrepareTickDelta(new NetTick(1), states, Array.Empty<byte>(), 80, Options(24));
 
         Assert.That(delta.Packets.Length, Is.GreaterThan(2));
         for (int i = 0; i < delta.Packets.Length; i++) Assert.That(delta.Packets[i].Body.Length, Is.LessThanOrEqualTo(80));
@@ -93,10 +93,10 @@ public sealed class ReplicationProtocolV2Tests
     {
         var server = new ReplicationServer();
         ReplicationEntityState state = State(1, new byte[] { 9 });
-        CommitAll(server, server.PrepareTickDelta(new NetTick(1), new[] { state }, Array.Empty<byte>(), 128, new NetEntityId(1)));
+        CommitAll(server, server.PrepareTickDelta(new NetTick(1), new[] { state }, Array.Empty<byte>(), 128, Options(1)));
 
-        Assert.That(CountUpdates(server.PrepareTickDelta(new NetTick(2), new[] { state }, Array.Empty<byte>(), 128, new NetEntityId(1))), Is.Zero);
-        Assert.That(CountUpdates(server.PrepareTickDelta(new NetTick(31), new[] { state }, Array.Empty<byte>(), 128, new NetEntityId(1))), Is.EqualTo(1));
+        Assert.That(CountUpdates(server.PrepareTickDelta(new NetTick(2), new[] { state }, Array.Empty<byte>(), 128, Options(1))), Is.Zero);
+        Assert.That(CountUpdates(server.PrepareTickDelta(new NetTick(31), new[] { state }, Array.Empty<byte>(), 128, Options(1))), Is.EqualTo(1));
     }
 
     /// <summary>恢复准备会为已注册实体重新发送可靠 Spawn，并让客户端保留序列后重建注册表。</summary>
@@ -108,11 +108,11 @@ public sealed class ReplicationProtocolV2Tests
         var client = new ReplicationClient(schemas);
         var server = new ReplicationServer();
         ReplicationEntityState state = State(1, new byte[] { 1 });
-        ReplicationTickDelta initial = server.PrepareTickDelta(new NetTick(1), new[] { state }, Array.Empty<byte>(), 128, new NetEntityId(1));
+        ReplicationTickDelta initial = server.PrepareTickDelta(new NetTick(1), new[] { state }, Array.Empty<byte>(), 128, Options(1));
         ApplyAndCommit(server, client, initial);
         client.ResetForRecovery();
 
-        ReplicationTickDelta recovery = server.PrepareTickDelta(new NetTick(2), new[] { state }, Array.Empty<byte>(), 128, new NetEntityId(1), forceFull: true);
+        ReplicationTickDelta recovery = server.PrepareTickDelta(new NetTick(2), new[] { state }, Array.Empty<byte>(), 128, Options(1, forceFull: true));
         ApplyAndCommit(server, client, recovery);
 
         Assert.That(client.Registry.Count, Is.EqualTo(1));
@@ -202,7 +202,7 @@ public sealed class ReplicationProtocolV2Tests
         var server = new ReplicationServer();
         ReplicationEntityState state = State(1, new byte[] { 1 });
         ApplyAndCommit(server, client, server.PrepareTickDelta(
-            new NetTick(1), new[] { state }, new byte[] { 7 }, 128, new NetEntityId(1)));
+            new NetTick(1), new[] { state }, new byte[] { 7 }, 128, Options(1)));
         client.ResetForRecovery();
 
         ReplicationSnapshotApplyResult stale = client.ApplySnapshot(new ReplicationSnapshot(
@@ -218,7 +218,7 @@ public sealed class ReplicationProtocolV2Tests
         int metadataApplied = 0;
         client.MetadataApplied += (_, __) => metadataApplied++;
         ReplicationTickDelta recovery = server.PrepareTickDelta(
-            new NetTick(3), new[] { state }, new byte[] { 9 }, 128, new NetEntityId(1), forceFull: true);
+            new NetTick(3), new[] { state }, new byte[] { 9 }, 128, Options(1, forceFull: true));
         ReplicationSnapshotApplyResult recovered = ReplicationSnapshotApplyResult.Rejected;
         for (int i = 0; i < recovery.Packets.Length; i++)
         {
@@ -274,6 +274,11 @@ public sealed class ReplicationProtocolV2Tests
 
     static ReplicationEntityState State(int id, byte[] payload, bool urgent = false) =>
         new ReplicationEntityState(new NetEntityId(id), new NetArchetypeId(1), 1, payload, urgent);
+
+    static ReplicationBuildOptions Options(int ownerId, bool forceFull = false) =>
+        ReplicationBuildOptions.Compatible
+            .WithPreferred(new NetEntityId(ownerId))
+            .WithForceFull(forceFull);
 
     static void CommitAll(ReplicationServer server, ReplicationTickDelta delta)
     {

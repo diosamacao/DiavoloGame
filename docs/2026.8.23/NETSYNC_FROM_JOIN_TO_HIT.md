@@ -8,7 +8,7 @@
 > 踩坑：[`../2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md`](../2026.8.20/NETSYNC_ARCHITECTURE_PROBLEMS.md)
 
 **本文覆盖到 2026-08-23 的生产路径**：W9 Listen 组合 + W10 通道/预测骨架 + W11 Compact + 远端播放头 / Urgent / 战斗立刻 Apply。  
-**状态更新（2026-09-19）**：W10 已完成用户验收；W11 的 V2 FakeActionGame、10+ Actor、远敌裁剪 / Owner 预算与 R2 仍未关。
+**状态更新（2026-09-19）**：W10 已完成用户验收；W11 的 V2 FakeActionGame、10+ Actor、兴趣裁剪与 Owner 预算测试已补并通过生成工程编译，待 Unity Test Runner + Editor Play 后关闭 R2。
 
 ---
 
@@ -401,26 +401,39 @@ flowchart LR
 | `MaxUpdateBytes` | 1200 | 只限制 Update；Spawn/Despawn 不限 |
 | `SnapshotIntervalTicks` | 2 | 非优先实体约 30Hz |
 | `PreferredEntity` | 该连接 Owner | 不受间隔限制，预算内先装 |
-| `ForceFull` | Join / Recover | `ResetBaseline` 后当步全量 |
+| `ForceFull` | Join / Recover | 重发可靠 Spawn 与完整 Snapshot，不重置生命周期序列 |
 
 **没有字段级 change mask。** Update 仍是完整 `ActorReplicationSnapshotCodec` 载荷；「Delta」= 实体级跳过 + 节拍 + 预算。
 
 ### 10.3 谁该发 Update
 
-```104:111:Assets/Scripts/Framework/ACTNet/Replication/ReplicationServer.cs
-            bool due = options.ForceFull
-                || preferred
-                || state.Urgent
-                || tick.Value % options.SnapshotIntervalTicks == 0;
-            if (!due)
-                continue;
+```177:193:Assets/Scripts/Framework/ACTNet/Replication/ReplicationServer.cs
+bool IsSnapshotDue(ReplicationEntityState state, long tick, ReplicationBuildOptions options)
+{
+    if (options.ForceFull
+        || state.Urgent
+        || !_lastCommittedPayloads.TryGetValue(state.EntityId.Value, out byte[] previous))
+    {
+        return true;
+    }
+    if (!_lastCommittedTicks.TryGetValue(state.EntityId.Value, out long last)) return true;
+    long elapsed = tick - last;
+    bool unchanged = BytesEqual(previous, state.PayloadBuffer);
+    if (unchanged && options.SkipUnchanged)
+        return elapsed >= MaxSilenceTicks;
+    if (options.PreferredEntity.IsValid && state.EntityId == options.PreferredEntity)
+        return true;
+    return elapsed >= options.SnapshotIntervalTicks;
+}
 ```
 
 `Urgent` 在 Capture 时置位：
 
-```164:171:Assets/Scripts/App/Networking/Adapters/ActAuthorityReplicationAdapter.cs
+```181:190:Assets/Scripts/App/Networking/Adapters/ActAuthorityReplicationAdapter.cs
         bool urgent = snapshot.ActionId != 0
-            || snapshot.VitalityEdge != VitalityReplicationEdge.None;
+            || snapshot.VitalityEdge != VitalityReplicationEdge.None
+            || (ReplicationPresentationAlign.TryReadPhase(in snapshot, out AnimationKey locomotionKey)
+                && ReplicationPresentationAlign.IsMovingLocomotionPhase(locomotionKey));
         _entityStates.Add(new ReplicationEntityState(
             new NetEntityId(snapshot.ActorId.Value),
             archetypeId,
@@ -429,7 +442,7 @@ flowchart LR
             urgent));
 ```
 
-出招或受击/死亡边沿 **奇数 Tick 也必须发出**，否则 Compact 会丢掉一帧 VitalityEdge。装不下预算的实体保持脏，下帧重试（Owner 优先排序）。
+出招、移动相位或受击/死亡边沿 **奇数 Tick 也必须发出**，否则 Compact 会丢掉关键表现状态。`ReplicationServer.SelectWithinUpdateBudget` 对 Update 总量执行连接级预算；Owner 第一优先，装不下的实体不提交 baseline，并按公平游标在后续 Tick 补发。
 
 新实体 → Spawn；消失 → Despawn；构帧成功后才提交 Registry 与 `_nextSequence`。
 

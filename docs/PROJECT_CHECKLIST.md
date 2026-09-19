@@ -48,7 +48,7 @@
 | 相机 | 🟡 | 日常跟随 + Director + SkillShot Spline 已有；待 C-SP Test/Editor/Play、UI 展示舱与 Cutscene；Lock-On 暂时舍弃 |
 | 正式 UI / 血条 | ⬜ | 仅 Debug HUD；MVVM UI 调整为近期学习主线 |
 | 吸附 / 绕背 | ✅ | Wave 4 位移出口 |
-| 预测 / 联网 | 🟡 | W10 已验收；W11 V2 证据与 R2 未关 |
+| 预测 / 联网 | 🟡 | W10 已验收；W11 V2 fixture / 预算代码已补并编译，待 Test Runner + Play 关闭 R2 |
 | 打击感木桩 / 命中 Cue | ✅ | 2026-08-08 / 08-09 验收 |
 | 三人换人 / 极限支援 | ✅ | P-SW0～P-SW2 Graph、资产与 Play 已验收（2026-09-19）；P-SW3～P-SW5 是独立后续扩展 |
 | 学习/工程实践轨 | 🟡 | UI、性能、A*、AB/Lua、SDK、剧情编辑器进入近期并行学习主线（§6.4） |
@@ -57,7 +57,7 @@
 
 ## 3. 当前焦点
 
-**并行焦点 A（联网）：** W10 已于 2026-09-19 用户验收；继续关闭 W11 的 V2 FakeActionGame、10+ Actor、远敌裁剪 / Owner 不被饿死与 R2 出口。
+**并行焦点 A（联网）：** W10 已验收；W11 的 V2 FakeActionGame、10+ Actor、远敌裁剪 / Owner 预算代码与测试已补，当前只剩 Unity Test Runner 与 Editor Play 验收。
 
 **并行焦点 B（学习主线）：** 按“MVVM UI → 性能基线 → A* → 剧情编辑器 → AssetBundle/Lua → SDK 打包”形成可独立运行的小型切片；不得绕过现有 60Hz Sim / Numeric / Content Catalog 边界。
 
@@ -106,7 +106,7 @@
 | L3 可导出复制快照（纠偏用，非 GGPO） | ⬜ |
 | NS0～NS5 / W0～W10 | ✅ |
 | W10 预测 / 可靠通道 / 网络时间 | ✅ 2026-09-19 用户验收 |
-| W11 Delta / Relevancy / FakeActionGame | 🟡 Delta/Relevancy V2 代码切面；V2 FakeActionGame 测试需重建，R2 未关 |
+| W11 Delta / Relevancy / FakeActionGame | 🟡 V2 FakeActionGame 与连接级预算测试已补、生成工程编译通过；待 Test Runner + Play，R2 未关 |
 | W12 公网 / 重连 / 运维 | ⬜ |
 | 复制带宽 RS-M / RS-S / RS-C | ⬜ 方案 [`2026.8.24`](./2026.8.24/README.md) |
 | L5 全员输入广播 + 完整回滚 | ❌ 已取消产品主路径 |

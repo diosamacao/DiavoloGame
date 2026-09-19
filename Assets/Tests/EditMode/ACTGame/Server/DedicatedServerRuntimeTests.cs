@@ -611,7 +611,7 @@ public sealed class DedicatedServerRuntimeTests
                     Array.Empty<ReplicationEntityState>(),
                     _emptyApplication,
                     _bodyBudget,
-                    NetEntityId.Invalid);
+                    ReplicationBuildOptions.Compact);
                 for (int i = 0; i < delta.Packets.Length; i++)
                 {
                     PreparedReplicationPacket packet = delta.Packets[i];

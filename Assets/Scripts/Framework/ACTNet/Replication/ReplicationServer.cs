@@ -24,8 +24,7 @@ public sealed class ReplicationServer
         IEnumerable<ReplicationEntityState> fullSet,
         byte[] metadata,
         int bodyBudgetBytes,
-        NetEntityId ownerEntity,
-        bool forceFull = false)
+        ReplicationBuildOptions options)
     {
         if (!tick.IsValid) throw new ArgumentException("Tick 必须有效。", nameof(tick));
         if (fullSet == null) throw new ArgumentNullException(nameof(fullSet));
@@ -46,7 +45,7 @@ public sealed class ReplicationServer
             {
                 if (old.ArchetypeId != state.ArchetypeId || old.SchemaId != state.SchemaId)
                     throw new InvalidOperationException($"Entity {state.EntityId} 生命周期内改变原型或 Schema。");
-                if (forceFull)
+                if (options.ForceFull)
                     spawns.Add(state);
             }
             else
@@ -54,7 +53,7 @@ public sealed class ReplicationServer
                 spawns.Add(state);
             }
 
-            if (forceFull || IsSnapshotDue(state, tick.Value)) updates.Add(state);
+            if (IsSnapshotDue(state, tick.Value, options)) updates.Add(state);
         }
 
         ReplicatedEntityMetadata[] previous = _registry.GetAll();
@@ -66,7 +65,9 @@ public sealed class ReplicationServer
         var packets = new List<PreparedReplicationPacket>();
         long finalRequiredSequence = _nextLifecycleSequence - 1;
         PrepareLifecyclePackets(tick, spawns, despawns, bodyBudgetBytes, packets, ref finalRequiredSequence);
-        PrepareSnapshotPackets(tick, finalRequiredSequence, updates, metadata, bodyBudgetBytes, ownerEntity, packets);
+        SortSnapshotPriority(updates, options.PreferredEntity);
+        List<ReplicationEntityState> selectedUpdates = SelectWithinUpdateBudget(updates, options.MaxUpdateBytes);
+        PrepareSnapshotPackets(tick, finalRequiredSequence, selectedUpdates, metadata, bodyBudgetBytes, packets);
         return new ReplicationTickDelta(packets.ToArray());
     }
 
@@ -140,11 +141,9 @@ public sealed class ReplicationServer
         List<ReplicationEntityState> updates,
         byte[] metadata,
         int budget,
-        NetEntityId owner,
         List<PreparedReplicationPacket> packets)
     {
         if (updates.Count == 0 && metadata.Length == 0) return;
-        SortSnapshotPriority(updates, owner);
         var groups = new List<List<ReplicationEntityState>>();
         var current = new List<ReplicationEntityState>();
         int bytes = ReplicationProtocolV2Codec.SnapshotHeaderBytes + metadata.Length;
@@ -174,15 +173,45 @@ public sealed class ReplicationServer
         packets.Add(new PreparedReplicationPacket(lifecycle, body, token));
     }
 
-    /// <summary>Urgent 立即发送；非 Urgent 变化遵守节拍，未变状态由 MaxSilence 保底。</summary>
-    bool IsSnapshotDue(ReplicationEntityState state, long tick)
+    /// <summary>Owner/Urgent 变化立即发送；普通变化遵守节拍，未变状态由 MaxSilence 保底。</summary>
+    bool IsSnapshotDue(ReplicationEntityState state, long tick, ReplicationBuildOptions options)
     {
-        if (state.Urgent || !_lastCommittedPayloads.TryGetValue(state.EntityId.Value, out byte[] previous)) return true;
+        if (options.ForceFull
+            || state.Urgent
+            || !_lastCommittedPayloads.TryGetValue(state.EntityId.Value, out byte[] previous))
+        {
+            return true;
+        }
         if (!_lastCommittedTicks.TryGetValue(state.EntityId.Value, out long last)) return true;
         long elapsed = tick - last;
-        if (!BytesEqual(previous, state.PayloadBuffer))
-            return elapsed >= NonUrgentSendIntervalTicks;
-        return elapsed >= MaxSilenceTicks;
+        bool unchanged = BytesEqual(previous, state.PayloadBuffer);
+        if (unchanged && options.SkipUnchanged)
+            return elapsed >= MaxSilenceTicks;
+        if (options.PreferredEntity.IsValid && state.EntityId == options.PreferredEntity)
+            return true;
+        return elapsed >= options.SnapshotIntervalTicks;
+    }
+
+    /// <summary>按已排序优先级填充连接级 Update 预算；首条即使超过预算也允许前进。</summary>
+    static List<ReplicationEntityState> SelectWithinUpdateBudget(
+        List<ReplicationEntityState> updates,
+        int maxUpdateBytes)
+    {
+        if (maxUpdateBytes <= 0 || updates.Count == 0)
+            return updates;
+
+        var selected = new List<ReplicationEntityState>(updates.Count);
+        int usedBytes = 0;
+        for (int i = 0; i < updates.Count; i++)
+        {
+            ReplicationEntityState state = updates[i];
+            int cost = ReplicationProtocolV2Codec.UpdateRecordHeaderBytes + state.PayloadBuffer.Length;
+            if (selected.Count > 0 && usedBytes + cost > maxUpdateBytes)
+                continue;
+            selected.Add(state);
+            usedBytes += cost;
+        }
+        return selected;
     }
 
     void SortSnapshotPriority(List<ReplicationEntityState> updates, NetEntityId owner)

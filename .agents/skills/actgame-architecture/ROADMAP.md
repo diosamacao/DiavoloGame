@@ -132,7 +132,7 @@
 
 **目标**：Dedicated 独跑现有 `SimulationWorld`；Listen 只是同进程再开 LocalClient。客户端上行 `InputFrame`、下行 V2 Lifecycle/Snapshot/Event；本机 Autonomous 预测走跑与出招；命中只在权威逻辑盒结算。
 
-**状态**：NS0～NS5 / W0～W10 已验收。W11 代码切面已落地，R2 未关。2026-09-19 审计发现旧 `FakeActionGameLoopbackTests` 随 V1 清理删除，W11 必须先在 V2 上重建 10+ Actor、兴趣裁剪与 Owner 预算证据。同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。命中 **P0 仍权威 Collect**；`NS-PVP` 未开。
+**状态**：NS0～NS5 / W0～W10 已验收。W11 的 V2 FakeActionGame、10+ Actor 带宽断言、兴趣裁剪及 Owner 预算/延后重试测试已于 2026-09-19 补回，生成工程编译 0 error；待 Unity Test Runner + Editor Play 后关闭 R2。同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。命中 **P0 仍权威 Collect**；`NS-PVP` 未开。
 
 **下行带宽（方案，未实现）**：整包 67B 脏检测的后续三项，按序 [`docs/2026.8.24/README.md`](../../docs/2026.8.24/README.md) — `RS-M` 分块掩码 → `RS-S` 同实体分频 → `RS-C` 动作本地推帧。不改权威 Collect，不恢复旧协议双轨。
 
@@ -224,6 +224,7 @@
 - [x] 2026-08-20：NetSync W9——Listen = `DedicatedServerRuntime` + `LocalClientRuntime`；删除特殊 Host Room / Capture；用户验收关闭
 - [x] 2026-09-19：NetSync W10——`ACTNet.Prediction`、ChannelMux、可靠命中事件、SnapshotTimeline 与故障网络 Play 用户验收关闭
 - [x] 2026-08-22：NetSync W11 代码切面——Delta/兴趣/预算、`GraphNodeKey`、Recover、FakeActionGame；R2 出口未关
+- [x] 2026-09-19：W11 V2 收尾代码——恢复纯 ACTNet FakeActionGame；`Compact` 接回生产构帧；1200B Update 预算、Owner 优先与延后实体补发测试已落地，待 Test Runner / Play
 
 ## 已完成
 

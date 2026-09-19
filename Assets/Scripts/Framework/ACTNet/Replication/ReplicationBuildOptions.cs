@@ -1,7 +1,7 @@
 /// <summary>单次构帧策略：跳过未变 Update、节拍、预算与全量恢复。不含 ACT 字段。</summary>
 public readonly struct ReplicationBuildOptions
 {
-    /// <summary>兼容既有单测：每 Tick 都可发，不限预算，仍跳过字节级未变 Update。</summary>
+    /// <summary>无总 Update 预算且普通变化每 Tick 可发；仍跳过未变 Update。</summary>
     public static ReplicationBuildOptions Compatible { get; } = new(
         skipUnchanged: true,
         maxUpdateBytes: 0,
@@ -9,11 +9,11 @@ public readonly struct ReplicationBuildOptions
         preferredEntity: default,
         forceFull: false);
 
-    /// <summary>生产默认：30Hz 刷新、1200 字节 Update 预算、Owner 优先。</summary>
+    /// <summary>生产默认：30Hz 普通变化、1200 字节连接级 Update 预算；调用方再绑定 Owner。</summary>
     public static ReplicationBuildOptions Compact { get; } = new(
         skipUnchanged: true,
         maxUpdateBytes: 1200,
-        snapshotIntervalTicks: 2,
+        snapshotIntervalTicks: ReplicationServer.NonUrgentSendIntervalTicks,
         preferredEntity: default,
         forceFull: false);
 

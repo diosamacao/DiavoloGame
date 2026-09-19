@@ -52,7 +52,7 @@ flowchart LR
 ### 1.2 核心痛点
 
 1. **测试金字塔缺中层**：纯逻辑测试充足，但真实场景装配、Playable、Cinemachine、输入生命周期和多客户端组合主要靠人工 Play。  
-2. **联网“代码已落”与“可交付”之间有缺口**：W10 已验收；W11 尚缺 V2 FakeActionGame、10+ Actor、兴趣 / Owner 预算和 R2 出口。  
+2. **联网“代码已落”与“可交付”之间有缺口**：W10 已验收；W11 的 V2 fixture / 预算证据代码已补，尚缺 Unity Test Runner、Editor Play 与 R2 出口。
 3. **资产债无法由编译表达**：Action 位移、受击/死亡、EX/Ult、Locomotion 旧轨和 BT 装配仍可能代码绿、体验不完整。  
 4. **结构门禁只防已知模式**：Tag Find、静态表现注册表和大型门面职责增长尚未形成机器可判定的回归条件。  
 5. **没有性能预算**：项目尚无稳定木桩/多敌人/Observer 场景基线，无法判断一次优化是否真实有效。  
@@ -198,7 +198,7 @@ ObserverReplicationCoordinator
 **任务**
 
 - [x] W10 的丢包、抖动、乱序、可靠事件重传与网络时间完成用户验收。（2026-09-19）
-- [ ] 将 W11 的 Delta/Relevancy/预算/R2 恢复场景纳入 FakeActionGame 或等价纯协议 fixture。
+- [x] 将 W11 的 Delta/Relevancy/预算/R2 恢复场景纳入纯 ACTNet V2 FakeActionGame fixture。（2026-09-19，待 Test Runner 结果）
 - [ ] 增加 30 分钟 Listen+Client 长稳：连接数、Recover 次数、重传队列、Snapshot 丢旧、内存趋势可观测。
 - [ ] 双进程人工验收保留为 W11 最终出口：远敌裁剪、Owner 不饿死、断线重连。
 - [ ] 更新联网真源，只在 W11 全部出口关闭后把 W11 / R2 标为完成。

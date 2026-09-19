@@ -26,7 +26,7 @@ public sealed class ReplicationRuntimeTests
         Assert.That(client.Registry.Count, Is.EqualTo(1));
 
         ApplyAndCommit(server, client, server.PrepareTickDelta(
-            new NetTick(3), Array.Empty<ReplicationEntityState>(), Array.Empty<byte>(), 128, NetEntityId.Invalid));
+            new NetTick(3), Array.Empty<ReplicationEntityState>(), Array.Empty<byte>(), 128, ReplicationBuildOptions.Compatible));
         Assert.That(client.Registry.Count, Is.Zero);
         Assert.That(despawned, Is.EqualTo(1));
     }
@@ -51,7 +51,12 @@ public sealed class ReplicationRuntimeTests
     }
 
     static ReplicationTickDelta Prepare(ReplicationServer server, long tick, ReplicationEntityState state) =>
-        server.PrepareTickDelta(new NetTick(tick), new[] { state }, Array.Empty<byte>(), 128, state.EntityId);
+        server.PrepareTickDelta(
+            new NetTick(tick),
+            new[] { state },
+            Array.Empty<byte>(),
+            128,
+            ReplicationBuildOptions.Compatible.WithPreferred(state.EntityId));
 
     static ReplicationEntityState State(int id, byte value) =>
         new(new NetEntityId(id), new NetArchetypeId(10), 1, new[] { value });
