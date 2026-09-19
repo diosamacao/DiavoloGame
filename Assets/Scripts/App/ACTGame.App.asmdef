@@ -4,7 +4,9 @@
     "references": [
         "ACTGame.Core",
         "ACTGame.Domain.Input",
-        "ACTGame.Domain.Gameplay",
+        "ACTGame.Domain.Combat",
+        "ACTGame.Domain.Character",
+        "ACTGame.Domain.Enemy",
         "ACTGame.Simulation",
         "ACTGame.Networking",
         "ACTGame.Combat.Numeric",

@@ -5,10 +5,10 @@ using System.Collections.Generic;
 /// </summary>
 public sealed class ActionResolverService
 {
-    readonly CombatModeService _combatMode;
+    readonly ICombatModeService _combatMode;
 
-    /// <summary>创建解析服务；出招图由 CombatModeService.ActiveGraph 提供。</summary>
-    public ActionResolverService(CombatModeService combatMode)
+    /// <summary>创建解析服务；出招图仅经 Combat 模式契约提供。</summary>
+    public ActionResolverService(ICombatModeService combatMode)
     {
         _combatMode = combatMode;
     }

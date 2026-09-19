@@ -1,6 +1,5 @@
 using System;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 /// <summary>
 /// 步态升档策略（挂在 LocomotionProfile）：MaxGait / Pivot / Sprint 计时。
@@ -17,8 +16,6 @@ public sealed class LocomotionGaitPolicy
 
     [Tooltip("Run 步态下连续保持跑输入达到该逻辑帧数后进入 Sprint（受 MaxGait 限制）。")]
     [SerializeField, Min(0)] int sprintAfterRunFrames = 180;
-    [FormerlySerializedAs("sprintAfterRunSeconds")]
-    [SerializeField, HideInInspector] float legacySprintAfterRunSeconds;
 
     /// <summary>允许的最高步态。</summary>
     public LocomotionGait MaxGait => maxGait;
@@ -44,16 +41,6 @@ public sealed class LocomotionGaitPolicy
     public LocomotionGaitPolicy()
     {
     }
-
-#if UNITY_EDITOR
-    /// <summary>Editor Baker 显式调用，把旧秒值迁成 60Hz 帧；运行时绝不读取旧字段。</summary>
-    public void BakeLegacyFrames()
-    {
-        if (legacySprintAfterRunSeconds > 0f)
-            sprintAfterRunFrames = Mathf.CeilToInt(legacySprintAfterRunSeconds * ActionSim.LogicHz);
-        legacySprintAfterRunSeconds = 0f;
-    }
-#endif
 
     /// <summary>将候选步态压到 MaxGait 以下（含）。</summary>
     public LocomotionGait ClampGait(LocomotionGait gait)

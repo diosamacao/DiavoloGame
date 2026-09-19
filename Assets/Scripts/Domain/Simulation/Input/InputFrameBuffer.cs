@@ -4,14 +4,25 @@ using System.Collections.Generic;
 /// <summary>按逻辑帧与 Actor 保存输入历史，并为单机追帧展开连续状态。</summary>
 public sealed class InputFrameBuffer
 {
+    /// <summary>
+    /// 每 Actor 保留的最大逻辑帧数。覆盖 Owner 预测窗 32、迟到输入 8 与命令冗余，
+    /// Dedicated 长局不得再无限堆积。
+    /// </summary>
+    public const int MaxHistoryFrames = 64;
+
     readonly Dictionary<InputFrameKey, InputFrame> _frames = new();
     readonly Dictionary<SimActorId, InputFrame> _lastResolvedByActor = new();
+    long _newestFrame = -1;
+
+    /// <summary>当前仍保留的输入记录数；供测试与诊断读取。</summary>
+    public int Count => _frames.Count;
 
     /// <summary>写入或覆盖一帧完整输入，供 AI、回放与未来权威包使用。</summary>
     public void Set(in InputFrame frame)
     {
         ValidateFrame(in frame);
         _frames[new InputFrameKey(frame.Frame, frame.ActorId)] = frame;
+        BoundHistory(frame.Frame);
     }
 
     /// <summary>把同一目标帧的设备采样合并进槽位；边沿保留，连续状态取最后值。</summary>
@@ -22,6 +33,7 @@ public sealed class InputFrameBuffer
         _frames[key] = _frames.TryGetValue(key, out InputFrame existing)
             ? existing.MergeSample(in sample)
             : sample;
+        BoundHistory(sample.Frame);
     }
 
     /// <summary>读取精确记录；不存在时不进行连续状态展开。</summary>
@@ -38,6 +50,7 @@ public sealed class InputFrameBuffer
         if (_frames.TryGetValue(key, out InputFrame exact))
         {
             _lastResolvedByActor[actorId] = exact;
+            BoundHistory(frame);
             return exact;
         }
 
@@ -46,6 +59,7 @@ public sealed class InputFrameBuffer
             : InputFrame.Empty(frame, actorId);
         _frames[key] = resolved;
         _lastResolvedByActor[actorId] = resolved;
+        BoundHistory(frame);
         return resolved;
     }
 
@@ -64,6 +78,16 @@ public sealed class InputFrameBuffer
 
         for (int i = 0; i < expired.Count; i++)
             _frames.Remove(expired[i]);
+    }
+
+    /// <summary>按最新写入帧裁到 MaxHistoryFrames，使调用方漏 Trim 也不会无界增长。</summary>
+    void BoundHistory(long writtenFrame)
+    {
+        if (writtenFrame > _newestFrame)
+            _newestFrame = writtenFrame;
+        long firstFrameToKeep = _newestFrame - MaxHistoryFrames + 1;
+        if (firstFrameToKeep > 0)
+            TrimBefore(firstFrameToKeep);
     }
 
     /// <summary>Actor 注销时清理其输入历史和连续状态。</summary>

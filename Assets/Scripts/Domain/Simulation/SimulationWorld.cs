@@ -126,6 +126,10 @@ public sealed class SimulationWorld
             ResolveSoftBodySeparation();
 
             CurrentFrame = frameIndex;
+            // 权威长局必须裁掉已消费历史；窗口覆盖预测/迟到输入，禁止无界堆积。
+            long firstFrameToKeep = CurrentFrame - InputFrameBuffer.MaxHistoryFrames + 1;
+            if (firstFrameToKeep > 0)
+                _inputFrames.TrimBefore(firstFrameToKeep);
         }
         finally
         {

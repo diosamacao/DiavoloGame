@@ -293,12 +293,12 @@ public sealed class AssistParryPipelineTests
     {
         ActionDefinition attack = CreateReadyAction("ContinueAttack");
         using ActorHarness attacker = ActorHarness.Create("AttackerContinue", new SimActorId(21));
-        int notifyCount = 0;
+        var observer = new CountingReactionObserver();
         var attackerReactions = new CharacterReactionService(
             attacker.Actor.Vitality,
             attacker.Actor,
             new CharacterReactionResolver(new CharacterReactionSet()),
-            hitSideEffect: _ => notifyCount++,
+            observer,
             baseInterruptResist: 3);
 
         ResolvedCombatHit? resolved = null;
@@ -335,7 +335,7 @@ public sealed class AssistParryPipelineTests
             Assert.That(attacker.Actor.ActionSim.InstanceId, Is.EqualTo(instanceId));
             Assert.That(attacker.Actor.Vitality.LastConfirmedReactionKind, Is.EqualTo(HitReactionKind.None));
             Assert.That(attacker.Actor.Vitality.ReplicationEdge, Is.EqualTo(VitalityReplicationEdge.None));
-            Assert.That(notifyCount, Is.Zero);
+            Assert.That(observer.HardHitCount, Is.Zero);
             Assert.That(target.OnHitCount, Is.Zero);
         }
         finally
@@ -571,7 +571,7 @@ public sealed class AssistParryPipelineTests
                 animation,
                 input,
                 locomotionProfile,
-                LocomotionFootstepPlayer.CreateSilent());
+                NullLocomotionFootstepSink.Instance);
             var stateMachine = new CharacterStateMachine(context);
             var intentBuffer = new GameplayIntentBuffer(8);
             var actionSim = new ActionSim();
@@ -588,6 +588,12 @@ public sealed class AssistParryPipelineTests
             var numeric = new NumericSystem(CharacterNumericConfig.Default);
             var vitality = new CharacterVitality(numeric);
             var targeting = new CharacterTargetingState(0, 0, 0, () => Array.Empty<IHurtboxTarget>());
+            var actionGameplay = new CharacterActionGameplayStep(
+                actionSim,
+                owner.transform,
+                motor,
+                combatMode: null,
+                startContext: null);
             var actor = new CharacterActor(
                 localInput: null,
                 input,
@@ -596,11 +602,11 @@ public sealed class AssistParryPipelineTests
                 stateMachine,
                 actionDriver,
                 actionSim,
+                actionGameplay,
                 actionPresentation: null,
                 combatMode: null,
                 animation,
-                presentation: null,
-                visualMotion: null,
+                presentation: new NullCharacterPresentationSink(owner.transform),
                 numeric,
                 vitality,
                 intentBuffer,
@@ -620,6 +626,19 @@ public sealed class AssistParryPipelineTests
             if (_owner != null)
                 UnityEngine.Object.DestroyImmediate(_owner);
         }
+    }
+
+    /// <summary>记录 Reaction Gameplay 通知次数，避免测试依赖裸委托回调。</summary>
+    sealed class CountingReactionObserver : ICharacterReactionObserver
+    {
+        public int HardHitCount { get; private set; }
+        public int DeathCount { get; private set; }
+
+        /// <inheritdoc />
+        public void OnHardHit(in ActionHitContext context) => HardHitCount++;
+
+        /// <inheritdoc />
+        public void OnDeath(in ActionHitContext context, float damage) => DeathCount++;
     }
 
     sealed class AbsorbTarget : ITargetable, IHitAbsorbQuery

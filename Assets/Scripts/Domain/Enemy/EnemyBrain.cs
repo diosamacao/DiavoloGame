@@ -5,7 +5,7 @@ using UnityEngine;
 /// 帧末只提交通用 LocomotionDesire + ActionEntryRequest（无假手柄 / InputFrame 战斗提交）。
 /// 战斗半径/幅度/仇恨滞回由 BT 节点负责；本类不读 Profile 战斗表。
 /// </summary>
-public sealed class EnemyBrain
+public sealed class EnemyBrain : ICharacterReactionObserver
 {
     /// <summary>起手失败后的防抖逻辑帧（薄 Brain 辅助，非 Profile 真源）。</summary>
     const int FailedAttackRetryFrames = 12;
@@ -167,6 +167,13 @@ public sealed class EnemyBrain
         _lastCombatRequestEntryId = string.Empty;
         _runner?.Reset();
     }
+
+    /// <inheritdoc />
+    void ICharacterReactionObserver.OnHardHit(in ActionHitContext context) => NotifyHit();
+
+    /// <inheritdoc />
+    void ICharacterReactionObserver.OnDeath(in ActionHitContext context, float damage) =>
+        NotifyDeath();
 
     /// <summary>回收前停止决策并清空命令槽。</summary>
     public void Stop()

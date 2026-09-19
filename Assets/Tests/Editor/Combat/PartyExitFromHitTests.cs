@@ -117,7 +117,7 @@ public sealed class PartyExitFromHitTests
                 animation,
                 input,
                 locomotionProfile,
-                LocomotionFootstepPlayer.CreateSilent());
+                NullLocomotionFootstepSink.Instance);
             var stateMachine = new CharacterStateMachine(context);
             var intentBuffer = new GameplayIntentBuffer(8);
             var actionSim = new ActionSim();
@@ -134,6 +134,12 @@ public sealed class PartyExitFromHitTests
             var numeric = new NumericSystem(CharacterNumericConfig.Default);
             var vitality = new CharacterVitality(numeric);
             var targeting = new CharacterTargetingState(0, 0, 0, () => Array.Empty<IHurtboxTarget>());
+            var actionGameplay = new CharacterActionGameplayStep(
+                actionSim,
+                owner.transform,
+                motor,
+                combatMode: null,
+                startContext: null);
             var actor = new CharacterActor(
                 localInput: null,
                 input,
@@ -142,11 +148,11 @@ public sealed class PartyExitFromHitTests
                 stateMachine,
                 actionDriver,
                 actionSim,
+                actionGameplay,
                 actionPresentation: null,
                 combatMode: null,
                 animation,
-                presentation: null,
-                visualMotion: null,
+                presentation: new NullCharacterPresentationSink(owner.transform),
                 numeric,
                 vitality,
                 intentBuffer,

@@ -183,4 +183,21 @@ public sealed class Sample
 
         Assert.That(issues, Has.Some.Contains("未登记引用白名单"));
     }
+
+    /// <summary>超阈值运行时文件必须拆分或登记职责，已登记聚合根不误报。</summary>
+    [Test]
+    public void AuditLargeRuntimeFile_RequiresDocumentedResponsibility()
+    {
+        string oversized = new string('\n', 451);
+
+        string unknown = StructureAuditRuleSet.AuditLargeRuntimeFile(
+            "Assets/Scripts/App/UnknownLargeType.cs",
+            oversized);
+        string documented = StructureAuditRuleSet.AuditLargeRuntimeFile(
+            "Assets/Scripts/Domain/Character/CharacterActor.cs",
+            oversized);
+
+        Assert.That(unknown, Does.Contain("超过 450 行"));
+        Assert.That(documented, Is.Empty);
+    }
 }

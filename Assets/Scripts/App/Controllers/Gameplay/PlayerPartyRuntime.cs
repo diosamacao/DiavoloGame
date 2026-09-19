@@ -5,7 +5,7 @@ using UnityEngine;
 /// <summary>
 /// 本机玩家阵容运行时：独占三槽 Actor、预测切人、权威槽同步与阵容固定帧推进。
 /// </summary>
-public sealed class PlayerPartyRuntime : IDisposable
+public sealed class PlayerPartyRuntime : IDisposable, ICharacterActionObserver
 {
     readonly PartyLoadout _loadout;
     readonly GameplayIntentProfile _gameplayIntents;
@@ -262,7 +262,6 @@ public sealed class PlayerPartyRuntime : IDisposable
             CharacterActor member = _actors[i];
             if (member == null)
                 continue;
-            member.PartyLifecycle.ActionBegun -= OnPartyActionBegun;
             member.Dispose();
         }
     }
@@ -297,9 +296,9 @@ public sealed class PlayerPartyRuntime : IDisposable
                 _simulationHost != null ? _simulationHost.CollisionWorld : null,
                 null,
                 null,
-                ReplicationSeat.Autonomous);
+                ReplicationSeat.Autonomous,
+                actionObserver: this);
             member.PartyLifecycle.SetState(_coordinator.States[i]);
-            member.PartyLifecycle.ActionBegun += OnPartyActionBegun;
             _actors[i] = member;
         }
     }
@@ -395,7 +394,7 @@ public sealed class PlayerPartyRuntime : IDisposable
     }
 
     /// <summary>终结技起手回复本机预测支援点，与权威口袋规则一致。</summary>
-    void OnPartyActionBegun(GameplayIntentType intent)
+    void ICharacterActionObserver.OnActionBegun(GameplayIntentType intent)
     {
         if (intent == GameplayIntentType.Ultimate)
             _coordinator.AssistPoints.GrantUltimate();

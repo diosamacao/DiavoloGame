@@ -6,6 +6,8 @@ using System.Text.RegularExpressions;
 /// <summary>对生产 C# 源码执行不依赖 Unity 编译结果的结构债务审计规则。</summary>
 public static class StructureAuditRuleSet
 {
+    const int LargeRuntimeTypeLineThreshold = 450;
+
     static readonly string[] s_removedProtocolSymbols =
     {
         "ReplicationFrame",
@@ -14,6 +16,28 @@ public static class StructureAuditRuleSet
         "ActReplicationApplicationPayload",
         "RoomMessageKind",
     };
+
+    // 超阈值文件必须登记仍保持单职责的理由；该表不是规则豁免，源码规则仍完整执行。
+    static readonly Dictionary<string, string> s_largeRuntimeTypeResponsibilities =
+        new(StringComparer.Ordinal)
+        {
+            ["Assets/Scripts/Domain/Character/CharacterActor.cs"] =
+                "角色聚合根公开门面；具体模拟、Party、Prediction 与表现职责均已下放。",
+            ["Assets/Scripts/Domain/Character/Locomotion/LocomotionContext.cs"] =
+                "Locomotion 状态机共享数据契约；集中持有相位输入、只读服务和单步输出，不执行状态算法。",
+            ["Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs"] =
+                "SerializeReference 节点 Schema 集合；同文件保持稳定类型身份，不含 Runner 逻辑。",
+            ["Assets/Scripts/Domain/Combat/Actions/Definitions/ActionDefinition.cs"] =
+                "动作内容聚合 SO；集中序列化播放、Timeline、Motion 与执行策略，只负责内容查询/校验。",
+            ["Assets/Scripts/App/Presentation/RemoteCharacterProxy.cs"] =
+                "Observer 单一播放头：原子应用复制快照并解释动作、Locomotion 与 Notify。",
+            ["Assets/Scripts/App/Controllers/Camera/CameraManager.cs"] =
+                "场景相机唯一 Controller；集中协调模式栈、目标绑定与渲染更新。",
+            ["Assets/Scripts/App/Server/DedicatedServerRuntime.cs"] =
+                "Dedicated 会话宿主门面；Authority Gameplay 已下放，只协调 Session、Match、Poll 与 Flush。",
+            ["Assets/Scripts/Framework/ACTNet/Transport/ChannelMuxTransport.cs"] =
+                "传输通道复用器；在单一连接边界内集中可靠队列、ACK、重传和通道调度。",
+        };
 
     // 每个生产程序集只可引用登记集合；新增程序集必须先明确其层级和依赖方向。
     static readonly Dictionary<string, HashSet<string>> s_allowedAssemblyReferences =
@@ -33,9 +57,19 @@ public static class StructureAuditRuleSet
                 Allow("ACTGame.Simulation", "ACTNet.Core", "ACTNet.Replication"),
             ["ACTGame.Domain.Input"] =
                 Allow("ACTGame.Simulation", "Unity.InputSystem"),
-            ["ACTGame.Domain.Gameplay"] = Allow(
+            ["ACTGame.Domain.Combat"] = Allow(
                 "ACTGame.Core",
                 "ACTGame.Domain.Input",
+                "ACTGame.Simulation",
+                "ACTGame.Combat.Numeric",
+                "ACTGame.Combat.Resources",
+                "Cinemachine",
+                "Unity.Mathematics",
+                "Unity.Splines"),
+            ["ACTGame.Domain.Character"] = Allow(
+                "ACTGame.Core",
+                "ACTGame.Domain.Input",
+                "ACTGame.Domain.Combat",
                 "ACTGame.Simulation",
                 "ACTGame.Combat.Numeric",
                 "ACTGame.Combat.Resources",
@@ -43,10 +77,13 @@ public static class StructureAuditRuleSet
                 "ACTNet.Core",
                 "ACTNet.Prediction",
                 "ACTNet.Replication",
-                "Cinemachine",
-                "Unity.Mathematics",
-                "Unity.Splines",
                 "Unity.InputSystem"),
+            ["ACTGame.Domain.Enemy"] = Allow(
+                "ACTGame.Domain.Input",
+                "ACTGame.Domain.Combat",
+                "ACTGame.Domain.Character",
+                "ACTGame.Simulation",
+                "ACTGame.Combat.Numeric"),
             ["ACTGame.Infrastructure"] =
                 Allow("ACTGame.Simulation", "ACTGame.Domain.Input", "Unity.InputSystem"),
             ["ACTGame.Server"] = Allow(
@@ -58,7 +95,9 @@ public static class StructureAuditRuleSet
             ["ACTGame.App"] = Allow(
                 "ACTGame.Core",
                 "ACTGame.Domain.Input",
-                "ACTGame.Domain.Gameplay",
+                "ACTGame.Domain.Combat",
+                "ACTGame.Domain.Character",
+                "ACTGame.Domain.Enemy",
                 "ACTGame.Simulation",
                 "ACTGame.Networking",
                 "ACTGame.Combat.Numeric",
@@ -91,9 +130,14 @@ public static class StructureAuditRuleSet
         for (int i = 0; i < files.Length; i++)
         {
             string assetPath = ToAssetPath(projectRoot, files[i]);
-            string[] sourceIssues = AuditSource(assetPath, File.ReadAllText(files[i]));
+            string source = File.ReadAllText(files[i]);
+            string[] sourceIssues = AuditSource(assetPath, source);
             for (int issue = 0; issue < sourceIssues.Length; issue++)
                 issues.Add($"{assetPath}: {sourceIssues[issue]}");
+
+            string largeTypeIssue = AuditLargeRuntimeFile(assetPath, source);
+            if (!string.IsNullOrEmpty(largeTypeIssue))
+                issues.Add($"{assetPath}: {largeTypeIssue}");
         }
 
         string[] assemblyFiles =
@@ -177,6 +221,22 @@ public static class StructureAuditRuleSet
         return issues.ToArray();
     }
 
+    /// <summary>审计超大运行时文件；已登记明确职责的文件允许保留聚合门面。</summary>
+    public static string AuditLargeRuntimeFile(string assetPath, string source)
+    {
+        string normalizedPath = (assetPath ?? string.Empty).Replace('\\', '/');
+        int lineCount = CountLines(source);
+        if (!IsProductionRuntimePath(normalizedPath)
+            || lineCount <= LargeRuntimeTypeLineThreshold
+            || s_largeRuntimeTypeResponsibilities.ContainsKey(normalizedPath))
+        {
+            return string.Empty;
+        }
+
+        return $"运行时文件 {lineCount} 行，超过 {LargeRuntimeTypeLineThreshold} 行；"
+            + "须拆分职责或登记单一职责说明。";
+    }
+
     /// <summary>按逐程序集白名单审计引用，并额外报告跨层反向依赖。</summary>
     public static string[] AuditAssemblyDefinition(string assetPath, string json)
     {
@@ -242,6 +302,21 @@ public static class StructureAuditRuleSet
         normalizedPath.StartsWith("Assets/Scripts/", StringComparison.Ordinal)
         && !normalizedPath.StartsWith("Assets/Scripts/Editor/", StringComparison.Ordinal)
         && !normalizedPath.StartsWith("Assets/Scripts/Previews/", StringComparison.Ordinal);
+
+    /// <summary>按换行符稳定统计文本行数，空文本为零行。</summary>
+    static int CountLines(string source)
+    {
+        if (string.IsNullOrEmpty(source))
+            return 0;
+
+        int lines = 1;
+        for (int i = 0; i < source.Length; i++)
+        {
+            if (source[i] == '\n')
+                lines++;
+        }
+        return lines;
+    }
 
     /// <summary>正则命中时追加一次问题，避免同文件同规则产生重复噪声。</summary>
     static void AddIfMatches(

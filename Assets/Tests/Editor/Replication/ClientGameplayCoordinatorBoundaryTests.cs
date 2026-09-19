@@ -45,6 +45,8 @@ public sealed class ClientGameplayCoordinatorBoundaryTests
         Assert.That(source, Does.Contain("new ReplicationClient("));
         Assert.That(source, Does.Contain("public ActClientReplicationApplyStatus ApplyLifecycle("));
         Assert.That(source, Does.Contain("public ActClientReplicationApplyStatus ApplySnapshot("));
+        Assert.That(source, Does.Contain("ReplicationSnapshotApplyResult.Rejected"));
+        Assert.That(source, Does.Contain("_appliedMeta = null"));
         Assert.That(meta, Is.GreaterThanOrEqualTo(0));
         Assert.That(updates, Is.GreaterThan(meta));
         Assert.That(owner, Is.GreaterThan(updates));

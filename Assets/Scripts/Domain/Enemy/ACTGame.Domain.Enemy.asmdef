@@ -1,0 +1,20 @@
+{
+    "name": "ACTGame.Domain.Enemy",
+    "rootNamespace": "",
+    "references": [
+        "ACTGame.Domain.Input",
+        "ACTGame.Domain.Combat",
+        "ACTGame.Domain.Character",
+        "ACTGame.Simulation",
+        "ACTGame.Combat.Numeric"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

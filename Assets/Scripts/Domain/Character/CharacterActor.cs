@@ -22,11 +22,10 @@ public sealed class CharacterActor :
     readonly CharacterStateMachine _stateMachine;
     readonly CharacterActionDriver _actionDriver;
     readonly ActionSim _actionSim;
-    readonly CharacterActionPresentationBridge _actionPresentation;
+    readonly IActionPresentationSink _actionPresentation;
     readonly CombatModeService _combatMode;
     readonly CharacterAnimationService _animation;
-    readonly CharacterPresentationBridge _presentation;
-    readonly CharacterVisualMotionBridge _visualMotion;
+    readonly ICharacterPresentationSink _presentation;
     readonly NumericSystem _numeric;
     readonly CharacterVitality _vitality;
     readonly GameplayIntentBuffer _intentBuffer;
@@ -91,7 +90,7 @@ public sealed class CharacterActor :
     public Transform PresentationRoot => _presentation.PresentationRoot;
 
     /// <summary>模型所在视觉根（含倾身等）；调试箭头用模型朝向时优先取此。</summary>
-    public Transform VisualMotionRoot => _visualMotion?.VisualRoot;
+    public Transform VisualMotionRoot => _presentation.VisualMotionRoot;
 
     /// <summary>当前渲染帧插值后的位置。</summary>
     public Vector3 RenderedPosition => _presentation.RenderedPosition;
@@ -124,9 +123,9 @@ public sealed class CharacterActor :
     {
         get
         {
-            if (_visualMotion?.VisualRoot != null)
-                return _visualMotion.VisualRoot.forward;
-            if (_presentation?.PresentationRoot != null)
+            if (_presentation.VisualMotionRoot != null)
+                return _presentation.VisualMotionRoot.forward;
+            if (_presentation.PresentationRoot != null)
                 return _presentation.PresentationRoot.forward;
             return _simulationRoot != null ? _simulationRoot.forward : Vector3.forward;
         }
@@ -203,11 +202,11 @@ public sealed class CharacterActor :
         CharacterStateMachine stateMachine,
         CharacterActionDriver actionDriver,
         ActionSim actionSim,
-        CharacterActionPresentationBridge actionPresentation,
+        CharacterActionGameplayStep actionGameplay,
+        IActionPresentationSink actionPresentation,
         CombatModeService combatMode,
         CharacterAnimationService animation,
-        CharacterPresentationBridge presentation,
-        CharacterVisualMotionBridge visualMotion,
+        ICharacterPresentationSink presentation,
         NumericSystem numeric,
         CharacterVitality vitality,
         GameplayIntentBuffer intentBuffer,
@@ -225,8 +224,8 @@ public sealed class CharacterActor :
         _actionPresentation = actionPresentation;
         _combatMode = combatMode;
         _animation = animation;
-        _presentation = presentation;
-        _visualMotion = visualMotion;
+        _presentation = presentation
+            ?? throw new ArgumentNullException(nameof(presentation));
         _numeric = numeric;
         _vitality = vitality;
         _intentBuffer = intentBuffer;
@@ -256,7 +255,6 @@ public sealed class CharacterActor :
             stateMachine,
             actionSim,
             intentBuffer,
-            animation,
             effectiveFixedDeltaSeconds);
         _simulationPipeline = new CharacterSimulationPipeline(
             inputManager,
@@ -265,10 +263,9 @@ public sealed class CharacterActor :
             stateMachine,
             actionDriver,
             actionSim,
+            actionGameplay,
             actionPresentation,
-            animation,
             presentation,
-            visualMotion,
             numeric,
             vitality,
             targetingState,
@@ -417,18 +414,15 @@ public sealed class CharacterActor :
     public void StageMoveReferenceYaw(float yawDegrees) =>
         _localInput?.StageMoveReferenceYaw(yawDegrees);
 
-    /// <summary>轻受击表现入口。不切状态、不停 ActionSim、不锁走跑；由表现层叠 Additive。</summary>
-    public static event Action<CharacterActor, AnimationKey, ActionHitContext> FlinchIssued;
-
     /// <summary>
-    /// 发布 Flinch。已在 Hit/Death 则忽略。禁止在此 Play 主轨或 SetLocked。
+    /// 向只读表现 Sink 发布 Flinch。已在 Hit/Death 则忽略。
     /// </summary>
     public void IssueFlinch(AnimationKey key, in ActionHitContext context)
     {
         if (CurrentState == CharacterStateType.Death || CurrentState == CharacterStateType.Hit)
             return;
 
-        FlinchIssued?.Invoke(this, key, context);
+        _actionPresentation?.ConsumeFlinch(key, in context);
     }
 
     /// <summary>执行上层已解析的受击请求并进入整数帧硬直；Actor 不负责选招。</summary>
@@ -440,8 +434,8 @@ public sealed class CharacterActor :
         ClearControlledInput();
         _animation?.StopAdditive();
         // 受击打断时模型短时回锚（若动作 Stop 事件未到也兜底）
-        _visualMotion?.EndAction(VisualResidualExitPolicy.BlendToZero);
-        _visualMotion?.SetLeanRollDegrees(0f);
+        _presentation.EndAction(VisualResidualExitPolicy.BlendToZero);
+        _presentation.SetLeanRollDegrees(0f);
         _partyLifecycle.NotifyEnteredHit();
         _stateMachine.EnterHit(in request);
     }
@@ -452,7 +446,7 @@ public sealed class CharacterActor :
         ClearControlledInput();
         _animation?.StopAdditive();
         SnapVisualResidual();
-        _visualMotion?.SetLeanRollDegrees(0f);
+        _presentation.SetLeanRollDegrees(0f);
         _stateMachine.EnterDeath(in request);
     }
 
@@ -506,20 +500,18 @@ public sealed class CharacterActor :
     public void AlignSimulationRootToMotor() => _motor?.SyncRootPoseFromSim();
 
     /// <summary>纠偏/受击后掐断表现插值，避免回拉扫成一顿。</summary>
-    public void SnapPresentationToSimulation() => _presentation?.SnapToSimulationRoot();
+    public void SnapPresentationToSimulation() => _presentation.SnapToSimulationRoot();
 
     /// <summary>把前后逻辑 Pose 插值到表现锚点，再插值视觉残差到模型根。</summary>
     public void Render(float interpolationAlpha)
     {
         // 前后逻辑 Pose 插值到表现锚点（模型跟随）
-        _presentation.Render(interpolationAlpha);
-        // BlendOut 跟渲染帧走，避免逻辑 60Hz 与显示帧率脱节
-        _visualMotion?.Render(interpolationAlpha, Time.deltaTime);
+        _presentation.Render(interpolationAlpha, Time.deltaTime);
     }
 
     /// <summary>死亡/传送时立刻清掉视觉残差，避免模型停在偏移。</summary>
     public void SnapVisualResidual() =>
-        _visualMotion?.EndAction(VisualResidualExitPolicy.SnapToZero);
+        _presentation.EndAction(VisualResidualExitPolicy.SnapToZero);
 
     /// <summary>释放角色表现资源，并回收仍由该角色持有的动作实例。</summary>
     public void Dispose()

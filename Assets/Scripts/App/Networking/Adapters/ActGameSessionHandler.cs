@@ -59,6 +59,7 @@ public sealed class ActGameSessionHandler
             loadout.StartingSlot,
             assistStyles,
             loadout.AssistPointSettings);
+        var actionObserver = new GuestActionObserver(coordinator);
         var members = new ActGameGuestMember[count];
 
         for (int i = 0; i < count; i++)
@@ -81,7 +82,8 @@ public sealed class ActGameSessionHandler
                 out ActionSim _,
                 out CharacterAnimationService animation,
                 host.CollisionWorld,
-                presentation: presentation);
+                presentation: presentation,
+                actionObserver: actionObserver);
             actor.PartyLifecycle.SetState(coordinator.States[i]);
             // 玩家站立抗打断同样只读 CombatConfig，与敌人同一 Service。
             // 玩家韧性同样只读 CombatConfig，与敌人同一裁定入口。
@@ -109,11 +111,6 @@ public sealed class ActGameSessionHandler
             SimActorRegistration registration = host.RegisterPlayer(actor);
             host.RegisterNumeric(actor.SimulationId, actor.Numeric);
             host.RegisterCombatParticipant(actor, reactions);
-            actor.PartyLifecycle.ActionBegun += intent =>
-            {
-                if (intent == GameplayIntentType.Ultimate)
-                    coordinator.AssistPoints.GrantUltimate();
-            };
             members[i] = new ActGameGuestMember(
                 slotRoot.transform,
                 actor,
@@ -398,4 +395,21 @@ internal sealed class ActGameGuestMember
     public CharacterHurtboxTarget Hurtbox { get; }
     /// <summary>槽角色的稳定网络原型。</summary>
     public NetArchetypeId ArchetypeId { get; }
+}
+
+/// <summary>把权威角色动作边沿映射为阵容资源规则。</summary>
+internal sealed class GuestActionObserver : ICharacterActionObserver
+{
+    readonly PartyCombatCoordinator _coordinator;
+
+    /// <summary>绑定目标权威阵容协调器。</summary>
+    public GuestActionObserver(PartyCombatCoordinator coordinator) =>
+        _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+
+    /// <inheritdoc />
+    public void OnActionBegun(GameplayIntentType intent)
+    {
+        if (intent == GameplayIntentType.Ultimate)
+            _coordinator.AssistPoints.GrantUltimate();
+    }
 }

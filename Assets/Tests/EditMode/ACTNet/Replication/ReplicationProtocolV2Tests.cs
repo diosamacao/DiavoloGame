@@ -181,14 +181,58 @@ public sealed class ReplicationProtocolV2Tests
         client.MetadataApplied += (_, __) => metadataApplied++;
         client.Updated += (_, __) => updates++;
 
-        client.ApplySnapshot(new ReplicationSnapshot(
+        ReplicationSnapshotApplyResult result = client.ApplySnapshot(new ReplicationSnapshot(
             new NetTick(1), 0, 0, 1,
             new[] { new EntityRecord(new NetEntityId(99), 1, new byte[] { 1 }) },
             new byte[] { 2 }));
 
+        Assert.That(result, Is.EqualTo(ReplicationSnapshotApplyResult.Rejected));
         Assert.That(client.RecoveryRequested, Is.True);
         Assert.That(metadataApplied, Is.Zero);
         Assert.That(updates, Is.Zero);
+    }
+
+    /// <summary>恢复闩不得把随后成功的 ForceFull 快照伪装成失败，否则 Meta 永远过不了屏障。</summary>
+    [Test]
+    public void Recovery_FailedSnapshot_DoesNotPoisonLaterForceFullApply()
+    {
+        var schemas = new ReplicationSchemaRegistry();
+        schemas.Register(new ByteSchema());
+        var client = new ReplicationClient(schemas);
+        var server = new ReplicationServer();
+        ReplicationEntityState state = State(1, new byte[] { 1 });
+        ApplyAndCommit(server, client, server.PrepareTickDelta(
+            new NetTick(1), new[] { state }, new byte[] { 7 }, 128, new NetEntityId(1)));
+        client.ResetForRecovery();
+
+        ReplicationSnapshotApplyResult stale = client.ApplySnapshot(new ReplicationSnapshot(
+            new NetTick(2),
+            client.LatestLifecycleSequence,
+            0,
+            1,
+            new[] { new EntityRecord(new NetEntityId(1), 1, new byte[] { 2 }) },
+            new byte[] { 8 }));
+        Assert.That(stale, Is.EqualTo(ReplicationSnapshotApplyResult.Rejected));
+        Assert.That(client.RecoveryRequested, Is.True);
+
+        int metadataApplied = 0;
+        client.MetadataApplied += (_, __) => metadataApplied++;
+        ReplicationTickDelta recovery = server.PrepareTickDelta(
+            new NetTick(3), new[] { state }, new byte[] { 9 }, 128, new NetEntityId(1), forceFull: true);
+        ReplicationSnapshotApplyResult recovered = ReplicationSnapshotApplyResult.Rejected;
+        for (int i = 0; i < recovery.Packets.Length; i++)
+        {
+            PreparedReplicationPacket packet = recovery.Packets[i];
+            if (packet.ReliableLifecycle)
+                Assert.That(client.ApplyLifecycle(ReplicationProtocolV2Codec.DecodeLifecycle(packet.Body)), Is.True);
+            else
+                recovered = client.ApplySnapshot(ReplicationProtocolV2Codec.DecodeSnapshot(packet.Body));
+            server.Commit(packet.Token);
+        }
+
+        Assert.That(recovered, Is.EqualTo(ReplicationSnapshotApplyResult.Applied));
+        Assert.That(client.Registry.Count, Is.EqualTo(1));
+        Assert.That(metadataApplied, Is.GreaterThan(0));
     }
 
     /// <summary>同 Tick 互补 Snapshot batch 反序到达时，两批实体都由应用层接收，Meta 只发布一次。</summary>

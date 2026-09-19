@@ -30,10 +30,6 @@ public class CharacterLocomotionProfile : ScriptableObject
     [SerializeField] float pivotAngleDegrees = 135f;
     [Tooltip("Gait 下松手后仍保持当前步态的宽限逻辑帧；用于键盘换向空窗。")]
     [SerializeField, Min(0)] int gaitInputGapGraceFrames = 9;
-    [FormerlySerializedAs("gaitInputGapGraceSeconds")]
-    [SerializeField, HideInInspector] float legacyGaitInputGapGraceSeconds;
-    [FormerlySerializedAs("pivotAnimAuthNormalized")]
-    [SerializeField, HideInInspector] float legacyPivotAnimAuthNormalized;
     [Tooltip("Cardinal 死区；与 DirectionModel 共用。")]
     [SerializeField, Min(0.01f)] float cardinalEpsilon = LocomotionDirectionModel.DefaultEpsilon;
     [Tooltip("Gait 循环 Cardinal 最短驻留逻辑帧；防对角线微抖换片。")]
@@ -45,8 +41,6 @@ public class CharacterLocomotionProfile : ScriptableObject
     [FormerlySerializedAs("gaitRotationMode")]
     [SerializeField] LocomotionFacingMode facingMode = LocomotionFacingMode.FollowMove;
     [SerializeField] float interruptFadeDuration = 0.08f;
-    [FormerlySerializedAs("startToGaitNormalized")]
-    [SerializeField, HideInInspector] float legacyStartToGaitNormalized;
 
     [Header("Integer Clip Timing (60Hz)")]
     [Tooltip("每个实际使用的 AnimationKey 必须有且仅有一条时序；由人工 Baker 写入。")]
@@ -179,51 +173,6 @@ public class CharacterLocomotionProfile : ScriptableObject
     /// <summary>仅供人工 Editor Baker 整体写入时序；运行时不得调用。</summary>
     public void SetClipTimings(LocomotionClipTiming[] timings) =>
         clipTimings = timings ?? Array.Empty<LocomotionClipTiming>();
-
-    /// <summary>人工 Baker 读取旧比例并清空迁移载荷；运行时从不读取这些值。</summary>
-    public void BakeLegacyFrameSettings()
-    {
-        if (legacyGaitInputGapGraceSeconds > 0f)
-        {
-            gaitInputGapGraceFrames = Mathf.CeilToInt(
-                legacyGaitInputGapGraceSeconds * ActionSim.LogicHz);
-        }
-
-        gaitPolicy ??= new LocomotionGaitPolicy();
-        gaitPolicy.BakeLegacyFrames();
-        legacyGaitInputGapGraceSeconds = 0f;
-    }
-
-    /// <summary>返回旧 Start/Pivot 比例，仅供本次手工资产迁移计算 handoff。</summary>
-    public void GetLegacyHandoffRatios(out float startRatio, out float pivotRatio)
-    {
-        startRatio = legacyStartToGaitNormalized > 0f
-            ? Mathf.Clamp01(legacyStartToGaitNormalized)
-            : 1f;
-        pivotRatio = legacyPivotAnimAuthNormalized > 0f
-            ? Mathf.Clamp01(legacyPivotAnimAuthNormalized)
-            : 0.5f;
-        legacyStartToGaitNormalized = 0f;
-        legacyPivotAnimAuthNormalized = 0f;
-    }
-
-    /// <summary>人工 Baker 用代表键周期把旧落脚比例迁成帧；数组本身仍由 Profile 持有。</summary>
-    public void BakeLegacyFootMarkers()
-    {
-        BakeMarkers(walkFootPlants, AnimationKey.Walk);
-        BakeMarkers(runFootPlants, AnimationKey.Run);
-        BakeMarkers(sprintFootPlants, AnimationKey.Sprint);
-        BakeMarkers(startFootPlants, AnimationKey.Start);
-    }
-
-    /// <summary>按已烘焙 timing 原地转换一组旧落脚标记。</summary>
-    void BakeMarkers(FootPlantMarker[] markers, AnimationKey key)
-    {
-        if (markers == null || markers.Length == 0 || !TryGetClipTiming(key, out LocomotionClipTiming timing))
-            return;
-        for (int i = 0; i < markers.Length; i++)
-            markers[i] = markers[i].BakeLegacyFrame(timing.DurationFrames);
-    }
 #endif
 
     /// <summary>按 AnimationKey 取烘焙根位移轨。</summary>
@@ -378,8 +327,6 @@ public class CharacterLocomotionProfile : ScriptableObject
 public struct FootPlantMarker
 {
     [Min(0)] public int frame;
-    [FormerlySerializedAs("normalizedTime")]
-    [SerializeField, HideInInspector] float legacyNormalizedTime;
     public FootSide foot;
 
     /// <summary>周期内触发帧。</summary>
@@ -388,18 +335,4 @@ public struct FootPlantMarker
     /// <summary>触发脚。</summary>
     public FootSide Foot => foot;
 
-#if UNITY_EDITOR
-    /// <summary>人工 Baker 将旧归一化标记迁成当前 Clip 周期帧。</summary>
-    public FootPlantMarker BakeLegacyFrame(int durationFrames)
-    {
-        FootPlantMarker baked = this;
-        if (legacyNormalizedTime > 0f)
-            baked.frame = Mathf.Clamp(
-                Mathf.RoundToInt(legacyNormalizedTime * durationFrames),
-                0,
-                Mathf.Max(0, durationFrames - 1));
-        baked.legacyNormalizedTime = 0f;
-        return baked;
-    }
-#endif
 }

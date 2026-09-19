@@ -15,9 +15,9 @@ public sealed class CharacterPartyLifecycle
     readonly CharacterMotor _motor;
     readonly CharacterStateMachine _stateMachine;
     readonly ActionSim _actionSim;
-    readonly CharacterActionPresentationBridge _actionPresentation;
+    readonly IActionPresentationSink _actionPresentation;
     readonly CharacterAnimationService _animation;
-    readonly CharacterPresentationBridge _presentation;
+    readonly ICharacterPresentationSink _presentation;
     readonly NumericSystem _numeric;
     readonly GameplayIntentBuffer _intentBuffer;
     readonly CharacterTargetingState _targetingState;
@@ -36,9 +36,9 @@ public sealed class CharacterPartyLifecycle
         CharacterMotor motor,
         CharacterStateMachine stateMachine,
         ActionSim actionSim,
-        CharacterActionPresentationBridge actionPresentation,
+        IActionPresentationSink actionPresentation,
         CharacterAnimationService animation,
-        CharacterPresentationBridge presentation,
+        ICharacterPresentationSink presentation,
         NumericSystem numeric,
         GameplayIntentBuffer intentBuffer,
         CharacterTargetingState targetingState,
@@ -67,9 +67,6 @@ public sealed class CharacterPartyLifecycle
 
     /// <summary>当前阵容槽状态；非 Party 角色默认保持 Active。</summary>
     public PartyMemberState State => _state;
-
-    /// <summary>招式起手成功；座位用它给 Ult 支援点，不写 Action 权威。</summary>
-    public event Action<GameplayIntentType> ActionBegun;
 
     /// <summary>已启动的 SwitchOut 是否进入可提交后台的 Recovery。</summary>
     public bool IsExitReady
@@ -198,7 +195,7 @@ public sealed class CharacterPartyLifecycle
     public void ArmAssistParryHitStopCarry(int frames) =>
         _assistParryHitStopCarryFrames = frames > 0 ? frames : 0;
 
-    /// <summary>ActionSim 起手回调；处理弹刀卡肉转移并发布角色动作事件。</summary>
+    /// <summary>ActionSim 起手回调；只处理角色内部的弹刀卡肉转移。</summary>
     public void NotifyActionBegun(GameplayIntentType intent)
     {
         if (intent == GameplayIntentType.AssistParrySuccess
@@ -213,7 +210,6 @@ public sealed class CharacterPartyLifecycle
         }
 
         _assistParryHitStopCarryFrames = 0;
-        ActionBegun?.Invoke(intent);
     }
 
     /// <summary>当前 Action 位于支援闪光窗时，将只读 Cue 写入世界公告板。</summary>

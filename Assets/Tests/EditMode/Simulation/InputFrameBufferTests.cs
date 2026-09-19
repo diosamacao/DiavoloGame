@@ -77,4 +77,20 @@ public sealed class InputFrameBufferTests
             Assert.That(replayed.MoveX, Is.EqualTo((sbyte)frame));
         }
     }
+
+    /// <summary>超过窗口的旧帧必须被裁掉，Count 不得超过 MaxHistoryFrames。</summary>
+    [Test]
+    public void Set_TrimsHistoryToMaxFrames()
+    {
+        var buffer = new InputFrameBuffer();
+        var id = new SimActorId(1);
+        int total = InputFrameBuffer.MaxHistoryFrames + 16;
+        for (int frame = 0; frame < total; frame++)
+            buffer.Set(new InputFrame(frame, id, (sbyte)frame, 0, 0ul, 0ul, 0ul));
+
+        Assert.That(buffer.Count, Is.EqualTo(InputFrameBuffer.MaxHistoryFrames));
+        Assert.That(buffer.TryGetExact(15, id, out _), Is.False);
+        Assert.That(buffer.TryGetExact(total - 1, id, out InputFrame newest), Is.True);
+        Assert.That(newest.MoveX, Is.EqualTo((sbyte)(total - 1)));
+    }
 }

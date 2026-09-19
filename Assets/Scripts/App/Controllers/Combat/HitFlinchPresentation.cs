@@ -24,18 +24,6 @@ public static class HitFlinchPresentation
         return true;
     }
 
-    /// <summary>按 SimActorId 解析 Proxy 或 Full 可见体并播 Additive。</summary>
-    public static bool TryPlayOnActor(
-        CharacterActor actor,
-        AnimationKey key,
-        AnimationClip fallbackClip,
-        AvatarMask fallbackMask,
-        float fadeDuration)
-    {
-        CharacterAnimationService animation = ResolvePresentation(actor);
-        return TryPlay(animation, key, fallbackClip, fallbackMask, fadeDuration);
-    }
-
     /// <summary>客机 Observer：只打 Proxy Playable，不写 ActionSim。</summary>
     public static bool TryPlayOnProxy(
         RemoteCharacterProxy proxy,
@@ -48,28 +36,4 @@ public static class HitFlinchPresentation
             && TryPlay(proxy.Animation, key, fallbackClip, fallbackMask, fadeDuration);
     }
 
-    /// <summary>Full Actor 优先，否则 Live Proxy；Listen 无头敌人走 Proxy。</summary>
-    public static CharacterAnimationService ResolvePresentation(CharacterActor actor)
-    {
-        CombatWorldController world = CombatWorldController.Current;
-        if (world != null
-            && world.TryResolvePresentation(actor, out CharacterAnimationService resolved)
-            && resolved != null
-            && resolved.HasPlayback)
-        {
-            return resolved;
-        }
-
-        if (RemoteCharacterProxy.TryFindLivePresentation(
-                actor.SimulationId,
-                out CharacterAnimationService live)
-            && live != null
-            && live.HasPlayback)
-        {
-            return live;
-        }
-
-        CharacterAnimationService local = actor?.Animation;
-        return local != null && local.HasPlayback ? local : null;
-    }
 }

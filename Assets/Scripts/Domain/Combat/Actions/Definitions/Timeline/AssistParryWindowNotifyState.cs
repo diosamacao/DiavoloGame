@@ -8,8 +8,11 @@ using UnityEngine;
 [Serializable]
 public sealed class AssistParryWindowNotifyState : ActionNotifyState
 {
+    /// <summary>新建招架窗的默认卡肉逻辑帧数（60Hz）。</summary>
+    public const int DefaultHitStopFrames = 8;
+
     [Tooltip("窗内接触成功时双方卡肉逻辑帧（60Hz）；0 表示不冻。")]
-    [SerializeField] int hitStopFrames = AssistParryHitStop.DefaultFrames;
+    [SerializeField] int hitStopFrames = DefaultHitStopFrames;
 
     /// <summary>本窗配置的卡肉帧；小于 0 视为 0。</summary>
     public int HitStopFrames => Mathf.Max(0, hitStopFrames);

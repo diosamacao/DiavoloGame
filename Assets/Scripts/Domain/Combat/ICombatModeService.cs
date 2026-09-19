@@ -9,9 +9,6 @@ public interface ICombatModeService
     /// <summary>当前模式绑定的 ActionGraph。</summary>
     ActionGraph ActiveGraph { get; }
 
-    /// <summary>模式配置资产。</summary>
-    CombatModeProfile Profile { get; }
-
     /// <summary>模式切换时触发：(previous, current)。</summary>
     event Action<CombatModeType, CombatModeType> ModeChanged;
 

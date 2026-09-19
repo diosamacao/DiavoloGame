@@ -26,7 +26,7 @@ public sealed class LocomotionStateMachine
         CharacterAnimationService animation,
         IMoveIntentSource moveIntent,
         CharacterLocomotionProfile profile,
-        LocomotionFootstepPlayer footstepPlayer)
+        ILocomotionFootstepSink footstepPlayer)
     {
         var footCycle = new LocomotionFootCycle();
         var rootMotionPlayer = new LocomotionRootMotionPlayer(profile);
@@ -225,20 +225,9 @@ public sealed class LocomotionStateMachine
     }
 
     /// <summary>
-    /// Capture 用逻辑键：优先 Animation.CurrentKey；Headless 未 Play 时按相位回退，禁止默认 Idle 让远端只平移。
+    /// Capture 只读 Locomotion 自己的逻辑相位键，不读取 Animation/Playable 状态。
     /// </summary>
-    AnimationKey ResolveCaptureAnimationKey()
-    {
-        if (Context.Animation != null && Context.Animation.CurrentKey.HasValue)
-            return Context.Animation.CurrentKey.Value;
-
-        if (Phase == LocomotionPhase.Gait)
-            return Context.ResolveLocomotionAnimationKey();
-        if (Phase == LocomotionPhase.Start)
-            return Context.ActiveStartKey;
-
-        return AnimationKey.Idle;
-    }
+    AnimationKey ResolveCaptureAnimationKey() => Context.PhaseAnimationKey;
 
     /// <summary>供 Context / 各态请求相位切换。</summary>
     public bool TryChangePhase(LocomotionPhase next, bool force = false)

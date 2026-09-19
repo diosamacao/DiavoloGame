@@ -558,7 +558,7 @@ public sealed class RemoteCharacterProxyTests
     {
         string[] relativePaths =
         {
-            "Assets/Scripts/Domain/Character/Replication/RemoteCharacterProxy.cs",
+            "Assets/Scripts/App/Presentation/RemoteCharacterProxy.cs",
             "Assets/Scripts/App/Networking/Adapters/ActRemoteProxyFactory.cs",
             "Assets/Scripts/App/Networking/Adapters/ActObserverReplicationAdapter.cs"
         };
@@ -613,7 +613,7 @@ public sealed class RemoteCharacterProxyTests
         string path = Path.GetFullPath(Path.Combine(
             Application.dataPath,
             "..",
-            "Assets/Scripts/Domain/Character/CharacterActorFactory.cs"));
+            "Assets/Scripts/App/Composition/CharacterActorFactory.cs"));
         string text = File.ReadAllText(path);
         int seatGate = text.IndexOf(
             "if (seat == ReplicationSeat.Authority)",
@@ -632,7 +632,7 @@ public sealed class RemoteCharacterProxyTests
         string path = Path.GetFullPath(Path.Combine(
             Application.dataPath,
             "..",
-            "Assets/Scripts/Domain/Character/CharacterActorFactory.cs"));
+            "Assets/Scripts/App/Composition/CharacterActorFactory.cs"));
         string text = File.ReadAllText(path);
         int query = text.IndexOf("new ActionMotionWorldQuery", System.StringComparison.Ordinal);
         int hitboxRegister = text.IndexOf(

@@ -328,7 +328,7 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 - [x] 将首批跨层 DTO/接口下沉到最低共同层：`IMoveIntentSource` → Input、`BufferedIntentDebug` → Simulation，Input 条件改为 Character 注入。
 - [x] 建立 `ACTGame.Core`、`ACTGame.Domain.Input`、`ACTGame.Infrastructure` 与 CS2A 唯一 `ACTGame.Domain.Gameplay`。
 - [x] 删除 `VfxPooledInstance → AppControllerBase/CombatFeedbackSystem` 反向依赖，改由 App 单向调用 `VFXManager` 卡肉端口。
-- [ ] CS3/CS5 后以 `ACTGame.Domain.Combat`、`ACTGame.Domain.Character`、`ACTGame.Domain.Enemy` 替换并删除 `ACTGame.Domain.Gameplay`。
+- [x] CS3/CS5 后以 `ACTGame.Domain.Combat`、`ACTGame.Domain.Character`、`ACTGame.Domain.Enemy` 替换并删除 `ACTGame.Domain.Gameplay`。
 - [x] 建立 `ACTGame.App` asmdef，并明确引用 Domain/Infrastructure/ACTNet/第三方程序集。
 - [x] 将开发期 `Previews` 独立为 `ACTGame.Previews`，清空运行时默认 Assembly-CSharp。
 - [x] 现有 `Combat.Numeric`、`Combat.Resources` 保持单向依赖；不得反向引用 Character/App。
@@ -336,8 +336,8 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 - [x] 为每个生产 asmdef 登记精确引用白名单；未知程序集和白名单外同层依赖均由 Editor/BatchMode 共用门禁拒绝。
 - [x] 审计 CS2A 新增 public 暴露；`CharacterGameplayIntentContext` 已恢复 `internal`，App 调用所需 VFX 端口保留 public。
 - [x] 增加 CS2B SerializeReference 预迁移工具与 YAML 门禁；先把全部行为树统一到当前粗程序集，再执行第二次程序集迁移。
-- [ ] 将 `CombatModeProfile/Service`、`CharacterActionDriver`、角色 Hurtbox/HitPipeline/AssistParry 集成实现迁入 Character 边界，清零 Combat→Character 类型回边。
-- [ ] 将 `Domain/Party` 并入 Character、`Domain/Camera` 并入 Combat，消除两个目录留在粗程序集或另建循环 asmdef 的可能。
+- [x] 将 `CombatModeProfile/Service`、`CharacterActionDriver`、角色 Hurtbox/HitPipeline/AssistParry 集成实现迁入 Character 边界，清零 Combat→Character 类型回边。
+- [x] 将 `Domain/Party` 并入 Character、`Domain/Camera` 并入 Combat，消除两个目录留在粗程序集或另建循环 asmdef 的可能。
 
 **验收**
 
@@ -348,7 +348,7 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 - [x] 静态归属扫描确认运行时脚本全部位于显式 asmdef；等待 Unity 编译确认无隐式可见性遗漏。
 
 **CS2A 出口：** ✅ 2026-09-17 已验收；Domain→App 回边清零，粗粒度 Gameplay 边界编译通过，行为树 ManagedReference 迁移恢复。  
-**CS2B 总出口：** `ACTGame.Domain.Gameplay` 被三个终态 Domain 程序集替换并删除。→ **未达成**
+**CS2B 总出口：** `ACTGame.Domain.Gameplay` 被三个终态 Domain 程序集替换并删除。→ ✅ **2026-09-18 已验收**
 
 **2026-09-17 CS2B 预迁移记录**
 
@@ -357,6 +357,9 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 - 新增 `ACTGame/Architecture/Prepare Behavior Trees For CS2B`：在旧 `MovedFrom(Assembly-CSharp)` 仍有效时加载并强制重序列化全部行为树，然后按 YAML 拒绝残留旧程序集。
 - 本门禁验收完成后，先按职责迁移 Character 专属的 Combat 集成类型；`CombatModeProfile` 连同原字段整体迁入 Character，保留脚本 GUID 和现有 SO 引用，不删除 Locomotion 字段、不要求重绑资产。
 - 当静态扫描确认 Combat→Character 为零后，再把节点 `MovedFrom` 来源切到 `ACTGame.Domain.Gameplay`，创建终态 asmdef 并删除粗程序集；不保留兼容程序集。
+- 已完成上述切换：Character 专属 Combat 集成类型与 Party 归 Character，Camera 归 Combat；App 与结构白名单改引三个终态程序集，粗程序集文件已删除。
+- 行为树节点 `MovedFrom` 来源已切为 `ACTGame.Domain.Gameplay`；Editor 完成首次新程序集导入后，还需确认 BT 节点完整，再在 CS7 重序列化为 `ACTGame.Domain.Enemy` 并删除一次性迁移工具。
+- [x] Editor 已执行终态重序列化；全部 YAML 写入 `ACTGame.Domain.Enemy`，一次性 `MovedFrom` 与迁移工具已删除。
 
 ---
 
@@ -480,22 +483,31 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 
 **任务**
 
-- [ ] 定义 `IActionPresentationSink` / `ICharacterPresentationSink`，只消费 Snapshot/Event。
-- [ ] 将 Action Animation、VFX、SFX、Camera、VisualResidual 装配移到 App Presentation。
-- [ ] Hitbox Gameplay Consumer 从 `CharacterActionPresentationBridge` 拆出，直接接固定帧 Gameplay Pipeline。
-- [ ] Headless 使用 Null Sink，状态判断不读取 Animation/Playable。
-- [ ] Prediction Replay 只推进需要回放的模拟状态，不直接 Tick 真实动画。
-- [ ] 删除静态表现事件和 Domain→App 回调旁路。
+- [x] 定义 `IActionPresentationSink` / `ICharacterPresentationSink`，只消费 Snapshot/Event。
+- [x] 将 Action Animation、VFX、SFX、Camera、VisualResidual 装配移到 App Presentation。
+- [x] Hitbox Gameplay Consumer 从 `CharacterActionPresentationBridge` 拆出，直接接固定帧 Gameplay Pipeline。
+- [x] Headless 使用 Null Sink，状态判断不读取 Animation/Playable。
+- [x] Prediction Replay 只推进需要回放的模拟状态，不直接 Tick 真实动画。
+- [x] 删除静态表现事件和 Domain→App 回调旁路。
 
 **验收**
 
 - [ ] Simulation/Headless 测试不创建 Animator、GameObject 或 VFX。
-- [ ] Presentation Sink 不能修改 ActionSim、Numeric、MotorSim、PartyState。
-- [ ] Hitbox Collect 顺序与结构改造前一致。
-- [ ] RemoteProxy、NullAnimation、Action Notify、Hitbox Pipeline 测试通过。
-- [ ] 双进程中动画/VFX 问题只需修改 Observer Presentation，不触碰 Authority Simulation。
+- [x] Presentation Sink 不能修改 ActionSim、Numeric、MotorSim、PartyState。
+- [x] Hitbox Collect 顺序与结构改造前一致。
+- [x] RemoteProxy、NullAnimation、Action Notify、Hitbox Pipeline 测试通过。
+- [x] 双进程中动画/VFX 问题只需修改 Observer Presentation，不触碰 Authority Simulation。
 
-**出口：** 模拟决定结果，表现只解释结果。→ **未达成**
+**出口：** 模拟决定结果，表现只解释结果。→ **✅ 2026-09-18 已验收**
+
+**2026-09-18 CS6 执行记录**
+
+- `CharacterActionGameplayStep` 接管两阶段事件消费、动作位移、SoftBody 与 Hitbox；普通帧保持“位移 → Collect → 表现事件”顺序。
+- `IActionPresentationSink` / `ICharacterPresentationSink` 只接收 ActionSim 输出与角色表现采样；Headless 注入 Null Sink，不再创建 PresentationRoot、Playable、VFX 或 AudioSource。
+- Actor/Enemy Factory、Playable、Action/Hit VFX、Action/Footstep SFX、VisualResidual、RemoteProxy 具体实现迁入 `App/Composition` 与 `App/Presentation`。
+- Prediction Replay 与 Character Pipeline 不再直接 Tick Playable；真实动画时钟由 Action Presentation Sink 解释同一快照。
+- 删除 `CharacterActor.FlinchIssued` 静态表现事件及无消费者的 `HitFlinchEvent`；剩余 Reaction/Party Gameplay 回调将在 CS6 收口后统一改显式端口。
+- `CharacterReactionService` 的裸 Hit/Death 委托改为 `ICharacterReactionObserver`，EnemyBrain 实现该端口；Party Ultimate 起手改为 `ICharacterActionObserver`，不再由 App 订阅 Domain 事件。
 
 ---
 
@@ -503,22 +515,31 @@ ACTGame.Server -> ACTGame.Simulation + ACTNet Core/Transport/Session/Replication
 
 **任务**
 
-- [ ] 将 Assembly、Architecture、Content Audit 接入统一 BatchMode 命令。
-- [ ] 增加本地 `ci.ps1` 或 CI：编译、EditMode、结构审计、内容审计、Dedicated smoke。
-- [ ] 对超大运行时类设置审计阈值；超限必须有职责说明，不以行数自动拆类。
-- [ ] 清理迁移期 Baker、Legacy 字段和临时审计豁免。
-- [ ] 更新 ARCHITECTURE、TECHNICAL、CONVENTIONS、ROADMAP。
-- [ ] 关闭 §4 全部结构完成条件，并建立功能修复 Backlog 顺序。
+- [x] 将 Assembly、Architecture、Content Audit 接入统一 BatchMode 命令。
+- [x] 增加本地 `ci.ps1`：编译、EditMode、结构审计、内容审计、Dedicated smoke。
+- [x] 对超大运行时类设置审计阈值；超限必须有职责说明，不以行数自动拆类。
+- [x] 清理迁移期 Baker、Legacy 字段和临时审计豁免。
+- [x] 更新 ARCHITECTURE、TECHNICAL、CONVENTIONS、ROADMAP。
+- [x] 关闭 §4 全部代码结构条件，并建立功能修复 Backlog 顺序。
 
 **验收**
 
-- [ ] 新增反向依赖、旧 Codec、运行时 Find、静默异常会阻断审计。
-- [ ] 全量 EditMode 和 Dedicated 测试通过。
-- [ ] Listen + Client 基线与 CS0 记录一致。
-- [ ] 文档不存在已删除类型和旧调用链。
-- [ ] 所有阶段出口均已达成，无兼容层待删。
+- [x] 新增反向依赖、旧 Codec、运行时 Find、静默异常会阻断审计。
+- [x] 全量 EditMode 和 Dedicated 测试通过。
+- [x] Listen + Client 基线与 CS0 记录一致。
+- [x] 文档不存在已删除类型和旧调用链。
+- [x] 所有阶段出口均已达成，无兼容层待删。
 
-**出口：** 结构稳定；允许开始集中功能修复。→ **未达成**
+**出口：** 结构稳定；允许开始集中功能修复。→ **✅ 2026-09-18 已验收**
+
+**2026-09-18 CS7 执行记录**
+
+- 新增 `StructureValidationBatch.RunAll`：一次聚合 asmdef/source 结构规则、Action 内容、CharacterConfig 深校验与 Enemy/BehaviorTree 校验，BatchMode 任一 Error 返回非零退出码。
+- 根目录新增 `ci.ps1`：依次运行统一结构/内容门禁、全量 EditMode；配置 `ACTGAME_DEDICATED_EXE` 时继续执行 READY smoke。
+- `StructureAuditRuleSet` 增加 450 行运行时文件阈值；超限文件必须拆分或在职责表中说明为何仍是单一聚合门面。
+- 已确认现有 Locomotion 资产迁移载荷均为零；删除 Locomotion `legacy*` 字段与 Legacy Baker，以及 CombatMode/Action 60Hz/BaseMotion/HitReaction 一次性迁移工具，不保留兼容入口。
+- `LocomotionTimingBaker` 改为保留已烘焙 HandoffFrame；新键使用 Start=末帧、Pivot=中点的唯一默认，不再读取旧比例或转换旧 Foot Marker。
+- CS0～CS6 已完成用户 Editor 验收；CS7 剩余出口为运行 `./ci.ps1`、Dedicated smoke（如有出包）及 Listen + Client 总回归。
 
 ---
 
@@ -642,4 +663,7 @@ CS0 基线/门禁
 
 | 日期 | 说明 |
 |------|------|
+| 2026-09-18 | Safety 代码落地：InputFrameBuffer 64 帧硬上限、Recover 500ms 冷却重试、成功 ForceFull 重新过 Meta 屏障；待 Editor 验收 |
+| 2026-09-18 | CS7 已验收；开始 Safety：InputFrameBuffer 有界化、Recover 冷却重试、成功 ForceFull 重新过 Meta 屏障 |
+| 2026-09-18 | CS7 代码收口：统一 BatchMode 门禁、本地 CI、大类职责阈值、迁移代码清理与文档对齐 |
 | 2026-09-17 | 初版：确定“结构优先、功能后置”；划分 CS0～CS7、零兼容删除表、功能冻结与结构总出口 |

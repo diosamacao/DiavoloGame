@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-09-17（结构稳定化 CS5：Gameplay Content 与 Client Runtime Configuration 单入口）
+> Last updated: 2026-09-18（Safety：有界输入历史、Recover 重试与 Meta 屏障恢复）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -16,8 +16,9 @@
 | 受击档位裁定 | ✅ P-HR0～P-HR4 已验收（2026-09-04） | `CharacterReactionService` + `HitFlinchPlaybackController` | 冲击对韧性；Listen 客机 Flinch Additive；不宣称公网 |
 | 固定帧模拟宿主 | ✅ L0A 已实现 | `SimulationHost`、`SimulationWorld`、`SimActorId` | 60Hz，无资产 |
 | Wave0 动作审计 / 锚点可视化 / Debug HUD | ✅ 已实现 | `ActionDefinitionAuditUtility`、`CharacterAnchorGizmoDrawer`、`CombatDebugHudController` | 菜单 `ACTGame/Action/Validate Motion Sources`；场景挂 HUD |
+| 结构与内容总门禁 | ✅ CS7 已实现 | `StructureValidationBatch`、`StructureAuditRuleSet`、`ci.ps1` | BatchMode 阻断；EditMode；可选 Dedicated READY smoke |
 | 角色朝向调试箭头 | ✅ Play 实心箭 | `CharacterFacingDebugVisualizer` + `ICharacterFacingDebugTarget` | 本体 / 客机他人幽灵各一份；黄=wish 品红=模型 |
-| Wave1 位移止血 / BaseMotionMode / 相机滤左右 | ✅ 已实现 | `ForwardSigned`、`ActionBaseMotionMode`、`CameraManager.lateralFollowFactor` | Attack 需以 ForwardSigned 重烘焙；菜单 Migrate Base Motion Mode |
+| Wave1 位移止血 / BaseMotionMode / 相机滤左右 | ✅ 已实现 | `ForwardSigned`、`ActionBaseMotionMode`、`CameraManager.lateralFollowFactor` | Attack 需以 ForwardSigned 重烘焙；由统一 Action Audit 校验 |
 | Wave2 视觉残差 / VisualMotionRoot | ✅ 已实现（含 2.5） | `CharacterVisualMotionBridge`、`TryGetVisualResidualMm` | ForwardSigned：Motor 无横摆，模型在 VisualRoot 摆；BlendToZero 期间跳过逻辑贴帧，避免回 Idle 抖动 |
 | Wave3 玩法资源 / 同键 EX | 🟡 资产待绑；运行时已迁 Numeric | `NumericCostGate`、`ActionResourceSpec`、`ActionEnergyFormSelector` | Spec 填表；Graph 双 Entry |
 | GAS-lite 数值重构 | ✅ G0～G5 完成 | `NumericSystem`、`DamageNumericCalculator`、`CharacterVitality` | Effect SO 壳 |
@@ -26,8 +27,8 @@
 | 输入（量化帧 + 语义意图） | ✅ L0B + C-AT0 代码已实现 | `InputFrameBuffer`、`InputReader`、`InputManager`、`GameplayIntentProducer` | MoveReferenceYaw 已闭包；Input Actions 待人工绑 TargetSwitch / Parry |
 | 组队 PVE 状态同步 / 权威进程 | 🟡 W11 代码切面 / Play 未验收 | `ReplicationBuildOptions` + `GraphNodeKey` + FakeActionGame | 先读 `docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`；W10 出口仍待 Clumsy Play；W11 R2 未关 |
 | 敌人木桩 AI 开关 | ✅ 已实现并验收 | `EnemyBrainProfile.enableCombatActions` + `Monster_EDF` | 2026-08-08 Play：Hit_Shake / 高 HP / 不追打 |
-| CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet；Editor 迁移菜单 |
-| Input + Locomotion 收敛 | ✅ CS5 | `ClientRuntimeConfiguration` + Catalog GameplayIntent；Mode→`LocomotionProfile` | Config 不再挂 Input/Intent/Locomotion |
+| CombatMode→Graph | ✅ Phase B | `CombatModeEntry.actionGraph` / `ActiveGraph` | 已删 PlayerActionSet 与一次性迁移器 |
+| Input + Locomotion 收敛 | ✅ CS7 | `ClientRuntimeConfiguration` + Catalog GameplayIntent；Mode→`LocomotionProfile` | Config 不再挂 Input/Intent/Locomotion；Legacy timing 字段已删 |
 | 状态机框架 | ✅ 已实现 | `StateMachine<,>`、`CharacterStateMachine` | — |
 | 架构通信框架 | ✅ 已实现 | `ACTGameArchitecture`、`ArchitectureSystemBase`、`AppControllerBase`、Command / Query / Event | — |
 | Locomotion 动画驱动 | ✅ 已实现 | `LocomotionStateMachine` + `LocomotionState` | AnimationProfile + `CharacterLocomotionProfile` |
@@ -42,6 +43,50 @@
 | UI | ⬜ 未实现 | — | `UI/` 占位 |
 
 状态图例：✅ 可玩可用 · 🟡 有类/占位但未接完 · ⬜ 未开始
+
+---
+
+## 0.-1 结构与内容总门禁（CS7）
+
+### 功能说明
+
+结构稳定化后的 Assembly 边界、源码禁用模式和 Gameplay Content 深校验通过一个 BatchMode 入口统一阻断，避免只运行部分菜单得到假通过。
+
+### 实现方案
+
+| 项 | 方案 |
+|----|------|
+| 统一入口 | `StructureValidationBatch.RunAll`；BatchMode 下任一 Error 使用退出码 1 |
+| 结构范围 | `StructureAuditRuleSet` 校验 asmdef 白名单、反向依赖、旧协议、运行时 Find/Resources、静默 catch 与 public 类型数量 |
+| 大类门禁 | 生产运行时文件阈值 450 行；超限须拆分或登记单一聚合门面职责 |
+| 内容范围 | 全库 Action Motion/60Hz、CharacterConfig→CombatMode/Locomotion/Reaction、EnemyDefinition/BehaviorTree |
+| 本地 CI | 根目录 `ci.ps1`：统一门禁 → 全量 EditMode → 配置了 Dedicated 出包时 READY smoke |
+
+### 运行流程
+
+```text
+./ci.ps1
+  → Unity -executeMethod StructureValidationBatch.RunAll
+      → StructureAuditRuleSet.AuditProject
+      → ActionDefinitionAuditUtility.AuditProject
+      → CharacterConfig.ValidateGameplayContent
+      → EnemyBehaviorTreeSetupMenu.AuditProject
+  → Unity -runTests -testPlatform EditMode
+  → tools/dedicated/smoke-ready.ps1（可选）
+```
+
+### 已知限制
+
+- `ci.ps1` 运行前需关闭正在占用该工程的 Unity Editor。
+- Dedicated smoke 需要预先构建可执行文件并设置 `ACTGAME_DEDICATED_EXE`；未设置时明确跳过，不伪装通过。
+- Listen + Client 游玩回归仍是人工总出口，脚本不能替代网络表现与 Inspector 绑定验收。
+
+### 相关文件
+
+- `Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs`
+- `Assets/Scripts/Editor/Architecture/StructureAuditRuleSet.cs`
+- `Assets/Scripts/Editor/Enemy/EnemyBehaviorTreeSetupMenu.cs`
+- `ci.ps1`
 
 ---
 
@@ -275,7 +320,7 @@ AppControllerBase
 | Actor 身份 | World 从 1 单调分配 `SimActorId`，会话内不复用 |
 | Actor 顺序 | `CharacterActor` / `EnemyHandle` 实现 `ISimulationActor`，按注册 Id 升序执行；角色入口内部唯一转交 `CharacterSimulationPipeline` |
 | 渲染输入 | `IRenderFrameSampler` 每渲染帧汇聚设备边沿；无逻辑 Step 时 Pressed/Released 保留到下一 Step |
-| 输入帧 | `InputFrame` 使用 sbyte Move、MoveReferenceYaw、稳定按钮 bitset、frame 与 SimActorId；World 持有 `InputFrameBuffer` 历史 |
+| 输入帧 | `InputFrame` 使用 sbyte Move、MoveReferenceYaw、稳定按钮 bitset、frame 与 SimActorId；World 持有有界 `InputFrameBuffer`（`MaxHistoryFrames=64`） |
 | 输入阶段 | 每帧先调用 `ISimulationInputProducer`；AI 基于 Actor Step 前的 N-1 已提交状态写 N 帧输入 |
 | 命中阶段 | 全体 Actor 只 Collect；`CombatHitPipeline` 按 `SimHitKey` 排序后统一 Resolve |
 | PostCombat | `ISimulationPostCombatActor` 在结算后处理 OnHitConfirm/OnWhiff 与自然结束 |
@@ -485,6 +530,7 @@ LateUpdate → ObserverReplicationCoordinator.Render → RemotePlaybackClock
 ### 相关文件
 
 - `Assets/Scripts/Domain/Character/Replication/*`
+- `Assets/Scripts/App/Presentation/RemoteCharacterProxy.cs`
 - `Assets/Scripts/App/Networking/Services/ActClientRoomGameplay.cs`
 - `Assets/Scripts/App/Controllers/Gameplay/SimulationHost.cs`
 - `Assets/Tests/EditMode/Simulation/ReplicationPoseApplierTests.cs`
@@ -670,7 +716,7 @@ Client：ReplicationRoomClient Poll → LocalClient 采样 → 逻辑步构命�
 - `Assets/Scripts/App/Networking/Services/ActClientRoomGameplay.cs`
 - `Assets/Scripts/App/Networking/Content/GameContentBootstrap.cs`
 - `Assets/Scripts/App/Networking/Content/GameContentCatalog.cs`
-- `Assets/Scripts/Domain/Combat/VFX/HitImpactCuePlayer.cs`
+- `Assets/Scripts/App/Presentation/HitImpactCuePlayer.cs`
 - `Assets/Scripts/Editor/Net/ReplicationRoomMenu.cs`
 - `Assets/Tests/EditMode/Simulation/RoomCodecTests.cs`
 - `Assets/Tests/EditMode/ACTNet/Session/SessionIntegrationTests.cs`
@@ -941,7 +987,7 @@ AssistParry：可靠吸收事件 → PartyActors 稳定 Id / pending → Owner N
 | 未变跳过 | `ReplicationServer` 对比上次已发送 payload |
 | 节拍 / 预算 | `ReplicationServer`：非 Urgent payload 变化最短间隔 2 Tick；移动/Action/Vitality 仍 Urgent；MaxSilence=30 |
 | 兴趣 | `ReplicationInterest`：Owner/玩家 Always；敌人平面距离 |
-| 恢复 | `ReplicationRecover` → `ResetBaseline` → 全量 Spawn |
+| 恢复 | `Rejected` 按 500ms 冷却重发 `ReplicationRecover`；成功快照清冷却。协议闩不把后续 ForceFull 当失败 |
 | 节点 | `GraphNodeKey.FromStableName`（FNV-1a） |
 | 第二用例 | `Assets/Tests/EditMode/ACTNet/FakeActionGame/` |
 
@@ -958,7 +1004,10 @@ AssistParry：可靠吸收事件 → PartyActors 稳定 Id / pending → Owner N
 
 ```
 Capture → CopyRelevantStates → PrepareTickDelta
-Rejected → ResetReplicationForRecovery → ReplicationRecover → ResetBaseline
+Rejected → ReplicationRecoveryPolicy 冷却内最多一次 Reset+Recover
+  → 到期仍 Rejected 才再发；Applied Snapshot 清冷却
+  → Server RequestFullRecovery → ForceFull Spawn + Meta
+  → ApplySnapshot=Applied 即过 Meta 屏障，不看旧 RecoveryRequested 闩
 ApplyUpdates → ApplySnapshot(立即写判定/受击/Notify，不切 Clip)
 Observer.Render → RemotePlaybackClock（Listen delay=1）
   → SetPresentationBracket → PresentSampledPlayback（片子只跟采样 to）→ Render(alpha)
@@ -977,7 +1026,7 @@ Observer.Render → RemotePlaybackClock（Listen delay=1）
 - `Assets/Scripts/Framework/ACTNet/Replication/ReplicationBuildOptions.cs`
 - `Assets/Scripts/Framework/ACTNet/Replication/ReplicationInterest.cs`
 - `Assets/Scripts/Framework/ACTNet/Prediction/RemotePlaybackClock.cs`
-- `Assets/Scripts/Domain/Character/Replication/RemoteCharacterProxy.cs`
+- `Assets/Scripts/App/Presentation/RemoteCharacterProxy.cs`
 - `Assets/Scripts/Domain/Simulation/Replication/GraphNodeKey.cs`
 - `docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`
 
@@ -1053,7 +1102,7 @@ SimulationWorld.Step
 | 形态 | `InputReader` 实现 `ILocalInputSampler`；AI 通过 `IMoveIntentSource` / `IActionEntryRequestSource` 注入，不伪装设备 |
 | 绑定 | Move 从 Player Map 读取并量化为 sbyte；Orbit yaw 量化为 MoveReferenceYaw；TargetSwitch 映射固定按钮；Look/CameraLock 仅供相机表现 |
 | 生命周期 | OnEnable/OnDisable 启用/禁用整个 Asset |
-| 输入历史 | `InputFrameBuffer` 按 `(frame, actorId)` 保存；多渲染样本边沿 OR、连续状态取最后值 |
+| 输入历史 | `InputFrameBuffer` 按 `(frame, actorId)` 保存，硬上限 64 帧；多渲染样本边沿 OR、连续状态取最后值 |
 | 追帧展开 | 缺少下一设备样本时只延续 Move/Held；Pressed/Released 不重复、不从 Held 推导 |
 | 原始中枢 | `InputManager` 摄入量化帧，提供移动反解值与 Pressed/Held/Released bit 查询 |
 | 语义生产 | `GameplayIntentProducer`：SprintAttack、DodgeAttack、PressedThenLong；Hold 按整数帧累计；`Parry` 按下边沿硬产出，不经 Profile |
@@ -1552,12 +1601,11 @@ CombatHitPipeline.OnHit → Vitality.HitReceived
 
 - `Assets/Scripts/Domain/Simulation/Reactions/HitReactionKind.cs`
 - `Assets/Scripts/Domain/Character/Reactions/HitReactionCommand.cs`
-- `Assets/Scripts/Domain/Character/Reactions/HitReactionResolveQuery.cs`
+- `Assets/Scripts/Domain/Combat/Hitbox/HitReactionResolveQuery.cs`
 - `Assets/Scripts/Domain/Character/Reactions/CharacterReactionResolver.cs`
 - `Assets/Scripts/Domain/Character/Reactions/CharacterReactionService.cs`
 - `Assets/Scripts/Domain/Character/CharacterConfig.cs`（`baseInterruptResist`）
 - `Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/ActionPhaseNotifyState.cs`
-- `Assets/Scripts/Editor/Combat/HitReactionDefaultsMigrator.cs`
 - `Assets/Scripts/App/Controllers/Combat/HitFlinchPlaybackController.cs`
 - `Assets/Scripts/App/Controllers/Combat/HitFlinchPresentation.cs`
 - `Assets/Scripts/Domain/Networking/ActReplicatedHitEventCodec.cs`
@@ -1721,6 +1769,10 @@ CombatHitPipeline（全体 Actor Step 后）
 
 | 日期 | 变更 |
 |------|------|
+| 2026-09-18 | Safety：`InputFrameBuffer` 硬上限 64 帧；`ApplySnapshot` 失败返回 Rejected；Recover 500ms 冷却重试；恢复后成功 ForceFull 可重新发布 Meta |
+| 2026-09-18 | 结构稳定化 CS7：新增统一 BatchMode 结构/内容审计与根目录 `ci.ps1`，增加 450 行职责门禁；删除 Locomotion Legacy 字段/Baker 和五个一次性 Combat/Action 迁移器 |
+| 2026-09-18 | 结构稳定化 CS6：新增 Action/Character Presentation Sink 与 Headless Null Sink；Hitbox/位移归 `CharacterActionGameplayStep`，具体 Playable/VFX/SFX/VisualResidual/RemoteProxy 和 Actor Factory 迁入 App |
+| 2026-09-18 | 结构稳定化 CS2B：Character 专属 Combat 集成与 Party 归 Character，Camera 归 Combat；新增 Combat/Character/Enemy 终态 asmdef 并删除 Domain.Gameplay 粗程序集 |
 | 2026-09-17 | CS2B 预迁移门禁：新增行为树 SerializeReference 强制重序列化与 YAML 审计，先统一 Assembly-CSharp/Gameplay 两批资产再切换终态 Enemy 程序集 |
 | 2026-09-17 | 结构稳定化 CS5.3：新增 Client Runtime Configuration 单次加载 InputAction；GameplayIntent 归冻结 Catalog 并纳入指纹；删除两套静态 Settings、Editor 首项 fallback 与迁移器 |
 | 2026-09-17 | Content 校验诊断：Locomotion Timing/RootMotion 错误输出 Profile、AnimationProfile、Clip、轨帧数与引用方，Console 上下文直接指向可修复的 Profile 资产 |

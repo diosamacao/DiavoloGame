@@ -115,8 +115,9 @@ public sealed class ReplicationClient
             CheckBarrierTimeout(snapshot.Tick.Value);
             return ReplicationSnapshotApplyResult.Buffered;
         }
-        ApplyReadySnapshot(snapshot);
-        return ReplicationSnapshotApplyResult.Applied;
+        return TryApplyReadySnapshot(snapshot)
+            ? ReplicationSnapshotApplyResult.Applied
+            : ReplicationSnapshotApplyResult.Rejected;
     }
 
     /// <summary>清空注册表、屏障与恢复闩，等待权威重新可靠 Spawn。</summary>
@@ -131,7 +132,8 @@ public sealed class ReplicationClient
         _recoveryRaised = false;
     }
 
-    void ApplyReadySnapshot(ReplicationSnapshot snapshot)
+    /// <summary>验证通过后发布 Meta 与 Update；失败只请求恢复，不把本包伪装成 Applied。</summary>
+    bool TryApplyReadySnapshot(ReplicationSnapshot snapshot)
     {
         EntityRecord[] updates = snapshot.UpdateBuffer;
         // 整批先验证再发布，避免坏记录之前的 Meta/Update 已产生不可回滚副作用。
@@ -141,7 +143,7 @@ public sealed class ReplicationClient
             if (!_registry.TryGet(update.EntityId, out ReplicatedEntityMetadata metadata) || metadata.SchemaId != update.SchemaId)
             {
                 RequestRecovery($"Update {update.EntityId} 缺少匹配生命周期。");
-                return;
+                return false;
             }
             ValidatePayload(update.SchemaId, update.PayloadBuffer);
         }
@@ -149,7 +151,7 @@ public sealed class ReplicationClient
             && !BytesEqual(_latestMetadata, snapshot.MetadataBuffer))
         {
             RequestRecovery($"同 Tick {snapshot.Tick.Value} 的 Snapshot Meta 不一致。");
-            return;
+            return false;
         }
 
         if (snapshot.Tick.Value > _latestSnapshotTick)
@@ -166,6 +168,7 @@ public sealed class ReplicationClient
             _latestEntityTicks[update.EntityId.Value] = snapshot.Tick.Value;
             Updated?.Invoke(update, snapshot.Tick.Value);
         }
+        return true;
     }
 
     // 每实体只留最新 Tick；Meta 每 Tick 只留最新副本，避免乱序流量无界增长。
@@ -208,13 +211,16 @@ public sealed class ReplicationClient
         {
             BufferedUpdate item = ready[i];
             _bufferedByEntity.Remove(item.Record.EntityId.Value);
-            ApplyReadySnapshot(new ReplicationSnapshot(
-                new NetTick(item.Tick),
-                item.RequiredSequence,
-                0,
-                1,
-                new[] { item.Record },
-                item.Metadata));
+            if (!TryApplyReadySnapshot(new ReplicationSnapshot(
+                    new NetTick(item.Tick),
+                    item.RequiredSequence,
+                    0,
+                    1,
+                    new[] { item.Record },
+                    item.Metadata)))
+            {
+                return;
+            }
         }
         foreach (KeyValuePair<long, BufferedMetadata> pair in _bufferedMetadata)
         {
@@ -308,11 +314,13 @@ public sealed class ReplicationClient
     }
 }
 
-/// <summary>快照已立即应用或正在等待生命周期屏障。</summary>
+/// <summary>快照已立即应用、正在等待生命周期屏障，或本包验证失败。</summary>
 public enum ReplicationSnapshotApplyResult : byte
 {
     /// <summary>记录已越过屏障。</summary>
     Applied = 0,
     /// <summary>记录已进入有界最新值缓冲。</summary>
     Buffered = 1,
+    /// <summary>本包校验失败并已请求恢复；不得当作已应用。</summary>
+    Rejected = 2,
 }

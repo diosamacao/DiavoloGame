@@ -10,10 +10,9 @@ internal sealed class CharacterSimulationPipeline
     readonly CharacterStateMachine _stateMachine;
     readonly CharacterActionDriver _actionDriver;
     readonly ActionSim _actionSim;
-    readonly CharacterActionPresentationBridge _actionPresentation;
-    readonly CharacterAnimationService _animation;
-    readonly CharacterPresentationBridge _presentation;
-    readonly CharacterVisualMotionBridge _visualMotion;
+    readonly CharacterActionGameplayStep _actionGameplay;
+    readonly IActionPresentationSink _actionPresentation;
+    readonly ICharacterPresentationSink _presentation;
     readonly NumericSystem _numeric;
     readonly CharacterVitality _vitality;
     readonly CharacterTargetingState _targetingState;
@@ -42,10 +41,9 @@ internal sealed class CharacterSimulationPipeline
         CharacterStateMachine stateMachine,
         CharacterActionDriver actionDriver,
         ActionSim actionSim,
-        CharacterActionPresentationBridge actionPresentation,
-        CharacterAnimationService animation,
-        CharacterPresentationBridge presentation,
-        CharacterVisualMotionBridge visualMotion,
+        CharacterActionGameplayStep actionGameplay,
+        IActionPresentationSink actionPresentation,
+        ICharacterPresentationSink presentation,
         NumericSystem numeric,
         CharacterVitality vitality,
         CharacterTargetingState targetingState,
@@ -59,10 +57,11 @@ internal sealed class CharacterSimulationPipeline
         _stateMachine = stateMachine;
         _actionDriver = actionDriver;
         _actionSim = actionSim;
-        _actionPresentation = actionPresentation;
-        _animation = animation;
-        _presentation = presentation;
-        _visualMotion = visualMotion;
+        _actionGameplay = actionGameplay
+            ?? throw new ArgumentNullException(nameof(actionGameplay));
+        _actionPresentation = actionPresentation ?? NullActionPresentationSink.Instance;
+        _presentation = presentation
+            ?? throw new ArgumentNullException(nameof(presentation));
         _numeric = numeric;
         _vitality = vitality;
         _targetingState = targetingState;
@@ -89,7 +88,7 @@ internal sealed class CharacterSimulationPipeline
         _vitality?.ClearReplicationEdge();
         // Step 期间锁住表现锚点，防止渲染层读到逻辑位移的半帧状态。
         _presentation.BeginSimulationStep();
-        _visualMotion?.ApplyLogicLocalPose();
+        _presentation.ApplyLogicLocalPose();
         try
         {
             // 抑制倒计时必须先于本帧位移；Targeting 必须先于尚未解析的动作输入。
@@ -101,12 +100,15 @@ internal sealed class CharacterSimulationPipeline
             _emitExternalIntent();
 
             StepActionClock();
-            _actionPresentation?.ApplyStep(fixedDeltaSeconds);
+            _actionGameplay.ApplyStep(fixedDeltaSeconds, _actionPresentation);
             _motor.TickGravity(fixedDeltaSeconds);
             _stateMachine.Tick(fixedDeltaSeconds);
-            _visualMotion?.SetLeanRollDegrees(_stateMachine.SprintLeanRollDegrees);
-            // Manual Playable 与本逻辑帧同末点推进，不能改为渲染帧 Update。
-            _animation?.Tick(fixedDeltaSeconds);
+            _presentation.SetLeanRollDegrees(_stateMachine.SprintLeanRollDegrees);
+            // 表现 Sink 只读同一动作快照，Headless Null Sink 不推进任何 Playable。
+            ActionSimSnapshot presentationSnapshot = _actionSim.Snapshot;
+            _actionPresentation.CompleteSimulationStep(
+                in presentationSnapshot,
+                fixedDeltaSeconds);
             UpdateActionLateralPeakSample();
 
             // Freeze 同时冻结动作和数值时钟，避免卡肉期间 Effect/资源暗中递减。
@@ -126,7 +128,7 @@ internal sealed class CharacterSimulationPipeline
         {
             // 即使子系统抛错也必须释放锚点锁，避免后续渲染永久停在旧 Pose。
             _presentation.EndSimulationStep();
-            _visualMotion?.ApplyLogicLocalPose();
+            _presentation.ApplyLogicLocalPose();
         }
     }
 
@@ -141,7 +143,7 @@ internal sealed class CharacterSimulationPipeline
 
         _actionSim?.ResolvePostCombat();
         _stateMachine.ResolvePostCombat();
-        _actionPresentation?.ApplyPostCombat();
+        _actionGameplay.ApplyPostCombat(_actionPresentation);
         _postCombatCompleted?.Invoke();
     }
 

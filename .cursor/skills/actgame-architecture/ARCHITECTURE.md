@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-09-17（结构稳定化 CS5：Content 与 Client Runtime Configuration 单入口）
+> Last audited: 2026-09-18（Safety：有界输入历史、Recover 冷却重试、Meta 屏障恢复）
 
 ## 项目概述
 
@@ -16,22 +16,24 @@ Assets/
 │   ├── Core/StateMachine/     # 泛型状态机（与角色无关）
 │   ├── Domain/
 │   │   ├── Character/
-│   │   │   ├── Animation/     # 动画播放与 Profile
+│   │   │   ├── Animation/     # 逻辑 AnimationKey、Profile 与播放契约
 │   │   │   ├── Locomotion/    # 相位 FSM、FootCycle、脚步
-│   │   │   ├── Reactions/     # 受击/死亡请求解析与事件桥接
-│   │   │   ├── Replication/   # RemoteProxy 与 Prediction/Presentation 辅助
+│   │   │   ├── Combat/        # 角色专属动作 Gameplay、HitPipeline 与 AssistParry
+│   │   │   ├── Party/         # 阵容配置与角色侧生命周期
+│   │   │   ├── Presentation/  # 只读 Sink 契约与 Headless Null Sink
+│   │   │   ├── Prediction/    # Owner Restore/Replay
+│   │   │   ├── Reactions/     # 受击/死亡请求解析与 Gameplay Observer
 │   │   │   └── StateMachine/  # 角色状态机基类与共享 State
-│   │   ├── Enemy/             # Definition、AI FSM、生命值、工厂与句柄
+│   │   ├── Enemy/             # Definition、AI FSM、BehaviorTree 与句柄
 │   │   ├── Combat/
 │   │   │   ├── Actions/       # Definitions / Resolution / Execution / Frames
+│   │   │   ├── Camera/        # Action Camera 作者数据与纯计算
 │   │   │   ├── Damage/        # CombatDamageCalculator（G4 升级公式）
 │   │   │   ├── Resources/     # 作者壳：ActionResourceSpec / Tag / Config / EnergyFormSelector
 │   │   │   ├── Numeric/       # 数值权威：AttributeSet / Effect / NumericSystem
 │   │   │   ├── Hitbox/        # OBB 判定与角色 Hurtbox
-│   │   │   ├── VFX/           # 招式 VFX 帧事件
 │   │   │   └── Targeting/     # 索敌
 │   │   ├── Input/             # 原始帧、意图与输入中枢
-│   │   ├── Party/             # CharacterDefinition / PartyLoadout Unity 配置壳
 │   │   ├── Simulation/        # 固定帧核 + Party 纯规则 + Replication + Prediction（无 Unity）
 │   │   └── Networking/        # Character Schema、稳定 Archetype Catalog 与 Identity Adapter（纯 C#）
 │   ├── Framework/ACTNet/
@@ -41,8 +43,10 @@ Assets/
 │   │   └── Replication/       # V2 Protocol、Schema、实体生命周期、屏障与 Prepare/Commit（纯 C#）
 │   ├── App/
 │   │   ├── Architecture/      # QFramework 风格强类型 Architecture / 能力接口 / 基类
+│   │   ├── Composition/       # Character/Enemy Actor 具体装配
 │   │   ├── Controllers/       # Player / Enemy / Camera / Combat / SimulationHost Unity 入口
 │   │   ├── Networking/        # ACT 内容/Schema、Authority/Owner/Observer Adapter 与 Room Gameplay Services
+│   │   ├── Presentation/      # Playable、VFX/SFX、VisualResidual、RemoteProxy
 │   │   ├── Server/            # Dedicated 独立运行时（ACTGame.Server）：Bootstrap / Match / 每连接 Replication
 │   │   ├── Systems/           # Combat / Enemy / Player（LocalPlayerService）
 │   │   ├── Commands/          # 跨系统业务行为
@@ -52,7 +56,7 @@ Assets/
 │   │   ├── Input/             # Input System 与 AI 输入源适配
 │   │   └── Net/               # 预留 Unity Transport Adapter；通用 UDP 在 Framework/ACTNet/Transport
 │   ├── Previews/              # 独立 ACTGame.Previews；仅开发期场景展示，不进入 Gameplay Domain
-│   └── Editor/Combat/         # ActionDefinition 预览 Editor；Editor/Net 房间菜单
+│   └── Editor/                # Action/Locomotion 工具与统一 Architecture/Content 门禁
 ├── Data/                      # ScriptableObject 配置
 ├── Prefabs/Player/            # 玩家 Prefab
 └── Art/                       # 美术资源（不参与代码依赖）
@@ -64,18 +68,23 @@ Assets/
 flowchart BT
     ACTNet["ACTNet.*"] --> Simulation["ACTGame.Simulation"]
     ACTNet --> Networking["ACTGame.Networking"]
-    Core["ACTGame.Core"] --> Gameplay["ACTGame.Domain.Gameplay（CS2A）"]
+    Core["ACTGame.Core"] --> Combat["ACTGame.Domain.Combat"]
     Simulation --> Input["ACTGame.Domain.Input"]
-    Simulation --> Gameplay
-    Input --> Gameplay
-    Networking --> Gameplay
-    Gameplay --> App["ACTGame.App"]
+    Simulation --> Combat
+    Input --> Combat
+    Combat --> Character["ACTGame.Domain.Character"]
+    Networking --> Character
+    Character --> Enemy["ACTGame.Domain.Enemy"]
+    Combat --> Enemy
+    Combat --> App["ACTGame.App"]
+    Character --> App
+    Enemy --> App
     Infrastructure["ACTGame.Infrastructure"] --> App
     ACTNet --> App
     Server["ACTGame.Server"] --> App
 ```
 
-CS2A 期间 Character/Combat/Enemy/Party/Camera 只编入一个 `ACTGame.Domain.Gameplay`，用于先关闭 Domain→App 与默认程序集泄漏。CS3/CS5 解开实现和 SO 类型环后，CS2B 会以 Character/Combat/Enemy 三个终态程序集替换并删除该粗粒度程序集。
+CS2B 已删除粗粒度 `ACTGame.Domain.Gameplay`。Camera 与 Action Timeline 同属 Combat；Party 定义与 Character 聚合根同属 Character；Enemy 只向下引用 Character/Combat。
 
 ## 核心子系统
 
@@ -90,7 +99,14 @@ CS2A 期间 Character/Combat/Enemy/Party/Camera 只编入一个 `ACTGame.Domain.
 | `ActionSim` | `ACTGame.Simulation` 内无 Unity 依赖的 60Hz 动作核：帧推进、Cancel、Graph 衔接、命中确认与 Snapshot/Event |
 | `ACTGame.Core` | 通用 StateMachine 与对象池；当前因 `GameObjectPool` 保留 UnityEngine 引用 |
 | `ACTGame.Domain.Input` | 设备无关输入状态、Intent Profile/Buffer/Producer；角色状态条件由 Character 注入 |
-| `ACTGame.Domain.Gameplay` | CS2A 粗边界：Character/Combat/Enemy/Party/Camera；CS2B 必须被终态程序集替换并删除 |
+| `ACTGame.Domain.Combat` | Action/Timeline、Hitbox 契约与几何、Numeric 接口、Camera 作者内容；禁止引用 Character/Enemy |
+| `ACTGame.Domain.Character` | Character 聚合根、Locomotion、Reaction、Prediction、Party 与角色专属 Combat 集成 |
+| `ACTGame.Domain.Enemy` | EnemyDefinition、Brain、BehaviorTree 与工厂；单向引用 Character/Combat |
+| `CharacterActionGameplayStep` | Character 内固定帧动作 Gameplay：位移、SoftBody、Hitbox；按位移后 Collect 的顺序把只读事件交给 Sink |
+| `IActionPresentationSink` / `ICharacterPresentationSink` | Domain 定义的只读表现端口；Headless 使用 Null Sink |
+| `App/Composition` / `App/Presentation` | Actor 装配、Playable、VFX/SFX、VisualResidual 与 RemoteProxy 的具体实现 |
+| `StructureValidationBatch` | Editor/BatchMode 总门禁：聚合 Assembly/源码结构、Action/Character/Enemy 内容审计；失败返回非零退出码 |
+| `ci.ps1` | 本地总入口：统一审计 → EditMode → 可选 Dedicated READY smoke |
 | `ACTGame.Infrastructure` | 客户端设备采样适配；当前仅 `InputReader`，依赖 Input System |
 | `ACTGame.App` | Scene Composition Root、Controller、Architecture、联网编排；单向引用 Domain/Infrastructure/ACTNet/Server |
 | `ACTGame.Previews` | 独立开发期预览程序集；不依赖 Gameplay/App，Editor 工具可单向引用 |
@@ -125,7 +141,7 @@ CS2A 期间 Character/Combat/Enemy/Party/Camera 只编入一个 `ACTGame.Domain.
 | `IRenderFrameSampler` | 可选渲染帧输入汇聚契约，避免高 FPS 无逻辑 Step 时丢 Pressed/Released |
 | `ISimulationRenderable` | 可选表现接口；Host LateUpdate 按 accumulator alpha 转发插值 |
 | `CharacterPresentationBridge` | 保留前后权威 Pose，只移动运行时模型锚点，不回写模拟根 |
-| `InputFrame` / `InputFrameBuffer` | 量化轴、MoveReferenceYaw、稳定按钮 bitset、Actor/Frame 身份与输入历史；本地追帧延续 Move/Held/Yaw |
+| `InputFrame` / `InputFrameBuffer` | 量化轴、MoveReferenceYaw、稳定按钮 bitset、Actor/Frame 身份与最多 64 帧输入历史；写入与 World.Step 都裁剪；本地追帧延续 Move/Held/Yaw |
 | `DeterministicTargetResolver` | 基于整数逻辑 Pose、阵营、存活与 SimActorId 稳定维护/切换唯一目标；无 Transform/Physics 依赖 |
 | `ISimulationInputProducer` | Actor Step 前统一生成当帧输入；玩家采样量化输入，敌人 Brain 提交 Desire/Entry Request 并生成空输入帧 |
 | `ISimulationPostCombatActor` | 整批命中结算后处理 OnHitConfirm/OnWhiff 自动衔接与动作自然结束 |
@@ -274,7 +290,7 @@ Active 死亡后，`DedicatedAuthorityWorld.OnAfterLogicStep` 推进门禁并在
 | 类 | 职责 |
 |----|------|
 | `InputFrame` | `frame + SimActorId + sbyte move + Pressed/Held/Released bitset + MoveReferenceYaw` 固定输入格式 |
-| `InputFrameBuffer` | 玩家渲染采样、回放与统一 Actor Step 共用历史；精确读取与本地连续状态展开 |
+| `InputFrameBuffer` | 玩家渲染采样、回放与统一 Actor Step 共用历史，硬上限 64 帧；精确读取与本地连续状态展开 |
 | `ILocalInputSampler` / `InputReader` | 玩家设备边界：Input System Action 名映射为稳定 InputButton 并量化下一逻辑帧 |
 | `IMoveIntentSource` | Character 层只读移动契约；玩家由 InputManager 实现，AI 由 LocomotionDesireBuffer 实现 |
 | `InputManager` | 摄入玩家量化帧，提供移动反解值与按钮生命周期；不再含 AI 覆盖分支 |

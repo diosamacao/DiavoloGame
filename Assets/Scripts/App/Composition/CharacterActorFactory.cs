@@ -1,0 +1,320 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>角色实例工厂；按座位与 <see cref="CharacterPresentationMode"/> 装配能力图，禁止身份 if 开双套 Actor。</summary>
+public static class CharacterActorFactory
+{
+    /// <summary>
+    /// 按配置创建角色。Authority 必须带命中流水线并注册 Hitbox；
+    /// Autonomous 不挂 Collect；预测卡肉 + Adhesion / Relocate 读只读花名册。
+    /// AuthorityHeadless 不创建 Model / PlayableGraph / VFX / SFX。
+    /// </summary>
+    public static CharacterActor Create(
+        GameObject owner,
+        Transform root,
+        CharacterConfig config,
+        GameplayIntentProfile intentProfile,
+        int teamId,
+        ILocalInputSampler localInput,
+        Func<IReadOnlyList<IHurtboxTarget>> activeTargetsProvider,
+        CombatHitPipeline combatHitPipeline,
+        out ActionSim actionSim,
+        out CharacterAnimationService animation,
+        ISimCollisionWorld collisionWorld = null,
+        IMoveIntentSource moveIntentSource = null,
+        IActionEntryRequestSource actionEntryRequests = null,
+        ReplicationSeat seat = ReplicationSeat.Authority,
+        CharacterPresentationMode presentation = CharacterPresentationMode.Full,
+        ICharacterActionObserver actionObserver = null)
+    {
+        CharacterActor actor = null;
+        CharacterMotorConfig motorConfig = config.Motor;
+        bool headless = presentation == CharacterPresentationMode.AuthorityHeadless;
+        Transform presentationRoot = headless ? root : CreatePresentationRoot(root);
+        // Wave 2：模型挂在 VisualMotionRoot，横摆残差不进 SimulationRoot / CameraRoot
+        Transform visualMotionRoot = headless ? presentationRoot : CreateVisualMotionRoot(presentationRoot);
+        Transform modelRoot = root;
+        Animator animator = null;
+        if (!headless)
+        {
+            modelRoot = SpawnModelInstance(config, visualMotionRoot);
+            animator = modelRoot.GetComponentInChildren<Animator>();
+            if (animator == null)
+                throw new MissingComponentException("CharacterActorFactory: ModelPrefab 中找不到 Animator。");
+        }
+
+        CharacterController controller = GetOrAddCharacterController(owner);
+        motorConfig.ApplyTo(controller);
+        // CC 仅保留半径/高度配置；保持禁用，避免 Sync 时 enable 被地面挤出造成悬空
+        controller.enabled = false;
+
+        var sharedInput = new InputManager();
+        // 玩家默认读 InputFrame；AI/脚本控制可在构造时注入独立移动命令源
+        IMoveIntentSource effectiveMoveIntent = moveIntentSource ?? sharedInput;
+        if (intentProfile == null)
+            throw new InvalidOperationException(
+                "CharacterActorFactory: 未注入 GameplayIntentProfile。");
+
+        localInput?.ConfigureDiscreteInputs(intentProfile.CollectInputReferences());
+        ISimCollisionWorld world = collisionWorld ?? OpenFieldSimCollisionWorld.Instance;
+        var motorSim = new CharacterMotorSim(
+            world,
+            MotionQuantization.MetersToMm(motorConfig.ControllerRadius),
+            motorConfig.SoftBodyMass,
+            motorConfig.SoftBodyImmovable,
+            SimulationConfig.DefaultLogicHz,
+            MotionQuantization.MetersToMm(motorConfig.Gravity),
+            MotionQuantization.MetersToMm(motorConfig.GroundedGravity));
+        var motor = new CharacterMotor(
+            root,
+            controller,
+            motorConfig,
+            effectiveMoveIntent,
+            motorSim);
+        var targetingState = new CharacterTargetingState(
+            teamId,
+            MotionQuantization.MetersToMm(config.Combat.TargetAcquireRangeMeters),
+            MotionQuantization.MetersToMm(config.Combat.TargetRetainRangeMeters),
+            activeTargetsProvider);
+        IAnimationPlayback playback = headless
+            ? new NullAnimationPlayback()
+            : new PlayableAnimationPlayback(animator);
+        if (config.CombatProfile == null
+            || !config.CombatProfile.TryGetLocomotionProfile(
+                config.CombatProfile.DefaultMode,
+                out CharacterLocomotionProfile locomotionProfile)
+            || locomotionProfile.AnimationProfile == null)
+        {
+            throw new InvalidOperationException(
+                "CharacterActorFactory: CombatModeProfile 默认模式缺少 LocomotionProfile（须含 AnimationProfile）。");
+        }
+
+        animation = new CharacterAnimationService(
+            playback,
+            animator,
+            locomotionProfile.AnimationProfile);
+        CharacterRootMotionDriver rootMotion = headless
+            ? null
+            : new CharacterRootMotionDriver(motor, animator);
+        var combatMode = new CombatModeService(config.CombatProfile, animation);
+
+        var context = new CharacterContext(root, animation, controller, motor);
+        ILocomotionFootstepSink footstepPlayer = headless
+            ? NullLocomotionFootstepSink.Instance
+            : new LocomotionFootstepPlayer(root, locomotionProfile);
+        var locomotionStateMachine = new LocomotionStateMachine(
+            root,
+            motor,
+            animation,
+            effectiveMoveIntent,
+            locomotionProfile,
+            footstepPlayer);
+        context.LocomotionStateMachine = locomotionStateMachine;
+
+        var stateMachine = new CharacterStateMachine(context);
+        // 缓冲时长由全局 Intent Profile 统一配置
+        var intentBuffer = new GameplayIntentBuffer(intentProfile.ActionBufferDurationFrames);
+        var resolverService = new ActionResolverService(combatMode);
+        var numeric = new NumericSystem(
+            CharacterNumericConfig.FromResourceConfig(config.Resources, config.Combat.MaxHealth));
+        var vitality = new CharacterVitality(numeric);
+        // DOT 扣血走 Vitality：无 Hit Reaction，死亡边沿仍生效
+        numeric.Effects.SetHealthDamageHandler(vitality.ApplyPeriodicHealthDamageMilli);
+        var resourceGate = new NumericCostGate(numeric);
+        // Bridge 需 Gate 做同键 EX 选形；ActionSim 再用同一 Gate 扣费
+        var resolverBridge = new ActionSimResolverBridge(resolverService, root, motor, resourceGate);
+        // Begin 成功清完美反击 / 支援突击缓冲（含 Cancel/硬打断起手）
+        actionSim = new ActionSim(
+            resolverBridge,
+            intentBuffer,
+            resourceGate,
+            onBegun: intent =>
+            {
+                if (intent == GameplayIntentType.PerfectDodgeAttack)
+                    numeric.ClearPerfectDodgeCounter();
+                if (intent == GameplayIntentType.AssistFollowUp)
+                    numeric.ClearAssistFollowUp();
+                actor?.PartyLifecycle.NotifyActionBegun(intent);
+                actionObserver?.OnActionBegun(intent);
+            });
+        context.ActionSim = actionSim;
+
+        GameplayIntentProducer intentProducer = CharacterIntentProducerFactory.Create(
+            intentProfile,
+            sharedInput,
+            intentBuffer,
+            stateMachine,
+            locomotionStateMachine,
+            actionSim,
+            () => numeric.Flags.HasPerfectDodgeCounter,
+            () => numeric.Flags.HasAssistFollowUp);
+
+        Transform defaultAttach = headless
+            ? root
+            : ResolveModelPoint(config.Combat.AttachPointName, modelRoot, root);
+        var attachPoints = new CharacterAttachPointResolver(modelRoot, defaultAttach);
+        // L-DIR3：Locomotion FaceTarget 只读角色唯一 SelectedTarget。
+        locomotionStateMachine.Context.BindFacingTargetSource(
+            new LocomotionFacingTargetSource(
+                targetingState,
+                motorSim));
+        if (seat == ReplicationSeat.Authority && combatHitPipeline == null)
+            throw new ArgumentNullException(nameof(combatHitPipeline), "Authority 座位必须绑定 CombatHitPipeline。");
+
+        ActionVfxPlayer vfxPlayer = headless ? null : new ActionVfxPlayer(root, attachPoints);
+        ActionSfxPlayer sfxPlayer = headless ? null : new ActionSfxPlayer(root);
+        CharacterVisualMotionBridge visualMotion = headless
+            ? null
+            : new CharacterVisualMotionBridge(visualMotionRoot);
+        ICharacterPresentationSink characterPresentation = headless
+            ? new NullCharacterPresentationSink(root)
+            : new CharacterPresentationBridge(root, presentationRoot, visualMotion);
+        // 两端都注入 WorldQuery：Adhesion / Relocate / SnapFacing 读花名册逻辑 Pose。
+        // Autonomous 花名册是只读 Proxy；仍不挂 Hitbox，不进 World。
+        var motionWorldQuery = new ActionMotionWorldQuery(activeTargetsProvider);
+        IActionPresentationSink actionPresentation = headless
+            ? NullActionPresentationSink.Instance
+            : new CharacterActionPresentationBridge(
+                root,
+                animation,
+                rootMotion,
+                new ActionTimelineRunner(),
+                defaultAttach,
+                characterPresentation);
+        var actionGameplay = new CharacterActionGameplayStep(
+            actionSim,
+            root,
+            motor,
+            combatMode,
+            motor,
+            targetingState,
+            motionWorldQuery);
+        if (seat == ReplicationSeat.Authority)
+        {
+            var hitboxFrameConsumer = new HitboxFrameConsumer(
+                root,
+                motorSim,
+                teamId,
+                actionSim,
+                attachPoints,
+                activeTargetsProvider,
+                () => actor?.SimulationId ?? SimActorId.Invalid,
+                combatHitPipeline);
+            actionGameplay.RegisterFrameConsumer(hitboxFrameConsumer);
+        }
+        else
+        {
+            // 客机只预测卡肉表现；伤害仍只走权威 Collect。
+            actionGameplay.RegisterFrameConsumer(
+                new PredictedHitStopConsumer(
+                    root,
+                    motorSim,
+                    teamId,
+                    actionSim,
+                    attachPoints,
+                    activeTargetsProvider,
+                    () => actor?.SimulationId ?? SimActorId.Invalid));
+        }
+
+        if (actionPresentation is CharacterActionPresentationBridge presentationBridge)
+        {
+            presentationBridge.RegisterNotifyConsumer(vfxPlayer);
+            presentationBridge.RegisterNotifyConsumer(sfxPlayer);
+        }
+
+        var actionDriver = new CharacterActionDriver(
+            effectiveMoveIntent,
+            intentBuffer,
+            stateMachine,
+            actionSim,
+            combatMode,
+            resolverService,
+            root,
+            motor,
+            actionEntryRequests);
+
+        actor = new CharacterActor(
+            localInput,
+            sharedInput,
+            intentProducer,
+            motor,
+            stateMachine,
+            actionDriver,
+            actionSim,
+            actionGameplay,
+            actionPresentation,
+            combatMode,
+            animation,
+            characterPresentation,
+            numeric,
+            vitality,
+            intentBuffer,
+            targetingState,
+            root,
+            seat,
+            1f / SimulationConfig.DefaultLogicHz);
+
+        var rotationDriver = new ActionRotationDriver(
+            root,
+            effectiveMoveIntent,
+            motor,
+            actionSim,
+            targetingState,
+            motorSim);
+
+        context.ActionRotation = rotationDriver;
+        return actor;
+    }
+
+    static Transform SpawnModelInstance(CharacterConfig config, Transform parent)
+    {
+        GameObject modelInstance = UnityEngine.Object.Instantiate(config.ModelPrefab, parent);
+        modelInstance.name = config.ModelPrefab.name;
+        Transform modelTransform = modelInstance.transform;
+        modelTransform.localPosition = config.ModelLocalPosition;
+        modelTransform.localRotation = config.ModelLocalRotation;
+        return modelTransform;
+    }
+
+    /// <summary>创建与权威根分离的运行时表现锚点，模型只在该锚点下接受渲染插值。</summary>
+    static Transform CreatePresentationRoot(Transform simulationRoot)
+    {
+        var presentationObject = new GameObject("CharacterPresentationRoot");
+        Transform presentationRoot = presentationObject.transform;
+        presentationRoot.SetParent(simulationRoot, false);
+        return presentationRoot;
+    }
+
+    /// <summary>Wave 2：动作视觉残差根；与 CameraRoot 并列，禁止把相机挂到其下。</summary>
+    static Transform CreateVisualMotionRoot(Transform presentationRoot)
+    {
+        var visualObject = new GameObject("CharacterVisualMotionRoot");
+        Transform visualRoot = visualObject.transform;
+        visualRoot.SetParent(presentationRoot, false);
+        visualRoot.localPosition = Vector3.zero;
+        visualRoot.localRotation = Quaternion.identity;
+        return visualRoot;
+    }
+
+    static CharacterController GetOrAddCharacterController(GameObject owner)
+    {
+        CharacterController controller = owner.GetComponent<CharacterController>();
+        return controller != null ? controller : owner.AddComponent<CharacterController>();
+    }
+
+    static Transform ResolveModelPoint(string pointName, Transform modelRoot, Transform fallback)
+    {
+        if (string.IsNullOrWhiteSpace(pointName))
+            return fallback;
+
+        Transform point = CharacterAttachPointResolver.FindByName(modelRoot, pointName);
+        if (point == null)
+        {
+            Debug.LogWarning($"CharacterActorFactory: 模型中找不到挂点 {pointName}，已回退到角色根节点。");
+            return fallback;
+        }
+
+        return point;
+    }
+}

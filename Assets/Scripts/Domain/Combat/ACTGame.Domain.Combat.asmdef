@@ -1,0 +1,23 @@
+{
+    "name": "ACTGame.Domain.Combat",
+    "rootNamespace": "",
+    "references": [
+        "ACTGame.Core",
+        "ACTGame.Domain.Input",
+        "ACTGame.Simulation",
+        "ACTGame.Combat.Numeric",
+        "ACTGame.Combat.Resources",
+        "Cinemachine",
+        "Unity.Mathematics",
+        "Unity.Splines"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

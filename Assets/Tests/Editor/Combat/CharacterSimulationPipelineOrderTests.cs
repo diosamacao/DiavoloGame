@@ -33,11 +33,11 @@ public sealed class CharacterSimulationPipelineOrderTests
             "_intentProducer.Step();",
             "_emitExternalIntent();",
             "StepActionClock();",
-            "_actionPresentation?.ApplyStep(fixedDeltaSeconds);",
+            "_actionGameplay.ApplyStep(fixedDeltaSeconds, _actionPresentation);",
             "_motor.TickGravity(fixedDeltaSeconds);",
             "_stateMachine.Tick(fixedDeltaSeconds);",
-            "_visualMotion?.SetLeanRollDegrees(_stateMachine.SprintLeanRollDegrees);",
-            "_animation?.Tick(fixedDeltaSeconds);",
+            "_presentation.SetLeanRollDegrees(_stateMachine.SprintLeanRollDegrees);",
+            "_actionPresentation.CompleteSimulationStep(",
             "UpdateActionLateralPeakSample();",
             "_numeric.Step();",
             "_presentation.EndSimulationStep();");
@@ -53,8 +53,45 @@ public sealed class CharacterSimulationPipelineOrderTests
             source,
             "_actionSim?.ResolvePostCombat();",
             "_stateMachine.ResolvePostCombat();",
-            "_actionPresentation?.ApplyPostCombat();",
+            "_actionGameplay.ApplyPostCombat(_actionPresentation);",
             "_postCombatCompleted?.Invoke();");
+    }
+
+    /// <summary>普通动作帧必须先施加逻辑位移，再 Collect Hitbox，最后解释表现事件。</summary>
+    [Test]
+    public void ActionGameplayStep_DispatchesHitboxAfterDisplacement()
+    {
+        string source = ReadScript("Domain/Character/Combat/CharacterActionGameplayStep.cs");
+
+        AssertTokensInOrder(
+            source,
+            "ApplyDisplacementForAction(current, snapshot.CurrentFrame, stepDelta);",
+            "DispatchGameplayFrame(in actionEvent);",
+            "sink.ConsumeEvent(in actionEvent);");
+    }
+
+    /// <summary>动作表现实现不得重新持有或写入 Gameplay 状态。</summary>
+    [Test]
+    public void ActionPresentationSink_HasNoGameplayWritePath()
+    {
+        string source = ReadScript("App/Presentation/CharacterActionPresentationBridge.cs");
+
+        Assert.That(source, Does.Not.Contain("RegisterFrameConsumer"));
+        Assert.That(source, Does.Not.Contain("CharacterMotor"));
+        Assert.That(source, Does.Not.Contain("NumericSystem"));
+        Assert.That(source, Does.Not.Contain("PartyMemberState"));
+        Assert.That(source, Does.Not.Contain("ActionSim.Stop"));
+    }
+
+    /// <summary>Headless 装配必须使用双 Null Sink，且不创建表现根。</summary>
+    [Test]
+    public void CharacterActorFactory_HeadlessUsesNullPresentationSinks()
+    {
+        string source = ReadScript("App/Composition/CharacterActorFactory.cs");
+
+        Assert.That(source, Does.Contain("NullActionPresentationSink.Instance"));
+        Assert.That(source, Does.Contain("new NullCharacterPresentationSink(root)"));
+        Assert.That(source, Does.Contain("Transform presentationRoot = headless ? root"));
     }
 
     /// <summary>按声明顺序验证源代码令牌，避免结构重排暗改逻辑帧语义。</summary>

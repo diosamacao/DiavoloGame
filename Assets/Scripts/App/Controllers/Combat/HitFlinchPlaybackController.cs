@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// 订 Flinch：只对可见 Playable 叠 Additive，不 Play 主轨、不锁走跑、不写 ActionSim。
+/// Observer 复制命中时为 Proxy 播放 Flinch Additive；本地 Actor 由注入的表现 Sink 处理。
 /// </summary>
 [DisallowMultipleComponent]
 public sealed class HitFlinchPlaybackController : AppControllerBase
@@ -21,33 +21,4 @@ public sealed class HitFlinchPlaybackController : AppControllerBase
             fallbackFlinchMask,
             fadeDuration);
 
-    void OnEnable() => CharacterActor.FlinchIssued += OnFlinchIssued;
-
-    void OnDisable() => CharacterActor.FlinchIssued -= OnFlinchIssued;
-
-    /// <summary>权威 Flinch 后叠可见体层 1；Listen 无头敌人打 Observer Proxy。</summary>
-    void OnFlinchIssued(CharacterActor actor, AnimationKey key, ActionHitContext context)
-    {
-        if (actor == null)
-            return;
-
-        if (!HitFlinchPresentation.TryPlayOnActor(
-                actor,
-                key,
-                fallbackFlinchClip,
-                fallbackFlinchMask,
-                fadeDuration))
-        {
-            Debug.LogWarning(
-                "HitFlinchPlayback: 可见体没有 HitShake Clip，且未拖 fallback。逻辑仍不停招。",
-                this);
-            return;
-        }
-
-        GetArchitecture().SendEvent(new HitFlinchEvent(
-            actor.SimulationId,
-            key,
-            context.AttackerId,
-            context.ActionInstanceId));
-    }
 }

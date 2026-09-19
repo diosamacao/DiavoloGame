@@ -17,7 +17,7 @@ public sealed class LocomotionContext
         IMoveIntentSource moveIntent,
         CharacterLocomotionProfile profile,
         LocomotionFootCycle footCycle,
-        LocomotionFootstepPlayer footstepPlayer,
+        ILocomotionFootstepSink footstepPlayer,
         LocomotionRootMotionPlayer rootMotionPlayer,
         ILocomotionAnimResolver animResolver = null)
     {
@@ -27,7 +27,7 @@ public sealed class LocomotionContext
         Input = moveIntent;
         Profile = profile;
         FootCycle = footCycle;
-        FootstepPlayer = footstepPlayer;
+        FootstepPlayer = footstepPlayer ?? NullLocomotionFootstepSink.Instance;
         RootMotionPlayer = rootMotionPlayer;
         AnimResolver = animResolver
             ?? new DefaultLocomotionAnimResolver(
@@ -43,7 +43,7 @@ public sealed class LocomotionContext
     public IMoveIntentSource Input { get; }
     public CharacterLocomotionProfile Profile { get; }
     public LocomotionFootCycle FootCycle { get; }
-    public LocomotionFootstepPlayer FootstepPlayer { get; }
+    public ILocomotionFootstepSink FootstepPlayer { get; }
     public LocomotionRootMotionPlayer RootMotionPlayer { get; }
 
     /// <summary>步态+局部输入 → AnimationKey。</summary>

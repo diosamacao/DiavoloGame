@@ -11,7 +11,7 @@ public abstract class ActionResolver : ScriptableObject
         out ActionResolveResult result);
 
     /// <summary>
-    /// 收集本策略可能解析出的动作，供 <see cref="ActionReplicationCatalog"/> 预填。
+    /// 收集本策略可能解析出的动作，供上层复制目录预填。
     /// 默认无；Directional 等变体必须覆盖，否则客机 TryGet 失败只能跟位移。
     /// </summary>
     public virtual void CollectActions(List<ActionDefinition> actions)

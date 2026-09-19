@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-/// <summary>仅在人工点击后把 Clip 时长与旧比例迁成 60Hz LocomotionClipTiming。</summary>
+/// <summary>仅在人工点击后把 Clip 时长烘焙为 60Hz LocomotionClipTiming。</summary>
 public static class LocomotionTimingBaker
 {
     /// <summary>烘焙选定 Profile；调用方负责 Undo、SetDirty 与保存确认。</summary>
@@ -12,7 +12,6 @@ public static class LocomotionTimingBaker
         if (profile == null || profile.AnimationProfile == null)
             throw new InvalidOperationException("Timing Baker 需要已绑定 AnimationProfile 的 Locomotion Profile。");
 
-        profile.GetLegacyHandoffRatios(out float startRatio, out float pivotRatio);
         var timings = new List<LocomotionClipTiming>();
         Array keys = Enum.GetValues(typeof(AnimationKey));
         foreach (AnimationKey key in keys)
@@ -23,11 +22,9 @@ public static class LocomotionTimingBaker
                 continue;
 
             int durationFrames = Mathf.Max(1, Mathf.CeilToInt(clip.length * ActionSim.LogicHz));
-            int handoffFrame = ResolveHandoffFrame(
-                key,
-                durationFrames,
-                startRatio,
-                pivotRatio);
+            int handoffFrame = profile.TryGetClipTiming(key, out LocomotionClipTiming existing)
+                ? Mathf.Clamp(existing.HandoffFrame, 0, durationFrames)
+                : ResolveDefaultHandoffFrame(key, durationFrames);
             timings.Add(new LocomotionClipTiming(
                 key,
                 durationFrames,
@@ -37,22 +34,16 @@ public static class LocomotionTimingBaker
         }
 
         profile.SetClipTimings(timings.ToArray());
-        profile.BakeLegacyFrameSettings();
-        profile.BakeLegacyFootMarkers();
         return timings.Count;
     }
 
-    /// <summary>Start 使用旧 Start 比例，Pivot 使用旧交接比例，其余键在退出帧交接。</summary>
-    static int ResolveHandoffFrame(
-        AnimationKey key,
-        int durationFrames,
-        float startRatio,
-        float pivotRatio)
+    /// <summary>无既有 timing 时 Start 在结尾、Pivot 在中点交接，其余键在退出帧交接。</summary>
+    static int ResolveDefaultHandoffFrame(AnimationKey key, int durationFrames)
     {
         float ratio = key == AnimationKey.PivotTurn
-            ? pivotRatio
+            ? 0.5f
             : IsStartKey(key)
-                ? startRatio
+                ? 1f
                 : 1f;
         return Mathf.Clamp(
             Mathf.RoundToInt(durationFrames * ratio),

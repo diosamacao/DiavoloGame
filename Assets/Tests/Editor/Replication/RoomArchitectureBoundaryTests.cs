@@ -49,6 +49,7 @@ public sealed class RoomArchitectureBoundaryTests
         Assert.That(listen, Does.Contain("LocalClientRuntime"));
         Assert.That(client, Does.Contain("LocalClientRuntime"));
         Assert.That(local, Does.Contain("ActClientRoomGameplay"));
+        Assert.That(local, Does.Contain("ReplicationRecoveryPolicy"));
     }
 
     /// <summary>Observer 只能创建 Remote Proxy，不得回流 CharacterActor 或权威 Hitbox Consumer。</summary>
@@ -149,7 +150,7 @@ public sealed class RoomArchitectureBoundaryTests
     [Test]
     public void CharacterActorFactory_HeadlessPath_UsesNullPlaybackWithoutModelSpawn()
     {
-        string factory = ReadScript("Domain/Character/CharacterActorFactory.cs");
+        string factory = ReadScript("App/Composition/CharacterActorFactory.cs");
         Assert.That(factory, Does.Contain("CharacterPresentationMode.AuthorityHeadless"));
         Assert.That(factory, Does.Contain("new NullAnimationPlayback()"));
         Assert.That(factory, Does.Contain("if (!headless)"));

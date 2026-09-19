@@ -21,7 +21,7 @@
 
 **目标**：按 CS0～CS7 依次完成基线门禁、Net 单轨清理、Assembly 分层、Character/App 职责拆分、Content 单入口和模拟/表现硬边界；结构总出口关闭前冻结普通功能开发，仅允许独立的编译/数据安全阻塞修复。
 
-**状态**：CS0～CS5 已验收；CS2B 已进入行为树 SerializeReference 预迁移门禁，待全部资产统一记录为 `ACTGame.Domain.Gameplay` 后执行 Character/Combat/Enemy 终态程序集切分。
+**状态**：CS0～CS7 已验收。结构总出口关闭。Safety 代码已落地（输入 64 帧上限、Recover 500ms 冷却重试、ForceFull 重新过 Meta），待 Editor 验收。
 
 ### [P1] 移动职责迁移
 

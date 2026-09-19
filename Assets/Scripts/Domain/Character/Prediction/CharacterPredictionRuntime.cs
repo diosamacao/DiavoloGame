@@ -6,17 +6,15 @@ public sealed class CharacterPredictionRuntime : IPredictedLocomotionReplay
     readonly CharacterStateMachine _stateMachine;
     readonly ActionSim _actionSim;
     readonly GameplayIntentBuffer _intentBuffer;
-    readonly CharacterAnimationService _animation;
     readonly float _fixedDeltaSeconds;
 
-    /// <summary>创建角色预测运行时；仅复用已装配的模拟与动画时钟。</summary>
+    /// <summary>创建角色预测运行时；只复用模拟状态，禁止推进真实动画。</summary>
     internal CharacterPredictionRuntime(
         InputManager inputManager,
         CharacterMotor motor,
         CharacterStateMachine stateMachine,
         ActionSim actionSim,
         GameplayIntentBuffer intentBuffer,
-        CharacterAnimationService animation,
         float fixedDeltaSeconds)
     {
         _inputManager = inputManager;
@@ -24,7 +22,6 @@ public sealed class CharacterPredictionRuntime : IPredictedLocomotionReplay
         _stateMachine = stateMachine;
         _actionSim = actionSim;
         _intentBuffer = intentBuffer;
-        _animation = animation;
         _fixedDeltaSeconds = fixedDeltaSeconds;
     }
 
@@ -53,8 +50,6 @@ public sealed class CharacterPredictionRuntime : IPredictedLocomotionReplay
         _inputManager.IngestFrame(input);
         _motor.TickGravity(_fixedDeltaSeconds);
         _stateMachine.Locomotion?.Tick(_fixedDeltaSeconds);
-        _animation?.SetSpeed(1f);
-        _animation?.Tick(_fixedDeltaSeconds);
     }
 
     /// <summary>用完整整数帧状态恢复 Locomotion，并确保顶层状态已回到走跑。</summary>

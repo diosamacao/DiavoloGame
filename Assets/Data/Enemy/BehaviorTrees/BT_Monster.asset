@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: BT_Monster
   m_EditorClassIdentifier: 
   customRoot:
-    rid: 5928022848115834880
+    rid: 5928022848115834928
   graphLayout:
     nodes:
     - nodeGuid: c1f959da116e4b0fafc3268d0cda91e4
@@ -92,180 +92,180 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 5928022848115834880
-      type: {class: AggroGateNodeDef, ns: , asm: ACTGame.Domain.Gameplay}
+    - rid: 5928022848115834928
+      type: {class: AggroGateNodeDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: AggroGate
         nodeGuid: 95dd2fbef4844b8ebcb5cf9bcdac1b9d
         enterRadius: 10
         exitRadius: 14
         child:
-          rid: 5928022848115834881
-    - rid: 5928022848115834881
-      type: {class: SelectorNodeDef, ns: , asm: ACTGame.Domain.Gameplay}
+          rid: 5928022848115834929
+    - rid: 5928022848115834929
+      type: {class: SelectorNodeDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: Root
         nodeGuid: c1f959da116e4b0fafc3268d0cda91e4
         children:
-        - rid: 5928022848115834882
-        - rid: 5928022848115834883
-        - rid: 5928022848115834884
-        - rid: 5928022848115834885
-    - rid: 5928022848115834882
-      type: {class: SequenceNodeDef, ns: , asm: ACTGame.Domain.Gameplay}
+        - rid: 5928022848115834930
+        - rid: 5928022848115834931
+        - rid: 5928022848115834932
+        - rid: 5928022848115834933
+    - rid: 5928022848115834930
+      type: {class: SequenceNodeDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: Attack
         nodeGuid: 4c6d871be3f6459495b688187416aaac
         children:
-        - rid: 5928022848115834886
-        - rid: 5928022848115834887
-    - rid: 5928022848115834883
-      type: {class: HasTargetConditionDef, ns: , asm: ACTGame.Domain.Gameplay}
+        - rid: 5928022848115834934
+        - rid: 5928022848115834935
+    - rid: 5928022848115834931
+      type: {class: HasTargetConditionDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: HasTarget
         nodeGuid: e724584cfca84ea082243a1293487b71
         child:
-          rid: 5928022848115834888
-    - rid: 5928022848115834884
-      type: {class: HasTargetConditionDef, ns: , asm: ACTGame.Domain.Gameplay}
+          rid: 5928022848115834936
+    - rid: 5928022848115834932
+      type: {class: HasTargetConditionDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: HasTarget
         nodeGuid: 10a9c3b00fab4c97983dbcff43ccd4b4
         child:
-          rid: 5928022848115834889
-    - rid: 5928022848115834885
-      type: {class: StopMoveActionDef, ns: , asm: ACTGame.Domain.Gameplay}
+          rid: 5928022848115834937
+    - rid: 5928022848115834933
+      type: {class: StopMoveActionDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: Idle
         nodeGuid: eb066ac4801b437c941f860e9c42e0e4
-    - rid: 5928022848115834886
-      type: {class: HasTargetConditionDef, ns: , asm: ACTGame.Domain.Gameplay}
+    - rid: 5928022848115834934
+      type: {class: HasTargetConditionDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: HasTarget
         nodeGuid: 1e413843ac1a476ba92586fcee6a748b
         child:
-          rid: 5928022848115834890
-    - rid: 5928022848115834887
-      type: {class: WaitWhileInActionActionDef, ns: , asm: ACTGame.Domain.Gameplay}
+          rid: 5928022848115834938
+    - rid: 5928022848115834935
+      type: {class: WaitWhileInActionActionDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: WaitWhileInAction
         nodeGuid: f86f377b84bf49dfbf2cb84326929685
-    - rid: 5928022848115834888
-      type: {class: CooldownReadyConditionDef, ns: , asm: ACTGame.Domain.Gameplay}
+    - rid: 5928022848115834936
+      type: {class: CooldownReadyConditionDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: CooldownReady
         nodeGuid: 35131996bd6f4954931518d511bcd692
         child:
-          rid: 5928022848115834891
+          rid: 5928022848115834939
         cooldownId: basic_attack
-    - rid: 5928022848115834889
-      type: {class: CooldownNotReadyConditionDef, ns: , asm: ACTGame.Domain.Gameplay}
+    - rid: 5928022848115834937
+      type: {class: CooldownNotReadyConditionDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: CooldownNotReady
         nodeGuid: 1d45b1b194d245c29664c5acc2f46687
         child:
-          rid: 5928022848115834892
+          rid: 5928022848115834940
         cooldownId: basic_attack
-    - rid: 5928022848115834890
-      type: {class: InAttackRangeConditionDef, ns: , asm: ACTGame.Domain.Gameplay}
+    - rid: 5928022848115834938
+      type: {class: InAttackRangeConditionDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: InAttackRange
         nodeGuid: 47bcbff3feaf46d0a358b93d1a6cd44a
         child:
-          rid: 5928022848115834893
+          rid: 5928022848115834941
         distance: 5
-    - rid: 5928022848115834891
-      type: {class: InCombatAggroConditionDef, ns: , asm: ACTGame.Domain.Gameplay}
+    - rid: 5928022848115834939
+      type: {class: InCombatAggroConditionDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: InCombatAggro
         nodeGuid: 15d39eee0c6e4fd1a17f6417d9f27c27
         child:
-          rid: 5928022848115834894
-    - rid: 5928022848115834892
-      type: {class: InCombatAggroConditionDef, ns: , asm: ACTGame.Domain.Gameplay}
+          rid: 5928022848115834942
+    - rid: 5928022848115834940
+      type: {class: InCombatAggroConditionDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: InCombatAggro
         nodeGuid: 5a5d2768703b4c5d8dabea870b2c5619
         child:
-          rid: 5928022848115834895
-    - rid: 5928022848115834893
-      type: {class: CooldownGateNodeDef, ns: , asm: ACTGame.Domain.Gameplay}
+          rid: 5928022848115834943
+    - rid: 5928022848115834941
+      type: {class: CooldownGateNodeDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: CooldownGate
         nodeGuid: 2a39b679f17a43f4bca573232fcb51fe
         cooldownId: basic_attack
         cooldownSeconds: 10
         child:
-          rid: 5928022848115834896
-    - rid: 5928022848115834894
-      type: {class: SequenceNodeDef, ns: , asm: ACTGame.Domain.Gameplay}
+          rid: 5928022848115834944
+    - rid: 5928022848115834942
+      type: {class: SequenceNodeDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: ChaseTarget
         nodeGuid: ed7497c11fc442c8802e0976420c8163
         children:
-        - rid: 5928022848115834897
-    - rid: 5928022848115834895
-      type: {class: SequenceNodeDef, ns: , asm: ACTGame.Domain.Gameplay}
+        - rid: 5928022848115834945
+    - rid: 5928022848115834943
+      type: {class: SequenceNodeDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: Sequence
         nodeGuid: 1694660ed9a14f15a288e96d18d43680
         children:
-        - rid: 5928022848115834898
-    - rid: 5928022848115834896
-      type: {class: IsCharacterStateConditionDef, ns: , asm: ACTGame.Domain.Gameplay}
+        - rid: 5928022848115834946
+    - rid: 5928022848115834944
+      type: {class: IsCharacterStateConditionDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: IsCharacterState
         nodeGuid: 5afe83302d2149e2b72bf059c9e978dc
         child:
-          rid: 5928022848115834899
+          rid: 5928022848115834947
         expected: 10
-    - rid: 5928022848115834897
-      type: {class: MoveTowardTargetActionDef, ns: , asm: ACTGame.Domain.Gameplay}
+    - rid: 5928022848115834945
+      type: {class: MoveTowardTargetActionDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: MoveTowardTarget
         nodeGuid: 13251d99483b47dfa4b03331e283278e
         magnitude: 1
         stopDistance: 2
         faceTarget: 1
-    - rid: 5928022848115834898
-      type: {class: StrafeAroundTargetActionDef, ns: , asm: ACTGame.Domain.Gameplay}
+    - rid: 5928022848115834946
+      type: {class: StrafeAroundTargetActionDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: StrafeAroundTarget
         nodeGuid: ab0b61d9d79f4922b5845d0d64a85598
         sideSign: 1
         magnitude: 0.35
-    - rid: 5928022848115834899
-      type: {class: SequenceNodeDef, ns: , asm: ACTGame.Domain.Gameplay}
+    - rid: 5928022848115834947
+      type: {class: SequenceNodeDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: Sequence
         nodeGuid: 37fab6f63cbe4867bec848fbc01768da
         children:
-        - rid: 5928022848115834900
-        - rid: 5928022848115834901
-    - rid: 5928022848115834900
-      type: {class: StopMoveActionDef, ns: , asm: ACTGame.Domain.Gameplay}
+        - rid: 5928022848115834948
+        - rid: 5928022848115834949
+    - rid: 5928022848115834948
+      type: {class: StopMoveActionDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: StopMove
         nodeGuid: 34cf6215f59f4b0cb152bb79daa55fa4
-    - rid: 5928022848115834901
-      type: {class: RandomSelectorNodeDef, ns: , asm: ACTGame.Domain.Gameplay}
+    - rid: 5928022848115834949
+      type: {class: RandomSelectorNodeDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: RandomSelector
         nodeGuid: dcf528b879544f5b8e50a7d828203917
         children:
-        - rid: 5928022848115834902
-        - rid: 5928022848115834903
+        - rid: 5928022848115834950
+        - rid: 5928022848115834951
         weights:
         - 1
         - 1
-    - rid: 5928022848115834902
-      type: {class: RequestCombatActionDef, ns: , asm: ACTGame.Domain.Gameplay}
+    - rid: 5928022848115834950
+      type: {class: RequestCombatActionDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: RequestCombat
         nodeGuid: 5c6b9bfe86f24b1f928933d872da5fc5
         entryNodeId: Monster_Goblin_Attack_01
-    - rid: 5928022848115834903
-      type: {class: RequestCombatActionDef, ns: , asm: ACTGame.Domain.Gameplay}
+    - rid: 5928022848115834951
+      type: {class: RequestCombatActionDef, ns: , asm: ACTGame.Domain.Enemy}
       data:
         nodeName: RequestCombat
         nodeGuid: fd3316f2b56a4ee88cbcf09405ab0d9e

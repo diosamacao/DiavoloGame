@@ -8,6 +8,12 @@ public static class EnemyBehaviorTreeSetupMenu
     [MenuItem("ACT/Enemy/Validate Enemy Behavior Trees")]
     public static void ValidateEnemyBehaviorTrees()
     {
+        AuditProject();
+    }
+
+    /// <summary>扫描全部 Enemy 内容并返回 Error 数；供菜单与 BatchMode 共用。</summary>
+    public static int AuditProject()
+    {
         int errors = 0;
         int ok = 0;
 
@@ -75,5 +81,6 @@ public static class EnemyBehaviorTreeSetupMenu
         Debug.Log(
             $"Validate Enemy Behavior Trees：Definition 通过 {ok}；" +
             $"TreeAsset 通过 {treeOk} / 失败 {treeFail}；总问题 {errors}。");
+        return errors;
     }
 }

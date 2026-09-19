@@ -9,8 +9,7 @@ public sealed class CharacterReactionService : IDisposable
     readonly CharacterVitality _vitality;
     readonly CharacterActor _actor;
     readonly CharacterReactionResolver _resolver;
-    readonly Action<ActionHitContext> _hitSideEffect;
-    readonly Action<ActionHitContext, float> _deathSideEffect;
+    readonly ICharacterReactionObserver _observer;
     readonly int _baseInterruptResist;
 
     /// <summary>绑定 Vitality 事件；韧性来自角色 CombatConfig，禁止按敌人身份分支。</summary>
@@ -18,15 +17,13 @@ public sealed class CharacterReactionService : IDisposable
         CharacterVitality vitality,
         CharacterActor actor,
         CharacterReactionResolver resolver,
-        Action<ActionHitContext> hitSideEffect = null,
-        Action<ActionHitContext, float> deathSideEffect = null,
+        ICharacterReactionObserver observer = null,
         int baseInterruptResist = HitReactionResolveQuery.DefaultBaseInterruptResist)
     {
         _vitality = vitality ?? throw new ArgumentNullException(nameof(vitality));
         _actor = actor ?? throw new ArgumentNullException(nameof(actor));
         _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
-        _hitSideEffect = hitSideEffect;
-        _deathSideEffect = deathSideEffect;
+        _observer = observer;
         _baseInterruptResist = baseInterruptResist > 0
             ? baseInterruptResist
             : HitReactionResolveQuery.DefaultBaseInterruptResist;
@@ -61,7 +58,7 @@ public sealed class CharacterReactionService : IDisposable
         string reactionId = payload != null ? payload.ParriedReactionId : string.Empty;
         HitReactionCommand command = _resolver.ResolveParried(reactionId);
         _vitality.ConfirmHitReaction(command.Kind);
-        _hitSideEffect?.Invoke(context);
+        _observer?.OnHardHit(in context);
         _actor.EnterHit(new CharacterReactionRequest(command.StunFrames, command.StunAction));
     }
 
@@ -80,7 +77,7 @@ public sealed class CharacterReactionService : IDisposable
             return;
         }
 
-        _hitSideEffect?.Invoke(context);
+        _observer?.OnHardHit(in context);
         _actor.EnterHit(new CharacterReactionRequest(command.StunFrames, command.StunAction));
     }
 
@@ -88,7 +85,7 @@ public sealed class CharacterReactionService : IDisposable
     void OnDied(ActionHitContext context, float damage)
     {
         _vitality.ConfirmHitReaction(HitReactionKind.Death);
-        _deathSideEffect?.Invoke(context, damage);
+        _observer?.OnDeath(in context, damage);
         CharacterReactionRequest request = _resolver.ResolveDeath(in context);
         _actor.EnterDeath(in request);
     }

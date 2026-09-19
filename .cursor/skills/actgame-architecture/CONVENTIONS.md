@@ -47,7 +47,7 @@
 - **客机相机跟朝向**：`CameraManager.ApplyFollowFacingYaw` 必须读 `ILocalPlayer.HasMoveIntent`、`MoveInput` 与 `PresentationRoot`。相机相对后退（`MoveInput.y` 为负）不跟朝向，避免与后退 wish 互追转圈。客机有 Autonomous `CharacterActor`，`PresentationRoot` 来自 Actor。他人/敌人 `RemoteCharacterProxy` 只读登记 `TargetSystem`；`OnHit` 空操作，禁止 Collect
 - **朝向调试箭头**：`CharacterFacingDebugVisualizer` 只绑 `ICharacterFacingDebugTarget`（本机 Actor 或 RemoteProxy）；禁止再 Bind `PlayerController`。幽灵 wish 必须与对应 Tick 成对，禁止用当前帧本机输入画延迟模型
 - **复制契约**：上行唯一为 `ClientCommand` 命令批；下行唯一为 V2 `ReplicationLifecycle + ReplicationSnapshot + ReplicationEvent`。Lifecycle 可靠有序，Snapshot 不可靠并以 `RequiredLifecycleSequence` 为屏障，命中事件可靠有序；`ReplicationServer.PrepareTickDelta` 只准备，发送成功后才 Commit。`ActorReplicationSnapshotCodec` + `CharacterSnapshotSchemaV2` 是角色线格式唯一真源，Owner 阵容/ACK 使用 `ActReplicationSnapshotMetaCodec`；禁止恢复 V1 `ReplicationFrame`、ApplicationPayload 或双轨 Codec。一座位多角色时每槽必须有稳定 `SimActorId/NetEntityId`，禁止热换单 Actor Config；`PartyMemberState` 统一编码进角色快照 Flags。Session 信封、Join、Heartbeat、Kick 的唯一真源是 `ACTNet.Session`；禁止在 Room/App 恢复控制消息 switch 或 Endpoint/IdleTracker 状态。稳定网络身份使用 `Net*Id`；Character Archetype 由明确 stableKey 经 Catalog 映射，未知 Id 必须失败，禁止默认取首个敌人配置。传输唯一入口为 `INetTransport`（Session 外包 `ChannelMuxTransport`）。禁止把 CameraLock/Look/Lean 写入 Snapshot；禁止 ClientCommand 带 HP/坐标/招式名。装配用 `ReplicationSeat`，禁止 `if (isClient)` 开第二套 Actor
-- **RemoteProxy**：他人/敌人幽灵只应用 Snapshot（`Domain/Character/Replication/`），禁止 `CharacterActorFactory`、`HitboxFrameConsumer`、`EnemyBrain.Step`。可按 ActionFrame 过点派发 VFX/SFX，禁止派发 Hitbox/MotionCommand。Host 用 `AfterLogicStep` 打包，不得只在渲染帧漏步发送。禁止再挂 Host 同机 ±2m 预览（`RemoteGhostViewController` / `PredictedClientPreviewController` 已删）
+- **RemoteProxy**：他人/敌人幽灵只应用 Snapshot（`App/Presentation/RemoteCharacterProxy`），禁止 `CharacterActorFactory`、`HitboxFrameConsumer`、`EnemyBrain.Step`。可按 ActionFrame 过点派发 VFX/SFX，禁止派发 Hitbox/MotionCommand。Host 用 `AfterLogicStep` 打包，不得只在渲染帧漏步发送。禁止再挂 Host 同机 ±2m 预览（`RemoteGhostViewController` / `PredictedClientPreviewController` 已删）
 - **幽灵 Locomotion（他人）**：切 `AnimationKey` 时一次性相位硬切并可 Seek；Idle↔走跑冲刺用 Profile 默认 CrossFade。同键只 `Tick`。播放头刚出招落到走跑时必须再 `Play`，禁止因键未变只 Tick 招尾
 - **客机本机走跑**：本机 Autonomous `CharacterActor` 跑同一套 `LocomotionStateMachine`；纠偏合同见 [`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。他人仍 Snapshot。禁止猜片 / 摇杆硬映射 Idle/Walk/Run。已废止 Runner/CreateAutonomous
 - **客机表现节拍**：本机 Clip/VFX 由 `CharacterActor.Step` + `CharacterActionPresentationBridge` 推进。禁止对自角色 `ApplySnapshot` Seek。权威 Tick 只更新纠偏与 HP/受击边沿。禁止同一逻辑帧 Tick 两次 Clip。走跑 Replay 外禁止每帧 `SyncRootPoseFromSim`（会清零转向阻尼）
@@ -133,9 +133,14 @@ public class MyBehaviour : MonoBehaviour
 
 - `ACTNet.*` 禁止引用任何 `ACTGame.*`；`Domain/*` 禁止引用 `ACTGame.App`
 - `ACTGame.Simulation` 与 `ACTGame.Networking` 保持 `noEngineReferences=true`
-- CS2A 的 `ACTGame.Domain.Gameplay` 是 Character/Combat SO 类型环拆除前的唯一粗边界；CS2B 创建终态 Character/Combat/Enemy 后必须在同次迁移删除，禁止粗细双轨
+- `ACTGame.Domain.Combat` 禁止引用 Character/Enemy；角色专属 Combat 集成归 `ACTGame.Domain.Character`；`ACTGame.Domain.Enemy` 只可向下引用 Character/Combat
+- Character 固定帧 Gameplay 只能经 `IActionPresentationSink` / `ICharacterPresentationSink` 发布只读快照或事件；Hitbox、Motor、Numeric、Party 状态不得由 Sink 回写
+- Headless 必须注入 Null Sink；具体 Playable、VFX/SFX、VisualResidual、RemoteProxy 与 Actor 装配归 `App/Presentation` / `App/Composition`
 - 设备采样只在 `ACTGame.Infrastructure`；`ACTGame.Domain.Input` 通过委托/接口接受角色上下文，不引用 Character/Combat 实现
 - App 是 Unity Composition Root，可引用 Domain、Infrastructure、Server 与 ACTNet；反向依赖必须通过下层契约或 App 主动调用端口消除
+- 结构变更提交前运行根目录 `ci.ps1`；`StructureValidationBatch.RunAll` 的 Assembly、源码结构与 Content Error 均为阻断项
+- 生产运行时文件超过 450 行时必须拆分，或在 `StructureAuditRuleSet` 登记仍保持单一职责的理由；登记不豁免其他源码规则
+- 一次性迁移器在资产迁移验收后立即删除；常驻 Editor 工具只能执行作者工作流或只读校验，不得自动改写旧 YAML
 - 新增生产 asmdef 必须先在 `StructureAuditRuleSet` 登记精确引用白名单，并由 `AssemblyReferenceBoundaryTests` 遍历覆盖；未登记程序集、白名单外同层依赖和未声明第三方引用均不得合入
 
 ## 输入约定
@@ -220,7 +225,7 @@ public class MyBehaviour : MonoBehaviour
 ### 共享模拟核
 
 - **一份战斗逻辑**：`ACTGame.Simulation`（`Assets/Scripts/Domain/Simulation/ACTGame.Simulation.asmdef`，`noEngineReferences`）等价 Source 的 `game/shared`。Listen 权威 Guest、Dedicated、客户端预测位移必须调用同一 `CharacterMotorSim` / `ActionSim`，禁止 `ServerMotor` / `ClientMotor` 双份
-- **输入即命令**：`InputFrame` 等价 Source `CUserCmd`（`game/shared/usercmd.h`）。权威 `InputFrameBuffer.SetRemote` 后 `SimulationWorld.Step`；禁止把「放 LightAttack1」RPC 当战斗上行
+- **输入即命令**：`InputFrame` 等价 Source `CUserCmd`（`game/shared/usercmd.h`）。权威经 `RoomRemoteInputMerge` 后 `InputFrameBuffer.Set`，再 `SimulationWorld.Step`；禁止把「放 LightAttack1」RPC 当战斗上行
 - **状态下行**：`ActCharacterSnapshotSchema.Capture` + `ReplicationSnapshotBuilder` 从权威 Actor 填 `ActorReplicationSnapshot`；客户端 Owner 纠偏、RemoteProxy 插值；禁止恢复已删除的独立 `CharacterReplicationCapture`，也禁止广播全员输入让各端重演
 - **命中只在权威**：`CombatHitPipeline` 仅 Authority 装配 Collect。客户端刀光不得改 Numeric / Vitality
 
@@ -239,7 +244,8 @@ public class MyBehaviour : MonoBehaviour
 - 下行走 V2 Lifecycle/Snapshot；命中走可靠 Event 通道，HP 在 Character Snapshot 里。不要为攻击者单独发「你打中了」作为唯一血量通道
 - 复制 Update 默认可跳过未变 payload；敌人按兴趣半径裁剪；Owner 优先占预算。禁止再每 Tick 全量广播
 - Graph 节点线上只发 `GraphNodeKey` 整数，禁止再写 UTF-8 节点名
-- 复制帧被拒绝时请求 `ReplicationRecover` 并重置 Client Registry，禁止直接结束房间
+- 复制帧被拒绝时请求 `ReplicationRecover` 并重置 Client Registry，禁止直接结束房间。`RecoveryRequested` 只抑制重复事件；本包成功必须返回 Applied。客机按 500ms 冷却重试 Recover，成功 Snapshot 清冷却
+- `InputFrameBuffer` 最多保留 64 个逻辑帧；`SimulationWorld.Step` 与写入路径都必须裁剪，禁止 Dedicated 长局无界历史
 - 远端动画同键只 Tick、禁止每份快照 Seek。Observer 用 `TickAnimation(deltaTime)` 连续走表；快照 `simulationTicks=0`，禁止隔步一次 `Tick(n/60)`。播放头收招必须再 Play 走跑，即使键与出招前相同
 - Observer 播放头只插值模型锚点并驱动 Clip。判定盒、受击、VFX/SFX Notify 在快照到达时立即 `ApplySnapshot`，禁止等播放头；禁止最新快照提前 Play 走跑/出招片
 - 出招或 Vitality 边沿必须 `Urgent`，不受 SnapshotInterval 节拍限制
@@ -261,7 +267,7 @@ public class MyBehaviour : MonoBehaviour
 ```
 Domain/Simulation/Replication/   # Snapshot / Tick / Command / PoseApplier，无 Unity
 Domain/Simulation/Prediction/    # ActCharacterPredictionModel / Driver，无 Unity
-Domain/Character/Replication/    # Catalog / Capture / RemoteProxy（有 Unity，无 Collect）
+Domain/Character/Replication/    # ReplicationSeat / SavedState / 对齐纯规则
 Domain/Networking/Identity/      # ACTGame 模拟身份 ↔ 网络身份映射；不得重新放通用 Transport
 Domain/Networking/               # Character Schema / Archetype Catalog；纯 C#，依赖 Simulation + ACTNet
 Framework/ACTNet/Core/           # 零依赖 Id / Tick / Version / Result / Metrics / 有界小端 Buffer
@@ -272,6 +278,7 @@ Framework/ACTNet/Replication/    # V2 Protocol / Schema / Entity Registry / Serv
 Infrastructure/Net/              # 预留 Unity Transport；不得被 ACTGame.Simulation 引用
 App/Controllers/Gameplay/        # ListenServerBootstrap / ReplicationRoomClient / RemotePlayerSeat
 App/Networking/Services/         # ACT 内容扫描、LocalClient / Authority World 编排；Facade 不实现具体 Gameplay
+App/Presentation/                # RemoteProxy / Playable / VFX/SFX / VisualResidual（无 Collect）
 App/Server/                      # Dedicated 独立运行时（ACTGame.Server）；禁止引用 HUD/Input/Camera/Listen Facade
 ```
 

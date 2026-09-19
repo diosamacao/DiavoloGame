@@ -11,7 +11,8 @@ public sealed class LocalClientRuntime : IDisposable
     bool _joined;
     bool _ended;
     bool _disposed;
-    bool _recoverySent;
+    /// <summary>下次允许 Reset+Recover 的时刻；成功 Snapshot 清零，冷却内不重复清空 Registry。</summary>
+    long _recoveryCooldownUntilMs;
 
     /// <summary>绑定已启动 Session 与冻结内容；Gameplay 在构造时创建，Join 后才开预测。</summary>
     public LocalClientRuntime(
@@ -86,7 +87,7 @@ public sealed class LocalClientRuntime : IDisposable
 
         _session.Poll(nowMs);
         AcceptJoinIfReady();
-        DrainApplicationMessages();
+        DrainApplicationMessages(nowMs);
         EndIfSessionEnded();
         RefreshHud();
     }
@@ -159,7 +160,7 @@ public sealed class LocalClientRuntime : IDisposable
     }
 
     /// <summary>消费 V2 生命周期/快照/事件；MatchEnd 立即结束房间 Gameplay。</summary>
-    void DrainApplicationMessages()
+    void DrainApplicationMessages(long nowMs)
     {
         while (_session.TryDequeueApplication(out SessionApplicationPacket packet))
         {
@@ -196,16 +197,7 @@ public sealed class LocalClientRuntime : IDisposable
                     continue;
                 if (status == ActClientReplicationApplyStatus.Rejected)
                 {
-                    if (_recoverySent)
-                        continue;
-                    _recoverySent = true;
-                    Debug.LogWarning(
-                        $"LocalClientRuntime: replication recovery requested reason={_gameplay.LastRejectMessage}");
-                    _gameplay.ResetReplicationForRecovery();
-                    _session.SendApplication(
-                        (byte)ActRoomMessageType.ReplicationRecover,
-                        NetChannel.EventReliableOrdered,
-                        Array.Empty<byte>());
+                    TryRequestRecovery(nowMs);
                     continue;
                 }
 
@@ -217,7 +209,7 @@ public sealed class LocalClientRuntime : IDisposable
 
                 Status = "Joined";
                 if (packet.MessageType == (byte)ActRoomMessageType.ReplicationSnapshot)
-                    _recoverySent = false;
+                    _recoveryCooldownUntilMs = 0;
             }
             catch (Exception ex)
             {
@@ -253,6 +245,22 @@ public sealed class LocalClientRuntime : IDisposable
         Debug.Log($"LocalClientRuntime: 房间结束 {status}。");
         Status = status;
         RefreshHud();
+    }
+
+    /// <summary>冷却到期才重置并重发 Recover，避免 ForceFull 到达前再次清空 Registry。</summary>
+    void TryRequestRecovery(long nowMs)
+    {
+        if (!ReplicationRecoveryPolicy.CanSend(nowMs, _recoveryCooldownUntilMs))
+            return;
+
+        Debug.LogWarning(
+            $"LocalClientRuntime: replication recovery requested reason={_gameplay.LastRejectMessage}");
+        _gameplay.ResetReplicationForRecovery();
+        _session.SendApplication(
+            (byte)ActRoomMessageType.ReplicationRecover,
+            NetChannel.EventReliableOrdered,
+            Array.Empty<byte>());
+        _recoveryCooldownUntilMs = ReplicationRecoveryPolicy.NextCooldown(nowMs);
     }
 
     void RefreshHud()

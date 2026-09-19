@@ -1,0 +1,26 @@
+{
+    "name": "ACTGame.Domain.Character",
+    "rootNamespace": "",
+    "references": [
+        "ACTGame.Core",
+        "ACTGame.Domain.Input",
+        "ACTGame.Domain.Combat",
+        "ACTGame.Simulation",
+        "ACTGame.Combat.Numeric",
+        "ACTGame.Combat.Resources",
+        "ACTGame.Networking",
+        "ACTNet.Core",
+        "ACTNet.Prediction",
+        "ACTNet.Replication",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

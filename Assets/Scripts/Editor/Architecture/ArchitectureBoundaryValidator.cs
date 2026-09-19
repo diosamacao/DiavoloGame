@@ -26,11 +26,19 @@ public static class ArchitectureBoundaryValidator
     [MenuItem("ACTGame/Architecture/Validate Boundaries")]
     public static void Validate()
     {
-        ValidateScripts(AppSystemsPath, "System", typeof(IArchitectureSystem));
-        ValidateControllers();
-        ValidateScripts(AppEventsPath, "Event", typeof(IArchitectureEvent));
-        ValidateDomainDoesNotUseArchitectureSingleton();
-        ValidateLowerLayersDoNotReferenceEnemyTypes();
+        AuditBoundaries();
+    }
+
+    /// <summary>执行类型与源码边界校验并返回 Error 数；供菜单与统一 BatchMode 门禁复用。</summary>
+    public static int AuditBoundaries()
+    {
+        int errors = 0;
+        errors += ValidateScripts(AppSystemsPath, "System", typeof(IArchitectureSystem));
+        errors += ValidateControllers();
+        errors += ValidateScripts(AppEventsPath, "Event", typeof(IArchitectureEvent));
+        errors += ValidateDomainDoesNotUseArchitectureSingleton();
+        errors += ValidateLowerLayersDoNotReferenceEnemyTypes();
+        return errors;
     }
 
     /// <summary>扫描当前结构债务并以 Warning 输出；CS7 前用于建立基线，不阻断 Editor 导入。</summary>
@@ -62,32 +70,43 @@ public static class ArchitectureBoundaryValidator
     /// <summary>当前 Unity 工程根目录。</summary>
     static string ProjectRoot => Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
 
-    static void ValidateScripts(string searchPath, string suffix, Type requiredInterface)
+    static int ValidateScripts(string searchPath, string suffix, Type requiredInterface)
     {
+        int errors = 0;
         foreach (Type type in LoadTypes(searchPath))
         {
             if (!type.Name.EndsWith(suffix, StringComparison.Ordinal))
                 continue;
 
             if (!requiredInterface.IsAssignableFrom(type))
+            {
                 Debug.LogError($"{type.Name}: {searchPath} 下的 *{suffix} 必须实现 {requiredInterface.Name}。");
+                errors++;
+            }
         }
+        return errors;
     }
 
-    static void ValidateControllers()
+    static int ValidateControllers()
     {
+        int errors = 0;
         foreach (Type type in LoadTypes(AppControllersPath))
         {
             if (!typeof(MonoBehaviour).IsAssignableFrom(type))
                 continue;
 
             if (!typeof(IArchitectureController).IsAssignableFrom(type))
+            {
                 Debug.LogError($"{type.Name}: App/Controllers 下的 MonoBehaviour 必须实现 IArchitectureController。");
+                errors++;
+            }
         }
+        return errors;
     }
 
-    static void ValidateDomainDoesNotUseArchitectureSingleton()
+    static int ValidateDomainDoesNotUseArchitectureSingleton()
     {
+        int errors = 0;
         string[] guids = AssetDatabase.FindAssets("t:MonoScript", new[] { DomainPath });
         foreach (string guid in guids)
         {
@@ -97,19 +116,23 @@ public static class ArchitectureBoundaryValidator
 
             string source = File.ReadAllText(assetPath);
             if (source.Contains("ACTGameArchitecture.Interface"))
+            {
                 Debug.LogError($"{assetPath}: Domain 层禁止直接访问 ACTGameArchitecture.Interface。");
+                errors++;
+            }
         }
+        return errors;
     }
 
     /// <summary>
     /// Character / Combat 是 Enemy 的下层，禁止源码引用 Enemy 目录声明的具体类型。
     /// 先去掉注释与字符串，避免文档说明或错误文本造成误报。
     /// </summary>
-    static void ValidateLowerLayersDoNotReferenceEnemyTypes()
+    static int ValidateLowerLayersDoNotReferenceEnemyTypes()
     {
         HashSet<string> enemyTypeNames = CollectTypeNames(EnemyPath);
-        ValidateNoTypeReferences(CharacterPath, enemyTypeNames);
-        ValidateNoTypeReferences(CombatPath, enemyTypeNames);
+        return ValidateNoTypeReferences(CharacterPath, enemyTypeNames)
+            + ValidateNoTypeReferences(CombatPath, enemyTypeNames);
     }
 
     /// <summary>从源码声明收集类型名；即使 Unity 尚未完成编译也可执行边界检查。</summary>
@@ -135,8 +158,9 @@ public static class ArchitectureBoundaryValidator
     }
 
     /// <summary>扫描单个下层目录，报告对禁用具体类型的源码引用。</summary>
-    static void ValidateNoTypeReferences(string searchPath, HashSet<string> forbiddenTypeNames)
+    static int ValidateNoTypeReferences(string searchPath, HashSet<string> forbiddenTypeNames)
     {
+        int errors = 0;
         string[] guids = AssetDatabase.FindAssets("t:MonoScript", new[] { searchPath });
         foreach (string guid in guids)
         {
@@ -152,8 +176,10 @@ public static class ArchitectureBoundaryValidator
 
                 Debug.LogError(
                     $"{assetPath}: {searchPath} 禁止引用 Enemy 类型 {typeName}；请上提共享契约或改为接口注入。");
+                errors++;
             }
         }
+        return errors;
     }
 
     /// <summary>移除 C# 注释与字符串字面量，仅保留可参与类型引用判断的源码。</summary>

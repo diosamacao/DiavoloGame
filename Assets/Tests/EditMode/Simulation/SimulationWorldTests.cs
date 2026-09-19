@@ -101,6 +101,23 @@ public sealed class SimulationWorldTests
         Assert.That(actor.ConsumedFrame.WasPressed(InputButton.Attack), Is.True);
     }
 
+    /// <summary>权威 World 每步必须裁掉超窗输入，Dedicated 长局不得无界增长。</summary>
+    [Test]
+    public void Step_TrimsInputHistoryToMaxFrames()
+    {
+        var world = new SimulationWorld(new SimulationConfig());
+        SimActorRegistration registration = world.Register(new RecordingActor("actor", new List<string>()));
+        int total = InputFrameBuffer.MaxHistoryFrames + 8;
+        for (int i = 0; i < total; i++)
+            world.Step();
+
+        Assert.That(world.InputFrames.Count, Is.LessThanOrEqualTo(InputFrameBuffer.MaxHistoryFrames));
+        Assert.That(world.InputFrames.TryGetExact(0, registration.Id, out _), Is.False);
+        Assert.That(
+            world.InputFrames.TryGetExact(world.CurrentFrame, registration.Id, out _),
+            Is.True);
+    }
+
     /// <summary>PostCombat 必须在全部 Actor Step 后按稳定 Id 执行，且同帧重复调用不重复收尾。</summary>
     [Test]
     public void ResolvePostCombat_RunsAfterAllActorsOnceInIdOrder()

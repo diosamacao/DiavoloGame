@@ -107,7 +107,7 @@ public sealed class ObserverReplicationCoordinator
         return ActClientReplicationApplyStatus.Applied;
     }
 
-    /// <summary>应用或缓冲 V2 Snapshot，并在 Meta 后原子执行 Owner/Observer 纠正。</summary>
+    /// <summary>应用或缓冲 V2 Snapshot；仅本包 Rejected 才请求恢复，成功包必须过 Meta 屏障。</summary>
     public ActClientReplicationApplyStatus ApplySnapshot(byte[] body)
     {
         LastTickBytes = body != null ? body.Length + 2 : -1;
@@ -115,12 +115,13 @@ public sealed class ObserverReplicationCoordinator
         _metadataPublishedThisCall = false;
         ReplicationSnapshot snapshot = ReplicationProtocolV2Codec.DecodeSnapshot(body);
         ReplicationSnapshotApplyResult applied = _replicationClient.ApplySnapshot(snapshot);
-        if (_replicationClient.RecoveryRequested)
+        if (applied == ReplicationSnapshotApplyResult.Rejected)
             return ActClientReplicationApplyStatus.Rejected;
         if (applied == ReplicationSnapshotApplyResult.Buffered)
             return ActClientReplicationApplyStatus.Buffered;
+        // 恢复后旧闩不得再把已成功快照当拒绝；缺 Meta 只请求恢复，禁止拆房间。
         if (_appliedMeta == null)
-            throw new InvalidOperationException("V2 Snapshot 缺少 ACT Meta。");
+            return ActClientReplicationApplyStatus.Rejected;
 
         ApplyCollectedAuthorityState(snapshot.Tick.Value);
         _owner.LogPredictionOpenedOnce(LastAuthorityFrame);
@@ -150,8 +151,12 @@ public sealed class ObserverReplicationCoordinator
     /// <summary>Recovery 第一步先销毁 Observer View，避免旧 Proxy 穿过 Owner 重置边界。</summary>
     public void DisposeViewsForRecovery() => _observer.DisposeViews();
 
-    /// <summary>Owner 重置完成后再清复制 Registry，等待权威完整恢复帧。</summary>
-    public void ResetClientForRecovery() => _replicationClient.ResetForRecovery();
+    /// <summary>Owner 重置完成后再清复制 Registry 与旧 Meta，等待权威完整恢复帧重新开闸。</summary>
+    public void ResetClientForRecovery()
+    {
+        _appliedMeta = null;
+        _replicationClient.ResetForRecovery();
+    }
 
     /// <summary>注销并释放全部 Observer View。</summary>
     public void Shutdown() => _observer.DisposeViews();

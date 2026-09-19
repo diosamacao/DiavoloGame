@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
-using UnityEngine.Scripting.APIUpdating;
 
 /// <summary>可序列化行为树节点定义；Build 为运行时 IBehaviorNode（BT-2 Custom）。</summary>
 [Serializable]
@@ -46,7 +45,6 @@ public abstract class EnemyBehaviorNodeDef
 
 /// <summary>Selector 定义。</summary>
 [Serializable]
-[MovedFrom(true, "", "Assembly-CSharp", "SelectorNodeDef")]
 public sealed class SelectorNodeDef : EnemyBehaviorNodeDef
 {
     [SerializeReference] public List<EnemyBehaviorNodeDef> children = new List<EnemyBehaviorNodeDef>();
@@ -63,7 +61,6 @@ public sealed class SelectorNodeDef : EnemyBehaviorNodeDef
 
 /// <summary>Sequence 定义。</summary>
 [Serializable]
-[MovedFrom(true, "", "Assembly-CSharp", "SequenceNodeDef")]
 public sealed class SequenceNodeDef : EnemyBehaviorNodeDef
 {
     [SerializeReference] public List<EnemyBehaviorNodeDef> children = new List<EnemyBehaviorNodeDef>();
@@ -80,7 +77,6 @@ public sealed class SequenceNodeDef : EnemyBehaviorNodeDef
 
 /// <summary>RandomSelector 定义；weights 与 children 按下标对齐，缺省权重 1。</summary>
 [Serializable]
-[MovedFrom(true, "", "Assembly-CSharp", "RandomSelectorNodeDef")]
 public sealed class RandomSelectorNodeDef : EnemyBehaviorNodeDef
 {
     [SerializeReference] public List<EnemyBehaviorNodeDef> children = new List<EnemyBehaviorNodeDef>();
@@ -138,7 +134,6 @@ public sealed class SucceederNodeDef : EnemyBehaviorNodeDef
 
 /// <summary>CooldownGate 定义；子节点 Success 时写入冷却（作者填秒，Build 转帧）。</summary>
 [Serializable]
-[MovedFrom(true, "", "Assembly-CSharp", "CooldownGateNodeDef")]
 public sealed class CooldownGateNodeDef : EnemyBehaviorNodeDef
 {
     [SerializeField] string cooldownId = EnemyCooldownIds.Dodge;
@@ -169,7 +164,6 @@ public sealed class CooldownGateNodeDef : EnemyBehaviorNodeDef
 
 /// <summary>AggroGate 定义：维护 IsAggroed 滞回后 Tick 子树。</summary>
 [Serializable]
-[MovedFrom(true, "", "Assembly-CSharp", "AggroGateNodeDef")]
 public sealed class AggroGateNodeDef : EnemyBehaviorNodeDef
 {
     [SerializeField] float enterRadius = 10f;
@@ -212,7 +206,6 @@ public abstract class EnemyBehaviorConditionNodeDef : EnemyBehaviorNodeDef
 
 /// <summary>HasTarget 条件装饰定义。</summary>
 [Serializable]
-[MovedFrom(true, "", "Assembly-CSharp", "HasTargetConditionDef")]
 public sealed class HasTargetConditionDef : EnemyBehaviorConditionNodeDef
 {
     /// <inheritdoc />
@@ -221,7 +214,6 @@ public sealed class HasTargetConditionDef : EnemyBehaviorConditionNodeDef
 
 /// <summary>InCombatAggro 条件装饰定义。</summary>
 [Serializable]
-[MovedFrom(true, "", "Assembly-CSharp", "InCombatAggroConditionDef")]
 public sealed class InCombatAggroConditionDef : EnemyBehaviorConditionNodeDef
 {
     /// <inheritdoc />
@@ -230,7 +222,6 @@ public sealed class InCombatAggroConditionDef : EnemyBehaviorConditionNodeDef
 
 /// <summary>InAttackRange 条件装饰定义；距离在节点上，不读 Profile。</summary>
 [Serializable]
-[MovedFrom(true, "", "Assembly-CSharp", "InAttackRangeConditionDef")]
 public sealed class InAttackRangeConditionDef : EnemyBehaviorConditionNodeDef
 {
     [SerializeField] float distance = 2f;
@@ -248,7 +239,6 @@ public sealed class InAttackRangeConditionDef : EnemyBehaviorConditionNodeDef
 
 /// <summary>IsCharacterState 条件装饰定义。</summary>
 [Serializable]
-[MovedFrom(true, "", "Assembly-CSharp", "IsCharacterStateConditionDef")]
 public sealed class IsCharacterStateConditionDef : EnemyBehaviorConditionNodeDef
 {
     [SerializeField] CharacterStateType expected = CharacterStateType.Locomotion;
@@ -267,7 +257,6 @@ public sealed class IsCharacterStateConditionDef : EnemyBehaviorConditionNodeDef
 
 /// <summary>CooldownReady 条件装饰定义。</summary>
 [Serializable]
-[MovedFrom(true, "", "Assembly-CSharp", "CooldownReadyConditionDef")]
 public sealed class CooldownReadyConditionDef : EnemyBehaviorConditionNodeDef
 {
     [SerializeField] string cooldownId = EnemyCooldownIds.BasicAttack;
@@ -286,7 +275,6 @@ public sealed class CooldownReadyConditionDef : EnemyBehaviorConditionNodeDef
 
 /// <summary>CooldownNotReady：冷却或失败重试占用中时放行（对峙支）。</summary>
 [Serializable]
-[MovedFrom(true, "", "Assembly-CSharp", "CooldownNotReadyConditionDef")]
 public sealed class CooldownNotReadyConditionDef : EnemyBehaviorConditionNodeDef
 {
     [SerializeField] string cooldownId = EnemyCooldownIds.BasicAttack;
@@ -388,7 +376,6 @@ public sealed class DistanceBandConditionDef : EnemyBehaviorConditionNodeDef
 
 /// <summary>StopMove 行动定义。</summary>
 [Serializable]
-[MovedFrom(true, "", "Assembly-CSharp", "StopMoveActionDef")]
 public sealed class StopMoveActionDef : EnemyBehaviorNodeDef
 {
     /// <inheritdoc />
@@ -397,7 +384,6 @@ public sealed class StopMoveActionDef : EnemyBehaviorNodeDef
 
 /// <summary>MoveTowardTarget 行动定义；幅度/停步在节点上。</summary>
 [Serializable]
-[MovedFrom(true, "", "Assembly-CSharp", "MoveTowardTargetActionDef")]
 public sealed class MoveTowardTargetActionDef : EnemyBehaviorNodeDef
 {
     [SerializeField, Range(0f, 1f)] float magnitude = 1f;
@@ -449,7 +435,6 @@ public sealed class BackOffFromTargetActionDef : EnemyBehaviorNodeDef
 
 /// <summary>StrafeAroundTarget 行动定义。</summary>
 [Serializable]
-[MovedFrom(true, "", "Assembly-CSharp", "StrafeAroundTargetActionDef")]
 public sealed class StrafeAroundTargetActionDef : EnemyBehaviorNodeDef
 {
     [SerializeField] float sideSign = 1f;
@@ -483,7 +468,6 @@ public sealed class FaceTargetActionDef : EnemyBehaviorNodeDef
 
 /// <summary>RequestCombatAction 行动定义；Entry NodeId 须为 ActiveGraph Entry。</summary>
 [Serializable]
-[MovedFrom(true, "", "Assembly-CSharp", "RequestCombatActionDef")]
 public sealed class RequestCombatActionDef : EnemyBehaviorNodeDef
 {
     [SerializeField] string entryNodeId = string.Empty;
@@ -501,7 +485,6 @@ public sealed class RequestCombatActionDef : EnemyBehaviorNodeDef
 
 /// <summary>WaitWhileInAction 行动定义：招式占用至离开 Action。</summary>
 [Serializable]
-[MovedFrom(true, "", "Assembly-CSharp", "WaitWhileInActionActionDef")]
 public sealed class WaitWhileInActionActionDef : EnemyBehaviorNodeDef
 {
     /// <inheritdoc />
