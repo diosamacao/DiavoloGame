@@ -1,13 +1,15 @@
 # ACTGame 文档索引
 
-> 更新：2026-09-19 — 代码结构稳定化 CS0～CS7 与 Safety 已验收完成；现行功能方案仍按下表阅读。
+> 更新：2026-09-19 — 文档入口与真源已收敛；代码结构稳定化 CS0～CS7 与 Safety 已验收完成。
 
 **先读**
 
 | 文档 | 角色 |
 |------|------|
 | [PROJECT_CHECKLIST.md](./PROJECT_CHECKLIST.md) | 一页总览：进度 / 下一步 / 明确不做 |
-| `.cursor/skills/actgame-architecture/` | 运行时真源：ARCHITECTURE / TECHNICAL / CONVENTIONS / ROADMAP |
+| [`.agents/skills/actgame-architecture/`](../.agents/skills/actgame-architecture/) | 架构真源：ARCHITECTURE / TECHNICAL / CONVENTIONS / ROADMAP |
+
+`.cursor/skills/` 仅作为 Cursor Agent 兼容副本，可能滞后，不作为项目状态真源；发生冲突时以 `.agents/skills/` 为准。
 
 ---
 
@@ -48,7 +50,7 @@
 | [2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md](./2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md) | 结构范本：对峙循环 + GaitPolicy |
 | [2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md](./2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md) | 阶段勾选范本：Numeric / Effect（G0～G5 已关） |
 
-新方案写法见 `.cursor/skills/actgame-design-plan/`。
+新方案写法见 [`.agents/skills/actgame-design-plan/`](../.agents/skills/actgame-design-plan/)。
 
 ## 其它
 
@@ -56,4 +58,4 @@
 |------|------|
 | [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md) | 第三方许可 |
 
-日期子目录只保留仍被上表引用的文件；已关闭的波次备忘、日计划与被替代方案不再归档。
+日期子目录只保留仍被本索引或现行方案引用的文件；已关闭的波次备忘、单文档重复索引、日计划与被替代方案不再归档。第三方许可证与资源包自带说明随对应资源保留，不单独清理。

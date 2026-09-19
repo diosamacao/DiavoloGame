@@ -1,7 +1,7 @@
 # ACTGame 设计方向与重构路线图
 
 > 优先级：P0 阻塞体验 → P1 架构健康 → P2 扩展预备  
-> **一页总清单：** [`docs/PROJECT_CHECKLIST.md`](../../docs/PROJECT_CHECKLIST.md)（进度摘要；细节仍以本文 + MASTER + TECHNICAL 为准）
+> **一页总清单：** [`docs/PROJECT_CHECKLIST.md`](../../../docs/PROJECT_CHECKLIST.md)（进度摘要；细节仍以本文 + MASTER + TECHNICAL 为准）
 
 ## 设计原则（长期）
 
@@ -25,7 +25,7 @@
 
 ### [P0] 代码结构稳定化（功能修复前置）
 
-**方案**：[`docs/2026.9.17/CODE_STRUCTURE_STABILIZATION_PLAN.md`](../../docs/2026.9.17/CODE_STRUCTURE_STABILIZATION_PLAN.md)
+**方案**：[`docs/2026.9.17/CODE_STRUCTURE_STABILIZATION_PLAN.md`](../../../docs/2026.9.17/CODE_STRUCTURE_STABILIZATION_PLAN.md)
 
 **目标**：按 CS0～CS7 依次完成基线门禁、Net 单轨清理、Assembly 分层、Character/App 职责拆分、Content 单入口和模拟/表现硬边界；结构总出口关闭前冻结普通功能开发，仅允许独立的编译/数据安全阻塞修复。
 
@@ -116,9 +116,9 @@
 
 ### [P1] Camera Director / SkillShot / UI 展示舱
 
-**方案（总览 / UI）**：[`docs/2026.8.26/CAMERA_SYSTEM_PLAN.md`](../../docs/2026.8.26/CAMERA_SYSTEM_PLAN.md)
-**方案（大招机位 + 镜头拉伸）**：[`docs/2026.8.29/CAMERA_SKILLSHOT_AND_STRETCH_PLAN.md`](../../docs/2026.8.29/CAMERA_SKILLSHOT_AND_STRETCH_PLAN.md)（CS0～CS3；对照 ZZZACTGame / zzzdemo / DemoClient）
-**方案（样条轨迹接替）**：[`docs/2026.8.29/CAMERA_SPLINE_INTEGRATION_PLAN.md`](../../docs/2026.8.29/CAMERA_SPLINE_INTEGRATION_PLAN.md)（C-SP0～C-SP3；替换单 localOffset/Dolly 与固定机位枚举）
+**方案（总览 / UI）**：[`docs/2026.8.26/CAMERA_SYSTEM_PLAN.md`](../../../docs/2026.8.26/CAMERA_SYSTEM_PLAN.md)
+**方案（大招机位 + 镜头拉伸）**：[`docs/2026.8.29/CAMERA_SKILLSHOT_AND_STRETCH_PLAN.md`](../../../docs/2026.8.29/CAMERA_SKILLSHOT_AND_STRETCH_PLAN.md)（CS0～CS3；对照 ZZZACTGame / zzzdemo / DemoClient）
+**方案（样条轨迹接替）**：[`docs/2026.8.29/CAMERA_SPLINE_INTEGRATION_PLAN.md`](../../../docs/2026.8.29/CAMERA_SPLINE_INTEGRATION_PLAN.md)（C-SP0～C-SP3；替换单 localOffset/Dolly 与固定机位枚举）
 
 **目标**：`CameraDirector` 栈负责 Free / 大招 SkillShot / Cutscene；招式窗 `FollowHold` 做镜头拉伸；UI 用独立展示舱 + RenderTexture，不拧战斗 VCam。Lock-On 暂时撤出当前产品范围；拒绝 State SetActive / StateDriven 时钟 / `Time.timeScale` 当镜头时钟 / VCam.forward 玩法朝向。
 
@@ -126,15 +126,15 @@
 
 ### [P1] 组队 PVE · Dedicated 权威状态同步
 
-**阅读**：[`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)  
-**排期**：[`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)  
-**纠偏合同**：[`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)
+**阅读**：[`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)<br>
+**排期**：[`docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md`](../../../docs/2026.8.17/NETSYNC_FRAMEWORK_DEDICATED_MASTER_DEVELOPMENT_PLAN.md)<br>
+**纠偏合同**：[`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)
 
 **目标**：Dedicated 独跑现有 `SimulationWorld`；Listen 只是同进程再开 LocalClient。客户端上行 `InputFrame`、下行 V2 Lifecycle/Snapshot/Event；本机 Autonomous 预测走跑与出招；命中只在权威逻辑盒结算。
 
 **状态**：NS0～NS5 / W0～W10 已验收。W11 的 V2 FakeActionGame、10+ Actor 带宽断言、兴趣裁剪及 Owner 预算/延后重试测试已于 2026-09-19 补回，生成工程编译 0 error；待 Unity Test Runner + Editor Play 后关闭 R2。同一 `CharacterActor` + `ReplicationSeat`；Proxy 只读进 TargetSystem。命中 **P0 仍权威 Collect**；`NS-PVP` 未开。
 
-**下行带宽（方案，未实现）**：整包 67B 脏检测的后续三项，按序 [`docs/2026.8.24/README.md`](../../docs/2026.8.24/README.md) — `RS-M` 分块掩码 → `RS-S` 同实体分频 → `RS-C` 动作本地推帧。不改权威 Collect，不恢复旧协议双轨。
+**下行带宽（方案，未实现）**：整包 67B 脏检测的后续三项，按序 [`docs/2026.8.24/README.md`](../../../docs/2026.8.24/README.md) — `RS-M` 分块掩码 → `RS-S` 同实体分频 → `RS-C` 动作本地推帧。不改权威 Collect，不恢复旧协议双轨。
 
 ### [P1] Lockstep 模拟核迁移
 
@@ -180,14 +180,14 @@
 - [ ] L2 收口：斜坡/网格精确碰撞（当前 AABB 保守）
 - [x] 2026-08-08 Wave 2.5：删除 Action `useRootMotion` / LegacyResolve / ForwardOnly 与 Animator RM→Motor 回退
 - [ ] L3：降级为可导出 `ActorReplicationSnapshot`（组队 PVE 纠偏/重连）；不再为 GGPO 整世界回滚铺路
-- [ ] ~~L5：权威 FramePacket + 客户端完整预测回滚~~ → **2026-08-13 取消为产品主路径**；现行联网见 [`NETSYNC_FROM_JOIN_TO_HIT.md`](../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)
+- [ ] ~~L5：权威 FramePacket + 客户端完整预测回滚~~ → **2026-08-13 取消为产品主路径**；现行联网见 [`NETSYNC_FROM_JOIN_TO_HIT.md`](../../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)
 
 ## 待建设模块
 
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
-| 三人换人 / 极限支援 | P1 | ✅ P-SW0～P-SW2、P-PR 与卡肉 Graph/资产/Play 于 2026-09-19 用户验收；P-SW3 快速支援、P-SW4 连携、P-SW5 后续复制仍为独立扩展。方案：[`docs/2026.9.6/ASSIST_PARRY_OUTCOME_PLAN.md`](../../docs/2026.9.6/ASSIST_PARRY_OUTCOME_PLAN.md)、[`docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`](../../docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md) |
-| 受击档位 + Additive | P1 | ✅ P-HR0～P-HR4 Play 验收 2026-09-04。失衡条 / 击飞物理不进本轮。方案：[`docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md`](../../docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md) |
+| 三人换人 / 极限支援 | P1 | ✅ P-SW0～P-SW2、P-PR 与卡肉 Graph/资产/Play 于 2026-09-19 用户验收；P-SW3 快速支援、P-SW4 连携、P-SW5 后续复制仍为独立扩展。方案：[`docs/2026.9.6/ASSIST_PARRY_OUTCOME_PLAN.md`](../../../docs/2026.9.6/ASSIST_PARRY_OUTCOME_PLAN.md)、[`docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md`](../../../docs/2026.8.30/PARTY_SWITCH_ASSIST_PLAN.md) |
+| 受击档位 + Additive | P1 | ✅ P-HR0～P-HR4 Play 验收 2026-09-04。失衡条 / 击飞物理不进本轮。方案：[`docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md`](../../../docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md) |
 | ActionEditorWindow | P1 | ✅ 基础版 + 菱形/Zoom/Scrub 预览 + 2026-08-04 playhead 跟视口、Create 选文件夹、左侧文件夹分组；后续增强 SFX 预览 |
 | Enemy/ + AI | P1 | ✅ 8.10 Desire/Entry Request 总出口关闭；对峙表现已验收；待优化见 8.11 Backlog / A* |
 | UI/（MVVM） | P1 | 近期学习主线：HUD、血条、菜单；View/ViewModel 分层，不直写 Domain 权威 |
@@ -202,7 +202,7 @@
 | AssetBundle + Lua 热更 | P1 | 近期独立沙盒；热更不得改 ActionSim/Numeric 权威 |
 | SDK 打包流程 | P2 | 渠道 SDK / 多包体 / 与热更产物衔接演练 |
 
-总清单一页表：[`docs/PROJECT_CHECKLIST.md`](../../docs/PROJECT_CHECKLIST.md) §6.3～§6.4。
+总清单一页表：[`docs/PROJECT_CHECKLIST.md`](../../../docs/PROJECT_CHECKLIST.md) §6.3～§6.4。
 
 ## Tech Debt 观察清单
 
@@ -278,7 +278,7 @@
 | 2026-09-04 | P-SW2 按两条 Action 落地：Guard 举刀，接触后切 Success；被弹刀强制 LightStun | 用户确认不做「同一条弹反冻第 0 帧」；禁止冲击力裁定 / `HitReactionKind.Parried` |
 | 2026-09-06 | P-PR0～P-PR2 代码落地：进攻盒选片/Continue；Success 不重切 | 被弹差异在 Payload + ReactionSet；不做无输入自动举刀 |
 | 2026-09-06 | 弹刀卡肉帧改读招架窗；本体弹刀独立 `Parry` 意图 | 时长由 Guard 窗决定，不跟进攻盒；上场按键举刀与切人支援解耦 |
-| 2026-09-05 | 弹刀卡肉：Pipeline 结算后唯一 `RequestHitStop`；双方冻，Success 续冻 | 不把弹刀改回 `OnHit`；不并排第二套卡肉。方案：[`docs/2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md`](../../docs/2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md) |
+| 2026-09-05 | 弹刀卡肉：Pipeline 结算后唯一 `RequestHitStop`；双方冻，Success 续冻 | 不把弹刀改回 `OnHit`；不并排第二套卡肉。方案：[`docs/2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md`](../../../docs/2026.9.5/ASSIST_PARRY_HITSTOP_PLAN.md) |
 | 2026-09-04 | 受击 P-HR0～P-HR4 全计划关闭 | 用户 Play 验收完成；失衡条 / 击飞物理仍另开 |
 | 2026-09-03 | 受击先做 P-HR0 Additive 探针，再改 Resolver | 轻击不停招依赖 Playable 层先被眼睛验过 |
 | 2026-09-03 | P-HR1 只出 Command，不接 Service | 单测档位稳定后再改真命中执行 |

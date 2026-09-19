@@ -154,7 +154,7 @@ CS2B 已删除粗粒度 `ACTGame.Domain.Gameplay`。Camera 与 Action Timeline �
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只从该先行 Composition Root 装配和注册，缺失时明确失败，不扫描场景或自行创建第二个 World。Camera/Debug Controller 只取同物体组件、Composition Root 子树或 Architecture/Simulation 注册表。
 
-NetSync W0～W10 已验收。W11 的 V2 FakeActionGame 与真实连接级 Update 预算已补回并通过生成工程编译；10+ Actor、兴趣裁剪 / Owner 预算仍待 Unity Test Runner + Editor Play 后关闭 R2。阅读：[`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)。
+NetSync W0～W10 已验收。W11 的 V2 FakeActionGame 与真实连接级 Update 预算已补回并通过生成工程编译；10+ Actor、兴趣裁剪 / Owner 预算仍待 Unity Test Runner + Editor Play 后关闭 R2。阅读：[`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)。
 
 ### 2. 泛型状态机（Core）
 
@@ -335,7 +335,7 @@ Active 死亡后，`DedicatedAuthorityWorld.OnAfterLogicStep` 推进门禁并在
 | `DedicatedServerBootstrap` / `MatchCoordinator` | Dedicated 独立宿主与 N 玩家身份/出生；JoinAccept 无房主时 `AuthorityEntityId` 为 Invalid |
 | `ServerLaunchConfigResolver` | 启动覆盖 CLI > Env > File；Editor 强制不退出进程 |
 
-权威进程写法：同一份 `ACTGame.Simulation`，不另写服务器战斗。对照与禁区见 CONVENTIONS「服务器 / 权威进程」。实现阅读：[`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)。
+权威进程写法：同一份 `ACTGame.Simulation`，不另写服务器战斗。对照与禁区见 CONVENTIONS「服务器 / 权威进程」。实现阅读：[`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)。
 
 ### 10. 敌人（Enemy）
 

@@ -365,7 +365,7 @@ SimulationHost.LateUpdate
 - L2/M2：`Bake All` / `Bake Dirty Only` + Inspector Dirty 黄条 + `ACTGame/Motion/Validate Motion Dirty`。
 - L2 软弹开：`SimulationWorld` 帧末按 Id 序对 `ISimSoftBodyParticipant` 执行 `SoftBodySeparation`（默认 factor=500‰、迭代 3）；按 `softBodyMass` 分配推力，`softBodyImmovable` 像墙；死亡不参与。
 - L2 命中：`SimCombatPose` 从 MotorSim 取水平根；Hitbox 挂点只提供相对根局部 TRS；Hurtbox 用 `GetLogicalHurtbox`；自身排除用 `SimActorId`。
-- 联网定案：Dedicated 权威状态同步；上行 `InputFrame`，下行 V2 Lifecycle/Snapshot/Event；命中只在权威 Pipeline。锁步 L5 已取消。阅读：[`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)。纠偏合同：[`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
+- 联网定案：Dedicated 权威状态同步；上行 `InputFrame`，下行 V2 Lifecycle/Snapshot/Event；命中只在权威 Pipeline。锁步 L5 已取消。阅读：[`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)。纠偏合同：[`docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md`](../../../docs/2026.8.15/UE_ALIGNED_CLIENT_PREDICTION_PLAN.md)。
 
 ### 相关文件
 
@@ -680,7 +680,7 @@ Listen 与 Dedicated 共用 `DedicatedServerRuntime`。Listen 另加本机 `Loca
 
 ### 运行时流程
 
-完整往返（入房、每帧序、客机攻击、线格式）见 [`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)。
+完整往返（入房、每帧序、客机攻击、线格式）见 [`docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md`](../../../docs/2026.8.23/NETSYNC_FROM_JOIN_TO_HIT.md)。
 
 ```
 Listen：LocalClient Poll/采样 → 按 PeekAdvanceSteps 发命令预测 → DedicatedServerRuntime.Poll → LocalClient 再 Drain 同拍快照
@@ -1461,7 +1461,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 
 ## 7. 动作系统
 
-> 运行时细节以本节与 [ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](../../docs/ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md) 为准；排期见 MASTER。
+> 运行时细节以本节与 [ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md](../../../docs/ACTION_SYSTEM_LOCKSTEP_REFACTOR_PLAN.md) 为准；排期见 MASTER。
 
 ### 功能说明
 

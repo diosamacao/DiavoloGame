@@ -4,9 +4,9 @@
 > 角色：**受击档位 + Playable Additive 的施工计划**（不是实现真源；落地后改 TECHNICAL）  
 > 目标工程：`DiavoloGame`（Unity 2022.3 / URP，`NetSync` 分支）  
 > 相关：  
-> - 架构拆解：[`../2026.8.12/PROJECT_ARCHITECTURE_BREAKDOWN.md`](../2026.8.12/PROJECT_ARCHITECTURE_BREAKDOWN.md) §8～9  
-> - 功能真源：`.cursor/skills/actgame-architecture/TECHNICAL.md`（命中管道、Reaction、Playable）  
-> - 计划体例对照：[`../2026.8.24/UI_BACKPACK_PLAN.md`](../2026.8.24/UI_BACKPACK_PLAN.md) §6、[`../2026.8.17/NETSYNC_DEDICATED_SERVER_SEPARATION_PLAN.md`](../2026.8.17/NETSYNC_DEDICATED_SERVER_SEPARATION_PLAN.md) §17  
+> - 架构真源：[ARCHITECTURE.md](../../.agents/skills/actgame-architecture/ARCHITECTURE.md)
+> - 功能真源：[TECHNICAL.md](../../.agents/skills/actgame-architecture/TECHNICAL.md)（命中管道、Reaction、Playable）
+> - 计划体例对照：[CODE_STRUCTURE_STABILIZATION_PLAN.md](../2026.9.17/CODE_STRUCTURE_STABILIZATION_PLAN.md)、[GAS_STYLE_COMBAT_REFACTOR_PLAN.md](../2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md)
 > 前置：现行有效命中一律 `EnterHit` 断招；轻击要不停招、用 Additive 叠 `Hit_Shake`。  
 > **第一步只验表现：** Playable Additive 叠在正在播的 Action/Locomotion 上是否不断招、看起来是否正常。P-HR0 Play 已于 2026-09-03 确认。  
 > **计划状态：已关闭（2026-09-04）** — P-HR0～P-HR4 用户 Play 全部验收。失衡条 / 击飞物理仍本轮不做。
