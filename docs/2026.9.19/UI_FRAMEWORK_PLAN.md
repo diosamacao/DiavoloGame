@@ -1,7 +1,8 @@
-# ACTGame UI 框架搭建方案 — UGUI + MVVM-lite 学习主线
+# ACTGame UI 框架搭建方案 — Framework/UIFramework + UGUI + MVVM-lite
 
 > 制定：2026-09-19  
-> 角色：**运行时 UI 的结构与手写实施真源（先文档，后实现）**  
+> 修订：2026-09-20
+> 角色：**通用 UIFramework 与 ACTGame 业务 UI 的结构、边界及手写实施真源（先文档，后实现）**
 > 实施约束：本方案只定义边界、顺序与验收；业务代码由项目作者手写  
 > 相关：  
 > - [架构文档](../../.agents/skills/actgame-architecture/ARCHITECTURE.md)  
@@ -14,7 +15,7 @@
 
 ## 0. 一句话
 
-以 **UGUI + 显式 Presenter + 纯 C# ViewModel + App 层只读投影** 搭建客户端 UI，先完成“生命值 HUD”最小闭环，再扩展页面栈、弹窗和 3D 展示舱；禁止 View 直接读取或写入 `CharacterActor` / `NumericSystem`，禁止 UI 另建玩法状态，禁止 UGUI 与 Runtime UI Toolkit 双轨。
+在 `Assets/Scripts/Framework/UIFramework` 建立以 **`UIManager` + `UIPanel`** 为核心的 UGUI 通用界面管理框架，由 `ACTGame.UI` 通过具体 Panel、Presenter、ViewModel 和 App 只读投影接入项目页面；先完成“生命值 HUD”最小闭环，再扩展页面栈、弹窗和 3D 展示舱，禁止 Framework 引用 App/Domain、禁止 View 直读写玩法权威、禁止静态 `UIManager.Instance` 与 Runtime UI Toolkit 双轨。
 
 ---
 
@@ -37,6 +38,7 @@ Owner Snapshot
 | 点 | 现状与结论 |
 |----|------------|
 | 正式 UI | 尚未实现，只有开发期 Debug HUD；可以从单一入口开始，不需要兼容旧 UI 框架 |
+| Framework 基线 | `Framework/ACTNet` 已证明“独立目录 + 自有 asmdef + 上层单向引用”的项目约定；UI 只需一个轻量运行时框架，因此采用直白的 `Framework/UIFramework`，不复制 ACTNet 的产品前缀与多程序集规模 |
 | 渲染技术 | 工程已安装 `com.unity.ugui 1.0.0`；首版采用 UGUI，适合 HUD、菜单、World Space 血条和后续 RenderTexture 展示舱 |
 | 架构入口 | `ACTGameArchitecture` 已提供强类型 System / Query / Command / Event；UI 应复用，不新增 static event bus 或 Service Locator |
 | 本机数据 | `LocalPlayerService` 已统一提供 Local Player；`PlayerController.Actor` 是 HUD 只读入口，Owner 快照也会回写该 Actor 的 Vitality |
@@ -58,6 +60,7 @@ Owner Snapshot
 | 目标 | 完成定义 |
 |------|----------|
 | 清晰分层 | View 只操作 UGUI；ViewModel 只保存展示状态；Presenter 只做生命周期和映射；App Projection 只读玩法状态 |
+| 可复用框架 | `UIFramework` 只依赖 Unity/UGUI，不引用 ACTGame App、Domain、Simulation 或 Server，可复制到另一 Unity 游戏项目独立编译 |
 | 单一数据流 | 离线/Listen/Client 都从当前 Local Actor 生成同一 `LocalHudSnapshot`；网络纠正通过现有 Actor 回写自然进入 HUD |
 | 可学习 | 每阶段只引入一个新概念，并有纯 C# 测试或 Play 现象作为出口 |
 | 可扩展 | 支持 HUD、全屏页、Modal、Toast 四种层级；后续可接角色详情的 3D 展示舱 |
@@ -75,9 +78,10 @@ Owner Snapshot
 5. **值快照越层**：跨 App/UI 边界传不可变 `LocalHudSnapshot`，不传 `CharacterActor`、`NumericSystem` 或可写集合。  
 6. **变化才通知**：Projection 可在逻辑帧采样，但只有快照发生变化才发布 `LocalHudStateChangedEvent`。  
 7. **导航与业务正交**：路由只决定显示哪一页和层级，不根据角色、关卡或联网身份写 `if`。  
-8. **客户端叶子程序集**：`ACTGame.UI` 可引用 `ACTGame.App`；App、Domain、Simulation、Server 均不得反向引用 UI。  
-9. **一种运行时技术**：本阶段统一 UGUI；UI Toolkit 继续只用于现有 EditorWindow，不抽象一套兼容两者的控件层。  
-10. **零长期兼容**：正式 HUD 达到 Debug HUD 的必要观察能力后删除重复的旧显示路径，不长期双显。
+8. **Framework 零业务依赖**：`UIFramework` 只引用 Unity/UGUI；禁止引用 `ACTGame.*`，也不定义 HUD、角色、背包等项目概念。
+9. **业务 UI 是客户端叶子**：`ACTGame.UI` 引用 `UIFramework` 与 `ACTGame.App`；App、Domain、Simulation、Server 均不得反向引用业务 UI。
+10. **一种运行时技术**：本阶段统一 UGUI；UI Toolkit 继续只用于现有 EditorWindow，不抽象一套兼容两者的控件层。
+11. **零长期兼容**：正式 HUD 达到 Debug HUD 的必要观察能力后删除重复的旧显示路径，不长期双显。
 
 ---
 
@@ -92,28 +96,30 @@ flowchart LR
     Snapshot --> AppEvent["LocalHudStateChangedEvent"]
     AppEvent --> Presenter["HudPresenter · ACTGame.UI"]
     Presenter --> VM["HudViewModel · pure C#"]
-    VM --> View["HudView · UGUI"]
+    Framework["UIManager + UIPanel · UIFramework"] --> View["HudPanel · ACTGame.UI"]
+    VM --> View
     View --> Intent["UI Intent"]
     Intent --> Presenter
-    Presenter --> Command["Architecture Command / UiNavigationService"]
+    Presenter --> Command["Architecture Command / UIManager"]
     Command --> App["App System"]
 ```
 
-### 3.1 四层职责
+### 3.1 五层职责
 
 | 层 | 推荐类型 | 职责 | 不负责 |
 |----|----------|------|--------|
+| UIFramework | `UIManager`, `UIPanel`, `UILayer`, `UIPanelStack` | Panel 注册、打开/关闭、显示层、返回栈和生命周期 | ACTGame 页面类型、HUD 字段、Architecture、Gameplay |
 | App Projection | `LocalHudProjectionSystem`, `LocalHudSnapshot`, `LocalHudStateChangedEvent`, `GetLocalHudStateQuery` | 读取 Local Actor/Party，去重并发布稳定 UI 数据 | UGUI、颜色、动画、按钮 |
 | ViewModel | `HudViewModel`, `MenuViewModel` | 把快照转换为比例、文本、可见性等展示状态；发 `Changed` | 查 Architecture、持有 Unity 对象、写 Gameplay |
 | Presenter | `HudPresenter`, `PauseMenuPresenter` | 建立/解除订阅，把快照灌入 VM，把 View 意图转为命令/导航 | 保存权威业务状态、直接操作具体 Graphic |
 | View | `HudView`, `PauseMenuView` | Inspector 引用、按钮事件、渲染文本/Slider/Image/CanvasGroup | 查 Actor、发网络包、计算业务规则 |
 
-`ViewModel` 首版不需要第三方响应式库。每个 ViewModel 一个明确的不可变 `State` 或少量属性，加一个 `Changed` 事件即可。只有第二个页面证明重复模式后，再提取 `ObservableValue<T>`；不要在 U0 先造响应式框架。
+`UIFramework` 只提供 Panel 管理机制，不提供 ACTGame 的 ViewModel。`ViewModel` 首版不需要第三方响应式库：每个业务 ViewModel 一个明确的不可变 `State` 或少量属性，加一个 `Changed` 事件即可。只有第二个页面证明重复模式后，再考虑把真正业务无关的订阅容器移入 UIFramework；不要在 U0 先造反射式响应框架。
 
 ### 3.2 UI Root 与显示层级
 
 ```text
-UiRoot (DontDestroyOnLoad 由 Composition Root 决定，首版可先场景内)
+UIManager (DontDestroyOnLoad 由 Composition Root 决定，首版可先场景内)
 ├── HudLayer       // 常驻，无射线遮挡空白区域
 ├── ScreenLayer    // 全屏页，单栈顶
 ├── ModalLayer     // 对话框，可压在 Screen/HUD 上
@@ -128,7 +134,7 @@ UiRoot (DontDestroyOnLoad 由 Composition Root 决定，首版可先场景内)
 | Modal | `ShowModal(route)` / `CloseModal()` | 必须有 Blocker；Esc/Cancel 先关最上层 Modal |
 | Toast | `Show(message, duration)`，不入栈 | 不抢焦点，不暂停玩法 |
 
-路由使用 `UiRouteId` 枚举或强类型值对象，禁止字符串类名和反射创建。首版页面实例由 `UiRootController` 的 Inspector 注册表提供；等确实需要跨场景/异步加载时，再把实例来源替换成 `IUiViewFactory`，导航状态机不改。
+首版使用 Panel 类型作为强类型身份：`UIManager.Open<TPanel>()`、`Close<TPanel>()`、`Back()`；具体 `HudPanel`、`PauseMenuPanel`、`CharacterDetailPanel` 定义在 `ACTGame.UI`，Framework 不维护业务路由枚举。`UIManager` 通过 Inspector 面板模板注册表建立 `Type → UIPanel` 映射，禁止字符串类名和反射扫描。等确实需要跨场景/异步加载时，再替换 Panel 创建来源，公开生命周期不改。
 
 ### 3.3 HUD 快照契约
 
@@ -169,13 +175,15 @@ View.ButtonClicked
 flowchart BT
     Domain["ACTGame.Domain.*"] --> App["ACTGame.App"]
     Simulation["ACTGame.Simulation"] --> App
+    UnityUGUI["UnityEngine.UI"] --> Framework["UIFramework"]
     App --> UI["ACTGame.UI"]
-    UGUI["Unity.ugui"] --> UI
-    UI -. forbidden .-> Domain
+    Framework --> UI
+    Framework -. forbidden .-> App
+    Framework -. forbidden .-> Domain
     UI -. forbidden .-> Server["ACTGame.Server"]
 ```
 
-图中实线方向表示“被上层引用”：`ACTGame.UI` 是客户端叶子，只引用 `ACTGame.App` 与 UGUI。`ACTGame.Server`、Domain 和 Simulation 不添加 UI 引用；Dedicated 场景不装配 `UiRootController`。
+图中实线方向表示“被上层引用”：`UIFramework → ACTGame.UI`，且 `ACTGame.UI` 同时引用 `ACTGame.App`。UIFramework 不认识任何 ACTGame 业务；`ACTGame.Server`、Domain 和 Simulation 不添加 UI 引用，Dedicated 场景不装配 `UIManager`。
 
 ---
 
@@ -183,7 +191,7 @@ flowchart BT
 
 | 阶段 | 包含 | 不包含 |
 |------|------|--------|
-| U0 | 目录、asmdef、快照/VM/导航纯规则 | Canvas、美术、真实 Gameplay 数据 |
+| U0 | `Framework/UIFramework` 单一 asmdef、`UIManager/UIPanel` 生命周期与业务 UI 叶子程序集 | Canvas 美术、真实 Gameplay 数据、异步加载与对象池 |
 | U1 | UI Root、四层 Canvas、路由栈、空白页 | 异步加载、对象池、转场动画 |
 | U2 | Local HP + ActiveSlot + AssistPoints HUD 垂直切片 | 敌人世界血条、Boss UI |
 | U3 | 菜单输入模式、返回键、Modal/Toast 生命周期 | 联机暂停、设置持久化 |
@@ -196,29 +204,31 @@ flowchart BT
 
 > 全部代码由项目作者手写。每阶段先写测试/最小契约，再写 Unity 组件；未开始保持 `[ ]`。
 
-### U0 — 纯 C# 骨架与边界
+### U0 — UIFramework 骨架与程序集边界
 
 **任务**
 
-- [ ] 新建 `ACTGame.UI` 叶子程序集及 `Runtime/{Core,Navigation,ViewModels,Views,Presenters}` 目录。
-- [ ] 定义 `UiLayer`、`UiRouteId`、`UiNavigationState`；只处理 Push/Pop/Modal 纯规则。
+- [ ] 新建 `Framework/UIFramework/UIFramework.asmdef`，程序集引用只添加 `UnityEngine.UI`（包名为 `com.unity.ugui`），不引用任何 `ACTGame.*` 程序集。
+- [ ] 定义 `UIManager`、`UIPanel`、`UILayer`、`UIPanelStack`；只处理 Panel 注册、Open/Close/Back、层级和生命周期。
+- [ ] `UIManager` 采用场景/Composition Root 持有的实例，不提供 `static Instance`；公开 `Open<TPanel>()`、`Close<TPanel>()` 与 `Back()`。
+- [ ] 新建 `ACTGame.UI` 客户端叶子程序集；定义项目自己的具体 Panels、ViewModels、Presenters 与 Views 目录。
 - [ ] 定义 `LocalHudSnapshot`、`HudViewModel.State` 与显式 `Changed` 生命周期。
-- [ ] 为 UI asmdef、App/Domain/Server 禁止反向引用补结构门禁。
+- [ ] 为 UIFramework/业务 UI asmdef 补结构门禁：UIFramework 禁止 `ACTGame.*`；App/Domain/Simulation/Server 禁止反向引用 `ACTGame.UI`。
 
 **验收**
 
-- [ ] `UiNavigationStateTests`：Push、Pop、重复打开策略、Modal 优先返回均可判定。
+- [ ] `UIPanelStackTests`：Push、Pop、重复打开策略、Modal 优先返回均可判定。
 - [ ] `HudViewModelTests`：0/Max、无玩家、队灭、非法 Max 的展示状态明确。
-- [ ] 结构测试证明 `ACTGame.Domain.*`、`ACTGame.Simulation`、`ACTGame.Server` 不引用 `ACTGame.UI`。
+- [ ] 结构测试证明 `UIFramework` 不引用任何 `ACTGame.*`，且 `ACTGame.Domain.*`、`ACTGame.Simulation`、`ACTGame.Server` 不引用 `ACTGame.UI`。
 - [ ] Unity 编译与最窄 EditMode 测试通过。
 
-**出口：** 不依赖场景即可验证导航和 HUD 展示规则，程序集方向锁定。→ **未达成**
+**出口：** UIFramework 可脱离 ACTGame 业务独立编译，且 Panel 栈与 HUD 展示规则可分别测试。→ **未达成**
 
 ### U1 — UI Root 与空白导航闭环
 
 **任务**
 
-- [ ] 手写 `UiRootController`、`UiNavigationService`、`UiViewBase`，实现 HUD/Screen/Modal/Toast 四层。
+- [ ] 在 `UIFramework` 手写 `UIManager` 与 `UIPanel`，实现 HUD/Screen/Modal/Toast 四层及 `Open/Close/Back`。
 - [ ] 页面采用 Inspector 明确注册；同一路由实例策略固定为“单实例、关闭隐藏”，首版不做池化。
 - [ ] 实现 `Open → Enter → Exit → Close` 生命周期；Presenter 在 Enter/Exit 对称 Bind/Unbind。
 - [ ] 在 Editor 人工创建 `UIRoot` Prefab/Scene 装配、EventSystem、CanvasScaler 与四层节点。
@@ -227,8 +237,8 @@ flowchart BT
 
 - [ ] Play：按钮打开空白测试页，返回键关闭；Modal 打开时先关 Modal，再退 Screen。
 - [ ] 连续开关 20 次，层级中实例数不增长，按钮和事件每次只响应一次。
-- [ ] `UiNavigationServiceTests` 覆盖非法路由、空栈 Pop、重复 Push 策略。
-- [ ] Dedicated 场景/程序集不出现 `UiRootController` 依赖。
+- [ ] UIFramework 独立测试覆盖未注册 Panel、空栈 Back、重复 Open 策略，不引用 ACTGame 测试程序集。
+- [ ] Dedicated 场景/程序集不出现 `UIManager` 依赖。
 
 **出口：** 一个空白页面可稳定打开、返回和释放订阅，尚不接玩法数据。→ **未达成**
 
@@ -315,6 +325,7 @@ flowchart BT
 - 保留 `SimulationLogicStepEvent` 作为投影采样时机；UI 自己不复制固定帧时钟。  
 - 保留 `CharacterVitality` / `PlayerPartyRuntime` 作为真实状态，投影只读并复制成值快照。  
 - 保留 Debug HUD 直到 U2 的正式 HUD 能覆盖必要观察项。
+- `UIFramework` 只迁入 Panel 注册、显示层、返回栈、生命周期和 UGUI 宿主；具体 Panel、ViewModel、Presenter 与 HUD 数据永远留在 `ACTGame.UI` / App。
 
 ### 6.2 明确删除 / 禁止保留
 
@@ -323,8 +334,10 @@ flowchart BT
 | 正式 HUD 与 Debug HUD 长期双显 | 两套展示真源会漂移；U4 达标后删旧入口 |
 | View 中的 `FindObjectOfType` / Tag 查找 | 破坏 Composition Root 与可测试生命周期 |
 | View/ViewModel 持有 `CharacterActor` / `NumericSystem` | 穿透 App 边界，使联网和换人逻辑散落 |
-| `UIManager.Instance` + static event | 与现有 Architecture 重复，且订阅难回收 |
-| 字符串路由 + 反射创建页面 | 重构不安全，错误只能在运行时发现 |
+| `UIManager.Instance` + static event | Manager 类型本身合理，但全局静态入口与现有 Composition Root 重复，且测试/订阅难回收 |
+| 字符串 Panel 名 + 反射创建页面 | 重构不安全，错误只能在运行时发现；首版使用 `Open<TPanel>()` |
+| UIFramework 引用 `ACTGame.App` / Domain / Server | Framework 失去跨项目复用能力，并形成反向依赖 |
+| 把 `HudViewModel`、`HudPanel` 放入 UIFramework | 产品语义污染通用框架 |
 | UGUI/UI Toolkit 双 Runtime 实现 | 学习和维护成本翻倍，没有当前需求 |
 | Client 专用 `SelfHealthMilli` HUD 分支 | Owner Snapshot 已回写 Actor；双轨会产生显示竞态 |
 
@@ -333,6 +346,14 @@ flowchart BT
 ## 7. 目录与文件预期（增量）
 
 ```text
+Assets/Scripts/Framework/UIFramework/
+├── UIFramework.asmdef
+├── UIManager.cs          # 注册、Open/Close/Back、层级与实例所有权
+├── UIPanel.cs            # Panel 基类与显式生命周期
+├── UILayer.cs            # HUD / Screen / Modal / Toast
+├── UILayerHost.cs        # 各层 Transform 宿主
+└── UIPanelStack.cs       # 可单测的返回栈规则
+
 Assets/Scripts/App/
 ├── Events/UI/
 │   └── LocalHudStateChangedEvent.cs
@@ -345,23 +366,25 @@ Assets/Scripts/App/
 Assets/Scripts/UI/
 ├── ACTGame.UI.asmdef
 └── Runtime/
-    ├── Core/             # UiRootController / UiViewBase / lifecycle
-    ├── Navigation/       # UiRouteId / UiLayer / UiNavigationService
+    ├── Panels/           # HudPanel / PauseMenuPanel / CharacterDetailPanel
     ├── ViewModels/       # HudViewModel / MenuViewModel
     ├── Presenters/       # HudPresenter / MenuPresenter
     ├── Views/            # UGUI references only
     └── Showcase/         # U5，接 Camera C5
 
 Assets/Tests/Editor/UI/
-├── UiNavigationStateTests.cs
 ├── HudViewModelTests.cs
 ├── LocalHudProjectionSystemTests.cs
 └── UiAssemblyBoundaryTests.cs
 
+Assets/Tests/Editor/UIFramework/
+├── UIFramework.EditorTests.asmdef
+└── UIPanelStackTests.cs
+
 docs/2026.9.19/UI_FRAMEWORK_PLAN.md
 ```
 
-具体类名可在手写时微调，但 `App Projection → ViewModel → View` 的依赖方向不变。Prefab、Canvas、字体、Sprite、RenderTexture 与 ScriptableObject 由作者在 Unity Editor 中人工创建和绑定。
+具体类名可在手写时微调，但 `UIFramework ← ACTGame.UI ← App Projection` 的引用边界与 `App Projection → ViewModel → Panel` 的数据方向不变。Prefab、Canvas、字体、Sprite、RenderTexture 与 ScriptableObject 由作者在 Unity Editor 中人工创建和绑定。
 
 ---
 
@@ -375,6 +398,7 @@ docs/2026.9.19/UI_FRAMEWORK_PLAN.md
 | Canvas rebuild/布局 GC | 静态 HUD 分 Canvas；只改变化控件；避免每帧 LayoutGroup/字符串拼接 |
 | 菜单误停联机世界 | View 只请求 `UiInputMode`；联网策略固定不改 `Time.timeScale` |
 | “MVVM”层数过多 | 首个 HUD 只保留 Projection、Presenter、ViewModel、View 四个明确职责；没有复用证据不抽基类 |
+| Framework 设计过度 | U0/U1 只做 `UIManager/UIPanel` 当前需要的注册、层级、返回栈和生命周期；对象池、异步资源、动画 DSL 等有第二个明确需求再加 |
 | UI 路由膨胀成业务中心 | 路由只管层级和生命周期；购买、换装、领奖等行为仍走 App Command/System |
 | World Space 血条数量增长 | U4 先做正确生命周期；出现测量证据后再做池化/批处理，不提前优化 |
 | 3D 展示污染战斗 | 独立 Layer/Camera/RT，视觉副本不入 Simulation；按 Camera C5 验收 |
@@ -385,7 +409,7 @@ docs/2026.9.19/UI_FRAMEWORK_PLAN.md
 
 1. U1 创建 `UIRoot` Prefab：Screen Space Overlay Canvas、CanvasScaler、GraphicRaycaster、HUD/Screen/Modal/Toast 四层与 Blocker。  
 2. 场景确保只有一个 EventSystem；输入模块与当前 Input System 配套。  
-3. 创建空白测试 Screen 与 Modal Prefab，绑定 `UiRouteId` 注册项。  
+3. 创建空白测试 Screen 与 Modal Prefab，将具体 `UIPanel` 模板登记到 `UIManager`。
 4. U2 创建 HUD Prefab，手工绑定 HP Image/Slider、文本、槽位与支援点控件；先用占位图，不修改 Gameplay 资产。  
 5. 用 Game View 分辨率预设验收 16:9、16:10、21:9 和至少一个窄屏；检查 Anchor、Safe Area、CanvasScaler。  
 6. U3 验收鼠标/键盘与手柄焦点恢复；最后关闭页面后选中对象和玩法输入均恢复。  
@@ -396,7 +420,7 @@ docs/2026.9.19/UI_FRAMEWORK_PLAN.md
 ## 10. 推荐开工顺序
 
 ```text
-U0 纯规则与程序集
+U0 UIFramework 与程序集边界
   → U1 空白页面导航
   → U2 HP HUD 垂直切片
   → U3 输入/菜单/Modal
@@ -404,7 +428,7 @@ U0 纯规则与程序集
   → U5 3D 展示舱
 ```
 
-**最小可感切片：** 先只做 U0 + U1 + U2 的 HP 部分：角色受伤后，`LocalHudProjectionSystem` 发布变化，`HudPresenter` 更新 `HudViewModel`，UGUI 血条变化；换人后同一 HUD 自动显示新 Active Actor。这个切片同时学到程序集边界、事件生命周期、单向数据流、ViewModel 和 Unity 绑定，且不需要先造完整 UIManager。
+**最小可感切片：** 先只做 U0 + U1 + U2 的 HP 部分：`UIManager` 注册并打开 `HudPanel`，`UIPanel` 提供显式生命周期；角色受伤后，`LocalHudProjectionSystem` 发布变化，`HudPresenter` 更新 `HudViewModel`，血条变化；换人后同一 HUD 自动显示新 Active Actor。这个切片同时验证 Framework 可独立编译与 ACTGame 业务接入，不提前加入对象池、异步加载或动画系统。
 
 建议每个阶段的手写节奏固定为：
 
@@ -421,3 +445,5 @@ U0 纯规则与程序集
 | 日期 | 说明 |
 |------|------|
 | 2026-09-19 | 初版：确定 UGUI + MVVM-lite、App 只读投影、客户端叶子程序集与 U0～U5 手写学习路线 |
+| 2026-09-20 | 收敛命名与规模：改为单一 `Framework/UIFramework` + `UIFramework.asmdef`，核心类型定为 `UIManager/UIPanel`，业务页面继续留在 `ACTGame.UI` |
+| 2026-09-20 | 更正 UGUI asmdef 引用名：Package 为 `com.unity.ugui`，运行时 Assembly 为 `UnityEngine.UI` |

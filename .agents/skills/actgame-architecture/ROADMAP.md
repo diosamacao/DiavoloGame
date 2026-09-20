@@ -190,7 +190,7 @@
 | 受击档位 + Additive | P1 | ✅ P-HR0～P-HR4 Play 验收 2026-09-04。失衡条 / 击飞物理不进本轮。方案：[`docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md`](../../../docs/2026.9.3/HIT_REACTION_IMPLEMENTATION_PLAN.md) |
 | ActionEditorWindow | P1 | ✅ 基础版 + 菱形/Zoom/Scrub 预览 + 2026-08-04 playhead 跟视口、Create 选文件夹、左侧文件夹分组；后续增强 SFX 预览 |
 | Enemy/ + AI | P1 | ✅ 8.10 Desire/Entry Request 总出口关闭；对峙表现已验收；待优化见 8.11 Backlog / A* |
-| UI/（MVVM） | P1 | 近期学习主线：UGUI + MVVM-lite，先做 HP HUD 垂直切片，再扩展导航、菜单、世界血条与 3D 展示舱；View/ViewModel 不直写 Domain 权威。方案：[`docs/2026.9.19/UI_FRAMEWORK_PLAN.md`](../../../docs/2026.9.19/UI_FRAMEWORK_PLAN.md) |
+| UI/（MVVM） | P1 | 近期学习主线：`Framework/UIFramework` 以 `UIManager/UIPanel` 提供跨项目 UGUI Panel 管理，`ACTGame.UI` 承载 MVVM-lite 业务页面；先做 HP HUD 垂直切片，再扩展菜单、世界血条与 3D 展示舱。Framework 不引用 ACTGame 业务，View/ViewModel 不直写 Domain 权威。方案：[`docs/2026.9.19/UI_FRAMEWORK_PLAN.md`](../../../docs/2026.9.19/UI_FRAMEWORK_PLAN.md) |
 | 事件总线 | P2 | 轻量 C# event；定稿前不引入第三方 |
 | 行为树编辑器 | P2 | ✅ MVP（A1）；待打磨见 `docs/2026.8.11/ENEMY_BEHAVIOR_TREE_BACKLOG_PLAN.md`（建议 A3） |
 | 敌人对峙循环 + GaitPolicy | P2 | ✅ 拓扑/秒制落地；对峙表现已验收；见 `docs/2026.8.9/LOCOMOTION_GAIT_POLICY_PLAN.md` |

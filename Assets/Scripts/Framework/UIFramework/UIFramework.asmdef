@@ -1,0 +1,6 @@
+{
+  "name": "UIFramework",
+  "references": ["UnityEngine.UI"],
+  "autoReferenced": true,
+  "noEngineReferences": false
+}
