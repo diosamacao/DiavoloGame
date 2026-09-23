@@ -3,13 +3,12 @@ namespace Framework.UIFramework
 {
     public abstract class UIPanel : MonoBehaviour
     {
-        public UILayer Layer { get; }
         public bool IsOpen {get; private set;}
         public bool IsInitialized {get; private set;}
 
         internal void Create()
         {
-            if (!IsInitialized)
+            if (IsInitialized)
                 return;
             
             OnCreate();
@@ -28,6 +27,8 @@ namespace Framework.UIFramework
             }
             
             IsOpen = true;
+            gameObject.SetActive(true);
+            
             OnOpen();
             Refresh();
         }
@@ -46,6 +47,8 @@ namespace Framework.UIFramework
                 return;
             
             OnClose();
+            
+            gameObject.SetActive(false);
             IsOpen = false;
         }
 

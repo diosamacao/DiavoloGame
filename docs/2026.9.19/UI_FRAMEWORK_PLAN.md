@@ -1,7 +1,7 @@
 # ACTGame UI 框架搭建方案 — Framework/UIFramework + UGUI + MVVM-lite
 
 > 制定：2026-09-19  
-> 修订：2026-09-20
+> 修订：2026-09-20 — 纳入 ScriptableObject 注册表、AssetBundle、UI 资产热更新与 Panel 对象池
 > 角色：**通用 UIFramework 与 ACTGame 业务 UI 的结构、边界及手写实施真源（先文档，后实现）**
 > 实施约束：本方案只定义边界、顺序与验收；业务代码由项目作者手写  
 > 相关：  
@@ -15,7 +15,7 @@
 
 ## 0. 一句话
 
-在 `Assets/Scripts/Framework/UIFramework` 建立以 **`UIManager` + `UIPanel`** 为核心的 UGUI 通用界面管理框架，由 `ACTGame.UI` 通过具体 Panel、Presenter、ViewModel 和 App 只读投影接入项目页面；先完成“生命值 HUD”最小闭环，再扩展页面栈、弹窗和 3D 展示舱，禁止 Framework 引用 App/Domain、禁止 View 直读写玩法权威、禁止静态 `UIManager.Instance` 与 Runtime UI Toolkit 双轨。
+在 `Assets/Scripts/Framework/UIFramework` 建立以 **`UIManager` + `UIPanel`** 为核心、由 **ScriptableObject 注册表 + 可替换资源 Provider + AssetBundle 版本目录 + Panel 对象池** 支撑的 UGUI 通用界面管理框架，由 `ACTGame.UI` 通过具体 Panel、Presenter、ViewModel 和 App 只读投影接入项目页面；热更新只覆盖 UI Prefab/图集/字体等资产，不伪装成 C# 代码热更，并禁止 Framework 引用 App/Domain、View 直读写玩法权威、静态 `UIManager.Instance` 与 Runtime UI Toolkit 双轨。
 
 ---
 
@@ -51,7 +51,7 @@ Owner Snapshot
 
 1. 如果 HUD 直接在 `Update` 中抓 `PlayerController.CurrentHealth`，生命周期、换人、断线和测试都会散落在 View 中。  
 2. 如果 ViewModel 直接持有 `CharacterActor`，所谓 MVVM 只剩目录命名，表现层仍与 Domain 强耦合。  
-3. 如果先写“万能 UIManager”，容易在没有真实页面需求前堆反射、字符串路由、对象池和异步加载。  
+3. ScriptableObject 注册、AssetBundle、热更新和对象池是本轮明确的学习目标，但若全部塞进 `UIManager`，会混淆导航、资源、版本和实例生命周期。
 4. 离线、Listen 与远端 Client 必须看到同一套 HUD 数据语义，不能分别维护本地血量与网络血量两条 UI 路径。  
 5. 联机菜单不能擅自 `Time.timeScale = 0`；UI 输入焦点和玩法暂停是两个不同问题。
 
@@ -65,7 +65,11 @@ Owner Snapshot
 | 可学习 | 每阶段只引入一个新概念，并有纯 C# 测试或 Play 现象作为出口 |
 | 可扩展 | 支持 HUD、全屏页、Modal、Toast 四种层级；后续可接角色详情的 3D 展示舱 |
 | 可回收 | 页面关闭后无残留订阅；重复开关页面不会重复回调或累积实例 |
-| 不做 | 首版不做 Addressables、国际化、复杂动效系统、通用数据绑定反射、UI 对象池、热更 UI、编辑器可视化路由 |
+| 资源注册 | `UIPanelRegistry` ScriptableObject 是 PanelId、Bundle、Asset、Layer 与回收策略的作者真源 |
+| 可替换加载 | `UIManager` 只依赖 `IUIPanelAssetProvider`；本地直载与 AssetBundle 加载不得形成两套导航逻辑 |
+| 资产热更新 | 支持远端版本目录、下载校验、原子切换、失败回滚；运行中旧实例按版本安全退役 |
+| 池化 | 单实例缓存、池化多实例、临时实例三种策略明确；关闭与销毁生命周期分离 |
+| 不做 | 本轮不做 C# 代码热更、国际化、复杂动效 DSL、反射式数据绑定、Bundle 差分算法、加密与通用 CDN 后台 |
 
 ---
 
@@ -82,6 +86,10 @@ Owner Snapshot
 9. **业务 UI 是客户端叶子**：`ACTGame.UI` 引用 `UIFramework` 与 `ACTGame.App`；App、Domain、Simulation、Server 均不得反向引用业务 UI。
 10. **一种运行时技术**：本阶段统一 UGUI；UI Toolkit 继续只用于现有 EditorWindow，不抽象一套兼容两者的控件层。
 11. **零长期兼容**：正式 HUD 达到 Debug HUD 的必要观察能力后删除重复的旧显示路径，不长期双显。
+12. **资源来源可替换**：导航只面对 `IUIPanelAssetProvider` 返回的租约；不得在 `UIManager` 内直接调用 `Resources.Load`、`AssetDatabase` 或写 Bundle 分支。
+13. **版本与实例同生共死**：运行实例和池中实例持有资源租约；Bundle 有引用时不得卸载，热更后的旧版本只退役、不原地替换活跃对象。
+14. **关闭不等于销毁**：`Close` 解除临时订阅并隐藏；池回收只走 `Close`，真正淘汰时才执行 `Release → Destroy`。
+15. **热更边界明确**：AssetBundle 可替换 Prefab、Sprite、字体和配置，但不能提供 Player 未编译的 `MonoBehaviour` 类型；代码热更另立 HybridCLR/ILRuntime 方案。
 
 ---
 
@@ -102,6 +110,13 @@ flowchart LR
     Intent --> Presenter
     Presenter --> Command["Architecture Command / UIManager"]
     Command --> App["App System"]
+    Remote["Remote UI Version Manifest"] --> Updater["UIAssetUpdateService"]
+    Updater --> BundleStore["persistentDataPath Bundle Store"]
+    Registry["UIPanelRegistry · ScriptableObject"] --> Provider["IUIPanelAssetProvider"]
+    BundleStore --> Provider
+    Provider --> Factory["UIPanelFactory + Asset Lease"]
+    Factory --> Pool["UIPanelPool"]
+    Pool --> Framework
 ```
 
 ### 3.1 五层职责
@@ -134,9 +149,67 @@ UIManager (DontDestroyOnLoad 由 Composition Root 决定，首版可先场景内
 | Modal | `ShowModal(route)` / `CloseModal()` | 必须有 Blocker；Esc/Cancel 先关最上层 Modal |
 | Toast | `Show(message, duration)`，不入栈 | 不抢焦点，不暂停玩法 |
 
-首版使用 Panel 类型作为强类型身份：`UIManager.Open<TPanel>()`、`Close<TPanel>()`、`Back()`；具体 `HudPanel`、`PauseMenuPanel`、`CharacterDetailPanel` 定义在 `ACTGame.UI`，Framework 不维护业务路由枚举。`UIManager` 通过 Inspector 面板模板注册表建立 `Type → UIPanel` 映射，禁止字符串类名和反射扫描。等确实需要跨场景/异步加载时，再替换 Panel 创建来源，公开生命周期不改。
+具体 `HudPanel`、`PauseMenuPanel`、`CharacterDetailPanel` 定义在 `ACTGame.UI`，Framework 不维护业务路由枚举。资源身份使用稳定 `UIPanelId`，业务侧可用 `UIPanelKey<TPanel>` 同时携带稳定 Id 与期望组件类型；`UIManager.OpenAsync(key)` 在加载后验证 Prefab 上确有 `TPanel`。禁止用类名、Prefab 名或 `Type.GetType` 反射扫描作为资源身份。
 
-### 3.3 HUD 快照契约
+### 3.3 ScriptableObject 注册表与稳定身份
+
+`UIPanelRegistry : ScriptableObject` 是作者配置真源，每条 `UIPanelDescriptor` 至少包含：
+
+| 字段 | 语义 |
+|------|------|
+| `PanelId` | 跨版本稳定身份；重命名类或 Prefab 不改变 Id |
+| `BundleName` / `AssetName` | AssetBundle 与资源名；运行时不保存直接 Prefab 强引用 |
+| `Layer` | HUD / Screen / Modal / Toast |
+| `Lifetime` | `SingletonCached` / `Pooled` / `Transient` |
+| `PrewarmCount` / `MaxPoolSize` | 仅 `Pooled` 使用；非法组合在 Editor 校验失败 |
+
+注册表资产进入固定的 Catalog Bundle。Player 内只保留 Bootstrap Manifest，用于定位内置或下载后的 Catalog Bundle；这样注册表自身也可以随 UI 资产升级。Editor 可保留 `UIPanel` Prefab 作者引用用于校验和构建，但 Runtime Descriptor 不得用直接引用把全部 UI Prefab 拉进 Player。
+
+### 3.4 资源 Provider、租约与 AssetBundle
+
+```text
+UIManager.OpenAsync(key)
+  → UIPanelRegistry.Require(key.Id)
+  → IUIPanelAssetProvider.LoadAsync(descriptor)
+  → UIPanelAssetLease(Prefab, BundleVersion, Release)
+  → UIPanelFactory.Instantiate
+  → UIPanelPool.Rent / Create
+  → UIPanel.Create → Open → Refresh
+```
+
+- `UIManager` 只负责导航、层级与实例所有权，不直接操作 AssetBundle。
+- `AssetBundlePanelAssetProvider` 负责 Bundle 依赖、异步加载、引用计数和 `Unload`；测试使用内存 Provider，不保留第二套生产导航。
+- 每个实例持有 `UIPanelAssetLease`；活跃实例或池中实例存在时，对应 Bundle 不得 `Unload(true)`。
+- Build 工具位于独立 `UIFramework.Editor` 程序集，生成平台隔离的 Bundle、Catalog Bundle、hash/CRC 与 Version Manifest；Runtime 程序集禁止引用 `UnityEditor`。
+
+### 3.5 对象池与热更新
+
+| Lifetime | Close 行为 | 再次打开 | 淘汰行为 |
+|----------|------------|----------|----------|
+| `SingletonCached` | `OnClose` 后隐藏并保留唯一实例 | 复用同一实例 | `OnRelease → Destroy` |
+| `Pooled` | `OnClose` 后归还按 PanelId+版本分桶的池 | 优先 Rent；不足时实例化 | 超上限/旧版本时 Release+Destroy |
+| `Transient` | 立即 Release+Destroy | 重新加载/实例化 | 不缓存 |
+
+热更新固定流程：
+
+```text
+读取内置 Manifest
+  → 拉取远端 Version Manifest
+  → 比较 Catalog/Bundle hash
+  → 下载到 staging
+  → 校验 hash + CRC + 依赖完整性
+  → 原子切换 Active Catalog 指针
+  → 新 Open 使用新版本
+  → 旧实例 Close 时销毁而非回旧池
+  → 旧 Bundle 引用归零后卸载
+```
+
+- 下载或校验失败时继续使用上一份完整版本；禁止半更新目录成为 Active。
+- 活跃 Panel 不在热更瞬间原地替换；需要即时换肤的页面由业务显式关闭后重开。
+- Pool Key 必须包含资源版本。版本过期实例禁止进入新版本池。
+- AssetBundle 只热更资产。若新 Prefab 挂载 Player 中不存在的脚本类型，加载应明确失败并保留旧版本。
+
+### 3.6 HUD 快照契约
 
 首个垂直切片只放真实需要的字段：
 
@@ -156,7 +229,7 @@ LocalHudSnapshot
 - 后续能量、喧响、技能冷却各自证明需求后再加字段；不提前塞整个 `NumericDebugSnapshot`。  
 - 世界敌人血条应是独立 `WorldHealthBarPresenter` 切片，绑定只读目标句柄；不要复用 Local HUD ViewModel。
 
-### 3.4 输入与暂停契约
+### 3.7 输入与暂停契约
 
 ```text
 View.ButtonClicked
@@ -169,7 +242,7 @@ View.ButtonClicked
 - 联机房间打开菜单只屏蔽本机玩法采样并显示光标，**不得**暂停 `SimulationWorld` 或设置 `Time.timeScale=0`。  
 - 将来离线暂停也由 App 的 `PausePolicy` 决定；View 不判断当前是 Client / Listen / Offline。
 
-### 3.5 程序集边界
+### 3.8 程序集边界
 
 ```mermaid
 flowchart BT
@@ -191,8 +264,11 @@ flowchart BT
 
 | 阶段 | 包含 | 不包含 |
 |------|------|--------|
-| U0 | `Framework/UIFramework` 单一 asmdef、`UIManager/UIPanel` 生命周期与业务 UI 叶子程序集 | Canvas 美术、真实 Gameplay 数据、异步加载与对象池 |
-| U1 | UI Root、四层 Canvas、路由栈、空白页 | 异步加载、对象池、转场动画 |
+| U0 | `Framework/UIFramework` Runtime asmdef、`UIManager/UIPanel` 生命周期、稳定 Id/Descriptor/Provider 契约与业务 UI 叶子程序集 | Canvas 美术、真实 Gameplay 数据、Bundle 下载 |
+| U1 | ScriptableObject 注册表、内存/Editor 测试 Provider、UI Root、四层 Canvas、路由栈、空白页 | AssetBundle、远端更新、转场动画 |
+| U-P1 | `SingletonCached/Pooled/Transient` 三种实例策略、预热、上限与租约回收 | 跨版本下载 |
+| U-AB1 | Runtime AssetBundle Provider、Catalog Bundle、Editor Build/Validate 工具 | 远端版本切换 |
+| U-HU1 | 远端 Manifest、staging 下载、hash/CRC 校验、原子切换、回滚与旧版本退役 | C# 代码热更、差分补丁、CDN 后台 |
 | U2 | Local HP + ActiveSlot + AssistPoints HUD 垂直切片 | 敌人世界血条、Boss UI |
 | U3 | 菜单输入模式、返回键、Modal/Toast 生命周期 | 联机暂停、设置持久化 |
 | U4 | 世界血条或第二个真实页面，用于验证复用 | 大批量血条优化、完整角色养成 |
@@ -210,7 +286,8 @@ flowchart BT
 
 - [ ] 新建 `Framework/UIFramework/UIFramework.asmdef`，程序集引用只添加 `UnityEngine.UI`（包名为 `com.unity.ugui`），不引用任何 `ACTGame.*` 程序集。
 - [ ] 定义 `UIManager`、`UIPanel`、`UILayer`、`UIPanelStack`；只处理 Panel 注册、Open/Close/Back、层级和生命周期。
-- [ ] `UIManager` 采用场景/Composition Root 持有的实例，不提供 `static Instance`；公开 `Open<TPanel>()`、`Close<TPanel>()` 与 `Back()`。
+- [ ] 定义 `UIPanelId`、`UIPanelKey<TPanel>`、`UIPanelDescriptor`、`IUIPanelAssetProvider` 与 `UIPanelAssetLease`；资源来源不泄漏进导航 API。
+- [ ] `UIManager` 采用场景/Composition Root 持有的实例，不提供 `static Instance`；公开 `OpenAsync(UIPanelKey<TPanel>)`、`Close(UIPanelId)` 与 `Back()`。
 - [ ] 新建 `ACTGame.UI` 客户端叶子程序集；定义项目自己的具体 Panels、ViewModels、Presenters 与 Views 目录。
 - [ ] 定义 `LocalHudSnapshot`、`HudViewModel.State` 与显式 `Changed` 生命周期。
 - [ ] 为 UIFramework/业务 UI asmdef 补结构门禁：UIFramework 禁止 `ACTGame.*`；App/Domain/Simulation/Server 禁止反向引用 `ACTGame.UI`。
@@ -218,6 +295,7 @@ flowchart BT
 **验收**
 
 - [ ] `UIPanelStackTests`：Push、Pop、重复打开策略、Modal 优先返回均可判定。
+- [ ] Provider 契约测试：未注册 Id、类型不匹配、加载失败和租约重复释放均明确失败且不泄漏实例。
 - [ ] `HudViewModelTests`：0/Max、无玩家、队灭、非法 Max 的展示状态明确。
 - [ ] 结构测试证明 `UIFramework` 不引用任何 `ACTGame.*`，且 `ACTGame.Domain.*`、`ACTGame.Simulation`、`ACTGame.Server` 不引用 `ACTGame.UI`。
 - [ ] Unity 编译与最窄 EditMode 测试通过。
@@ -229,7 +307,9 @@ flowchart BT
 **任务**
 
 - [ ] 在 `UIFramework` 手写 `UIManager` 与 `UIPanel`，实现 HUD/Screen/Modal/Toast 四层及 `Open/Close/Back`。
-- [ ] 页面采用 Inspector 明确注册；同一路由实例策略固定为“单实例、关闭隐藏”，首版不做池化。
+- [ ] 定义 `UIPanelRegistry : ScriptableObject` 与 Descriptor 校验；注册表保存稳定 Id、Bundle/Asset、Layer、Lifetime 与池参数。
+- [ ] 提供仅用于 EditMode/Play 学习切片的内存或 Editor 直载 Provider；它与 AssetBundle Provider 共用同一注册表、Factory 与导航链，不复制 `Open/Close`。
+- [ ] 空白页先采用 `SingletonCached`，关闭隐藏；池化多实例在 U-P1 落地。
 - [ ] 实现 `Open → Enter → Exit → Close` 生命周期；Presenter 在 Enter/Exit 对称 Bind/Unbind。
 - [ ] 在 Editor 人工创建 `UIRoot` Prefab/Scene 装配、EventSystem、CanvasScaler 与四层节点。
 
@@ -241,6 +321,63 @@ flowchart BT
 - [ ] Dedicated 场景/程序集不出现 `UIManager` 依赖。
 
 **出口：** 一个空白页面可稳定打开、返回和释放订阅，尚不接玩法数据。→ **未达成**
+
+### U-P1 — Panel 对象池与实例生命周期
+
+**任务**
+
+- [ ] 定义 `UIPanelLifetime`：`SingletonCached`、`Pooled`、`Transient`；删除散落的布尔缓存选项。
+- [ ] 实现 `UIPanelPool`，按 `PanelId + AssetVersion` 分桶，支持 `Rent/Return/Prewarm/Trim/Clear` 与每项 `MaxPoolSize`。
+- [ ] `Close` 只解绑并隐藏；池淘汰、Transient 关闭、Manager 销毁时统一走 `Release → Destroy`。
+- [ ] 实例持有 Asset Lease；归池仍持有租约，销毁时只释放一次。
+- [ ] 场景卸载/Manager 销毁按“活跃实例 → 池 → Provider”的逆序清理。
+
+**验收**
+
+- [ ] `UIPanelPoolTests`：复用、预热、上限淘汰、重复 Return、跨版本不复用、Clear 释放次数均可判定。
+- [ ] Play：连续创建/关闭 100 个 Toast，实例总数不超过上限，按钮/订阅不重复。
+- [ ] Singleton 连续开关 20 次始终同一实例；Transient 每次得到新实例且关闭后销毁。
+- [ ] Profiler/计数器证明池清空后实例与 Lease 均归零。
+
+**出口：** 动态实例可按显式策略缓存、回池或销毁，生命周期与资源租约完全对称。→ **未达成**
+
+### U-AB1 — AssetBundle 构建与运行时加载
+
+**任务**
+
+- [ ] 新建 `UIFramework.Editor` asmdef 与 UI Bundle 构建工具；从 `UIPanelRegistry` 校验 Prefab 根组件、重复 Id、Bundle/Asset 重名、Layer/Lifetime 参数。
+- [ ] 构建平台隔离的 UI Bundles、Catalog Bundle、依赖 Manifest、hash/CRC 和内置 Version Manifest。
+- [ ] 实现 `AssetBundlePanelAssetProvider`：异步加载依赖与目标 Bundle，加载 Prefab，创建引用计数 Lease。
+- [ ] 生产运行时只经 Provider/Factory 实例化；禁止 `Resources.Load`、`AssetDatabase` 和按目录扫描兜底。
+- [ ] 对 Bundle 缺失、依赖缺失、Prefab 无目标 Panel、平台不匹配给出包含 PanelId/Bundle/Version 的错误。
+
+**验收**
+
+- [ ] EditMode 构建校验覆盖重复 Id、错误组件、非法池参数与 Bundle 环依赖/缺失信息。
+- [ ] Play：删除 Editor 直载路径后，空白 Screen、Modal、Toast 均从本地 AssetBundle 打开。
+- [ ] 同一 Bundle 多 Panel 共用一次加载；最后一个 Lease 释放后可安全 `Unload(false)`，不得销毁仍在使用的实例。
+- [ ] Windows 构建产物不混入其他平台 Bundle，Runtime 程序集无 `UnityEditor` 引用。
+
+**出口：** UI 从版本化 AssetBundle 单轨加载，导航与生命周期不感知资源实现。→ **未达成**
+
+### U-HU1 — UI 资产热更新、回滚与版本退役
+
+**任务**
+
+- [ ] 定义 `UIVersionManifest`：平台、内容版本、Catalog hash、Bundle hash/CRC/size/dependencies 与最低 Player 兼容版本。
+- [ ] 实现 `UIAssetUpdateService`：读取内置版本、拉取远端 Manifest、比较、下载到 staging、校验并原子提交 Active Catalog。
+- [ ] 保留上一份完整版本；下载中断、hash/CRC 错误、Catalog 加载失败时回滚且不污染 Active。
+- [ ] Provider 为每个 Lease记录资源版本；切换后新 Open 使用新版本，旧活跃/池中实例标记 Retired，关闭时销毁并在引用归零后卸载旧 Bundle。
+- [ ] 明确代码兼容门禁：Catalog/Prefab 要求的 Panel 类型必须已存在于 Player；不满足时拒绝激活新版本。
+
+**验收**
+
+- [ ] 纯 C# 清单测试：无更新、增量 Bundle、删除 Bundle、平台错误、最低 Player 不满足、hash 错误与断点恢复策略可判定。
+- [ ] 本地 HTTP Play：V1 打开页面；发布 V2 后下载并切换；新开页面为 V2，已打开 V1 不崩溃，关闭后旧版本最终卸载。
+- [ ] 人为破坏 V2 Bundle：仍可用 V1 打开全部已注册页面，Active 指针未改变。
+- [ ] 更新期间退出/重启：只认最后一次完整提交，不加载 staging 半成品。
+
+**出口：** UI 资产可远端升级、失败回滚、跨版本安全退役；明确不包含 C# 代码热更。→ **未达成**
 
 ### U2 — Local HUD 最小垂直切片
 
@@ -325,7 +462,7 @@ flowchart BT
 - 保留 `SimulationLogicStepEvent` 作为投影采样时机；UI 自己不复制固定帧时钟。  
 - 保留 `CharacterVitality` / `PlayerPartyRuntime` 作为真实状态，投影只读并复制成值快照。  
 - 保留 Debug HUD 直到 U2 的正式 HUD 能覆盖必要观察项。
-- `UIFramework` 只迁入 Panel 注册、显示层、返回栈、生命周期和 UGUI 宿主；具体 Panel、ViewModel、Presenter 与 HUD 数据永远留在 `ACTGame.UI` / App。
+- `UIFramework` 只迁入 Panel 注册、显示层、返回栈、生命周期、资源 Provider、AssetBundle 目录/租约、对象池与 UI 资产更新；具体 Panel、ViewModel、Presenter 与 HUD 数据永远留在 `ACTGame.UI` / App。
 
 ### 6.2 明确删除 / 禁止保留
 
@@ -335,7 +472,11 @@ flowchart BT
 | View 中的 `FindObjectOfType` / Tag 查找 | 破坏 Composition Root 与可测试生命周期 |
 | View/ViewModel 持有 `CharacterActor` / `NumericSystem` | 穿透 App 边界，使联网和换人逻辑散落 |
 | `UIManager.Instance` + static event | Manager 类型本身合理，但全局静态入口与现有 Composition Root 重复，且测试/订阅难回收 |
-| 字符串 Panel 名 + 反射创建页面 | 重构不安全，错误只能在运行时发现；首版使用 `Open<TPanel>()` |
+| 类名/Prefab 名作为资源身份或反射创建页面 | 重命名会破坏线上目录；统一使用稳定 `UIPanelId` / `UIPanelKey<TPanel>` |
+| `UIManager` 直接调用 AssetBundle API | 导航与资源生命周期耦合；必须经 `IUIPanelAssetProvider` 与 Lease |
+| Runtime 注册表直接强引用全部 Prefab | 可能把 Bundle 资源拉入 Player；Runtime Descriptor 只保存 Id/Bundle/Asset 元数据 |
+| 旧版本实例进入新版本池 | Prefab 与依赖版本混用；Pool Key 包含 AssetVersion，Retired 实例关闭即销毁 |
+| AssetBundle 承担 C# 热更 | Bundle 不提供未编译脚本类型；代码热更必须另立方案 |
 | UIFramework 引用 `ACTGame.App` / Domain / Server | Framework 失去跨项目复用能力，并形成反向依赖 |
 | 把 `HudViewModel`、`HudPanel` 放入 UIFramework | 产品语义污染通用框架 |
 | UGUI/UI Toolkit 双 Runtime 实现 | 学习和维护成本翻倍，没有当前需求 |
@@ -352,7 +493,29 @@ Assets/Scripts/Framework/UIFramework/
 ├── UIPanel.cs            # Panel 基类与显式生命周期
 ├── UILayer.cs            # HUD / Screen / Modal / Toast
 ├── UILayerHost.cs        # 各层 Transform 宿主
-└── UIPanelStack.cs       # 可单测的返回栈规则
+├── UIPanelStack.cs       # 可单测的返回栈规则
+├── Registry/
+│   ├── UIPanelId.cs
+│   ├── UIPanelKey.cs
+│   ├── UIPanelDescriptor.cs
+│   └── UIPanelRegistry.cs
+├── Loading/
+│   ├── IUIPanelAssetProvider.cs
+│   ├── UIPanelAssetLease.cs
+│   ├── UIPanelFactory.cs
+│   └── AssetBundlePanelAssetProvider.cs
+├── Pooling/
+│   ├── UIPanelLifetime.cs
+│   └── UIPanelPool.cs
+└── HotUpdate/
+    ├── UIVersionManifest.cs
+    ├── UIAssetUpdateService.cs
+    └── UIBundleVersionStore.cs
+
+Assets/Scripts/Framework/UIFramework.Editor/
+├── UIFramework.Editor.asmdef
+├── UIPanelRegistryValidator.cs
+└── UIBundleBuildPipeline.cs
 
 Assets/Scripts/App/
 ├── Events/UI/
@@ -379,12 +542,16 @@ Assets/Tests/Editor/UI/
 
 Assets/Tests/Editor/UIFramework/
 ├── UIFramework.EditorTests.asmdef
-└── UIPanelStackTests.cs
+├── UIPanelStackTests.cs
+├── UIPanelRegistryTests.cs
+├── UIPanelPoolTests.cs
+├── UIPanelAssetLeaseTests.cs
+└── UIVersionManifestTests.cs
 
 docs/2026.9.19/UI_FRAMEWORK_PLAN.md
 ```
 
-具体类名可在手写时微调，但 `UIFramework ← ACTGame.UI ← App Projection` 的引用边界与 `App Projection → ViewModel → Panel` 的数据方向不变。Prefab、Canvas、字体、Sprite、RenderTexture 与 ScriptableObject 由作者在 Unity Editor 中人工创建和绑定。
+具体类名可在手写时微调，但 `UIFramework ← ACTGame.UI ← App Projection` 的引用边界与 `App Projection → ViewModel → Panel` 的数据方向不变。Prefab、Canvas、字体、Sprite、RenderTexture 与 ScriptableObject 由作者在 Unity Editor 中人工创建和绑定；Agent 不直接修改这些资产。Bundle 与 Manifest 是构建产物，不手工编辑。
 
 ---
 
@@ -398,7 +565,12 @@ docs/2026.9.19/UI_FRAMEWORK_PLAN.md
 | Canvas rebuild/布局 GC | 静态 HUD 分 Canvas；只改变化控件；避免每帧 LayoutGroup/字符串拼接 |
 | 菜单误停联机世界 | View 只请求 `UiInputMode`；联网策略固定不改 `Time.timeScale` |
 | “MVVM”层数过多 | 首个 HUD 只保留 Projection、Presenter、ViewModel、View 四个明确职责；没有复用证据不抽基类 |
-| Framework 设计过度 | U0/U1 只做 `UIManager/UIPanel` 当前需要的注册、层级、返回栈和生命周期；对象池、异步资源、动画 DSL 等有第二个明确需求再加 |
+| Framework 设计过度 | 四个学习目标分属 Registry、Provider、Pool、Updater；`UIManager` 只编排，不吸收各模块实现；动画 DSL 仍不做 |
+| Bundle 被过早卸载 | 实例与池持有 Lease；引用归零后仅 `Unload(false)`，场景/Manager 清理按逆序执行 |
+| 热更半包成为当前版本 | staging 下载 + 全量校验 + 原子 Active 指针；始终保留上一完整版本 |
+| 新 Prefab 引用了未编译脚本 | Manifest 声明最低 Player 兼容版本，激活前校验 Panel 类型；失败回滚 |
+| 池化掩盖订阅泄漏 | Return 前必须 `Close/OnClose`；100 次复用测试检查回调次数和实例数 |
+| 旧/新版本实例混池 | Pool Key 包含 AssetVersion；版本退役后旧实例只销毁不回池 |
 | UI 路由膨胀成业务中心 | 路由只管层级和生命周期；购买、换装、领奖等行为仍走 App Command/System |
 | World Space 血条数量增长 | U4 先做正确生命周期；出现测量证据后再做池化/批处理，不提前优化 |
 | 3D 展示污染战斗 | 独立 Layer/Camera/RT，视觉副本不入 Simulation；按 Camera C5 验收 |
@@ -409,11 +581,15 @@ docs/2026.9.19/UI_FRAMEWORK_PLAN.md
 
 1. U1 创建 `UIRoot` Prefab：Screen Space Overlay Canvas、CanvasScaler、GraphicRaycaster、HUD/Screen/Modal/Toast 四层与 Blocker。  
 2. 场景确保只有一个 EventSystem；输入模块与当前 Input System 配套。  
-3. 创建空白测试 Screen 与 Modal Prefab，将具体 `UIPanel` 模板登记到 `UIManager`。
-4. U2 创建 HUD Prefab，手工绑定 HP Image/Slider、文本、槽位与支援点控件；先用占位图，不修改 Gameplay 资产。  
-5. 用 Game View 分辨率预设验收 16:9、16:10、21:9 和至少一个窄屏；检查 Anchor、Safe Area、CanvasScaler。  
-6. U3 验收鼠标/键盘与手柄焦点恢复；最后关闭页面后选中对象和玩法输入均恢复。  
-7. U5 按 Camera C5 人工创建展示 Layer、Camera、RenderTexture、Booth Prefab 和 Profile 资产；不得改战斗 VCam Follow。
+3. 创建空白测试 Screen 与 Modal Prefab，将资源描述登记到 `UIPanelRegistry`；`UIManager` 不直接保存业务 Prefab 列表。
+4. 创建 `UIPanelRegistry` 资产，填写稳定 PanelId、BundleName、AssetName、Layer、Lifetime、Prewarm/MaxPool；运行 Validate，修复所有重复 Id 和错误组件。
+5. U-P1 为 Toast/世界血条配置 `Pooled`，为 HUD/Screen 配置 `SingletonCached`；在 Hierarchy 观察 PoolRoot 与实例上限。
+6. U-AB1 用 Editor 构建菜单输出当前平台 UI Bundles、Catalog Bundle 与内置 Manifest；将内置版本放入 StreamingAssets 指定目录。
+7. U-HU1 启动本地 HTTP 静态服务器，分别发布 V1、V2 和损坏 V2，按验收清单测试升级、回滚、重启与旧版本退役。
+8. U2 创建 HUD Prefab，手工绑定 HP Image/Slider、文本、槽位与支援点控件；先用占位图，不修改 Gameplay 资产。
+9. 用 Game View 分辨率预设验收 16:9、16:10、21:9 和至少一个窄屏；检查 Anchor、Safe Area、CanvasScaler。
+10. U3 验收鼠标/键盘与手柄焦点恢复；最后关闭页面后选中对象和玩法输入均恢复。
+11. U5 按 Camera C5 人工创建展示 Layer、Camera、RenderTexture、Booth Prefab 和 Profile 资产；不得改战斗 VCam Follow。
 
 ---
 
@@ -421,14 +597,17 @@ docs/2026.9.19/UI_FRAMEWORK_PLAN.md
 
 ```text
 U0 UIFramework 与程序集边界
-  → U1 空白页面导航
+  → U1 ScriptableObject 注册表 + 空白页面导航
+  → U-P1 Panel 对象池与租约
+  → U-AB1 AssetBundle 构建/加载单轨
+  → U-HU1 UI 资产热更新与回滚
   → U2 HP HUD 垂直切片
   → U3 输入/菜单/Modal
   → U4 第二真实切片
   → U5 3D 展示舱
 ```
 
-**最小可感切片：** 先只做 U0 + U1 + U2 的 HP 部分：`UIManager` 注册并打开 `HudPanel`，`UIPanel` 提供显式生命周期；角色受伤后，`LocalHudProjectionSystem` 发布变化，`HudPresenter` 更新 `HudViewModel`，血条变化；换人后同一 HUD 自动显示新 Active Actor。这个切片同时验证 Framework 可独立编译与 ACTGame 业务接入，不提前加入对象池、异步加载或动画系统。
+**最小可感切片：** 先完成 U0 + U1，用 `UIPanelRegistry` 和测试 Provider 打开空白 Panel，验证生命周期、稳定 Id 与导航；随后依次完成 U-P1、U-AB1、U-HU1，证明同一导航 API 能经历“内存资源 → 本地 Bundle → 远端 V2 更新”而不改 `UIPanel`。完成资源链后再进入 U2 HUD，避免业务页面与资源基础设施同时调试。
 
 建议每个阶段的手写节奏固定为：
 
@@ -447,3 +626,4 @@ U0 UIFramework 与程序集边界
 | 2026-09-19 | 初版：确定 UGUI + MVVM-lite、App 只读投影、客户端叶子程序集与 U0～U5 手写学习路线 |
 | 2026-09-20 | 收敛命名与规模：改为单一 `Framework/UIFramework` + `UIFramework.asmdef`，核心类型定为 `UIManager/UIPanel`，业务页面继续留在 `ACTGame.UI` |
 | 2026-09-20 | 更正 UGUI asmdef 引用名：Package 为 `com.unity.ugui`，运行时 Assembly 为 `UnityEngine.UI` |
+| 2026-09-20 | 扩展学习范围：纳入 ScriptableObject 注册表、三策略 Panel 对象池、AssetBundle Provider/构建链与 UI 资产热更新；明确 AssetBundle 不承担 C# 代码热更 |
