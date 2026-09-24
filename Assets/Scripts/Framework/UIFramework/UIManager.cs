@@ -98,11 +98,10 @@ namespace Framework.UIFramework
                 uiPanel = _panelFactory.Instantiate<TPanel>(lease.Prefab,layerRoot);
                 PanelEntry panelEntry = new PanelEntry(descriptor, lease, uiPanel);
                 _uiPanels.Add(panelKey.Id, panelEntry);
+                added = true;
             
                 //打开界面
                 OpenPanel(panelEntry);
-                
-                added = true;
                 
                 return uiPanel;
             }
@@ -281,11 +280,12 @@ namespace Framework.UIFramework
 
             while (!_screenStack.Peek().Equals(targetPanelId))
             {
-                UIPanelId removePanelId = _screenStack.Pop();
+                UIPanelId removePanelId = _screenStack.Peek();
                 if (!_uiPanels.TryGetValue(removePanelId, out PanelEntry removeEntry))
                 {
                     throw new InvalidOperationException($"Screen 栈中的 Panel {removePanelId} 不存在于缓存中。");
                 }
+                _screenStack.Pop();
                 removeEntry.Panel.Close();
             }
         }
