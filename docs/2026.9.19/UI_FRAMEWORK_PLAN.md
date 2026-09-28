@@ -1,9 +1,9 @@
-# ACTGame UI 框架搭建方案 — Framework/UIFramework + UGUI + MVVM-lite
+# ACTGame UI 框架搭建方案 — Framework/UIFramework + UGUI + MVVM Binding
 
 > 制定：2026-09-19  
-> 修订：2026-09-20 — 纳入 ScriptableObject 注册表、AssetBundle、UI 资产热更新与 Panel 对象池
+> 修订：2026-09-28 — 确定 Command + 可观察属性 + 通用 Binder 的 MVVM；首版反射解析与 Editor 校验，后续代码生成
 > 角色：**通用 UIFramework 与 ACTGame 业务 UI 的结构、边界及手写实施真源（先文档，后实现）**
-> 实施约束：本方案只定义边界、顺序与验收；业务代码由项目作者手写  
+> 实施约束：框架及业务代码均由项目作者手写；Agent 只更新计划和提供评审。后续生成器也是作者手写的学习内容，其输出属于工具产物。
 > 相关：  
 > - [架构文档](../../.agents/skills/actgame-architecture/ARCHITECTURE.md)  
 > - [架构约定](../../.agents/skills/actgame-architecture/CONVENTIONS.md)  
@@ -16,6 +16,8 @@
 ## 0. 一句话
 
 在 `Assets/Scripts/Framework/UIFramework` 建立以 **`UIManager` + `UIPanel`** 为核心、由 **ScriptableObject 注册表 + 可替换资源 Provider + AssetBundle 版本目录 + Panel 对象池** 支撑的 UGUI 通用界面管理框架，由 `ACTGame.UI` 通过具体 Panel、Presenter、ViewModel 和 App 只读投影接入项目页面；热更新只覆盖 UI Prefab/图集/字体等资产，不伪装成 C# 代码热更，并禁止 Framework 引用 App/Domain、View 直读写玩法权威、静态 `UIManager.Instance` 与 Runtime UI Toolkit 双轨。
+
+MVVM 增量确定为 **`IUICommand/UICommand` + `UIProperty<T>` + 控件通用 Binder + `UIBindingScope`**：Prefab 声明控件与 ViewModel 成员的对应关系，框架自动完成事件连接、首次同步和解绑。首版反射只在绑定时解析公开成员，Editor 校验配置；后续由同一配置生成强类型访问代码，替换反射实现，不建立第二套作者配置。
 
 ---
 
@@ -37,7 +39,7 @@ Owner Snapshot
 
 | 点 | 现状与结论 |
 |----|------------|
-| 正式 UI | 尚未实现，只有开发期 Debug HUD；可以从单一入口开始，不需要兼容旧 UI 框架 |
+| UI 当前实现 | 已有测试 Panel、内存 Provider、注册表、四层挂点和 UIManager 导航；正式 HUD 与 MVVM Binding 尚未实现。用户已反馈 A/B 重开、Back 修改及验证完成；不据此宣称本计划全部 U0/U1 验收通过 |
 | Framework 基线 | `Framework/ACTNet` 已证明“独立目录 + 自有 asmdef + 上层单向引用”的项目约定；UI 只需一个轻量运行时框架，因此采用直白的 `Framework/UIFramework`，不复制 ACTNet 的产品前缀与多程序集规模 |
 | 渲染技术 | 工程已安装 `com.unity.ugui 1.0.0`；首版采用 UGUI，适合 HUD、菜单、World Space 血条和后续 RenderTexture 展示舱 |
 | 架构入口 | `ACTGameArchitecture` 已提供强类型 System / Query / Command / Event；UI 应复用，不新增 static event bus 或 Service Locator |
@@ -46,6 +48,8 @@ Owner Snapshot
 | 阵容切换 | `PlayerPartyRuntime.ActiveActorChanged` 已覆盖预测切人、权威纠正、死亡换人与队灭；App 投影需把它收口成 UI 快照，而不是让每个 View 自己换绑 Actor |
 | Dedicated | `ACTGame.Server` 不得依赖 HUD/Input/Camera；运行时 UI 必须是仅客户端引用的叶子程序集 |
 | 3D 展示 | C5 已约定独立 Booth + Camera + RenderTexture；它是后续页面内容，不应进入基础导航或战斗 Camera Director |
+
+2026-09-28 代码核对入口：[`UIPanel.Create/Open/Close/Release`](../../Assets/Scripts/Framework/UIFramework/UIPanel.cs)、[`UIManager.OpenAsync/Back`](../../Assets/Scripts/Framework/UIFramework/UIManager.cs)、[`UITestController.OpenA/OpenB/Back`](../../Assets/Scripts/UI/UITestController.cs)。`UIPanel` 当前没有 DataContext/绑定作用域，测试入口仍使用公开方法；以下 MVVM 类型与新增阶段均是待实现设计。
 
 ### 1.2 核心痛点
 
@@ -59,7 +63,8 @@ Owner Snapshot
 
 | 目标 | 完成定义 |
 |------|----------|
-| 清晰分层 | View 只操作 UGUI；ViewModel 只保存展示状态；Presenter 只做生命周期和映射；App Projection 只读玩法状态 |
+| 清晰分层 | View/Binder 操作 UGUI；ViewModel 暴露可观察展示属性与 UI Command；Presenter 负责装配、生命周期和业务桥接；App Projection 只读玩法状态 |
+| 自动绑定 | 每个需要绑定的控件挂通用 Binder 并填写成员名；Panel 根节点一个 Scope 自动收集和连接，不逐个配置 Button.OnClick 业务函数，也不为每个命令编写 MonoBehaviour |
 | 可复用框架 | `UIFramework` 只依赖 Unity/UGUI，不引用 ACTGame App、Domain、Simulation 或 Server，可复制到另一 Unity 游戏项目独立编译 |
 | 单一数据流 | 离线/Listen/Client 都从当前 Local Actor 生成同一 `LocalHudSnapshot`；网络纠正通过现有 Actor 回写自然进入 HUD |
 | 可学习 | 每阶段只引入一个新概念，并有纯 C# 测试或 Play 现象作为出口 |
@@ -69,7 +74,7 @@ Owner Snapshot
 | 可替换加载 | `UIManager` 只依赖 `IUIPanelAssetProvider`；本地直载与 AssetBundle 加载不得形成两套导航逻辑 |
 | 资产热更新 | 支持远端版本目录、下载校验、原子切换、失败回滚；运行中旧实例按版本安全退役 |
 | 池化 | 单实例缓存、池化多实例、临时实例三种策略明确；关闭与销毁生命周期分离 |
-| 不做 | 本轮不做 C# 代码热更、国际化、复杂动效 DSL、反射式数据绑定、Bundle 差分算法、加密与通用 CDN 后台 |
+| 不做 | 本轮不做 C# 代码热更、国际化、复杂动效 DSL、嵌套属性路径/集合绑定/表达式语言、自动猜测业务函数、Bundle 差分算法、加密与通用 CDN 后台；异步 Command 与带参 Command 不纳入首版 |
 
 ---
 
@@ -77,12 +82,12 @@ Owner Snapshot
 
 1. **权威状态只在 Gameplay**：UI 展示结果，不计算伤害、不修改 Numeric、不决定换人是否合法。  
 2. **单向数据流**：Gameplay → Projection → ViewModel → View；用户操作反向只产生 UI 意图或 Architecture Command。  
-3. **View 被动化**：View 不查场景、不拿单例、不发玩法请求；只暴露控件事件并渲染传入状态。  
-4. **显式绑定优先**：首版使用 C# event 和明确的 `Bind/Unbind`，不引入反射式自动绑定。  
+3. **View 被动化**：View/Binder 不查场景、不拿单例、不执行业务；控件事件调用 ViewModel 的 UI Command，展示属性通过 Binder 更新。
+4. **配置显式、连接自动**：通用 Binder 记录成员名，Scope 统一 Bind/Unbind；反射只在绑定阶段解析并缓存元数据，不按帧扫描，不按 GameObject 名猜业务。此决定取代 2026-09-19 的“不引入反射绑定”。
 5. **值快照越层**：跨 App/UI 边界传不可变 `LocalHudSnapshot`，不传 `CharacterActor`、`NumericSystem` 或可写集合。  
 6. **变化才通知**：Projection 可在逻辑帧采样，但只有快照发生变化才发布 `LocalHudStateChangedEvent`。  
 7. **导航与业务正交**：路由只决定显示哪一页和层级，不根据角色、关卡或联网身份写 `if`。  
-8. **Framework 零业务依赖**：`UIFramework` 只引用 Unity/UGUI；禁止引用 `ACTGame.*`，也不定义 HUD、角色、背包等项目概念。
+8. **Framework 零业务依赖**：`UIFramework` 只引用 Unity/UGUI/TextMeshPro；禁止引用 `ACTGame.*`，也不定义 HUD、角色、背包等项目概念。
 9. **业务 UI 是客户端叶子**：`ACTGame.UI` 引用 `UIFramework` 与 `ACTGame.App`；App、Domain、Simulation、Server 均不得反向引用业务 UI。
 10. **一种运行时技术**：本阶段统一 UGUI；UI Toolkit 继续只用于现有 EditorWindow，不抽象一套兼容两者的控件层。
 11. **零长期兼容**：正式 HUD 达到 Debug HUD 的必要观察能力后删除重复的旧显示路径，不长期双显。
@@ -105,8 +110,12 @@ flowchart LR
     AppEvent --> Presenter["HudPresenter · ACTGame.UI"]
     Presenter --> VM["HudViewModel · pure C#"]
     Framework["UIManager + UIPanel · UIFramework"] --> View["HudPanel · ACTGame.UI"]
-    VM --> View
-    View --> Intent["UI Intent"]
+    VM --> Property["UIProperty.ValueChanged"]
+    Property --> Binder["UGUI Binder / UIBindingScope"]
+    Binder --> View
+    View --> ButtonBinding["UIButtonCommandBinding"]
+    ButtonBinding --> UICommand["ViewModel.UICommand.Execute"]
+    UICommand --> Intent["UI Intent"]
     Intent --> Presenter
     Presenter --> Command["Architecture Command / UIManager"]
     Command --> App["App System"]
@@ -123,13 +132,13 @@ flowchart LR
 
 | 层 | 推荐类型 | 职责 | 不负责 |
 |----|----------|------|--------|
-| UIFramework | `UIManager`, `UIPanel`, `UILayer`, `UIPanelStack` | Panel 注册、打开/关闭、显示层、返回栈和生命周期 | ACTGame 页面类型、HUD 字段、Architecture、Gameplay |
+| UIFramework | `UIManager`, `UIPanel`, `UIBindingScope`, `UICommand`, `UIProperty<T>`, UGUI Binders | Panel/资源生命周期、导航，以及业务无关的 MVVM 绑定 | ACTGame 页面类型、HUD 字段、Architecture、Gameplay |
 | App Projection | `LocalHudProjectionSystem`, `LocalHudSnapshot`, `LocalHudStateChangedEvent`, `GetLocalHudStateQuery` | 读取 Local Actor/Party，去重并发布稳定 UI 数据 | UGUI、颜色、动画、按钮 |
-| ViewModel | `HudViewModel`, `MenuViewModel` | 把快照转换为比例、文本、可见性等展示状态；发 `Changed` | 查 Architecture、持有 Unity 对象、写 Gameplay |
+| ViewModel | `HudViewModel`, `MenuViewModel` | 把快照转为可观察展示属性，暴露 UI Command 与执行条件 | 查 Architecture、持有 Unity 对象、写 Gameplay |
 | Presenter | `HudPresenter`, `PauseMenuPresenter` | 建立/解除订阅，把快照灌入 VM，把 View 意图转为命令/导航 | 保存权威业务状态、直接操作具体 Graphic |
-| View | `HudView`, `PauseMenuView` | Inspector 引用、按钮事件、渲染文本/Slider/Image/CanvasGroup | 查 Actor、发网络包、计算业务规则 |
+| View | `HudPanel`, `PauseMenuPanel` 及 UGUI Binder | 承载 Prefab、Scope、控件引用和绑定配置；复杂自定义表现可有独立 View | 查 Actor、发网络包、计算业务规则 |
 
-`UIFramework` 只提供 Panel 管理机制，不提供 ACTGame 的 ViewModel。`ViewModel` 首版不需要第三方响应式库：每个业务 ViewModel 一个明确的不可变 `State` 或少量属性，加一个 `Changed` 事件即可。只有第二个页面证明重复模式后，再考虑把真正业务无关的订阅容器移入 UIFramework；不要在 U0 先造反射式响应框架。
+`UIFramework` 提供 Panel 管理和通用 MVVM 基础设施，不提供 ACTGame 的具体 ViewModel。首版不用第三方响应式库，属性与命令契约保持纯 C#；Presenter 是项目 App 与 MVVM 的装配桥，不再手工转发每一个 Button 事件。同一个界面可以由具体 Panel 直接承担 View，不强制再套一层空 View。
 
 ### 3.2 UI Root 与显示层级
 
@@ -232,7 +241,8 @@ LocalHudSnapshot
 ### 3.7 输入与暂停契约
 
 ```text
-View.ButtonClicked
+Button.onClick → UIButtonCommandBinding
+  → ViewModel.UICommand.Execute → 注入的业务意图
   → Presenter
   → Open/Close Route 或 SendCommand
   → App 决定 Cursor / Gameplay Input 是否启用
@@ -260,12 +270,63 @@ flowchart BT
 
 ---
 
+### 3.9 MVVM 绑定契约（待实现）
+
+采用“每个控件一个通用 Binder、Panel 根节点一个 Scope”的配置方式。Save/Cancel 共用 `UIButtonCommandBinding`，分别填写 `SaveCommand` / `CancelCommand`；Command 本身是 ViewModel 中的纯 C# 对象，不挂到 Prefab。首版不同时实现根节点绑定表或运行时节点命名匹配。
+
+| 契约 | 输入 / 输出与约束 |
+|------|------------------|
+| `IUICommand` | `bool CanExecute`、`event Action CanExecuteChanged`、`void Execute()`；Execute 内部再次检查条件，不能只靠按钮禁用 |
+| `UICommand` | 构造时注入非空 Action 与可选 Func<bool>；依赖状态变化后由 VM 显式调用 `NotifyCanExecuteChanged()`，首版不做自动依赖追踪 |
+| `IReadOnlyUIProperty<T>` | 只读 Value 与 `ValueChanged`；供单向展示 |
+| `IUIProperty<T>` / `UIProperty<T>` | 可写 Value；用 `EqualityComparer<T>.Default` 去重，值变化才通知；VM 的属性对象在一次绑定期间保持稳定 |
+| `IUIBinding` | Bind(context, resolver) / Unbind；返回或持有可释放订阅，重复解绑安全 |
+| `UIBindingScope` | 收集本 Panel 下含 inactive 对象的 Binder，排除子 Scope；预校验全部绑定，失败则回滚已建立订阅；重复 Bind 先 Unbind |
+| `ReflectionBindingResolver` | 首版只支持 VM 的 public 实例、无索引、可读属性名；不支持点分嵌套路径、字段、方法、私有成员和隐式类型转换。缓存 Type + 成员名的元数据，不缓存 VM 实例或跨实例委托 |
+| `UIButtonCommandBinding` | 从同对象取得 Button；绑定 IUICommand，首次同步及变化时设置 interactable，点击调用 Execute；解绑移除自己注册的监听并禁用按钮 |
+| `UITextBinding` | `IReadOnlyUIProperty<string>` → TMP_Text.text；格式化留在 VM，首次绑定立即同步 |
+| `UISliderBinding` | float 单向展示默认；TwoWay 显式要求 `IUIProperty<float>`，仅用于可编辑草稿/设置；VM → 控件用 SetValueWithoutNotify |
+| `UIToggleBinding` | bool 单向或显式 TwoWay；VM → 控件用 SetIsOnWithoutNotify |
+| `UIActiveBinding` | bool → 指定子内容节点的 SetActive；禁止控制承载 Panel/Scope 的根节点或其祖先，避免隐藏导致自身解绑无法恢复 |
+
+所有 UGUI 操作在 Unity 主线程执行；外部异步结果由 Presenter 切回主线程并确认页面会话仍有效。首版 Command 只接受同步 Action，禁止把 async lambda 隐式塞入 Action 产生 async void；异步业务后续独立定义 AsyncUICommand 的取消、异常和防重入契约。
+
+UI Command 表达界面行为，App Architecture Command 才是业务请求入口，二者不合并。CanExecute 只决定 UI 可交互性，业务与服务器仍独立校验合法性。双向绑定只编辑 VM 草稿，提交经 UI Command → Presenter → App；血量等权威投影永远只读。
+
+### 3.10 绑定会话与导航恢复（待实现）
+
+沿用现有 `Create/Open/Refresh/Close/Release` 生命周期，不引入另一组 Enter/Exit。新增 `UIMvvmPanel<TViewModel> : UIPanel` 作为可选通用扩展，拥有 Scope 和当前会话上下文；旧测试 Panel 可继续使用基础 UIPanel。业务 Presenter 在首次 Open 前创建 VM、灌入快照并设置上下文；Manager 只提供一次“实例准备后、Open 前”的初始化回调，不理解 VM 类型或业务成员。
+
+| 时机 | 必须行为 |
+|------|----------|
+| Create / OnCreate | 缓存控件和 Binder；获取组件不依赖 Awake 已执行，支持 inactive Prefab |
+| 首次或恢复 Open | MVVM 基类在业务 OnOpen 前绑定当前上下文并首次同步；无上下文明确失败；已打开页面的 Refresh 不重复订阅 |
+| Screen 被覆盖 / Close | Unbind 移除全部 VM 事件和本轮 Unity 控件监听；暂停 Presenter 外部订阅。Singleton/导航历史可保留 VM 草稿与上下文，但不能保留活跃绑定 |
+| Back 恢复旧 Screen | Presenter 重新取最新快照并恢复外部订阅，Scope 重新 Bind，再显示；必须覆盖 UIManager.RestoreStackTop 的恢复路径，不能只在最外层 OpenAsync 调用后绑定 |
+| 换 VM | 先解除旧 VM，校验新 VM，再首次同步；失败不留下半绑定界面，Manager 清理实例/租约且不提交新导航记录 |
+| Pool.Return | 除 Close 的解绑外，清空 DataContext 和业务委托，由会话所有者释放旧 Presenter/VM；下次 Rent 必须注入新上下文 |
+| Release / 场景销毁 | 幂等解绑并清空引用；Manager/会话所有者清理订阅和租约，不只依赖可能不触发的 Unity 消息 |
+
+框架钩子保证 Bind/Unbind 不会因具体 Panel 忘记调用 base 而跳过。外部直接禁用 Panel 的 OnDisable 可作为解绑兜底；直接 SetActive(true) 不作为正式重开入口，正式恢复必须经 Manager/Open。Scope 单纯解绑不等于销毁 VM，VM 的所有者是业务会话/Presenter。
+
+### 3.11 Editor 校验、IL2CPP 与生成代码
+
+具体 MVVM Panel 的泛型参数提供期望 VM Type，不在 Runtime 注册表保存任意程序集限定类型字符串。Editor 校验器检查成员存在性、读写能力、类型、重复 Binder、Scope 归属、控件存在性及 Button 的重复持久化业务回调；报告包含 Prefab、节点、成员名。
+
+首版发布构建必须基于绑定清单保留反射访问的成员（link.xml / Preserve），并显式覆盖 float/bool/string 所需泛型实例；不用 Reflection.Emit 或运行时编译表达式。以 IL2CPP Player 验证实际裁剪行为，Editor Play 通过不能替代它。
+
+后续 U-M5 使用相同 Binder 配置生成强类型访问器与成员校验清单，Binder 和 Scope 的订阅行为保持一致。迁移完成后删除运行时反射解析器及自动 fallback；未生成或过期清单直接构建失败。编辑器仍可用反射作校验。生成代码属于 Player 编译内容，AssetBundle 只能使用该 Player 已支持的绑定成员组合；新增成员需更新 Player，不能仅更新 Bundle。
+
+---
+
 ## 4. 范围声明
 
 | 阶段 | 包含 | 不包含 |
 |------|------|--------|
 | U0 | `Framework/UIFramework` Runtime asmdef、`UIManager/UIPanel` 生命周期、稳定 Id/Descriptor/Provider 契约与业务 UI 叶子程序集 | Canvas 美术、真实 Gameplay 数据、Bundle 下载 |
 | U1 | ScriptableObject 注册表、内存/Editor 测试 Provider、UI Root、四层 Canvas、路由栈、空白页 | AssetBundle、远端更新、转场动画 |
+| U-M1～U-M4 | Command/Property、通用 Binder、Scope/Panel 会话、反射解析、Editor 校验与 IL2CPP 保留 | 嵌套路径、集合、表达式、异步命令 |
+| U-M5 | 基于同一配置生成强类型访问器，替换运行时反射 | 双运行时后端、另一套绑定配置 |
 | U-P1 | `SingletonCached/Pooled/Transient` 三种实例策略、预热、上限与租约回收 | 跨版本下载 |
 | U-AB1 | Runtime AssetBundle Provider、Catalog Bundle、Editor Build/Validate 工具 | 远端版本切换 |
 | U-HU1 | 远端 Manifest、staging 下载、hash/CRC 校验、原子切换、回滚与旧版本退役 | C# 代码热更、差分补丁、CDN 后台 |
@@ -284,23 +345,23 @@ flowchart BT
 
 **任务**
 
-- [ ] 新建 `Framework/UIFramework/UIFramework.asmdef`，程序集引用只添加 `UnityEngine.UI`（包名为 `com.unity.ugui`），不引用任何 `ACTGame.*` 程序集。
-- [ ] 定义 `UIManager`、`UIPanel`、`UILayer`、`UIPanelStack`；只处理 Panel 注册、Open/Close/Back、层级和生命周期。
+- [ ] 核实已有 `Framework/UIFramework/UIFramework.asmdef`：U0 引用 UnityEngine.UI，U-M3 增加 Unity.TextMeshPro；不引用任何 ACTGame.* 程序集。
+- [ ] 定义 `UIManager`、`UIPanel`、`UILayer`；导航使用现有 `Stack<UIPanelId>`，不重新引入已删除的 UIPanelStack 类型。
 - [ ] 定义 `UIPanelId`、`UIPanelKey<TPanel>`、`UIPanelDescriptor`、`IUIPanelAssetProvider` 与 `UIPanelAssetLease`；资源来源不泄漏进导航 API。
 - [ ] `UIManager` 采用场景/Composition Root 持有的实例，不提供 `static Instance`；公开 `OpenAsync(UIPanelKey<TPanel>)`、`Close(UIPanelId)` 与 `Back()`。
 - [ ] 新建 `ACTGame.UI` 客户端叶子程序集；定义项目自己的具体 Panels、ViewModels、Presenters 与 Views 目录。
-- [ ] 定义 `LocalHudSnapshot`、`HudViewModel.State` 与显式 `Changed` 生命周期。
+- [ ] 明确 LocalHudSnapshot 在 U2 实现；ViewModel 使用 U-M1 的可观察属性，不并行建设另一套 State/Changed 绑定协议。
 - [ ] 为 UIFramework/业务 UI asmdef 补结构门禁：UIFramework 禁止 `ACTGame.*`；App/Domain/Simulation/Server 禁止反向引用 `ACTGame.UI`。
 
 **验收**
 
-- [ ] `UIPanelStackTests`：Push、Pop、重复打开策略、Modal 优先返回均可判定。
+- [ ] `UIManagerNavigationTests`：Push、Pop、重复打开回退到已有 Screen、Modal 优先返回均可判定。
 - [ ] Provider 契约测试：未注册 Id、类型不匹配、加载失败和租约重复释放均明确失败且不泄漏实例。
-- [ ] `HudViewModelTests`：0/Max、无玩家、队灭、非法 Max 的展示状态明确。
+- [ ] HUD 数据规则测试留在 U2，不阻塞纯框架骨架。
 - [ ] 结构测试证明 `UIFramework` 不引用任何 `ACTGame.*`，且 `ACTGame.Domain.*`、`ACTGame.Simulation`、`ACTGame.Server` 不引用 `ACTGame.UI`。
 - [ ] Unity 编译与最窄 EditMode 测试通过。
 
-**出口：** UIFramework 可脱离 ACTGame 业务独立编译，且 Panel 栈与 HUD 展示规则可分别测试。→ **未达成**
+**出口：** UIFramework 可脱离 ACTGame 业务独立编译，且导航和资源契约可测试。→ **未达成**
 
 ### U1 — UI Root 与空白导航闭环
 
@@ -310,7 +371,7 @@ flowchart BT
 - [ ] 定义 `UIPanelRegistry : ScriptableObject` 与 Descriptor 校验；注册表保存稳定 Id、Bundle/Asset、Layer、Lifetime 与池参数。
 - [ ] 提供仅用于 EditMode/Play 学习切片的内存或 Editor 直载 Provider；它与 AssetBundle Provider 共用同一注册表、Factory 与导航链，不复制 `Open/Close`。
 - [ ] 空白页先采用 `SingletonCached`，关闭隐藏；池化多实例在 U-P1 落地。
-- [ ] 实现 `Open → Enter → Exit → Close` 生命周期；Presenter 在 Enter/Exit 对称 Bind/Unbind。
+- [ ] 沿用 `Create → Open/Refresh → Close → Release` 生命周期；MVVM 绑定会话在 U-M3 集成。
 - [ ] 在 Editor 人工创建 `UIRoot` Prefab/Scene 装配、EventSystem、CanvasScaler 与四层节点。
 
 **验收**
@@ -322,6 +383,88 @@ flowchart BT
 
 **出口：** 一个空白页面可稳定打开、返回和释放订阅，尚不接玩法数据。→ **未达成**
 
+### U-M1 — 纯 C# Command 与可观察属性
+
+**任务**
+
+- [ ] 手写 IUICommand/UICommand，Execute 二次检查 CanExecute，显式通知条件变化；拒绝空执行委托。
+- [ ] 手写 IReadOnlyUIProperty<T>/IUIProperty<T>/UIProperty<T>，变化去重；准备纯 C# TestPanelViewModel 的计数、标题、可执行条件和 Command。
+- [ ] 区分 UI Command 与 App Command；业务行为通过构造注入，不让 VM 持有 Button、UIManager 或 Architecture 单例。
+
+**验收**
+
+- [ ] `UICommandTests`：禁用时直接 Execute 也不执行、条件切换通知、正常执行恰好一次。
+- [ ] `UIPropertyTests`：相同值无通知、新值通知一次、取消订阅后不再收到；VM 测试无需创建 GameObject。
+
+**出口：** 纯 C# MVVM 状态和行为契约可测试。→ **未达成**
+
+### U-M2 — Command Binder 最小闭环
+
+**任务**
+
+- [ ] 依赖 U-M1；手写 IUIBinding、ReflectionBindingResolver、UIBindingScope、UIButtonCommandBinding。
+- [ ] Scope 收集 inactive 子控件且排除子 Scope；绑定前检查 VM Type/成员/控件，绑定失败整体回滚。
+- [ ] Button 通过 CommandPath 找到 IUICommand，初次和条件变化同步 interactable；解绑移除自身监听，不调用 RemoveAllListeners 影响其他订阅。
+- [ ] 作者在测试 Prefab 挂通用 Binder，配置 IncreaseCommand 等成员；清除该按钮原有 Inspector 业务回调。最小测试宿主先显式驱动 Bind/Unbind，U-M3 后删除临时驱动入口。
+
+**验收**
+
+- [ ] `UIBindingResolverTests`：不存在成员、字段/嵌套路径、类型不匹配、null 命令明确失败；两份 VM 同类型不串实例。
+- [ ] Play：一次点击计数加一，CanExecute=false 时按钮禁用；反复 Bind/Unbind 100 次仍只响应一次。
+- [ ] 中途绑定失败后之前建立的事件全部解除；Unbind 两次无异常；子 Scope 无重复绑定。
+
+**出口：** Prefab 配置 CommandPath 即可连接命令，不手动选择业务函数。→ **未达成**
+
+### U-M3 — 数据 Binder 与 Panel 绑定会话
+
+**任务**
+
+- [ ] 依赖 U-M2；实现 UITextBinding、UISliderBinding、UIToggleBinding、UIActiveBinding 及首次同步，按 §3.9 锁定数据类型和双向回写范围。
+- [ ] UITextBinding 使用 TMP_Text，Runtime asmdef 增加 Unity.TextMeshPro；不得引入 UnityEditor 或 ACTGame 依赖。
+- [ ] 实现 UIMvvmPanel<TViewModel>，按 §3.10 对接 UIManager 首次打开前准备、覆盖关闭、Back 恢复和释放；移除测试宿主的临时绑定驱动。
+- [ ] 实现 Presenter 会话暂停/恢复/释放，Back 重新读取当前快照；Pool.Return 的清空上下文契约先定义，U-P1 落地验证。
+- [ ] UIActiveBinding 只控制子内容节点，Scope 的关闭解绑不能被普通子节点显隐误触发。
+
+**验收**
+
+- [ ] `UIBindingLifecycleTests` / Play：A→B→Back 后 A 重新绑定且立即显示最新值；缓存重开、打开中替换 VM、旧 VM 更新均不串页面。
+- [ ] `UITwoWayBindingTests`：VM 改值不触发控件回写循环；用户拖动/切换只更新一次 VM 草稿；只读属性拒绝 TwoWay。
+- [ ] 子内容 false→true 能恢复；关闭/销毁后外部通知不触达控件，绑定失败不残留导航/实例/订阅。
+
+**出口：** 文本、值、显隐和命令共享单一绑定会话，导航恢复可正确重新绑定。→ **未达成**
+
+### U-M4 — Editor 校验与反射发布验证
+
+**任务**
+
+- [ ] 依赖 U-M3；实现 UIBindingValidator，从具体 MVVM Panel 获取 VM Type，按 §3.11 校验 Prefab；集成 Player/Bundle 构建门禁。
+- [ ] 生成绑定清单和反射成员保留配置；缺少成员、错误模式、重复点击路径及不支持的泛型组合均在构建前失败。
+- [ ] Runtime 保留清晰错误诊断；热更目录声明所需绑定契约版本，Player 对不兼容资源拒绝激活。
+
+**验收**
+
+- [ ] `UIBindingValidatorTests`：属性改名、错误类型、根节点显隐、Scope 重复和 Inspector 残留回调均报告 Prefab/节点/成员。
+- [ ] IL2CPP 开启项目目标裁剪配置后，Command、string/float/bool Binder 均通过；记录构建配置与运行结果。
+- [ ] U-AB1/U-HU1 后补验：兼容 Bundle 更新可绑定；引用不存在属性的新 Bundle 被拒绝，旧版本仍可用。
+
+**出口：** 反射绑定在 Player 可运行，错误配置可在构建和热更激活前阻断。→ **未达成（Bundle 联合验收在资源链完成后关闭）**
+
+### U-M5 — 后续强类型代码生成
+
+**任务**
+
+- [ ] 依赖 U-M4、U-HU1 与至少一个真实页面；手写 UIBindingCodeGenerator，以现有 Binder 配置为唯一作者真源生成强类型访问器。
+- [ ] 保持 Scope/Binder 生命周期契约；生成清单覆盖 Player 支持的绑定成员，过期输出构建失败。
+- [ ] 全部页面迁移后删除 Runtime ReflectionBindingResolver 及 fallback；Editor 校验反射保留，不保留双运行时后端。
+
+**验收**
+
+- [ ] 原绑定契约和生命周期测试在生成访问器下通过；属性重命名导致生成校验/编译明确失败。
+- [ ] 同一配置重复生成结果稳定；新热更绑定超出 Player 清单时拒绝激活。
+- [ ] Runtime 搜索不存在旧反射解析入口，IL2CPP Player 和 A/B 导航回归通过。
+
+**出口：** 同一配置驱动强类型运行时绑定，反射实现被完整替换。→ **未达成**
+
 ### U-P1 — Panel 对象池与实例生命周期
 
 **任务**
@@ -330,6 +473,7 @@ flowchart BT
 - [ ] 实现 `UIPanelPool`，按 `PanelId + AssetVersion` 分桶，支持 `Rent/Return/Prewarm/Trim/Clear` 与每项 `MaxPoolSize`。
 - [ ] `Close` 只解绑并隐藏；池淘汰、Transient 关闭、Manager 销毁时统一走 `Release → Destroy`。
 - [ ] 实例持有 Asset Lease；归池仍持有租约，销毁时只释放一次。
+- [ ] Return 清空 DataContext/业务委托并释放旧会话；Rent 在 Open 前注入新 VM，不继承上一使用者状态。
 - [ ] 场景卸载/Manager 销毁按“活跃实例 → 池 → Provider”的逆序清理。
 
 **验收**
@@ -338,6 +482,7 @@ flowchart BT
 - [ ] Play：连续创建/关闭 100 个 Toast，实例总数不超过上限，按钮/订阅不重复。
 - [ ] Singleton 连续开关 20 次始终同一实例；Transient 每次得到新实例且关闭后销毁。
 - [ ] Profiler/计数器证明池清空后实例与 Lease 均归零。
+- [ ] Play：同一实例绑定 VM-A 后回池，再绑定 VM-B；修改 VM-A 不更新 UI，按钮只执行 VM-B 的 Command。
 
 **出口：** 动态实例可按显式策略缓存、回池或销毁，生命周期与资源租约完全对称。→ **未达成**
 
@@ -368,7 +513,7 @@ flowchart BT
 - [ ] 实现 `UIAssetUpdateService`：读取内置版本、拉取远端 Manifest、比较、下载到 staging、校验并原子提交 Active Catalog。
 - [ ] 保留上一份完整版本；下载中断、hash/CRC 错误、Catalog 加载失败时回滚且不污染 Active。
 - [ ] Provider 为每个 Lease记录资源版本；切换后新 Open 使用新版本，旧活跃/池中实例标记 Retired，关闭时销毁并在引用归零后卸载旧 Bundle。
-- [ ] 明确代码兼容门禁：Catalog/Prefab 要求的 Panel 类型必须已存在于 Player；不满足时拒绝激活新版本。
+- [ ] 明确代码兼容门禁：Catalog/Prefab 要求的 Panel/Binder 类型、VM 成员及类型必须在 Player 绑定清单内；不满足时拒绝激活新版本。
 
 **验收**
 
@@ -385,12 +530,13 @@ flowchart BT
 
 - [ ] 在 `ACTGame.App` 手写 `LocalHudProjectionSystem`：订阅 `SimulationLogicStepEvent`，从 `LocalPlayerService.Local.Actor/Party` 生成快照。
 - [ ] 只有快照变化时发送 `LocalHudStateChangedEvent`，并提供 `GetLocalHudStateQuery` 供 Presenter 首次同步。
-- [ ] 手写 `HudPresenter → HudViewModel → HudView`；完成 HP 数值/比例、ActiveSlot、AssistPoints 与无玩家隐藏。
+- [ ] 依赖 U-M3/U-M4；手写 `HudPresenter → HudViewModel → Binder → HudPanel`，通过可观察属性完成 HP 数值/比例、ActiveSlot、AssistPoints 与无玩家隐藏。
 - [ ] 换人和 Owner 权威生命覆盖继续走现有 Actor 单轨；禁止为 Client 单独读取 `LocalClientRuntime.SelfHealthMilli` 建第二条 HUD 数据源。
 
 **验收**
 
 - [ ] `LocalHudProjectionSystemTests`：相同快照不重复发事件；伤害、换人、队灭各只产生正确变化。
+- [ ] `HudViewModelTests`：0/Max、无玩家、队灭、非法 Max 的展示值明确；HP 绑定只读，无 TwoWay 权威写入。
 - [ ] Play：本机受伤后血条变化；换人后 HUD 同帧换绑；死亡自动换人后显示新 Active；队灭隐藏或进入明确终态。
 - [ ] Listen/Client：Owner 快照覆盖 Actor 后，HUD 最终与权威 HP 一致，无第二套网络 HUD 分支。
 - [ ] Profiler：静止 HUD 每帧无字符串重建与可见 GC Alloc；逻辑帧采样不导致 Canvas 每帧 rebuild。
@@ -421,7 +567,7 @@ flowchart BT
 
 - [ ] 在“世界敌人血条”与“设置/角色信息页”中选择一个真实需求作为第二切片；推荐先做世界血条。
 - [ ] 世界血条使用目标只读快照 + Presenter，View 只做屏幕坐标与可见性表现；不从 Slider 反写 Health。
-- [ ] 仅当两个 Presenter 已出现相同订阅样板时提取小型 `SubscriptionBag`；不得先造通用 Binder DSL。
+- [ ] 复用 U-M 阶段 Scope/Property/Command；第二页面验证通用 Binder，特殊视图不引入表达式 DSL 或第二套通知协议。
 - [ ] 正式 HUD 达到必要观察能力后，删除被替代的 Debug HUD 重复字段/入口。
 
 **验收**
@@ -462,12 +608,15 @@ flowchart BT
 - 保留 `SimulationLogicStepEvent` 作为投影采样时机；UI 自己不复制固定帧时钟。  
 - 保留 `CharacterVitality` / `PlayerPartyRuntime` 作为真实状态，投影只读并复制成值快照。  
 - 保留 Debug HUD 直到 U2 的正式 HUD 能覆盖必要观察项。
-- `UIFramework` 只迁入 Panel 注册、显示层、返回栈、生命周期、资源 Provider、AssetBundle 目录/租约、对象池与 UI 资产更新；具体 Panel、ViewModel、Presenter 与 HUD 数据永远留在 `ACTGame.UI` / App。
+- `UIFramework` 提供 Panel/资源管理以及 Command、Property、Binder、Scope、成员解析契约；具体 Panel、ViewModel、Presenter 与 HUD 数据永远留在 `ACTGame.UI` / App。
 
 ### 6.2 明确删除 / 禁止保留
 
 | 删除或禁止 | 原因 |
 |------------|------|
+| 已迁移按钮的 Inspector 业务回调与临时手工监听 | Command Binder 是该按钮业务行为唯一入口，避免一次点击执行两次；其他独立音效/表现监听按用途保留 |
+| 为每个 Save/Cancel 编写独立 Command MonoBehaviour | Command 是 VM 中的纯 C# 对象，Prefab 共用通用 Binder |
+| U-M5 后运行时反射 fallback | 生成器完成后保持单一运行时绑定实现，未生成配置必须明确失败 |
 | 正式 HUD 与 Debug HUD 长期双显 | 两套展示真源会漂移；U4 达标后删旧入口 |
 | View 中的 `FindObjectOfType` / Tag 查找 | 破坏 Composition Root 与可测试生命周期 |
 | View/ViewModel 持有 `CharacterActor` / `NumericSystem` | 穿透 App 边界，使联网和换人逻辑散落 |
@@ -493,7 +642,22 @@ Assets/Scripts/Framework/UIFramework/
 ├── UIPanel.cs            # Panel 基类与显式生命周期
 ├── UILayer.cs            # HUD / Screen / Modal / Toast
 ├── UILayerHost.cs        # 各层 Transform 宿主
-├── UIPanelStack.cs       # 可单测的返回栈规则
+├── UIMvvmPanel.cs        # 泛型 MVVM Panel，会话上下文与绑定生命周期
+├── Binding/
+│   ├── IUICommand.cs
+│   ├── UICommand.cs
+│   ├── IReadOnlyUIProperty.cs
+│   ├── IUIProperty.cs
+│   ├── UIProperty.cs
+│   ├── IUIBinding.cs
+│   ├── UIBindingScope.cs
+│   ├── ReflectionBindingResolver.cs  # U-M5 完成后删除，改用生成访问器
+│   └── UGUI/
+│       ├── UIButtonCommandBinding.cs
+│       ├── UITextBinding.cs
+│       ├── UISliderBinding.cs
+│       ├── UIToggleBinding.cs
+│       └── UIActiveBinding.cs
 ├── Registry/
 │   ├── UIPanelId.cs
 │   ├── UIPanelKey.cs
@@ -515,6 +679,8 @@ Assets/Scripts/Framework/UIFramework/
 Assets/Scripts/Framework/UIFramework.Editor/
 ├── UIFramework.Editor.asmdef
 ├── UIPanelRegistryValidator.cs
+├── UIBindingValidator.cs
+├── UIBindingCodeGenerator.cs   # U-M5
 └── UIBundleBuildPipeline.cs
 
 Assets/Scripts/App/
@@ -542,7 +708,13 @@ Assets/Tests/Editor/UI/
 
 Assets/Tests/Editor/UIFramework/
 ├── UIFramework.EditorTests.asmdef
-├── UIPanelStackTests.cs
+├── UIManagerNavigationTests.cs
+├── UICommandTests.cs
+├── UIPropertyTests.cs
+├── UIBindingResolverTests.cs
+├── UIBindingLifecycleTests.cs
+├── UITwoWayBindingTests.cs
+├── UIBindingValidatorTests.cs
 ├── UIPanelRegistryTests.cs
 ├── UIPanelPoolTests.cs
 ├── UIPanelAssetLeaseTests.cs
@@ -551,7 +723,7 @@ Assets/Tests/Editor/UIFramework/
 docs/2026.9.19/UI_FRAMEWORK_PLAN.md
 ```
 
-具体类名可在手写时微调，但 `UIFramework ← ACTGame.UI ← App Projection` 的引用边界与 `App Projection → ViewModel → Panel` 的数据方向不变。Prefab、Canvas、字体、Sprite、RenderTexture 与 ScriptableObject 由作者在 Unity Editor 中人工创建和绑定；Agent 不直接修改这些资产。Bundle 与 Manifest 是构建产物，不手工编辑。
+具体类名可在手写时微调。程序集依赖为 ACTGame.UI 引用 UIFramework 与 ACTGame.App，App 不反向引用业务 UI；数据方向为 App Projection → Presenter → ViewModel → Binder → Panel 控件。上表是增量目标，不要求为目录整齐迁移全部现有文件；现有 UIPanelLifeTime 名称不因本次计划单独改名。Prefab、Canvas、字体、Sprite、RenderTexture 与 ScriptableObject 由作者在 Unity Editor 中人工创建和配置；Agent 不直接修改这些资产。Bundle、Manifest 与后续生成绑定代码是工具产物。
 
 ---
 
@@ -560,7 +732,12 @@ docs/2026.9.19/UI_FRAMEWORK_PLAN.md
 | 风险 | 对策 |
 |------|------|
 | 每逻辑帧发送 UI 事件导致重建 | `LocalHudSnapshot` 值比较，变化才发；ViewModel 再做字段级变化判断 |
-| 事件重复订阅 | Presenter 的 Enter/Exit 对称 Bind/Unbind；重复进入测试计数 |
+| 事件重复订阅 | Scope Bind 前 Unbind，Presenter 的 Open/Close 对称恢复/暂停；重复进入测试计数 |
+| Back 只显示对象却未重绑 | MVVM Panel 生命周期覆盖 RestoreStackTop；打开前恢复会话与快照 |
+| 双向绑定无限反馈 | VM 值去重，控件更新使用 WithoutNotify；权威数值禁止 TwoWay |
+| 控件显隐切断自己订阅 | UIActiveBinding 只控制子内容；根 Scope 不因子内容隐藏而解绑 |
+| 字符串改名或 IL2CPP 裁剪 | Editor 校验 + Player 成员保留清单 + IL2CPP 实测；U-M5 改强类型生成访问器 |
+| 代码生成与资产热更不兼容 | 同一配置真源，Player 声明支持的绑定成员；超出清单拒绝激活，不回退反射 |
 | Architecture 全局实例在关闭 Domain Reload 时残留 | 页面 OnDisable 强制解绑；后续为 Architecture 增加明确 Reset/Deinitialize 测试入口，不靠析构 |
 | Canvas rebuild/布局 GC | 静态 HUD 分 Canvas；只改变化控件；避免每帧 LayoutGroup/字符串拼接 |
 | 菜单误停联机世界 | View 只请求 `UiInputMode`；联网策略固定不改 `Time.timeScale` |
@@ -591,6 +768,16 @@ docs/2026.9.19/UI_FRAMEWORK_PLAN.md
 10. U3 验收鼠标/键盘与手柄焦点恢复；最后关闭页面后选中对象和玩法输入均恢复。
 11. U5 按 Camera C5 人工创建展示 Layer、Camera、RenderTexture、Booth Prefab 和 Profile 资产；不得改战斗 VCam Follow。
 
+MVVM 人工步骤（在现有 A/B 导航测试之后进行）：
+
+1. U-M2 在测试 Button 上挂 UIButtonCommandBinding，填写 VM 公开 Command 属性名；清除该按钮原 OnClick 业务回调。所有按钮使用同一通用组件，不为 Save/Cancel 编写挂载脚本。
+2. Panel 根节点挂一个 UIBindingScope；U-M3 将具体测试 Panel 接入 UIMvvmPanel<TestPanelViewModel>，由装配/Presenter 在打开前提供 VM。
+3. 文本、Slider、Toggle、子内容节点分别挂对应 Binder；填写属性名，默认 OneWay，只有可编辑草稿启用 TwoWay。UIActiveBinding 不指定 Panel 根节点。
+4. 运行 Binding Validate；验证空路径、错误成员和旧 OnClick 会报错。初始隐藏子节点也应被发现。
+5. 按 A→B→Back、关闭重开、替换 VM、回池再用的顺序观察文本和点击计数；旧 VM 更新不能影响已解绑界面。
+6. U-M4 做 IL2CPP Player 测试；资源链完成后做兼容与不兼容 Bundle 的绑定验证。
+7. U-M5 运行 Generate Bindings 后编译，故意修改配置验证过期门禁，再重新生成；构建必须只使用生成访问器。
+
 ---
 
 ## 10. 推荐开工顺序
@@ -598,22 +785,29 @@ docs/2026.9.19/UI_FRAMEWORK_PLAN.md
 ```text
 U0 UIFramework 与程序集边界
   → U1 ScriptableObject 注册表 + 空白页面导航
+  → U-M1 Command / Property 纯 C# 契约
+  → U-M2 Button Command Binder 闭环
+  → U-M3 数据绑定 + Panel 会话 / Back 恢复
+  → U-M4 Editor 校验 + IL2CPP（Bundle 联合验收后补）
   → U-P1 Panel 对象池与租约
   → U-AB1 AssetBundle 构建/加载单轨
   → U-HU1 UI 资产热更新与回滚
   → U2 HP HUD 垂直切片
   → U3 输入/菜单/Modal
   → U4 第二真实切片
+  → U-M5 生成访问器替换运行时反射
   → U5 3D 展示舱
 ```
 
-**最小可感切片：** 先完成 U0 + U1，用 `UIPanelRegistry` 和测试 Provider 打开空白 Panel，验证生命周期、稳定 Id 与导航；随后依次完成 U-P1、U-AB1、U-HU1，证明同一导航 API 能经历“内存资源 → 本地 Bundle → 远端 V2 更新”而不改 `UIPanel`。完成资源链后再进入 U2 HUD，避免业务页面与资源基础设施同时调试。
+**当前下一步：** 在已由作者验证的 A/B 导航上，从 U-M1 的 IUICommand 开始手写。U0/U1 中未核实的程序集与自动化验收仍保留待办，不重写已完成导航，也不把作者 Play 反馈扩大为全部验收通过。
+
+**最小可感切片：** U-M1～U-M3 做“点击增加计数 → 文本自动更新 → CanExecute 禁用按钮 → A/B 返回后仍可用”，无需接真实 Gameplay。随后完成校验、池化与 AssetBundle/热更，再接 HUD；资源链完成时关闭 U-M4 的 Bundle 联合验收。U-M5 在真实页面后实施，保持一个绑定作者配置真源。
 
 建议每个阶段的手写节奏固定为：
 
 ```text
 写失败测试 → 写最小纯 C# 契约 → 让测试通过
-→ 写 Unity View/Presenter → Editor 手工绑定
+→ 写 Unity Binder/ViewModel/Presenter → Editor 配置绑定并校验
 → Play 验收 → 记录问题 → 再进入下一阶段
 ```
 
@@ -623,6 +817,7 @@ U0 UIFramework 与程序集边界
 
 | 日期 | 说明 |
 |------|------|
+| 2026-09-28 | 用户确定实现 MVVM Binding：通用控件 Binder + Scope、UI Command、可观察属性；新增 U-M1～U-M5，明确导航恢复/池化会话、反射与 IL2CPP 校验及后续生成代码替换。取代旧“只做 MVVM-lite、不做反射绑定”决策；代码仍全部由作者实现 |
 | 2026-09-19 | 初版：确定 UGUI + MVVM-lite、App 只读投影、客户端叶子程序集与 U0～U5 手写学习路线 |
 | 2026-09-20 | 收敛命名与规模：改为单一 `Framework/UIFramework` + `UIFramework.asmdef`，核心类型定为 `UIManager/UIPanel`，业务页面继续留在 `ACTGame.UI` |
 | 2026-09-20 | 更正 UGUI asmdef 引用名：Package 为 `com.unity.ugui`，运行时 Assembly 为 `UnityEngine.UI` |
