@@ -1,0 +1,339 @@
+{
+  "result": "passed",
+  "assetCount": 47,
+  "backups": [
+    "D:\\Projects\\ACTGame-code\\.utmp\\motion-content-repair\\20260928-175619",
+    "D:\\Projects\\ACTGame-code\\.utmp\\motion-content-repair\\20260928-180127"
+  ],
+  "normalization": "Unity writes existing defaults: parriedActionPolicy=0, empty reaction ID, interruptResistBonus=0, empty optional timeline lists and default camera settings. Removes already deleted useRootMotion, desiredReaction and zero legacy locomotion fields.",
+  "checks": [
+    {
+      "asset": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_01.asset",
+      "frames": 176,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_02.asset",
+      "frames": 160,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_03.asset",
+      "frames": 172,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_04_Perfect.asset",
+      "frames": 216,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Evade_Front.asset",
+      "frames": 112,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_SwitchIn.asset",
+      "frames": 106,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_SwitchOut.asset",
+      "frames": 56,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Monster/ActionDefinition/Monster_Goblin_Attack_01.asset",
+      "frames": 211,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Monster/ActionDefinition/Monster_Goblin_Attack_02.asset",
+      "frames": 223,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Monster/ActionDefinition/Monster_Goblin_Hit_L_Front.asset",
+      "frames": 105,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Monster/ActionDefinition/Monster_Goblin_Hit_Shake.asset",
+      "frames": 25,
+      "clipBindingsChanged": 1,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_01.asset",
+      "frames": 240,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_02.asset",
+      "frames": 244,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_03.asset",
+      "frames": 260,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_04.asset",
+      "frames": 262,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_06.asset",
+      "frames": 284,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_01.asset",
+      "frames": 256,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_01_Perfect.asset",
+      "frames": 236,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_03.asset",
+      "frames": 272,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_Start.asset",
+      "frames": 127,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Counter.asset",
+      "frames": 240,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Rush.asset",
+      "frames": 252,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Rush_02.asset",
+      "frames": 260,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_ChargeAttack_01.asset",
+      "frames": 216,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_ChargeAttack_03.asset",
+      "frames": 336,
+      "clipBindingsChanged": 2,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Combo_1.asset",
+      "frames": 140,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Combo_2.asset",
+      "frames": 178,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Backward.asset",
+      "frames": 231,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Forward.asset",
+      "frames": 241,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_EX.asset",
+      "frames": 457,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_ParryAid_H_Success.asset",
+      "frames": 268,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_SwitchIn.asset",
+      "frames": 211,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_SwitchOut.asset",
+      "frames": 61,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Enemy/Unagi/Unagi_Enemy_LocomotionSO.asset",
+      "rebakedTracks": 4,
+      "otherFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_04.asset",
+      "frames": 248,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Evade_Back.asset",
+      "frames": 146,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Hurt.asset",
+      "frames": 134,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_05.asset",
+      "frames": 241,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_02.asset",
+      "frames": 216,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_02_Perfect.asset",
+      "frames": 198,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Death.asset",
+      "frames": 161,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Backward_Left.asset",
+      "frames": 233,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Backward_Right.asset",
+      "frames": 233,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Forward_Left.asset",
+      "frames": 233,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Forward_Right.asset",
+      "frames": 233,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Hurt.asset",
+      "frames": 145,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    },
+    {
+      "asset": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_ParryAid_H_Guard.asset",
+      "frames": 271,
+      "clipBindingsChanged": 0,
+      "authorFieldsPreserved": true,
+      "metaUnchanged": true
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
+  m_Name: Anbi_SwitchOut
+  m_EditorClassIdentifier: 
+  animationSegments:
+  - clip: {fileID: 4475403916718268433, guid: 00d41248ab779fe4fb58d1076787b05f, type: 3}
+    startFrame: 0
+    endFrame: -1
+    hasCrossFadeOverride: 0
+    crossFadeDuration: 0
+  totalFrames: 56
+  actionType: 0
+  crossFadeDuration: 0.1
+  executionPolicy:
+    interruptPriority: 0
+    baseMotionMode: 2
+  resourceSpec:
+    resourceTag: 0
+    energyCost: 0
+    energyGrantOnHit: 0
+    decibelGrantOnHit: 0
+    consumeDodgeCharge: 0
+    requiresDecibelFull: 0
+    clearsDecibelOnStart: 0
+  timeline:
+    actionEvents: []
+    playVfxNotifies: []
+    playSfxStates:
+    - id: SFX_1
+      startFrame: 0
+      endFrame: 0
+      priority: 0
+      trackName: SFX_1
+      audioClip: {fileID: 8300000, guid: 4fe7ab52a66467542b7c634975304f46, type: 3}
+      volume: 1
+      playbackSpeed: 1
+    hitboxStates: []
+    hurtboxStates: []
+    cancelWindowStates: []
+    phaseStates:
+    - id: Phase_1
+      startFrame: 50
+      endFrame: 55
+      priority: 0
+      trackName: Phase_1
+      kind: 2
+      interruptible: 1
+      allowMovementCancel: 1
+      allowEntryRestart: 1
+      interruptResistBonus: 0
+    perfectDodgeWindowStates: []
+    assistCueStates: []
+    assistParryWindowStates: []
+    movementStates: []
+    rotationStates: []
+    motionModifierStates: []
+    motionCommandNotifies: []
+    cameraSettings:
+      restoreMode: 0
+      suppressLookInput: 1
+    cameraShotStates: []
+    tracks:
+    - trackName: Phase_1
+      kind: 8
+      visible: 1
+    - trackName: SFX_1
+      kind: 3
+      visible: 1
+  bakedMotion:
+    logicHz: 60
+    frameCount: 56
+    planarMode: 2
+    positionDeltaMmX: 0e000000100000001800000019000000130000000e00000005000000fffffffffdfffffffafffffff8fffffff8fffffff9fffffff9fffffff8fffffff7fffffff8fffffff9fffffffcffffffffffffffffffffff00000000fdfffffffbfffffffcfffffffdfffffffafffffff7fffffffbffffff000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    positionDeltaMmZ: a2000000910000005c000000460000004a0000004d0000005b0000006300000065000000620000005b00000057000000510000004b000000430000003a0000002f000000240000001700000009000000fdffffffeeffffffc8ffffffa4ffffff83ffffff61ffffff13ffffffc9feffffebfeffff0dffffff0affffff07ffffff06ffffff06ffffff06ffffff07ffffff07ffffff08ffffff09ffffff0bffffff0dffffff0fffffff11ffffff14ffffff17ffffff1affffff1effffff23ffffff2bffffff35ffffff42ffffff51ffffff63ffffff77ffffff8dffffffb4ffffff
+    yawDeltaMilliDeg: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    inplaceContentHash: PlaybackRangeV2|00d41248ab779fe4fb58d1076787b05f|4475403916718268433|59b666ca1df65b0c27b3466a9b25dfec|0:55;
+    rootMotionContentHash: 5037593d265c5c4438533be70b051dd0|4043003791204392319|0999a4b73891db14d2374f9d81dab207;
+    matchedRootMotionName: Anbi_SwitchOut_Normal
+    bakeStatus: 1

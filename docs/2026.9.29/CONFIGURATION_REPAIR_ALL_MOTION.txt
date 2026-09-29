@@ -1,0 +1,268 @@
+Repair
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_EX.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+SwitchIn_Attack_Ex_Start_Inplace (2.016667s) -> Unagi|SwitchIn_Attack_Ex_Start (2.016667s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/SwitchIn_Attack_Ex_Start.fbx
+SwitchIn_Attack_Ex_Inplace (3.850000s) -> Unagi|SwitchIn_Attack_Ex (3.850000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/SwitchIn_Attack_Ex.fbx
+SwitchIn_Attack_Ex_End_Inplace (1.750000s) -> Unagi|SwitchIn_Attack_Ex_End (1.750000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/SwitchIn_Attack_Ex_End.fbx
+旧表=460; 目标=457; 播放=457; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_EX(Clone): frames=457, rm=Unagi|SwitchIn_Attack_Ex_Start | Unagi|SwitchIn_Attack_Ex | Unagi|SwitchIn_Attack_Ex_End
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_02_Perfect.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_Branch_02_Attack_02_Inplace (0.850000s) -> Unagi|Attack_Branch_02_Attack_02 (0.850000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_Branch_02_Attack_02.fbx
+Attack_Branch_02_Attack_02_End_Inplace (2.450000s) -> Unagi|Attack_Branch_02_Attack_02_End (2.450000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_Branch_02_Attack_02_End.fbx
+旧表=198; 目标=198; 播放=198; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_Attack_Branch_02_Perfect(Clone): frames=198, rm=Unagi|Attack_Branch_02_Attack_02 | Unagi|Attack_Branch_02_Attack_02_End
+
+Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_03.asset | RM=Assets/Art/Characters/Anbi/Blender_FbxFormat_Root
+Anbi_Attack_Normal_03_Inplace (1.033333s) -> Anbi_Attack_Normal_03 (1.033333s), range=0..-1, Assets/Art/Characters/Anbi/Blender_FbxFormat_Root/Anbi_Attack_Normal_03.fbx
+Anbi_Attack_Normal_03_End_Inplace (1.833333s) -> Anbi_Attack_Normal_03_End (1.833333s), range=0..-1, Assets/Art/Characters/Anbi/Blender_FbxFormat_Root/Anbi_Attack_Normal_03_End.fbx
+旧表=173; 目标=172; 播放=172; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Anbi_Attack_Normal_03(Clone): frames=172, rm=Anbi_Attack_Normal_03 | Anbi_Attack_Normal_03_End
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_05.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_05_Inplace (1.350000s) -> Unagi|Attack_05 (1.350000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_05.fbx
+Attack_05_End_Inplace (2.666667s) -> Unagi|Attack_05_End (2.666667s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_05_End.fbx
+旧表=241; 目标=241; 播放=241; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_Attack_05(Clone): frames=241, rm=Unagi|Attack_05 | Unagi|Attack_05_End
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_ParryAid_H_Success.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_ParryAid_H_Inplace (1.016667s) -> Unagi|Attack_ParryAid_H (1.016667s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_ParryAid_H.fbx
+Attack_ParryAid_H_End_Inplace (3.450000s) -> Unagi|Attack_ParryAid_H_End (3.450000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_ParryAid_H_End.fbx
+旧表=270; 目标=268; 播放=268; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_ParryAid_H_Success(Clone): frames=268, rm=Unagi|Attack_ParryAid_H | Unagi|Attack_ParryAid_H_End
+
+Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_SwitchOut.asset | RM=Assets/Art/Characters/Anbi/Blender_FbxFormat_Root
+Anbi_SwitchOut_Normal_Inplace (0.933333s) -> Anbi_SwitchOut_Normal (0.933333s), range=0..-1, Assets/Art/Characters/Anbi/Blender_FbxFormat_Root/Anbi_SwitchOut_Normal.fbx
+旧表=57; 目标=56; 播放=56; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Anbi_SwitchOut(Clone): frames=56, rm=Anbi_SwitchOut_Normal
+
+Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Hurt.asset | RM=Assets/Art/Characters/Anbi/Blender_FbxFormat_Root
+Anbi_Hit_H_Front_Inplace (2.233333s) -> Anbi_Hit_H_Front (2.233333s), range=0..-1, Assets/Art/Characters/Anbi/Blender_FbxFormat_Root/Anbi_Hit_H_Front.fbx
+旧表=134; 目标=134; 播放=134; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Anbi_Hurt(Clone): frames=134, rm=Anbi_Hit_H_Front
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_04.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_04_Inplace (0.616667s) -> Unagi|Attack_04 (0.616667s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_04.fbx
+Attack_04_End_Inplace (3.750000s) -> Unagi|Attack_04_End (3.750000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_04_End.fbx
+旧表=263; 目标=262; 播放=262; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_Attack_04(Clone): frames=262, rm=Unagi|Attack_04 | Unagi|Attack_04_End
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_02.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_Branch_01_Start_Inplace (0.333333s) -> Unagi|Attack_Branch_01_Start (0.333333s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_Branch_01_Start.fbx
+Attack_Branch_01_Attack_02_Inplace (0.850000s) -> Unagi|Attack_Branch_01_Attack_02 (0.850000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_Branch_01_Attack_02.fbx
+Attack_Branch_01_Attack_02_End_Inplace (2.416667s) -> Unagi|Attack_Branch_01_Attack_02_End (2.416667s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_Branch_01_Attack_02_End.fbx
+旧表=216; 目标=216; 播放=216; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_Attack_Branch_02(Clone): frames=216, rm=Unagi|Attack_Branch_01_Start | Unagi|Attack_Branch_01_Attack_02 | Unagi|Attack_Branch_01_Attack_02_End
+
+Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Evade_Back.asset | RM=Assets/Art/Characters/Anbi/Blender_FbxFormat_Root
+Anbi_Evade_Back_Inplace (2.433333s) -> Anbi_Evade_Back (2.433333s), range=0..-1, Assets/Art/Characters/Anbi/Blender_FbxFormat_Root/Anbi_Evade_Back.fbx
+旧表=146; 目标=146; 播放=146; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Anbi_Evade_Back(Clone): frames=146, rm=Anbi_Evade_Back
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Backward_Left.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Evade_Back_Left_Inplace (3.883333s) -> Unagi|Evade_Back_Left (3.883333s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Evade_Back_Left.fbx
+旧表=233; 目标=233; 播放=233; mode=BakedMotion; planar=FullPlanar
+OK: 已写回 Unagi_Dodge_Backward_Left(Clone): frames=233, rm=Unagi|Evade_Back_Left
+
+Assets/Data/Combat/Actions/Monster/ActionDefinition/Monster_Goblin_Attack_01.asset | RM=Assets/Art/Characters/Monster/Blender_FbxFormat_Root
+Goblin_Ani_Attack_01_Inplace (3.516667s) -> Goblin_Ani_Attack_01 (3.516667s), range=0..-1, Assets/Art/Characters/Monster/Blender_FbxFormat_Root/Goblin_Ani_Attack_01.fbx
+旧表=212; 目标=211; 播放=211; mode=BakedMotion; planar=FullPlanar
+OK: 已写回 Monster_Goblin_Attack_01(Clone): frames=211, rm=Goblin_Ani_Attack_01
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_01_Perfect.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_Branch_02_Attack_01_Inplace (0.450000s) -> Unagi|Attack_Branch_02_Attack_01 (0.450000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_Branch_02_Attack_01.fbx
+Attack_Branch_02_Attack_01_End_Inplace (3.483334s) -> Unagi|Attack_Branch_02_Attack_01_End (3.483334s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_Branch_02_Attack_01_End.fbx
+旧表=238; 目标=236; 播放=236; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_Attack_Branch_01_Perfect(Clone): frames=236, rm=Unagi|Attack_Branch_02_Attack_01 | Unagi|Attack_Branch_02_Attack_01_End
+
+Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_04_Perfect.asset | RM=Assets/Art/Characters/Anbi/Blender_FbxFormat_Root
+Anbi_Attack_Normal_04_Perfect_Inplace (1.033333s) -> Anbi_Attack_Normal_04_Perfect (1.033333s), range=0..-1, Assets/Art/Characters/Anbi/Blender_FbxFormat_Root/Anbi_Attack_Normal_04_Perfect.fbx
+Anbi_Attack_Normal_04_Perfect_End_Inplace (2.566667s) -> Anbi_Attack_Normal_04_Perfect_End (2.566667s), range=0..-1, Assets/Art/Characters/Anbi/Blender_FbxFormat_Root/Anbi_Attack_Normal_04_Perfect_End.fbx
+旧表=218; 目标=216; 播放=216; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Anbi_Attack_Normal_04_Perfect(Clone): frames=216, rm=Anbi_Attack_Normal_04_Perfect | Anbi_Attack_Normal_04_Perfect_End
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Counter.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_AssaultAid_Inplace (1.516667s) -> Unagi|Attack_AssaultAid (1.516667s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_AssaultAid.fbx
+Attack_AssaultAid_End_Inplace (2.483333s) -> Unagi|Attack_AssaultAid_End (2.483333s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_AssaultAid_End.fbx
+旧表=330; 目标=240; 播放=240; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_Attack_Counter(Clone): frames=240, rm=Unagi|Attack_AssaultAid | Unagi|Attack_AssaultAid_End
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_01.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_Branch_01_Start_Inplace (0.333333s) -> Unagi|Attack_Branch_01_Start (0.333333s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_Branch_01_Start.fbx
+Attack_Branch_01_Attack_01_Inplace (0.450000s) -> Unagi|Attack_Branch_01_Attack_01 (0.450000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_Branch_01_Attack_01.fbx
+Attack_Branch_01_Attack_01_End_Inplace (3.483334s) -> Unagi|Attack_Branch_01_Attack_01_End (3.483334s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_Branch_01_Attack_01_End.fbx
+旧表=258; 目标=256; 播放=256; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_Attack_Branch_01(Clone): frames=256, rm=Unagi|Attack_Branch_01_Start | Unagi|Attack_Branch_01_Attack_01 | Unagi|Attack_Branch_01_Attack_01_End
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Backward.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Evade_Back_Inplace (3.850000s) -> Unagi|Evade_Back (3.850000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Evade_Back.fbx
+旧表=232; 目标=231; 播放=231; mode=BakedMotion; planar=FullPlanar
+OK: 已写回 Unagi_Dodge_Backward(Clone): frames=231, rm=Unagi|Evade_Back
+
+Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_04.asset | RM=Assets/Art/Characters/Anbi/Blender_FbxFormat_Root
+Anbi_Attack_Normal_04_Inplace (1.233333s) -> Anbi_Attack_Normal_04 (1.233333s), range=0..-1, Assets/Art/Characters/Anbi/Blender_FbxFormat_Root/Anbi_Attack_Normal_04.fbx
+Anbi_Attack_Normal_04_End_Inplace (2.900000s) -> Anbi_Attack_Normal_04_End (2.900000s), range=0..-1, Assets/Art/Characters/Anbi/Blender_FbxFormat_Root/Anbi_Attack_Normal_04_End.fbx
+旧表=248; 目标=248; 播放=248; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Anbi_Attack_Normal_04(Clone): frames=248, rm=Anbi_Attack_Normal_04 | Anbi_Attack_Normal_04_End
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Backward_Right.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Evade_Back_Right_Inplace (3.883333s) -> Unagi|Evade_Back_Right (3.883333s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Evade_Back_Right.fbx
+旧表=233; 目标=233; 播放=233; mode=BakedMotion; planar=FullPlanar
+OK: 已写回 Unagi_Dodge_Backward_Right(Clone): frames=233, rm=Unagi|Evade_Back_Right
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Combo_1.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_01_Inplace (0.650000s) -> Unagi|Attack_01 (0.650000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_01.fbx
+Attack_02_Inplace (0.583333s) -> Unagi|Attack_02 (0.583333s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_02.fbx
+Attack_03_Inplace (1.100000s) -> Unagi|Attack_03 (1.100000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_03.fbx
+旧表=142; 目标=140; 播放=140; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_Combo_1(Clone): frames=140, rm=Unagi|Attack_01 | Unagi|Attack_02 | Unagi|Attack_03
+
+Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Evade_Front.asset | RM=Assets/Art/Characters/Anbi/Blender_FbxFormat_Root
+Anbi_Evade_Front_Inplace (1.866667s) -> Anbi_Evade_Front (1.866667s), range=0..-1, Assets/Art/Characters/Anbi/Blender_FbxFormat_Root/Anbi_Evade_Front.fbx
+旧表=113; 目标=112; 播放=112; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Anbi_Evade_Front(Clone): frames=112, rm=Anbi_Evade_Front
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Hurt.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Hit_L_Front_Inplace (2.416667s) -> Unagi|Hit_L_Front (2.416667s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Hit_L_Front.fbx
+旧表=145; 目标=145; 播放=145; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_Hurt(Clone): frames=145, rm=Unagi|Hit_L_Front
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_ParryAid_H_Guard.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_ParryAid_Start_Inplace (4.516667s) -> Unagi|Attack_ParryAid_Start (4.516667s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_ParryAid_Start.fbx
+旧表=271; 目标=271; 播放=271; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_ParryAid_H_Guard(Clone): frames=271, rm=Unagi|Attack_ParryAid_Start
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_03.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_Branch_01_Attack_03_Inplace (1.683333s) -> Unagi|Attack_Branch_01_Attack_03 (1.683333s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_Branch_01_Attack_03.fbx
+Attack_Branch_01_Attack_03_End_Inplace (2.850000s) -> Unagi|Attack_Branch_01_Attack_03_End (2.850000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_Branch_01_Attack_03_End.fbx
+旧表=273; 目标=272; 播放=272; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_Attack_Branch_03(Clone): frames=272, rm=Unagi|Attack_Branch_01_Attack_03 | Unagi|Attack_Branch_01_Attack_03_End
+
+Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_02.asset | RM=Assets/Art/Characters/Anbi/Blender_FbxFormat_Root
+Anbi_Attack_Normal_02_Inplace (0.633333s) -> Anbi_Attack_Normal_02 (0.633333s), range=0..-1, Assets/Art/Characters/Anbi/Blender_FbxFormat_Root/Anbi_Attack_Normal_02.fbx
+Anbi_Attack_Normal_02_End_Inplace (2.033334s) -> Anbi_Attack_Normal_02_End (2.033334s), range=0..-1, Assets/Art/Characters/Anbi/Blender_FbxFormat_Root/Anbi_Attack_Normal_02_End.fbx
+旧表=162; 目标=160; 播放=160; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Anbi_Attack_Normal_02(Clone): frames=160, rm=Anbi_Attack_Normal_02 | Anbi_Attack_Normal_02_End
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_ChargeAttack_01.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_ChargeAttack_Attack01_Inplace (1.016667s) -> Unagi|Attack_ChargeAttack_Attack01 (1.016667s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_ChargeAttack_Attack01.fbx
+Attack_ChargeAttack_Attack01_End_Inplace (2.583333s) -> Unagi|Attack_ChargeAttack_Attack01_End (2.583333s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_ChargeAttack_Attack01_End.fbx
+旧表=218; 目标=216; 播放=216; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_ChargeAttack_01(Clone): frames=216, rm=Unagi|Attack_ChargeAttack_Attack01 | Unagi|Attack_ChargeAttack_Attack01_End
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Forward_Right.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Evade_Front_Right_Inplace (3.883333s) -> Unagi|Evade_Front_Right (3.883333s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Evade_Front_Right.fbx
+旧表=233; 目标=233; 播放=233; mode=BakedMotion; planar=FullPlanar
+OK: 已写回 Unagi_Dodge_Forward_Right(Clone): frames=233, rm=Unagi|Evade_Front_Right
+
+Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_01.asset | RM=Assets/Art/Characters/Anbi/Blender_FbxFormat_Root
+Anbi_Attack_Normal_01_Inplace (0.700000s) -> Anbi_Attack_Normal_01 (0.700000s), range=0..-1, Assets/Art/Characters/Anbi/Blender_FbxFormat_Root/Anbi_Attack_Normal_01.fbx
+Anbi_Attack_Normal_01_End_Inplace (2.233333s) -> Anbi_Attack_Normal_01_End (2.233333s), range=0..-1, Assets/Art/Characters/Anbi/Blender_FbxFormat_Root/Anbi_Attack_Normal_01_End.fbx
+旧表=177; 目标=176; 播放=176; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Anbi_Attack_Normal_01(Clone): frames=176, rm=Anbi_Attack_Normal_01 | Anbi_Attack_Normal_01_End
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_ChargeAttack_03.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+REBIND 段[0]: Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_ChargeAttack_Attack03.fbx -> Assets/Art/Characters/Unagi/Inplace/Attack_ChargeAttack_Attack03_Inplace.fbx; duration=2.350000s
+REBIND 段[1]: Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_ChargeAttack_Attack03_End.fbx -> Assets/Art/Characters/Unagi/Inplace/Attack_ChargeAttack_Attack03_End_Inplace.fbx; duration=3.250000s
+Attack_ChargeAttack_Attack03_Inplace (2.350000s) -> Unagi|Attack_ChargeAttack_Attack03 (2.350000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_ChargeAttack_Attack03.fbx
+Attack_ChargeAttack_Attack03_End_Inplace (3.250000s) -> Unagi|Attack_ChargeAttack_Attack03_End (3.250000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_ChargeAttack_Attack03_End.fbx
+旧表=0; 目标=336; 播放=336; mode=BakedMotion; planar=FullPlanar
+OK: 已写回 Unagi_ChargeAttack_03(Clone): frames=336, rm=Unagi|Attack_ChargeAttack_Attack03 | Unagi|Attack_ChargeAttack_Attack03_End
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_Start.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_Branch_Inplace (2.116667s) -> Unagi|Attack_Branch (2.116667s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_Branch.fbx
+旧表=128; 目标=127; 播放=127; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_Attack_Branch_Start(Clone): frames=127, rm=Unagi|Attack_Branch
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Forward.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Evade_Front_Inplace (4.016667s) -> Unagi|Evade_Front (4.016667s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Evade_Front.fbx
+旧表=242; 目标=241; 播放=241; mode=BakedMotion; planar=FullPlanar
+OK: 已写回 Unagi_Dodge_Forward(Clone): frames=241, rm=Unagi|Evade_Front
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_03.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_03_Inplace (1.100000s) -> Unagi|Attack_03 (1.100000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_03.fbx
+Attack_03_End_Inplace (3.233334s) -> Unagi|Attack_03_End (3.233334s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_03_End.fbx
+旧表=261; 目标=260; 播放=260; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_Attack_03(Clone): frames=260, rm=Unagi|Attack_03 | Unagi|Attack_03_End
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Rush_02.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_Rush_02_Inplace (0.850000s) -> Unagi|Attack_Rush_02 (0.850000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_Rush_02.fbx
+Attack_Rush_02_End_Inplace (3.483334s) -> Unagi|Attack_Rush_02_End (3.483334s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_Rush_02_End.fbx
+旧表=261; 目标=260; 播放=260; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_Attack_Rush_02(Clone): frames=260, rm=Unagi|Attack_Rush_02 | Unagi|Attack_Rush_02_End
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_SwitchOut.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+SwitchOut_Normal_Inplace (1.016667s) -> Unagi|SwitchOut_Normal (1.016667s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/SwitchOut_Normal.fbx
+旧表=62; 目标=61; 播放=61; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_SwitchOut(Clone): frames=61, rm=Unagi|SwitchOut_Normal
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Rush.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_Rush_Inplace (0.883333s) -> Unagi|Attack_Rush (0.883333s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_Rush.fbx
+Attack_Rush_End_Inplace (3.316667s) -> Unagi|Attack_Rush_End (3.316667s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_Rush_End.fbx
+旧表=254; 目标=252; 播放=252; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_Attack_Rush(Clone): frames=252, rm=Unagi|Attack_Rush | Unagi|Attack_Rush_End
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Death.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Death_Inplace (2.683333s) -> Unagi|Death (2.683333s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Death.fbx
+旧表=161; 目标=161; 播放=161; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_Death(Clone): frames=161, rm=Unagi|Death
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Forward_Left.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Evade_Front_Left_Inplace (3.883333s) -> Unagi|Evade_Front_Left (3.883333s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Evade_Front_Left.fbx
+旧表=233; 目标=233; 播放=233; mode=BakedMotion; planar=FullPlanar
+OK: 已写回 Unagi_Dodge_Forward_Left(Clone): frames=233, rm=Unagi|Evade_Front_Left
+
+Assets/Data/Combat/Actions/Monster/ActionDefinition/Monster_Goblin_Hit_L_Front.asset | RM=Assets/Art/Characters/Monster/Blender_FbxFormat_Root
+Goblin_Ani_Stun_Hit_L_Front_Inplace (1.750000s) -> Goblin_Ani_Stun_Hit_L_Front (1.750000s), range=0..-1, Assets/Art/Characters/Monster/Blender_FbxFormat_Root/Goblin_Ani_Stun_Hit_L_Front.fbx
+旧表=106; 目标=105; 播放=105; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Monster_Goblin_Hit_L_Front(Clone): frames=105, rm=Goblin_Ani_Stun_Hit_L_Front
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_02.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_02_Inplace (0.583333s) -> Unagi|Attack_02 (0.583333s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_02.fbx
+Attack_02_End_Inplace (3.483334s) -> Unagi|Attack_02_End (3.483334s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_02_End.fbx
+旧表=246; 目标=244; 播放=244; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_Attack_02(Clone): frames=244, rm=Unagi|Attack_02 | Unagi|Attack_02_End
+
+Assets/Data/Combat/Actions/Monster/ActionDefinition/Monster_Goblin_Attack_02.asset | RM=Assets/Art/Characters/Monster/Blender_FbxFormat_Root
+Goblin_Ani_Attack_02_Inplace (3.716667s) -> Goblin_Ani_Attack_02 (3.716667s), range=0..-1, Assets/Art/Characters/Monster/Blender_FbxFormat_Root/Goblin_Ani_Attack_02.fbx
+旧表=224; 目标=223; 播放=223; mode=BakedMotion; planar=FullPlanar
+OK: 已写回 Monster_Goblin_Attack_02(Clone): frames=223, rm=Goblin_Ani_Attack_02
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Combo_2.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_Branch_Inplace (2.116667s) -> Unagi|Attack_Branch (2.116667s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_Branch.fbx
+Attack_Branch_01_Attack_02_Inplace (0.850000s) -> Unagi|Attack_Branch_01_Attack_02 (0.850000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_Branch_01_Attack_02.fbx
+旧表=179; 目标=178; 播放=178; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_Combo_2(Clone): frames=178, rm=Unagi|Attack_Branch | Unagi|Attack_Branch_01_Attack_02
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_06.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_06_Inplace (0.883333s) -> Unagi|Attack_06 (0.883333s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_06.fbx
+Attack_06_End_Inplace (3.850000s) -> Unagi|Attack_06_End (3.850000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_06_End.fbx
+旧表=286; 目标=284; 播放=284; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_Attack_06(Clone): frames=284, rm=Unagi|Attack_06 | Unagi|Attack_06_End
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_SwitchIn.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+SwitchIn_Normal_Inplace (3.516667s) -> Unagi|SwitchIn_Normal (3.516667s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/SwitchIn_Normal.fbx
+旧表=212; 目标=211; 播放=211; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_SwitchIn(Clone): frames=211, rm=Unagi|SwitchIn_Normal
+
+Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_SwitchIn.asset | RM=Assets/Art/Characters/Anbi/Blender_FbxFormat_Root
+Anbi_SwitchIn_Normal_Inplace (1.766667s) -> Anbi_SwitchIn_Normal (1.766667s), range=0..-1, Assets/Art/Characters/Anbi/Blender_FbxFormat_Root/Anbi_SwitchIn_Normal.fbx
+旧表=107; 目标=106; 播放=106; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Anbi_SwitchIn(Clone): frames=106, rm=Anbi_SwitchIn_Normal
+
+Assets/Data/Combat/Actions/Monster/ActionDefinition/Monster_Goblin_Hit_Shake.asset | RM=Assets/Art/Characters/Monster/Blender_FbxFormat_Root
+REBIND 段[0]: Assets/Art/Characters/Monster/Blender_FbxFormat_Root/Monster_Goblin_Ani_Hit_Shake.fbx -> Assets/Art/Characters/Monster/Blender_FbxFormat_Inplace/Monster_Goblin_Ani_Hit_Shake_Inplace.fbx; duration=0.416667s
+Monster_Goblin_Ani_Hit_Shake_Inplace (0.416667s) -> Monster_Goblin_Ani_Hit_Shake (0.416667s), range=0..-1, Assets/Art/Characters/Monster/Blender_FbxFormat_Root/Monster_Goblin_Ani_Hit_Shake.fbx
+旧表=0; 目标=25; 播放=25; mode=BakedMotion; planar=FullPlanar
+OK: 已写回 Monster_Goblin_Hit_Shake(Clone): frames=25, rm=Monster_Goblin_Ani_Hit_Shake
+
+Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_01.asset | RM=Assets/Art/Characters/Unagi/RootMotion
+Attack_01_Inplace (0.650000s) -> Unagi|Attack_01 (0.650000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_01.fbx
+Attack_01_End_Inplace (3.350000s) -> Unagi|Attack_01_End (3.350000s), range=0..-1, Assets/Art/Characters/Unagi/RootMotion/Blender_FbxFormat/Attack_01_End.fbx
+旧表=242; 目标=240; 播放=240; mode=BakedMotion; planar=ForwardSigned
+OK: 已写回 Unagi_Attack_01(Clone): frames=240, rm=Unagi|Attack_01 | Unagi|Attack_01_End
+
+Locomotion: Assets/Data/Enemy/Unagi/Unagi_Enemy_LocomotionSO.asset
+更新 4 条根位移轨。
+
+Updated=47; BlockedOrFailed=0; Backup=D:\Projects\ACTGame-code\.utmp\motion-content-repair\20260928-180127

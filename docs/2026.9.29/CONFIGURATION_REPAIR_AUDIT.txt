@@ -1,0 +1,373 @@
+Structure/content failures=51
+[Error] StructureAudit: Assets/Scripts/App/Architecture/Contracts/ArchitectureCapabilities.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/App/Controllers/Combat/CombatWorldController.cs: catch 不得静默吞异常；必须转换结果、计数、记录或明确断开。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/App/Controllers/Debug/CharacterFacingDebugVisualizer.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/App/Controllers/Debug/CombatDebugHudController.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/App/Controllers/Gameplay/EnemySpawnController.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/App/Networking/Adapters/ActAuthorityReplicationAdapter.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/App/Networking/Adapters/ActGameSessionHandler.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/App/Systems/Combat/CombatActorSystem.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Character/CharacterConfig.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Character/Locomotion/CharacterLocomotionProfile.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Character/Locomotion/ILocomotionAnimResolver.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Character/Locomotion/LocomotionGaitPolicy.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/ActionNotifyChannel.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/ActionTimelineTrack.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/IActionNotifyConsumer.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Combat/Actions/Frames/ActionFrameQuery.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Combat/Actions/Resolution/ActionGraph.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Combat/Actions/Resolution/ActionGraph.cs: 运行时文件 472 行，超过 450 行；须拆分职责或登记单一职责说明。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Combat/Actions/Resolution/ActionResolveContext.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Combat/Actions/Validation/ActionDefinitionAuditIssue.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Combat/Camera/CameraDirectorStack.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Combat/Camera/CameraShotTypes.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Combat/Hitbox/HitboxMath.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Combat/Numeric/NumericDebugSnapshot.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Enemy/BehaviorTree/EnemyCooldownTable.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Enemy/BehaviorTree/IEnemyBehaviorRandom.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ActionNodes.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/CompositeNodes.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ConditionNodes.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/DecoratorNodes.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorGraphLayout.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorTreeValidator.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Enemy/EnemyPerception.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Input/GameplayIntentProfile.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Simulation/Action/ActionSim.cs: 运行时文件 512 行，超过 450 行；须拆分职责或登记单一职责说明。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Simulation/Party/PartyAssistPoints.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Simulation/Party/PartyDeathSwitchPolicy.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Simulation/Party/PartyLoadoutRules.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Simulation/Party/PartyMemberState.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Domain/Simulation/Party/PartySwitchCommand.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Editor/Combat/ActionEditor/Timeline/ActionTimelineClipboard.cs: catch 不得静默吞异常；必须转换结果、计数、记录或明确断开。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Editor/Combat/ActionEditorPreview.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Editor/Combat/Motion/MotionClipPairMatcher.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Framework/ACTNet/Replication/ReplicationClient.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Framework/ACTNet/Replication/ReplicationProtocolV2.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Framework/ACTNet/Session/ClientSession.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Framework/ACTNet/Session/SessionMessages.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Framework/ACTNet/Transport/ChannelMuxTransport.cs: catch 不得静默吞异常；必须转换结果、计数、记录或明确断开。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Framework/UIFramework/UIFramework.asmdef: 生产程序集 UIFramework 未登记引用白名单。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Error] StructureAudit: Assets/Scripts/Previews/MalevolentShrine/MalevolentShrineDestructibleBuilding.cs: 一个文件只能声明一个顶层 public 类型。
+UnityEngine.Debug:LogError (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:41)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Log] Validate Enemy Behavior Trees：Definition 通过 2；TreeAsset 通过 2 / 失败 0；总问题 0。
+UnityEngine.Debug:Log (object)
+EnemyBehaviorTreeSetupMenu:AuditProject () (at Assets/Scripts/Editor/Enemy/EnemyBehaviorTreeSetupMenu.cs:81)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:75)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Log] StructureValidation: failures=51。
+UnityEngine.Debug:Log (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:76)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:49)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+

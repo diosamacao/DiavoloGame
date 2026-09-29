@@ -1,0 +1,427 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
+  m_Name: Unagi_Attack_Branch_03
+  m_EditorClassIdentifier: 
+  animationSegments:
+  - clip: {fileID: 3806095601073218737, guid: 08ffb44cdfd050947ae6e1ddc8b06a15, type: 3}
+    startFrame: 0
+    endFrame: -1
+    hasCrossFadeOverride: 0
+    crossFadeDuration: 0
+  - clip: {fileID: -6237353192748467896, guid: 9a1eb1563936d914b84253dbe612cd25, type: 3}
+    startFrame: 0
+    endFrame: -1
+    hasCrossFadeOverride: 0
+    crossFadeDuration: 0
+  totalFrames: 272
+  actionType: 0
+  crossFadeDuration: 0.1
+  executionPolicy:
+    interruptPriority: 0
+    baseMotionMode: 2
+  resourceSpec:
+    resourceTag: 4
+    energyCost: 10
+    energyGrantOnHit: 0
+    decibelGrantOnHit: 0
+    consumeDodgeCharge: 0
+    requiresDecibelFull: 0
+    clearsDecibelOnStart: 0
+  timeline:
+    actionEvents: []
+    playVfxNotifies:
+    - id: VFX_1
+      startFrame: 86
+      endFrame: 86
+      priority: 0
+      trackName: VFX_1
+      prefab: {fileID: 2336738607144242677, guid: ccddab8d96f24c4e91399ea71a2353e4, type: 3}
+      attachPointId: Bn_katana_burst
+      localOffset: {x: 0, y: 0, z: 0}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      localScale: {x: 0.2, y: 0.2, z: 0.2}
+      parentToAttachPoint: 1
+      playbackSpeed: 1
+    - id: VFX_2
+      startFrame: 4
+      endFrame: 4
+      priority: 0
+      trackName: VFX_1
+      prefab: {fileID: 2336738607144242677, guid: ccddab8d96f24c4e91399ea71a2353e4, type: 3}
+      attachPointId: Bn_katana_burst
+      localOffset: {x: 0, y: 0, z: 0}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      localScale: {x: 0.2, y: 0.2, z: 0.2}
+      parentToAttachPoint: 1
+      playbackSpeed: 1
+    - id: VFX_4
+      startFrame: 22
+      endFrame: 22
+      priority: 0
+      trackName: VFX_1
+      prefab: {fileID: 6855955652325114174, guid: c02543e57b00460393df4a8216a35d90, type: 3}
+      attachPointId: 
+      localOffset: {x: 0, y: 0.64, z: 1.71}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      localScale: {x: 1.3, y: 1.3, z: 1.7}
+      parentToAttachPoint: 0
+      playbackSpeed: 1
+    - id: VFX_5
+      startFrame: 33
+      endFrame: 33
+      priority: 0
+      trackName: VFX_1
+      prefab: {fileID: 6855955652325114174, guid: c02543e57b00460393df4a8216a35d90, type: 3}
+      attachPointId: 
+      localOffset: {x: 0, y: 0.64, z: 1.74}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      localScale: {x: 1.3, y: 1.3, z: 1.7}
+      parentToAttachPoint: 0
+      playbackSpeed: 1
+    - id: VFX_6
+      startFrame: 42
+      endFrame: 42
+      priority: 0
+      trackName: VFX_1
+      prefab: {fileID: 6855955652325114174, guid: c02543e57b00460393df4a8216a35d90, type: 3}
+      attachPointId: 
+      localOffset: {x: 0, y: 0.64, z: 1.72}
+      localEulerAngles: {x: 0, y: 45, z: 45}
+      localScale: {x: 1.3, y: 1.3, z: 1.7}
+      parentToAttachPoint: 0
+      playbackSpeed: 1
+    playSfxStates:
+    - id: SFX_1
+      startFrame: 0
+      endFrame: 0
+      priority: 0
+      trackName: SFX_1
+      audioClip: {fileID: 8300000, guid: 90e6ac420ad8e024aa351462629e4745, type: 3}
+      volume: 0.5
+      playbackSpeed: 1
+    hitboxStates:
+    - id: Hitbox_1
+      startFrame: 8
+      endFrame: 18
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 1}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 3, y: 3, z: 3}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        interruptLevel: 1
+        parriedActionPolicy: 0
+        parriedReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
+          useHitStop: 1
+          hitStopFrames: 7
+          hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 1
+          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
+    - id: Hitbox_2
+      startFrame: 29
+      endFrame: 30
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 3.38}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 5.21, y: 3, z: 7.39}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        interruptLevel: 1
+        parriedActionPolicy: 0
+        parriedReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 1
+          hitStopFrames: 3
+          hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 1
+          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
+    - id: Hitbox_3
+      startFrame: 33
+      endFrame: 34
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 3.38}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 5.21, y: 3, z: 7.39}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        interruptLevel: 1
+        parriedActionPolicy: 0
+        parriedReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 1
+          hitStopFrames: 3
+          hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 1
+          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
+    - id: Hitbox_4
+      startFrame: 37
+      endFrame: 38
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 3.38}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 5.21, y: 3, z: 7.39}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        interruptLevel: 1
+        parriedActionPolicy: 0
+        parriedReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 1
+          hitStopFrames: 3
+          hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 1
+          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
+    - id: Hitbox_5
+      startFrame: 41
+      endFrame: 42
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 3.38}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 5.21, y: 3, z: 7.39}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        interruptLevel: 1
+        parriedActionPolicy: 0
+        parriedReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 1
+          hitStopFrames: 3
+          hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 1
+          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
+    - id: Hitbox_6
+      startFrame: 45
+      endFrame: 46
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 3.38}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 5.21, y: 3, z: 7.39}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        interruptLevel: 1
+        parriedActionPolicy: 0
+        parriedReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 1
+          hitStopFrames: 3
+          hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 1
+          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
+    - id: Hitbox_7
+      startFrame: 49
+      endFrame: 50
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 1, z: 3.38}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 5.21, y: 3, z: 7.39}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        interruptLevel: 1
+        parriedActionPolicy: 0
+        parriedReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 1
+          hitStopFrames: 3
+          hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 1
+          hitImpactWorldOffset: {x: 0, y: 1, z: 0}
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
+    hurtboxStates: []
+    cancelWindowStates:
+    - id: Cancel_1
+      startFrame: 66
+      endFrame: 99
+      priority: 0
+      trackName: Cancel_1
+      windowType: 0
+    phaseStates:
+    - id: Phase_1
+      startFrame: 100
+      endFrame: 271
+      priority: 0
+      trackName: Phase_1
+      kind: 2
+      interruptible: 1
+      allowMovementCancel: 1
+      allowEntryRestart: 1
+      interruptResistBonus: 0
+    perfectDodgeWindowStates: []
+    assistCueStates: []
+    assistParryWindowStates: []
+    movementStates: []
+    rotationStates:
+    - id: Rotation_1
+      startFrame: 0
+      endFrame: 7
+      priority: 0
+      trackName: Rotation_1
+      smoothTimeOverride: 0.05
+    motionModifierStates:
+    - id: MotionModifier_1
+      startFrame: 0
+      endFrame: 17
+      priority: 0
+      trackName: MotionModifier_1
+      mode: 1
+      targetSource: 0
+      horizontalOffsetMm: 1000
+      lateralOffsetMm: 0
+      maxCorrectionMmPerFrame: 99999
+      maxAcquireDistanceMm: 99999
+      maxAngleMilliDeg: 0
+      stopOnTargetLost: 1
+    - id: MotionModifier_2
+      startFrame: 0
+      endFrame: 42
+      priority: 0
+      trackName: MotionModifier_2
+      mode: 0
+      targetSource: 0
+      horizontalOffsetMm: 1000
+      lateralOffsetMm: 0
+      maxCorrectionMmPerFrame: 250
+      maxAcquireDistanceMm: 4500
+      maxAngleMilliDeg: 0
+      stopOnTargetLost: 1
+    motionCommandNotifies: []
+    cameraSettings:
+      restoreMode: 0
+      suppressLookInput: 1
+    cameraShotStates: []
+    tracks:
+    - trackName: Phase_1
+      kind: 8
+      visible: 1
+    - trackName: Cancel_1
+      kind: 4
+      visible: 1
+    - trackName: VFX_1
+      kind: 2
+      visible: 1
+    - trackName: Rotation_1
+      kind: 6
+      visible: 1
+    - trackName: Hitbox_1
+      kind: 0
+      visible: 1
+    - trackName: SFX_1
+      kind: 3
+      visible: 1
+    - trackName: MotionModifier_1
+      kind: 11
+      visible: 1
+    - trackName: MotionModifier_2
+      kind: 11
+      visible: 1
+  bakedMotion:
+    logicHz: 60
+    frameCount: 272
+    planarMode: 2
+    positionDeltaMmX: fefffffff7ffffffe9ffffffe3ffffffe3ffffffe6fffffff7fffffff3fffffff2fffffff2fffffff2fffffff7ffffffe9ffffffe7ffffffeefffffff6fffffff8fffffffbfffffffdffffff0000000000000000070000001d000000510000006800000035000000f1ffffffd6ffffffc8ffffffc7ffffffd2ffffff00000000f4fffffffbfffffffcfffffffcfffffffdfffffffdfffffffeffffffffffffffffffffffffffffff00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000fffffffffffffffffffffffffefffffffdfffffffdfffffffcfffffffcfffffffcfffffffbfffffffcfffffffcfffffffdfffffffdfffffffeffffffffffffff000000000300000006000000090000000b0000000c0000000c0000000a0000000800000005000000040000000300000002000000010000000100000001000000000000000100000001000000010000000100000001000000010000000100000001000000010000000100000000000000000000000000000000000000000000000000000000000000fffffffffffffffffffffffffffffffffefffffffefffffffefffffffefffffffefffffffefffffffefffffffefffffffefffffffefffffffefffffffefffffffefffffffefffffffefffffffeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    positionDeltaMmZ: 190000001c0000002100000025000000280000002e00000056000000b0010000e4010000ef010000d0010000300100007300000051000000390000002a000000220000001c0000000f000000fdffffffe6ffffffcbffffffb5ffffffdcffffffcdffffff33ffffff7dfeffff18fefffff7fdffff05feffff47feffff0000000062ffffffc2ffffffc6ffffffcbffffffd2ffffffdaffffffe3ffffffe9ffffffecffffffeefffffff0fffffff2fffffff4fffffff6fffffff7fffffff8fffffff9fffffffafffffffafffffffbfffffffbfffffffbfffffffbfffffffcfffffffcfffffffcfffffffcfffffffcfffffffdfffffffdfffffffdfffffffdfffffffdfffffffdfffffffefffffffefffffffefffffffefffffffefffffffefffffffefffffffefffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffffefffffffefffffffefffffffefffffffefffffffefffffffeffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffff000000000000000000000000000000000100000001000000010000000100000001000000010000000200000002000000020000000200000002000000020000000200000003000000030000000300000003000000030000000300000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000300000003000000030000000400000004000000040000000500000005000000060000000600000006000000050000000400000003000000030000000200000002000000010000000100000000000000000000000000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    yawDeltaMilliDeg: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    inplaceContentHash: PlaybackRangeV2|08ffb44cdfd050947ae6e1ddc8b06a15|3806095601073218737|35f9441b8071bae0f8b886300aa72501|0:100;PlaybackRangeV2|9a1eb1563936d914b84253dbe612cd25|-6237353192748467896|c791a1e09d7fe259297eec45efdd319c|0:170;
+    rootMotionContentHash: 29906f74c814e9a4e876a87836590bc1|-3857812397617067658|8b98e821a9dc8fba2a3daae98044dc25;e169ce57ba995ec45861d6dc080096ac|172634108176953476|f43261c12384e581f2982d564e929575;
+    matchedRootMotionName: Unagi|Attack_Branch_01_Attack_03 | Unagi|Attack_Branch_01_Attack_03_End
+    bakeStatus: 1

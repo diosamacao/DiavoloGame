@@ -1,0 +1,105 @@
+[
+  {
+    "path": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_04_Perfect.asset",
+    "type": "ActionDefinition.cs",
+    "guid": "4469455f38eeede4cad87707c01b922f",
+    "name": "Anbi_Attack_Normal_04_Perfect",
+    "refs": [
+      "d1e2f3a4b5c6970812345678abcdef10",
+      "c7ff7290a20e999469a04d36acdf1e83",
+      "0ac38334a0081e646b8610e854b48978",
+      "6aa89f48868b7ce49b0a21e880fcb68a",
+      "75b749e3824fb734ab1fba378e61834b",
+      "df658a8f5659e3845aa38812182dbac1",
+      "2112298c783085248b66b41911d6cb17",
+      "75b749e3824fb734ab1fba378e61834b",
+      "df658a8f5659e3845aa38812182dbac1",
+      "2112298c783085248b66b41911d6cb17"
+    ],
+    "owners": [],
+    "serializedReferencers": []
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Giant/ActionDefinition/Giant_Attack_01.asset",
+    "type": "ActionDefinition.cs",
+    "guid": "deee3e652be88574badb24997e86fc37",
+    "name": "Giant_Attack_01",
+    "refs": [
+      "d1e2f3a4b5c6970812345678abcdef10",
+      "af022f6928fc82f4cb6b06ff2a57a854"
+    ],
+    "owners": [],
+    "serializedReferencers": []
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Monster/ActionDefinition/Monster_Goblin_Hit_Shake.asset",
+    "type": "ActionDefinition.cs",
+    "guid": "ef0c9f0264bc33746a2aabfea88f00de",
+    "name": "Monster_Goblin_Hit_Shake",
+    "refs": [
+      "d1e2f3a4b5c6970812345678abcdef10",
+      "78584d16af66fa142a53b7e09899511a"
+    ],
+    "owners": [],
+    "serializedReferencers": []
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Monster/ActionDefinition/Monster_Goblin_Hit_Stay.asset",
+    "type": "ActionDefinition.cs",
+    "guid": "65c296d5ab70106429ad1b02e0309c79",
+    "name": "Monster_Goblin_Hit_Stay",
+    "refs": [
+      "d1e2f3a4b5c6970812345678abcdef10",
+      "6e10738609fcf0644bf057c46bf20054"
+    ],
+    "owners": [],
+    "serializedReferencers": []
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_ChargeAttack_03.asset",
+    "type": "ActionDefinition.cs",
+    "guid": "90726fe5915ccb441b058e06733fa276",
+    "name": "Unagi_ChargeAttack_03",
+    "refs": [
+      "d1e2f3a4b5c6970812345678abcdef10",
+      "09199dcccbe77b447aa63fbd65d27b07",
+      "fb415ce91611f444a948846c19173170"
+    ],
+    "owners": [],
+    "serializedReferencers": []
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Death.asset",
+    "type": "ActionDefinition.cs",
+    "guid": "c958561b56f1ebf4d9d539a7f22cf739",
+    "name": "Unagi_Death",
+    "refs": [
+      "d1e2f3a4b5c6970812345678abcdef10",
+      "ad05ba8e2a1cb574195a37159e9e63b8"
+    ],
+    "owners": [],
+    "serializedReferencers": []
+  },
+  {
+    "path": "Assets/Data/Enemy/Unagi/Unagi_Enemy_LocomotionSO.asset",
+    "type": "CharacterLocomotionProfile.cs",
+    "guid": "0ba2a5a7f2eb8f64ab163b7cb1478bda",
+    "name": "Unagi_Enemy_LocomotionSO",
+    "refs": [
+      "a1601a372e9b98e42912925db0cd17d2",
+      "7665b365d114c6e44a3ab6e0430b6dce",
+      "74d1892ae56796344a9d376a65b9e047",
+      "e12a5724e446f264c95078a5ee1448b6",
+      "aec76126025988f4599fff6b20f5d220",
+      "39615fc18966d904eb024131210f2c60",
+      "39615fc18966d904eb024131210f2c60",
+      "1872ec27cf58dcc47b1693ac7a16380c",
+      "4b8bb84a23d045c468598fb439bedc97",
+      "73ec2caa984ff4b419bb4618d5046e5f",
+      "a7d39bb78dd35ed438aa29d107294902",
+      "a7d39bb78dd35ed438aa29d107294902"
+    ],
+    "owners": [],
+    "serializedReferencers": []
+  }
+]

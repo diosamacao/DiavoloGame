@@ -1,0 +1,1002 @@
+{
+  "serializedAssetsChecked": 1617,
+  "serializedAssetsChanged": [],
+  "originalMultiTypeFiles": 43,
+  "splitTypeFiles": 165,
+  "additionalScriptFiles": 122,
+  "renamedScriptAndMetaPairs": 9,
+  "typeDeclarationsVerifiedEditorAndRelease": 330,
+  "originalScriptMetasPreserved": true,
+  "splitDetails": [
+    {
+      "Source": "Assets/Scripts/App/Architecture/Contracts/ArchitectureCapabilities.cs",
+      "Destination": "Assets/Scripts/App/Architecture/Contracts/IBelongToArchitecture.cs",
+      "Type": "IBelongToArchitecture",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/App/Architecture/Contracts/ArchitectureCapabilities.cs",
+      "Destination": "Assets/Scripts/App/Architecture/Contracts/ICanSetArchitecture.cs",
+      "Type": "ICanSetArchitecture",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/App/Architecture/Contracts/ArchitectureCapabilities.cs",
+      "Destination": "Assets/Scripts/App/Architecture/Contracts/ICanGetSystem.cs",
+      "Type": "ICanGetSystem",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/App/Architecture/Contracts/ArchitectureCapabilities.cs",
+      "Destination": "Assets/Scripts/App/Architecture/Contracts/ICanGetModel.cs",
+      "Type": "ICanGetModel",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/App/Architecture/Contracts/ArchitectureCapabilities.cs",
+      "Destination": "Assets/Scripts/App/Architecture/Contracts/ICanGetUtility.cs",
+      "Type": "ICanGetUtility",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/App/Architecture/Contracts/ArchitectureCapabilities.cs",
+      "Destination": "Assets/Scripts/App/Architecture/Contracts/ICanSendCommand.cs",
+      "Type": "ICanSendCommand",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/App/Architecture/Contracts/ArchitectureCapabilities.cs",
+      "Destination": "Assets/Scripts/App/Architecture/Contracts/ICanSendQuery.cs",
+      "Type": "ICanSendQuery",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/App/Architecture/Contracts/ArchitectureCapabilities.cs",
+      "Destination": "Assets/Scripts/App/Architecture/Contracts/ICanRegisterEvent.cs",
+      "Type": "ICanRegisterEvent",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/App/Architecture/Contracts/ArchitectureCapabilities.cs",
+      "Destination": "Assets/Scripts/App/Architecture/Contracts/ICanSendEvent.cs",
+      "Type": "ICanSendEvent",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/App/Architecture/Contracts/ArchitectureCapabilities.cs",
+      "Destination": "Assets/Scripts/App/Architecture/Contracts/ArchitectureCapabilityExtensions.cs",
+      "Type": "ArchitectureCapabilityExtensions",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/App/Controllers/Gameplay/EnemySpawnController.cs",
+      "Destination": "Assets/Scripts/App/Controllers/Gameplay/EnemySpawnController.cs",
+      "Type": "EnemySpawnController",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/App/Controllers/Gameplay/EnemySpawnController.cs",
+      "Destination": "Assets/Scripts/App/Controllers/Gameplay/EnemySpawnEntry.cs",
+      "Type": "EnemySpawnEntry",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/App/Networking/Adapters/ActAuthorityReplicationAdapter.cs",
+      "Destination": "Assets/Scripts/App/Networking/Adapters/ActAuthorityReplicationAdapter.cs",
+      "Type": "ActAuthorityReplicationAdapter",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/App/Networking/Adapters/ActAuthorityReplicationAdapter.cs",
+      "Destination": "Assets/Scripts/App/Networking/Adapters/ActAuthorityInputApplyResult.cs",
+      "Type": "ActAuthorityInputApplyResult",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/App/Networking/Adapters/ActGameSessionHandler.cs",
+      "Destination": "Assets/Scripts/App/Networking/Adapters/ActGameSessionHandler.cs",
+      "Type": "ActGameSessionHandler",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/App/Networking/Adapters/ActGameSessionHandler.cs",
+      "Destination": "Assets/Scripts/App/Networking/Adapters/ActGameSessionServices.cs",
+      "Type": "ActGameSessionServices",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/App/Networking/Adapters/ActGameSessionHandler.cs",
+      "Destination": "Assets/Scripts/App/Networking/Adapters/ActGameGuest.cs",
+      "Type": "ActGameGuest",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/App/Systems/Combat/CombatActorSystem.cs",
+      "Destination": "Assets/Scripts/App/Systems/Combat/CombatActorSystem.cs",
+      "Type": "CombatActorSystem",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/App/Systems/Combat/CombatActorSystem.cs",
+      "Destination": "Assets/Scripts/App/Systems/Combat/CombatActorEntry.cs",
+      "Type": "CombatActorEntry",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Character/CharacterConfig.cs",
+      "Destination": "Assets/Scripts/Domain/Character/CharacterConfig.cs",
+      "Type": "CharacterConfig",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Character/CharacterConfig.cs",
+      "Destination": "Assets/Scripts/Domain/Character/CharacterMotorConfig.cs",
+      "Type": "CharacterMotorConfig",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Character/CharacterConfig.cs",
+      "Destination": "Assets/Scripts/Domain/Character/CharacterCombatConfig.cs",
+      "Type": "CharacterCombatConfig",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Character/Locomotion/CharacterLocomotionProfile.cs",
+      "Destination": "Assets/Scripts/Domain/Character/Locomotion/CharacterLocomotionProfile.cs",
+      "Type": "CharacterLocomotionProfile",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Character/Locomotion/CharacterLocomotionProfile.cs",
+      "Destination": "Assets/Scripts/Domain/Character/Locomotion/FootPlantMarker.cs",
+      "Type": "FootPlantMarker",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Character/Locomotion/ILocomotionAnimResolver.cs",
+      "Destination": "Assets/Scripts/Domain/Character/Locomotion/ILocomotionAnimResolver.cs",
+      "Type": "ILocomotionAnimResolver",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Character/Locomotion/ILocomotionAnimResolver.cs",
+      "Destination": "Assets/Scripts/Domain/Character/Locomotion/ILocomotionAnimClipQuery.cs",
+      "Type": "ILocomotionAnimClipQuery",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Character/Locomotion/LocomotionGaitPolicy.cs",
+      "Destination": "Assets/Scripts/Domain/Character/Locomotion/LocomotionGaitPolicy.cs",
+      "Type": "LocomotionGaitPolicy",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Character/Locomotion/LocomotionGaitPolicy.cs",
+      "Destination": "Assets/Scripts/Domain/Character/Locomotion/GaitPolicyInput.cs",
+      "Type": "GaitPolicyInput",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Character/Locomotion/LocomotionGaitPolicy.cs",
+      "Destination": "Assets/Scripts/Domain/Character/Locomotion/GaitPolicyResult.cs",
+      "Type": "GaitPolicyResult",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/ActionNotifyChannel.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/ActionNotifyChannel.cs",
+      "Type": "ActionNotifyChannel",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/ActionNotifyChannel.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/ActionNotifyClassification.cs",
+      "Type": "ActionNotifyClassification",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/ActionTimelineTrack.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/ActionTimelineTrackKind.cs",
+      "Type": "ActionTimelineTrackKind",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/ActionTimelineTrack.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/ActionTimelineTrack.cs",
+      "Type": "ActionTimelineTrack",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/IActionNotifyConsumer.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/IActionNotifyConsumer.cs",
+      "Type": "IActionNotifyConsumer",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/IActionNotifyConsumer.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Actions/Definitions/Timeline/IActionVisibilityResetConsumer.cs",
+      "Type": "IActionVisibilityResetConsumer",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Actions/Frames/ActionFrameQuery.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Actions/Frames/ActionFrameQueryResult.cs",
+      "Type": "ActionFrameQueryResult",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Actions/Frames/ActionFrameQuery.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Actions/Frames/ActionFrameQuery.cs",
+      "Type": "ActionFrameQuery",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Actions/Resolution/ActionGraph.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Actions/Resolution/ActionGraph.cs",
+      "Type": "ActionGraph",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Actions/Resolution/ActionGraph.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Actions/Resolution/ActionGraphNode.cs",
+      "Type": "ActionGraphNode",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Actions/Resolution/ActionGraph.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Actions/Resolution/ActionGraphEdge.cs",
+      "Type": "ActionGraphEdge",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Actions/Resolution/ActionResolveContext.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Actions/Resolution/ActionResolveContext.cs",
+      "Type": "ActionResolveContext",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Actions/Resolution/ActionResolveContext.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Actions/Resolution/ActionResolveOrigin.cs",
+      "Type": "ActionResolveOrigin",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Actions/Validation/ActionDefinitionAuditIssue.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Actions/Validation/ActionDefinitionAuditSeverity.cs",
+      "Type": "ActionDefinitionAuditSeverity",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Actions/Validation/ActionDefinitionAuditIssue.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Actions/Validation/ActionDefinitionAuditIssue.cs",
+      "Type": "ActionDefinitionAuditIssue",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Camera/CameraDirectorStack.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Camera/CameraMode.cs",
+      "Type": "CameraMode",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Camera/CameraDirectorStack.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Camera/CameraDirectorEntry.cs",
+      "Type": "CameraDirectorEntry",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Camera/CameraDirectorStack.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Camera/CameraDirectorStack.cs",
+      "Type": "CameraDirectorStack",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Camera/CameraShotTypes.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Camera/CameraBindingSource.cs",
+      "Type": "CameraBindingSource",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Camera/CameraShotTypes.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Camera/CameraBindingSpace.cs",
+      "Type": "CameraBindingSpace",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Camera/CameraShotTypes.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Camera/CameraSplineCurveRule.cs",
+      "Type": "CameraSplineCurveRule",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Camera/CameraShotTypes.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Camera/CameraTransformBinding.cs",
+      "Type": "CameraTransformBinding",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Camera/CameraShotTypes.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Camera/ICameraAnchorProvider.cs",
+      "Type": "ICameraAnchorProvider",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Camera/CameraShotTypes.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Camera/CameraReferencePose.cs",
+      "Type": "CameraReferencePose",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Camera/CameraShotTypes.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Camera/CameraShotPose.cs",
+      "Type": "CameraShotPose",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Camera/CameraShotTypes.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Camera/CameraRestoreMode.cs",
+      "Type": "CameraRestoreMode",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Camera/CameraShotTypes.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Camera/CameraTrackSettings.cs",
+      "Type": "CameraTrackSettings",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Hitbox/HitboxMath.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Hitbox/HitboxOrientedBox.cs",
+      "Type": "HitboxOrientedBox",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Hitbox/HitboxMath.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Hitbox/HitboxMath.cs",
+      "Type": "HitboxMath",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Numeric/NumericDebugSnapshot.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Numeric/NumericDebugSnapshot.cs",
+      "Type": "NumericDebugSnapshot",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Combat/Numeric/NumericDebugSnapshot.cs",
+      "Destination": "Assets/Scripts/Domain/Combat/Numeric/NumericEffectDebugEntry.cs",
+      "Type": "NumericEffectDebugEntry",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/EnemyCooldownTable.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/EnemyCooldownTable.cs",
+      "Type": "EnemyCooldownTable",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/EnemyCooldownTable.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/EnemyCooldownIds.cs",
+      "Type": "EnemyCooldownIds",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/IEnemyBehaviorRandom.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/IEnemyBehaviorRandom.cs",
+      "Type": "IEnemyBehaviorRandom",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/IEnemyBehaviorRandom.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/SystemEnemyBehaviorRandom.cs",
+      "Type": "SystemEnemyBehaviorRandom",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/IEnemyBehaviorRandom.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/SequenceEnemyBehaviorRandom.cs",
+      "Type": "SequenceEnemyBehaviorRandom",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ActionNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/StopMoveAction.cs",
+      "Type": "StopMoveAction",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ActionNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/MoveTowardTargetAction.cs",
+      "Type": "MoveTowardTargetAction",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ActionNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/BackOffFromTargetAction.cs",
+      "Type": "BackOffFromTargetAction",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ActionNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/StrafeAroundTargetAction.cs",
+      "Type": "StrafeAroundTargetAction",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ActionNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/FaceTargetAction.cs",
+      "Type": "FaceTargetAction",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ActionNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/RequestCombatAction.cs",
+      "Type": "RequestCombatAction",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ActionNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/WaitWhileInActionAction.cs",
+      "Type": "WaitWhileInActionAction",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ActionNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/WaitFramesAction.cs",
+      "Type": "WaitFramesAction",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/CompositeNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/RandomSelectorNode.cs",
+      "Type": "RandomSelectorNode",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/CompositeNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/SelectorNode.cs",
+      "Type": "SelectorNode",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/CompositeNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/SequenceNode.cs",
+      "Type": "SequenceNode",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ConditionNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ConditionalDecoratorNode.cs",
+      "Type": "ConditionalDecoratorNode",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ConditionNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/DistanceBandMode.cs",
+      "Type": "DistanceBandMode",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ConditionNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/DistanceBandCondition.cs",
+      "Type": "DistanceBandCondition",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ConditionNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/HasTargetCondition.cs",
+      "Type": "HasTargetCondition",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ConditionNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/InCombatAggroCondition.cs",
+      "Type": "InCombatAggroCondition",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ConditionNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/InAttackRangeCondition.cs",
+      "Type": "InAttackRangeCondition",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ConditionNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/IsCharacterStateCondition.cs",
+      "Type": "IsCharacterStateCondition",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ConditionNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/CooldownReadyCondition.cs",
+      "Type": "CooldownReadyCondition",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ConditionNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/CooldownNotReadyCondition.cs",
+      "Type": "CooldownNotReadyCondition",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ConditionNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/DistanceLessEqualCondition.cs",
+      "Type": "DistanceLessEqualCondition",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/ConditionNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/DistanceGreaterCondition.cs",
+      "Type": "DistanceGreaterCondition",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/DecoratorNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/InverterNode.cs",
+      "Type": "InverterNode",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/DecoratorNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/SucceederNode.cs",
+      "Type": "SucceederNode",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/DecoratorNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/CooldownGateNode.cs",
+      "Type": "CooldownGateNode",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/DecoratorNodes.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Nodes/AggroGateNode.cs",
+      "Type": "AggroGateNode",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorGraphLayout.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorGraphLayout.cs",
+      "Type": "EnemyBehaviorGraphLayout",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorGraphLayout.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorGraphNodeLayout.cs",
+      "Type": "EnemyBehaviorGraphNodeLayout",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorGraphLayout.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorGraphStickyNote.cs",
+      "Type": "EnemyBehaviorGraphStickyNote",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Type": "EnemyBehaviorNodeDef",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/SelectorNodeDef.cs",
+      "Type": "SelectorNodeDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/SequenceNodeDef.cs",
+      "Type": "SequenceNodeDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/RandomSelectorNodeDef.cs",
+      "Type": "RandomSelectorNodeDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/InverterNodeDef.cs",
+      "Type": "InverterNodeDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/SucceederNodeDef.cs",
+      "Type": "SucceederNodeDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/CooldownGateNodeDef.cs",
+      "Type": "CooldownGateNodeDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/AggroGateNodeDef.cs",
+      "Type": "AggroGateNodeDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorConditionNodeDef.cs",
+      "Type": "EnemyBehaviorConditionNodeDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/HasTargetConditionDef.cs",
+      "Type": "HasTargetConditionDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/InCombatAggroConditionDef.cs",
+      "Type": "InCombatAggroConditionDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/InAttackRangeConditionDef.cs",
+      "Type": "InAttackRangeConditionDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/IsCharacterStateConditionDef.cs",
+      "Type": "IsCharacterStateConditionDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/CooldownReadyConditionDef.cs",
+      "Type": "CooldownReadyConditionDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/CooldownNotReadyConditionDef.cs",
+      "Type": "CooldownNotReadyConditionDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/DistanceLessEqualConditionDef.cs",
+      "Type": "DistanceLessEqualConditionDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/DistanceGreaterConditionDef.cs",
+      "Type": "DistanceGreaterConditionDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/DistanceBandConditionDef.cs",
+      "Type": "DistanceBandConditionDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/StopMoveActionDef.cs",
+      "Type": "StopMoveActionDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/MoveTowardTargetActionDef.cs",
+      "Type": "MoveTowardTargetActionDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/BackOffFromTargetActionDef.cs",
+      "Type": "BackOffFromTargetActionDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/StrafeAroundTargetActionDef.cs",
+      "Type": "StrafeAroundTargetActionDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/FaceTargetActionDef.cs",
+      "Type": "FaceTargetActionDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/RequestCombatActionDef.cs",
+      "Type": "RequestCombatActionDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/WaitWhileInActionActionDef.cs",
+      "Type": "WaitWhileInActionActionDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/WaitFramesActionDef.cs",
+      "Type": "WaitFramesActionDef",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorTreeValidator.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorTreeValidationResult.cs",
+      "Type": "EnemyBehaviorTreeValidationResult",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorTreeValidator.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorTreeValidator.cs",
+      "Type": "EnemyBehaviorTreeValidator",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/EnemyPerception.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/EnemyPerceptionSnapshot.cs",
+      "Type": "EnemyPerceptionSnapshot",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Enemy/EnemyPerception.cs",
+      "Destination": "Assets/Scripts/Domain/Enemy/EnemyPerception.cs",
+      "Type": "EnemyPerception",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Input/GameplayIntentProfile.cs",
+      "Destination": "Assets/Scripts/Domain/Input/GameplayIntentProfile.cs",
+      "Type": "GameplayIntentProfile",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Input/GameplayIntentProfile.cs",
+      "Destination": "Assets/Scripts/Domain/Input/GameplayIntentBinding.cs",
+      "Type": "GameplayIntentBinding",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Simulation/Party/PartyAssistPoints.cs",
+      "Destination": "Assets/Scripts/Domain/Simulation/Party/PartyAssistPointSettings.cs",
+      "Type": "PartyAssistPointSettings",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Simulation/Party/PartyAssistPoints.cs",
+      "Destination": "Assets/Scripts/Domain/Simulation/Party/PartyAssistPoints.cs",
+      "Type": "PartyAssistPoints",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Simulation/Party/PartyDeathSwitchPolicy.cs",
+      "Destination": "Assets/Scripts/Domain/Simulation/Party/PartyDeathSwitchPolicy.cs",
+      "Type": "PartyDeathSwitchPolicy",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Simulation/Party/PartyDeathSwitchPolicy.cs",
+      "Destination": "Assets/Scripts/Domain/Simulation/Party/PartyDeathSwitchGate.cs",
+      "Type": "PartyDeathSwitchGate",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Simulation/Party/PartyDeathSwitchPolicy.cs",
+      "Destination": "Assets/Scripts/Domain/Simulation/Party/PartyDeathCloseout.cs",
+      "Type": "PartyDeathCloseout",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Simulation/Party/PartyLoadoutRules.cs",
+      "Destination": "Assets/Scripts/Domain/Simulation/Party/PartyLoadoutValidationError.cs",
+      "Type": "PartyLoadoutValidationError",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Simulation/Party/PartyLoadoutRules.cs",
+      "Destination": "Assets/Scripts/Domain/Simulation/Party/PartyLoadoutRules.cs",
+      "Type": "PartyLoadoutRules",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Simulation/Party/PartyMemberState.cs",
+      "Destination": "Assets/Scripts/Domain/Simulation/Party/PartyMemberState.cs",
+      "Type": "PartyMemberState",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Simulation/Party/PartyMemberState.cs",
+      "Destination": "Assets/Scripts/Domain/Simulation/Party/PartyReplicationPacking.cs",
+      "Type": "PartyReplicationPacking",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Simulation/Party/PartySwitchCommand.cs",
+      "Destination": "Assets/Scripts/Domain/Simulation/Party/PartySwitchKind.cs",
+      "Type": "PartySwitchKind",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Simulation/Party/PartySwitchCommand.cs",
+      "Destination": "Assets/Scripts/Domain/Simulation/Party/PartySwitchPresentation.cs",
+      "Type": "PartySwitchPresentation",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Simulation/Party/PartySwitchCommand.cs",
+      "Destination": "Assets/Scripts/Domain/Simulation/Party/PartySwitchCommand.cs",
+      "Type": "PartySwitchCommand",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Domain/Simulation/Party/PartySwitchCommand.cs",
+      "Destination": "Assets/Scripts/Domain/Simulation/Party/PartySwitchPlacement.cs",
+      "Type": "PartySwitchPlacement",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Editor/Combat/ActionEditorPreview.cs",
+      "Destination": "Assets/Scripts/Editor/Combat/ActionEditorPreviewContext.cs",
+      "Type": "ActionEditorPreviewContext",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Editor/Combat/ActionEditorPreview.cs",
+      "Destination": "Assets/Scripts/Editor/Combat/IActionEditorPreviewExtension.cs",
+      "Type": "IActionEditorPreviewExtension",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Editor/Combat/ActionEditorPreview.cs",
+      "Destination": "Assets/Scripts/Editor/Combat/ActionEditorPreviewAttachPoint.cs",
+      "Type": "ActionEditorPreviewAttachPoint",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Editor/Combat/ActionEditorPreview.cs",
+      "Destination": "Assets/Scripts/Editor/Combat/ActionEditorAnimationSampler.cs",
+      "Type": "ActionEditorAnimationSampler",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Editor/Combat/ActionEditorPreview.cs",
+      "Destination": "Assets/Scripts/Editor/Combat/ActionEditorPreviewSession.cs",
+      "Type": "ActionEditorPreviewSession",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Editor/Combat/ActionEditorPreview.cs",
+      "Destination": "Assets/Scripts/Editor/Combat/ActionEditorVfxPreviewExtension.cs",
+      "Type": "ActionEditorVfxPreviewExtension",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Editor/Combat/Motion/MotionClipPairMatcher.cs",
+      "Destination": "Assets/Scripts/Editor/Combat/Motion/MotionClipBakePair.cs",
+      "Type": "MotionClipBakePair",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Editor/Combat/Motion/MotionClipPairMatcher.cs",
+      "Destination": "Assets/Scripts/Editor/Combat/Motion/MotionClipMatchIssue.cs",
+      "Type": "MotionClipMatchIssue",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Editor/Combat/Motion/MotionClipPairMatcher.cs",
+      "Destination": "Assets/Scripts/Editor/Combat/Motion/MotionClipPairMatcher.cs",
+      "Type": "MotionClipPairMatcher",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Framework/ACTNet/Replication/ReplicationClient.cs",
+      "Destination": "Assets/Scripts/Framework/ACTNet/Replication/ReplicationClient.cs",
+      "Type": "ReplicationClient",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Framework/ACTNet/Replication/ReplicationClient.cs",
+      "Destination": "Assets/Scripts/Framework/ACTNet/Replication/ReplicationSnapshotApplyResult.cs",
+      "Type": "ReplicationSnapshotApplyResult",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Framework/ACTNet/Replication/ReplicationProtocolV2.cs",
+      "Destination": "Assets/Scripts/Framework/ACTNet/Replication/ReplicationLifecycle.cs",
+      "Type": "ReplicationLifecycle",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Framework/ACTNet/Replication/ReplicationProtocolV2.cs",
+      "Destination": "Assets/Scripts/Framework/ACTNet/Replication/ReplicationSnapshot.cs",
+      "Type": "ReplicationSnapshot",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Framework/ACTNet/Replication/ReplicationProtocolV2.cs",
+      "Destination": "Assets/Scripts/Framework/ACTNet/Replication/ReplicationPacketCommitToken.cs",
+      "Type": "ReplicationPacketCommitToken",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Framework/ACTNet/Replication/ReplicationProtocolV2.cs",
+      "Destination": "Assets/Scripts/Framework/ACTNet/Replication/ReplicationTickDelta.cs",
+      "Type": "ReplicationTickDelta",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Framework/ACTNet/Replication/ReplicationProtocolV2.cs",
+      "Destination": "Assets/Scripts/Framework/ACTNet/Replication/PreparedReplicationPacket.cs",
+      "Type": "PreparedReplicationPacket",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Framework/ACTNet/Session/ClientSession.cs",
+      "Destination": "Assets/Scripts/Framework/ACTNet/Session/ClientSessionState.cs",
+      "Type": "ClientSessionState",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Framework/ACTNet/Session/ClientSession.cs",
+      "Destination": "Assets/Scripts/Framework/ACTNet/Session/ClientSession.cs",
+      "Type": "ClientSession",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Framework/ACTNet/Session/SessionMessages.cs",
+      "Destination": "Assets/Scripts/Framework/ACTNet/Session/SessionJoinRequest.cs",
+      "Type": "SessionJoinRequest",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Framework/ACTNet/Session/SessionMessages.cs",
+      "Destination": "Assets/Scripts/Framework/ACTNet/Session/SessionJoinAccept.cs",
+      "Type": "SessionJoinAccept",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Framework/ACTNet/Session/SessionMessages.cs",
+      "Destination": "Assets/Scripts/Framework/ACTNet/Session/SessionHeartbeat.cs",
+      "Type": "SessionHeartbeat",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Framework/ACTNet/Session/SessionMessages.cs",
+      "Destination": "Assets/Scripts/Framework/ACTNet/Session/SessionPlayerRequest.cs",
+      "Type": "SessionPlayerRequest",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Framework/ACTNet/Session/SessionMessages.cs",
+      "Destination": "Assets/Scripts/Framework/ACTNet/Session/SessionApplicationPacket.cs",
+      "Type": "SessionApplicationPacket",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Framework/ACTNet/Session/SessionMessages.cs",
+      "Destination": "Assets/Scripts/Framework/ACTNet/Session/SessionDisconnected.cs",
+      "Type": "SessionDisconnected",
+      "Main": false
+    },
+    {
+      "Source": "Assets/Scripts/Previews/MalevolentShrine/MalevolentShrineDestructibleBuilding.cs",
+      "Destination": "Assets/Scripts/Previews/MalevolentShrine/MalevolentShrineDestructibleBuilding.cs",
+      "Type": "MalevolentShrineDestructibleBuilding",
+      "Main": true
+    },
+    {
+      "Source": "Assets/Scripts/Previews/MalevolentShrine/MalevolentShrineDestructibleBuilding.cs",
+      "Destination": "Assets/Scripts/Previews/MalevolentShrine/MalevolentShrineSlicePiece.cs",
+      "Type": "MalevolentShrineSlicePiece",
+      "Main": false
+    }
+  ]
+}

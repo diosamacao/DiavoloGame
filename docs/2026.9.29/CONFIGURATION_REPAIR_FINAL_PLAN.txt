@@ -1,0 +1,3 @@
+Read-only plan
+
+Updated=0; BlockedOrFailed=0; Backup=D:\Projects\ACTGame-code\.utmp\motion-content-repair\20260928-180243

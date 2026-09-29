@@ -1,0 +1,18 @@
+Structure/content failures=0
+[Log] Validate Enemy Behavior Trees：Definition 通过 2；TreeAsset 通过 2 / 失败 0；总问题 0。
+UnityEngine.Debug:Log (object)
+EnemyBehaviorTreeSetupMenu:AuditProject () (at Assets/Scripts/Editor/Enemy/EnemyBehaviorTreeSetupMenu.cs:81)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:75)
+CharacterAuthoringValidationRunner:RunSelected (bool) (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:55)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:42)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+[Log] StructureValidation: failures=0。
+UnityEngine.Debug:Log (object)
+StructureValidationBatch:ValidateAll () (at Assets/Scripts/Editor/Architecture/StructureValidationBatch.cs:76)
+CharacterAuthoringValidationRunner:RunSelected (bool) (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:55)
+CharacterAuthoringValidationRunner:Run () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:42)
+CharacterAuthoringValidationRunner:Poll () (at Assets/Scripts/Editor/Character/CharacterAuthoringValidationRunner.cs:33)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+

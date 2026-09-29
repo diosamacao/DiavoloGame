@@ -1,0 +1,7 @@
+{
+  "name": "ACTGame.UI",
+  "rootNamespace": "UI",
+  "references": ["UIFramework"],
+  "autoReferenced": true,
+  "noEngineReferences": false
+}

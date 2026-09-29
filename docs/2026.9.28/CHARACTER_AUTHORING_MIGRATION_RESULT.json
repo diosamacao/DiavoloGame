@@ -1,0 +1,492 @@
+[
+  {
+    "path": "Assets/Data/CharacterConfig/Anbi.asset",
+    "kind": "CharacterDefinition",
+    "operation": "modify",
+    "before": "b49547a21c419a585c7c48c926c113e4142ffb2143733c89b82f13c677d0a63d",
+    "after": "ec33ae52a0506c05ac1283d26bd84c3860041b71f6f3466966ea3dd5e8193012"
+  },
+  {
+    "path": "Assets/Data/CharacterConfig/Unagi.asset",
+    "kind": "CharacterDefinition",
+    "operation": "modify",
+    "before": "3f8c186180c3167a1809bda8186ffb0a5cdd066ba56fc58b0499a7ffef0dcb93",
+    "after": "8330a630b7e85099e8ee1304104a2254f58eea92c9323f24b9caefb8565d0100"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_01.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "9523588d1f551efdf862a08dd1443e18c12dd6e5e0a1b57293fc630b0f0e2beb",
+    "after": "ac3c31704dcc61a81f12a70b95ecdda0ee2dfa03d11bc626bd61291a72c8cec3"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_02.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "e6c2d880bf988f7ae231bdf17aa3e988b2b3b6da544f7f0d2b45ece3265ae4c9",
+    "after": "c9009961a9d2695ecfabc293d10732218460d39688572ed1297a69957865abeb"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_03.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "a298d638d0d07609bcc8dcb0aa01bbdfdf58e2e7a793056dfa79df64ad815bd2",
+    "after": "c869b1f7ecadb4e09fa3c7de3fbcca5ae797745147e5436789b22e98fecd64dd"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_04.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "fc5c7bc570bdf39943e34d2871c9439496ec51cf8e9fe435633a9b1c412896d1",
+    "after": "25faad6618edc922487c0de3c635353e9e13c8a735b3a64ad1dd71045a46cf3e"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_04_Perfect.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "1453a14f1a63de74aeb76dfaae4a4188aba4318b10d4befcf06e28359a3baeaf",
+    "after": "0277ea766a44df2c295eaaf5e304d90b9ee72817698db9786829a4cae871ee6a"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Evade_Back.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "4210704b3c0cce8c4eecbdc8abbb7021e4d03f8fbddeedc91d687ba4f5d57062",
+    "after": "114952789ebb01e3880170e84f058a871c11190be08bb3c21fc74c0af94d7fd0"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Evade_Front.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "0555758054b58ae36bf227a6e49f60da60aa8a929464a3f029b7e66bf7f59320",
+    "after": "f535a0f733ff5477f51d36ce2210ed249a6bb8ef6531bce570f53c7afdd208fa"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Hurt.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "e649028be792d64fd16c45ec6bf9329546957d16f7ffcc45607f93bb64c3436d",
+    "after": "b8d54f3d2c44afe58a544e1ac79e1dc472c1d035a60565559bc7a03ad08ae6a2"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_SwitchIn.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "b650ac5f55a43bb66288f6099dc92f68fd6fc706ad0356053e44e8cc36b836e6",
+    "after": "a13be579b031dd11c055a834a97973771caffc21f7db5cb5f15db59d23d8f79d"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_SwitchOut.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "40b7fb82e456e89de337f5894e6d9096325013b3b8c3e66cbdf15c7c59ef10fa",
+    "after": "2b0ff704955ef0d88f62433d9a13ad88d63128d69506295ced667aa3571b1e19"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Anbi/AnbiActionGraph.asset",
+    "kind": "ActionGraph",
+    "operation": "read-only",
+    "before": "4ca73ce68c7964c9fa7b5a9502fc21710569fb8e8330b07115a6b2a46ff0de54",
+    "after": "4ca73ce68c7964c9fa7b5a9502fc21710569fb8e8330b07115a6b2a46ff0de54"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Anbi/AnbiAnimation.asset",
+    "kind": "CharacterAnimationProfile",
+    "operation": "delete",
+    "before": "8b16c9ae214d293335c1646092dd94499b59eb7b28839f933b7a66a694943698",
+    "after": null
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Anbi/AnbiCombatModeProfile.asset",
+    "kind": "CombatModeProfile",
+    "operation": "delete",
+    "before": "efbfaf657335ffe4e5b46a53022691157bcd24a1197a5fcd401ed46c4bfa8845",
+    "after": null
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Anbi/AnbiConfig.asset",
+    "kind": "CharacterConfig",
+    "operation": "modify",
+    "before": "d519f94cdd6a88f837362c63aa60b9432c22156c30d964b4acd8b288ed1a077f",
+    "after": "08c78de99a2aec46292d302fa1e9c67a1d66d996832eb02a3b21f6f6780461b9"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Anbi/AnbiLocomotion.asset",
+    "kind": "CharacterLocomotionProfile",
+    "operation": "modify",
+    "before": "0f36ea8731f86959a134ffd4929989e2fc7467df94a5828c737ae56ad96e9757",
+    "after": "9743f37171de21668076c98362e899b6ca8d434798c2a3ec736f866605f69416"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Giant/ActionDefinition/Giant_Attack_01.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "8c7cf0eb4b69a44a4050b4c6ed86523bbac11f00667621cf83277eb61c3e03d8",
+    "after": "be73db79856e7fe947411018293560a23c52e5ef71d1a66322a2b8e66888053b"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Monster/ActionDefinition/Monster_Goblin_Attack_01.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "202c82b5865065a816ebd19c3dde83bf5f54ec92f01d82bb02f0b942437592c6",
+    "after": "32c8a1f209be00b7f550602bedeade661a17009002b36fd57f79886200f56ea9"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Monster/ActionDefinition/Monster_Goblin_Attack_02.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "d49996f334561d73fd444944119b8225f53275fa6c0136e4cecef9effce71e59",
+    "after": "60d385d61b05a76a6695c4364a51c458d28bfee4cb66a5860cd6d956809e57ef"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Monster/ActionDefinition/Monster_Goblin_Hit_L_Front.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "20875585d356df0537a812d5b3760200804f5a634de5068c818198e6ad28c1df",
+    "after": "5878ebaf5004d0171afcccb01d91fc665802692b09c99adf5d69917f678caca4"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Monster/ActionDefinition/Monster_Goblin_Hit_Shake.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "77723d98251149527adb0fa17d5b63418fada43996525e22dd8db32be5f076ba",
+    "after": "2a51f33b5e01b5f769f05dc110830a54a178f81553e88b846960784df374721b"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Monster/ActionDefinition/Monster_Goblin_Hit_Stay.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "7acf2389e4926434be64cbc035a8bc7cbb6f7b61dea329814b10ae537dd24ddf",
+    "after": "e2c9144bdd168dbf72d062bfc00ec296b335b8cdf06a7e0434f7df28444e8cca"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Monster/MonsterConfig.asset",
+    "kind": "CharacterConfig",
+    "operation": "modify",
+    "before": "62a17e48d01b8edb7a043fd57312af44ebe20bf70725687cc552231f39348a61",
+    "after": "8f4968583f70085ab02cea83f57aaf05d6d84918eec686a3fb3da294eb3b9aa9"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_01.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "e549c341e6bd811549336a61513caf305163b6e5994b99d8b752406c86fa7cb1",
+    "after": "ef19c09c21f89861730de87c006566b6fe4c42a424bf251cbe9c9029f4086df3"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_02.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "ed727e014cc4b1f54fb1f18c0b5e617aeb4c8587c8e0b7c60d8cebd1de618740",
+    "after": "1067e116bf14d6e502bcdcef53e0794c3aa0b72f406969bd84706b7dce28f0fb"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_03.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "93805dfa12e5fdfb66f4cfdd7b5b96ba946d1155532587e3b16b6facef7f7ee4",
+    "after": "c5982cd5e5ce7f2581bea7abe4c30746d6a4c13eb9073ca5d75aef1c2b929608"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_04.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "ba9dff7162c4a65705eaf3049252e0d55140d2a6445c66d47efa8f0ac2275af9",
+    "after": "25915e978f4642cb3813596e1e26ac5ac81b6a15b7be6771adc2f27c02d964de"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_05.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "a8d4d355afc1bb7ea11ddc6ed207ed9560f99f5b180a2817171c5dcad0a6b8bf",
+    "after": "f2b19da8e757fcb2bae46dfd20dd708ac378991d20468b0f1a0a4e8e64c3bbc8"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_06.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "c12e01a1f6d7417baa04b0d5112dfc9ce8e3c420090381f1e3d23a78c60a575a",
+    "after": "923716d8a76db152b4f211e0b6ea9ddfc955721ed57a8978659c13767b6a3501"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_01.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "a22a4457da31a33c86fc535788e00bdbd85ea83b32efb2184bc3eeda1fc2c9da",
+    "after": "f11f97a23771f794108e323905391fd14fa9ad08e546c1829507334f7f0783e1"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_01_Perfect.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "2f1a05d011b89c7fe6e4e76771473ed1059cc27af0a8f0be813ae8d8308e659f",
+    "after": "0faa4cec2336ef6eb5556ab1cbecdf45e655fb886b0268faac0d36a6712105a5"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_02.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "b72b33d6af8b2a69fab61112ac355d5e7d1ceb2a2c13fd0bd70c0c20d175f1ec",
+    "after": "d1beaa59a848dab0ce01fbd2d34ffbaed6cf09f36e41861f838b839b1d6bbf38"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_02_Perfect.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "bd96fba11f902620dff677098094af5da91d13c68a71408be14e835a20333eec",
+    "after": "273cbf1b1360fedc5521c86e6798a7c19624ec93da70969c525b32b3b8a9111d"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_03.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "bf20b1a367583c6b934cdea0e52b872a6d7dc6b3f64845b546f574edfdb8c85d",
+    "after": "db985fe182535ad15550dde009d495b0933ec0f2860cd3b5de3f8317b2f4073d"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_Start.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "c43f278b18cf6b0eaf9c72afa7d84704c9606f276fff84c41f468b3a776e273d",
+    "after": "cb924cc8c8a51f548a1aee646802ce6176401ded20c0b2dce759b2feccc3f1e7"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Counter.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "e099702edc4be9f595e5c369d183f06114a5c3ae60405a870cf5462d44e9c910",
+    "after": "e0e253053ac3355f7da441d161af6135e0fd361082fa6f66207f19a05f03f4ec"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Rush.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "9a904dd0103e38fc4e4b3e9805b368658a88db063d551c4ea624d79c4ce182f3",
+    "after": "a36795a6d603e56d49a2b3890710da786fba9752c8ec1248134c4bc41c301ce2"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Rush_02.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "6d80c9b6473e3f1f7721a8c5ccea229fd9af536433ddcf9aa6cb223b24858521",
+    "after": "030fcedffa2404e27bdabe1039d124876af3f35aaa950d7a2f273a3e036fc75c"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_ChargeAttack_01.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "f55c232365d03c5d4c4a145a5b571eb67ceb0a406d7b5db64e68a039d7d1a9b0",
+    "after": "5429f6e55d21708127504c3e2b7f427f2ab3c60d54e5f3bd633998801c71ab3a"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_ChargeAttack_03.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "3a667f1a2392d57e1cd3f7f9fafcf82ee8c18b94b93f3580e0f2e28407105fe3",
+    "after": "17dfac72c1d9ce211ecc74c97136430de95dd0015d6e7e7f68ab37e68043b03f"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Combo_1.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "a9e307a411192c190d268429eab1aa3fb16b8e1b414b59a731836da4c8222e8a",
+    "after": "b5839e697140c7865441b4f3f0d4488016d6d522e398b0b0141419ba99c503f8"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Combo_2.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "ba7febe9320093174344345e816476b7a8ab8865dcc9b922b2700350243dbf3d",
+    "after": "84831b9e35ce8a51534d0f5b90785a210f174501963f739a516d6fced2de3430"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Death.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "618eb4377bc632e0c9fcda0ec095ee4a87e691467e6c9e84bf773581a5c77447",
+    "after": "7a1963a1ecf53f70d2ce7bdc589c1c3923bd2ff1a0c71f570bfd415640ead1d0"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Backward.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "e284dd416283010bd4b3016bf0e31e1760b7ed07daccb22c8b9c8c58ad17768f",
+    "after": "b167c61f96c0ee3cc9bcf3a9cfd4424bd6a1f792f9cc1e4fd8a60a5162573cd2"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Backward_Left.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "2586bc5c8f0f67c13eded9a61b800a565237637508d8cb8a57bf3f2e6c0f7fb9",
+    "after": "d6f58c6ff6082747c2192bf2b8cfb76973d31412d2481673f4f7b369546bc06e"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Backward_Right.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "bba94ff7a1dfedd00078cce9bedf1f369f095c0cd724f54dfa5a1155949c8a73",
+    "after": "6d6af82587c83c4565b2c04faca688146b276742e16816debde410d79c6c4431"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Forward.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "a2d33758b7f5d78e98e64f9061d6d4d04697ae0e85b7eb3c58e7171946c34dd3",
+    "after": "21fc8af3e004364abc565e8bba2e3c18d7026a3d48fc15fb6f3dba3a83f8dcdd"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Forward_Left.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "e0c5d81039051b31d5d27af434e17db439cece15a0c3f0cda304e8223cd2bd8f",
+    "after": "feda28afed629bed3df2f247f7e60892a8c42338ce79e5a734b35c1d2beb241d"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Forward_Right.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "4aec01e27108949d21ff54147c819ccd4c9839dc1fab7800a000c4f3a6b97e6b",
+    "after": "94abb5416ea89a9414c326848b03f7a5c5d1abf17d8c32e94adc3c4acb9dc08d"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_EX.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "db5d960da2d21964e190b04c2cfb8697f0b9abe042a402fababf8dd7dbc12733",
+    "after": "2fdf9ddcd71b399e4b76ee30c48559e2e6d82612b3859d6da53df329042520cd"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Hurt.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "8191e9e25d2276dbffe9e1ab12138f5c2334add3ce3e12fde3b69530a12e126a",
+    "after": "ef2aed466a6e8bd14f0c1b1905358ce43754a5c8b08446be071b380527bccc95"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_ParryAid_H_Guard.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "71408be393ef1be621e2b22ddf77e176afa9787268c59ed7b563b4e4d748e2d5",
+    "after": "b5d3b4f964b20e1355abdbcc5bdc5106036434065611d4d6bd65b22d2d9ef13f"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_ParryAid_H_Success.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "2663663780e28ff4e597ae58995550ce62740da57ec66fd0f8bf9db567687476",
+    "after": "b83a479ed66859da991263fbd1cec28546fa31f6659c0deef2a59bb30021b8e0"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_SwitchIn.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "f9d437c4a08969944782b61648e80c5bc7fe465889be6415afd423fa701e01a8",
+    "after": "0c4b86ca4215e245b08a613a22a376e71a4e849137225983e4345fbf43fcbbae"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_SwitchOut.asset",
+    "kind": "ActionDefinition",
+    "operation": "modify",
+    "before": "2783dee7021b94f3422abe23fc6b80111344858d7d5a987a4d13c96ba3669300",
+    "after": "115bd97e0b2f52214bc5ebaaf04bf12d12b86fe8b0f018303fa409e4dce26e1d"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/Unagi_AnimationSO.asset",
+    "kind": "CharacterAnimationProfile",
+    "operation": "delete",
+    "before": "1303a7ddd143a1ce235df572194daaf4b92f290f524b93b708c82540ad4d45f0",
+    "after": null
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/Unagi_LocomotionSO.asset",
+    "kind": "CharacterLocomotionProfile",
+    "operation": "modify",
+    "before": "f6ccee61ccffdc092ece641489e1573b634d4c704023742a13f2ae7550dba4b8",
+    "after": "81d7d45e68449a5a19b2a66fb221c045337ced5b1a1178a0c66c784ebec82c0e"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/UnagiActionGraph.asset",
+    "kind": "ActionGraph",
+    "operation": "read-only",
+    "before": "7b859f7eb3157e7e5f2b7e77e1c2562f496fb3276953eb400e2f9563e4396328",
+    "after": "7b859f7eb3157e7e5f2b7e77e1c2562f496fb3276953eb400e2f9563e4396328"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/UnagiCombatModeSO.asset",
+    "kind": "CombatModeProfile",
+    "operation": "delete",
+    "before": "8bc3ac7af962af5ffc2be40efbd2144b56f48b9a93af311684f0ec7f10eec854",
+    "after": null
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/UnagiConfig.asset",
+    "kind": "CharacterConfig",
+    "operation": "modify",
+    "before": "4738edbb8a6c7afc80c5ade59b3f0af1b16bc9b0a515b55a1226c5885fd9a3ae",
+    "after": "27a9f611f3e78e812ebd2a559ead0aa688bb834df732fdda07abb1d62a1b3478"
+  },
+  {
+    "path": "Assets/Data/Combat/Actions/Unagi/UnagiEnemyConfig.asset",
+    "kind": "CharacterConfig",
+    "operation": "modify",
+    "before": "5edf38b99215eafa4a6fa5399d2947907e1fc486638a22e4b598732ffc495711",
+    "after": "b49bffee8cb871f146a9bbbc793e3c40e9c8b46e33a092f2476e532fde66acf1"
+  },
+  {
+    "path": "Assets/Data/Enemy/Monster/MonsterActionGraph.asset",
+    "kind": "ActionGraph",
+    "operation": "read-only",
+    "before": "609222c5b422fd131ee45c33c8ac3624158d481b44f621edaa6f2803a931f3da",
+    "after": "609222c5b422fd131ee45c33c8ac3624158d481b44f621edaa6f2803a931f3da"
+  },
+  {
+    "path": "Assets/Data/Enemy/Monster/MonsterAnimationSO.asset",
+    "kind": "CharacterAnimationProfile",
+    "operation": "delete",
+    "before": "0e5b7a6cb7725239732ec4256eeeff8991b546b18673a33068b466b971883488",
+    "after": null
+  },
+  {
+    "path": "Assets/Data/Enemy/Monster/MonsterCombatModeProfile.asset",
+    "kind": "CombatModeProfile",
+    "operation": "delete",
+    "before": "26b6eda2b1d7ad3b4b44143a4d432bfec203138b565b8d9b650883762bea6008",
+    "after": null
+  },
+  {
+    "path": "Assets/Data/Enemy/Monster/MonsterLocomotion.asset",
+    "kind": "CharacterLocomotionProfile",
+    "operation": "modify",
+    "before": "3bb58d4a5bf36b123554de3853af41ebadd2524c780f164136ad122b887c671a",
+    "after": "3411a5f7f6a77c3aeeb86d75459d63ea6943ea4d5d45668e4c953293d8413409"
+  },
+  {
+    "path": "Assets/Data/Enemy/Unagi/Unagi_Enemy_AnimationSO.asset",
+    "kind": "CharacterAnimationProfile",
+    "operation": "delete",
+    "before": "d4501da283217ed99c9455af133ad67c01e49143d972c62a633d7db93191a1db",
+    "after": null
+  },
+  {
+    "path": "Assets/Data/Enemy/Unagi/Unagi_Enemy_CombatModeSO.asset",
+    "kind": "CombatModeProfile",
+    "operation": "delete",
+    "before": "3e5e56e63b3acd416074e5a1010cd9e5dbf2647ed7e99c5ef85ecef519364a90",
+    "after": null
+  },
+  {
+    "path": "Assets/Data/Enemy/Unagi/Unagi_Enemy_ComboGraph.asset",
+    "kind": "ActionGraph",
+    "operation": "read-only",
+    "before": "03e99c90614289c2223129f93d4524f69d5ff57e464060b37e909456d6db0637",
+    "after": "03e99c90614289c2223129f93d4524f69d5ff57e464060b37e909456d6db0637"
+  },
+  {
+    "path": "Assets/Data/Enemy/Unagi/Unagi_Enemy_LocomotionSO.asset",
+    "kind": "CharacterLocomotionProfile",
+    "operation": "modify",
+    "before": "e8b815c6419ba028306390bb45fb92da70c348b87796fa06ef2db6d1a55be06c",
+    "after": "12065b59f30be4348033a9db6e07927645cf64fbba12c82ff3a1e448d39c5cc4"
+  }
+]

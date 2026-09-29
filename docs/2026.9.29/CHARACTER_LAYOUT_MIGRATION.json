@@ -1,0 +1,500 @@
+{
+  "entries": [
+    {
+      "oldPath": "Assets/Data/CharacterConfig/Anbi.asset",
+      "newPath": "Assets/Data/Characters/Anbi/Anbi_Character.asset",
+      "guid": "5ee9575c5014efe4d896c6f31c836eda",
+      "oldName": "Anbi",
+      "newName": "Anbi_Character",
+      "sha256": "ec33ae52a0506c05ac1283d26bd84c3860041b71f6f3466966ea3dd5e8193012"
+    },
+    {
+      "oldPath": "Assets/Data/CharacterConfig/Unagi.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Unagi_Character.asset",
+      "guid": "6dd7cf3cbdf61a74d8080564c0ebcee4",
+      "oldName": "Unagi",
+      "newName": "Unagi_Character",
+      "sha256": "8330a630b7e85099e8ee1304104a2254f58eea92c9323f24b9caefb8565d0100"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Anbi/AnbiActionGraph.asset",
+      "newPath": "Assets/Data/Characters/Anbi/Graphs/Anbi_Default_Graph.asset",
+      "guid": "bdbeb36df1d7ca94d8f225decb104b25",
+      "oldName": "AnbiActionGraph",
+      "newName": "Anbi_Default_Graph",
+      "sha256": "4ca73ce68c7964c9fa7b5a9502fc21710569fb8e8330b07115a6b2a46ff0de54"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Anbi/AnbiConfig.asset",
+      "newPath": "Assets/Data/Characters/Anbi/Config/Anbi_Config.asset",
+      "guid": "e1bb2b8f448967540b2393ecd46c6db2",
+      "oldName": "AnbiConfig",
+      "newName": "Anbi_Config",
+      "sha256": "08c78de99a2aec46292d302fa1e9c67a1d66d996832eb02a3b21f6f6780461b9"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Anbi/AnbiEvadeResolver.asset",
+      "newPath": "Assets/Data/Characters/Anbi/Actions/Resolvers/Anbi_Dodge_Resolver.asset",
+      "guid": "18d6325f114f2004b8996990b648d1cc",
+      "oldName": "AnbiEvadeResolver",
+      "newName": "Anbi_Dodge_Resolver",
+      "sha256": "03c74cc9f959362d622192fb2e445173a28c759d09f55bb278a1d9ee83fd6185"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Anbi/AnbiLocomotion.asset",
+      "newPath": "Assets/Data/Characters/Anbi/Locomotion/Anbi_Default_Locomotion.asset",
+      "guid": "1991a55b3e5f81d41a765f19a1553a44",
+      "oldName": "AnbiLocomotion",
+      "newName": "Anbi_Default_Locomotion",
+      "sha256": "9743f37171de21668076c98362e899b6ca8d434798c2a3ec736f866605f69416"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Monster/MonsterConfig.asset",
+      "newPath": "Assets/Data/Characters/Monster/Config/Monster_Config.asset",
+      "guid": "9652ef6899c7880418d27317f6d928d3",
+      "oldName": "MonsterConfig",
+      "newName": "Monster_Config",
+      "sha256": "8f4968583f70085ab02cea83f57aaf05d6d84918eec686a3fb3da294eb3b9aa9"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/DirectionalActionResolver.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Resolvers/Unagi_Dodge_Resolver.asset",
+      "guid": "cd749318cea11fe4992142b817d6d890",
+      "oldName": "DirectionalActionResolver",
+      "newName": "Unagi_Dodge_Resolver",
+      "sha256": "4427f445891dda4fc263d27bbea48ea025e331fa59999b88c93385c63ccedbd3"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/UnagiActionGraph.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Graphs/Unagi_Default_Graph.asset",
+      "guid": "67683ddb7043a6643814ab1931367335",
+      "oldName": "UnagiActionGraph",
+      "newName": "Unagi_Default_Graph",
+      "sha256": "7b859f7eb3157e7e5f2b7e77e1c2562f496fb3276953eb400e2f9563e4396328"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/UnagiConfig.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Config/Unagi_Config.asset",
+      "guid": "a21dbce80e5086944bce3b6329980cf1",
+      "oldName": "UnagiConfig",
+      "newName": "Unagi_Config",
+      "sha256": "27a9f611f3e78e812ebd2a559ead0aa688bb834df732fdda07abb1d62a1b3478"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/UnagiEnemyConfig.asset",
+      "newPath": "Assets/Data/Characters/UnagiEnemy/Config/UnagiEnemy_Config.asset",
+      "guid": "898161139843aad4bbf29be92ce5254c",
+      "oldName": "UnagiEnemyConfig",
+      "newName": "UnagiEnemy_Config",
+      "sha256": "b49bffee8cb871f146a9bbbc793e3c40e9c8b46e33a092f2476e532fde66acf1"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/Unagi_LocomotionSO.asset",
+      "newPath": "Assets/Data/Shared/Locomotion/Default_Locomotion.asset",
+      "guid": "4fabcefb4e3a82a40b0b5b23dc253981",
+      "oldName": "Unagi_LocomotionSO",
+      "newName": "Default_Locomotion",
+      "sha256": "81d7d45e68449a5a19b2a66fb221c045337ced5b1a1178a0c66c784ebec82c0e"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_01.asset",
+      "newPath": "Assets/Data/Characters/Anbi/Actions/Anbi_Attack_Normal_01.asset",
+      "guid": "8eab155b88871324d8c3c97bbda704f1",
+      "oldName": "Anbi_Attack_Normal_01",
+      "newName": "Anbi_Attack_Normal_01",
+      "sha256": "085db1cc6686ec347866f3a8a64a91b9c85aecdf67eb14b3fc5556a47267a82a"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_02.asset",
+      "newPath": "Assets/Data/Characters/Anbi/Actions/Anbi_Attack_Normal_02.asset",
+      "guid": "7ceae25d0352ba14598bc6460ddb2dfb",
+      "oldName": "Anbi_Attack_Normal_02",
+      "newName": "Anbi_Attack_Normal_02",
+      "sha256": "fbdc5364ee916f56fb2dcc972c08ab61b19ff167278e647312a49c261a05692e"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_03.asset",
+      "newPath": "Assets/Data/Characters/Anbi/Actions/Anbi_Attack_Normal_03.asset",
+      "guid": "1996ff3db5c3bb140bb1e846a207cb74",
+      "oldName": "Anbi_Attack_Normal_03",
+      "newName": "Anbi_Attack_Normal_03",
+      "sha256": "a63c48cda2b66fa971b728ebbce1cb0ccbf68b6d5069dd3bf53732113fc5c7fd"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Attack_Normal_04.asset",
+      "newPath": "Assets/Data/Characters/Anbi/Actions/Anbi_Attack_Normal_04.asset",
+      "guid": "5a10aa001da08634c93cfdde685a16e5",
+      "oldName": "Anbi_Attack_Normal_04",
+      "newName": "Anbi_Attack_Normal_04",
+      "sha256": "42e6862d9fc9d900012928ca6cf5c8c5f66909f3ba17bab72e6c423f733ed566"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Evade_Back.asset",
+      "newPath": "Assets/Data/Characters/Anbi/Actions/Anbi_Evade_Back.asset",
+      "guid": "3ad766f724c1c6a40a43bb562a71a1aa",
+      "oldName": "Anbi_Evade_Back",
+      "newName": "Anbi_Evade_Back",
+      "sha256": "11992431654ac37fb5673bd61dbd852eddf15d14da39aca38b15314d1af44191"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Evade_Front.asset",
+      "newPath": "Assets/Data/Characters/Anbi/Actions/Anbi_Evade_Front.asset",
+      "guid": "66d842ae0004f2e44b643574e32b8f31",
+      "oldName": "Anbi_Evade_Front",
+      "newName": "Anbi_Evade_Front",
+      "sha256": "bb22eeee186b7651f1b2fba0c00543146e097b10263532a17fae73702d51afe1"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_Hurt.asset",
+      "newPath": "Assets/Data/Characters/Anbi/Reactions/Anbi_Hurt.asset",
+      "guid": "2e6f5935e1e5d9247894cdf50877c54e",
+      "oldName": "Anbi_Hurt",
+      "newName": "Anbi_Hurt",
+      "sha256": "351334e7e5e38b9698f3cc0e1c099760342d799051d951000d06ecdace3cd08f"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_SwitchIn.asset",
+      "newPath": "Assets/Data/Characters/Anbi/Actions/Anbi_SwitchIn.asset",
+      "guid": "ee4c2dbcb5bfb764b8830a7b2d3cc998",
+      "oldName": "Anbi_SwitchIn",
+      "newName": "Anbi_SwitchIn",
+      "sha256": "88861202a8cb56b0f7bd7117f2b3a4682ef77e8ed6c3aca46a02114135e50da0"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Anbi/ActionDefinition/Anbi_SwitchOut.asset",
+      "newPath": "Assets/Data/Characters/Anbi/Actions/Anbi_SwitchOut.asset",
+      "guid": "2bde16ed495bf2f4d8bbcdf55b34f02f",
+      "oldName": "Anbi_SwitchOut",
+      "newName": "Anbi_SwitchOut",
+      "sha256": "ddf15f58e32120d2c1e1c54c5a71857c05f8f796f1037ad17a0efaef0c6ac014"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Monster/ActionDefinition/Monster_Goblin_Attack_01.asset",
+      "newPath": "Assets/Data/Characters/Monster/Actions/Monster_Attack_01.asset",
+      "guid": "3bb48353692280d45971c3de60791bc3",
+      "oldName": "Monster_Goblin_Attack_01",
+      "newName": "Monster_Attack_01",
+      "sha256": "c8a3940a49379af0182a4b5485d1bdf3c6e40dc777afce51473d18481f4c9a0d"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Monster/ActionDefinition/Monster_Goblin_Attack_02.asset",
+      "newPath": "Assets/Data/Characters/Monster/Actions/Monster_Attack_02.asset",
+      "guid": "e464aebf8355d5240938ca442d289572",
+      "oldName": "Monster_Goblin_Attack_02",
+      "newName": "Monster_Attack_02",
+      "sha256": "19f26d94695499552cd48ba3e79e80f0e3183a260ad275b1d1d82f80f9baa6a3"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Monster/ActionDefinition/Monster_Goblin_Hit_L_Front.asset",
+      "newPath": "Assets/Data/Characters/Monster/Reactions/Monster_Hit_L_Front.asset",
+      "guid": "d34a5c797fc0c0a418afa0c2f62fc6e3",
+      "oldName": "Monster_Goblin_Hit_L_Front",
+      "newName": "Monster_Hit_L_Front",
+      "sha256": "9fa1365105ee5b89fc8e03e8b48bb260ebc57d07d80d43f0dbadfabeb478129c"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_01.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Attack_01.asset",
+      "guid": "feed82bd9c2969e4d8503d7a7936b734",
+      "oldName": "Unagi_Attack_01",
+      "newName": "Unagi_Attack_01",
+      "sha256": "5d306688d17e9f2ceb08cc744dce673da35e46970c97da5aea52fc9590895acd"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_02.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Attack_02.asset",
+      "guid": "db8e9e4036cf5714e83eed8c568a9874",
+      "oldName": "Unagi_Attack_02",
+      "newName": "Unagi_Attack_02",
+      "sha256": "1c3ac85d2972cfae9b4d0d191671ee526ba20c2af71749f94ace770c059f5f88"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_03.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Attack_03.asset",
+      "guid": "b553179081bd8e84691c2d28f56eeeb1",
+      "oldName": "Unagi_Attack_03",
+      "newName": "Unagi_Attack_03",
+      "sha256": "7873fb2ef5c7aec3a528d52f4e56b29ee80cd671ca20fa936443899fcb99335b"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_04.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Attack_04.asset",
+      "guid": "32ceab3172e1d3e4da7ee72d80dea1a8",
+      "oldName": "Unagi_Attack_04",
+      "newName": "Unagi_Attack_04",
+      "sha256": "062ab16d41c3ab3a52f786002b5636e29130d59eceed99f5f820f559a8eae4ff"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_05.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Attack_05.asset",
+      "guid": "19bd2b48cb1f7f64799b8c6066ff91ff",
+      "oldName": "Unagi_Attack_05",
+      "newName": "Unagi_Attack_05",
+      "sha256": "4bc280343b0fda60b287d6c98f6044736d26aed92114d6b9256755756e906b7f"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_06.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Attack_06.asset",
+      "guid": "ec7c606a20e43e54ba1065507a9a2a4f",
+      "oldName": "Unagi_Attack_06",
+      "newName": "Unagi_Attack_06",
+      "sha256": "18e25bfa73e5f9f45d13a8dc3e0349b44c3183c7cc02a38e25475c65919ddce1"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_01.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Attack_Branch_01.asset",
+      "guid": "4756f9d82a242dd40a535249ef2b4771",
+      "oldName": "Unagi_Attack_Branch_01",
+      "newName": "Unagi_Attack_Branch_01",
+      "sha256": "1e090dadcf7c7aaa5a18f02d0a01f0979161d88190ef310d64268be44f8c3c77"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_01_Perfect.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Attack_Branch_01_Perfect.asset",
+      "guid": "3e79dc3aaf3a97a40b921d55dab6542a",
+      "oldName": "Unagi_Attack_Branch_01_Perfect",
+      "newName": "Unagi_Attack_Branch_01_Perfect",
+      "sha256": "7f96be9de33c7cd1ff7b987a3501431458b4c548cbc7d746b471c1315bda3fd8"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_02.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Attack_Branch_02.asset",
+      "guid": "36239327dd50e6945a178edda90d407e",
+      "oldName": "Unagi_Attack_Branch_02",
+      "newName": "Unagi_Attack_Branch_02",
+      "sha256": "3ef9bcae252e388738f663cc53238b8d354b8cfa9c1e2b27d7dc779fdf882ac5"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_02_Perfect.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Attack_Branch_02_Perfect.asset",
+      "guid": "06815d13e71fa4344aa893b2a53a81be",
+      "oldName": "Unagi_Attack_Branch_02_Perfect",
+      "newName": "Unagi_Attack_Branch_02_Perfect",
+      "sha256": "cab27e7c9a778bf6dba0c9f58960d730cd4df7449b1b7fc81b513367b3191d22"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_03.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Attack_Branch_03.asset",
+      "guid": "7a7e279f3fea53544be07873000e4b92",
+      "oldName": "Unagi_Attack_Branch_03",
+      "newName": "Unagi_Attack_Branch_03",
+      "sha256": "09813319336adf4fc5d717252c6200d248c88ba9ce5ac926161273651baa8260"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Branch_Start.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Attack_Branch_Start.asset",
+      "guid": "9a980e3a4de96d24899394e1394b530e",
+      "oldName": "Unagi_Attack_Branch_Start",
+      "newName": "Unagi_Attack_Branch_Start",
+      "sha256": "ba37b312d27133fb64e2cd8e41416c35e5d2ee1a34c0f3b2c0a4986eaa9bbf62"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Counter.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Attack_Counter.asset",
+      "guid": "45966e04aaa840b489539b024d70adc4",
+      "oldName": "Unagi_Attack_Counter",
+      "newName": "Unagi_Attack_Counter",
+      "sha256": "589c0dc563490d251541fb66b2d92a65ca34887112525f9c3d3cf3205288449b"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Rush.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Attack_Rush.asset",
+      "guid": "c18191bb1aeaeab4e8478467868d4e8f",
+      "oldName": "Unagi_Attack_Rush",
+      "newName": "Unagi_Attack_Rush",
+      "sha256": "aae715236eeebfbe37c3c40860661b1c8b6e07f5abddbf1f23613596cac35ade"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Attack_Rush_02.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Attack_Rush_02.asset",
+      "guid": "beb27788e0aac394187213d668996f65",
+      "oldName": "Unagi_Attack_Rush_02",
+      "newName": "Unagi_Attack_Rush_02",
+      "sha256": "8c6c7041cb9294cf292619a1cfb9523f9f646e3332aa9a6ad17fef9a7c3ec1d6"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_ChargeAttack_01.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_ChargeAttack_01.asset",
+      "guid": "7d8cee984a26d1b488757963d558c447",
+      "oldName": "Unagi_ChargeAttack_01",
+      "newName": "Unagi_ChargeAttack_01",
+      "sha256": "5d807a190e3f534719cd163f326f5d13ac45b5e6196ce16c96b1c77238d90740"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Combo_1.asset",
+      "newPath": "Assets/Data/Characters/UnagiEnemy/Actions/UnagiEnemy_Combo_1.asset",
+      "guid": "613b19b12fb0a8d49bc06701e0c78aec",
+      "oldName": "Unagi_Combo_1",
+      "newName": "UnagiEnemy_Combo_1",
+      "sha256": "1db7134e00e3b1204b81679a52cae761b53e1d90ac1f8aded1443d696d20fce1"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Combo_2.asset",
+      "newPath": "Assets/Data/Characters/UnagiEnemy/Actions/UnagiEnemy_Combo_2.asset",
+      "guid": "e96831bb7d085ff4ea9654727e896ee9",
+      "oldName": "Unagi_Combo_2",
+      "newName": "UnagiEnemy_Combo_2",
+      "sha256": "2926f1e1b1b2c08a18dba7ba1b1eb4f7fa9231a19e48450ebb334e827551d7e7"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Backward.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Dodge_Backward.asset",
+      "guid": "4abae900c0f901a42bd9d9c57d0a764b",
+      "oldName": "Unagi_Dodge_Backward",
+      "newName": "Unagi_Dodge_Backward",
+      "sha256": "65f4bd308ed638e48fc115bbbb65d60c46d2782b692a447282012283a71f0aa5"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Backward_Left.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Dodge_Backward_Left.asset",
+      "guid": "3b08cb5f6e545a74fad80193d64470eb",
+      "oldName": "Unagi_Dodge_Backward_Left",
+      "newName": "Unagi_Dodge_Backward_Left",
+      "sha256": "1cf1323beba92162c4ff0308c2a37810913bb21aef69ffb5e46f19191b8606e8"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Backward_Right.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Dodge_Backward_Right.asset",
+      "guid": "5d739c9089db32049afb8e8b500f9d1a",
+      "oldName": "Unagi_Dodge_Backward_Right",
+      "newName": "Unagi_Dodge_Backward_Right",
+      "sha256": "e8ef7d1fcaafa587ad0526a9d7ccc3ccc65a0ac542953ee3d0e69ade6589ea29"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Forward.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Dodge_Forward.asset",
+      "guid": "9b8a4ec0ba7bc3840a101d608c26e9f0",
+      "oldName": "Unagi_Dodge_Forward",
+      "newName": "Unagi_Dodge_Forward",
+      "sha256": "c4f5de3c386b4e9321eae26b3c02bf0ef3adf23295dade21505ba357185d30a1"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Forward_Left.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Dodge_Forward_Left.asset",
+      "guid": "cd1958f8bc2ce694d94c87a0515ecd5d",
+      "oldName": "Unagi_Dodge_Forward_Left",
+      "newName": "Unagi_Dodge_Forward_Left",
+      "sha256": "bc287b4684107256cd67cbe72d5f843eeb12b0d28d377e750defa527e53ed690"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Dodge_Forward_Right.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_Dodge_Forward_Right.asset",
+      "guid": "894a679d57a3c864f8f5614aa6c39e19",
+      "oldName": "Unagi_Dodge_Forward_Right",
+      "newName": "Unagi_Dodge_Forward_Right",
+      "sha256": "81dc6dd7bcb566e9f0cfb51dd128ceb1634845335c12e5530cbfbcb602d57c1e"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_EX.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_EX.asset",
+      "guid": "00895a5f382c28846b76118100c40d5d",
+      "oldName": "Unagi_EX",
+      "newName": "Unagi_EX",
+      "sha256": "659343c7a80d7631a17dbdbabe72eaf47f4ac975d16ee5af8906412810eae664"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_Hurt.asset",
+      "newPath": "Assets/Data/Shared/Reactions/Hit.asset",
+      "guid": "6a3af5227e89b3f46876462f3c5131d4",
+      "oldName": "Unagi_Hurt",
+      "newName": "Hit",
+      "sha256": "a35fc4de090b30b76ef2696fade6a6082a3a0b18f0810080723387a074209a4a"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_ParryAid_H_Guard.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_ParryAid_H_Guard.asset",
+      "guid": "70c7fed86817a1e46a973230b95e14b9",
+      "oldName": "Unagi_ParryAid_H_Guard",
+      "newName": "Unagi_ParryAid_H_Guard",
+      "sha256": "104f554e809efd6034707e1e1629988948f46b9312ea93262c6eea263b2dabf8"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_ParryAid_H_Success.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_ParryAid_H_Success.asset",
+      "guid": "2555355cead55b64cac7c5ad9eefa5cc",
+      "oldName": "Unagi_ParryAid_H_Success",
+      "newName": "Unagi_ParryAid_H_Success",
+      "sha256": "9b237a56214b3e83b2f91ddeae606006d86fa9c486ce5dda80a07a900ac4a1ef"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_SwitchIn.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_SwitchIn.asset",
+      "guid": "edf85fea80a52244181a29360df34a78",
+      "oldName": "Unagi_SwitchIn",
+      "newName": "Unagi_SwitchIn",
+      "sha256": "cc693694f8e04b93389cea6e51b29790e151f75340a9c9bb1550528b3f8b842f"
+    },
+    {
+      "oldPath": "Assets/Data/Combat/Actions/Unagi/ActioniDefinition/Unagi_SwitchOut.asset",
+      "newPath": "Assets/Data/Characters/Unagi/Actions/Unagi_SwitchOut.asset",
+      "guid": "c0a0d80f072f2594bb50d8b6ce50150a",
+      "oldName": "Unagi_SwitchOut",
+      "newName": "Unagi_SwitchOut",
+      "sha256": "22ae8cfb148d8e971e0bd140dd42646c1bb7d7bf3db31569f36506156fe4d177"
+    },
+    {
+      "oldPath": "Assets/Data/Enemy/BehaviorTrees/BT_Monster.asset",
+      "newPath": "Assets/Data/Characters/Monster/AI/Monster_BehaviorTree.asset",
+      "guid": "b6f849eaee23d334b909556af291f267",
+      "oldName": "BT_Monster",
+      "newName": "Monster_BehaviorTree",
+      "sha256": "1663a0f62fd3d7c60ebd48d75d0679f7942913e22fd8478d64803ce42f4d89c8"
+    },
+    {
+      "oldPath": "Assets/Data/Enemy/BehaviorTrees/BT_Unagi.asset",
+      "newPath": "Assets/Data/Characters/UnagiEnemy/AI/UnagiEnemy_BehaviorTree.asset",
+      "guid": "ebfa7e7deef6de8408f152c86e0f8d55",
+      "oldName": "BT_Unagi",
+      "newName": "UnagiEnemy_BehaviorTree",
+      "sha256": "7aa5004505806cdf9c3f3c6b5ea9cf38947b9aac2540427c421965de60343b90"
+    },
+    {
+      "oldPath": "Assets/Data/Enemy/Monster/MonsterActionGraph.asset",
+      "newPath": "Assets/Data/Characters/Monster/Graphs/Monster_Default_Graph.asset",
+      "guid": "425b15927a23af54aad2ceb040be7065",
+      "oldName": "MonsterActionGraph",
+      "newName": "Monster_Default_Graph",
+      "sha256": "9201d8ea437cb97fd7c0a079b53f2f7bfb61f6010ba7f8abe3b526ae6f563d4a"
+    },
+    {
+      "oldPath": "Assets/Data/Enemy/Monster/MonsterLocomotion.asset",
+      "newPath": "Assets/Data/Characters/Monster/Locomotion/Monster_Default_Locomotion.asset",
+      "guid": "04c97d7aa4cbe0f4b97d7ca551d406d8",
+      "oldName": "MonsterLocomotion",
+      "newName": "Monster_Default_Locomotion",
+      "sha256": "3411a5f7f6a77c3aeeb86d75459d63ea6943ea4d5d45668e4c953293d8413409"
+    },
+    {
+      "oldPath": "Assets/Data/Enemy/Monster/Monster_EDF.asset",
+      "newPath": "Assets/Data/Characters/Monster/Monster_Enemy.asset",
+      "guid": "02c902140ab62b5439f0f1793fd33acd",
+      "oldName": "Monster_EDF",
+      "newName": "Monster_Enemy",
+      "sha256": "a685aef808e64203ce2e003b8fb6cd9872fcdd08f378de53b819dceaa3ae1a7e"
+    },
+    {
+      "oldPath": "Assets/Data/Enemy/Unagi/Unagi_EDF.asset",
+      "newPath": "Assets/Data/Characters/UnagiEnemy/UnagiEnemy_Enemy.asset",
+      "guid": "f05b160cf41d7814aab3d0e785bc670e",
+      "oldName": "Unagi_EDF",
+      "newName": "UnagiEnemy_Enemy",
+      "sha256": "21bb71b54f563bd19c755a570e1a6a1f728102c4b81e7c544ea88044b9bef14d"
+    },
+    {
+      "oldPath": "Assets/Data/Enemy/Unagi/Unagi_Enemy_ComboGraph.asset",
+      "newPath": "Assets/Data/Characters/UnagiEnemy/Graphs/UnagiEnemy_Default_Graph.asset",
+      "guid": "d83ac2ebb93b6ff46bac2392401ed469",
+      "oldName": "Unagi_Enemy_ComboGraph",
+      "newName": "UnagiEnemy_Default_Graph",
+      "sha256": "50a5d2b2b93fbb0f841eb0f4ef2a8cb92a8acdf861d062c630aba6180f3594c8"
+    },
+    {
+      "oldPath": "Assets/Data/Enemy/EnemyBrainProfile.asset",
+      "newPath": "Assets/Data/Shared/AI/Default_Brain.asset",
+      "guid": "8b3d7a69f2a88e3429abf70eb021ac4e",
+      "oldName": "EnemyBrainProfile",
+      "newName": "Default_Brain",
+      "sha256": "a9ac561e5282e5fe92e541f7b42c7c4f8cb71fe5a2e80652644e620bfa1900c6"
+    }
+  ]
+}
