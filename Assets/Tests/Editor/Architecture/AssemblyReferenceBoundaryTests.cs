@@ -70,7 +70,8 @@ public sealed class AssemblyReferenceBoundaryTests
     [Test]
     public void RuntimeSources_AreOwnedByExplicitAssemblies()
     {
-        string scriptsRoot = Path.Combine(Application.dataPath, "Scripts");
+        // Application.dataPath 在 Windows 仍使用 /，DirectoryInfo.FullName 使用本机分隔符。
+        string scriptsRoot = Path.GetFullPath(Path.Combine(Application.dataPath, "Scripts"));
         string editorRoot = Path.Combine(scriptsRoot, "Editor")
             + Path.DirectorySeparatorChar;
         string[] files = Directory.GetFiles(scriptsRoot, "*.cs", SearchOption.AllDirectories);
@@ -86,9 +87,12 @@ public sealed class AssemblyReferenceBoundaryTests
     /// <summary>沿父目录查找最近 asmdef，直到离开 Assets/Scripts。</summary>
     static bool HasOwningAssembly(string sourceFile, string scriptsRoot)
     {
+        scriptsRoot = Path.GetFullPath(scriptsRoot)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
         DirectoryInfo directory = new FileInfo(sourceFile).Directory;
         while (directory != null
-            && directory.FullName.StartsWith(
+            && (directory.FullName + Path.DirectorySeparatorChar).StartsWith(
                 scriptsRoot,
                 StringComparison.OrdinalIgnoreCase))
         {

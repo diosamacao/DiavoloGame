@@ -107,8 +107,9 @@ public static class ActionTimelineClipboard
         {
             payload = JsonUtility.FromJson<Payload>(s_json);
         }
-        catch (ArgumentException)
+        catch (ArgumentException exception)
         {
+            Debug.LogWarning($"动作时间轴粘贴失败：剪贴板数据无法解析。{exception.Message}", action);
             return result;
         }
 

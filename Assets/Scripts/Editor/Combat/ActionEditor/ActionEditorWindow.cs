@@ -20,7 +20,26 @@ public sealed class ActionEditorWindow : EditorWindow
     readonly ActionToolbar _toolbar = new();
     readonly ActionTimelineView _timelineView = new();
 
-    ActionDefinition _selectedAction;
+    [SerializeField] ActionDefinition _selectedAction;
+    [SerializeField] CharacterConfig _characterContext;
+    [SerializeField] int _characterMode;
+    [SerializeField] bool _useScenePreview;
+    [SerializeField] Transform _scenePreviewCharacter;
+
+    /// <summary>使用角色引用范围和隔离模型打开时间轴。</summary>
+    public static void OpenForCharacter(CharacterConfig config, int mode, ActionDefinition action)
+    {
+        var window = GetWindow<ActionEditorWindow>();
+        bool keepScenePreview = window._characterContext == config && window._useScenePreview;
+        window._characterContext = config;
+        window._characterMode = mode;
+        window._listPanel.SetCharacterScope(config, mode);
+        if (!keepScenePreview) window.UseIsolatedPreview();
+        window.titleContent = new GUIContent("Action — " + config.name);
+        window.SelectAction(action);
+        window.Show();
+        window.Focus();
+    }
     SerializedObject _serializedObject;
     readonly ActionEditorSelectionSet _selection = new();
     ActionEditorPreviewSession _previewSession;
@@ -44,6 +63,10 @@ public sealed class ActionEditorWindow : EditorWindow
     public static void Open()
     {
         ActionEditorWindow window = GetWindow<ActionEditorWindow>();
+        window._characterContext = null;
+        window.UseScenePreview(null);
+        window.RestorePreviewCharacter();
+        window._listPanel.SetCharacterScope(null);
         window.titleContent = new GUIContent("Action Editor");
         window.minSize = new Vector2(960f, 520f);
         window.Show();
@@ -52,8 +75,9 @@ public sealed class ActionEditorWindow : EditorWindow
     void OnEnable()
     {
         wantsMouseMove = true;
-        _listPanel.Refresh();
-        RestorePreviewCharacter();
+        _listPanel.SetCharacterScope(_characterContext, _characterMode);
+        if (_characterContext == null) RestorePreviewCharacter();
+        else EditorApplication.delayCall += RestoreCharacterContext;
         _leftWidth = EditorPrefs.GetFloat(LeftWidthPrefKey, ActionEditorStyles.DefaultLeftWidth);
         _rightWidth = EditorPrefs.GetFloat(RightWidthPrefKey, ActionEditorStyles.DefaultRightWidth);
 
@@ -69,6 +93,7 @@ public sealed class ActionEditorWindow : EditorWindow
             () => _serializedObject,
             _previewSession.TryEvaluateAttachWorldPoseAtFrame);
         _previewSession.RegisterExtension(_cameraShotPreviewExtension);
+        if (_characterContext == null) SelectAction(_selectedAction);
 
         EditorApplication.update += OnEditorUpdate;
         SceneView.duringSceneGui += OnSceneGUI;
@@ -76,6 +101,7 @@ public sealed class ActionEditorWindow : EditorWindow
 
     void OnDisable()
     {
+        EditorApplication.delayCall -= RestoreCharacterContext;
         EditorApplication.update -= OnEditorUpdate;
         SceneView.duringSceneGui -= OnSceneGUI;
         SavePreviewCharacter();
@@ -122,7 +148,7 @@ public sealed class ActionEditorWindow : EditorWindow
                 EditorUtility.SetDirty(_selectedAction);
             }
 
-            ActionNotifySelectionDrawer.Draw(rightBody, _serializedObject, _selection, _selectedAction);
+            ActionNotifySelectionDrawer.Draw(rightBody, _serializedObject, _selection, _selectedAction, _previewCharacter);
         }
         else
         {
@@ -262,10 +288,13 @@ public sealed class ActionEditorWindow : EditorWindow
     {
         _toolbar.Draw(
             _selectedAction,
-            ref _previewCharacter,
+            _previewCharacter,
             ref _previewFrame,
             ref _isPlaying,
-            ref _loop);
+            ref _loop,
+            _characterContext,
+            UseScenePreview,
+            UseIsolatedPreview);
 
         if (_previewCharacter != null)
             SavePreviewCharacter();
@@ -300,6 +329,11 @@ public sealed class ActionEditorWindow : EditorWindow
     /// <summary>打开独立创建 ActionDefinition 面板。</summary>
     void OpenCreateActionWindow()
     {
+        if (_characterContext != null)
+        {
+            CharacterActionCreateWindow.Open(_characterContext, _characterMode);
+            return;
+        }
         ActionDefinitionCreateWindow.Open(created =>
         {
             _listPanel.Refresh();
@@ -499,13 +533,50 @@ public sealed class ActionEditorWindow : EditorWindow
             return;
 
         Object obj = EditorUtility.InstanceIDToObject(id);
-        _previewCharacter = obj as Transform;
+        UseScenePreview(obj as Transform);
+    }
+
+    /// <summary>选择场景模型并立即结束旧目标的采样；保留角色动作范围，不强制回到隔离模型。</summary>
+    public void UseScenePreview(Transform target)
+    {
+        if (target != null && (EditorUtility.IsPersistent(target) || !target.gameObject.scene.IsValid()
+            || UnityEditor.SceneManagement.EditorSceneManager.IsPreviewSceneObject(target.gameObject)))
+            throw new System.ArgumentException("请选择 Hierarchy 中的场景模型。");
+        _isPlaying = false;
+        _previewSession?.SetPreviewCharacter(target);
+        _useScenePreview = true;
+        _scenePreviewCharacter = target;
+        _previewCharacter = target;
+        Repaint();
+    }
+
+    /// <summary>显式切回角色的隔离模型；先恢复场景目标，再创建或复用预览实例。</summary>
+    public void UseIsolatedPreview()
+    {
+        _isPlaying = false;
+        _previewSession?.SetPreviewCharacter(null);
+        _useScenePreview = false;
+        _scenePreviewCharacter = null;
+        _previewCharacter = CharacterAuthoringPreviewWindow.Bind(_characterContext);
+        _previewSession?.SetPreviewCharacter(_previewCharacter);
+        Repaint();
     }
 
     void SavePreviewCharacter()
     {
+        if (!_useScenePreview) return;
         EditorPrefs.SetInt(
             PreviewCharacterPrefKey,
             _previewCharacter != null ? _previewCharacter.GetInstanceID() : 0);
+    }
+
+    /// <summary>脚本重载后恢复作者选择的场景或隔离预览，并重建动作序列化上下文。</summary>
+    void RestoreCharacterContext()
+    {
+        if (this == null || _characterContext == null) return;
+        if (_useScenePreview) UseScenePreview(_scenePreviewCharacter);
+        else UseIsolatedPreview();
+        SelectAction(_selectedAction);
+        Repaint();
     }
 }

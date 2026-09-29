@@ -80,24 +80,24 @@ public static class CharacterActorFactory
         IAnimationPlayback playback = headless
             ? new NullAnimationPlayback()
             : new PlayableAnimationPlayback(animator);
-        if (config.CombatProfile == null
-            || !config.CombatProfile.TryGetLocomotionProfile(
-                config.CombatProfile.DefaultMode,
+        if (config.CombatModes == null
+            || !config.CombatModes.TryGetLocomotionProfile(
+                config.CombatModes.DefaultMode,
                 out CharacterLocomotionProfile locomotionProfile)
-            || locomotionProfile.AnimationProfile == null)
+            || locomotionProfile == null)
         {
             throw new InvalidOperationException(
-                "CharacterActorFactory: CombatModeProfile 默认模式缺少 LocomotionProfile（须含 AnimationProfile）。");
+                "CharacterActorFactory: CharacterCombatModes 默认模式缺少 LocomotionProfile（须含 AnimationProfile）。");
         }
 
         animation = new CharacterAnimationService(
             playback,
             animator,
-            locomotionProfile.AnimationProfile);
+            locomotionProfile);
         CharacterRootMotionDriver rootMotion = headless
             ? null
             : new CharacterRootMotionDriver(motor, animator);
-        var combatMode = new CombatModeService(config.CombatProfile, animation);
+        var combatMode = new CombatModeService(config.CombatModes, animation);
 
         var context = new CharacterContext(root, animation, controller, motor);
         ILocomotionFootstepSink footstepPlayer = headless

@@ -4,7 +4,7 @@ using UnityEngine;
 
 /// <summary>
 /// BT 编辑器：从运行时同一条配置链解析 ActionGraph，供 RequestCombatAction 选 Entry。
-/// 真源：EnemyDefinition → CharacterConfig.CombatProfile → DefaultMode ActionGraph。
+/// 真源：EnemyDefinition → CharacterConfig.CombatModes → DefaultMode ActionGraph。
 /// 不在 BT 资产上另挂 Graph，避免双配置。
 /// </summary>
 public static class EnemyBehaviorTreeCombatEntryPicker
@@ -102,7 +102,7 @@ public static class EnemyBehaviorTreeCombatEntryPicker
             || graph == null)
         {
             EditorGUILayout.HelpBox(
-                "已找到 EnemyDefinition，但 Default 模式 ActionGraph 未配置。请到 CharacterConfig.CombatProfile 填写。",
+                "已找到 EnemyDefinition，但 Default 模式 ActionGraph 未配置。请到 CharacterConfig.CombatModes 填写。",
                 MessageType.Warning);
             request.EntryNodeId = EditorGUILayout.TextField("Entry Node Id", request.EntryNodeId ?? string.Empty);
             return;
@@ -244,7 +244,7 @@ public static class EnemyBehaviorTreeCombatEntryPicker
             return false;
 
         CharacterConfig config = definition.CharacterConfig;
-        CombatModeProfile profile = config != null ? config.CombatProfile : null;
+        CharacterCombatModes profile = config != null ? config.CombatModes : null;
         return profile != null && profile.TryGetActionGraph(profile.DefaultMode, out graph) && graph != null;
     }
 

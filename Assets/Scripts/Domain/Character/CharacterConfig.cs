@@ -17,8 +17,8 @@ public class CharacterConfig : ScriptableObject
     [SerializeField] CharacterMotorConfig motor = CharacterMotorConfig.Default;
 
     [Header("Combat")]
-    [Tooltip("mode → ActionGraph + LocomotionProfile（内含 AnimationProfile）。")]
-    [SerializeField] CombatModeProfile combatProfile = null;
+    [Tooltip("mode → ActionGraph + LocomotionProfile（内含动画映射）。")]
+    [SerializeField] CharacterCombatModes combatModes = new();
     [SerializeField] CharacterCombatConfig combat = CharacterCombatConfig.Default;
 
     [Header("Resources")]
@@ -38,7 +38,7 @@ public class CharacterConfig : ScriptableObject
     public CharacterMotorConfig Motor => motor;
 
     /// <summary>战斗模式与出招图 / Clip 映射。</summary>
-    public CombatModeProfile CombatProfile => combatProfile;
+    public CharacterCombatModes CombatModes => combatModes;
 
     /// <summary>战斗运行时装配参数。</summary>
     public CharacterCombatConfig Combat => combat;
@@ -60,12 +60,12 @@ public class CharacterConfig : ScriptableObject
             valid = false;
         }
 
-        if (combatProfile == null)
+        if (combatModes == null)
         {
-            Debug.LogError("CharacterConfig: CombatProfile 未配置。", context);
+            Debug.LogError("CharacterConfig: CombatModes 未配置。", context);
             valid = false;
         }
-        else if (!combatProfile.Validate(context))
+        else if (!combatModes.Validate(context))
         {
             valid = false;
         }
@@ -82,156 +82,5 @@ public class CharacterConfig : ScriptableObject
         CharacterCombatConfig copy = combat;
         copy.EnsureInterruptResistDefault();
         combat = copy;
-    }
-}
-
-/// <summary>角色移动与碰撞体配置，集中替代 PlayerController 上分散的移动字段。</summary>
-[Serializable]
-public struct CharacterMotorConfig
-{
-    [SerializeField] float walkSpeed;
-    [SerializeField] float runSpeed;
-    [SerializeField] float sprintSpeed;
-    [SerializeField] float runThreshold;
-    [Tooltip("FollowInput 转向平滑时间（秒，越大越慢）。同时决定朝向追 wish 与水平位移沿朝向拐弯的时长；W→WD 只调这一项。")]
-    [SerializeField] float rotationSmoothTime;
-    [SerializeField] float gravity;
-    [SerializeField] float groundedGravity;
-    [SerializeField] float controllerHeight;
-    [SerializeField] float controllerRadius;
-    [SerializeField] Vector3 controllerCenter;
-    [Tooltip("软弹开相对质量；越大越难被推开。与 SoftBodyImmovable 二选一语义。")]
-    [SerializeField] int softBodyMass;
-    [Tooltip("勾选后软弹开推力全给对方，自身像墙（大体型 Boss 用）。")]
-    [SerializeField] bool softBodyImmovable;
-
-    /// <summary>默认第三人称角色移动参数。</summary>
-    public static CharacterMotorConfig Default => new()
-    {
-        walkSpeed = 4f,
-        runSpeed = 7f,
-        sprintSpeed = 9f,
-        runThreshold = 0.6f,
-        // 略加大：配合 L-DIR4 倾身窗口；已序列化资产仍用各自 Inspector 值
-        rotationSmoothTime = 0.2f,
-        gravity = -20f,
-        groundedGravity = -2f,
-        controllerHeight = 1.7f,
-        controllerRadius = 0.28f,
-        controllerCenter = new Vector3(0f, 0.85f, 0f),
-        softBodyMass = CharacterMotorSim.DefaultSoftBodyMass,
-        softBodyImmovable = false,
-    };
-
-    /// <summary>走速。</summary>
-    public float WalkSpeed => walkSpeed;
-
-    /// <summary>跑速。</summary>
-    public float RunSpeed => runSpeed;
-
-    /// <summary>冲刺速度（Run 持续后进入 Sprint）。</summary>
-    public float SprintSpeed => sprintSpeed > 0f ? sprintSpeed : runSpeed;
-
-    /// <summary>输入幅度超过该值视为跑（尚未满 Sprint 计时）。</summary>
-    public float RunThreshold => runThreshold;
-
-    /// <summary>FollowInput 转向/沿朝向位移共用的平滑时间（秒）。</summary>
-    public float RotationSmoothTime => rotationSmoothTime;
-
-    /// <summary>空中重力加速度（m/s²）；量化进 MotorSim，不再经 CC.Move。</summary>
-    public float Gravity => gravity;
-
-    /// <summary>着地时保持贴地的纵向速度（m/s）；量化进 MotorSim。</summary>
-    public float GroundedGravity => groundedGravity;
-
-    /// <summary>水平碰撞半径（米）；同步给 CharacterController 与 MotorSim。</summary>
-    public float ControllerRadius =>
-        controllerRadius > 0f ? controllerRadius : Default.controllerRadius;
-
-    /// <summary>软弹开质量；未配置时用默认 100。</summary>
-    public int SoftBodyMass =>
-        softBodyMass > 0 ? softBodyMass : CharacterMotorSim.DefaultSoftBodyMass;
-
-    /// <summary>为 true 时软弹开中自身不位移，对方承担全部推力。</summary>
-    public bool SoftBodyImmovable => softBodyImmovable;
-
-    /// <summary>把配置应用到 CharacterController；只在初始化阶段调用。</summary>
-    public void ApplyTo(CharacterController controller)
-    {
-        if (controller == null)
-            return;
-
-        controller.height = controllerHeight > 0f ? controllerHeight : Default.controllerHeight;
-        controller.radius = controllerRadius > 0f ? controllerRadius : Default.controllerRadius;
-        controller.center = controllerCenter;
-    }
-}
-
-/// <summary>角色战斗侧装配参数，避免索敌和判定挂点散落在多个组件字段。</summary>
-[Serializable]
-public struct CharacterCombatConfig
-{
-    [SerializeField] int teamId;
-    [SerializeField] string attachPointName;
-    [SerializeField] HurtboxDefinition hurtbox;
-    [SerializeField] float maxHealth;
-    [Tooltip("唯一 SelectedTarget 的自动选中/显式切换范围（米）。")]
-    [SerializeField] float targetAcquireRangeMeters;
-    [Tooltip("当前 SelectedTarget 的保持范围（米），须不小于选中范围。")]
-    [SerializeField] float targetRetainRangeMeters;
-    [Tooltip("上层控制器用于选择受击与死亡表现动作的规则集。")]
-    [SerializeField] CharacterReactionSet reactions;
-    [Tooltip("站立韧性。杂兵 1，精英 3，Boss 5。禁止按身份 if。")]
-    [SerializeField] int baseInterruptResist;
-
-    /// <summary>默认玩家阵营与空挂点名。</summary>
-    public static CharacterCombatConfig Default => new()
-    {
-        teamId = 0,
-        attachPointName = string.Empty,
-        hurtbox = new HurtboxDefinition(),
-        maxHealth = 100f,
-        targetAcquireRangeMeters = 12f,
-        targetRetainRangeMeters = 13.5f,
-        reactions = new CharacterReactionSet(),
-        baseInterruptResist = HitReactionResolveQuery.DefaultBaseInterruptResist,
-    };
-
-    /// <summary>攻击者阵营 id；索敌会排除同阵营目标。</summary>
-    public int TeamId => teamId;
-
-    /// <summary>Hitbox/VFX 默认挂点名；为空时使用角色根。</summary>
-    public string AttachPointName => attachPointName;
-
-    /// <summary>角色根节点上的默认受击框；旧配置缺失时使用标准人形 Box。</summary>
-    public HurtboxDefinition Hurtbox => hurtbox ?? new HurtboxDefinition();
-
-    /// <summary>玩家等未被上层 Definition 覆盖时使用的最大生命值。</summary>
-    public float MaxHealth => maxHealth > 0f ? maxHealth : 100f;
-
-    /// <summary>自动选中与 TargetSwitch 可使用的范围；旧资产缺失字段时回退 12 米。</summary>
-    public float TargetAcquireRangeMeters =>
-        targetAcquireRangeMeters > 0f ? targetAcquireRangeMeters : 12f;
-
-    /// <summary>已选目标保持范围；旧资产或非法值时回退为 Acquire + 1.5 米。</summary>
-    public float TargetRetainRangeMeters =>
-        targetRetainRangeMeters >= TargetAcquireRangeMeters
-            ? targetRetainRangeMeters
-            : TargetAcquireRangeMeters + 1.5f;
-
-    /// <summary>供玩家或敌人上层控制器解析受击、死亡表现的规则集。</summary>
-    public CharacterReactionSet Reactions => reactions ?? new CharacterReactionSet();
-
-    /// <summary>站立韧性；旧资产未填时按杂兵 1。</summary>
-    public int BaseInterruptResist =>
-        baseInterruptResist > 0
-            ? baseInterruptResist
-            : HitReactionResolveQuery.DefaultBaseInterruptResist;
-
-    /// <summary>把未填的韧性写成杂兵默认；调用方须写回 struct。</summary>
-    public void EnsureInterruptResistDefault()
-    {
-        if (baseInterruptResist <= 0)
-            baseInterruptResist = HitReactionResolveQuery.DefaultBaseInterruptResist;
     }
 }

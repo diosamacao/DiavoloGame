@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// Locomotion 选片真源（L-DIR1/2）：gait×cardinal → AnimationKey；
-/// Clip 仍挂 CharacterAnimationProfile；回退链只在本表。
+/// Clip 仍挂 CharacterLocomotionProfile；回退链只在本表。
 /// </summary>
 [Serializable]
 public sealed class LocomotionAnimSet

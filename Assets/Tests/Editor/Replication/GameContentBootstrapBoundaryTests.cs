@@ -67,7 +67,7 @@ public sealed class GameContentBootstrapBoundaryTests
         string bootstrap =
             ReadScript("App/Networking/Content/GameContentBootstrap.cs");
         string combatModes =
-            ReadScript("Domain/Combat/CombatModeProfile.cs");
+            ReadScript("Domain/Character/Combat/CharacterCombatModes.cs");
         string locomotion =
             ReadScript("Domain/Character/Locomotion/CharacterLocomotionProfile.cs");
 

@@ -10,8 +10,7 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
     [Tooltip("按顺序播放的动画段；totalFrames 由各段有效帧累加。")]
     [SerializeField] ActionAnimationSegment[] animationSegments = Array.Empty<ActionAnimationSegment>();
 
-    [Tooltip("权威动作采样率固定为 60Hz；旧 30Hz 资产必须先运行迁移工具。")]
-    [SerializeField] int sampleRate = ActionSim.LogicHz;
+    [Tooltip("由动画段在固定 60Hz 下计算的总帧数，禁止手工填写。")]
     [SerializeField] int totalFrames;
     [SerializeField] CombatActionType actionType = CombatActionType.Attack;
     [SerializeField] float crossFadeDuration = 0.1f;
@@ -54,7 +53,7 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
 
     /// <summary>整数逻辑采样率；所有时间轴帧都按此值换算。</summary>
     public int SampleRate =>
-        Mathf.Clamp(sampleRate, 1, SimulationConfig.DefaultLogicHz);
+        ActionSim.LogicHz;
 
     /// <summary>动作总逻辑帧数（各段有效帧之和）。</summary>
     public int TotalFrames => totalFrames;
@@ -73,14 +72,14 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
 
     /// <summary>仅完整迁移到 60Hz 且具有有效动画帧时可进入权威模拟。</summary>
     public bool IsSimulationReady =>
-        HasAnimation && sampleRate == ActionSim.LogicHz && totalFrames > 0;
+        HasAnimation && totalFrames > 0;
 
     /// <summary>启动期校验 60Hz、总帧与每个动画段；失败时记录具体资产与段索引。</summary>
     public bool ValidateContent(UnityEngine.Object context)
     {
         UnityEngine.Object logContext = context != null ? context : this;
         bool valid = true;
-        if (sampleRate != ActionSim.LogicHz || totalFrames <= 0 || animationSegments == null || animationSegments.Length == 0)
+        if (totalFrames <= 0 || animationSegments == null || animationSegments.Length == 0)
         {
             Debug.LogError(
                 $"ActionDefinition: '{name}' 必须包含有效动画段、正总帧并使用 {ActionSim.LogicHz}Hz。",
@@ -403,7 +402,7 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
 
     void OnValidate()
     {
-        sampleRate = Mathf.Clamp(sampleRate, 1, SimulationConfig.DefaultLogicHz);
+
         totalFrames = Mathf.Max(1, ComputeTotalFramesFromSegments());
 
         timeline ??= new ActionTimeline();

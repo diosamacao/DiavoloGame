@@ -1,49 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-
-/// <summary>单条 InPlace↔RootMotion 匹配结果。</summary>
-public readonly struct MotionClipBakePair
-{
-    public MotionClipBakePair(
-        AnimationClip inplaceClip,
-        AnimationClip rootMotionClip,
-        string stem,
-        int priority,
-        string inplacePath,
-        string rootMotionPath)
-    {
-        InplaceClip = inplaceClip;
-        RootMotionClip = rootMotionClip;
-        Stem = stem;
-        Priority = priority;
-        InplacePath = inplacePath;
-        RootMotionPath = rootMotionPath;
-    }
-
-    public AnimationClip InplaceClip { get; }
-    public AnimationClip RootMotionClip { get; }
-    public string Stem { get; }
-    public int Priority { get; }
-    public string InplacePath { get; }
-    public string RootMotionPath { get; }
-}
-
-/// <summary>匹配失败条目。</summary>
-public readonly struct MotionClipMatchIssue
-{
-    public MotionClipMatchIssue(string inplacePath, string inplaceName, string reason)
-    {
-        InplacePath = inplacePath;
-        InplaceName = inplaceName;
-        Reason = reason;
-    }
-
-    public string InplacePath { get; }
-    public string InplaceName { get; }
-    public string Reason { get; }
-}
 
 /// <summary>在指定 InPlace / RootMotion 文件夹内按命名规则自动配对。</summary>
 public static class MotionClipPairMatcher

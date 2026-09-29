@@ -7,22 +7,39 @@ public sealed class ActionToolbar
     /// <summary>绘制工具栏；返回是否发生会影响预览的变更。</summary>
     public bool Draw(
         ActionDefinition action,
-        ref Transform previewCharacter,
+        Transform previewCharacter,
         ref int previewFrame,
         ref bool isPlaying,
-        ref bool loop)
+        ref bool loop,
+        CharacterConfig character,
+        System.Action<Transform> selectScenePreview,
+        System.Action selectIsolatedPreview)
     {
         bool changed = false;
         EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
 
+        if (character != null && GUILayout.Button("角色 / 连招 / 反应", EditorStyles.toolbarButton))
+            CharacterAuthoringWindow.Open(character);
+
         EditorGUI.BeginChangeCheck();
-        previewCharacter = (Transform)EditorGUILayout.ObjectField(
+        Transform selected = (Transform)EditorGUILayout.ObjectField(
             previewCharacter,
             typeof(Transform),
             true,
             GUILayout.Width(180f));
         if (EditorGUI.EndChangeCheck())
+        {
+            if (selected == null || (!EditorUtility.IsPersistent(selected)
+                && selected.gameObject.scene.IsValid()
+                && !UnityEditor.SceneManagement.EditorSceneManager.IsPreviewSceneObject(selected.gameObject)))
+                selectScenePreview?.Invoke(selected);
             changed = true;
+        }
+        if (character != null && GUILayout.Button("隔离预览", EditorStyles.toolbarButton, GUILayout.Width(64)))
+        {
+            selectIsolatedPreview?.Invoke();
+            changed = true;
+        }
 
         int maxFrame = action != null ? Mathf.Max(0, action.TotalFrames - 1) : 0;
         EditorGUI.BeginChangeCheck();

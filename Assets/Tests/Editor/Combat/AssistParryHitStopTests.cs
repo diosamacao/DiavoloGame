@@ -57,7 +57,6 @@ public sealed class AssistParryHitStopTests
         ActionDefinition action = ScriptableObject.CreateInstance<ActionDefinition>();
         AnimationClip clip = new AnimationClip { name = "ParryWindowClip", legacy = true };
         var so = new SerializedObject(action);
-        so.FindProperty("sampleRate").intValue = ActionSim.LogicHz;
         so.FindProperty("totalFrames").intValue = 12;
         SerializedProperty segments = so.FindProperty("animationSegments");
         segments.arraySize = 1;

@@ -18,7 +18,6 @@ MonoBehaviour:
     endFrame: -1
     hasCrossFadeOverride: 0
     crossFadeDuration: 0
-  sampleRate: 60
   totalFrames: 250
   actionType: 0
   crossFadeDuration: 0.1

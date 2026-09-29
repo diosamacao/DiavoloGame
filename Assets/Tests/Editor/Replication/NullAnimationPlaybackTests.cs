@@ -23,7 +23,7 @@ public sealed class NullAnimationPlaybackTests
     [Test]
     public void HeadlessPlay_RecordsCurrentKey()
     {
-        CharacterAnimationProfile profile = ScriptableObject.CreateInstance<CharacterAnimationProfile>();
+        CharacterLocomotionProfile profile = ScriptableObject.CreateInstance<CharacterLocomotionProfile>();
         var service = new CharacterAnimationService(new NullAnimationPlayback(), null, profile);
         try
         {

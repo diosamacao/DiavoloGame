@@ -68,21 +68,3 @@ public sealed class EnemyBehaviorGraphLayout
         return removed;
     }
 }
-
-/// <summary>单个节点在 Graph 画布上的布局。</summary>
-[Serializable]
-public sealed class EnemyBehaviorGraphNodeLayout
-{
-    public string nodeGuid;
-    public Vector2 position;
-    public bool collapsed;
-}
-
-/// <summary>Graph 画布便签（仅编辑器）。</summary>
-[Serializable]
-public sealed class EnemyBehaviorGraphStickyNote
-{
-    public string text;
-    public Vector2 position;
-    public Vector2 size = new Vector2(180f, 80f);
-}

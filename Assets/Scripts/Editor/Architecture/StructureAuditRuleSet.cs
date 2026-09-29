@@ -25,8 +25,8 @@ public static class StructureAuditRuleSet
                 "角色聚合根公开门面；具体模拟、Party、Prediction 与表现职责均已下放。",
             ["Assets/Scripts/Domain/Character/Locomotion/LocomotionContext.cs"] =
                 "Locomotion 状态机共享数据契约；集中持有相位输入、只读服务和单步输出，不执行状态算法。",
-            ["Assets/Scripts/Domain/Enemy/BehaviorTree/Serialization/EnemyBehaviorNodeDef.cs"] =
-                "SerializeReference 节点 Schema 集合；同文件保持稳定类型身份，不含 Runner 逻辑。",
+            ["Assets/Scripts/Domain/Simulation/Action/ActionSim.cs"] =
+                "整数帧动作状态机；帧推进、卡肉、取消决策和下一帧提交共享同一实例状态，配置解析与表现均在外部端口。",
             ["Assets/Scripts/Domain/Combat/Actions/Definitions/ActionDefinition.cs"] =
                 "动作内容聚合 SO；集中序列化播放、Timeline、Motion 与执行策略，只负责内容查询/校验。",
             ["Assets/Scripts/App/Presentation/RemoteCharacterProxy.cs"] =
@@ -112,6 +112,8 @@ public static class StructureAuditRuleSet
                 "Cinemachine",
                 "Unity.InputSystem"),
             ["ACTGame.Previews"] = Allow(),
+            ["UIFramework"] = Allow("UnityEngine.UI"),
+            ["ACTGame.UI"] = Allow("UIFramework"),
         };
 
     /// <summary>扫描 Assets/Scripts 下全部生产脚本并返回稳定排序的问题描述。</summary>
@@ -200,11 +202,16 @@ public static class StructureAuditRuleSet
             @"catch\s*(?:\([^)]*\))?\s*\{\s*(?:(?:return(?:\s+[^;]+)?|continue)\s*;\s*)?\}",
             "catch 不得静默吞异常；必须转换结果、计数、记录或明确断开。");
 
-        int publicTopLevelTypes = Regex.Matches(
-            code,
-            @"(?m)^public\s+(?:(?:sealed|abstract|static|readonly|partial)\s+)*(?:class|struct|interface|enum)\s+")
-            .Count;
-        if (publicTopLevelTypes > 1)
+        // 同名 partial / 互斥构建分支仍是一个类型；重复定义是否合法由 C# 编译器检查。
+        var publicTypeNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (Match declaration in Regex.Matches(code,
+            @"(?m)^public\s+(?:(?:sealed|abstract|static|readonly|partial)\s+)*(?:class|struct|interface|enum)\s+(\w+)(?:\s*<([^>{}]+)>)?"))
+        {
+            // Foo 与 Foo<T> 是不同类型；同名不同泛型元数不能被互斥分支去重掩盖。
+            int arity = declaration.Groups[2].Success ? declaration.Groups[2].Value.Split(',').Length : 0;
+            publicTypeNames.Add(declaration.Groups[1].Value + "`" + arity);
+        }
+        if (publicTypeNames.Count > 1)
             issues.Add("一个文件只能声明一个顶层 public 类型。");
 
         if (IsProductionRuntimePath(normalizedPath))

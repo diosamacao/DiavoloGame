@@ -39,14 +39,14 @@ public static class ActRemoteProxyFactory
         if (config.ModelPrefab == null)
             throw new InvalidOperationException("ActRemoteProxyFactory: CharacterConfig 未绑定 ModelPrefab。");
 
-        if (config.CombatProfile == null
-            || !config.CombatProfile.TryGetLocomotionProfile(
-                config.CombatProfile.DefaultMode,
+        if (config.CombatModes == null
+            || !config.CombatModes.TryGetLocomotionProfile(
+                config.CombatModes.DefaultMode,
                 out CharacterLocomotionProfile locomotionProfile)
-            || locomotionProfile.AnimationProfile == null)
+            || locomotionProfile == null)
         {
             throw new InvalidOperationException(
-                "ActRemoteProxyFactory: CombatModeProfile 默认模式缺少 LocomotionProfile（须含 AnimationProfile）。");
+                "ActRemoteProxyFactory: CharacterCombatModes 默认模式缺少 LocomotionProfile（须含 AnimationProfile）。");
         }
 
         var owner = new GameObject("RemoteCharacterGhost");
@@ -87,7 +87,7 @@ public static class ActRemoteProxyFactory
         var animation = new CharacterAnimationService(
             playback,
             animator,
-            locomotionProfile.AnimationProfile);
+            locomotionProfile);
         // 与权威工厂相同：禁用 Animator Root Motion 并复位局部，避免 Clip 根曲线叠加到快照朝向。
         _ = new CharacterRootMotionDriver(motor, animator);
         var presentation = new CharacterPresentationBridge(owner.transform, presentationRoot);

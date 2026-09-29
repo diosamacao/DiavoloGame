@@ -484,7 +484,6 @@ public sealed class AssistParryPipelineTests
         action.name = name;
         AnimationClip clip = new AnimationClip { name = name + "Clip", legacy = true };
         var so = new SerializedObject(action);
-        so.FindProperty("sampleRate").intValue = ActionSim.LogicHz;
         so.FindProperty("totalFrames").intValue = 12;
         SerializedProperty segments = so.FindProperty("animationSegments");
         segments.arraySize = 1;
@@ -530,13 +529,13 @@ public sealed class AssistParryPipelineTests
     {
         readonly GameObject _owner;
         readonly CharacterLocomotionProfile _locomotionProfile;
-        readonly CharacterAnimationProfile _animationProfile;
+        readonly CharacterLocomotionProfile _animationProfile;
 
         ActorHarness(
             CharacterActor actor,
             GameObject owner,
             CharacterLocomotionProfile locomotionProfile,
-            CharacterAnimationProfile animationProfile)
+            CharacterLocomotionProfile animationProfile)
         {
             Actor = actor;
             _owner = owner;
@@ -556,8 +555,8 @@ public sealed class AssistParryPipelineTests
                 controller,
                 CharacterMotorConfig.Default,
                 input);
-            CharacterAnimationProfile animationProfile =
-                ScriptableObject.CreateInstance<CharacterAnimationProfile>();
+            CharacterLocomotionProfile animationProfile =
+                ScriptableObject.CreateInstance<CharacterLocomotionProfile>();
             var animation = new CharacterAnimationService(
                 new NullAnimationPlayback(),
                 null,

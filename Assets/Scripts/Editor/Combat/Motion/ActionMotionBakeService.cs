@@ -216,7 +216,7 @@ public static class ActionMotionBakeService
         {
             AnimationClip inplace = segments[i].clip;
             if (inplace == null)
-                continue;
+            { message = $"段[{i}] 未绑定 Clip，保留原表。"; return false; }
 
             if (!MotionClipPairMatcher.TryMatchSingle(
                     inplace,
@@ -242,14 +242,10 @@ public static class ActionMotionBakeService
                 return false;
             }
 
-            // 按段帧窗口截取；endFrame=-1 表示整段表
-            int start = Mathf.Max(0, segments[i].startFrame);
-            int end = segments[i].endFrame < 0
-                ? part.frameCount - 1
-                : Mathf.Min(segments[i].endFrame, part.frameCount - 1);
-            if (end < start)
+            if (!ActionMotionBakeRange.TryResolve(segments[i], part.frameCount, logicHz,
+                    out int start, out int end, out string rangeError))
             {
-                message = $"段[{i}] 帧区间无效";
+                message = $"段[{i}] {rangeError}";
                 return false;
             }
 
@@ -260,13 +256,13 @@ public static class ActionMotionBakeService
             }
 
             matchedNames.Add(pair.RootMotionClip.name);
-            inplaceHash += part.inplaceContentHash + ";";
+            inplaceHash += ActionMotionBakeRange.Fingerprint(inplace, start, end) + ";";
             rmHash += part.rootMotionContentHash + ";";
         }
 
-        if (dx.Count == 0)
+        if (dx.Count == 0 || dx.Count != action.TotalFrames)
         {
-            message = "未产出任何帧";
+            message = $"烘焙帧数 {dx.Count} 与动作总帧 {action.TotalFrames} 不一致，未写入。";
             return false;
         }
 
@@ -286,7 +282,7 @@ public static class ActionMotionBakeService
         };
 
         WriteBakedMotion(action, table);
-        AssetDatabase.SaveAssets();
+        AssetDatabase.SaveAssetIfDirty(action);
         message = $"已写回 {action.name}: frames={table.frameCount}, rm={table.matchedRootMotionName}";
         return true;
     }

@@ -6,16 +6,13 @@ using UnityEngine;
 public static class ActionDefinitionCreateUtility
 {
     /// <summary>角色目录下存放招式 SO 的标准子文件夹名。</summary>
-    public const string ActionDefinitionFolderName = "ActionDefinition";
+    public const string ActionDefinitionFolderName = "Actions";
 
-    /// <summary>仓库内既有拼写；仅在该目录已存在时复用，新建统一用 <see cref="ActionDefinitionFolderName"/>。</summary>
-    const string LegacyActionDefinitionFolderName = "ActioniDefinition";
-
-    public const string DefaultCharacterFolder = "Assets/Data/Combat/Actions/Player";
+    public const string DefaultCharacterFolder = "Assets/Data/Shared";
 
     /// <summary>
-    /// 将用户选中的角色文件夹解析为实际保存目录：`{Character}/ActionDefinition`。
-    /// 若已是 ActionDefinition（或仓库内旧名 ActioniDefinition）则原样使用；
+    /// 将用户选中的角色文件夹解析为实际保存目录：`{Character}/Actions`。
+    /// 若已是 Actions 或 Reactions 则原样使用；
     /// 子目录不存在且 createIfMissing 时创建标准名文件夹。
     /// </summary>
     public static string ResolveActionDefinitionFolder(string selectedFolder, bool createIfMissing)
@@ -31,14 +28,9 @@ public static class ActionDefinitionCreateUtility
             return selected;
 
         string preferred = $"{selected}/{ActionDefinitionFolderName}";
-        string legacy = $"{selected}/{LegacyActionDefinitionFolderName}";
 
         if (AssetDatabase.IsValidFolder(preferred))
             return preferred;
-
-        // 复用已有旧目录，避免同一角色下拆出两套 Action 文件夹。
-        if (AssetDatabase.IsValidFolder(legacy))
-            return legacy;
 
         if (createIfMissing)
         {
@@ -71,18 +63,11 @@ public static class ActionDefinitionCreateUtility
         return path;
     }
 
-    /// <summary>
-    /// 默认文件名：优先保存目录内最后一个直属 Action 名；
-    /// 否则用角色文件夹名；选中 Clip 时再拼接 Clip 名。
-    /// </summary>
+    /// <summary>默认名字仅取当前目录身份与用途，不继承旧动作或动画资源名。</summary>
     public static string BuildDefaultFileName(string characterFolder, string saveFolder, AnimationClip clip)
     {
-        string prefix = TryGetLastChildActionName(saveFolder)
-            ?? GetFolderLeafName(GetCharacterFolder(characterFolder));
-        if (clip == null)
-            return SanitizeFileName(prefix);
-
-        return SanitizeFileName($"{prefix}_{clip.name}");
+        string key = GetFolderLeafName(GetCharacterFolder(characterFolder));
+        return SanitizeFileName(key == "Shared" ? "Action_01" : key + "_Action_01");
     }
 
     /// <summary>取 Assets 相对路径的最后一段文件夹名。</summary>
@@ -95,34 +80,6 @@ public static class ActionDefinitionCreateUtility
         int slash = normalized.LastIndexOf('/');
         string leaf = slash >= 0 ? normalized.Substring(slash + 1) : normalized;
         return string.IsNullOrEmpty(leaf) ? "Action" : leaf;
-    }
-
-    /// <summary>文件夹内按名排序的最后一个直属 ActionDefinition（不含子目录）。</summary>
-    public static string TryGetLastChildActionName(string folder)
-    {
-        if (string.IsNullOrWhiteSpace(folder) || !AssetDatabase.IsValidFolder(folder))
-            return null;
-
-        string normalizedFolder = folder.Replace('\\', '/').TrimEnd('/');
-        string[] guids = AssetDatabase.FindAssets("t:ActionDefinition", new[] { normalizedFolder });
-        string lastName = null;
-
-        for (int i = 0; i < guids.Length; i++)
-        {
-            string path = AssetDatabase.GUIDToAssetPath(guids[i]).Replace('\\', '/');
-            string parent = Path.GetDirectoryName(path)?.Replace('\\', '/');
-            if (!string.Equals(parent, normalizedFolder, System.StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            string name = Path.GetFileNameWithoutExtension(path);
-            if (string.IsNullOrEmpty(name))
-                continue;
-
-            if (lastName == null || string.CompareOrdinal(name, lastName) > 0)
-                lastName = name;
-        }
-
-        return lastName;
     }
 
     /// <summary>
@@ -164,7 +121,7 @@ public static class ActionDefinitionCreateUtility
             element.FindPropertyRelative("endFrame").intValue = -1;
             element.FindPropertyRelative("crossFadeDuration").floatValue = 0f;
 
-            int sampleRate = Mathf.Max(1, so.FindProperty("sampleRate").intValue);
+            int sampleRate = ActionSim.LogicHz;
             so.FindProperty("totalFrames").intValue =
                 Mathf.Max(1, Mathf.RoundToInt(animationClip.length * sampleRate));
         }
@@ -187,7 +144,7 @@ public static class ActionDefinitionCreateUtility
 
     static bool IsActionDefinitionFolderName(string leaf) =>
         string.Equals(leaf, ActionDefinitionFolderName, System.StringComparison.OrdinalIgnoreCase)
-        || string.Equals(leaf, LegacyActionDefinitionFolderName, System.StringComparison.OrdinalIgnoreCase);
+        || string.Equals(leaf, "Reactions", System.StringComparison.OrdinalIgnoreCase);
 
     static void EnsureFolderExists(string folder)
     {

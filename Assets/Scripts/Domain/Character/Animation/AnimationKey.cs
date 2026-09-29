@@ -1,4 +1,4 @@
-/// <summary>Locomotion / 表现逻辑动画键；由 CharacterAnimationProfile 映射到 Clip。</summary>
+/// <summary>Locomotion / 表现逻辑动画键；由 CharacterLocomotionProfile 映射到 Clip。</summary>
 public enum AnimationKey
 {
     Idle = 0,

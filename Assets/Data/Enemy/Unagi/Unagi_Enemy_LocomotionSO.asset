@@ -12,7 +12,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a1601a372e9b98e42912925db0cd17d2, type: 3}
   m_Name: Unagi_Enemy_LocomotionSO
   m_EditorClassIdentifier: 
-  animationProfile: {fileID: 11400000, guid: da6e7ea8e735d7647b4c4bc99a6d6d6f, type: 2}
+  animationEntries:
+  - Key: 0
+    Clip: {fileID: -8736896190470089065, guid: 7665b365d114c6e44a3ab6e0430b6dce, type: 3}
+  - Key: 1
+    Clip: {fileID: -4846296226035918508, guid: 74d1892ae56796344a9d376a65b9e047, type: 3}
+  - Key: 2
+    Clip: {fileID: -2054543369474740052, guid: e12a5724e446f264c95078a5ee1448b6, type: 3}
+  - Key: 3
+    Clip: {fileID: 5466847419763761274, guid: aec76126025988f4599fff6b20f5d220, type: 3}
+  - Key: 6
+    Clip: {fileID: -7489994829168811264, guid: 39615fc18966d904eb024131210f2c60, type: 3}
+  - Key: 5
+    Clip: {fileID: -7489994829168811264, guid: 39615fc18966d904eb024131210f2c60, type: 3}
+  - Key: 4
+    Clip: {fileID: 2532879371419110160, guid: 1872ec27cf58dcc47b1693ac7a16380c, type: 3}
+  - Key: 7
+    Clip: {fileID: -700270024888318473, guid: 4b8bb84a23d045c468598fb439bedc97, type: 3}
+  - Key: 8
+    Clip: {fileID: -6188725005103027330, guid: 73ec2caa984ff4b419bb4618d5046e5f, type: 3}
+  defaultCrossFadeDuration: 0.15
   animSet:
     walkLoopForward: 1
     walkLoopBack: 1
@@ -34,18 +53,14 @@ MonoBehaviour:
   stopMinSpeedFactor: 0.5
   pivotAngleDegrees: 135
   gaitInputGapGraceFrames: 9
-  legacyGaitInputGapGraceSeconds: 0
-  legacyPivotAnimAuthNormalized: 0
   cardinalEpsilon: 0.2
   cardinalMinDwellFrames: 3
   gaitPolicy:
     maxGait: 2
     allowPivot: 1
     sprintAfterRunFrames: 180
-    legacySprintAfterRunSeconds: 0
   facingMode: 1
   interruptFadeDuration: 0.08
-  legacyStartToGaitNormalized: 0
   clipTimings:
   - key: 0
     durationFrames: 242
@@ -92,6 +107,7 @@ MonoBehaviour:
     loop: 0
     exitFrame: 217
     handoffFrame: 217
+  rootMotionSourceFingerprint: b2a24ce46327aa3fb234dbdddf3e7d0e
   sprintLean:
     maxLeanDeg: 8
     deadZoneDeg: 4
@@ -110,7 +126,7 @@ MonoBehaviour:
   rootMotionPositionScale: 1
   startEndRootMotion:
     valid: 1
-    frameCount: 0
+    frameCount: 217
     localPositions:
     - {x: 0, y: 0, z: 0}
     - {x: -0.002342103, y: -0.008500099, z: 0.022405267}
@@ -551,7 +567,7 @@ MonoBehaviour:
     - -23.802948
   stopLRootMotion:
     valid: 1
-    frameCount: 0
+    frameCount: 222
     localPositions:
     - {x: 0, y: 0, z: 0}
     - {x: -0.0046743117, y: -0.020087838, z: 0.06976721}
@@ -1002,7 +1018,7 @@ MonoBehaviour:
     - -34.695984
   stopRRootMotion:
     valid: 1
-    frameCount: 0
+    frameCount: 222
     localPositions:
     - {x: 0, y: 0, z: 0}
     - {x: -0.0046743117, y: -0.020087838, z: 0.06976721}
@@ -1453,7 +1469,7 @@ MonoBehaviour:
     - -34.695984
   pivotTurnRootMotion:
     valid: 1
-    frameCount: 0
+    frameCount: 70
     localPositions:
     - {x: 0, y: 0, z: 0}
     - {x: -0.014554732, y: -0.024154842, z: 0.14148304}

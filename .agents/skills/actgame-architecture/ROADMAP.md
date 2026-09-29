@@ -15,6 +15,14 @@
 
 ## 进行中的结构迁移
 
+### [P1] 角色配置链路与动作编辑优化
+
+**方案**：[`docs/2026.9.28/CHARACTER_AUTHORING_SIMPLIFICATION_PLAN.md`](../../../docs/2026.9.28/CHARACTER_AUTHORING_SIMPLIFICATION_PLAN.md)
+
+**目标**：按 CA0～CA6 将 CombatMode 数据内嵌 CharacterConfig、动画映射合入 Locomotion，六类基础配置资产缩减为四类；清理确认无消费者字段，统一校验与角色级创建、编辑、烘焙流程。保留多模式、AnimationKey、Graph/Action 边界和固定帧权威；迁移出口删除旧 Profile 与读取路径。
+
+**状态**：2026-09-28 方案初版，全部阶段未实施；先字段台账与迁移基线，再实施结构合并。资产迁移须由用户在 Editor 按具体清单执行，或另行明确授权。
+
 ### [P0/P1] 项目级质量与交付优化（结构稳定化后续）
 
 **方案**：[`docs/2026.9.19/PROJECT_WIDE_OPTIMIZATION_PLAN.md`](../../../docs/2026.9.19/PROJECT_WIDE_OPTIMIZATION_PLAN.md)
@@ -287,3 +295,36 @@
 | 2026-07-12 | 自研薄 Playable + `IAnimationPlayback`；不同时引入 Animancer | Action 时序已自研；门面可替换后端 |
 | 2026-06-21 | 输入路由命名 `CharacterActionDriver` | 敌人复用同一组件 |
 | 2026-06-29 | 架构层采用能力接口 + 基类约束 | 让 Controller/System/Command/Query/Event 职责在类型系统中表达 |
+
+
+### 2026-09-28 角色作者链路执行状态
+
+- [x] 内嵌模式与动画映射、删除旧类型/8 个资产；文件语义对照通过。
+- [x] 角色工作台、空角色创建（2026-09-29 替代模板复制）、动作绑定、批量草稿、隔离预览、挂点选择、图共享校验代码落地。
+- [ ] CA0 逐字段最终消费者与适用条件审计（已生成 451 声明索引，未全部人工追踪）。
+- [ ] 非图内容问题细粒度结构化。
+- [ ] Unity 正式编译、定向 Test Runner、客户端/Listen/Dedicated 与 Play 回归；GUI 接入曾因应用授权超时未完成。
+- [ ] 验收通过后移除一次性迁移工具；未宣布 CA0～CA6 关闭。
+
+执行记录：[`CHARACTER_AUTHORING_EXECUTION_REPORT.md`](../../../../docs/2026.9.28/CHARACTER_AUTHORING_EXECUTION_REPORT.md)。
+
+
+2026-09-28 验收更新：最新 Unity EditMode 定向测试 62/62 通过（新增 16 项）。全项目审计 85 项原有结构/内容问题仍未关闭；新增源码结构违规为 0，Graph 误报已修复。以 CHARACTER_AUTHORING_EXECUTION_REPORT 和 UNITY_RESULTS.xml 为准，不能将测试通过等同于 Play/全内容验收通过。
+
+- [x] 2026-09-29：AI Entry 的 Intent=None 合法且可重复；删除 MissingIntent 警告，保留玩家输入冲突和 Entry 存在性校验。
+
+## 2026-09-29 结构审计收尾
+
+- [x] 51 项 StructureAudit 清零，补齐 UI 程序集归属；结构与内容全库审计通过。
+- [x] 43 文件拆分、330 次条件声明等价验证，直接相关测试 41/41。
+- [ ] 全量 EditMode 仍有 17 项失败：服务器 6、Party 站位 4、受击 3、远端代理 2、Room 文本边界 2；按设计核对，不以修改断言清零。证据：docs/2026.9.29/STRUCTURE_REPAIR_REPORT.md。
+- [ ] Gameplay 与 UI 示例人工 Play、发布版构建验收。
+
+- [x] 2026-09-29：空角色草稿替代复制，角色目录与用途命名统一；Unity 定向 76/76、审计 0。手动 UI 与补齐内容后的 Play 验收仍按创建报告执行。
+
+- [x] 2026-09-29：62 项已有角色/敌人配置统一用途目录、共享项集中，7 项未引用配置保留；定向 Unity 85/85，审计相对基线无新增。Gameplay/双端联机 Play 待人工验收，NewCharacter 草稿继续由作者填写。
+
+- [x] 2026-09-29：四角色五个基础目录一致，空目录版本控制与共享来源提示完成；定向 87/87、审计 0；来源定位 UI 完整点击检查待作者验收。
+
+
+2026-09-29：[x] ActionEditor 场景模型选择回归修复，角色上下文支持场景/隔离显式切换，定向 89/89 通过。

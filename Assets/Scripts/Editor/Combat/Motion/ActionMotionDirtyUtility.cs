@@ -132,7 +132,7 @@ public static class ActionMotionDirtyUtility
         {
             AnimationClip inplace = segments[i].clip;
             if (inplace == null)
-                continue;
+            { error = $"段[{i}] 未绑定 Clip。"; return false; }
 
             if (!MotionClipPairMatcher.TryMatchSingle(
                     inplace,
@@ -146,7 +146,6 @@ public static class ActionMotionDirtyUtility
 
             // 指纹只需 hash + 与 BakeClip 一致的帧数估算；禁止在此路径 BakeClip
             // （Inspector 每次 OnInspectorGUI 都会调用 IsDirty）。
-            string segmentInplaceHash = RootMotionBakeUtility.ComputeClipContentHash(inplace);
             string segmentRmHash = RootMotionBakeUtility.ComputeClipContentHash(pair.RootMotionClip);
             int partFrameCount = RootMotionBakeUtility.EstimateFrameCount(pair.RootMotionClip, logicHz);
             if (partFrameCount <= 0)
@@ -155,18 +154,15 @@ public static class ActionMotionDirtyUtility
                 return false;
             }
 
-            int start = Mathf.Max(0, segments[i].startFrame);
-            int end = segments[i].endFrame < 0
-                ? partFrameCount - 1
-                : Mathf.Min(segments[i].endFrame, partFrameCount - 1);
-            if (end < start)
+            if (!ActionMotionBakeRange.TryResolve(segments[i], partFrameCount, logicHz,
+                    out int start, out int end, out string rangeError))
             {
-                error = $"段[{i}] 帧区间无效";
+                error = $"段[{i}] {rangeError}";
                 return false;
             }
 
             frames += end - start + 1;
-            inplaceParts.Add(segmentInplaceHash);
+            inplaceParts.Add(ActionMotionBakeRange.Fingerprint(inplace, start, end));
             rmParts.Add(segmentRmHash);
         }
 

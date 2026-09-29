@@ -43,7 +43,7 @@ public sealed class ActionReplicationCatalog
             return;
 
         var actions = new List<ActionDefinition>();
-        CombatModeProfile profile = config.CombatProfile;
+        CharacterCombatModes profile = config.CombatModes;
         if (profile != null)
         {
             IReadOnlyList<CombatModeEntry> entries = profile.Entries;

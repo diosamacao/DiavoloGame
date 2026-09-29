@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>战斗模式服务：维护 mode、ActiveGraph 与 Locomotion Profile。</summary>
 public sealed class CombatModeService : ICombatModeService
 {
-    readonly CombatModeProfile profile;
+    readonly CharacterCombatModes profile;
     readonly CharacterAnimationService _animation;
     CombatModeType _currentMode;
     bool _hasPendingMode;
@@ -14,7 +14,7 @@ public sealed class CombatModeService : ICombatModeService
     public CombatModeType CurrentMode => _currentMode;
 
     /// <summary>模式配置。</summary>
-    public CombatModeProfile Profile => profile;
+    public CharacterCombatModes Profile => profile;
 
     /// <summary>模式切换事件。</summary>
     public event Action<CombatModeType, CombatModeType> ModeChanged;
@@ -33,7 +33,7 @@ public sealed class CombatModeService : ICombatModeService
     }
 
     /// <summary>创建战斗模式运行时，并立即应用默认模式的 Locomotion Profile。</summary>
-    public CombatModeService(CombatModeProfile combatProfile, CharacterAnimationService animation)
+    public CombatModeService(CharacterCombatModes combatProfile, CharacterAnimationService animation)
     {
         profile = combatProfile;
         _animation = animation;
@@ -44,8 +44,7 @@ public sealed class CombatModeService : ICombatModeService
 
         if (ActiveGraph == null)
             throw new InvalidOperationException(
-                $"CombatModeService: defaultMode={profile.DefaultMode} 未在 profile 中配置 ActionGraph。" +
-                "若刚从 ActionSet 迁移，请打开 Unity 让 Migrator 跑完或执行 ACTGame/Combat/Migrate ActionSet To Mode Graph。");
+                $"CombatModeService: defaultMode={profile.DefaultMode} 未在 profile 中配置 ActionGraph。");
 
         ApplyLocomotionForMode(_currentMode);
     }
@@ -101,13 +100,13 @@ public sealed class CombatModeService : ICombatModeService
     void ApplyLocomotionForMode(CombatModeType mode)
     {
         if (!profile.TryGetLocomotionProfile(mode, out CharacterLocomotionProfile locomotion)
-            || locomotion.AnimationProfile == null)
+            || locomotion == null)
         {
-            Debug.LogError($"CombatModeService: mode={mode} 缺少 LocomotionProfile.AnimationProfile。", profile);
+            Debug.LogError($"CombatModeService: mode={mode} 缺少 LocomotionProfile 动画映射。");
             return;
         }
 
-        _animation.SetProfile(locomotion.AnimationProfile);
+        _animation.SetProfile(locomotion);
         _animation.ResetPlaybackState();
     }
 }

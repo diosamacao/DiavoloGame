@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.Serialization;
 
 /// <summary>
-/// 一套 Locomotion 完整配置：Clip 映射（AnimationProfile）+ AnimSet + 相位/落脚/脚步/烘焙轨。
+/// 一套 Locomotion 完整配置：Clip 映射（动画映射）+ AnimSet + 相位/落脚/脚步/烘焙轨。
 /// 由 CombatMode 挂载；不再在 CharacterConfig 上单独配置。
 /// </summary>
 [CreateAssetMenu(fileName = "CharacterLocomotionProfile", menuName = "ACT/Character/Locomotion Profile")]
@@ -19,8 +19,61 @@ public class CharacterLocomotionProfile : ScriptableObject
 
     [Header("Animation")]
     [Tooltip("Idle/Walk/Run 等 Clip 映射；必填。")]
-    [SerializeField] CharacterAnimationProfile animationProfile = null;
-    [Tooltip("选片表（gait×cardinal→Key）；默认左右槽=WalkLeft/Right，沿用现有 AnimationProfile。")]
+    [SerializeField] Entry[] animationEntries = Array.Empty<Entry>();
+    [SerializeField, Min(0f)] float defaultCrossFadeDuration = 0.15f;
+
+    /// <summary>本移动配置唯一的逻辑键到 Clip 映射；多个槽可以共享一个键。</summary>
+    [Serializable]
+    public struct Entry
+    {
+        public AnimationKey Key;
+        public AnimationClip Clip;
+    }
+
+    /// <summary>未指定覆盖值时的动画混合秒数。</summary>
+    public float DefaultCrossFadeDuration => defaultCrossFadeDuration;
+
+    /// <summary>读取唯一有效映射；重复键拒绝解析，编辑与 Undo 后无需重建缓存。</summary>
+    public bool TryGetClip(AnimationKey key, out AnimationClip clip)
+    {
+        clip = null;
+        int count = 0;
+        foreach (Entry entry in animationEntries ?? Array.Empty<Entry>())
+        {
+            if (entry.Key != key) continue;
+            count++;
+            clip = entry.Clip;
+        }
+        if (count == 1 && clip != null) return true;
+        clip = null;
+        return false;
+    }
+
+    /// <summary>查询动画片段；缺失或重复映射返回 null。</summary>
+    public AnimationClip GetClip(AnimationKey key) => TryGetClip(key, out AnimationClip clip) ? clip : null;
+
+    /// <summary>检查基础动画和映射唯一性，不要求尚未烘焙的时序。</summary>
+    public bool ValidateClips(UnityEngine.Object context)
+    {
+        bool valid = true;
+        var keys = new System.Collections.Generic.HashSet<AnimationKey>();
+        foreach (Entry entry in animationEntries ?? Array.Empty<Entry>())
+        {
+            if (!keys.Add(entry.Key) || entry.Clip == null)
+            {
+                Debug.LogError($"Locomotion '{name}': {entry.Key} 映射重复或 Clip 未绑定。", context);
+                valid = false;
+            }
+        }
+        foreach (AnimationKey key in new[] { AnimationKey.Idle, AnimationKey.Walk, AnimationKey.Run })
+        {
+            if (TryGetClip(key, out _)) continue;
+            Debug.LogError($"Locomotion '{name}': 必须绑定 {key}。", context);
+            valid = false;
+        }
+        return valid;
+    }
+    [Tooltip("选片表（gait×cardinal→Key）；默认左右槽=WalkLeft/Right，沿用现有 动画映射。")]
     [SerializeField] LocomotionAnimSet animSet = new LocomotionAnimSet();
 
     [Header("Thresholds")]
@@ -45,6 +98,7 @@ public class CharacterLocomotionProfile : ScriptableObject
     [Header("Integer Clip Timing (60Hz)")]
     [Tooltip("每个实际使用的 AnimationKey 必须有且仅有一条时序；由人工 Baker 写入。")]
     [SerializeField] LocomotionClipTiming[] clipTimings = Array.Empty<LocomotionClipTiming>();
+    [SerializeField, HideInInspector] string rootMotionSourceFingerprint = string.Empty;
 
     [Header("Sprint Lean (L-DIR4)")]
     [Tooltip("疾跑转弯视觉倾身；敌人对峙建议 MaxLeanDeg=0。")]
@@ -72,8 +126,6 @@ public class CharacterLocomotionProfile : ScriptableObject
     [SerializeField] LocomotionRootMotionTrack stopRRootMotion;
     [SerializeField] LocomotionRootMotionTrack pivotTurnRootMotion;
 
-    /// <summary>本套 Locomotion 的 Clip 映射。</summary>
-    public CharacterAnimationProfile AnimationProfile => animationProfile;
 
     /// <summary>选片真源；空则默认表。</summary>
     public LocomotionAnimSet AnimSet => animSet ??= LocomotionAnimSet.CreateDefault();
@@ -170,6 +222,16 @@ public class CharacterLocomotionProfile : ScriptableObject
     }
 
 #if UNITY_EDITOR
+    /// <summary>作者工具保存的根位移来源指纹；旧资产为空表示尚未核实来源。</summary>
+    public string EditorRootMotionSourceFingerprint => rootMotionSourceFingerprint;
+
+    /// <summary>仅在全部根位移轨成功写入后更新来源标记。</summary>
+    public void EditorSetRootMotionSourceFingerprint(string fingerprint) => rootMotionSourceFingerprint = fingerprint;
+
+    /// <summary>供作者工具检查原始时序；不把无效条目当作未配置而覆盖。</summary>
+    public System.Collections.Generic.IReadOnlyList<LocomotionClipTiming> EditorClipTimings =>
+        clipTimings ?? Array.Empty<LocomotionClipTiming>();
+
     /// <summary>仅供人工 Editor Baker 整体写入时序；运行时不得调用。</summary>
     public void SetClipTimings(LocomotionClipTiming[] timings) =>
         clipTimings = timings ?? Array.Empty<LocomotionClipTiming>();
@@ -255,20 +317,12 @@ public class CharacterLocomotionProfile : ScriptableObject
     public bool Validate(UnityEngine.Object context)
     {
         string requestedBy = context != null ? context.name : "(unknown)";
-        if (animationProfile == null)
-        {
-            Debug.LogError(
-                $"CharacterLocomotionProfile: '{name}' 未配置 AnimationProfile（引用方：'{requestedBy}'）。",
-                this);
-            return false;
-        }
-
         gaitPolicy ??= new LocomotionGaitPolicy();
-        bool valid = animationProfile.ValidateClips(this);
+        bool valid = ValidateClips(this);
         foreach (AnimationKey key in Enum.GetValues(typeof(AnimationKey)))
         {
             if (key == AnimationKey.HitShake
-                || !animationProfile.TryGetClip(key, out AnimationClip clip)
+                || !TryGetClip(key, out AnimationClip clip)
                 || clip == null)
             {
                 continue;
@@ -280,7 +334,7 @@ public class CharacterLocomotionProfile : ScriptableObject
         {
             AnimationKey key = RootMotionKeys[i];
             if (!IsRootMotionEnabled(key)
-                || !animationProfile.TryGetClip(key, out AnimationClip clip)
+                || !TryGetClip(key, out AnimationClip clip)
                 || clip == null
                 || GetRootMotionTrack(key).IsValid)
             {
@@ -290,7 +344,7 @@ public class CharacterLocomotionProfile : ScriptableObject
             Debug.LogError(
                 $"CharacterLocomotionProfile: '{name}' 的 {key} 已启用根运动，"
                 + $"但 Clip '{clip.name}' 对应烘焙轨无效（frameCount={GetRootMotionTrack(key).FrameCount}，"
-                + $"AnimationProfile='{animationProfile.name}'，引用方='{requestedBy}'）。",
+                + $"动画映射='{name}'，引用方='{requestedBy}'）。",
                 this);
             valid = false;
         }
@@ -312,27 +366,12 @@ public class CharacterLocomotionProfile : ScriptableObject
         if (TryGetClipTiming(key, out _))
             return true;
 
-        animationProfile.TryGetClip(key, out AnimationClip clip);
+        TryGetClip(key, out AnimationClip clip);
         Debug.LogError(
             $"CharacterLocomotionProfile: '{name}' 的 {key} Clip '{(clip != null ? clip.name : "(missing)")}' "
-            + $"缺少唯一有效 LocomotionClipTiming（AnimationProfile='{animationProfile.name}'，"
+            + $"缺少唯一有效 LocomotionClipTiming（动画映射='{name}'，"
             + $"引用方='{requestedBy}'），请先运行 Timing Baker。",
             this);
         return false;
     }
-}
-
-/// <summary>单条落脚标记：当前 AnimationKey 周期内的整数逻辑帧。</summary>
-[Serializable]
-public struct FootPlantMarker
-{
-    [Min(0)] public int frame;
-    public FootSide foot;
-
-    /// <summary>周期内触发帧。</summary>
-    public int Frame => frame;
-
-    /// <summary>触发脚。</summary>
-    public FootSide Foot => foot;
-
 }

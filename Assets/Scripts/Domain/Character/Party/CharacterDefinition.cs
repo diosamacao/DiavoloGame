@@ -7,14 +7,6 @@ public sealed class CharacterDefinition : ScriptableObject
     [SerializeField] string characterId = string.Empty;
     [SerializeField] CharacterAssistStyle assistStyle = CharacterAssistStyle.MeleeParry;
     [SerializeField] CharacterConfig characterConfig = null;
-    [Header("Reserved Tags")]
-    [Tooltip("预留给后续队伍条件；P-SW0～P-SW4 不读取。")]
-    [SerializeField] string elementTag = string.Empty;
-    [Tooltip("预留给后续队伍条件；P-SW0～P-SW4 不读取。")]
-    [SerializeField] string factionTag = string.Empty;
-    [Tooltip("预留给后续队伍条件；P-SW0～P-SW4 不读取。")]
-    [SerializeField] string specialtyTag = string.Empty;
-
     /// <summary>跨资产与存档使用的稳定角色标识。</summary>
     public CharacterId Id => new(characterId);
 
@@ -23,15 +15,6 @@ public sealed class CharacterDefinition : ScriptableObject
 
     /// <summary>角色模型、移动、动作图与数值装配配置。</summary>
     public CharacterConfig CharacterConfig => characterConfig;
-
-    /// <summary>仅供未来编队规则读取的元素标签；当前战斗不消费。</summary>
-    public string ElementTag => elementTag ?? string.Empty;
-
-    /// <summary>仅供未来编队规则读取的阵营标签；当前战斗不消费。</summary>
-    public string FactionTag => factionTag ?? string.Empty;
-
-    /// <summary>仅供未来编队规则读取的定位标签；当前战斗不消费。</summary>
-    public string SpecialtyTag => specialtyTag ?? string.Empty;
 
     /// <summary>校验稳定 Id 与现有角色战斗配置。</summary>
     public bool Validate(UnityEngine.Object context)

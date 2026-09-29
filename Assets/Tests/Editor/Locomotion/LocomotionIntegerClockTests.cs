@@ -10,7 +10,7 @@ public sealed class LocomotionIntegerClockTests
     public void FullAndHeadless_ConsumeSameKeyAndPhaseFrame_For600Ticks()
     {
         AnimationClip clip = new AnimationClip();
-        CharacterAnimationProfile profile = BuildProfile(AnimationKey.Run, clip);
+        CharacterLocomotionProfile profile = BuildProfile(AnimationKey.Run, clip);
         var fullPlayback = new AdversarialPlayback();
         var full = new CharacterAnimationService(fullPlayback, null, profile);
         var headless = new CharacterAnimationService(new NullAnimationPlayback(), null, profile);
@@ -92,15 +92,15 @@ public sealed class LocomotionIntegerClockTests
     }
 
     /// <summary>构造只含一个键的动画 Profile，避免依赖项目资产。</summary>
-    static CharacterAnimationProfile BuildProfile(AnimationKey key, AnimationClip clip)
+    static CharacterLocomotionProfile BuildProfile(AnimationKey key, AnimationClip clip)
     {
-        CharacterAnimationProfile profile = ScriptableObject.CreateInstance<CharacterAnimationProfile>();
+        CharacterLocomotionProfile profile = ScriptableObject.CreateInstance<CharacterLocomotionProfile>();
         var entries = new[]
         {
-            new CharacterAnimationProfile.Entry { Key = key, Clip = clip },
+            new CharacterLocomotionProfile.Entry { Key = key, Clip = clip },
         };
-        typeof(CharacterAnimationProfile)
-            .GetField("entries", BindingFlags.Instance | BindingFlags.NonPublic)
+        typeof(CharacterLocomotionProfile)
+            .GetField("animationEntries", BindingFlags.Instance | BindingFlags.NonPublic)
             ?.SetValue(profile, entries);
         return profile;
     }

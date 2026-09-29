@@ -7,9 +7,9 @@ public static class LocomotionTimingAudit
     /// <summary>检查已绑定的每个 Clip 是否存在唯一有效 timing；不修改任何资产。</summary>
     public static bool Validate(CharacterLocomotionProfile profile, bool logSuccess)
     {
-        if (profile == null || profile.AnimationProfile == null)
+        if (profile == null)
         {
-            Debug.LogError("LocomotionTimingAudit: 缺少 Profile 或 AnimationProfile。", profile);
+            Debug.LogError("LocomotionTimingAudit: 缺少 Locomotion Profile。", profile);
             return false;
         }
 

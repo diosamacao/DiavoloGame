@@ -1,31 +1,5 @@
 using System.Collections.Generic;
 
-/// <summary>相机导演模式；数值顺序不代表 Priority，优先级由栈条目显式保存。</summary>
-public enum CameraMode
-{
-    Free = 0,
-    LockOn = 1,
-    SkillShot = 2,
-    Cutscene = 3,
-}
-
-/// <summary>导演栈中的不可变模式条目。</summary>
-public readonly struct CameraDirectorEntry
-{
-    /// <summary>创建模式条目。</summary>
-    public CameraDirectorEntry(CameraMode mode, int priority)
-    {
-        Mode = mode;
-        Priority = priority;
-    }
-
-    /// <summary>模式类型。</summary>
-    public CameraMode Mode { get; }
-
-    /// <summary>Cinemachine 抢权优先级。</summary>
-    public int Priority { get; }
-}
-
 /// <summary>不依赖 Unity 对象的 CameraDirector 优先级栈，供 Runtime 与 EditMode 测试。</summary>
 public sealed class CameraDirectorStack
 {

@@ -6,6 +6,36 @@ public sealed class ChannelMuxTransportTests
 {
     static readonly NetEndpoint Endpoint = new("mux-loopback", 1);
 
+    /// <summary>坏包拒绝必须可计数，且不阻止同批后续合法数据报交付。</summary>
+    [TestCase(0)]
+    [TestCase(1)]
+    [TestCase(2)]
+    [TestCase(3)]
+    [TestCase(4)]
+    [TestCase(5)]
+    public void MalformedDatagram_IsCountedAndDoesNotBlockFollowingPacket(int corruption)
+    {
+        using var link = new DuplexLink();
+        ChannelMuxTransport client = ChannelMuxTransport.Wrap(link.Client);
+        client.StartClient(Endpoint);
+        byte[] valid = { 1, (byte)NetChannel.SnapshotUnreliableSequenced, 0, 0, 0, 0, 0, 1, 0, 42 };
+        byte[] broken = (byte[])valid.Clone();
+        switch (corruption)
+        {
+            case 0: System.Array.Resize(ref broken, 8); break;
+            case 1: broken[7] = 2; break;
+            case 2: System.Array.Resize(ref broken, 11); break;
+            case 3: broken[0] = 2; break;
+            case 4: broken[2] = 255; break;
+            case 5: broken = new byte[NetBufferWriter.DefaultMaxPayloadBytes + 1]; break;
+        }
+        link.InjectToClient(broken);
+        link.InjectToClient(valid);
+        Assert.DoesNotThrow(() => client.Poll());
+        Assert.That(DrainPayloads(client), Is.EqualTo(new[] { 42 }));
+        Assert.That(client.Metrics.PacketsDropped, Is.EqualTo(1));
+    }
+
     /// <summary>可靠消息乱序到达后仍按发送顺序交付。</summary>
     [Test]
     public void Reliable_OutOfOrder_DeliversInSequence()

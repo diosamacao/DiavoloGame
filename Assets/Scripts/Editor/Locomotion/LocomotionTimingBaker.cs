@@ -9,8 +9,16 @@ public static class LocomotionTimingBaker
     /// <summary>烘焙选定 Profile；调用方负责 Undo、SetDirty 与保存确认。</summary>
     public static int Bake(CharacterLocomotionProfile profile)
     {
-        if (profile == null || profile.AnimationProfile == null)
-            throw new InvalidOperationException("Timing Baker 需要已绑定 AnimationProfile 的 Locomotion Profile。");
+        if (profile == null)
+            throw new InvalidOperationException("Timing Baker 需要 Locomotion Profile。");
+
+        var existingTimings = new Dictionary<AnimationKey, LocomotionClipTiming>();
+        foreach (LocomotionClipTiming timing in profile.EditorClipTimings)
+        {
+            if (!timing.IsValid || existingTimings.ContainsKey(timing.Key))
+                throw new InvalidOperationException($"{timing.Key}: 既有 Timing 无效或重复，请先修正；本次未写入。");
+            existingTimings.Add(timing.Key, timing);
+        }
 
         var timings = new List<LocomotionClipTiming>();
         Array keys = Enum.GetValues(typeof(AnimationKey));
@@ -18,18 +26,20 @@ public static class LocomotionTimingBaker
         {
             if (key == AnimationKey.HitShake)
                 continue;
-            if (!profile.AnimationProfile.TryGetClip(key, out AnimationClip clip) || clip == null)
+            if (!profile.TryGetClip(key, out AnimationClip clip) || clip == null)
                 continue;
 
             int durationFrames = Mathf.Max(1, Mathf.CeilToInt(clip.length * ActionSim.LogicHz));
-            int handoffFrame = profile.TryGetClipTiming(key, out LocomotionClipTiming existing)
-                ? Mathf.Clamp(existing.HandoffFrame, 0, durationFrames)
-                : ResolveDefaultHandoffFrame(key, durationFrames);
+            bool hasExisting = existingTimings.TryGetValue(key, out LocomotionClipTiming existing);
+            int exitFrame = hasExisting ? existing.ExitFrame : durationFrames;
+            int handoffFrame = hasExisting ? existing.HandoffFrame : ResolveDefaultHandoffFrame(key, durationFrames);
+            if (exitFrame > durationFrames || handoffFrame > exitFrame)
+                throw new InvalidOperationException($"{key}: 新 Clip 只有 {durationFrames} 帧，既有 exit={exitFrame}/handoff={handoffFrame} 越界。请先调整作者时序；本次未写入任何 Timing。");
             timings.Add(new LocomotionClipTiming(
                 key,
                 durationFrames,
                 clip.isLooping,
-                durationFrames,
+                exitFrame,
                 handoffFrame));
         }
 
@@ -40,21 +50,6 @@ public static class LocomotionTimingBaker
     /// <summary>无既有 timing 时 Start 在结尾、Pivot 在中点交接，其余键在退出帧交接。</summary>
     static int ResolveDefaultHandoffFrame(AnimationKey key, int durationFrames)
     {
-        float ratio = key == AnimationKey.PivotTurn
-            ? 0.5f
-            : IsStartKey(key)
-                ? 1f
-                : 1f;
-        return Mathf.Clamp(
-            Mathf.RoundToInt(durationFrames * ratio),
-            0,
-            durationFrames);
+        return Mathf.Clamp(Mathf.RoundToInt(durationFrames * (key == AnimationKey.PivotTurn ? 0.5f : 1f)), 0, durationFrames);
     }
-
-    /// <summary>识别 AnimSet 可选的所有起步键。</summary>
-    static bool IsStartKey(AnimationKey key) =>
-        key == AnimationKey.Start
-        || key == AnimationKey.WalkStart
-        || key == AnimationKey.WalkStartLeft
-        || key == AnimationKey.WalkStartRight;
 }

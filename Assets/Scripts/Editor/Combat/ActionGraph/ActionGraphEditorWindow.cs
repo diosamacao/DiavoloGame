@@ -8,7 +8,7 @@ using UnityEngine.UIElements;
 /// <summary>ActionGraph 可视化编辑器：双通道节点连线与可直接编辑的顺序组。</summary>
 public sealed class ActionGraphEditorWindow : EditorWindow
 {
-    ActionGraph _graph;
+    [SerializeField] ActionGraph _graph;
     ActionGraphView _graphView;
 
     /// <summary>打开指定 Graph 的编辑窗口。</summary>
@@ -18,6 +18,14 @@ public sealed class ActionGraphEditorWindow : EditorWindow
         window._graph = graph;
         window.titleContent = new GUIContent(graph != null ? $"Action Graph — {graph.name}" : "Action Graph");
         window.RebuildView();
+    }
+
+    /// <summary>从校验问题定位到具体节点或所属顺序组。</summary>
+    public static void Open(ActionGraph graph, string nodeId)
+    {
+        Open(graph);
+        var window = GetWindow<ActionGraphEditorWindow>();
+        window.rootVisualElement.schedule.Execute(() => window._graphView?.FocusNode(nodeId));
     }
 
     [MenuItem("ACT/Combat/Action Graph Editor")]
@@ -111,6 +119,18 @@ sealed class ActionGraphView : GraphView
     readonly Dictionary<string, ActionGraphGroupView> _groupViews = new();
     readonly Dictionary<string, string> _nodeToGroupId = new();
     bool _isLoading;
+
+    /// <summary>选中并居中问题节点；合并的节点定位所属组。</summary>
+    public void FocusNode(string nodeId)
+    {
+        if (string.IsNullOrEmpty(nodeId)) return;
+        GraphElement element = null;
+        if (_nodeViews.TryGetValue(nodeId, out var node)) element = node;
+        else if (_nodeToGroupId.TryGetValue(nodeId, out string groupId)
+            && _groupViews.TryGetValue(groupId, out var group)) element = group;
+        if (element == null) return;
+        ClearSelection(); AddToSelection(element); FrameSelection();
+    }
 
     /// <summary>创建可直接编辑节点策略的画布。</summary>
     public ActionGraphView(ActionGraph graph)
@@ -988,7 +1008,7 @@ sealed class ActionGraphNodePolicyView : IMGUIContainer
         {
             EditorGUILayout.PropertyField(
                 node.FindPropertyRelative("intent"),
-                new GUIContent("Input Intent"));
+                new GUIContent("Input Intent", "行为树按 NodeId 起手可留 None；多个 None Entry 合法。输入 Cancel 连线目标仍需 Intent。"));
             EditorGUILayout.PropertyField(
                 node.FindPropertyRelative("isEntry"),
                 new GUIContent("Is Entry"));
@@ -999,12 +1019,7 @@ sealed class ActionGraphNodePolicyView : IMGUIContainer
 
         DrawTargetLock(node.FindPropertyRelative("targetLockSettings"));
         DrawStartBehaviors(node.FindPropertyRelative("startBehaviors"));
-        EditorGUILayout.PropertyField(
-            node.FindPropertyRelative("switchCombatModeTarget"),
-            new GUIContent("Combat Mode Target"));
-        EditorGUILayout.PropertyField(
-            node.FindPropertyRelative("switchCombatModePolicy"),
-            new GUIContent("Combat Mode Policy"));
+        CharacterAuthoringFields.DrawModeSwitch(node);
         DrawAutomaticTransitions(node.FindPropertyRelative("automaticTransitions"));
 
         if (EditorGUI.EndChangeCheck())
@@ -1128,12 +1143,16 @@ sealed class ActionGraphNodeView : Node
         Action = action;
         title = action != null ? $"{nodeId}  [{intent}]" : nodeId;
 
-        _entryToggle = new UnityEngine.UIElements.Toggle("Entry") { value = entry };
+        _entryToggle = new UnityEngine.UIElements.Toggle("Entry")
+        {
+            value = entry,
+            tooltip = "允许从此节点起手；玩家按 Intent 选择，行为树按 NodeId 选择。",
+        };
         titleContainer.Add(_entryToggle);
 
         _intentField = new EnumField("Intent", intent)
         {
-            tooltip = "进入该节点所匹配的设备无关玩法意图。",
+            tooltip = "输入选招时使用；行为树按 NodeId 起手可留 None，多个 None Entry 合法。输入 Cancel 连线目标仍需 Intent。",
         };
         extensionContainer.Add(_intentField);
         _intentField.RegisterValueChangedCallback(evt => UpdateTitle((GameplayIntentType)evt.newValue));

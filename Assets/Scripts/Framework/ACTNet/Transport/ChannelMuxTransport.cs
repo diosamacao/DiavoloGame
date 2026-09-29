@@ -405,27 +405,23 @@ public sealed class ChannelMuxTransport : INetTransport
         seq = 0;
         ack = 0;
         payload = Array.Empty<byte>();
-        if (datagram == null || datagram.Length < TransportMtuGate.HeaderBytes)
+        if (datagram == null || datagram.Length < TransportMtuGate.HeaderBytes
+            || datagram.Length > NetBufferWriter.DefaultMaxPayloadBytes)
             return false;
 
-        try
-        {
-            var reader = new NetBufferReader(datagram);
-            if (reader.ReadByte() != HeaderVersion)
-                return false;
-            channel = (NetChannel)reader.ReadByte();
-            kind = reader.ReadByte();
-            seq = reader.ReadUInt16();
-            ack = reader.ReadUInt16();
-            int length = reader.ReadUInt16();
-            payload = length == 0 ? Array.Empty<byte>() : reader.ReadBytes(length);
-            reader.EnsureComplete();
-            return kind <= KindAck;
-        }
-        catch (Exception)
-        {
+        // 先验证完整固定头和载荷长度；坏包走调用方丢包计数，不借异常分支处理正常拒绝。
+        var reader = new NetBufferReader(datagram);
+        if (reader.ReadByte() != HeaderVersion)
             return false;
-        }
+        channel = (NetChannel)reader.ReadByte();
+        kind = reader.ReadByte();
+        seq = reader.ReadUInt16();
+        ack = reader.ReadUInt16();
+        int length = reader.ReadUInt16();
+        if (kind > KindAck || length != reader.Remaining)
+            return false;
+        payload = length == 0 ? Array.Empty<byte>() : reader.ReadBytes(length);
+        return true;
     }
 
     static int SeqCompare(ushort left, ushort right) => (short)(left - right);

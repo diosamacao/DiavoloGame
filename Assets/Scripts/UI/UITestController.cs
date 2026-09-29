@@ -4,6 +4,8 @@ using UnityEngine;
 
 namespace UI
 {
+    /// <summary>装配示例面板资源与 UIManager，提供场景按钮调用入口。</summary>
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "UI", "Assembly-CSharp", "UITestController")]
     public class UITestController : MonoBehaviour
     {
         [SerializeField] private UIPanelRegistry panelRegistry;

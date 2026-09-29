@@ -303,8 +303,13 @@ public class CombatWorldController : AppControllerBase
                 return null;
             return File.ReadAllText(path);
         }
-        catch (Exception)
+        catch (Exception exception) when (exception is IOException
+            || exception is UnauthorizedAccessException
+            || exception is System.Security.SecurityException
+            || exception is ArgumentException
+            || exception is NotSupportedException)
         {
+            Debug.LogWarning($"CombatWorldController: 启动配置读取失败（{exception.GetType().Name}），交由 ConfigFailed 处理。");
             return null;
         }
     }

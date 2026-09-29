@@ -6,13 +6,23 @@ using UnityEngine;
 /// <summary>左侧 ActionDefinition 列表：按所在文件夹分组折叠，支持搜索与创建入口。</summary>
 public sealed class ActionListPanel
 {
-    const string ActionsRoot = "Assets/Data/Combat/Actions";
+    const string ActionsRoot = "Assets/Data/Characters";
 
     string _search = string.Empty;
     Vector2 _scroll;
     readonly List<ActionDefinition> _actions = new();
     readonly List<FolderGroup> _groups = new();
     readonly Dictionary<string, bool> _folderExpanded = new();
+    CharacterConfig _characterScope;
+    int _modeIndex = -1;
+
+    /// <summary>角色列表以引用闭包为准；null 切回全项目。</summary>
+    public void SetCharacterScope(CharacterConfig config, int modeIndex = -1)
+    {
+        _characterScope = config;
+        _modeIndex = modeIndex;
+        Refresh();
+    }
 
     /// <summary>单个文件夹下的 Action 分组。</summary>
     sealed class FolderGroup
@@ -26,6 +36,12 @@ public sealed class ActionListPanel
     public void Refresh()
     {
         _actions.Clear();
+        if (_characterScope != null)
+        {
+            _actions.AddRange(CharacterAuthoringService.CollectActions(_characterScope, _modeIndex));
+            RebuildGroups();
+            return;
+        }
         string[] guids = AssetDatabase.FindAssets("t:ActionDefinition");
         for (int i = 0; i < guids.Length; i++)
         {

@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-09-19（三人换人 / 接触弹刀 Graph、资产与 Play 用户验收完成；Lock-On 暂时舍弃）
+> Last updated: 2026-09-29（结构与配置审计清零；全量 EditMode 639/656，17 项失败待诊断）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -1216,7 +1216,7 @@ SimulationWorld.Step
 | FaceTarget | 仅 Profile 声明时读 `LocomotionFacingTargetSource`（SelectedTarget）；玩家 FollowMove 不因自动选敌升格；Motor `FaceTarget`；选片 wish→本地；Pivot 关 |
 | FollowInput 位移 | 沿**当前朝向**；朝向以 `CharacterConfig.RotationSmoothTime` 追 wish（单参控制 W→WD 转向时长） |
 | 起步选片 | Walk 横向 → `WalkStartLeft/Right`（缺则 `WalkStart`→`Start`）；正向 `WalkStart`；Run → `Start` |
-| 映射 | `CharacterAnimationProfile` → `AnimationClip` |
+| 映射 | `CharacterLocomotionProfile` → `AnimationClip` |
 | 相位参数 | `CharacterLocomotionProfile.clipTimings[]`：每 AnimationKey 明确 duration/loop/exit/handoff frames |
 | 脚步 | `LocomotionFootCycle` 按 `PhaseFrame + durationFrames` 采样整数帧标记 |
 | 门面 | `CharacterAnimationService.SampleLocomotion(AnimationKey, PhaseFrame, timing)` |
@@ -1453,7 +1453,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 
 ### Editor 操作
 
-在 Unity Editor 中创建 `CharacterConfig` 资产，填写模型 Prefab、输入资产、Locomotion Profile 与 CombatModeProfile；Scene 内只需要 Empty + `PlayerController` + 该配置引用。
+在 Unity Editor 中创建 `CharacterConfig` 资产，填写模型 Prefab、内嵌 CombatModes（ActionGraph + Locomotion Profile）；Scene 内只需要 Empty + `PlayerController` + 该配置引用。
 
 ---
 
@@ -1647,7 +1647,7 @@ SFX 生命周期：`ActionSfxPlayer` 使用 `ActionSfx` 下多声道 `AudioSourc
 ### 已知限制
 
 - 现有资产需要在 Unity Editor 的 Phase 轨重建原 `phases[]`，并为 Recovery 配置移动取消 / Entry 重开开关；Agent 未直接修改 `.asset`
-- Runtime 只接受 `ActionDefinition.sampleRate=60`；可用 `ACT/Tools/Validate Action 60Hz Readiness` 复核。仓库内已无 30Hz Action；Migrate 菜单保留作幂等兜底
+- ActionDefinition 的作者 sampleRate 字段已删除；SampleRate 统一返回 ActionSim.LogicHz=60。资产迁移已验证全部 48 个动作为 60Hz，窗口与裁切数据未改动。
 - 硬打断与 Recovery 软重开走 Graph Entry，不要求 Cancel 边；独特连招进位仍依赖 Combo Window + 显式边
 - 旧 `perfectFrame`、Cancel 槽 Id 与同类型多窗口不再受支持；资产需整理为一个 Normal 与可选一个 Perfect
 - Scene 玩家入口已改为 Empty + `PlayerController` + `CharacterConfig`
@@ -2177,3 +2177,92 @@ Actor.Step：非卡肉时 NumericSystem.Step
 - `Assets/Scripts/Domain/Combat/Actions/Execution/NumericCostGate.cs`
 - `Assets/Tests/EditMode/Domain/ActionSimResourceGateTests.cs` / `ActionEnergyFormSelectionTests.cs` / `PerfectDodgeAttackTests.cs`
 - `docs/2026.8.7/GAS_STYLE_COMBAT_REFACTOR_PLAN.md`
+
+## 角色作者工作台（代码落地，验收待执行）
+
+功能：从角色/敌人/身体配置入口完成移动、动作、图、反应、检查和角色范围烘焙。菜单 `ACT/Character Workbench`，根资产 Inspector 也提供入口。
+
+| 实现 | 责任 |
+|---|---|
+| CharacterAuthoringService | 创建独立空身份、身体、默认动作图与移动配置；单动作与批量草稿按角色 ID + 用途命名并绑定 Graph/Reaction；失败清理本批新资产 |
+| CharacterAuthoringWindow | 当前角色/模式决定动作范围，RM 目录按 Config GUID 与项目保存，烘焙展示输入匹配和共享影响 |
+| CharacterAuthoringPreviewWindow | PreviewRenderUtility 隔离模型，由时间轴采样，关闭释放 |
+| ActionGraphValidator | 唯一图结构算法；终结动作不要求 Cancel，按 NodeId 的 AI Entry 可使用 None，多个 None Entry 无警告；仅非空输入 Intent 检查冲突 |
+| CharacterValidationPanel | 聚合既有校验日志与图问题；图支持节点定位，非图问题部分仍定位到配置分组 |
+
+参数：固定 ActionSim.LogicHz=60；resourceSpec 在 Action Editor 可编辑；Timing.duration/loop 为生成值，exit/handoff 仍由作者调整。Timing Bake 拒绝缩短 Clip 导致的越界，也拒绝重复/无效旧时序。
+
+运行路径：ActorFactory → Config.CombatModes → CombatModeService / CharacterAnimationService；网络内容收集经 ActionReplicationCatalog 读取相同模式引用。动作名、CharacterId、Graph 节点身份不在迁移中重编号。
+
+限制：工作台不是 PartyLoadout 自动装配器；草稿不猜测命中/取消/连线。非图问题尚未全部转换为 Domain 结构化细粒度字段；移动 RootMotion 新增持久来源指纹，待 Editor 验证。补充 Roslyn 编译与文件语义检查通过，不代表 Unity 编译或 Play 通过。详细状态见 `docs/2026.9.28/CHARACTER_AUTHORING_EXECUTION_REPORT.md`。
+
+相关源码目录：`Assets/Scripts/Editor/Character`、`Assets/Scripts/Domain/Character/Combat`、`Assets/Scripts/Domain/Combat/Actions/Validation`；测试 `Assets/Tests/Editor/Character/CharacterAuthoringTests.cs`。
+
+变更日志：2026-09-28 合并模式/动画配置层，新增角色作者入口，保留待验收状态。
+
+
+2026-09-28 验收更新：最新 Unity EditMode 定向测试 62/62 通过（新增 16 项）。全项目审计 85 项原有结构/内容问题仍未关闭；新增源码结构违规为 0，Graph 误报已修复。以 CHARACTER_AUTHORING_EXECUTION_REPORT 和 UNITY_RESULTS.xml 为准，不能将测试通过等同于 Play/全内容验收通过。
+
+## 2026-09-29：根位移配置校验与修复
+
+功能：动作烘焙采用实际播放段的 60Hz 帧范围，避免浮点时长取整差异导致表比动画多帧。
+
+| 实现 | 职责 |
+|---|---|
+| ActionMotionBakeRange.TryResolve | 委托 ActionAnimationSegment.TryGetFrameRange 解析播放范围；RM 太短直接拒绝，较长只取所需范围 |
+| ActionMotionBakeRange.Fingerprint | Clip 内容、裁切起止帧及 PlaybackRangeV2 版本共同构成来源标识，覆盖同长度裁切平移 |
+| ActionMotionBakeService.BakeAction | 逐段配对、采样和拼接；全表帧数必须等于 ActionDefinition.TotalFrames 才能写回 |
+| ActionMotionDirtyUtility | 与 Baker 共用范围和指纹，不在 Inspector 中采样动画曲线 |
+| MotionContentRepair.Run | 只读计划或带资产/meta备份的修复；覆盖无效表与过期 BakedMotion 表；RM 误绑定只接受唯一、同长且可反查原 RM 的 InPlace |
+
+运行链：播放段范围 → 唯一 InPlace/RM 配对 → 逐段烘焙 → 范围截取 → 总帧断言 → 保存目标资产。原有按 RM 全长决定播放段尾的分支已移除。
+
+本轮资产：31 个帧数错误、2 个空表及 1 个移动 Profile（4 条轨）修复；另更新 13 个原本帧数正确的过期表，共 47 个资产。动作时序、消耗和位移模式保持不变，3 个误绑播放 Clip 改回已有 InPlace。34 项配置错误归零，综合检查仍有 51 项既有 StructureAudit；Unity EditMode 71/71。
+
+限制：自动配对限 Assets/Art/Characters 下具有唯一 Root 目录的现有组织，歧义拒绝写入；没有自动修改命中/取消/资源配置。尚未完成 Gameplay 中攻击、反击、受击及急停转身的人工 Play 手感验收。证据：docs/2026.9.29/CONFIGURATION_REPAIR_REPORT.md。
+
+相关代码：Assets/Scripts/Editor/Combat/Motion/ActionMotionBakeRange.cs、ActionMotionBakeService.cs、ActionMotionDirtyUtility.cs、MotionContentRepair.cs；回归：Assets/Tests/Editor/Character/ActionMotionBakeRangeTests.cs。
+## 2026-09-29：结构审计与异常反馈
+
+功能：源码结构、程序集归属和生产内容完成本轮清理，失败路径具备明确反馈。
+
+- StructureAuditRuleSet：按类型名与泛型元数去重同名条件声明；UIFramework 只允许 UnityEngine.UI，ACTGame.UI 只允许 UIFramework；ActionSim 登记单职责，移除已拆分的 NodeDef 集合登记。
+- CombatWorldController.TryReadLaunchConfigFile：预期 IO/权限/路径异常记录类型，仍由 ServerLaunchConfigResolver 转为 ConfigFailed，不输出配置正文。
+- ActionTimelineClipboard.Paste：损坏 JSON 返回前记录警告，保留动作原内容。
+- ChannelMuxTransport.TryDecode：验证完整 9 字节固定头、版本、kind、声明长度与实际剩余长度，非法数据报由 HandleIncoming 计入丢包；移除宽泛异常捕获，不为坏包逐条刷错误日志。
+- CharacterAuthoringValidationRunner.RunAll：在已打开的 Editor 内执行全部 EditMode 测试并存档结果，不启动同项目的第二个批处理实例。
+
+验证：新增 5 个结构规则用例、6 个坏包用例；修正 Windows 路径分隔符导致的程序集归属误判，并为两个 UI 示例脚本补齐显式程序集。结构与内容审计 0 项，直接相关测试 41/41，全量 639/656。
+
+限制：17 项全量测试失败单列在 STRUCTURE_REPAIR_REMAINING_TEST_FAILURES.json；未逐项修复，未执行人工 Play 或发布构建。类型拆分进行 Editor/发布条件共 330 次声明等价验证，1,617 个已有序列化资产保持原字节。
+
+相关代码与逐文件说明：docs/2026.9.29/STRUCTURE_REPAIR_FILE_CHANGES.md。
+
+### 空角色创建与用途目录（2026-09-29）
+
+功能：CharacterCreateWindow 创建空白角色，不再接受模板；选中角色不会成为配置来源。
+
+| 实现 | 责任 |
+|---|---|
+| CharacterAssetLayout | 默认父目录、ID 校验、用途命名、动作保存位置与空目录清理 |
+| CharacterAuthoringService.CreateCharacter | 创建 4 个全新资产并连接一个 Default 模式，允许显式指定模型 |
+| CharacterActionCreateWindow / CharacterActionBatchWindow | 输入用途并预览角色前缀与 Actions / Reactions 保存目录 |
+
+默认父目录 `Assets/Data/Characters`；角色根 `<Id>/`，身份 `<Id>_Character.asset`，身体 `Config/<Id>_Config.asset`，图 `Graphs/<Id>_Default_Graph.asset`，移动 `Locomotion/<Id>_Default_Locomotion.asset`；Actions、Reactions 初始为空。编辑器路径：CharacterCreateWindow → CreateCharacter → CharacterAssetLayout；创建后进入 CharacterAuthoringWindow。新动作使用 `<Id>_<用途>`，例如 `<Id>_Attack_01`。
+
+限制：不生成动画、图节点、反应动作、行为树或 PartyLoadout，不绕过内容校验。默认数值使用各 ScriptableObject 类型初始化值；旧模板引用不会带入。既有平铺配置只将后续动作放到其 Actions / Reactions 子目录，不迁移现有资产。
+
+验证：Unity 当前 Editor 定向 EditMode 76/76 通过，结构与内容审计 0；创建测试 11 项通过。完整结果 `docs/2026.9.29/EMPTY_CHARACTER_TEST_RESULTS.xml`，操作及文件清单见 `EMPTY_CHARACTER_CREATION_REPORT.md`。本次未重复全套 EditMode 或 Play 验收。
+
+
+### 既有角色配置迁移（2026-09-29）
+
+CharacterAssetMigration.Execute 消费显式 CharacterAssetMigrationManifest：先检查源 SHA256、GUID、未保存状态与目的冲突，再用 AssetDatabase.MoveAsset 保留身份，仅修改文本名称行后重新导入；失败逆序回滚。清单由实际角色引用关系确定，不能按旧目录推断所有权。62 项配置迁移，玩家 Unagi 与敌人 UnagiEnemy 共用的移动与受击仍在 Shared 保持同一引用。独立动作创建器同步使用 Actions/Reactions，去除旧拼写目录分支与沿用旧动作名的逻辑。
+
+验证：定向 Unity EditMode 85/85，62 项 GUID/.meta/字段保护通过，其他 491 项序列化资产未改。全项目审计保留 NewCharacter 空草稿原有 3 个失败资产，迁移无新增问题。动作及原型 name 修改影响网络稳定 ID，两端内容须同步更新；图 NodeId 和 BT Entry 字符串保持原值。完整 Gameplay 与双端联机 Play 仍待人工检查。文件清单与结果见 docs/2026.9.29/CHARACTER_LAYOUT_MIGRATION_REPORT.md。
+
+
+2026-09-29 目录与来源提示：四角色基础目录全部补齐，空目录用 .gitkeep 随版本控制保留。工作台总览/移动/连招/反应显示资产路径、共享引用数量与影响的身体配置，提供定位；FindOwners 扫描缓存最多 2 秒。缺失引用与共享引用明确区分。Unity 定向 87/87、当前审计 0；已有配置及 .meta 哈希未变。细节见 docs/2026.9.29/CHARACTER_BASE_FOLDERS_REPORT.md。
+
+
+2026-09-29：ActionEditor 场景模型选择回归已修复：角色上下文不再禁用 Transform 选择；增加隔离预览按钮。同角色打开不同动作及上下文重载保留场景选择。Unity 定向 89/89、审计 0；完整拖拽和场景动画恢复交互待人工验收。报告 docs/2026.9.29/ACTION_SCENE_PREVIEW_FIX.md。

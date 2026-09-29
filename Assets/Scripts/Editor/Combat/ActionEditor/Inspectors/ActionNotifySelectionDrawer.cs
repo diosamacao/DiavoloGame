@@ -1,5 +1,6 @@
 using UnityEditor;
 using UnityEngine;
+using System.Linq;
 
 /// <summary>
 /// 右侧选中窗口细节面板；按类型绘制字段，帧数字与轨道双向同步。
@@ -9,10 +10,13 @@ using UnityEngine;
 public static class ActionNotifySelectionDrawer
 {
     static Vector2 _scroll;
+    static Transform _previewModel;
+    static bool _advanced;
 
     /// <summary>绘制选中窗口；同类型多选支持批量改属性，混合类型仅改主选中项。</summary>
-    public static void Draw(Rect rect, SerializedObject so, ActionEditorSelectionSet selectionSet, ActionDefinition action)
+    public static void Draw(Rect rect, SerializedObject so, ActionEditorSelectionSet selectionSet, ActionDefinition action, Transform previewModel = null)
     {
+        _previewModel = previewModel;
         GUILayout.BeginArea(rect);
         // 右侧面板固定高度，内容超出时必须可纵向滚动（Hitbox Feedback 等字段很长）
         _scroll = EditorGUILayout.BeginScrollView(_scroll);
@@ -74,7 +78,8 @@ public static class ActionNotifySelectionDrawer
 
             DrawFrameFields(element, action, pointEvent, batchSet);
             DrawMultiProperty(batchSet, element, "id");
-            DrawMultiProperty(batchSet, element, "priority");
+            _advanced = EditorGUILayout.Foldout(_advanced, "高级：窗口排序", true);
+            if (_advanced) DrawMultiProperty(batchSet, element, "priority");
             DrawMultiProperty(batchSet, element, "trackName");
 
             switch (selection.Kind)
@@ -180,7 +185,9 @@ public static class ActionNotifySelectionDrawer
         EditorGUI.BeginChangeCheck();
         using (new EditorGUI.DisabledScope(true))
             EditorGUILayout.TextField("File Name", action.name);
-        EditorGUILayout.PropertyField(so.FindProperty("sampleRate"));
+        using (new EditorGUI.DisabledScope(true))
+            EditorGUILayout.IntField("Logic Hz", ActionSim.LogicHz);
+        EditorGUILayout.PropertyField(so.FindProperty("resourceSpec"), new GUIContent("Resources"), true);
         using (new EditorGUI.DisabledScope(true))
             EditorGUILayout.IntField("Total Frames", action.TotalFrames);
         EditorGUILayout.PropertyField(so.FindProperty("actionType"));
@@ -258,7 +265,7 @@ public static class ActionNotifySelectionDrawer
     static void DrawHitbox(SerializedProperty element, ActionEditorSelectionSet batchSet)
     {
         DrawMultiProperty(batchSet, element, "shape");
-        DrawMultiProperty(batchSet, element, "attachPointId");
+        DrawAnchor(element, batchSet);
         DrawMultiProperty(batchSet, element, "localOffset");
         DrawMultiProperty(batchSet, element, "localEulerAngles");
         DrawMultiProperty(batchSet, element, "size");
@@ -286,7 +293,7 @@ public static class ActionNotifySelectionDrawer
     {
         DrawMultiProperty(batchSet, element, "hurtboxId");
         DrawMultiProperty(batchSet, element, "shape");
-        DrawMultiProperty(batchSet, element, "attachPointId");
+        DrawAnchor(element, batchSet);
         DrawMultiProperty(batchSet, element, "localOffset");
         DrawMultiProperty(batchSet, element, "localEulerAngles");
         DrawMultiProperty(batchSet, element, "size");
@@ -295,11 +302,7 @@ public static class ActionNotifySelectionDrawer
     static void DrawVfx(SerializedProperty element, ActionDefinition action, ActionEditorSelectionSet batchSet)
     {
         DrawMultiProperty(batchSet, element, "prefab");
-        DrawMultiProperty(
-            batchSet,
-            element,
-            "attachPointId",
-            new GUIContent("Attach Point Id", "模型子节点名；空则用角色默认挂点"));
+        DrawAnchor(element, batchSet);
         DrawMultiProperty(batchSet, element, "localOffset");
         DrawMultiProperty(batchSet, element, "localEulerAngles");
         DrawMultiProperty(batchSet, element, "localScale");
@@ -311,6 +314,21 @@ public static class ActionNotifySelectionDrawer
                 "Parent To Attach Point",
                 "勾选：实例挂到挂点下并跟随；取消：在触发帧按挂点姿态写入世界空间后不再跟随（对齐运行时）。"));
         DrawPlaybackSpeed(element, action, isVfx: true, batchSet);
+    }
+
+    static void DrawAnchor(SerializedProperty element, ActionEditorSelectionSet batchSet)
+    {
+        DrawMultiProperty(batchSet, element, "attachPointId");
+        var property = element.FindPropertyRelative("attachPointId");
+        string next = CharacterAuthoringFields.DrawAnchorPicker(_previewModel, property.stringValue);
+        if (next == property.stringValue) return;
+        property.stringValue = next;
+        if (batchSet != null)
+            foreach (var selected in batchSet.Items)
+            {
+                var peer = selected.ElementProperty?.FindPropertyRelative("attachPointId");
+                if (peer != null) peer.stringValue = next;
+            }
     }
 
     static void DrawSfx(SerializedProperty element, ActionDefinition action, ActionEditorSelectionSet batchSet)

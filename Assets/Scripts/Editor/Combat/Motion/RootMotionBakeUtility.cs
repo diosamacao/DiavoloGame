@@ -69,14 +69,18 @@ public static class RootMotionBakeUtility
         return result;
     }
 
-    /// <summary>用 Clip 路径+时长+帧率生成稳定指纹（脏检测用）。</summary>
+    /// <summary>以资产身份和导入依赖内容生成指纹；内存 Clip 使用序列化内容。</summary>
     public static string ComputeClipContentHash(AnimationClip clip)
     {
         if (clip == null)
             return string.Empty;
 
         string path = AssetDatabase.GetAssetPath(clip);
-        return $"{path}|{clip.name}|{clip.length:F5}|{clip.frameRate:F3}";
+        // 路径/时长无法识别同长度曲线重导入；依赖哈希覆盖源文件和导入设置。
+        if (!string.IsNullOrEmpty(path)
+            && AssetDatabase.TryGetGUIDAndLocalFileIdentifier(clip, out string guid, out long fileId))
+            return $"{guid}|{fileId}|{AssetDatabase.GetAssetDependencyHash(path)}";
+        return Hash128.Compute(EditorJsonUtility.ToJson(clip)).ToString();
     }
 
     /// <summary>

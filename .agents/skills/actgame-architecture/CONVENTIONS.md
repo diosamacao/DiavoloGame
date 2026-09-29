@@ -162,7 +162,7 @@ public class MyBehaviour : MonoBehaviour
 - **顺序组**：组内 Action 按行顺序自动生成 Normal Cancel 链；每行保留独立 In；组级 Normal / Perfect 出口分别展开到配置对应窗口的全部子节点
 - **变体节点**：Directional 等 Resolver 只改变实际播放 Action，不改变逻辑 Graph 节点；同语义六向变体禁止复制节点和出边
 - **线性连招**：`ComboActionResolver` / `ComboLeafPolicy` 已删除；`ActionGraph` 是唯一连招拓扑真源
-- **战斗模式**：`CombatModeProfile` + `CombatModeService`；**mode 直挂 `ActionGraph`**（已删除 PlayerActionSet 壳）
+- **战斗模式**：`CharacterConfig.CombatModes` + `CombatModeService`；**mode 直挂 `ActionGraph`**（已删除 PlayerActionSet 壳）
 - **缓冲**：招式中 `Buffer(GameplayIntentType)`；`ActionSim` 经 `IActionInputBuffer` 在 `CancelWindow` 内消费
 - **Locomotion 边界**：连续 Move 不枚举化；Action→Locomotion 特殊恢复使用一次性 `LocomotionResumeRequest`
 - **后摇窗口**：Timeline 的 `ActionPhaseNotifyState(Recovery)` 同时配置 `allowMovementCancel` 与 `allowEntryRestart`；禁止创建 Recovery CancelWindow、独立 phases 或回根显式边
@@ -340,3 +340,28 @@ App/Server/                      # Dedicated 独立运行时（ACTGame.Server）
 ## 已废弃模式
 
 （暂无；出现旧模式迁移后在此记录）
+
+## 角色作者约定（2026-09-28）
+
+- 模式数据只保存在 Config 内嵌 CharacterCombatModes；Key→Clip 只保存在 Locomotion。禁止重建已删除的两个 Profile 壳。
+- 空角色创建不读取选中角色或复制私有配置。默认根目录 `Assets/Data/Characters/<Id>`，分为 Config、Graphs、Locomotion、Actions、Reactions；资产统一 `<Id>_<用途>`，默认图与移动配置使用 Default 用途。规则真源：`Assets/Scripts/Editor/Character/CharacterAssetLayout.cs`。
+- 角色 ID 为字母开头的 1–64 位英文字母、数字、下划线，拒绝系统保留名；ID 与动作全名均按忽略大小写检查唯一性。空草稿仍接受完整运行前校验，不能直接出战。现有资产不会自动搬迁或改名。
+- 动作名字参与网络稳定身份，创建前校验全项目唯一性。批量失败只清理本批新建资产。
+- 生成数据默认只读。Bake 不静默覆盖 Timing 作者交接帧；保留 Undo，失败不得标为 Ready。
+- 图校验复用 ActionGraphValidator；不得在 Inspector 重新实现另一套规则。
+- Unity 验收与补充编译分开记录；未跑过 Test Runner/Play 不标验收完成。
+
+- Entry 表示允许起手；Intent 表示输入选招语义。按 NodeId 调用的 AI Entry 可使用 None，不能要求作者填占位 Intent；输入 Cancel 目标仍需 Intent。
+
+- **动作根位移烘焙范围（2026-09-29）**：播放帧范围是唯一真源；Baker 与 Dirty 共用 ActionMotionBakeRange，不得用 RM Clip 长度扩大或缩短动作。RM 不足拒绝写回；来源指纹包含裁切起止帧。示例：Assets/Scripts/Editor/Combat/Motion/ActionMotionBakeRange.cs。
+
+- **结构审计计数（2026-09-29）**：互斥构建分支/partial 的同名同泛型元数按一个类型计数；不同元数仍是不同类型。大文件仅可基于已审查的单职责说明登记，不得因超阈值机械拆分共享状态。类型拆分保持所属程序集及类型名，主脚本移动须连同 .meta；程序集迁移使用 MovedFrom 并保留 GUID。
+- **UI 依赖（2026-09-29）**：ACTGame.UI → UIFramework → UnityEngine.UI；示例 UI 不回落默认 Assembly-CSharp，不允许 Framework 引用游戏层。
+
+- **现有资产目录迁移（2026-09-29）**：先按引用闭包区分独占/共享/未归属；通过显式清单、源指纹与 GUID 移动，禁止仅按文件前缀分配所有权。共享配置放 Assets/Data/Shared 下用途目录；未引用资产保留待核查。迁移名称不能顺便重编号 Graph NodeId 或 BT Entry。工具示例：Assets/Scripts/Editor/Character/CharacterAssetMigration.cs。
+- **独立动作创建**：统一落入 Actions 或 Reactions，默认名称只来自当前目录身份和用途；不再沿用上一个 Action 或动画资源文件名。示例：ActionDefinitionCreateUtility.cs。
+
+- **统一基础骨架（2026-09-29）**：每个角色固定保留 Config、Graphs、Locomotion、Actions、Reactions；AI / Actions/Resolvers 按需添加。空目录保留 .gitkeep，不创建占位配置。共享来源依实际引用而定，不能根据本地空目录判定漏配。示例：CharacterAssetLayout.EnsureBaseFolders / CharacterConfigSourcePanel。
+
+
+2026-09-29：角色工作台上下文只约束动作范围，不能禁用作者手动选择场景模型；切换预览目标通过 ActionEditorPreviewSession 恢复旧目标采样状态，不能只替换 Transform 字段。

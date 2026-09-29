@@ -23,8 +23,8 @@ public class ActionGraphInspector : Editor
 
         EditorGUILayout.LabelField("Action Graph", EditorStyles.boldLabel);
         EditorGUILayout.HelpBox(
-            "勾选节点 Is Entry 作为 Locomotion 起手；输入 Intent、索敌、起手行为和自动衔接都配置在节点。\n" +
-            "每招一个 Normal、可选一个 Perfect CancelWindow；同 Intent 重叠时 Perfect 优先。\n" +
+            "Is Entry 表示允许起手。玩家按 Intent 选招；行为树按 NodeId 选招，可有多个 Intent=None 的 Entry。\n" +
+            "输入 Cancel 连线目标需要 Intent，来源需有对应窗口；终结动作可不配 Cancel。同 Intent 重叠时 Perfect 优先。\n" +
             "Graph Editor 可将节点合并为顺序组：每行独立 In，普通 Cancel 自动进入下一行。\n" +
             "方向闪避只保留一个 Entry + Directional Resolver，六向变体共用该逻辑节点。",
             MessageType.Info);
@@ -124,7 +124,7 @@ public class ActionGraphInspector : Editor
                     }
                 }
 
-                EditorGUILayout.PropertyField(intent, new GUIContent("Intent"));
+                EditorGUILayout.PropertyField(intent, new GUIContent("Intent（输入选招）", "行为树按 NodeId 起手可留 None；多个 None Entry 合法。输入 Cancel 连线目标仍需 Intent。"));
                 EditorGUILayout.PropertyField(variant, new GUIContent("Variant Resolver"));
                 EditorGUILayout.PropertyField(
                     node.FindPropertyRelative("targetLockSettings"),
@@ -134,10 +134,7 @@ public class ActionGraphInspector : Editor
                     node.FindPropertyRelative("startBehaviors"),
                     new GUIContent("Start Behaviors"),
                     includeChildren: true);
-                EditorGUILayout.PropertyField(
-                    node.FindPropertyRelative("switchCombatModeTarget"));
-                EditorGUILayout.PropertyField(
-                    node.FindPropertyRelative("switchCombatModePolicy"));
+                CharacterAuthoringFields.DrawModeSwitch(node);
                 EditorGUILayout.PropertyField(
                     node.FindPropertyRelative("automaticTransitions"),
                     new GUIContent("Automatic Transitions"),
@@ -301,256 +298,10 @@ public class ActionGraphInspector : Editor
         }
     }
 
-    /// <summary>校验多 Entry Intent、双通道边、自动衔接、顺序组与路由冲突。</summary>
+    /// <summary>显示 Domain 共用校验结果；所有入口使用同一套规则。</summary>
     public static void ValidateGraph(ActionGraph graph)
     {
-        if (graph == null)
-            return;
-
-        var errors = new List<string>();
-        int entryCount = 0;
-        var entryIntents = new HashSet<GameplayIntentType>();
-
-        foreach (ActionGraphNode node in graph.Nodes)
-        {
-            if (node == null || !node.IsEntry || node.Action == null)
-                continue;
-
-            entryCount++;
-            GameplayIntentType intent = node.Intent;
-            if (intent == GameplayIntentType.None)
-            {
-                errors.Add($"Entry '{node.NodeId}' 的 Intent 未配置。");
-                continue;
-            }
-
-            // Special 允许双 Entry（普通/EX 同键能量分支）；其它 Intent 仍只允许一个逻辑 Entry。
-            if (!entryIntents.Add(intent) && intent != GameplayIntentType.Special)
-            {
-                errors.Add(
-                    $"多个 Entry 使用相同 Intent {intent}：'{node.NodeId}'。请折叠为一个逻辑 Entry。");
-            }
-        }
-
-        if (entryCount == 0)
-            errors.Add("至少需要一个 Is Entry 节点作为 Locomotion 起手。");
-
-        var groupIds = new HashSet<string>();
-        var groupedNodes = new HashSet<string>();
-        foreach (ActionGraphNodeGroup group in graph.NodeGroups)
-        {
-            if (group == null)
-                continue;
-            if (string.IsNullOrWhiteSpace(group.GroupId) || !groupIds.Add(group.GroupId))
-                errors.Add($"顺序组 Id 为空或重复: '{group.GroupId}'。");
-            if (group.ChildNodeIds.Count == 0)
-                errors.Add($"顺序组 '{group.GroupId}' 没有 Action。");
-
-            foreach (string childNodeId in group.ChildNodeIds)
-            {
-                if (!graph.TryGetNode(childNodeId, out ActionGraphNode child))
-                {
-                    errors.Add($"顺序组 '{group.GroupId}' 包含无效节点: {childNodeId}");
-                    continue;
-                }
-
-                if (!groupedNodes.Add(childNodeId))
-                    errors.Add($"节点 '{childNodeId}' 同时属于多个顺序组。");
-            }
-        }
-
-        foreach (ActionGraphNode node in graph.Nodes)
-        {
-            if (node?.Action != null)
-            {
-                ValidateCancelWindows(node.Action, errors);
-                ValidateAutomaticTransitions(graph, node, errors);
-            }
-        }
-
-        var intentKeys = new HashSet<string>();
-        foreach (ActionGraphEdge edge in graph.Edges)
-        {
-            if (edge == null)
-                continue;
-
-            if (!graph.TryGetNode(edge.FromNodeId, out ActionGraphNode from))
-            {
-                errors.Add($"边 From 无效: {edge.FromNodeId}");
-                continue;
-            }
-
-            if (!graph.TryGetNode(edge.ToNodeId, out ActionGraphNode to))
-            {
-                errors.Add($"边 To 无效: {edge.ToNodeId}");
-                continue;
-            }
-
-            CancelWindowNotifyState window = from.Action.GetCancelWindow(edge.RouteKind);
-            if (window == null)
-                errors.Add($"节点 {edge.FromNodeId} 缺少 {edge.RouteKind} CancelWindow。");
-
-            GameplayIntentType intent = to.Intent;
-            if (intent == GameplayIntentType.None)
-            {
-                errors.Add($"目标 {edge.ToNodeId} 的 Intent 未配置。");
-                continue;
-            }
-
-            string edgeKey = $"{edge.FromNodeId}|{edge.RouteKind}|{intent}";
-            if (!intentKeys.Add(edgeKey))
-                errors.Add($"同路由 Intent 冲突: {edge.FromNodeId}/{edge.RouteKind} → {intent}");
-        }
-
-        var validatedSharedRoutes = new List<ActionGraphSharedRoute>();
-        foreach (ActionGraphSharedRoute route in graph.SharedRoutes)
-        {
-            if (route == null)
-                continue;
-
-            if (route.Intent == GameplayIntentType.None)
-                errors.Add($"Shared Route '{route.RouteKind}' 的 Intent 不能为 None。");
-            if (!graph.TryGetNode(route.ToNodeId, out ActionGraphNode target))
-            {
-                errors.Add($"Shared Route 目标节点无效: {route.ToNodeId}");
-                continue;
-            }
-
-            if (target.Intent != route.Intent)
-            {
-                errors.Add(
-                    $"Shared Route '{route.RouteKind}' Intent={route.Intent} 与目标 " +
-                    $"'{route.ToNodeId}' Intent={target.Intent} 不一致。");
-            }
-
-            foreach (ActionGraphSharedRoute existing in validatedSharedRoutes)
-            {
-                bool sourceOverlaps = existing.SourceIntent == GameplayIntentType.None
-                    || route.SourceIntent == GameplayIntentType.None
-                    || existing.SourceIntent == route.SourceIntent;
-                if (sourceOverlaps
-                    && existing.RouteKind == route.RouteKind
-                    && existing.Intent == route.Intent)
-                {
-                    errors.Add(
-                        $"Shared Route 冲突: {route.SourceIntent}/{route.RouteKind}/{route.Intent}");
-                    break;
-                }
-            }
-
-            validatedSharedRoutes.Add(route);
-
-            bool matchingRouteFound = false;
-            foreach (ActionGraphNode node in graph.Nodes)
-            {
-                if (node?.Action == null
-                    || (route.SourceIntent != GameplayIntentType.None
-                        && node.Intent != route.SourceIntent))
-                {
-                    continue;
-                }
-
-                CancelWindowNotifyState sourceWindow =
-                    node.Action.GetCancelWindow(route.RouteKind);
-                if (sourceWindow != null)
-                {
-                    matchingRouteFound = true;
-                    break;
-                }
-            }
-
-            if (!matchingRouteFound)
-            {
-                errors.Add(
-                    $"Shared Route '{route.RouteKind}' 找不到匹配来源窗口。");
-            }
-        }
-
-        // 显式边与完全覆盖它的共享路由同时存在只会制造视觉噪音，应删除显式边。
-        foreach (ActionGraphEdge edge in graph.Edges)
-        {
-            if (edge == null
-                || !graph.TryGetNode(edge.FromNodeId, out ActionGraphNode from)
-                || !graph.TryGetNode(edge.ToNodeId, out ActionGraphNode to))
-            {
-                continue;
-            }
-
-            foreach (ActionGraphSharedRoute route in graph.SharedRoutes)
-            {
-                if (route == null
-                    || route.RouteKind != edge.RouteKind
-                    || route.Intent != to.Intent
-                    || route.ToNodeId != edge.ToNodeId)
-                {
-                    continue;
-                }
-
-                if (route.SourceIntent == GameplayIntentType.None
-                    || route.SourceIntent == from.Intent)
-                {
-                    errors.Add(
-                        $"冗余显式边: {edge.FromNodeId}/{edge.RouteKind} → {edge.ToNodeId} " +
-                        "已由 Shared Route 覆盖。");
-                }
-            }
-        }
-
-        if (errors.Count == 0)
-            Debug.Log($"[ActionGraph] '{graph.name}' 校验通过（Entry × {entryCount}）。", graph);
-        else
-        {
-            foreach (string error in errors)
-                Debug.LogError($"[ActionGraph] {error}", graph);
-        }
-    }
-
-    /// <summary>校验节点自动衔接目标与同优先级规则，防止流程配置悬空或不确定。</summary>
-    static void ValidateAutomaticTransitions(
-        ActionGraph graph,
-        ActionGraphNode node,
-        List<string> errors)
-    {
-        var priorities = new HashSet<int>();
-        foreach (ActionGraphTransition transition in node.AutomaticTransitions)
-        {
-            if (transition == null)
-                continue;
-
-            if (!priorities.Add(transition.Priority))
-            {
-                errors.Add(
-                    $"节点 '{node.NodeId}' 存在重复自动衔接优先级 {transition.Priority}。");
-            }
-
-            if (!string.IsNullOrEmpty(transition.TargetNodeId)
-                && !graph.TryGetNode(transition.TargetNodeId, out _))
-            {
-                errors.Add(
-                    $"节点 '{node.NodeId}' 的自动衔接目标无效: {transition.TargetNodeId}");
-            }
-        }
-    }
-
-    /// <summary>校验每个 Action 恰有一个 Normal，且最多一个 Perfect CancelWindow。</summary>
-    static void ValidateCancelWindows(ActionDefinition action, List<string> errors)
-    {
-        int normalCount = 0;
-        int perfectCount = 0;
-        foreach (CancelWindowNotifyState window in action.Timeline.CancelWindowStates)
-        {
-            if (window == null)
-                continue;
-
-            if (window.WindowType == CancelWindowType.Perfect)
-                perfectCount++;
-            else
-                normalCount++;
-        }
-
-        if (normalCount != 1)
-            errors.Add($"Action '{action.name}' 必须且只能配置一个 Normal CancelWindow。");
-        if (perfectCount > 1)
-            errors.Add($"Action '{action.name}' 最多只能配置一个 Perfect CancelWindow。");
+        if (graph != null && ActionGraphValidator.ValidateAndLog(graph))
+            Debug.Log($"[ActionGraph] '{graph.name}' 无阻断问题。", graph);
     }
 }

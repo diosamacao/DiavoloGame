@@ -3,6 +3,36 @@ using NUnit.Framework;
 /// <summary>验证结构审计规则只命中真实源码，不被注释或字符串说明误触发。</summary>
 public sealed class StructureAuditRuleSetTests
 {
+    /// <summary>互斥构建分支同名声明不算两个类型，额外公开类型仍被拒绝。</summary>
+    [TestCase(false)]
+    [TestCase(true)]
+    public void AuditSource_ConditionalTypeDeclarations_CountDistinctTypes(bool extraType)
+    {
+        string source = "#if UNITY_EDITOR\npublic class DebugView { }\n#else\npublic class DebugView { }\n#endif\n";
+        if (extraType) source += "public class OtherView { }\n";
+        string[] issues = StructureAuditRuleSet.AuditSource("Assets/Scripts/App/DebugView.cs", source);
+        Assert.That(System.Array.Exists(issues, issue => issue.Contains("一个文件只能声明一个")), Is.EqualTo(extraType));
+    }
+
+    /// <summary>同名非泛型和泛型类型不是条件构建的同一个类型，必须分别计数。</summary>
+    [Test]
+    public void AuditSource_DifferentGenericArity_IsRejected()
+    {
+        string[] issues = StructureAuditRuleSet.AuditSource("Assets/Scripts/App/Sample.cs",
+            "public class Sample { }\npublic class Sample<T> { }\n");
+        Assert.That(issues, Has.Some.Contains("一个文件只能声明一个"));
+    }
+
+    /// <summary>UI 只允许现有 Unity UI 依赖，不因登记程序集而放行游戏层反向引用。</summary>
+    [TestCase("UnityEngine.UI", true)]
+    [TestCase("ACTGame.App", false)]
+    public void AuditAssemblyDefinition_UIFramework_EnforcesExplicitBoundary(string dependency, bool accepted)
+    {
+        string json = $"{{\"name\":\"UIFramework\",\"references\":[\"{dependency}\"]}}";
+        string[] issues = StructureAuditRuleSet.AuditAssemblyDefinition("Assets/Scripts/Framework/UIFramework/UIFramework.asmdef", json);
+        Assert.That(issues.Length == 0, Is.EqualTo(accepted));
+    }
+
     /// <summary>运行时场景查找必须被报告，Editor 路径允许使用同一 API。</summary>
     [Test]
     public void AuditSource_RuntimeFind_IsRejectedOutsideEditor()

@@ -5,8 +5,8 @@ using UnityEditor;
 public sealed class EnemyBehaviorTreeAssemblyMigrationTests
 {
     /// <summary>生产行为树不得含缺失类型，且反序列化后的根节点必须存在。</summary>
-    [TestCase("Assets/Data/Enemy/BehaviorTrees/BT_Monster.asset")]
-    [TestCase("Assets/Data/Enemy/BehaviorTrees/BT_Unagi.asset")]
+    [TestCase("Assets/Data/Characters/Monster/AI/Monster_BehaviorTree.asset")]
+    [TestCase("Assets/Data/Characters/UnagiEnemy/AI/UnagiEnemy_BehaviorTree.asset")]
     public void ProductionBehaviorTree_ResolvesLegacyManagedReferences(string assetPath)
     {
         EnemyBehaviorTreeAsset asset =

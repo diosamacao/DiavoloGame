@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-09-19（三人换人 / 弹刀 Play 验收完成；Lock-On 暂时撤出当前范围）
+> Last audited: 2026-09-29（源码结构及内容审计 0 项；全量 EditMode 639/656，通过与失败分列）
 
 ## 项目概述
 
@@ -255,7 +255,7 @@ Active 死亡后，`DedicatedAuthorityWorld.OnAfterLogicStep` 推进门禁并在
 | `CombatHurtboxDebugSettings` / `CombatHurtboxDebugVisualizer` | F4 开关绘制逻辑 Hurtbox 线框 |
 | `CharacterReactionSet` / `CharacterReactionResolver` | `ResolveKind(冲击力, 韧性)` 出档；Stun+ 才按 HitReactionId 选受击 Action；默认硬直时长在规则集 |
 | `CharacterReactionService` | Vitality 边沿桥接：Flinch 不进 Hit / 不通知树；Stun+ / Death 交给 CharacterActor |
-| `CombatModeProfile` | mode → `ActionGraph`（节点按语义 Intent 匹配；无 ActionSet 壳） |
+| `CharacterConfig.CombatModes` | mode → `ActionGraph`（节点按语义 Intent 匹配；无 ActionSet 壳） |
 | `NumericSystem` / `NumericCostGate` / `ActionResourceSpec` | 数值权威与起手扣费；价签挂 ActionDefinition；ConfirmHit 经 Pipeline Grant Effect |
 | `PerfectDodgeAttack` / `PerfectDodgeWindow` | 完美闪避：窗内吞伤武装 Flags；Producer 派生 Intent；Begin 清缓冲；Graph Entry→Counter |
 | `CharacterVitality` | Health Attribute 边沿（扣血 / Hit / Death） |
@@ -279,7 +279,7 @@ Active 死亡后，`DedicatedAuthorityWorld.OnAfterLogicStep` 推进门禁并在
 | 类 | 职责 |
 |----|------|
 | `AnimationKey` | 逻辑动画键（Idle/Walk/Run/Sprint/Start/PivotTurn/StopL/StopR） |
-| `CharacterAnimationProfile` | AnimationKey → AnimationClip 映射 |
+| `CharacterLocomotionProfile` | AnimationKey → AnimationClip 映射 |
 | `CharacterLocomotionProfile` | 每 AnimationKey 的 60Hz `LocomotionClipTiming`、帧落脚、脚步音与根位移轨；缺失配置严格失败 |
 | `IAnimationPlayback` | 可替换播放后端契约（Playable / 未来 Animancer） |
 | `PlayableAnimationPlayback` | 双槽 CrossFade PlayableGraph 实现 |
@@ -382,3 +382,51 @@ CharacterMotor / LocomotionStateMachine 读 IMoveIntentSource；CharacterActionD
 | OnHit 收招 | `ActionGraphNode.AutomaticTransitions(OnHitConfirm)` + `IActionHitReceiver` |
 | 敌人 AI 出招 | `CharacterActionDriver` + AI 输入源替换 `InputManager` |
 | 配置数据 | `Assets/Data/` ScriptableObject |
+
+## 角色作者链路（2026-09-28）
+
+CharacterConfig 内嵌 CharacterCombatModes；模式条目引用 Graph 和 Locomotion。动画 Key/Clip 映射由 Locomotion 持有，两个旧 Profile 类型及 8 个资产已移除，不保留双读。
+
+```mermaid
+flowchart LR
+  CharacterDefinition --> CharacterConfig
+  EnemyDefinition --> CharacterConfig
+  CharacterConfig --> CharacterCombatModes
+  CharacterCombatModes --> ActionGraph
+  CharacterCombatModes --> CharacterLocomotionProfile
+  ActionGraph --> ActionDefinition
+  CharacterLocomotionProfile --> AnimationClip
+  CharacterAuthoringWindow --> CharacterAuthoringService
+  CharacterAuthoringWindow --> ActionEditorWindow
+  CharacterCombatModes --> ActionGraphValidator
+```
+
+Editor/Character 为作者工具层，复用 Editor/Combat 与 Editor/Locomotion；Domain 不依赖 Editor。结构化图问题由 Domain/Combat/Actions/Validation 提供，启动与 Inspector 共用。实现证据：CharacterConfig.cs、CharacterCombatModes.cs、CharacterLocomotionProfile.cs、CharacterAuthoringWindow.cs。
+
+
+2026-09-28 验收更新：最新 Unity EditMode 定向测试 62/62 通过（新增 16 项）。全项目审计 85 项原有结构/内容问题仍未关闭；新增源码结构违规为 0，Graph 误报已修复。以 CHARACTER_AUTHORING_EXECUTION_REPORT 和 UNITY_RESULTS.xml 为准，不能将测试通过等同于 Play/全内容验收通过。
+
+## 2026-09-29 源码结构整理
+
+43 个多类型源文件拆成 165 个单类型文件，保持原命名空间、程序集、类型与成员声明；9 个主文件连同 .meta 改名，原脚本 GUID 保留。ActionGraphNode/ActionGraphEdge、行为树 Node/NodeDef、Session 消息与复制协议数据类型均在原层目录中独立成文件。没有新增运行时适配器或双路径。
+
+例外：Assets/Scripts/UI 新增 ACTGame.UI 程序集，依赖仅 UIFramework；UIFramework 依赖仅 UnityEngine.UI。UITestA/UITestController 保留 GUID，使用 MovedFrom 标记原 Assembly-CSharp 来源。该程序集属于 UI 示例装配层，不允许 Framework 反向引用。
+
+ActionSim 作为单实例整数帧状态机登记单职责说明；其帧推进、冻结、取消与延迟提交共享状态，不为 450 行阈值机械拆分。StructureAudit 对互斥分支/partial 的同名同泛型元数只计一次，真正不同类型仍阻断。
+
+最新结果覆盖上文历史验收状态：StructureValidationBatch.ValidateAll=0，直接相关测试 41/41；全量 EditMode 639/656，17 项额外失败尚待诊断，未声称全工程或 Play 通过。报告：docs/2026.9.29/STRUCTURE_REPAIR_REPORT.md；逐文件清单：STRUCTURE_REPAIR_FILE_CHANGES.md。
+
+### 空角色作者入口（2026-09-29）
+
+CharacterCreateWindow → CharacterAuthoringService.CreateCharacter → CharacterAssetLayout；仅 Editor 层改变。创建独立 CharacterDefinition → CharacterConfig → Default 模式的 ActionGraph / CharacterLocomotionProfile，替代并删除模板复制 API。目录和命名统一由 CharacterAssetLayout 管理，Domain 仍以显式序列化引用为真源。见 Assets/Scripts/Editor/Character/CharacterAuthoringService.cs 与 CharacterAssetLayout.cs。
+
+
+### 既有配置目录统一（2026-09-29）
+
+62 项角色与敌人配置按显式引用清单迁移至 Assets/Data/Characters 与 Assets/Data/Shared，GUID 保留；AI 放在角色 AI 子目录，方向解析器放在 Actions/Resolvers。CharacterAssetMigration 仅在 Editor 层处理预检、移动和回滚，不改变 Domain 配置引用和运行时链路。未引用的 7 项资产保留，见 docs/2026.9.29/CHARACTER_LAYOUT_MIGRATION_REPORT.md。
+
+
+2026-09-29 基础目录补齐：CharacterAssetLayout.EnsureBaseFolders 为新建和已有角色提供同一五目录规则；CharacterConfigSourcePanel 在 Editor 工作台按实际引用显示共享来源，不改变 Domain 引用链。
+
+
+2026-09-29：ActionEditorWindow 的角色动作范围与预览目标解耦；场景与隔离模型共用 ActionEditorPreviewSession，目标切换先恢复旧目标。

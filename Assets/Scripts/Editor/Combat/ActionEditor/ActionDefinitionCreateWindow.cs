@@ -3,7 +3,7 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// 创建 ActionDefinition 面板：选择角色文件夹，自动落到/创建其下 ActionDefinition 子目录。
+/// 创建 ActionDefinition 面板：选择角色文件夹，自动落到/创建其下 Actions 子目录。
 /// </summary>
 public sealed class ActionDefinitionCreateWindow : EditorWindow
 {
@@ -65,7 +65,7 @@ public sealed class ActionDefinitionCreateWindow : EditorWindow
         _fileName = EditorGUILayout.TextField(
             new GUIContent(
                 "File Name",
-                "默认：保存目录内最后一个 Action 名（若无则用角色文件夹名）；选中 Clip 后追加 _Clip名。可手动修改。"),
+                "默认：当前角色目录名 + 用途；请将 Action_01 改为 Attack_01、Dodge_01 等实际用途。不继承旧动作或 Clip 名。"),
             _fileName);
         if (EditorGUI.EndChangeCheck())
             _fileNameUserEdited = true;
@@ -96,11 +96,11 @@ public sealed class ActionDefinitionCreateWindow : EditorWindow
         }
     }
 
-    /// <summary>选择角色文件夹（如 Unagi）；实际写入其下 ActionDefinition。</summary>
+    /// <summary>选择角色文件夹（如 Unagi）；实际写入其下 Actions。</summary>
     void DrawCharacterFolderField()
     {
         EditorGUILayout.LabelField(
-            new GUIContent("Character Folder", "选择角色目录（如 Unagi），资产将保存到其子目录 ActionDefinition。"),
+            new GUIContent("Character Folder", "选择角色目录（如 Unagi），资产将保存到其子目录 Actions。"),
             EditorStyles.miniLabel);
         using (new EditorGUILayout.HorizontalScope())
         {

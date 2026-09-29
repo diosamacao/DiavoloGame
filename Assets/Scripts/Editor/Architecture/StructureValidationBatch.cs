@@ -65,8 +65,12 @@ public static class StructureValidationBatch
             }
         }
 
+        foreach (string guid in AssetDatabase.FindAssets("t:ActionGraph"))
+        {
+            ActionGraph graph = AssetDatabase.LoadAssetAtPath<ActionGraph>(AssetDatabase.GUIDToAssetPath(guid));
+            if (!ActionGraphValidator.ValidateAndLog(graph)) failures++;
+        }
         failures += ValidateCharacterConfigs();
-        failures += ValidateCombatProfiles();
         failures += ValidateLocomotionProfiles();
         failures += EnemyBehaviorTreeSetupMenu.AuditProject();
         Debug.Log($"StructureValidation: failures={failures}。");
@@ -86,25 +90,6 @@ public static class StructureValidationBatch
             if (config != null && !config.ValidateGameplayContent(config))
             {
                 Debug.LogError($"ContentAudit: CharacterConfig 校验失败：{path}", config);
-                failures++;
-            }
-        }
-        return failures;
-    }
-
-    /// <summary>校验未必被 CharacterConfig 引用的 CombatModeProfile，阻止孤立坏内容进入提交。</summary>
-    static int ValidateCombatProfiles()
-    {
-        string[] guids = AssetDatabase.FindAssets("t:CombatModeProfile");
-        Array.Sort(guids, StringComparer.Ordinal);
-        int failures = 0;
-        for (int i = 0; i < guids.Length; i++)
-        {
-            string path = AssetDatabase.GUIDToAssetPath(guids[i]);
-            CombatModeProfile profile = AssetDatabase.LoadAssetAtPath<CombatModeProfile>(path);
-            if (profile != null && !profile.Validate(profile))
-            {
-                Debug.LogError($"ContentAudit: CombatModeProfile 校验失败：{path}", profile);
                 failures++;
             }
         }

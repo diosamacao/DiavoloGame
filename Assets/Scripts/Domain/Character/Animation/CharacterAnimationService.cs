@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>角色动画播放门面；调用层只依赖本类，后端通过 IAnimationPlayback 可替换为 Animancer。</summary>
 public sealed class CharacterAnimationService : IDisposable, ILocomotionAnimClipQuery
 {
-    CharacterAnimationProfile profile;
+    CharacterLocomotionProfile profile;
     readonly IAnimationPlayback playback;
     readonly Animator animator;
     AnimationKey? _currentKey;
@@ -56,7 +56,7 @@ public sealed class CharacterAnimationService : IDisposable, ILocomotionAnimClip
     public CharacterAnimationService(
         IAnimationPlayback animationPlayback,
         Animator targetAnimator,
-        CharacterAnimationProfile animationProfile)
+        CharacterLocomotionProfile animationProfile)
     {
         playback = animationPlayback;
         animator = targetAnimator;
@@ -64,7 +64,7 @@ public sealed class CharacterAnimationService : IDisposable, ILocomotionAnimClip
     }
 
     /// <summary>切换 Locomotion Profile。</summary>
-    public void SetProfile(CharacterAnimationProfile animationProfile) => profile = animationProfile;
+    public void SetProfile(CharacterLocomotionProfile animationProfile) => profile = animationProfile;
 
     /// <summary>切换 Locomotion Profile 后调用，强制下一帧按新映射重播 AnimationKey。</summary>
     public void ResetPlaybackState() => _currentKey = null;
