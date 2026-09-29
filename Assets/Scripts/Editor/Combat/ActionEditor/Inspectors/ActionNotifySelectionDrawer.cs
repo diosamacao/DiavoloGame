@@ -1,4 +1,4 @@
-using UnityEditor;
+﻿using UnityEditor;
 using UnityEngine;
 using System.Linq;
 
@@ -12,6 +12,7 @@ public static class ActionNotifySelectionDrawer
     static Vector2 _scroll;
     static Transform _previewModel;
     static bool _advanced;
+    static string _editError;
 
     /// <summary>绘制选中窗口；同类型多选支持批量改属性，混合类型仅改主选中项。</summary>
     public static void Draw(Rect rect, SerializedObject so, ActionEditorSelectionSet selectionSet, ActionDefinition action, Transform previewModel = null)
@@ -60,6 +61,9 @@ public static class ActionNotifySelectionDrawer
             GUILayout.EndArea();
             return;
         }
+
+        EditorGUILayout.LabelField($"{ActionEditorStyles.DisplayName(selection.Kind)} · #{selection.Index + 1}", EditorStyles.boldLabel);
+        if (!string.IsNullOrEmpty(_editError)) EditorGUILayout.HelpBox(_editError, MessageType.Warning);
 
         // 仅同类型多选时开启批量写回
         ActionEditorSelectionSet batchSet = multiSameKind ? selectionSet : null;
@@ -138,8 +142,9 @@ public static class ActionNotifySelectionDrawer
 
         if (EditorGUI.EndChangeCheck())
         {
-            so.ApplyModifiedProperties();
-            EditorUtility.SetDirty(so.targetObject);
+            if (selection.Kind == ActionTimelineTrackKind.Animation)
+                ActionAnimationSegmentCommands.ApplyPending(so, out _editError);
+            else if (so.ApplyModifiedProperties()) EditorUtility.SetDirty(so.targetObject);
         }
 
         EditorGUILayout.EndScrollView();
@@ -163,6 +168,7 @@ public static class ActionNotifySelectionDrawer
             element,
             "endFrame",
             new GUIContent("End Frame", "<0 = 用到 Clip 末尾"));
+        DrawMultiProperty(batchSet, element, "hasCrossFadeOverride");
         DrawMultiProperty(batchSet, element, "crossFadeDuration");
 
         using (new EditorGUI.DisabledScope(true))
@@ -206,8 +212,7 @@ public static class ActionNotifySelectionDrawer
 
         if (EditorGUI.EndChangeCheck())
         {
-            so.ApplyModifiedProperties();
-            EditorUtility.SetDirty(so.targetObject);
+            if (so.ApplyModifiedProperties()) EditorUtility.SetDirty(so.targetObject);
         }
     }
 

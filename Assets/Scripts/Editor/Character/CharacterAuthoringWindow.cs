@@ -35,7 +35,7 @@ public sealed class CharacterAuthoringWindow : EditorWindow
         root = value; modeIndex = 0; issues.Clear(); rootMotionFolder = null; message = null;
         sources.Invalidate();
         var config = CharacterAuthoringService.ResolveConfig(value);
-        if (config != null) rootMotionFolder = AssetDatabase.LoadAssetAtPath<DefaultAsset>(EditorPrefs.GetString(FolderKey(config), ""));
+        if (config != null) rootMotionFolder = AssetDatabase.LoadAssetAtPath<DefaultAsset>(CharacterAnimationSourcePreferences.Get(config, true));
         if (embedded != null) DestroyImmediate(embedded);
     }
 
@@ -63,6 +63,7 @@ public sealed class CharacterAuthoringWindow : EditorWindow
         {
             case 0:
                 EditorGUILayout.LabelField(config.name, EditorStyles.boldLabel);
+                CharacterAnimationSourcePreferences.DrawAnimationFolder(config);
                 EditorGUILayout.LabelField("已引用动作", CharacterAuthoringService.CollectActions(config).Count.ToString());
                 EditorGUILayout.HelpBox("每个角色保留 Config / Graphs / Locomotion / Actions / Reactions 五个基础目录。空目录不代表漏配，请以这里显示的实际引用为准。", MessageType.Info);
                 sources.Draw("移动配置", locomotion);
@@ -76,6 +77,7 @@ public sealed class CharacterAuthoringWindow : EditorWindow
             case 1: DrawAsset(config); break;
             case 2: sources.Draw("移动配置", locomotion); DrawAsset(locomotion); break;
             case 3:
+                CharacterAnimationSourcePreferences.DrawAnimationFolder(config);
                 if (GUILayout.Button("创建并绑定动作…")) CharacterActionCreateWindow.Open(config, modeIndex);
                 if (GUILayout.Button("批量 Clip → 动作草稿…")) CharacterActionBatchWindow.Open(config, modeIndex);
                 foreach (ActionDefinition action in CharacterAuthoringService.CollectActions(config, modeIndex))
@@ -142,9 +144,11 @@ public sealed class CharacterAuthoringWindow : EditorWindow
             }
         }
         EditorGUILayout.Space();
+        CharacterAnimationSourcePreferences.DrawAnimationFolder(config);
         EditorGUI.BeginChangeCheck();
+        rootMotionFolder = AssetDatabase.LoadAssetAtPath<DefaultAsset>(CharacterAnimationSourcePreferences.Get(config, true));
         rootMotionFolder = (DefaultAsset)EditorGUILayout.ObjectField("当前角色 RM 文件夹", rootMotionFolder, typeof(DefaultAsset), false);
-        if (EditorGUI.EndChangeCheck()) EditorPrefs.SetString(FolderKey(config), AssetDatabase.GetAssetPath(rootMotionFolder));
+        if (EditorGUI.EndChangeCheck()) CharacterAnimationSourcePreferences.Set(config, true, AssetDatabase.GetAssetPath(rootMotionFolder));
         string folder = rootMotionFolder != null ? AssetDatabase.GetAssetPath(rootMotionFolder) : "";
         var actions = CharacterAuthoringService.CollectActions(config)
             .Where(a => a.ExecutionPolicy.BaseMotionMode == ActionBaseMotionMode.BakedMotion).ToList();
@@ -174,7 +178,6 @@ public sealed class CharacterAuthoringWindow : EditorWindow
         if (locomotion != null && GUILayout.Button("打开移动 Timing / RootMotion 烘焙")) { tab = 2; }
     }
 
-    static string FolderKey(CharacterConfig config) => "ACTGame.Authoring.RM." + Application.dataPath + "." + AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(config));
 
     static string DescribeBake(ActionDefinition action, string folder)
     {

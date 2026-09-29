@@ -95,12 +95,12 @@ public static class CharacterAuthoringService
         return asset;
     }
 
-    /// <summary>创建带 Clip 的动作草稿并原子绑定到图或反应规则；不猜测命中与取消窗口。</summary>
-    public static ActionDefinition CreateAction(CharacterConfig config, int modeIndex, AnimationClip clip,
+    /// <summary>按有序动画集合创建一个动作草稿并原子绑定到图或反应规则；不猜测命中与取消窗口。</summary>
+    public static ActionDefinition CreateAction(CharacterConfig config, int modeIndex, IReadOnlyList<AnimationClip> clips,
         string actionName, CombatActionType type, GameplayIntentType intent, bool isEntry,
         bool reaction, CharacterReactionType reactionType)
     {
-        if (config == null || !EditorUtility.IsPersistent(config) || clip == null)
+        if (config == null || !EditorUtility.IsPersistent(config) || clips == null || clips.Count == 0 || clips.Any(c => c == null))
             throw new ArgumentException("选择已保存角色与 Clip 后再创建。");
         if (string.IsNullOrWhiteSpace(actionName) || actionName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
             throw new ArgumentException("动作名不能为空或包含路径字符。");
@@ -127,15 +127,7 @@ public static class CharacterAuthoringService
             action.name = actionName;
             var so = new SerializedObject(action);
             so.FindProperty("actionType").intValue = (int)type;
-            SerializedProperty segments = so.FindProperty("animationSegments");
-            segments.arraySize = 1;
-            SerializedProperty segment = segments.GetArrayElementAtIndex(0);
-            segment.FindPropertyRelative("clip").objectReferenceValue = clip;
-            segment.FindPropertyRelative("startFrame").intValue = 0;
-            segment.FindPropertyRelative("endFrame").intValue = -1;
-            segment.FindPropertyRelative("crossFadeDuration").floatValue = 0;
-            so.FindProperty("totalFrames").intValue = Mathf.Max(1, Mathf.RoundToInt(clip.length * ActionSim.LogicHz));
-            so.ApplyModifiedPropertiesWithoutUndo();
+            ActionAnimationSegmentCommands.InitializeDraft(so, clips);
             AssetDatabase.CreateAsset(action, path);
             created = true;
             Undo.RecordObject(owner, "Bind Created Action");
@@ -229,7 +221,7 @@ public static class CharacterAuthoringService
         try
         {
             for (int i = 0; i < clips.Length; i++)
-                created.Add(CreateAction(config, mode, clips[i], prefix + "_" + (i + 1).ToString("D2"), type, intent, false, false, default));
+                created.Add(CreateAction(config, mode, new[] { clips[i] }, prefix + "_" + (i + 1).ToString("D2"), type, intent, false, false, default));
             return created;
         }
         catch

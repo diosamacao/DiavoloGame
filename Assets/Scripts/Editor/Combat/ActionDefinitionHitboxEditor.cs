@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEditor;
 using UnityEngine;
 
@@ -13,7 +13,6 @@ public class ActionDefinitionHitboxEditor : Editor
     const string PreviewHitboxEnabledPrefKey = "ACTGame.ActionEditorPreview.ShowHitbox";
     const string PreviewVfxEnabledPrefKey = "ACTGame.ActionEditorPreview.ShowVfx";
     const string PreviewTrajectoryEnabledPrefKey = "ACTGame.ActionEditorPreview.ShowTrajectory";
-    const string RootMotionFolderPrefKey = "ACTGame.MotionBake.RootMotionFolder";
 
     SerializedProperty _hitboxStatesProp;
     SerializedProperty _playVfxNotifiesProp;
@@ -29,15 +28,8 @@ public class ActionDefinitionHitboxEditor : Editor
     bool _previewHitboxEnabled;
     bool _previewVfxEnabled;
     bool _previewTrajectoryEnabled;
-    DefaultAsset _rootMotionFolder;
-    // 直线连击默认 ForwardSigned，避免把横摆 bake 进逻辑根；侧闪类招式请改 FullPlanar
-    ActionMotionPlanarMode _motionPlanarMode = ActionMotionPlanarMode.ForwardSigned;
-
+    readonly ActionMotionBakePanel _motionBakePanel = new();
     bool _editorUpdateHooked;
-    bool _hasMotionDirtyCache;
-    bool _cachedMotionDirty;
-    string _cachedMotionDirtyFolder;
-    int _cachedMotionDirtyCount = -1;
     int _cachedNaturalDurationPrefabId;
     float _cachedNaturalDurationSeconds;
 
@@ -62,9 +54,7 @@ public class ActionDefinitionHitboxEditor : Editor
         RestorePreviewToggles();
         SyncEditorUpdateHook();
 
-        string rmPath = EditorPrefs.GetString(RootMotionFolderPrefKey, "Assets/Art/Arts/Unagi/RootMotion");
-        _rootMotionFolder = AssetDatabase.LoadAssetAtPath<DefaultAsset>(rmPath);
-        InvalidateMotionDirtyCache();
+
     }
 
     void OnDisable()
@@ -110,32 +100,6 @@ public class ActionDefinitionHitboxEditor : Editor
         _editorUpdateHooked = hooked;
     }
 
-    /// <summary>缓存 Dirty 查询；资产 DirtyCount 或 RM 文件夹变化时失效。</summary>
-    bool ResolveMotionDirty(ActionDefinition action, string rootMotionFolder)
-    {
-        if (action == null || !AssetDatabase.IsValidFolder(rootMotionFolder))
-            return false;
-
-        int dirtyCount = EditorUtility.GetDirtyCount(action);
-        if (_hasMotionDirtyCache
-            && _cachedMotionDirtyCount == dirtyCount
-            && string.Equals(_cachedMotionDirtyFolder, rootMotionFolder, StringComparison.Ordinal))
-            return _cachedMotionDirty;
-
-        _cachedMotionDirty = ActionMotionDirtyUtility.IsDirty(action, rootMotionFolder, ActionSim.LogicHz);
-        _cachedMotionDirtyCount = dirtyCount;
-        _cachedMotionDirtyFolder = rootMotionFolder;
-        _hasMotionDirtyCache = true;
-        return _cachedMotionDirty;
-    }
-
-    void InvalidateMotionDirtyCache()
-    {
-        _hasMotionDirtyCache = false;
-        _cachedMotionDirtyCount = -1;
-        _cachedMotionDirtyFolder = null;
-    }
-
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
@@ -177,7 +141,14 @@ public class ActionDefinitionHitboxEditor : Editor
         DrawAnimationPreviewHints(action);
         DrawHitboxPreviewSection(maxFrame);
         DrawVfxPreviewSection(maxFrame);
-        DrawBakedMotionSection(action);
+        if (_motionBakePanel.Draw(action, beforeBake: () => serializedObject.ApplyModifiedProperties()))
+        {
+            serializedObject.Update();
+            _previewSession.SetAction(null);
+            _previewSession.SetAction(action);
+            _hitboxWorldPreview.Clear();
+            SceneView.RepaintAll();
+        }
 
         if (_previewCharacter == null)
         {
@@ -187,83 +158,6 @@ public class ActionDefinitionHitboxEditor : Editor
         }
 
         serializedObject.ApplyModifiedProperties();
-    }
-
-    /// <summary>只读展示运动表，并提供按 RootMotion 文件夹烘焙当前招。</summary>
-    void DrawBakedMotionSection(ActionDefinition action)
-    {
-        EditorGUILayout.Space(8f);
-        EditorGUILayout.LabelField("Baked Motion", EditorStyles.boldLabel);
-
-        ActionBakedMotion motion = action.BakedMotion;
-        string rmPathForDirty = _rootMotionFolder != null
-            ? AssetDatabase.GetAssetPath(_rootMotionFolder)
-            : EditorPrefs.GetString(RootMotionFolderPrefKey, string.Empty);
-        // Dirty 结果按资产 DirtyCount + 文件夹缓存，避免滚动 Inspector 时反复扫 RM 目录。
-        bool dirty = ResolveMotionDirty(action, rmPathForDirty);
-        if (dirty)
-        {
-            EditorGUILayout.HelpBox(
-                "运动表 Dirty：InPlace/RM hash、logicHz 或段帧窗口与烘焙结果不一致。请 Bake Motion 或文件夹 Bake Dirty。",
-                MessageType.Warning);
-        }
-
-        using (new EditorGUI.DisabledScope(true))
-        {
-            EditorGUILayout.EnumPopup("Status", motion.bakeStatus);
-            EditorGUILayout.IntField("Frame Count", motion.frameCount);
-            EditorGUILayout.TextField("Matched RM", motion.matchedRootMotionName ?? string.Empty);
-            EditorGUILayout.Toggle("Dirty", dirty);
-        }
-
-        EditorGUI.BeginChangeCheck();
-        _rootMotionFolder = (DefaultAsset)EditorGUILayout.ObjectField(
-            "RootMotion Folder",
-            _rootMotionFolder,
-            typeof(DefaultAsset),
-            false);
-        if (EditorGUI.EndChangeCheck())
-            InvalidateMotionDirtyCache();
-
-        _motionPlanarMode = (ActionMotionPlanarMode)EditorGUILayout.EnumPopup(
-            "Planar Mode",
-            _motionPlanarMode);
-        EditorGUILayout.HelpBox(
-            "Wave1：直线连击用 ForwardSigned（丢弃横摆进逻辑根）；侧闪/横移斩用 FullPlanar；"
-            + "直线斩用 ForwardSigned；侧闪保留 FullPlanar。只烘焙水平位移；朝向不读运动表 yaw。",
-            MessageType.None);
-
-        using (new EditorGUILayout.HorizontalScope())
-        {
-            if (GUILayout.Button("Bake Motion"))
-            {
-                string rm = _rootMotionFolder != null
-                    ? AssetDatabase.GetAssetPath(_rootMotionFolder)
-                    : string.Empty;
-                if (!AssetDatabase.IsValidFolder(rm))
-                {
-                    EditorUtility.DisplayDialog("Bake Motion", "请指定有效 RootMotion 文件夹。", "OK");
-                }
-                else
-                {
-                    EditorPrefs.SetString(RootMotionFolderPrefKey, rm);
-                    bool ok = ActionMotionBakeService.BakeAction(
-                        action,
-                        rm,
-                        _motionPlanarMode,
-                        ActionSim.LogicHz,
-                        out string message);
-                    InvalidateMotionDirtyCache();
-                    EditorUtility.DisplayDialog(
-                        ok ? "Bake Motion OK" : "Bake Motion Failed",
-                        message,
-                        "OK");
-                }
-            }
-
-            if (GUILayout.Button("Open Folder Bake Window"))
-                FolderMotionBakeWindow.Open();
-        }
     }
 
     void DrawAnimationPreviewHints(ActionDefinition action)

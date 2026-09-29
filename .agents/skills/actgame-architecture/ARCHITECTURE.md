@@ -430,3 +430,13 @@ CharacterCreateWindow → CharacterAuthoringService.CreateCharacter → Characte
 
 
 2026-09-29：ActionEditorWindow 的角色动作范围与预览目标解耦；场景与隔离模型共用 ActionEditorPreviewSession，目标切换先恢复旧目标。
+
+
+## ActionEditor 统一工作区（2026-09-29）
+
+`ActionEditorWindow.CreateGUI` → `ActionEditorWorkspaceView` 管理上下分栏；`ActionTimelineView` 和 `ActionNotifySelectionDrawer` 保留单一 IMGUI 画布与序列化上下文。`ActionEditorPreviewViewport` 只拥有隔离资源，场景与隔离采样统一由 `ActionEditorPreviewSession` 驱动。`CharacterAuthoringPreviewWindow` 已删除，无双窗口兼容路径。
+
+编辑写回：`ActionTimelineSnapping` 只做整数候选计算；动画插入/源帧修剪经 `ActionAnimationSegmentCommands`，拒绝使战斗窗越界的整体事务。全部新代码在 Editor 层，不改变 Domain/Runtime 资产格式。详细实现与验证边界见 `docs/2026.9.29/ACTION_EDITOR_CWCMONTAGE_ALIGNMENT_REPORT.md`。
+`ActionMotionBakePanel` 是动作编辑器与 ActionDefinition Inspector 共用的单招烘焙入口，统一复用 ActionMotionBakeService 写回与 Undo；CharacterAnimationSourcePreferences 统一提供角色动画与 RM 目录 GUID 偏好，未改变运行时位移表格式。
+
+2026-09-29：CharacterActionCreateWindow 与 ActionDefinitionCreateWindow 共用 ActionAnimationPickerPanel；候选动画按来源目录缓存、以子资源对象区分。选片预览复用 ActionEditorPreviewSession 与 ActionEditorPreviewViewport，在临时动作/模型上采样，期间暂停其他会话。退出清理临时资源并允许原会话恢复。

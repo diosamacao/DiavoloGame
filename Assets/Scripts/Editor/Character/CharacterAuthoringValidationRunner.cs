@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Text;
 using UnityEditor;
@@ -83,7 +83,7 @@ public static class CharacterAuthoringValidationRunner
                 {
                     "CharacterAuthoringCreationTests", "CharacterAuthoringTimingTests", "ActionGraphValidatorTests",
                     "CharacterAssetMigrationTests", "EnemyBehaviorTreeAssemblyMigrationTests",
-                    "ActionEditorScenePreviewTests",
+                    "ActionEditorScenePreviewTests", "ActionEditorAlignmentTests", "ActionEditorViewportTests",
                     "ActionMotionBakeRangeTests",
                     "LocomotionIntegerClockTests", "ActionSimTests", "GameContentCatalogTests",
                     "GameContentBootstrapBoundaryTests", "ActionReplicationCatalogTests", "ServerContentManifestTests",

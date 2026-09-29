@@ -101,13 +101,13 @@ MonoBehaviour:
     cancelWindowStates:
     - id: Cancel_2
       startFrame: 8
-      endFrame: 25
+      endFrame: 26
       priority: 0
       trackName: Cancel_3
       windowType: 0
     phaseStates:
     - id: Phase_1
-      startFrame: 26
+      startFrame: 27
       endFrame: 235
       priority: 0
       trackName: Phase_1
@@ -182,7 +182,11 @@ MonoBehaviour:
               y: 0
               z: 0
               w: 1
-        m_MetaData: []
+        m_MetaData:
+        - Mode: 4
+          Tension: 0.5
+        - Mode: 4
+          Tension: 0.5
         m_Closed: 0
         m_IntData:
           m_Data: []

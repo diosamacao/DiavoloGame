@@ -2186,7 +2186,7 @@ Actor.Step：非卡肉时 NumericSystem.Step
 |---|---|
 | CharacterAuthoringService | 创建独立空身份、身体、默认动作图与移动配置；单动作与批量草稿按角色 ID + 用途命名并绑定 Graph/Reaction；失败清理本批新资产 |
 | CharacterAuthoringWindow | 当前角色/模式决定动作范围，RM 目录按 Config GUID 与项目保存，烘焙展示输入匹配和共享影响 |
-| CharacterAuthoringPreviewWindow | PreviewRenderUtility 隔离模型，由时间轴采样，关闭释放 |
+| ActionEditorPreviewViewport | 主工作区内的 PreviewRenderUtility 隔离模型；采样由 ActionEditorPreviewSession 管理，退出释放 |
 | ActionGraphValidator | 唯一图结构算法；终结动作不要求 Cancel，按 NodeId 的 AI Entry 可使用 None，多个 None Entry 无警告；仅非空输入 Intent 检查冲突 |
 | CharacterValidationPanel | 聚合既有校验日志与图问题；图支持节点定位，非图问题部分仍定位到配置分组 |
 
@@ -2266,3 +2266,37 @@ CharacterAssetMigration.Execute 消费显式 CharacterAssetMigrationManifest：�
 
 
 2026-09-29：ActionEditor 场景模型选择回归已修复：角色上下文不再禁用 Transform 选择；增加隔离预览按钮。同角色打开不同动作及上下文重载保留场景选择。Unity 定向 89/89、审计 0；完整拖拽和场景动画恢复交互待人工验收。报告 docs/2026.9.29/ACTION_SCENE_PREVIEW_FIX.md。
+
+
+## ActionEditor 工作区与精确打点（2026-09-29）
+
+功能：上方动作库/模型/属性、下方完整时间轴；场景与隔离显式切换，当前动作保存与只读校验可在同窗完成。
+
+| 组件 | 责任 |
+|---|---|
+| ActionEditorWorkspaceView | UI Toolkit 分栏、折叠资产列表与尺寸持久化 |
+| ActionEditorPreviewViewport | 临时隔离模型、网格、旋转/平移/缩放/F 聚焦 |
+| ActionEditorPreviewSession | 单一采样会话，切目标/动作恢复采样，Play 不抢运行时 |
+| ActionTimelineSnapping | 8px 磁吸，最近距离/同距优先级，Alt 保留整数帧而关闭吸附 |
+| ActionAnimationSegmentCommands | 多 Clip 插入与源帧修剪，原子边界检查 |
+| ActionEditorSfxPreview | 显式原音试听、默认静音；不随拖帧自动触发 |
+
+参数：固定 60Hz，预览倍率 0.25/0.5/1/1.5/2，仅影响 Editor 时钟；磁吸容差 8px；三分栏和上下分栏由 UI Toolkit viewDataKey 持久化。
+2026-09-29 预览回归修复：隔离绘制使用显式 `Handles.DrawingScope(Color.white, Matrix4x4.identity)` 保存与恢复矩阵/颜色，另恢复相机与深度比较；无参结构体构造会在 Dispose 时清零全局矩阵，禁止使用。三维辅助线仅绘入预览 RT，轨迹图例在 EndPreview 后由 GUI 固定绘制，模型与辅助线使用同一 FOV。隔离灯光采用相机相对主光 1.2、补光 0.8、环境光 RGB(0.35,0.37,0.4)。时间轴 MouseUp/Ignore 只结束窗口拖拽，避免单击事件时触发磁吸改帧。回归覆盖实际双 IMGUIContainer 重绘、状态恢复、VFX/SFX 点击与拖动及四个相机朝向的补光。
+
+流程：选择动作 → 单一 SerializedObject → 时间轴/属性命令 → Undo 写回；播放帧 → Session.Tick → Sampler + VFX 扩展 → 内嵌渲染或 Scene。当前校验复用 ActionDefinition.ValidateContent 与 ActionDefinitionAuditUtility，位移烘焙页通过 ActionMotionBakePanel 复用 ActionMotionDirtyUtility 和 ActionMotionBakeService，展示 RM 来源、模式与指纹状态；成功后重新绑定预览并刷新轨迹。Inspector 共用此面板，角色 RM 路径与工作台共享，独立动作按资产 GUID 保存路径偏好。
+
+限制：场景模式画面在 Scene；SFX 试听为源音频原速，游戏音量/pitch 不由试听模拟；Camera Shot 保留既有 Scene/Action Camera View。没有动画分层或分段变速。自动回归和资源哈希证据见实施报告，人工战斗/联机核对不由 EditMode 结果替代。
+
+相关文件：`Assets/Scripts/Editor/Combat/ActionEditor/`，`Assets/Tests/Editor/Character/ActionEditorAlignmentTests.cs`、`ActionEditorViewportTests.cs`。2026-09-29 变更：删除独立 CharacterAuthoringPreviewWindow、手工三列分隔路径与无用布局常量，保留全部业务轨道与场景目标选择。
+
+## 动作创建动画浏览器（2026-09-29）
+
+功能：两个创建窗口支持角色动画目录、名称/路径搜索、FBX 子动画、拖放与选前预览。
+实现：CharacterAnimationSourcePreferences 将动画与 RM 来源目录 GUID 保存在本机 EditorPrefs，范围为项目 + 角色/独立动作；原 RM 路径键首次有效读取后迁移并删除。ActionAnimationPickerPanel 通过 Unity SearchService.ShowPicker 展示动作库候选；默认进入动作库页，名称用 NaturalCompare 自然排序并写入 SearchItem.score。首次通过 Search 异步枚举逐文件读取当前目录，完整结果按目录缓存、projectChanged 后失效；GUID/local ID 区分同名子资源，名称与路径搜索不重复读取资产标识。单文件加载仍为 Unity 同步 API。原手绘候选列表与全项目开关已移除。CharacterActionBatchWindow 共用原生选择入口并支持目录全量去重追加。
+参数：60Hz 帧数、220px 可交互隔离预览；目录选择入口包含子目录，未设置来源时禁用。单个与批量动画 ObjectField 的小圆圈在配置动作库时直接打开目录限定选择，未配置时保留默认选择；直接拖片保留。批量使用 Unity ReorderableList 维护待创建清单，重复选择按钮已移除。
+流程：选择目录 → 搜索/拖片 → 临时 ActionDefinition 与模型预览 → 用途命名 → 既有创建服务写入并定位。预览独占 AnimationMode，关闭/切片/Play 释放，正式资源不在选片时写入。
+限制：来源偏好只在本机；独立入口需要模型资产；实际 FBX 蒙皮效果需 Editor 检查。仍不自动推断战斗窗口，不自动烘焙。
+相关：Assets/Scripts/Editor/Character/CharacterAnimationSourcePreferences.cs、Combat/ActionEditor/ActionAnimationPickerPanel.cs；回归 ActionEditorViewportTests。移除两个窗口重复选片 ObjectField、跨窗口 FolderKey 依赖。
+
+2026-09-29 多动画创建：ActionAnimationPickerPanel 使用原生 Search 多选动作并通过可排序清单明确播放顺序；CharacterActionCreateWindow 与 ActionDefinitionCreateWindow 提交有序 Clip 集合，两个创建服务共用 ActionAnimationSegmentCommands.InitializeDraft 初始化全部 animationSegments 与累计总帧数。角色入口只绑定一个动作；批量入口继续一片一动作。命中/取消窗口不自动推断，创建不自动烘焙。回归 CharacterAuthoringCreationTests，说明 docs/2026.9.29/ACTION_MULTI_CLIP_CREATE.md。

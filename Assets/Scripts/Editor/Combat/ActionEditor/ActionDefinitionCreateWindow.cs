@@ -10,7 +10,7 @@ public sealed class ActionDefinitionCreateWindow : EditorWindow
     const string LastCharacterFolderPrefKey = "ACTGame.ActionEditor.Create.LastCharacterFolder";
 
     string _fileName = "new_action";
-    AnimationClip _clip;
+    AnimationClip[] _clips = System.Array.Empty<AnimationClip>();
     /// <summary>用户选择的角色文件夹（如 Unagi），不是最终保存目录。</summary>
     string _characterFolder = ActionDefinitionCreateUtility.DefaultCharacterFolder;
     DefaultAsset _characterFolderAsset;
@@ -19,15 +19,19 @@ public sealed class ActionDefinitionCreateWindow : EditorWindow
     /// <summary>上一次自动生成的默认名，用于判断是否仍可自动刷新。</summary>
     string _lastAutoFileName = string.Empty;
     System.Action<ActionDefinition> _onCreated;
+    ActionAnimationPickerPanel picker;
+    Vector2 scroll;
+    void OnEnable() => picker = new ActionAnimationPickerPanel(this);
+    void OnDisable() { picker?.Dispose(); picker = null; }
 
     /// <summary>打开创建面板；创建成功后回调 onCreated。</summary>
-    public static void Open(System.Action<ActionDefinition> onCreated)
+    public static void Open(System.Action<ActionDefinition> onCreated, GameObject previewPrefab = null)
     {
         ActionDefinitionCreateWindow window = CreateInstance<ActionDefinitionCreateWindow>();
         window.titleContent = new GUIContent("Create Action Definition");
         window._onCreated = onCreated;
-        window.minSize = new Vector2(460f, 220f);
-        window.maxSize = new Vector2(640f, 280f);
+        window.picker.Bind(null, previewPrefab);
+        window.minSize = new Vector2(540f, 600f);
         window.RestoreCharacterFolder();
         window.RefreshDefaultFileName(force: true);
         window.ShowUtility();
@@ -36,6 +40,7 @@ public sealed class ActionDefinitionCreateWindow : EditorWindow
 
     void OnGUI()
     {
+        scroll = EditorGUILayout.BeginScrollView(scroll);
         EditorGUILayout.Space(10f);
         EditorGUILayout.LabelField("New Action Definition", EditorStyles.boldLabel);
         EditorGUILayout.Space(4f);
@@ -53,11 +58,7 @@ public sealed class ActionDefinitionCreateWindow : EditorWindow
         }
 
         EditorGUI.BeginChangeCheck();
-        _clip = (AnimationClip)EditorGUILayout.ObjectField(
-            "First Animation Clip",
-            _clip,
-            typeof(AnimationClip),
-            false);
+        _clips = picker.Draw(_clips);
         if (EditorGUI.EndChangeCheck())
             RefreshDefaultFileName(force: false);
 
@@ -84,7 +85,7 @@ public sealed class ActionDefinitionCreateWindow : EditorWindow
                 if (GUILayout.Button("Create", GUILayout.Width(90f), GUILayout.Height(24f)))
                 {
                     ActionDefinition created =
-                        ActionDefinitionCreateUtility.Create(_fileName, _clip, _characterFolder);
+                        ActionDefinitionCreateUtility.Create(_fileName, _clips, _characterFolder);
                     if (created != null)
                     {
                         EditorPrefs.SetString(LastCharacterFolderPrefKey, _characterFolder);
@@ -94,6 +95,7 @@ public sealed class ActionDefinitionCreateWindow : EditorWindow
                 }
             }
         }
+        EditorGUILayout.EndScrollView();
     }
 
     /// <summary>选择角色文件夹（如 Unagi）；实际写入其下 Actions。</summary>
@@ -188,7 +190,7 @@ public sealed class ActionDefinitionCreateWindow : EditorWindow
         string autoName = ActionDefinitionCreateUtility.BuildDefaultFileName(
             _characterFolder,
             saveFolder,
-            _clip);
+            null);
 
         if (force || !_fileNameUserEdited || _fileName == _lastAutoFileName)
         {

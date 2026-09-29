@@ -89,9 +89,9 @@ public sealed class CharacterAuthoringCreationTests
         Assert.That(AssetDatabase.IsValidFolder(root + "/Reactions"), Is.True);
         Assert.That(AssetDatabase.FindAssets("t:ScriptableObject", new[] { root }).Length, Is.EqualTo(4));
         Assert.That(graph.Nodes.Count, Is.EqualTo(1));
-        var attack = CharacterAuthoringService.CreateAction(body, 0, clip, "Attack_01", CombatActionType.Attack, GameplayIntentType.Attack, true, false, default);
+        var attack = CharacterAuthoringService.CreateAction(body, 0, new[] { clip }, "Attack_01", CombatActionType.Attack, GameplayIntentType.Attack, true, false, default);
         Assert.That(AssetDatabase.GetAssetPath(attack), Is.EqualTo(root + "/Actions/" + id + "_Attack_01.asset"));
-        var hit = CharacterAuthoringService.CreateAction(body, 0, clip, id + "_Hit_01", CombatActionType.Hit, GameplayIntentType.None, false, true, CharacterReactionType.Hit);
+        var hit = CharacterAuthoringService.CreateAction(body, 0, new[] { clip }, id + "_Hit_01", CombatActionType.Hit, GameplayIntentType.None, false, true, CharacterReactionType.Hit);
         Assert.That(AssetDatabase.GetAssetPath(hit), Is.EqualTo(root + "/Reactions/" + id + "_Hit_01.asset"));
     }
 
@@ -131,9 +131,27 @@ public sealed class CharacterAuthoringCreationTests
     }
 
     [Test]
+    public void CreateAction_MultipleClipsPreserveOrderAndBindOneAction()
+    {
+        var tail = UnityEngine.Object.Instantiate(clip);
+        tail.name = "Tail";
+        AssetDatabase.CreateAsset(tail, folder + "/Tail.anim");
+        var clips = new[] { tail, clip, tail };
+        var created = CharacterAuthoringService.CreateAction(config, 0, clips, "Sequence_" + Guid.NewGuid().ToString("N"),
+            CombatActionType.Attack, GameplayIntentType.Attack, false, false, default);
+        Assert.That(created.AnimationSegments.Select(s => s.clip), Is.EqualTo(clips));
+        Assert.That(created.TotalFrames, Is.EqualTo(created.AnimationSegments.Sum(s => s.GetFrameCount(60))));
+        Assert.That(graph.Nodes.Count, Is.EqualTo(2));
+        Assert.That(graph.Nodes[1].Action, Is.SameAs(created));
+        var standalone = ActionDefinitionCreateUtility.Create("StandaloneSequence", clips, folder);
+        Assert.That(standalone.AnimationSegments.Select(s => s.clip), Is.EqualTo(clips));
+        Assert.That(standalone.TotalFrames, Is.EqualTo(created.TotalFrames));
+    }
+
+    [Test]
     public void CreateAction_BindsNodeWithoutInheritingPreviousPolicy()
     {
-        ActionDefinition created = CharacterAuthoringService.CreateAction(config, 0, clip, "Action_" + Guid.NewGuid().ToString("N"),
+        ActionDefinition created = CharacterAuthoringService.CreateAction(config, 0, new[] { clip }, "Action_" + Guid.NewGuid().ToString("N"),
             CombatActionType.Attack, GameplayIntentType.Attack, false, false, CharacterReactionType.Hit);
         Assert.That(graph.Nodes.Count, Is.EqualTo(2));
         Assert.That(graph.Nodes[1].Action, Is.SameAs(created));
@@ -145,11 +163,11 @@ public sealed class CharacterAuthoringCreationTests
     [Test]
     public void CreateReaction_DuplicateDefaultRollsBackNewAsset()
     {
-        CharacterAuthoringService.CreateAction(config, 0, clip, "Action_" + Guid.NewGuid().ToString("N"),
+        CharacterAuthoringService.CreateAction(config, 0, new[] { clip }, "Action_" + Guid.NewGuid().ToString("N"),
             CombatActionType.Hit, GameplayIntentType.None, false, true, CharacterReactionType.Hit);
         string name = "Hit_" + Guid.NewGuid().ToString("N");
         int count = CharacterAuthoringService.CollectActions(config).Count;
-        Assert.Throws<InvalidOperationException>(() => CharacterAuthoringService.CreateAction(config, 0, clip, name,
+        Assert.Throws<InvalidOperationException>(() => CharacterAuthoringService.CreateAction(config, 0, new[] { clip }, name,
             CombatActionType.Hit, GameplayIntentType.None, false, true, CharacterReactionType.Hit));
         Assert.That(AssetDatabase.LoadAssetAtPath<ActionDefinition>(CharacterAssetLayout.ActionFolder(config, true) + "/" + CharacterAssetLayout.ActionName(config, name) + ".asset"), Is.Null);
         Assert.That(CharacterAuthoringService.CollectActions(config).Count, Is.EqualTo(count));

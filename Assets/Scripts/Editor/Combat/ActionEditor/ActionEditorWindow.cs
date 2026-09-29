@@ -1,15 +1,13 @@
-using UnityEditor;
+﻿using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// ACT Action Editor 主窗口：左侧资产列表、中部时间轴、右侧细节、顶部预览工具栏。
+/// ACT Action Editor 主窗口：上方模型与属性，下方完整时间轴；单一会话管理场景和隔离预览。
 /// 菜单：ACT / Action Editor
 /// </summary>
 public sealed class ActionEditorWindow : EditorWindow
 {
     const string PreviewCharacterPrefKey = "ACTGame.ActionEditor.PreviewCharacter";
-    const string LeftWidthPrefKey = "ACTGame.ActionEditor.LeftWidth";
-    const string RightWidthPrefKey = "ACTGame.ActionEditor.RightWidth";
     /// <summary>假敌相对预览原点的本地 X（米）。</summary>
     const string AdhesionEnemyLocalXPrefKey = "ACTGame.ActionEditor.AdhesionEnemyLocalX";
     /// <summary>假敌相对预览原点的本地 Z（米）。</summary>
@@ -30,11 +28,11 @@ public sealed class ActionEditorWindow : EditorWindow
     public static void OpenForCharacter(CharacterConfig config, int mode, ActionDefinition action)
     {
         var window = GetWindow<ActionEditorWindow>();
-        bool keepScenePreview = window._characterContext == config && window._useScenePreview;
+        bool keepPreview = window._characterContext == config || window._useScenePreview;
         window._characterContext = config;
         window._characterMode = mode;
         window._listPanel.SetCharacterScope(config, mode);
-        if (!keepScenePreview) window.UseIsolatedPreview();
+        if (!keepPreview) window.UseIsolatedPreview();
         window.titleContent = new GUIContent("Action — " + config.name);
         window.SelectAction(action);
         window.Show();
@@ -53,11 +51,23 @@ public sealed class ActionEditorWindow : EditorWindow
     bool _loop = true;
     double _lastPlayTime;
 
-    float _leftWidth = ActionEditorStyles.DefaultLeftWidth;
-    float _rightWidth = ActionEditorStyles.DefaultRightWidth;
-    int _splitterDrag; // 0=无 1=左分隔 2=右分隔
-    float _splitterDragStartX;
-    float _splitterDragStartWidth;
+    readonly ActionEditorPreviewViewport _viewport = new();
+    readonly CharacterConfigSourcePanel _sourcePanel = new();
+    ActionEditorWorkspaceView _workspace;
+    [SerializeField] GameObject _previewPrefab;
+    [SerializeField] bool _libraryVisible = true;
+    [SerializeField] float _previewSpeed = 1;
+    int _inspectorTab;
+    string _validationResult;
+    ActionDefinitionAuditEntry _auditEntry;
+    Vector2 _validationScroll;
+    readonly ActionEditorSfxPreview _sfxPreview = new();
+    readonly ActionEditorSelectionSet _actionSettingsSelection = new();
+    readonly ActionMotionBakePanel _motionBakePanel = new();
+    Vector2 _motionBakeScroll;
+    bool _showHitboxes = true, _showTrajectory = true;
+    string _ownerSummary;
+
 
     [MenuItem("ACT/Action Editor")]
     public static void Open()
@@ -76,10 +86,9 @@ public sealed class ActionEditorWindow : EditorWindow
     {
         wantsMouseMove = true;
         _listPanel.SetCharacterScope(_characterContext, _characterMode);
-        if (_characterContext == null) RestorePreviewCharacter();
-        else EditorApplication.delayCall += RestoreCharacterContext;
-        _leftWidth = EditorPrefs.GetFloat(LeftWidthPrefKey, ActionEditorStyles.DefaultLeftWidth);
-        _rightWidth = EditorPrefs.GetFloat(RightWidthPrefKey, ActionEditorStyles.DefaultRightWidth);
+        EditorApplication.delayCall += RestoreCharacterContext;
+        minSize = new Vector2(960, 600);
+        EditorApplication.playModeStateChanged += OnPlayModeChanged;
 
         _vfxPreviewExtension = new ActionEditorVfxPreviewExtension();
         _vfxPreviewExtension.Bind(GetVfxArrayProperty);
@@ -94,6 +103,7 @@ public sealed class ActionEditorWindow : EditorWindow
             _previewSession.TryEvaluateAttachWorldPoseAtFrame);
         _previewSession.RegisterExtension(_cameraShotPreviewExtension);
         if (_characterContext == null) SelectAction(_selectedAction);
+        Undo.undoRedoPerformed += OnUndoRedo;
 
         EditorApplication.update += OnEditorUpdate;
         SceneView.duringSceneGui += OnSceneGUI;
@@ -101,203 +111,233 @@ public sealed class ActionEditorWindow : EditorWindow
 
     void OnDisable()
     {
+        Undo.undoRedoPerformed -= OnUndoRedo;
         EditorApplication.delayCall -= RestoreCharacterContext;
         EditorApplication.update -= OnEditorUpdate;
         SceneView.duringSceneGui -= OnSceneGUI;
         SavePreviewCharacter();
-        EditorPrefs.SetFloat(LeftWidthPrefKey, _leftWidth);
-        EditorPrefs.SetFloat(RightWidthPrefKey, _rightWidth);
+        EditorApplication.playModeStateChanged -= OnPlayModeChanged;
         _previewSession?.Dispose();
         _previewSession = null;
+        _serializedObject?.Dispose(); _serializedObject = null;
+        _viewport.Dispose();
+        _sfxPreview.Dispose();
     }
 
-    void OnGUI()
+    /// <summary>构建唯一编辑工作区；各画布继续使用原有命令与序列化上下文。</summary>
+    public void CreateGUI()
     {
-        if (_timelineView.ConsumePendingRepaint())
-            Repaint();
+        _workspace = new ActionEditorWorkspaceView(rootVisualElement, DrawHeader, DrawLibrary,
+            DrawViewport, DrawInspector, DrawTimeline);
+        _workspace.SetLibraryVisible(_libraryVisible);
+        rootVisualElement.RegisterCallback<UnityEngine.UIElements.KeyDownEvent>(e =>
+        {
+            if (!(e.ctrlKey || e.commandKey) || e.keyCode != KeyCode.S || EditorGUIUtility.editingTextField) return;
+            if (_selectedAction != null) AssetDatabase.SaveAssetIfDirty(_selectedAction);
+            e.StopImmediatePropagation();
+        }, UnityEngine.UIElements.TrickleDown.TrickleDown);
+    }
 
+    void DrawHeader()
+    {
+        using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
+        {
+            bool visible = GUILayout.Toggle(_libraryVisible, "动作库", EditorStyles.toolbarButton, GUILayout.Width(55));
+            if (visible != _libraryVisible) { _libraryVisible = visible; _workspace.SetLibraryVisible(visible); }
+            if (_characterContext != null)
+            { if (GUILayout.Button(_characterContext.name, EditorStyles.toolbarButton, GUILayout.Width(150))) CharacterAuthoringWindow.Open(_characterContext); }
+            else GUILayout.Label("全部动作", GUILayout.Width(150));
+            GUILayout.Label(_selectedAction != null ? _selectedAction.name + (EditorUtility.IsDirty(_selectedAction) ? " *" : "") : "请选择动作", EditorStyles.boldLabel);
+            GUILayout.FlexibleSpace();
+            GUILayout.Label(new GUIContent(_ownerSummary ?? "", "当前动作的引用范围；详情见检查 / 来源"), EditorStyles.miniLabel);
+            using (new EditorGUI.DisabledScope(_selectedAction == null))
+            {
+                if (GUILayout.Button("位移烘焙", EditorStyles.toolbarButton, GUILayout.Width(70))) _inspectorTab = 3;
+                if (GUILayout.Button("校验当前动作", EditorStyles.toolbarButton, GUILayout.Width(95))) ValidateCurrentAction();
+                using (new EditorGUI.DisabledScope(_selectedAction == null || !EditorUtility.IsDirty(_selectedAction)))
+                    if (GUILayout.Button("保存动作", EditorStyles.toolbarButton, GUILayout.Width(65))) AssetDatabase.SaveAssetIfDirty(_selectedAction);
+            }
+        }
         DrawToolbar();
+    }
 
-        // 工具栏高度用实际 layout 后的剩余区域，避免硬编码 22 与真实高度错位。
-        Rect content = new(0f, 24f, position.width, Mathf.Max(0f, position.height - 24f));
-        ComputePanelRects(content, out Rect left, out Rect splitterL, out Rect center, out Rect splitterR, out Rect right);
-        HandleSplitterDrag(splitterL, splitterR);
+    void DrawLibrary(Rect rect)
+    {
+        var next = _listPanel.Draw(rect, _selectedAction, OpenCreateActionWindow);
+        if (next != _selectedAction) SelectAction(next);
+    }
 
-        Rect leftBody = ActionEditorStyles.DrawPanelChrome(left, "Actions", ActionEditorStyles.PanelLeft);
-        Rect centerBody = ActionEditorStyles.DrawPanelChrome(center, "Timeline", ActionEditorStyles.PanelCenter);
-        Rect rightBody = ActionEditorStyles.DrawPanelChrome(right, "Inspector", ActionEditorStyles.PanelRight);
-        ActionEditorStyles.DrawSplitter(splitterL);
-        ActionEditorStyles.DrawSplitter(splitterR);
-
-        ActionDefinition next = _listPanel.Draw(leftBody, _selectedAction, OpenCreateActionWindow);
-        if (next != _selectedAction)
-            SelectAction(next);
-
-        if (_selectedAction != null && _serializedObject != null)
+    void DrawTimeline(Rect rect)
+    {
+        if (_selectedAction == null || _serializedObject == null) { GUI.Label(rect, "从动作库选择或创建动作", EditorStyles.centeredGreyMiniLabel); return; }
+        _serializedObject.Update();
+        int previousFrame = _previewFrame;
+        var previousSelection = _selection.Primary;
+        if (_timelineView.Draw(rect, _serializedObject, _selectedAction, _selection, ref _previewFrame, ShowAddTrackMenu))
         {
-            _serializedObject.Update();
-            if (_timelineView.Draw(
-                    centerBody,
-                    _serializedObject,
-                    _selectedAction,
-                    _selection,
-                    ref _previewFrame,
-                    ShowAddTrackMenu))
-            {
-                _serializedObject.ApplyModifiedProperties();
-                EditorUtility.SetDirty(_selectedAction);
-            }
-
-            ActionNotifySelectionDrawer.Draw(rightBody, _serializedObject, _selection, _selectedAction, _previewCharacter);
+            _serializedObject.ApplyModifiedProperties();
         }
-        else
+        if (!_selection.Primary.Equals(previousSelection) && _selection.HasSelection) _inspectorTab = 0;
+        if (previousFrame != _previewFrame) { _isPlaying = false; _sfxPreview.Dispose(); }
+        if (_timelineView.ConsumePendingRepaint()) Repaint();
+    }
+
+    void DrawInspector(Rect rect)
+    {
+        _inspectorTab = GUI.Toolbar(new Rect(rect.x, rect.y, rect.width, 22), _inspectorTab, new[] { "选中项", "动作", "检查 / 来源", "位移烘焙" });
+        rect.yMin += 25;
+        if (_serializedObject == null) { GUI.Label(rect, "选择动作后编辑属性"); return; }
+        if (_inspectorTab == 3)
         {
-            GUI.Box(centerBody, "从左侧选择或创建 ActionDefinition");
-            GUILayout.BeginArea(rightBody);
-            EditorGUILayout.HelpBox("选中招式后可编辑窗口细节。", MessageType.Info);
+            GUILayout.BeginArea(rect);
+            _motionBakeScroll = EditorGUILayout.BeginScrollView(_motionBakeScroll);
+            if (_motionBakePanel.Draw(_selectedAction, _characterContext, () =>
+                { _isPlaying = false; _sfxPreview.Dispose(); _serializedObject.ApplyModifiedProperties(); }))
+            {
+                _serializedObject.Update();
+                _previewSession.SetAction(null);
+                _previewSession.SetAction(_selectedAction);
+                _hitboxWorldPreview.Clear();
+                _validationResult = null; _auditEntry = null;
+                _showTrajectory = true;
+                SceneView.RepaintAll(); Repaint();
+            }
+            EditorGUILayout.EndScrollView();
             GUILayout.EndArea();
+            return;
         }
-
-        if (_timelineView.ConsumePendingRepaint())
-            Repaint();
+        if (_inspectorTab < 2)
+        {
+            ActionNotifySelectionDrawer.Draw(rect, _serializedObject,
+                _inspectorTab == 0 ? _selection : _actionSettingsSelection, _selectedAction, _previewCharacter);
+            return;
+        }
+        GUILayout.BeginArea(rect);
+        _validationScroll = EditorGUILayout.BeginScrollView(_validationScroll);
+        _sourcePanel.Draw("当前动作", _selectedAction);
+        EditorGUILayout.LabelField("烘焙", _selectedAction.BakedMotion.IsReady ? $"{_selectedAction.BakedMotion.frameCount} 帧（来源检查见位移烘焙页）" : "未就绪");
+        if (GUILayout.Button("在 Inspector 定位当前资产")) { Selection.activeObject = _selectedAction; EditorGUIUtility.PingObject(_selectedAction); }
+        var tracks = _serializedObject.FindProperty("timeline.tracks");
+        if (tracks != null && tracks.arraySize == 0 && GUILayout.Button("根据已有窗口建立轨道"))
+        { Undo.RecordObject(_selectedAction, "Build Timeline Tracks"); ActionTimelineCommands.EnsureTracksFromWindows(_serializedObject); }
+        EditorGUILayout.HelpBox(_validationResult ?? "点击顶部校验按钮检查当前动作。校验不会修改资产。", MessageType.Info);
+        if (_auditEntry != null)
+            foreach (var issue in _auditEntry.Issues)
+            {
+                EditorGUILayout.HelpBox(issue.Code + "\n" + issue.Message,
+                    issue.Severity == ActionDefinitionAuditSeverity.Error ? MessageType.Error : MessageType.Warning);
+                if (GUILayout.Button("定位对应属性")) LocateIssue(issue.Message);
+            }
+        EditorGUILayout.EndScrollView();
+        GUILayout.EndArea();
     }
 
-    /// <summary>
-    /// 按可用宽度分配左/中/右，保证中栏最小宽度，避免右栏遮挡时间轴。
-    /// </summary>
-    void ComputePanelRects(
-        Rect content,
-        out Rect left,
-        out Rect splitterL,
-        out Rect center,
-        out Rect splitterR,
-        out Rect right)
+    void ValidateCurrentAction()
     {
-        float splitter = ActionEditorStyles.SplitterWidth;
-        float available = content.width - splitter * 2f;
-
-        float leftW = Mathf.Clamp(_leftWidth, ActionEditorStyles.MinLeftWidth, ActionEditorStyles.MaxLeftWidth);
-        float rightW = Mathf.Clamp(_rightWidth, ActionEditorStyles.MinRightWidth, ActionEditorStyles.MaxRightWidth);
-        float minCenter = ActionEditorStyles.MinCenterWidth;
-
-        // 空间不足时优先压缩左右，保住中栏。
-        if (leftW + rightW + minCenter > available)
+        _auditEntry = ActionDefinitionAuditUtility.Audit(_selectedAction);
+        void Collect(string message, string stack, LogType type)
         {
-            float overflow = leftW + rightW + minCenter - available;
-            float leftRoom = Mathf.Max(0f, leftW - ActionEditorStyles.MinLeftWidth);
-            float rightRoom = Mathf.Max(0f, rightW - ActionEditorStyles.MinRightWidth);
-            float room = leftRoom + rightRoom;
-            if (room > 0.01f)
-            {
-                leftW -= overflow * (leftRoom / room);
-                rightW -= overflow * (rightRoom / room);
-            }
-
-            leftW = Mathf.Max(ActionEditorStyles.MinLeftWidth, leftW);
-            rightW = Mathf.Max(ActionEditorStyles.MinRightWidth, rightW);
-            if (leftW + rightW + minCenter > available)
-            {
-                // 极端窄窗：再等比压缩到可用宽。
-                float side = Mathf.Max(0f, available - minCenter);
-                float sum = leftW + rightW;
-                if (sum > 0.01f)
-                {
-                    leftW = side * (leftW / sum);
-                    rightW = side * (rightW / sum);
-                }
-            }
+            if (type == LogType.Error || type == LogType.Warning)
+                _auditEntry.AddIssue(type == LogType.Error ? ActionDefinitionAuditSeverity.Error : ActionDefinitionAuditSeverity.Warning,
+                    "ACTION_CONTENT", message);
         }
-
-        float centerW = Mathf.Max(minCenter, available - leftW - rightW);
-        // 若仍溢出（窗口极窄），以实际剩余为准，允许中栏暂时小于理想最小值。
-        if (leftW + rightW + centerW > available)
-            centerW = Mathf.Max(40f, available - leftW - rightW);
-
-        left = new Rect(content.x, content.y, leftW, content.height);
-        splitterL = new Rect(left.xMax, content.y, splitter, content.height);
-        center = new Rect(splitterL.xMax, content.y, centerW, content.height);
-        splitterR = new Rect(center.xMax, content.y, splitter, content.height);
-        right = new Rect(splitterR.xMax, content.y, rightW, content.height);
-
-        _leftWidth = leftW;
-        _rightWidth = rightW;
+        Application.logMessageReceived += Collect;
+        try { _selectedAction.ValidateContent(_selectedAction); }
+        finally { Application.logMessageReceived -= Collect; }
+        _validationResult = $"上次校验：{(_auditEntry.HasError ? "未通过" : "通过")} · {_auditEntry.Issues.Count} 条提示";
+        _inspectorTab = 2;
     }
 
-    /// <summary>处理左右分隔条拖拽，写回宽度并持久化。</summary>
-    void HandleSplitterDrag(Rect splitterL, Rect splitterR)
+    void LocateIssue(string message)
     {
-        Event evt = Event.current;
-        int leftId = GUIUtility.GetControlID(FocusType.Passive);
-        int rightId = GUIUtility.GetControlID(FocusType.Passive);
-
-        switch (evt.type)
+        foreach (ActionTimelineTrackKind kind in System.Enum.GetValues(typeof(ActionTimelineTrackKind)))
         {
-            case EventType.MouseDown when evt.button == 0:
-                if (splitterL.Contains(evt.mousePosition))
-                {
-                    _splitterDrag = 1;
-                    _splitterDragStartX = evt.mousePosition.x;
-                    _splitterDragStartWidth = _leftWidth;
-                    GUIUtility.hotControl = leftId;
-                    evt.Use();
-                }
-                else if (splitterR.Contains(evt.mousePosition))
-                {
-                    _splitterDrag = 2;
-                    _splitterDragStartX = evt.mousePosition.x;
-                    _splitterDragStartWidth = _rightWidth;
-                    GUIUtility.hotControl = rightId;
-                    evt.Use();
-                }
+            string name = ActionTimelineCommands.GetArrayPropertyName(kind);
+            if (name == null) continue;
+            var array = _serializedObject.FindProperty("timeline." + name);
+            for (int i = 0; array != null && i < array.arraySize; i++)
+            {
+                var item = array.GetArrayElementAtIndex(i);
+                string id = item.FindPropertyRelative("id")?.stringValue;
+                if (id == null || !message.Contains("'" + id + "'") || !message.Contains(item.type)) continue;
+                _selection.Set(new ActionEditorSelection(array, i, kind));
+                _previewFrame = Mathf.Clamp(item.FindPropertyRelative("startFrame").intValue, 0, Mathf.Max(0, _selectedAction.TotalFrames - 1));
+                _isPlaying = false; _inspectorTab = 0; Repaint(); return;
+            }
+        }
+        _inspectorTab = 1;
+    }
 
-                break;
+    void DrawViewport(Rect rect)
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            GUI.Label(rect, "Play 模式已暂停编辑器预览；返回 Edit Mode 后恢复。", EditorStyles.centeredGreyMiniLabel);
+            return;
+        }
+        GUILayout.BeginArea(new Rect(rect.x, rect.y, rect.width, 25));
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            if (GUILayout.Button(_useScenePreview ? "场景模式" : "隔离模式", EditorStyles.miniButton, GUILayout.Width(70)))
+            { if (_useScenePreview) UseIsolatedPreview(); else UseScenePreview(_scenePreviewCharacter); }
+            if (_useScenePreview)
+            {
+                var target = (Transform)EditorGUILayout.ObjectField(_scenePreviewCharacter, typeof(Transform), true);
+                if (target != _scenePreviewCharacter && (target == null || !EditorUtility.IsPersistent(target))) UseScenePreview(target);
+            }
+            else
+            {
+                var prefab = (GameObject)EditorGUILayout.ObjectField(_previewPrefab, typeof(GameObject), false);
+                if (prefab != _previewPrefab) { _previewPrefab = prefab; BindIsolatedPreview(); }
+            }
+        }
+        GUILayout.EndArea();
+        rect.yMin += 26;
+        GUILayout.BeginArea(new Rect(rect.x + 5, rect.y, rect.width - 10, 23));
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            _showHitboxes = GUILayout.Toggle(_showHitboxes, "命中框", EditorStyles.miniButton, GUILayout.Width(55));
+            _showTrajectory = GUILayout.Toggle(_showTrajectory, "轨迹", EditorStyles.miniButton, GUILayout.Width(45));
+            _sfxPreview.Draw(_selection);
+        }
+        GUILayout.EndArea();
+        rect.yMin += 24;
+        _viewport.Draw(rect, _useScenePreview, _scenePreviewCharacter, _ => DrawPreviewGizmos());
+        if (!_useScenePreview && _previewCharacter != null && _showTrajectory
+            && _selectedAction != null && _selectedAction.BakedMotion is { IsReady: true } baked)
+        {
+            // 固定图例属于 GUI，不能混入 RenderTexture 的 Handles.Label 绘制。
+            GUI.Label(new Rect(rect.x + 140, rect.y + 6, Mathf.Max(1, rect.width - 148), 22),
+                $"轨迹：橙 = 原始  青 = Gameplay ({baked.planarMode})  紫 = 残差", EditorStyles.miniLabel);
+        }
+        if (Event.current.type == EventType.Used) Repaint();
+    }
 
-            case EventType.MouseDrag when _splitterDrag != 0:
-                float delta = evt.mousePosition.x - _splitterDragStartX;
-                if (_splitterDrag == 1)
-                {
-                    _leftWidth = Mathf.Clamp(
-                        _splitterDragStartWidth + delta,
-                        ActionEditorStyles.MinLeftWidth,
-                        ActionEditorStyles.MaxLeftWidth);
-                }
-                else
-                {
-                    // 右分隔条：向右拖应减小右栏宽度。
-                    _rightWidth = Mathf.Clamp(
-                        _splitterDragStartWidth - delta,
-                        ActionEditorStyles.MinRightWidth,
-                        ActionEditorStyles.MaxRightWidth);
-                }
-
-                Repaint();
-                evt.Use();
-                break;
-
-            case EventType.MouseUp when _splitterDrag != 0:
-                _splitterDrag = 0;
-                GUIUtility.hotControl = 0;
-                EditorPrefs.SetFloat(LeftWidthPrefKey, _leftWidth);
-                EditorPrefs.SetFloat(RightWidthPrefKey, _rightWidth);
-                evt.Use();
-                break;
+    void OnPlayModeChanged(PlayModeStateChange state)
+    {
+        if (state == PlayModeStateChange.ExitingEditMode)
+        {
+            _isPlaying = false;
+            _previewSession?.SetPreviewCharacter(null);
+            _sfxPreview.Dispose();
+            _previewCharacter = null;
+            _viewport.Dispose();
+        }
+        else if (state == PlayModeStateChange.EnteredEditMode)
+        {
+            if (_useScenePreview) UseScenePreview(_scenePreviewCharacter);
+            else BindIsolatedPreview();
+            SelectAction(_selectedAction);
         }
     }
 
     void DrawToolbar()
     {
-        _toolbar.Draw(
-            _selectedAction,
-            _previewCharacter,
-            ref _previewFrame,
-            ref _isPlaying,
-            ref _loop,
-            _characterContext,
-            UseScenePreview,
-            UseIsolatedPreview);
-
-        if (_previewCharacter != null)
-            SavePreviewCharacter();
+        bool wasPlaying = _isPlaying;
+        int previous = _previewFrame;
+        bool stopped = _toolbar.Draw(_selectedAction, ref _previewFrame, ref _isPlaying, ref _loop, ref _previewSpeed);
+        if (stopped || (wasPlaying && !_isPlaying) || previous != _previewFrame) _sfxPreview.Dispose();
+        if (_characterContext != null && Event.current.type == EventType.Repaint) SavePreviewCharacter();
     }
 
     void ShowAddTrackMenu()
@@ -340,7 +380,7 @@ public sealed class ActionEditorWindow : EditorWindow
             SelectAction(created);
             Focus();
             Repaint();
-        });
+        }, _previewPrefab);
     }
 
     void SelectAction(ActionDefinition action)
@@ -348,9 +388,13 @@ public sealed class ActionEditorWindow : EditorWindow
         _selectedAction = action;
         _selection.Clear();
         _isPlaying = false;
+        _serializedObject?.Dispose();
         _serializedObject = action != null ? new SerializedObject(action) : null;
-        if (_serializedObject != null)
-            ActionTimelineCommands.EnsureTracksFromWindows(_serializedObject);
+        _validationResult = null; _auditEntry = null;
+        _sfxPreview.Dispose();
+        _sourcePanel.Invalidate();
+        var owners = action != null ? CharacterAuthoringService.FindOwners(action) : null;
+        _ownerSummary = owners != null && owners.Count > 1 ? $"共享 · 影响 {owners.Count} 个配置" : "";
         _previewFrame = 0;
         _hitboxWorldPreview.Clear();
         _previewSession?.SetAction(action);
@@ -359,10 +403,13 @@ public sealed class ActionEditorWindow : EditorWindow
 
     void OnEditorUpdate()
     {
+        if (ActionAnimationPickerPanel.PreviewOwner != null)
+        { _isPlaying = false; _lastPlayTime = 0; return; }
+        if (EditorApplication.isPlayingOrWillChangePlaymode) return;
         if (_isPlaying && _selectedAction != null)
         {
             double now = EditorApplication.timeSinceStartup;
-            float step = 1f / _selectedAction.SampleRate;
+            float step = 1f / (Mathf.Max(1, _selectedAction.SampleRate) * Mathf.Max(.1f, _previewSpeed));
             if (_lastPlayTime <= 0d)
                 _lastPlayTime = now;
 
@@ -405,6 +452,13 @@ public sealed class ActionEditorWindow : EditorWindow
 
     void OnSceneGUI(SceneView sceneView)
     {
+        if (!_useScenePreview) return;
+        DrawPreviewGizmos();
+        _cameraShotPreviewExtension?.DrawSceneGUI(sceneView);
+    }
+
+    void DrawPreviewGizmos()
+    {
         if (_selectedAction == null || _previewCharacter == null)
             return;
 
@@ -418,18 +472,18 @@ public sealed class ActionEditorWindow : EditorWindow
             trajectoryRotation = originRot;
         }
 
-        ActionMotionTrajectorySceneDrawing.DrawBakedTrajectories(
+        if (_showTrajectory) ActionMotionTrajectorySceneDrawing.DrawBakedTrajectories(
             _selectedAction,
             trajectoryOrigin,
             trajectoryRotation,
-            _previewFrame);
+            _previewFrame, drawLabel: _useScenePreview);
 
         // Hitbox：仅在窗口激活时绘制；ParentToAttachPoint=false 时按 StartFrame 冻结世界盒
         ActionFrameQueryResult frameQuery =
             ActionFrameQuery.Query(_selectedAction, _previewFrame);
         HitboxNotifyState[] hitboxes = _selectedAction.HitboxStates;
         _hitboxWorldPreview.PruneInactive(hitboxes, _previewFrame);
-        for (int i = 0; i < hitboxes.Length; i++)
+        for (int i = 0; _showHitboxes && i < hitboxes.Length; i++)
         {
             HitboxNotifyState hitbox = hitboxes[i];
             if (hitbox == null || !frameQuery.IsStateActive(hitbox))
@@ -460,8 +514,7 @@ public sealed class ActionEditorWindow : EditorWindow
         }
 
         // 选中 MotionModifier 时：假敌球 + TargetAdhesion 修正轨迹 / 角色落点预览
-        DrawMotionModifierScenePreview(trajectoryOrigin, trajectoryRotation);
-        _cameraShotPreviewExtension?.DrawSceneGUI(sceneView);
+        if (_useScenePreview) DrawMotionModifierScenePreview(trajectoryOrigin, trajectoryRotation);
     }
 
     /// <summary>
@@ -543,7 +596,9 @@ public sealed class ActionEditorWindow : EditorWindow
             || UnityEditor.SceneManagement.EditorSceneManager.IsPreviewSceneObject(target.gameObject)))
             throw new System.ArgumentException("请选择 Hierarchy 中的场景模型。");
         _isPlaying = false;
+        _sfxPreview.Dispose();
         _previewSession?.SetPreviewCharacter(target);
+        _viewport.Dispose();
         _useScenePreview = true;
         _scenePreviewCharacter = target;
         _previewCharacter = target;
@@ -554,11 +609,40 @@ public sealed class ActionEditorWindow : EditorWindow
     public void UseIsolatedPreview()
     {
         _isPlaying = false;
+        _sfxPreview.Dispose();
         _previewSession?.SetPreviewCharacter(null);
         _useScenePreview = false;
         _scenePreviewCharacter = null;
-        _previewCharacter = CharacterAuthoringPreviewWindow.Bind(_characterContext);
+        _previewPrefab = _characterContext != null ? _characterContext.ModelPrefab : _previewPrefab;
+        BindIsolatedPreview();
+    }
+
+    void BindIsolatedPreview()
+    {
+        _isPlaying = false;
+        _sfxPreview.Dispose();
+        _previewSession?.SetPreviewCharacter(null);
+        _previewCharacter = _viewport.Bind(_previewPrefab,
+            _characterContext != null ? _characterContext.ModelLocalPosition : Vector3.zero,
+            _characterContext != null ? _characterContext.ModelLocalRotation : Quaternion.identity);
         _previewSession?.SetPreviewCharacter(_previewCharacter);
+        Repaint();
+    }
+
+    void OnUndoRedo()
+    {
+        _serializedObject?.Update();
+        var restored = new ActionEditorSelectionSet();
+        foreach (var selected in _selection.Items)
+        {
+            string arrayName = selected.Kind == ActionTimelineTrackKind.Animation ? "animationSegments"
+                : "timeline." + ActionTimelineCommands.GetArrayPropertyName(selected.Kind);
+            var array = _serializedObject?.FindProperty(arrayName);
+            if (array != null && selected.Index >= 0 && selected.Index < array.arraySize)
+                restored.Toggle(new ActionEditorSelection(array, selected.Index, selected.Kind));
+        }
+        _selection.ReplaceWith(restored);
+        _validationResult = null; _auditEntry = null;
         Repaint();
     }
 
@@ -573,9 +657,9 @@ public sealed class ActionEditorWindow : EditorWindow
     /// <summary>脚本重载后恢复作者选择的场景或隔离预览，并重建动作序列化上下文。</summary>
     void RestoreCharacterContext()
     {
-        if (this == null || _characterContext == null) return;
+        if (this == null || EditorApplication.isPlayingOrWillChangePlaymode) return;
         if (_useScenePreview) UseScenePreview(_scenePreviewCharacter);
-        else UseIsolatedPreview();
+        else BindIsolatedPreview();
         SelectAction(_selectedAction);
         Repaint();
     }

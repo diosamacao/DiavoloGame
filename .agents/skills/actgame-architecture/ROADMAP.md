@@ -1,4 +1,4 @@
-# ACTGame 设计方向与重构路线图
+﻿# ACTGame 设计方向与重构路线图
 
 > 优先级：P0 阻塞体验 → P1 架构健康 → P2 扩展预备  
 > **一页总清单：** [`docs/PROJECT_CHECKLIST.md`](../../../docs/PROJECT_CHECKLIST.md)（进度摘要；细节仍以本文 + MASTER + TECHNICAL 为准）
@@ -328,3 +328,8 @@
 
 
 2026-09-29：[x] ActionEditor 场景模型选择回归修复，角色上下文支持场景/隔离显式切换，定向 89/89 通过。
+
+- [ ] ActionEditor 借鉴 CwcMontage 的编辑体验重构（2026-09-29，代码已落地、完整人工体验验收待核对）：统一工作区、内嵌隔离预览并保留场景模型、整数帧磁吸、属性与校验闭环；AE-CM1～5。方案：[ACTION_EDITOR_CWCMONTAGE_ALIGNMENT_PLAN.md](../../../docs/2026.9.29/ACTION_EDITOR_CWCMONTAGE_ALIGNMENT_PLAN.md)。运行时分层与分段变速不在本轮范围。
+
+
+2026-09-29：AE-CM1～4 代码已实现，AE-CM5 自动回归与结构/内容审计已执行；独立预览窗口/旧布局已删除。尚不能把 1280/1920 自动布局检查、定向 EditMode 和 UI 冒烟等同于全部实战/听感/联机验收。证据与剩余项：`docs/2026.9.29/ACTION_EDITOR_CWCMONTAGE_ALIGNMENT_REPORT.md`。

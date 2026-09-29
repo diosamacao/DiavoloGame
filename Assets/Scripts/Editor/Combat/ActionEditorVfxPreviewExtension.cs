@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -152,9 +152,8 @@ public sealed class ActionEditorVfxPreviewExtension : IActionEditorPreviewExtens
         DestroySlot(index);
 
         // 世界空间预览：不要挂到角色下，否则会被动跟着动
-        GameObject instance = parentToAttach
-            ? PrefabUtility.InstantiatePrefab(prefab, anchor) as GameObject
-            : PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+        GameObject instance = PrefabUtility.InstantiatePrefab(prefab, anchor.gameObject.scene) as GameObject;
+        if (instance != null && parentToAttach) instance.transform.SetParent(anchor, false);
         if (instance == null)
             return null;
 

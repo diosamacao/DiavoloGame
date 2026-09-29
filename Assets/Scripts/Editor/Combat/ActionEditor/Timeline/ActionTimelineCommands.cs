@@ -1,4 +1,4 @@
-using UnityEditor;
+﻿using UnityEditor;
 using UnityEngine;
 
 /// <summary>时间轴增删改命令；全部经 Undo + SerializedProperty 写回。</summary>
@@ -196,7 +196,11 @@ public static class ActionTimelineCommands
             }
         }
 
-        so.ApplyModifiedProperties();
+        if (byKind.ContainsKey(ActionTimelineTrackKind.Animation))
+        {
+            if (!ActionAnimationSegmentCommands.ApplyPending(so, out string error)) { Debug.LogWarning(error); return; }
+        }
+        else so.ApplyModifiedProperties();
         EditorUtility.SetDirty(so.targetObject);
     }
 
@@ -407,7 +411,11 @@ public static class ActionTimelineCommands
             : "Remove Action Window";
         Undo.RecordObject(so.targetObject, undoName);
         selection.ArrayProperty.DeleteArrayElementAtIndex(selection.Index);
-        so.ApplyModifiedProperties();
+        if (selection.Kind == ActionTimelineTrackKind.Animation)
+        {
+            if (!ActionAnimationSegmentCommands.ApplyPending(so, out string error)) { Debug.LogWarning(error); return; }
+        }
+        else so.ApplyModifiedProperties();
         EditorUtility.SetDirty(so.targetObject);
     }
 

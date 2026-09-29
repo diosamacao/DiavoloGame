@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6d043f51eb824084bb285c2b67ad61d0, type: 3}
   m_Name: Vivian_Config
   m_EditorClassIdentifier: 
-  modelPrefab: {fileID: 919132149155446097, guid: 7f6f3a00143336649bba2def9fc2e8c5, type: 3}
+  modelPrefab: {fileID: 919132149155446097, guid: 249c756da1a42fd4e8ddb9541eee5549, type: 3}
   modelLocalPosition: {x: 0, y: 0, z: 0}
   modelLocalEulerAngles: {x: 0, y: 0, z: 0}
   motor:

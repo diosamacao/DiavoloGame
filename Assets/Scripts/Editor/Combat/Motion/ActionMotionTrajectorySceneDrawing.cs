@@ -24,11 +24,13 @@ public static class ActionMotionTrajectorySceneDrawing
     /// Action Editor 预览会挪动角色根时，必须传入预览原点而非当前 Transform。
     /// </summary>
     /// <param name="previewFrame">≥0 时在 Full/Gameplay 路径上标出该帧累计落点。</param>
+    /// <param name="drawLabel">离屏预览传 false，文字由视口的 GUI 层绘制。</param>
     public static void DrawBakedTrajectories(
         ActionDefinition action,
         Vector3 originPosition,
         Quaternion originRotation,
-        int previewFrame = -1)
+        int previewFrame = -1,
+        bool drawLabel = true)
     {
         if (action == null)
             return;
@@ -44,10 +46,12 @@ public static class ActionMotionTrajectorySceneDrawing
         if (previewFrame >= 0)
             DrawPreviewFrameMarkers(originPosition, originRotation, baked, previewFrame);
 
-        Handles.color = Color.white;
-        Handles.Label(
-            originPosition + Vector3.up * 0.05f,
-            $"{action.name}\nOrange=Full  Cyan=Gameplay({baked.planarMode})  Magenta=Residual");
+        if (drawLabel)
+        {
+            Handles.color = Color.white;
+            Handles.Label(originPosition + Vector3.up * 0.05f,
+                $"{action.name}\nOrange=Full  Cyan=Gameplay({baked.planarMode})  Magenta=Residual");
+        }
     }
 
     /// <summary>

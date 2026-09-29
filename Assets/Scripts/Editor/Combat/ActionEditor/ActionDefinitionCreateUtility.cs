@@ -84,13 +84,16 @@ public static class ActionDefinitionCreateUtility
 
     /// <summary>
     /// 创建新招式资产；fileFolder 应为已解析的 ActionDefinition 目录。
-    /// 仅新建文件，不修改已有 .asset。首段写入 animationSegments[0]。
+    /// 仅新建文件，不修改已有 .asset。按清单顺序写入全部 animationSegments。
     /// </summary>
     public static ActionDefinition Create(
         string fileName,
-        AnimationClip animationClip,
+        System.Collections.Generic.IReadOnlyList<AnimationClip> clips,
         string folder)
     {
+        if (clips == null) throw new System.ArgumentNullException(nameof(clips));
+        foreach (var clip in clips)
+            if (clip == null) throw new System.ArgumentException("动画段不能包含空 Clip。", nameof(clips));
         if (string.IsNullOrWhiteSpace(fileName))
         {
             EditorUtility.DisplayDialog("Create Action", "文件名不能为空。", "OK");
@@ -110,28 +113,8 @@ public static class ActionDefinitionCreateUtility
         var action = ScriptableObject.CreateInstance<ActionDefinition>();
         AssetDatabase.CreateAsset(action, assetPath);
 
-        var so = new SerializedObject(action);
-        SerializedProperty segmentsProp = so.FindProperty("animationSegments");
-        if (animationClip != null && segmentsProp != null)
-        {
-            segmentsProp.arraySize = 1;
-            SerializedProperty element = segmentsProp.GetArrayElementAtIndex(0);
-            element.FindPropertyRelative("clip").objectReferenceValue = animationClip;
-            element.FindPropertyRelative("startFrame").intValue = 0;
-            element.FindPropertyRelative("endFrame").intValue = -1;
-            element.FindPropertyRelative("crossFadeDuration").floatValue = 0f;
-
-            int sampleRate = ActionSim.LogicHz;
-            so.FindProperty("totalFrames").intValue =
-                Mathf.Max(1, Mathf.RoundToInt(animationClip.length * sampleRate));
-        }
-        else if (segmentsProp != null)
-        {
-            segmentsProp.arraySize = 0;
-            so.FindProperty("totalFrames").intValue = 1;
-        }
-
-        so.ApplyModifiedPropertiesWithoutUndo();
+        using var so = new SerializedObject(action);
+        ActionAnimationSegmentCommands.InitializeDraft(so, clips);
         EditorUtility.SetDirty(action);
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();

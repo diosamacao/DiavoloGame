@@ -51,6 +51,7 @@ public sealed class ActionEditorPreviewSession : IDisposable
 
         EndExtensionsIfNeeded();
         RestoreBakedMotionPreview();
+        ActionEditorAnimationSampler.EndSession();
         _action = action;
         InvalidateSampleCache();
     }
@@ -188,6 +189,12 @@ public sealed class ActionEditorPreviewSession : IDisposable
     /// <summary>每 Editor 帧调用：采样动画 Pose，再驱动扩展预览（VFX 等）。</summary>
     public void Tick()
     {
+        // 选片预览占用 AnimationMode 时，原窗口保留帧与目标，退出后重新采样。
+        if (ActionAnimationPickerPanel.PreviewOwner != null && ActionAnimationPickerPanel.PreviewOwner != _owner)
+        {
+            if (s_globalActive == this) { EndPreviewState(); s_globalActive = null; }
+            return;
+        }
         // Play 模式不跑 Editor 预览，避免和运行时动画抢 Graph
         if (EditorApplication.isPlayingOrWillChangePlaymode)
         {

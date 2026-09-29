@@ -1,4 +1,4 @@
-# ACTGame 编码规范
+﻿# ACTGame 编码规范
 
 > 从现有代码归纳；随项目演进由 actgame-architecture skill 维护。
 
@@ -365,3 +365,11 @@ App/Server/                      # Dedicated 独立运行时（ACTGame.Server）
 
 
 2026-09-29：角色工作台上下文只约束动作范围，不能禁用作者手动选择场景模型；切换预览目标通过 ActionEditorPreviewSession 恢复旧目标采样状态，不能只替换 Transform 字段。
+
+
+### 动作作者界面约定（2026-09-29）
+
+- UI Toolkit 负责分栏，原 IMGUI 时间轴/字段共用同一 SerializedObject 与命令；不建立双编辑器。
+- 预览模型仅修改临时实例或 AnimationMode 采样目标；Prefab 选择不写回角色配置，退出必须结束会话再销毁资源。
+- 源动画总长变化先执行整体边界检查，拒绝静默压缩战斗窗；示例 `ActionAnimationSegmentCommands.Trim/ApplyPending`。
+- 选择、折叠、拖帧均为只读操作；保存仅 `AssetDatabase.SaveAssetIfDirty(currentAction)`，不借关闭窗口保存全项目。

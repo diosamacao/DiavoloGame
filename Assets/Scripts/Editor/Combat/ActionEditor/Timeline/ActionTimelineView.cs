@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
@@ -11,6 +11,8 @@ public sealed class ActionTimelineView
         Move,
         ResizeStart,
         ResizeEnd,
+        TrimStart,
+        TrimEnd,
         Scrub,
         /// <summary>拖动 Animation 轨片段以调整 animationSegments 数组顺序。</summary>
         ReorderAnimation,
@@ -64,6 +66,15 @@ public sealed class ActionTimelineView
     /// <summary>轨道内容总宽（帧区），与横向滚动范围对应。</summary>
     float _contentLaneWidth = 1f;
     bool _pendingRepaint;
+    bool _snap = true;
+    bool _clipDropActive;
+    int _snapFrame = -1;
+    int _undoGroup = -1;
+    int _lastVisiblePlayhead = -1;
+    int _trimStart, _trimEnd, _trimGlobalStart, _trimGlobalEnd;
+    string _editMessage;
+    readonly List<(int frame, int priority)> _snapCandidates = new();
+
 
     ActionEditorSelection _pendingSelection;
     bool _hasPendingSelection;
@@ -131,6 +142,8 @@ public sealed class ActionTimelineView
             + visibleLaneCount * (ActionEditorStyles.TrackHeight + 2f)
             + 80f;
 
+        ActionTimelineSnapping.Collect(so, action, _dragMode == DragMode.Scrub ? null : selection,
+            _dragMode == DragMode.Scrub ? -1 : previewFrame, _snapCandidates);
         // 顶栏：帧数 + Zoom + Add Track（动画段在默认 Animation 轨上展示）。
         const float topBarHeight = 22f;
         const float addTrackWidth = 90f;
@@ -149,6 +162,9 @@ public sealed class ActionTimelineView
             $"{totalFrames} frames",
             EditorStyles.miniLabel);
 
+        _snap = GUI.Toggle(new Rect(topBarRect.x + 95, topBarRect.y + 1, 120, 20), _snap, new GUIContent("磁吸 / Alt 暂停", "8px 容差；全部操作落在整数帧"), EditorStyles.miniButton);
+        if (GUI.Button(new Rect(topBarRect.x + 220, topBarRect.y + 1, 60, 20), "全长")) { _zoom = 1; _scroll.x = 0; }
+        if (GUI.Button(new Rect(topBarRect.x + 285, topBarRect.y + 1, 60, 20), "聚焦")) FocusSelection(selection, totalFrames, rect.width);
         GUI.Label(zoomLabelRect, new GUIContent("Zoom", "Ctrl/Cmd + 滚轮亦可缩放"), EditorStyles.miniLabel);
         EditorGUI.BeginChangeCheck();
         _zoom = GUI.HorizontalSlider(
@@ -182,7 +198,7 @@ public sealed class ActionTimelineView
         _viewportLaneWidth = fitLaneWidth;
         _contentLaneWidth = contentLaneWidth;
         // Scrub / 播放 / 工具栏改帧后，playhead 超出 Zoom 可视区时自动平移视图。
-        EnsurePlayheadVisible(previewFrame);
+        if (_lastVisiblePlayhead != previewFrame) { EnsurePlayheadVisible(previewFrame); _lastVisiblePlayhead = previewFrame; }
 
         _scroll = GUI.BeginScrollView(
             bodyRect,
@@ -245,6 +261,8 @@ public sealed class ActionTimelineView
         if (ProcessActiveAnimationReorder(so, action, selection, ref changed))
             changed = true;
 
+        if (ProcessAnimationTrim(so, totalFrames)) changed = true;
+
         if (ProcessActiveWindowDrag(so, totalFrames, selection, ref changed))
             changed = true;
 
@@ -252,15 +270,23 @@ public sealed class ActionTimelineView
             changed = true;
 
         float playheadX = ActionEditorStyles.TrackHeaderWidth + previewFrame * _pixelsPerFrame;
-        Handles.BeginGUI();
-        Handles.color = ActionEditorStyles.Playhead;
-        Handles.DrawLine(new Vector3(playheadX, 0f), new Vector3(playheadX, contentHeight));
-        Handles.EndGUI();
+        EditorGUI.DrawRect(new Rect(playheadX, 0, 2, contentHeight), ActionEditorStyles.Playhead);
 
         if (_dragMode == DragMode.Marquee)
             DrawMarqueeOverlay();
 
+        if (_snapFrame >= 0 && _dragMode != DragMode.None)
+        {
+            float guide = GetSnapGuideX();
+            EditorGUI.DrawRect(new Rect(guide, 0, 1, contentHeight), new Color(.3f, .85f, 1));
+            int original = _dragMode == DragMode.TrimEnd ? _trimGlobalEnd
+                : _dragMode == DragMode.TrimStart ? _trimGlobalStart
+                : _dragMode == DragMode.ResizeEnd ? _dragOriginalEnd : _dragOriginalStart;
+            GUI.Label(new Rect(guide + 5, _scroll.y + 22, 250, 22), $"{_snapFrame}f · Δ {_snapFrame - original:+0;-0;0}", EditorStyles.helpBox);
+        }
         GUI.EndScrollView();
+        if (!string.IsNullOrEmpty(_editMessage))
+            GUI.Label(new Rect(rect.x + 5, rect.yMax - 38, rect.width - 10, 36), _editMessage, EditorStyles.helpBox);
         HandleEditHotkeys(so, action, selection, previewFrame, ref changed);
         return changed;
     }
@@ -342,6 +368,7 @@ public sealed class ActionTimelineView
                 ref changed);
         }
 
+        HandleClipDrop(laneRect, so, action, selection, ref changed);
         if (_dragMode == DragMode.ReorderAnimation && _reorderDragActivated)
             DrawAnimationReorderGhost(laneRect, segmentsProp, sampleRate, evt.mousePosition.x);
 
@@ -409,6 +436,9 @@ public sealed class ActionTimelineView
         string label = clip != null ? clip.name : $"Segment {itemSelection.Index}";
         GUI.Label(clipRect, label, EditorStyles.miniLabel);
         EditorGUIUtility.AddCursorRect(clipRect, MouseCursor.MoveArrow);
+        float edge = Mathf.Min(7, clipRect.width * .25f);
+        EditorGUIUtility.AddCursorRect(new Rect(clipRect.x, clipRect.y, edge, clipRect.height), MouseCursor.ResizeHorizontal);
+        EditorGUIUtility.AddCursorRect(new Rect(clipRect.xMax - edge, clipRect.y, edge, clipRect.height), MouseCursor.ResizeHorizontal);
 
         Event evt = Event.current;
         if (evt.type != EventType.MouseDown || evt.button != 0 || !clipRect.Contains(evt.mousePosition))
@@ -418,7 +448,16 @@ public sealed class ActionTimelineView
             return;
 
         selection.Set(itemSelection);
-        _dragMode = DragMode.ReorderAnimation;
+        _dragMode = evt.mousePosition.x <= clipRect.x + edge ? DragMode.TrimStart
+            : evt.mousePosition.x >= clipRect.xMax - edge ? DragMode.TrimEnd : DragMode.ReorderAnimation;
+        _dragStartFrame = Mathf.RoundToInt((evt.mousePosition.x - laneRect.x) / _pixelsPerFrame);
+        _trimGlobalStart = globalStart; _trimGlobalEnd = globalEnd;
+        int last = clip != null ? Mathf.Max(0, Mathf.RoundToInt(clip.length * ActionSim.LogicHz) - 1) : 0;
+        _dragOriginalStart = Mathf.Clamp(element.FindPropertyRelative("startFrame").intValue, 0, last);
+        int rawEnd = element.FindPropertyRelative("endFrame").intValue;
+        _dragOriginalEnd = rawEnd < 0 ? last : Mathf.Clamp(rawEnd, _dragOriginalStart, last);
+        _trimStart = _dragOriginalStart; _trimEnd = _dragOriginalEnd;
+        _editMessage = null;
         _dragKind = ActionTimelineTrackKind.Animation;
         _dragIndex = itemSelection.Index;
         _reorderMouseDownPos = evt.mousePosition;
@@ -516,6 +555,7 @@ public sealed class ActionTimelineView
 
                 if (targetIndex != _dragIndex)
                 {
+                    BeginUndoGesture("Reorder Animation Segments");
                     ActionEditorSelection reordered =
                         ActionTimelineCommands.ReorderAnimationSegment(so, _dragIndex, targetIndex);
                     if (reordered.IsValid)
@@ -1048,6 +1088,9 @@ public sealed class ActionTimelineView
         if (selection.Count > 1)
             _dragMode = DragMode.Move;
 
+        if (_dragMode == DragMode.ResizeEnd)
+            _dragStartFrame = FrameAtX(evt.mousePosition.x, totalFrames + 1);
+
         changed = true;
         evt.Use();
         return true;
@@ -1158,6 +1201,8 @@ public sealed class ActionTimelineView
         if (_dragMode is DragMode.None
             or DragMode.Scrub
             or DragMode.ReorderAnimation
+            or DragMode.TrimStart
+            or DragMode.TrimEnd
             or DragMode.ReorderTrack
             or DragMode.Marquee
             || _dragIndex < 0)
@@ -1173,14 +1218,29 @@ public sealed class ActionTimelineView
             return false;
         }
 
-        int frame = FrameAtX(evt.mousePosition.x, totalFrames);
+        // 释放只结束手势；单击选中不能重新磁吸到邻近帧，Ignore 也不能写数据。
+        if (evt.type is EventType.MouseUp or EventType.Ignore)
+        {
+            EndWindowDrag();
+            evt.Use();
+            return false;
+        }
+
+        // 右边缘允许落到 TotalFrames 边界，才能覆盖动作的最后一帧。
+        int frame = FrameAtX(evt.mousePosition.x, totalFrames + (_dragMode == DragMode.ResizeEnd ? 1 : 0));
         int delta = frame - _dragStartFrame;
 
-        Undo.RecordObject(so.targetObject, "Edit Action Window");
+        int originalEdge = _dragMode == DragMode.ResizeEnd ? _dragOriginalEnd : _dragOriginalStart;
+        delta = Snap(originalEdge + delta, totalFrames) - originalEdge;
+        BeginUndoGesture("Edit Action Windows");
+        Undo.RecordObject(so.targetObject, "Edit Action Windows");
 
         if (_dragMode == DragMode.Move && _dragGroupOriginals.Count > 1)
         {
-            // 多选平移：各组从各自原始帧施加同一 delta。
+            int earliest = int.MaxValue, latest = int.MinValue;
+            foreach (var item in _dragGroupOriginals) { earliest = Mathf.Min(earliest, item.Start); latest = Mathf.Max(latest, item.End); }
+            delta = ActionTimelineSnapping.ClampGroupDelta(delta, earliest, latest, totalFrames);
+            // 整体夹紧后施加相同偏移，不能逐窗压缩间距。
             for (int i = 0; i < _dragGroupOriginals.Count; i++)
             {
                 DragWindowOriginal original = _dragGroupOriginals[i];
@@ -1232,20 +1292,32 @@ public sealed class ActionTimelineView
             }
         }
 
-        so.ApplyModifiedProperties();
-        EditorUtility.SetDirty(so.targetObject);
+        // 命令还会按动作长度/最短一帧夹紧；辅助线必须跟随最终边缘，而非夹紧前候选。
+        if (_snapFrame >= 0)
+        {
+            var edited = so.FindProperty($"timeline.{ActionTimelineCommands.GetArrayPropertyName(_dragKind)}")
+                .GetArrayElementAtIndex(_dragIndex);
+            _snapFrame = edited.FindPropertyRelative(_dragMode == DragMode.ResizeEnd ? "endFrame" : "startFrame").intValue;
+        }
+        if (so.ApplyModifiedProperties()) EditorUtility.SetDirty(so.targetObject);
         changed = true;
         _ = selection;
-
-        if (evt.type is EventType.MouseUp or EventType.Ignore)
-            EndWindowDrag();
 
         evt.Use();
         return true;
     }
 
+    void BeginUndoGesture(string name)
+    {
+        if (_undoGroup >= 0) return;
+        Undo.IncrementCurrentGroup(); _undoGroup = Undo.GetCurrentGroup();
+        Undo.SetCurrentGroupName(name);
+    }
+
     void EndWindowDrag()
     {
+        if (_undoGroup >= 0) { Undo.CollapseUndoOperations(_undoGroup); _undoGroup = -1; }
+        _snapFrame = -1;
         if (_dragControlId >= 0 && GUIUtility.hotControl == _dragControlId)
             GUIUtility.hotControl = 0;
 
@@ -1449,6 +1521,8 @@ public sealed class ActionTimelineView
             or DragMode.ResizeStart
             or DragMode.ResizeEnd
             or DragMode.ReorderAnimation
+            or DragMode.TrimStart
+            or DragMode.TrimEnd
             or DragMode.ReorderTrack
             or DragMode.Marquee)
             return;
@@ -1461,7 +1535,7 @@ public sealed class ActionTimelineView
             _dragMode = DragMode.Scrub;
             _dragControlId = GUIUtility.GetControlID(FocusType.Passive);
             GUIUtility.hotControl = _dragControlId;
-            previewFrame = FrameAtX(evt.mousePosition.x, totalFrames);
+            previewFrame = Snap(FrameAtX(evt.mousePosition.x, totalFrames), totalFrames);
             EnsurePlayheadVisible(previewFrame);
             changed = true;
             evt.Use();
@@ -1470,7 +1544,7 @@ public sealed class ActionTimelineView
         {
             // 贴边拖拽时先滚屏再取帧，才能 Scrub 到当前视口之外的帧。
             AutoScrollWhileScrubbing(evt.mousePosition.x);
-            previewFrame = FrameAtX(evt.mousePosition.x, totalFrames);
+            previewFrame = Snap(FrameAtX(evt.mousePosition.x, totalFrames), totalFrames);
             EnsurePlayheadVisible(previewFrame);
             changed = true;
             _pendingRepaint = true;
@@ -1549,6 +1623,11 @@ public sealed class ActionTimelineView
 
         if (evt.keyCode == KeyCode.Escape)
         {
+            if (_dragMode != DragMode.None)
+            {
+                if (_undoGroup >= 0) { Undo.RevertAllDownToGroup(_undoGroup); _undoGroup = -1; so.Update(); }
+                EndWindowDrag(); _editMessage = null; evt.Use(); return;
+            }
             if (!selection.HasSelection)
                 return;
 
@@ -1597,10 +1676,105 @@ public sealed class ActionTimelineView
         }
     }
 
+    // endFrame 是闭区间最后一帧；条块右边缘位于 endFrame + 1，而非该帧左边缘。
+    float GetSnapGuideX() => ActionEditorStyles.TrackHeaderWidth
+        + (_snapFrame + (_dragMode is DragMode.ResizeEnd or DragMode.TrimEnd ? 1 : 0)) * _pixelsPerFrame;
+
+    int Snap(int frame, int totalFrames)
+    {
+        int result = ActionTimelineSnapping.Resolve(frame, _pixelsPerFrame, totalFrames - 1, _snapCandidates, !_snap || Event.current.alt);
+        _snapFrame = _snap && !Event.current.alt ? result : -1;
+        return result;
+    }
+
+    void FocusSelection(ActionEditorSelectionSet selection, int totalFrames, float width)
+    {
+        if (!selection.HasSelection) return;
+        var primary = selection.Primary;
+        int start = primary.ElementProperty?.FindPropertyRelative("startFrame")?.intValue ?? 0;
+        int end = primary.ElementProperty?.FindPropertyRelative("endFrame")?.intValue ?? start;
+        if (primary.Kind == ActionTimelineTrackKind.Animation)
+        {
+            start = 0;
+            for (int i = 0; i < primary.Index; i++) start += ResolveSegmentFrameCount(primary.ArrayProperty.GetArrayElementAtIndex(i), ActionSim.LogicHz);
+            end = start + ResolveSegmentFrameCount(primary.ElementProperty, ActionSim.LogicHz) - 1;
+        }
+        _zoom = Mathf.Clamp(totalFrames / (float)Mathf.Max(10, end - start + 10), 1, ActionEditorStyles.TimelineZoomMax);
+        _scroll.x = Mathf.Max(0, (start - 5) * ((width - ActionEditorStyles.TrackHeaderWidth) / totalFrames) * _zoom);
+        _pendingRepaint = true;
+    }
+
+    bool ProcessAnimationTrim(SerializedObject so, int totalFrames)
+    {
+        if (_dragMode != DragMode.TrimStart && _dragMode != DragMode.TrimEnd) return false;
+        Event evt = Event.current;
+        if (evt.type != EventType.MouseDrag && evt.type != EventType.MouseUp && evt.type != EventType.Ignore) return false;
+        var segment = so.FindProperty("animationSegments").GetArrayElementAtIndex(_dragIndex);
+        var clip = segment.FindPropertyRelative("clip").objectReferenceValue as AnimationClip;
+        if (clip == null) { EndWindowDrag(); return false; }
+        int frame = Mathf.RoundToInt((evt.mousePosition.x - ActionEditorStyles.TrackHeaderWidth) / _pixelsPerFrame);
+        int edge = _dragMode == DragMode.TrimStart ? _trimGlobalStart : _trimGlobalEnd;
+        int last = Mathf.Max(0, Mathf.RoundToInt(clip.length * ActionSim.LogicHz) - 1);
+        int delta = Snap(edge + frame - _dragStartFrame, totalFrames + last) - edge;
+        _trimStart = _dragMode == DragMode.TrimStart ? Mathf.Clamp(_dragOriginalStart + delta, 0, _dragOriginalEnd) : _dragOriginalStart;
+        _trimEnd = _dragMode == DragMode.TrimEnd ? Mathf.Clamp(_dragOriginalEnd + delta, _dragOriginalStart, last) : _dragOriginalEnd;
+        if (_snapFrame >= 0)
+            _snapFrame = edge + (_dragMode == DragMode.TrimStart
+                ? _trimStart - _dragOriginalStart : _trimEnd - _dragOriginalEnd);
+        _editMessage = $"修剪源动画帧 {_trimStart}–{_trimEnd}（不变速）· 释放提交，Esc 取消";
+        if (evt.type == EventType.MouseUp)
+        {
+            if (_trimStart != _dragOriginalStart || _trimEnd != _dragOriginalEnd)
+            {
+                bool success = ActionAnimationSegmentCommands.Trim(so, _dragIndex, _trimStart, _trimEnd, out string error);
+                _editMessage = success ? null : error;
+            }
+            else _editMessage = null;
+            EndWindowDrag();
+        }
+        else if (evt.type == EventType.Ignore) { EndWindowDrag(); _editMessage = null; }
+        _pendingRepaint = true;
+        evt.Use();
+        return true;
+    }
+
+    void HandleClipDrop(Rect lane, SerializedObject so, ActionDefinition action, ActionEditorSelectionSet selection, ref bool changed)
+    {
+        Event evt = Event.current;
+        if (evt.type == EventType.DragExited) _clipDropActive = false;
+        if (!lane.Contains(evt.mousePosition)) return;
+        var clips = new List<AnimationClip>();
+        foreach (var obj in DragAndDrop.objectReferences) if (obj is AnimationClip clip) clips.Add(clip);
+        if (clips.Count == 0) return;
+        int index = 0, cursor = 0;
+        var segments = action.AnimationSegments;
+        while (index < segments.Length)
+        {
+            int count = segments[index].GetFrameCount(action.SampleRate);
+            if (evt.mousePosition.x < lane.x + (cursor + count * .5f) * _pixelsPerFrame) break;
+            cursor += count; index++;
+        }
+        if (evt.type == EventType.Repaint && _clipDropActive)
+        {
+            float x = lane.x + cursor * _pixelsPerFrame;
+            EditorGUI.DrawRect(new Rect(x, lane.y, 3, lane.height), Color.cyan);
+            string label = "插入：" + string.Join(" → ", clips.ConvertAll(clip => clip.name));
+            GUI.Label(new Rect(x + 5, lane.y, 600, lane.height), label, EditorStyles.helpBox);
+        }
+        if (evt.type == EventType.DragUpdated) { _clipDropActive = true; DragAndDrop.visualMode = DragAndDropVisualMode.Copy; _pendingRepaint = true; evt.Use(); }
+        else if (evt.type == EventType.DragPerform)
+        {
+            _clipDropActive = false;
+            DragAndDrop.AcceptDrag();
+            selection.Set(ActionAnimationSegmentCommands.Insert(so, index, clips));
+            changed = true; evt.Use();
+        }
+    }
+
     int FrameAtX(float x, int totalFrames)
     {
         float local = x - ActionEditorStyles.TrackHeaderWidth;
-        int frame = Mathf.FloorToInt(local / _pixelsPerFrame);
+        int frame = Mathf.RoundToInt(local / _pixelsPerFrame);
         return Mathf.Clamp(frame, 0, Mathf.Max(0, totalFrames - 1));
     }
 }

@@ -1,84 +1,32 @@
-using UnityEditor;
+﻿using UnityEditor;
 using UnityEngine;
 
-/// <summary>Action Editor 顶部工具栏：预览角色、帧控制与播放。</summary>
+/// <summary>统一播放控制；速度只改变预览时钟，不改写动作数据。</summary>
 public sealed class ActionToolbar
 {
-    /// <summary>绘制工具栏；返回是否发生会影响预览的变更。</summary>
-    public bool Draw(
-        ActionDefinition action,
-        Transform previewCharacter,
-        ref int previewFrame,
-        ref bool isPlaying,
-        ref bool loop,
-        CharacterConfig character,
-        System.Action<Transform> selectScenePreview,
-        System.Action selectIsolatedPreview)
+    /// <summary>手动定位会暂停；帧始终为整数。</summary>
+    public bool Draw(ActionDefinition action, ref int frame, ref bool playing, ref bool loop, ref float speed)
     {
-        bool changed = false;
-        EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-
-        if (character != null && GUILayout.Button("角色 / 连招 / 反应", EditorStyles.toolbarButton))
-            CharacterAuthoringWindow.Open(character);
-
-        EditorGUI.BeginChangeCheck();
-        Transform selected = (Transform)EditorGUILayout.ObjectField(
-            previewCharacter,
-            typeof(Transform),
-            true,
-            GUILayout.Width(180f));
-        if (EditorGUI.EndChangeCheck())
+        bool stopped = false;
+        using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
+        using (new EditorGUI.DisabledScope(action == null || EditorApplication.isPlayingOrWillChangePlaymode))
         {
-            if (selected == null || (!EditorUtility.IsPersistent(selected)
-                && selected.gameObject.scene.IsValid()
-                && !UnityEditor.SceneManagement.EditorSceneManager.IsPreviewSceneObject(selected.gameObject)))
-                selectScenePreview?.Invoke(selected);
-            changed = true;
+            int last = action != null ? Mathf.Max(0, action.TotalFrames - 1) : 0;
+            if (GUILayout.Button("|◀", EditorStyles.toolbarButton, GUILayout.Width(28))) { frame = 0; playing = false; }
+            if (GUILayout.Button("◀", EditorStyles.toolbarButton, GUILayout.Width(28))) { frame = Mathf.Max(0, frame - 1); playing = false; }
+            if (GUILayout.Button(playing ? "暂停" : "播放", EditorStyles.toolbarButton, GUILayout.Width(42))) playing = !playing;
+            if (GUILayout.Button("停止", EditorStyles.toolbarButton, GUILayout.Width(42))) { playing = false; frame = 0; stopped = true; }
+            if (GUILayout.Button("▶", EditorStyles.toolbarButton, GUILayout.Width(28))) { frame = Mathf.Min(last, frame + 1); playing = false; }
+            if (GUILayout.Button("▶|", EditorStyles.toolbarButton, GUILayout.Width(28))) { frame = last; playing = false; }
+            EditorGUI.BeginChangeCheck();
+            frame = EditorGUILayout.IntSlider(frame, 0, last, GUILayout.MinWidth(180));
+            if (EditorGUI.EndChangeCheck()) playing = false;
+            GUILayout.Label($"{frame / (float)(action != null ? Mathf.Max(1, action.SampleRate) : 60):0.000}s", GUILayout.Width(65));
+            loop = GUILayout.Toggle(loop, "循环", EditorStyles.toolbarButton, GUILayout.Width(42));
+            float[] speeds = { .25f, .5f, 1, 1.5f, 2 };
+            int index = Mathf.Max(0, System.Array.IndexOf(speeds, speed));
+            speed = speeds[EditorGUILayout.Popup(index, new[] { "0.25×", "0.5×", "1×", "1.5×", "2×" }, EditorStyles.toolbarPopup, GUILayout.Width(60))];
         }
-        if (character != null && GUILayout.Button("隔离预览", EditorStyles.toolbarButton, GUILayout.Width(64)))
-        {
-            selectIsolatedPreview?.Invoke();
-            changed = true;
-        }
-
-        int maxFrame = action != null ? Mathf.Max(0, action.TotalFrames - 1) : 0;
-        EditorGUI.BeginChangeCheck();
-        previewFrame = EditorGUILayout.IntSlider(previewFrame, 0, maxFrame, GUILayout.MinWidth(220f));
-        if (EditorGUI.EndChangeCheck())
-        {
-            isPlaying = false;
-            changed = true;
-        }
-
-        if (GUILayout.Button("◀", EditorStyles.toolbarButton, GUILayout.Width(28f)))
-        {
-            previewFrame = Mathf.Max(0, previewFrame - 1);
-            isPlaying = false;
-            changed = true;
-        }
-
-        if (GUILayout.Button(isPlaying ? "⏸" : "▶", EditorStyles.toolbarButton, GUILayout.Width(28f)))
-        {
-            isPlaying = !isPlaying;
-            changed = true;
-        }
-
-        if (GUILayout.Button("▶|", EditorStyles.toolbarButton, GUILayout.Width(28f)))
-        {
-            previewFrame = Mathf.Min(maxFrame, previewFrame + 1);
-            isPlaying = false;
-            changed = true;
-        }
-
-        loop = GUILayout.Toggle(loop, "Loop", EditorStyles.toolbarButton, GUILayout.Width(44f));
-
-        GUILayout.FlexibleSpace();
-        EditorGUILayout.LabelField(
-            action != null ? $"{action.name}  ({previewFrame}/{maxFrame})" : "No Action",
-            EditorStyles.miniLabel,
-            GUILayout.Width(220f));
-
-        EditorGUILayout.EndHorizontal();
-        return changed;
+        return stopped;
     }
 }
