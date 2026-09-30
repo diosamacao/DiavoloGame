@@ -1,0 +1,67 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
+  m_Name: Vivian_Attack_04_Ground
+  m_EditorClassIdentifier: 
+  animationSegments:
+  - clip: {fileID: -6011086868547063497, guid: 4ed3e6a353dfa864cbe3005968fa2c73, type: 3}
+    startFrame: 0
+    endFrame: -1
+    hasCrossFadeOverride: 0
+    crossFadeDuration: 0
+  totalFrames: 66
+  actionType: 0
+  crossFadeDuration: 0.1
+  executionPolicy:
+    interruptPriority: 0
+    baseMotionMode: 2
+    bodyCollisionMode: 0
+    bodyContactSkinMm: 20
+  resourceSpec:
+    resourceTag: 0
+    energyCost: 0
+    energyGrantOnHit: 0
+    decibelGrantOnHit: 0
+    consumeDodgeCharge: 0
+    requiresDecibelFull: 0
+    clearsDecibelOnStart: 0
+  timeline:
+    actionEvents: []
+    playVfxNotifies: []
+    playSfxStates: []
+    hitboxStates: []
+    hurtboxStates: []
+    cancelWindowStates: []
+    phaseStates: []
+    perfectDodgeWindowStates: []
+    assistCueStates: []
+    assistParryWindowStates: []
+    movementStates: []
+    rotationStates: []
+    motionModifierStates: []
+    motionCommandNotifies: []
+    cameraSettings:
+      restoreMode: 0
+      suppressLookInput: 1
+    cameraShotStates: []
+    tracks: []
+  bakedMotion:
+    logicHz: 60
+    frameCount: 66
+    planarMode: 2
+    positionDeltaMmX: 000000000e0000001100000003000000fefffffff5ffffffe9ffffffe1ffffffe2ffffffeafffffff7ffffff0100000006000000090000000b0000000c0000000b0000000800000006000000060000000600000005000000050000000500000006000000060000000700000007000000070000000700000007000000080000000800000008000000070000000600000006000000050000000400000004000000030000000300000003000000030000000200000002000000020000000200000002000000020000000200000001000000010000000000000000000000fffffffffffffffffefffffffdfffffffdfffffffcfffffffcfffffffcfffffffcfffffffdfffffffdffffff
+    positionDeltaMmZ: e5ffffff8affffff4effffff5cffffff73ffffff80ffffff7effffff7dffffff7effffff80ffffff84ffffff8affffff91ffffff9affffffa4ffffffb0ffffffbaffffffc4ffffffcdffffffd6ffffffddffffffe3ffffffe9ffffffeefffffff1fffffff4fffffff6fffffff8fffffff8fffffff8fffffff6fffffff4fffffff3fffffff4fffffff5fffffff5fffffff6fffffff7fffffff7fffffff8fffffff9fffffff9fffffffafffffffbfffffffbfffffffcfffffffcfffffffcfffffffdfffffffdfffffffefffffffefffffffeffffffffffffffffffffffffffffffffffffffffffffff0000000000000000000000000000000000000000000000000000000000000000
+    yawDeltaMilliDeg: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    inplaceContentHash: PlaybackRangeV2|4ed3e6a353dfa864cbe3005968fa2c73|-6011086868547063497|44ef832c00b6a37a79d74aeddfc01581|0:65;
+    rootMotionContentHash: 8c482c916b2008c4a927d2d39af277e9|-6953887913540467912|26484f0d009053129c1a7c5629c04ef9;
+    matchedRootMotionName: Attack_Normal_04_End_Ground
+    bakeStatus: 1

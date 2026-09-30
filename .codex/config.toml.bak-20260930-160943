@@ -1,0 +1,6 @@
+[mcp_servers.unityMCP]
+enabled = false
+command = "C:\\Users\\Diavolo\\.local\\bin\\uvx.exe"
+args = ["--from", "mcpforunityserver==10.2.0", "mcp-for-unity", "--transport", "stdio"]
+startup_timeout_sec = 30
+tool_timeout_sec = 120

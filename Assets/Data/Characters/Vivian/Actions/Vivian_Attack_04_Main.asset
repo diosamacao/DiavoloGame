@@ -1,0 +1,122 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
+  m_Name: Vivian_Attack_04_Main
+  m_EditorClassIdentifier: 
+  animationSegments:
+  - clip: {fileID: -3587496277055676111, guid: 568d1529c6af96f40a4f956bc194f26c, type: 3}
+    startFrame: 0
+    endFrame: -1
+    hasCrossFadeOverride: 0
+    crossFadeDuration: 0
+  totalFrames: 28
+  actionType: 0
+  crossFadeDuration: 0.1
+  executionPolicy:
+    interruptPriority: 0
+    baseMotionMode: 2
+    bodyCollisionMode: 0
+    bodyContactSkinMm: 20
+  resourceSpec:
+    resourceTag: 0
+    energyCost: 0
+    energyGrantOnHit: 0
+    decibelGrantOnHit: 0
+    consumeDodgeCharge: 0
+    requiresDecibelFull: 0
+    clearsDecibelOnStart: 0
+  timeline:
+    actionEvents: []
+    playVfxNotifies: []
+    playSfxStates: []
+    hitboxStates:
+    - id: Hitbox_2
+      startFrame: 22
+      endFrame: 25
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 0.89, z: 0.73}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 2, y: 2, z: 3}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        interruptLevel: 1
+        parriedActionPolicy: 0
+        parriedReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 0
+          hitStopFrames: 0
+          hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 0}
+          hitImpactSfx: {fileID: 0}
+          hitImpactSfxVolume: 0
+          hitImpactWorldOffset: {x: 0, y: 0, z: 0}
+          hitImpactScale: {x: 0, y: 0, z: 0}
+          randomizeImpactRotation: 0
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 0, z: 0}
+    hurtboxStates: []
+    cancelWindowStates:
+    - id: NormalCancel
+      startFrame: 27
+      endFrame: 27
+      priority: 0
+      trackName: Cancel_1
+      windowType: 0
+    phaseStates: []
+    perfectDodgeWindowStates: []
+    assistCueStates: []
+    assistParryWindowStates: []
+    movementStates: []
+    rotationStates:
+    - id: Rotation_1
+      startFrame: 0
+      endFrame: 21
+      priority: 0
+      trackName: Rotation_1
+      smoothTimeOverride: 0.05
+    motionModifierStates: []
+    motionCommandNotifies: []
+    cameraSettings:
+      restoreMode: 0
+      suppressLookInput: 1
+    cameraShotStates: []
+    tracks:
+    - trackName: Phase_1
+      kind: 8
+      visible: 1
+    - trackName: Cancel_1
+      kind: 4
+      visible: 1
+    - trackName: Rotation_1
+      kind: 6
+      visible: 1
+    - trackName: Hitbox_1
+      kind: 0
+      visible: 1
+  bakedMotion:
+    logicHz: 60
+    frameCount: 28
+    planarMode: 2
+    positionDeltaMmX: ffffffff290000002a0000001b00000000000000edffffffe7ffffffe4ffffffdeffffffe7fffffff5fffffffcfffffffeffffff0100000002000000030000000300000004000000060000000800000009000000090000000800000007000000130000001100000015000000efffffff
+    positionDeltaMmZ: 0200000006000000090000000c0000000e0000001000000011000000130000001300000013000000130000001200000011000000100000000e0000000c0000000e0000001100000012000000130000001300000013000000e9ffffff5f010000b208000013000000930000003a000000
+    yawDeltaMilliDeg: 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    inplaceContentHash: PlaybackRangeV2|568d1529c6af96f40a4f956bc194f26c|-3587496277055676111|f61e50cc01933e47300f8fe71d01cbe8|0:27;
+    rootMotionContentHash: af8df63b8238af94eb14f152c4a1a26b|249861485805558401|df1d8acf64cbd0e4993446e24fa16609;
+    matchedRootMotionName: Attack_Normal_04
+    bakeStatus: 1
