@@ -6,7 +6,7 @@ using UnityEngine;
 /// 远端角色表现体：应用 Snapshot 位姿、播 Clip、过点派发 VFX/SFX。
 /// 客机可作只读 <see cref="ITargetable"/>；OnHit 空操作，禁止 Collect。
 /// </summary>
-public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTarget, ITargetable
+public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTarget, ITargetable, ISimBodyObstacleSource
 {
     readonly Transform _root;
     readonly CharacterMotor _motor;
@@ -111,6 +111,15 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
 
     /// <summary>幽灵逻辑电机；仅被快照写入，不进 SimulationWorld。</summary>
     public CharacterMotorSim MotorSim => _motor.Sim;
+
+    /// <inheritdoc />
+    public bool TryGetBodyObstacle(out SimBodyObstacle obstacle)
+    {
+        obstacle = default;
+        if (!IsAlive || !_partyVisible || !_simulationId.IsValid) return false;
+        obstacle = new SimBodyObstacle(_simulationId, MotorSim.PositionMm, MotorSim.RadiusMm);
+        return true;
+    }
 
     /// <summary>供相机以外的表现跟随的插值锚点。</summary>
     public Transform PresentationRoot => _presentation != null ? _presentation.PresentationRoot : _root;

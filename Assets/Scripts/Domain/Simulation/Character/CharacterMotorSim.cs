@@ -186,6 +186,19 @@ public sealed class CharacterMotorSim
         return moved;
     }
 
+    /// <summary>动作直线停止路径；求解与提交不可分开调用，禁止提交后再滑墙。</summary>
+    public bool TryMoveActionMm(SimVec2 delta, int skinMm,
+        System.Collections.Generic.IReadOnlyList<SimBodyObstacle> bodies,
+        out bool blocked, out SimActorId blocker)
+    {
+        SimVec2 resolved = ActionBodySweep.Resolve(_collision, PositionMm, delta, _radiusMm,
+            skinMm, bodies, out blocked, out blocker);
+        bool moved = resolved.X != _xMm || resolved.Z != _zMm;
+        _xMm = resolved.X;
+        _zMm = resolved.Z;
+        return moved;
+    }
+
     /// <summary>施加世界平面米位移（量化后走毫米路径）。</summary>
     public bool TryMoveWorldMeters(float dxMeters, float dzMeters) =>
         TryMoveWorldMm(

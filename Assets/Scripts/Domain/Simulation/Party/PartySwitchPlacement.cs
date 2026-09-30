@@ -3,7 +3,7 @@
 public static class PartySwitchPlacement
 {
     /// <summary>普通换人时新角色位于旧角色局部右侧 0.6 米。</summary>
-    public const int NormalSwitchRightOffsetMm = 1000;
+    public const int NormalSwitchRightOffsetMm = 600;
 
     /// <summary>按退场角色的逻辑朝向计算新角色右侧落点。</summary>
     public static SimVec2 ResolveNormalSwitchPosition(

@@ -6,6 +6,30 @@ public sealed class ChannelMuxTransportTests
 {
     static readonly NetEndpoint Endpoint = new("mux-loopback", 1);
 
+    /// <summary>远端关闭后丢弃其待重传包，同时保留另一连接的可靠交付。</summary>
+    [Test]
+    public void RemoteDisconnect_DropsPendingRetransmitsAndPreservesOtherPeer()
+    {
+        var network = new LoopbackNetwork();
+        using var server = ChannelMuxTransport.Wrap(new LoopbackTransport(network));
+        using var first = new LoopbackTransport(network);
+        using var second = ChannelMuxTransport.Wrap(new LoopbackTransport(network));
+        server.StartServer(Endpoint);
+        first.StartClient(Endpoint);
+        second.StartClient(Endpoint);
+        var departed = server.Connections[0];
+        var remaining = server.Connections[1];
+        server.AdvanceClock(0);
+        server.Send(departed, NetChannel.EventReliableOrdered, new byte[] { 1 });
+        server.Send(remaining, NetChannel.EventReliableOrdered, new byte[] { 2 });
+        first.Dispose();
+        server.AdvanceClock(100);
+        Assert.DoesNotThrow(() => server.Poll());
+        second.Poll();
+        Assert.That(DrainPayloads(second), Is.EqualTo(new[] { 2 }));
+        Assert.That(server.Connections, Has.Count.EqualTo(1));
+    }
+
     /// <summary>坏包拒绝必须可计数，且不阻止同批后续合法数据报交付。</summary>
     [TestCase(0)]
     [TestCase(1)]

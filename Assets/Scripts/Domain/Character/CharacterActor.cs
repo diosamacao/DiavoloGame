@@ -79,6 +79,9 @@ public sealed class CharacterActor :
     /// <summary>水平逻辑电机；供 World 软弹开读写。</summary>
     public CharacterMotorSim MotorSim => _motor.Sim;
 
+    /// <summary>收集当前逻辑身体，供本机预测帧末分离复用动作碰撞的数据来源。</summary>
+    public void CollectBodyObstacles(List<SimBodyObstacle> results) => _motor.CollectBodyObstacles(results);
+
     /// <summary>死亡或软体抑制窗内不参与互撞软弹开。</summary>
     public bool ParticipatesInSoftBodySeparation =>
         (_partyLifecycle.State == PartyMemberState.Active
@@ -361,7 +364,11 @@ public sealed class CharacterActor :
             frameIntents,
             buffers,
             _animation != null ? _animation.AdditiveWeight : 0f,
-            _vitality.LastConfirmedReactionKind);
+            _vitality.LastConfirmedReactionKind,
+            _motor.ActionMoveFromMm,
+            _motor.ActionMoveDesiredMm,
+            _motor.ActionMoveBlocked,
+            _motor.ActionMoveBlocker);
     }
 
     /// <summary>HUD：反击缓冲优先显示 Counter；否则预判 Special 同键 EX/普通。</summary>

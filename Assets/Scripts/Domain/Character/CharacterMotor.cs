@@ -10,6 +10,53 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     readonly CharacterMotorConfig _config;
     readonly IMoveIntentSource _moveIntent;
     readonly CharacterMotorSim _sim;
+    readonly System.Collections.Generic.List<SimBodyObstacle> _bodyBuffer = new(16);
+    ISimBodyObstacleQuery _bodyQuery;
+    System.Func<SimActorId> _bodySelfId;
+
+    /// <summary>最近一次动作位移的调试数据；不参与模拟或网络状态。</summary>
+    public SimVec2 ActionMoveFromMm { get; private set; }
+    public SimVec2 ActionMoveDesiredMm { get; private set; }
+    public bool ActionMoveBlocked { get; private set; }
+    public SimActorId ActionMoveBlocker { get; private set; }
+
+    /// <summary>装配场景/房间实体查询；Id 在注册后动态读取，换人/重连不缓存旧身份。</summary>
+    public void BindBodyObstacles(ISimBodyObstacleQuery query, System.Func<SimActorId> selfId)
+    {
+        _bodyQuery = query ?? throw new System.ArgumentNullException(nameof(query));
+        _bodySelfId = selfId ?? throw new System.ArgumentNullException(nameof(selfId));
+    }
+
+    /// <summary>动作阻挡与客机帧末软分离使用同一注册表来源。</summary>
+    public void CollectBodyObstacles(System.Collections.Generic.List<SimBodyObstacle> results)
+    {
+        if (_bodyQuery == null) throw new System.InvalidOperationException("Body obstacle query is not bound.");
+        _bodyQuery.Collect(_bodySelfId(), results);
+    }
+
+    /// <summary>提交基础/吸附共用的世界毫米位移；脚本速度统计保留原始未量化口径。</summary>
+    public void MoveActionMm(SimVec2 delta, ActionExecutionPolicy policy, float? scriptedSpeed = null)
+    {
+        if (!policy.HasValidBodyCollision) throw new System.InvalidOperationException("Invalid action body collision policy.");
+        ActionMoveFromMm = _sim.PositionMm;
+        ActionMoveDesiredMm = new SimVec2(checked(ActionMoveFromMm.X + delta.X), checked(ActionMoveFromMm.Z + delta.Z));
+        bool moved;
+        if (policy.BodyCollisionMode == ActionBodyCollisionMode.StopOnContact)
+        {
+            CollectBodyObstacles(_bodyBuffer);
+            moved = _sim.TryMoveActionMm(delta, policy.BodyContactSkinMm, _bodyBuffer, out bool blocked, out SimActorId blocker);
+            ActionMoveBlocked = blocked;
+            ActionMoveBlocker = blocker;
+        }
+        else
+        {
+            moved = _sim.TryMoveWorldMm(delta.X, delta.Z);
+            ActionMoveBlocked = false;
+            ActionMoveBlocker = SimActorId.Invalid;
+        }
+        if (moved) SyncRootFromSim();
+        if (scriptedSpeed.HasValue) _planarSpeedEstimate = scriptedSpeed.Value;
+    }
 
     Vector3 _faceTargetForward;
     bool _hasFaceTargetForward;

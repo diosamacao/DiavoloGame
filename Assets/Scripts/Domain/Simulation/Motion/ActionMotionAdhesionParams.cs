@@ -7,13 +7,13 @@ public readonly struct ActionMotionAdhesionParams
     /// <summary>窗口结束逻辑帧（含）。</summary>
     public int EndFrame { get; }
 
-    /// <summary>沿玩家→敌人连线、相对敌人中心的水平偏移（毫米）。</summary>
+    /// <summary>沿首次捕获时玩家→敌人连线的水平偏移（毫米），捕获后方向固定。</summary>
     public int HorizontalOffsetMm { get; }
 
     /// <summary>沿连线法线的侧向偏移（毫米）。</summary>
     public int LateralOffsetMm { get; }
 
-    /// <summary>单帧修正上限（毫米）。</summary>
+    /// <summary>中间帧修正上限（毫米）；末帧精确收敛优先，不限制末帧修正。</summary>
     public int MaxCorrectionMmPerFrame { get; }
 
     /// <summary>最大捕获距离（毫米）；0=不限制。</summary>

@@ -9,4 +9,10 @@ public sealed class OpenFieldSimCollisionWorld : ISimCollisionWorld
 
     /// <summary>直接接受目标点。</summary>
     public SimVec2 ResolveMove(SimVec2 fromMm, SimVec2 desiredMm, int radiusMm) => desiredMm;
+
+    /// <inheritdoc />
+    public SimVec2 Depenetrate(SimVec2 positionMm, int radiusMm) => positionMm;
+
+    /// <inheritdoc />
+    public double SweepFraction(SimVec2 fromMm, SimVec2 deltaMm, int radiusMm) => 1;
 }

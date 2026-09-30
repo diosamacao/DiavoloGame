@@ -324,6 +324,15 @@ public sealed class CombatDebugHudController : AppControllerBase
             .Append(" immovable=").Append(s.SoftBodyImmovable).AppendLine();
         sb.Append("ActionLateralPeakMm: ").Append(s.ActionLateralPeakMm)
             .Append("  (Wave0 baseline; 对照横摆是否进逻辑根)");
+        if (s.ActionActive)
+        {
+            sb.AppendLine();
+            sb.Append("ActionBody: from=(").Append(s.ActionMoveFromMm.X).Append(',').Append(s.ActionMoveFromMm.Z)
+                .Append(") requested=(").Append(s.ActionMoveDesiredMm.X).Append(',').Append(s.ActionMoveDesiredMm.Z).Append(')')
+                .Append(" blocked=").Append(s.ActionMoveBlocked)
+                .Append(" bodyId=").Append(s.ActionMoveBlocker)
+                .Append(" (Invalid + blocked = static; actual = Motor)");
+        }
     }
 
     /// <summary>探针目标（锁定/场上敌人）的状态、裁档与 Additive 权重，便于对照 F6 前后。</summary>

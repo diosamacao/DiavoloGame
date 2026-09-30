@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 /// <summary>纯 C# 角色受击目标；Hurtbox 由 MotorSim 逻辑根位姿构建；伤害写 Numeric Health。</summary>
-public sealed class CharacterHurtboxTarget : ITargetable, IHitAbsorbQuery
+public sealed class CharacterHurtboxTarget : ITargetable, IHitAbsorbQuery, ISimBodyObstacleSource
 {
     readonly Transform _root;
     readonly Transform _aimTransform;
@@ -61,6 +61,16 @@ public sealed class CharacterHurtboxTarget : ITargetable, IHitAbsorbQuery
 
     /// <inheritdoc />
     public float CurrentHealth => _vitality.CurrentHealth;
+
+    /// <inheritdoc />
+    public bool TryGetBodyObstacle(out SimBodyObstacle obstacle)
+    {
+        obstacle = default;
+        SimActorId id = SimulationId;
+        if (!IsAlive || !id.IsValid) return false;
+        obstacle = new SimBodyObstacle(id, _motorSim.PositionMm, _motorSim.RadiusMm);
+        return true;
+    }
 
     /// <summary>角色阵营 id。</summary>
     public int TeamId { get; }

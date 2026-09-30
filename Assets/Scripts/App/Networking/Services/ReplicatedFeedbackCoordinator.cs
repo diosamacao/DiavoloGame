@@ -10,7 +10,7 @@ public sealed class ReplicatedFeedbackCoordinator
     readonly ActObserverReplicationAdapter _observer;
     readonly HashSet<SimHitKey> _playedHits = new();
     readonly List<SimHitKey> _playedHitOrder = new();
-    readonly List<RemoteCharacterProxy> _softBlockers = new();
+    readonly List<SimBodyObstacle> _softBlockers = new(16);
     readonly ActReplicationEventCodec.OwnerAssistParryEventQueue _assistParryEvents = new();
     SimActorId[] _ownerPartyActorIds = Array.Empty<SimActorId>();
     SimVec2[] _softBlockerPosMm = Array.Empty<SimVec2>();
@@ -82,17 +82,10 @@ public sealed class ReplicatedFeedbackCoordinator
         if (actor == null || !actor.ParticipatesInSoftBodySeparation)
             return;
 
-        _softBlockers.Clear();
-        foreach (RemoteCharacterProxy proxy in _observer.Proxies)
-        {
-            if (proxy == null || !proxy.IsAlive || proxy.MotorSim == null)
-                continue;
-            _softBlockers.Add(proxy);
-        }
+        actor.CollectBodyObstacles(_softBlockers);
         if (_softBlockers.Count == 0)
             return;
 
-        _softBlockers.Sort(CompareProxyId);
         if (_softBlockerPosMm.Length < _softBlockers.Count)
         {
             _softBlockerPosMm = new SimVec2[_softBlockers.Count];
@@ -100,9 +93,8 @@ public sealed class ReplicatedFeedbackCoordinator
         }
         for (int i = 0; i < _softBlockers.Count; i++)
         {
-            CharacterMotorSim motor = _softBlockers[i].MotorSim;
-            _softBlockerPosMm[i] = motor.PositionMm;
-            _softBlockerRadiiMm[i] = motor.RadiusMm;
+            _softBlockerPosMm[i] = _softBlockers[i].PositionMm;
+            _softBlockerRadiiMm[i] = _softBlockers[i].RadiusMm;
         }
 
         if (AutonomousSoftBodySolver.TrySeparateLocal(
@@ -243,9 +235,6 @@ public sealed class ReplicatedFeedbackCoordinator
             ? proxy.Root
             : null;
     }
-
-    static int CompareProxyId(RemoteCharacterProxy left, RemoteCharacterProxy right) =>
-        left.SimulationId.Value.CompareTo(right.SimulationId.Value);
 
     static SimActorId[] CopyIds(IReadOnlyList<SimActorId> actorIds)
     {

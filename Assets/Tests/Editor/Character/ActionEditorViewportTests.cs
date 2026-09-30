@@ -35,6 +35,53 @@ public sealed class ActionEditorViewportTests
         AssetDatabase.DeleteAsset(folder);
     }
 
+    [Test] public void AdhesionPreviewMatchesSimulationAndResumesBaseOutsideWindow()
+    {
+        var action = ScriptableObject.CreateInstance<ActionDefinition>();
+        var clip = new AnimationClip();
+        clip.SetCurve("", typeof(Transform), "localPosition.z", AnimationCurve.Linear(0, 0, 1, 1));
+        try
+        {
+            using (var so = new SerializedObject(action))
+            {
+                // TotalFrames 由有效动画段计算，不能直接写入后被 OnValidate 重算为 1。
+                var segments = so.FindProperty("animationSegments");
+                segments.arraySize = 1;
+                var segment = segments.GetArrayElementAtIndex(0);
+                segment.FindPropertyRelative("clip").objectReferenceValue = clip;
+                segment.FindPropertyRelative("startFrame").intValue = 0;
+                segment.FindPropertyRelative("endFrame").intValue = 10;
+                so.FindProperty("executionPolicy.baseMotionMode").intValue = (int)ActionBaseMotionMode.BakedMotion;
+                so.ApplyModifiedPropertiesWithoutUndo();
+            }
+            Assert.That(action.TotalFrames, Is.EqualTo(11));
+            action.BakedMotion.CopyFrom(new ActionBakedMotion
+            {
+                frameCount = 11, bakeStatus = ActionBakedMotionStatus.Ok,
+                positionDeltaMmX = new int[11], positionDeltaMmZ = Enumerable.Repeat(1000, 11).ToArray(),
+                yawDeltaMilliDeg = new int[11]
+            });
+            var window = new ActionMotionAdhesionParams(0, 9, 1000, 500, 100000, 100000, 0);
+            var state = new ActionMotionAdhesion.State();
+            int x = 0, z = 0;
+            for (int frame = 0; frame <= 10; frame++)
+            {
+                ActionMotionAdhesion.TryComputeDisplacementMm(ref state, x, z, 0, 0, 2000,
+                    in window, frame, 0, 1000, ActionMotionAdhesion.BakedProgress(action.BakedMotion, frame, 9),
+                    out int dx, out int dz);
+                x += dx; z += dz;
+                ActionMotionAdhesionSceneDrawing.SimulateThroughFrame(action, in window,
+                    Vector3.zero, Quaternion.identity, new Vector3(0, 0, 2), 0, frame, null,
+                    out var preview, out var desired, out _);
+                Assert.That(preview.x, Is.EqualTo(x / 1000f).Within(.001));
+                Assert.That(preview.z, Is.EqualTo(z / 1000f).Within(.001));
+                Assert.That(desired, Is.EqualTo(new Vector3(-.5f, 0, 3)));
+            }
+            Assert.That(z, Is.EqualTo(4000)); // 窗外第 10 帧恢复原本的 1m 位移。
+        }
+        finally { Object.DestroyImmediate(action); Object.DestroyImmediate(clip); }
+    }
+
     [Test] public void AnimationSourcesKeepRolesSeparateAndFollowFolderMoves()
     {
         var a = ScriptableObject.CreateInstance<CharacterConfig>();

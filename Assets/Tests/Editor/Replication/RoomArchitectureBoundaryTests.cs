@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -155,7 +156,8 @@ public sealed class RoomArchitectureBoundaryTests
         Assert.That(factory, Does.Contain("new NullAnimationPlayback()"));
         Assert.That(factory, Does.Contain("if (!headless)"));
         Assert.That(factory, Does.Contain("SpawnModelInstance("));
-        Assert.That(factory, Does.Contain("presentationEnabled: !headless"));
+        // 表现开关已由独立 Sink 取代；Headless 必须选择空实现。
+        Assert.That(factory, Does.Match(@"IActionPresentationSink\s+actionPresentation\s*=\s*headless\s*\?\s*NullActionPresentationSink\.Instance\s*:\s*new\s+CharacterActionPresentationBridge\s*\("));
     }
 
     /// <summary>从 Assets 相对路径读取真实生产脚本。</summary>
@@ -163,7 +165,8 @@ public sealed class RoomArchitectureBoundaryTests
     {
         string path = ScriptPath(relativePath);
         Assert.That(File.Exists(path), Is.True, $"生产脚本不存在：{path}");
-        return File.ReadAllText(path);
+        // XML 文档中提及登记时序不构成类型依赖；继续检查全部实际代码。
+        return Regex.Replace(File.ReadAllText(path), @"(?m)^\s*///[^\r\n]*", string.Empty);
     }
 
     static string ScriptPath(string relativePath) =>

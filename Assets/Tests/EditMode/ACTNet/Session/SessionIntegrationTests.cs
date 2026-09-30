@@ -6,6 +6,26 @@ public sealed class SessionIntegrationTests
 {
     static readonly NetEndpoint Endpoint = new("session-loopback", 7777);
 
+    /// <summary>客户端直接关闭 Transport 后，下次 Poll 只清理该玩家并且只通知一次。</summary>
+    [Test]
+    public void ClientDispose_RemovesOnlyDepartedPlayerBeforeTimeout()
+    {
+        using var harness = new SessionHarness(maxRemotePlayers: 2);
+        ClientSession[] clients = harness.CreateAndJoinClients(2);
+        int notifications = 0;
+        harness.Server.Disconnected += _ => notifications++;
+        clients[0].Dispose();
+        clients[1].SendApplication(5, NetChannel.CommandUnreliableRedundant, new byte[] { 2 });
+        harness.Server.Poll(1);
+        Assert.That(harness.Server.ConnectionCount, Is.EqualTo(1));
+        Assert.That(notifications, Is.EqualTo(1));
+        Assert.That(DrainApplicationCount(harness.Server), Is.EqualTo(1));
+        harness.Server.Poll(100);
+        clients[1].Poll(100);
+        Assert.That(notifications, Is.EqualTo(1));
+        Assert.That(clients[1].State, Is.EqualTo(ClientSessionState.Joined));
+    }
+
     /// <summary>三个客户端应获得互异 ConnectionId、PlayerId，并保持各自 JoinAccept。</summary>
     [Test]
     public void ThreeClients_JoinWithDistinctConnectionAndPlayerIds()

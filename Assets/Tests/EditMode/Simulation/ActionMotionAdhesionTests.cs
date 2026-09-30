@@ -1,223 +1,128 @@
 using NUnit.Framework;
 
-/// <summary>Wave 4：TargetAdhesion 连线 desired 与剩余帧均摊（Simulation 纯函数）。</summary>
+/// <summary>吸附捕获轴、烘焙节奏重映射与末帧毫米级收敛回归。</summary>
 public sealed class ActionMotionAdhesionTests
 {
-    /// <summary>offset&gt;0 时 desired 落在敌人连线远侧（穿后）。</summary>
-    [Test]
-    public void BuildDesired_PositiveOffset_IsBeyondEnemyAlongAxis()
+    static ActionMotionAdhesionParams Window(int offset = 1000, int lateral = 0, int cap = 100000,
+        int distance = 100000, int angle = 0) => new(0, 9, offset, lateral, cap, distance, angle);
+
+    [TestCase(1000, 3000)]
+    [TestCase(0, 2000)]
+    [TestCase(-500, 1500)]
+    public void LongBake_ReachesSpecifiedOffsetWithoutAddingFullBake(int offset, int expectedZ)
     {
-        // 玩家在原点，敌人在 +Z 2000mm
-        Assert.That(
-            ActionMotionAdhesion.TryBuildDesiredMm(
-                actorXMm: 0,
-                actorZMm: 0,
-                targetXMm: 0,
-                targetZMm: 2000,
-                horizontalOffsetMm: 1000,
-                lateralOffsetMm: 0,
-                out int desiredX,
-                out int desiredZ),
-            Is.True);
-        Assert.That(desiredX, Is.EqualTo(0));
-        Assert.That(desiredZ, Is.EqualTo(3000));
+        var state = new ActionMotionAdhesion.State();
+        var window = Window(offset);
+        int x = 0, z = 0;
+        for (int frame = 0; frame <= 9; frame++)
+        {
+            Assert.That(ActionMotionAdhesion.TryComputeDisplacementMm(ref state, x, z, 0,
+                0, 2000, in window, frame, 0, 1000, 1d / (10 - frame), out int dx, out int dz), Is.True);
+            x += dx; z += dz;
+            Assert.That(z, Is.InRange(0, expectedZ));
+        }
+        Assert.That(x, Is.Zero);
+        Assert.That(z, Is.EqualTo(expectedZ));
+        Assert.That(state.DesiredZMm, Is.EqualTo(expectedZ));
     }
 
-    /// <summary>offset=0 吸向敌人中心。</summary>
     [Test]
-    public void BuildDesired_ZeroOffset_IsEnemyCenter()
+    public void CrossEnemy_WithLateralOffset_KeepsCapturedSide()
     {
-        Assert.That(
-            ActionMotionAdhesion.TryBuildDesiredMm(
-                0, 0, 500, 0, 0, 0, out int desiredX, out int desiredZ),
-            Is.True);
-        Assert.That(desiredX, Is.EqualTo(500));
-        Assert.That(desiredZ, Is.EqualTo(0));
+        var state = new ActionMotionAdhesion.State();
+        var window = Window(lateral: 500);
+        ActionMotionAdhesion.TryComputeDisplacementMm(ref state, 0, 0, 0, 0, 2000,
+            in window, 0, 0, 0, .1, out _, out _);
+        ActionMotionAdhesion.TryComputeDisplacementMm(ref state, -400, 2500, 180, 0, 2000,
+            in window, 9, 0, 1000, 1, out int dx, out int dz);
+        Assert.That(-400 + dx, Is.EqualTo(-500));
+        Assert.That(2500 + dz, Is.EqualTo(3000));
     }
 
-    /// <summary>offset&lt;0 停在敌人身前（连线近侧）。</summary>
     [Test]
-    public void BuildDesired_NegativeOffset_IsInFrontOfEnemy()
+    public void Overshoot_IsCorrectedBackToCapturedEndpoint()
     {
-        Assert.That(
-            ActionMotionAdhesion.TryBuildDesiredMm(
-                0, 0, 0, 2000, -500, 0, out int desiredX, out int desiredZ),
-            Is.True);
-        Assert.That(desiredX, Is.EqualTo(0));
-        Assert.That(desiredZ, Is.EqualTo(1500));
+        var state = new ActionMotionAdhesion.State();
+        var window = Window();
+        ActionMotionAdhesion.TryComputeDisplacementMm(ref state, 0, 0, 0, 0, 2000,
+            in window, 0, 0, 0, .1, out _, out _);
+        ActionMotionAdhesion.TryComputeDisplacementMm(ref state, 0, 3500, 0, 0, 2000,
+            in window, 9, 0, 1000, 1, out _, out int dz);
+        Assert.That(dz, Is.EqualTo(-500));
     }
 
-    /// <summary>敌人位移后 desired 随连线重算。</summary>
     [Test]
-    public void BuildDesired_FollowsMovingEnemy()
+    public void MovingEnemy_TranslatesEndpointWithoutRotatingOffset()
     {
-        ActionMotionAdhesion.TryBuildDesiredMm(
-            0, 0, 0, 2000, 1000, 0, out int z1x, out int z1z);
-        ActionMotionAdhesion.TryBuildDesiredMm(
-            0, 0, 1000, 2000, 1000, 0, out int z2x, out int z2z);
-        Assert.That(z1x, Is.EqualTo(0));
-        Assert.That(z1z, Is.EqualTo(3000));
-        Assert.That(z2x == z1x && z2z == z1z, Is.False);
-        Assert.That(z2x, Is.GreaterThan(0));
+        var state = new ActionMotionAdhesion.State();
+        var window = Window();
+        ActionMotionAdhesion.TryComputeDisplacementMm(ref state, 0, 0, 0, 0, 2000,
+            in window, 0, 0, 0, .1, out _, out _);
+        ActionMotionAdhesion.TryComputeDisplacementMm(ref state, 0, 2500, 0, 1000, 2500,
+            in window, 9, 0, 0, 1, out int dx, out int dz);
+        Assert.That(dx, Is.EqualTo(1000));
+        Assert.That(2500 + dz, Is.EqualTo(3500));
     }
 
-    /// <summary>剩余帧均摊：首帧约为误差的 1/N。</summary>
     [Test]
-    public void Correction_AmortizesOverRemainingFrames()
+    public void SmallCorrectionCap_LimitsIntermediateButNotFinalSettlement()
     {
-        ActionMotionAdhesionParams window = CreateAdhesionWindow(
-            start: 0,
-            end: 9,
-            horizontalOffsetMm: 0,
-            maxCorrectionMmPerFrame: 100000);
-
-        // 玩家在 0，敌人在 +Z 2000，吸敌心 → errorZ=2000，10 帧 → ~200
-        Assert.That(
-            ActionMotionAdhesion.TryComputeCorrectionMm(
-                actorXMm: 0,
-                actorZMm: 0,
-                actorYawDegrees: 0f,
-                targetXMm: 0,
-                targetZMm: 2000,
-                in window,
-                currentFrame: 0,
-                out int cx,
-                out int cz),
-            Is.True);
-        Assert.That(cx, Is.EqualTo(0));
-        Assert.That(cz, Is.EqualTo(200));
+        var state = new ActionMotionAdhesion.State();
+        var window = Window(cap: 10);
+        ActionMotionAdhesion.TryComputeDisplacementMm(ref state, 0, 0, 0, 0, 2000,
+            in window, 0, 0, 0, .1, out _, out int first);
+        Assert.That(first, Is.EqualTo(10));
+        ActionMotionAdhesion.TryComputeDisplacementMm(ref state, 0, first, 0, 0, 2000,
+            in window, 9, 0, 0, 1, out _, out int last);
+        Assert.That(first + last, Is.EqualTo(3000));
     }
 
-    /// <summary>窗外不产生修正。</summary>
-    [Test]
-    public void Correction_OutsideWindow_IsZero()
+    [TestCase(1000, 0, 0, 2000)]
+    [TestCase(100000, 45000, 2000, 0)]
+    public void AcquisitionOutsideDistanceOrAngle_PreservesBase(int distance, int angle, int tx, int tz)
     {
-        ActionMotionAdhesionParams window = CreateAdhesionWindow(
-            start: 5,
-            end: 10,
-            horizontalOffsetMm: 0,
-            maxCorrectionMmPerFrame: 100000);
-
-        Assert.That(
-            ActionMotionAdhesion.TryComputeCorrectionMm(
-                0, 0, 0f, 0, 2000, in window, currentFrame: 4, out _, out _),
-            Is.False);
+        var state = new ActionMotionAdhesion.State();
+        var window = Window(distance: distance, angle: angle);
+        Assert.That(ActionMotionAdhesion.TryComputeDisplacementMm(ref state, 0, 0, 0, tx, tz,
+            in window, 0, 2, 30, .1, out int dx, out int dz), Is.False);
+        Assert.That(dx, Is.EqualTo(2)); Assert.That(dz, Is.EqualTo(30));
+        Assert.That(state.Acquired, Is.False);
     }
 
-    /// <summary>超距不吸。</summary>
     [Test]
-    public void Correction_BeyondAcquireDistance_IsZero()
+    public void OutsideWindow_DoesNotSuppressBaseMotion()
     {
-        ActionMotionAdhesionParams window = CreateAdhesionWindow(
-            start: 0,
-            end: 9,
-            horizontalOffsetMm: 0,
-            maxCorrectionMmPerFrame: 100000,
-            maxAcquireDistanceMm: 1000);
-
-        Assert.That(
-            ActionMotionAdhesion.TryComputeCorrectionMm(
-                0, 0, 0f, 0, 2500, in window, currentFrame: 0, out _, out _),
-            Is.False);
+        var state = new ActionMotionAdhesion.State();
+        var window = Window();
+        Assert.That(ActionMotionAdhesion.TryComputeDisplacementMm(ref state, 0, 0, 0, 0, 2000,
+            in window, 10, 20, 50, 1, out int dx, out int dz), Is.False);
+        Assert.That(dx, Is.EqualTo(20)); Assert.That(dz, Is.EqualTo(50));
     }
 
-    /// <summary>触顶不超过 maxCorrection。</summary>
     [Test]
-    public void Correction_ClampsToMaxPerFrame()
+    public void BackwardSeek_RecapturesAndMatchesFreshState()
     {
-        ActionMotionAdhesionParams window = CreateAdhesionWindow(
-            start: 0,
-            end: 0,
-            horizontalOffsetMm: 0,
-            maxCorrectionMmPerFrame: 100);
-
-        Assert.That(
-            ActionMotionAdhesion.TryComputeCorrectionMm(
-                0, 0, 0f, 0, 2000, in window, currentFrame: 0, out int cx, out int cz),
-            Is.True);
-        Assert.That(cx, Is.EqualTo(0));
-        Assert.That(cz, Is.EqualTo(100));
+        var state = new ActionMotionAdhesion.State();
+        var window = Window();
+        ActionMotionAdhesion.TryComputeDisplacementMm(ref state, 0, 0, 0, 0, 2000,
+            in window, 8, 0, 0, .5, out _, out _);
+        var fresh = new ActionMotionAdhesion.State();
+        ActionMotionAdhesion.TryComputeDisplacementMm(ref state, 0, 0, 90, 2000, 0,
+            in window, 0, 0, 0, .1, out int x, out int z);
+        ActionMotionAdhesion.TryComputeDisplacementMm(ref fresh, 0, 0, 90, 2000, 0,
+            in window, 0, 0, 0, .1, out int fx, out int fz);
+        Assert.That(x, Is.EqualTo(fx)); Assert.That(z, Is.EqualTo(fz));
     }
 
-    /// <summary>同输入两次结果一致。</summary>
     [Test]
-    public void Correction_IsDeterministic()
+    public void BakedProgress_PreservesFastSlowAndStationaryFrames()
     {
-        ActionMotionAdhesionParams window = CreateAdhesionWindow(
-            start: 0,
-            end: 7,
-            horizontalOffsetMm: 800,
-            maxCorrectionMmPerFrame: 400);
-
-        ActionMotionAdhesion.TryComputeCorrectionMm(
-            100, -50, 15f, 900, 1200, in window, 2, out int ax, out int az);
-        ActionMotionAdhesion.TryComputeCorrectionMm(
-            100, -50, 15f, 900, 1200, in window, 2, out int bx, out int bz);
-        Assert.That(ax, Is.EqualTo(bx));
-        Assert.That(az, Is.EqualTo(bz));
-    }
-
-    /// <summary>方案 A：过冲后 desired 落到朝向后方时不倒拖。</summary>
-    [Test]
-    public void Correction_PastDesired_DoesNotPullBack()
-    {
-        // 敌人 +Z 2000；演员已冲到 Z=3500（朝向 +Z），缺口在身后
-        ActionMotionAdhesionParams window = CreateAdhesionWindow(
-            start: 0,
-            end: 7,
-            horizontalOffsetMm: 1000,
-            maxCorrectionMmPerFrame: 100000);
-
-        Assert.That(
-            ActionMotionAdhesion.TryComputeCorrectionMm(
-                actorXMm: 0,
-                actorZMm: 3500,
-                actorYawDegrees: 0f,
-                targetXMm: 0,
-                targetZMm: 2000,
-                in window,
-                currentFrame: 6,
-                out int cx,
-                out int cz),
-            Is.False);
-        Assert.That(cx, Is.EqualTo(0));
-        Assert.That(cz, Is.EqualTo(0));
-    }
-
-    /// <summary>未过冲时仍补朝向前方缺口（正修正）。</summary>
-    [Test]
-    public void Correction_BeforeDesired_FillsGapForward()
-    {
-        ActionMotionAdhesionParams window = CreateAdhesionWindow(
-            start: 0,
-            end: 3,
-            horizontalOffsetMm: 1000,
-            maxCorrectionMmPerFrame: 100000);
-
-        // desired Z=3000，演员在 0、朝向 +Z → forwardGap 3000 / 4 帧
-        Assert.That(
-            ActionMotionAdhesion.TryComputeCorrectionMm(
-                0, 0, 0f, 0, 2000, in window, currentFrame: 0, out int cx, out int cz),
-            Is.True);
-        Assert.That(cx, Is.EqualTo(0));
-        Assert.That(cz, Is.EqualTo(750));
-    }
-
-    /// <summary>构造吸附窗参数（Simulation 可测，无 Timeline 类型）。</summary>
-    static ActionMotionAdhesionParams CreateAdhesionWindow(
-        int start,
-        int end,
-        int horizontalOffsetMm,
-        int maxCorrectionMmPerFrame,
-        int maxAcquireDistanceMm = 100000)
-    {
-        return new ActionMotionAdhesionParams(
-            start,
-            end,
-            horizontalOffsetMm,
-            lateralOffsetMm: 0,
-            maxCorrectionMmPerFrame,
-            maxAcquireDistanceMm,
-            maxAngleMilliDeg: 0);
+        var baked = new ActionBakedMotion { frameCount = 3, bakeStatus = ActionBakedMotionStatus.Ok,
+            positionDeltaMmX = new[] { 0, 0, 0 }, positionDeltaMmZ = new[] { 100, 0, 300 },
+            yawDeltaMilliDeg = new[] { 0, 0, 0 } };
+        Assert.That(ActionMotionAdhesion.BakedProgress(baked, 0, 2), Is.EqualTo(.25));
+        Assert.That(ActionMotionAdhesion.BakedProgress(baked, 1, 2), Is.Zero);
+        Assert.That(ActionMotionAdhesion.BakedProgress(baked, 2, 2), Is.EqualTo(1));
+        Assert.That(ActionMotionAdhesion.BakedProgress(null, 0, 9), Is.EqualTo(.1));
     }
 }

@@ -24,7 +24,7 @@ MonoBehaviour:
   executionPolicy:
     interruptPriority: 0
     baseMotionMode: 2
-    bodyCollisionMode: 0
+    bodyCollisionMode: 1
     bodyContactSkinMm: 20
   resourceSpec:
     resourceTag: 0
@@ -86,7 +86,7 @@ MonoBehaviour:
     rotationStates:
     - id: Rotation_1
       startFrame: 0
-      endFrame: 21
+      endFrame: 27
       priority: 0
       trackName: Rotation_1
       smoothTimeOverride: 0.05

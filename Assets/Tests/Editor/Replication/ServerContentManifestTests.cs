@@ -3,6 +3,19 @@ using NUnit.Framework;
 /// <summary>Gameplay 指纹只随玩法身份变化，不把 VFX 名算进去。</summary>
 public sealed class ServerContentManifestTests
 {
+    [Test]
+    public void ComputeFingerprint_BodyPolicyOrSkinChange_ChangesHash()
+    {
+        ContentFingerprint a = ServerContentManifest.ComputeFingerprint(1, "bake", new[] { 1 }, new[] { 2 },
+            System.Array.Empty<string>(), new[] { "2:1:20" });
+        ContentFingerprint b = ServerContentManifest.ComputeFingerprint(1, "bake", new[] { 1 }, new[] { 2 },
+            System.Array.Empty<string>(), new[] { "2:0:20" });
+        ContentFingerprint c = ServerContentManifest.ComputeFingerprint(1, "bake", new[] { 1 }, new[] { 2 },
+            System.Array.Empty<string>(), new[] { "2:1:50" });
+        Assert.That(a, Is.Not.EqualTo(b));
+        Assert.That(a, Is.Not.EqualTo(c));
+    }
+
     /// <summary>改动作 Id 集合必须改变指纹。</summary>
     [Test]
     public void ComputeFingerprint_ActionIdsChange_ChangesHash()

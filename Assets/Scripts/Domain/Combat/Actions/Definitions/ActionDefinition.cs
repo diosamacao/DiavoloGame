@@ -79,6 +79,11 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
     {
         UnityEngine.Object logContext = context != null ? context : this;
         bool valid = true;
+        if (!ExecutionPolicy.HasValidBodyCollision)
+        {
+            Debug.LogError($"ActionDefinition: '{name}' 身体阻挡模式无效或 Skin 为负。", logContext);
+            valid = false;
+        }
         if (totalFrames <= 0 || animationSegments == null || animationSegments.Length == 0)
         {
             Debug.LogError(

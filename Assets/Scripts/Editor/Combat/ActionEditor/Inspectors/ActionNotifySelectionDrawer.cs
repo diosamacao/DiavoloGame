@@ -202,6 +202,8 @@ public static class ActionNotifySelectionDrawer
             so.FindProperty("executionPolicy"),
             new GUIContent("Execution Policy"),
             includeChildren: true);
+        if (action.ExecutionPolicy.BodyCollisionMode == ActionBodyCollisionMode.StopOnContact)
+            EditorGUILayout.HelpBox("连续路径遇实体/墙停止，动画继续。假敌预览不包含场景墙体和网络时序。", MessageType.Info);
         EditorGUILayout.PropertyField(
             so.FindProperty("timeline.cameraSettings"),
             new GUIContent("Camera Track Settings"),
@@ -443,9 +445,9 @@ public static class ActionNotifySelectionDrawer
         if (adhesion)
         {
             EditorGUILayout.HelpBox(
-                "TargetAdhesion：desired = 敌人 + normalize(敌−我)*horizontalOffset。"
-                + " >0 穿到敌后侧；窗口时长=吸附时长（剩余帧均摊）。\n"
-                + "Scene：选中本窗口后显示红色假敌球（可拖），绿色为吸附修正轨迹；Scrub 预览根跟修正落点。",
+                "TargetAdhesion：捕获时固定敌我连线偏移，目标移动时落点随之平移。"
+                + " >0 为捕获连线远侧；窗内重映射基础位移节奏，末帧到达落点（仍受墙体碰撞影响）。末帧不受修正上限限制；窗外基础位移恢复。\n"
+                + "选中本窗口显示假敌、黄色目标点与绿色修正轨迹。顶部 X/Z 调节假敌；Scene 中也可拖动。",
                 MessageType.Info);
             DrawMultiProperty(batchSet, element, "targetSource");
             DrawMultiProperty(
@@ -463,7 +465,7 @@ public static class ActionNotifySelectionDrawer
         {
             EditorGUILayout.HelpBox(
                 "SoftBodySuppress：窗内攻击者不参与角色软体互撞，仍碰静态墙。\n"
-                + "Scene：选中本窗口时仍显示可拖拽假敌球，便于对照叠人距离（无吸附轨迹）。",
+                + "选中本窗口显示假敌球，顶部 X/Z 调节位置；Scene 中也可拖动（无吸附轨迹）。",
                 MessageType.Info);
         }
     }

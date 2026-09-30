@@ -42,12 +42,24 @@ public readonly struct ServerContentManifest
         content.Actions.CopyActionIds(actionIds);
         var intentSignatures = new List<string>();
         content.GameplayIntents.CopyStableSignatures(intentSignatures);
+        var actions = new List<ActionDefinition>();
+        content.Actions.CopyActions(actions);
+        actions.Sort((a, b) => content.Actions.RequireId(a).CompareTo(content.Actions.RequireId(b)));
+        var collisionSignatures = new List<string>(actions.Count);
+        foreach (ActionDefinition action in actions)
+        {
+            if (!action.ExecutionPolicy.HasValidBodyCollision)
+                throw new InvalidOperationException($"Invalid body collision policy: {action.name}");
+            collisionSignatures.Add(FormattableString.Invariant(
+                $"{content.Actions.RequireId(action)}:{(int)action.ExecutionPolicy.BodyCollisionMode}:{action.ExecutionPolicy.BodyContactSkinMm}"));
+        }
         ContentFingerprint fingerprint = ComputeFingerprint(
             contentVersion,
             collisionBakeId,
             archetypeIds,
             actionIds,
-            intentSignatures);
+            intentSignatures,
+            collisionSignatures);
         return new ServerContentManifest(contentVersion, collisionBakeId, fingerprint);
     }
 
@@ -72,7 +84,8 @@ public readonly struct ServerContentManifest
         string collisionBakeId,
         IReadOnlyList<int> archetypeIds,
         IReadOnlyList<int> actionIds,
-        IReadOnlyList<string> intentSignatures)
+        IReadOnlyList<string> intentSignatures,
+        IReadOnlyList<string> bodyCollisionSignatures = null)
     {
         var builder = new StringBuilder(128);
         builder.Append(contentVersion);
@@ -84,6 +97,8 @@ public readonly struct ServerContentManifest
         AppendSorted(builder, actionIds);
         builder.Append("|i");
         AppendOrdered(builder, intentSignatures);
+        builder.Append("|body:").Append(ActionBodySweep.RulesVersion);
+        AppendOrdered(builder, bodyCollisionSignatures);
         Hash128(builder.ToString(), out ulong high, out ulong low);
         if (high == 0ul && low == 0ul)
             low = 1ul;

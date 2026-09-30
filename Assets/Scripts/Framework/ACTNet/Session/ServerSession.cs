@@ -269,13 +269,21 @@ public sealed class ServerSession : IDisposable
         _joinRequests.Enqueue(new SessionPlayerRequest(connectionId, playerId));
     }
 
-    /// <summary>扫描每连接活动时刻，只断开达到超时边界的连接。</summary>
+    /// <summary>同步底层已断开的连接，再按活动时刻剔除超时连接。</summary>
     void DisconnectTimedOut(long nowMs)
     {
         _connections.CopyConnectionIds(_connectionScratch);
         for (int i = 0; i < _connectionScratch.Count; i++)
         {
             NetConnectionId connectionId = _connectionScratch[i];
+            bool connected = false;
+            for (int j = 0; j < _transport.Connections.Count; j++)
+                if (_transport.Connections[j] == connectionId) { connected = true; break; }
+            if (!connected)
+            {
+                DisconnectInternal(connectionId, DisconnectReason.TransportError, notifyClient: false);
+                continue;
+            }
             if (_connections.IsTimedOut(connectionId, nowMs, _config.IdleTimeoutMs))
             {
                 DisconnectInternal(

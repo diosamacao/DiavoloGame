@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 /// <summary>W5/W7/W8 Dedicated Runtime：Match 生命周期、每连接 Frame，以及空房/对局结束退出。</summary>
 public sealed class DedicatedServerRuntimeTests
@@ -54,6 +56,7 @@ public sealed class DedicatedServerRuntimeTests
     [Test]
     public void BindFailure_ReturnsBindFailed()
     {
+        LogAssert.Expect(LogType.Error, "DedicatedServerRuntime: 绑定失败 0.0.0.0:7777。bind failed");
         ServerLaunchConfig config = ServerLaunchConfig.CreateDefault(7777, contentVersion: 1);
         DedicatedServerRuntime runtime = DedicatedServerRuntime.TryStart(
             new ThrowingBindTransport(),

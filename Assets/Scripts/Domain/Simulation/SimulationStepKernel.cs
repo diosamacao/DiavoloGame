@@ -10,11 +10,12 @@ public sealed class SimulationStepKernel
     public SimulationStepKernel(SimulationConfig config = null)
     {
         SimulationConfig resolved = config ?? new SimulationConfig();
-        _fixedDeltaSeconds = resolved.FixedDeltaSeconds;
+        // 时钟欠账用 double 直接除频率，避免 float 步长使 50ms / 60Hz 少算一帧。
+        _fixedDeltaSeconds = 1d / resolved.LogicHz;
         _accumulator = new FixedStepAccumulator(
-            resolved.FixedDeltaSeconds,
+            _fixedDeltaSeconds,
             resolved.MaxFrameCatchUp);
-        FixedDeltaSeconds = resolved.FixedDeltaSeconds;
+        FixedDeltaSeconds = _fixedDeltaSeconds;
         MaxFrameCatchUp = resolved.MaxFrameCatchUp;
     }
 

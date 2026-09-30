@@ -126,7 +126,11 @@ public readonly struct CharacterDebugSnapshot
         GameplayIntentType[] frameIntents,
         BufferedIntentDebug[] buffers,
         float additiveWeight,
-        HitReactionKind lastReactionKind)
+        HitReactionKind lastReactionKind,
+        SimVec2 actionMoveFromMm = default,
+        SimVec2 actionMoveDesiredMm = default,
+        bool actionMoveBlocked = false,
+        SimActorId actionMoveBlocker = default)
     {
         State = state;
         ActionActive = actionActive;
@@ -167,7 +171,17 @@ public readonly struct CharacterDebugSnapshot
         Buffers = buffers ?? Array.Empty<BufferedIntentDebug>();
         AdditiveWeight = additiveWeight;
         LastReactionKind = lastReactionKind;
+        ActionMoveFromMm = actionMoveFromMm;
+        ActionMoveDesiredMm = actionMoveDesiredMm;
+        ActionMoveBlocked = actionMoveBlocked;
+        ActionMoveBlocker = actionMoveBlocker;
     }
+
+    /// <summary>最近一次动作提交的起点、原始终点与阻挡身份；实际终点读取 Motor 字段。</summary>
+    public SimVec2 ActionMoveFromMm { get; }
+    public SimVec2 ActionMoveDesiredMm { get; }
+    public bool ActionMoveBlocked { get; }
+    public SimActorId ActionMoveBlocker { get; }
 
     public CharacterStateType State { get; }
     public bool ActionActive { get; }

@@ -39,6 +39,22 @@
 - Treat generated IDE diagnostics as supplemental. Unity compilation and Unity Test Framework results are authoritative for Unity code.
 - Do not claim compilation or tests passed unless the command actually completed and its log/results were inspected.
 
+## Unity tooling policy
+
+- For Unity Editor state, Console logs, compilation, Play Mode, Test Runner, scenes, GameObjects, components, prefabs, and Inspector work, use the project's Unity MCP tools whenever they are available.
+- For filesystem code inspection and edits, continue to use repository tools directly. Use `tools/codex/Invoke-UnityTests.ps1` when the project is not open and Unity batch-mode verification is appropriate.
+- Do not control Unity through mouse/keyboard desktop automation unless the user explicitly asks for it, or a required visual-only check cannot be performed through Unity MCP or CLI.
+- If Unity MCP is unavailable or disconnected, do not silently fall back to desktop automation. State the limitation, use a safe CLI path when possible, or provide exact manual Unity Editor steps.
+- Before any Unity MCP or CLI action, preserve the existing rule that Unity batch mode must never target this project while the same directory is open in Unity Editor.
+
+## Unity tooling policy
+
+- For Unity Editor state, Console logs, compilation, Play Mode, Test Runner, scenes, GameObjects, components, prefabs, and Inspector work, use the project's Unity MCP tools whenever they are available.
+- For filesystem code inspection and edits, continue to use repository tools directly. Use `tools/codex/Invoke-UnityTests.ps1` when the project is not open and Unity batch-mode verification is appropriate.
+- Do not control Unity through mouse/keyboard desktop automation unless the user explicitly asks for it, or a required visual-only check cannot be performed through Unity MCP or CLI.
+- If Unity MCP is unavailable or disconnected, do not silently fall back to desktop automation. State the limitation, use a safe CLI path when possible, or provide exact manual Unity Editor steps.
+- Before any Unity MCP or CLI action, preserve the existing rule that Unity batch mode must never target this project while the same directory is open in Unity Editor.
+
 ## Architecture explanations
 
 - For architecture, layering, module-boundary, or framework explanations, cite real repository files and line numbers for each key conclusion.

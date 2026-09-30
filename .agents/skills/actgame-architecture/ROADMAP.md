@@ -15,6 +15,22 @@
 
 ## 进行中的结构迁移
 
+### [已暂停] 可复用战斗姿态与移动模式（提案）
+
+**方案**：[`docs/2026.9.30/COMBAT_MODE_LIFECYCLE_PLAN.md`](../../../../docs/2026.9.30/COMBAT_MODE_LIFECYCLE_PLAN.md)
+
+**目标**：扩展现有 CombatModeService，统一限时/永久模式、完整 Locomotion 配置切换、任意动作节点的开始/指定帧/自然完成提交和预测复制；Vivian 本次仅落地限时 Ground/Air，永久姿态以独立框架测试验证，不绑定大招或增加角色专用状态机。CM1～CM4 均未开始。
+
+**进度（2026-10-01）**：用户要求暂停并撤销全部姿态方案实现，CM0 资源池及模式 ID 改动均已撤回。方案仅保留为设计记录，未经再次要求不继续实施。
+
+### [P0] 动作突刺连续碰撞阻挡
+
+**方案**：[`docs/2026.9.30/ACTION_DASH_COLLISION_PLAN.md`](../../../../docs/2026.9.30/ACTION_DASH_COLLISION_PLAN.md)
+
+**目标**：按 DB0～DB4 为动作配置连续路径阻挡；Vivian Attack04 / AttackBranch_Ground 在接触角色前截断位移，动画继续。纯模拟求解器供权威与预测共用，吸附输出同样受约束；保留软分离处理残余重叠。
+
+**状态**：2026-09-30 核心求解、动作统一提交、Authority/Proxy 来源筛选、指纹、预览与 HUD 已接入；补充编译/测试记录见 [实施记录](../../../../docs/2026.9.30/ACTION_DASH_COLLISION_IMPLEMENTATION.md)。Unity 正开且 MCP 不可用，未运行 Unity Test Runner / Play，DB0～DB4 总出口尚未关闭；资产启用需具体授权或用户 Editor 配置。方案不承诺任意两体同时运动 CCD。
+
 ### [P1] 角色配置链路与动作编辑优化
 
 **方案**：[`docs/2026.9.28/CHARACTER_AUTHORING_SIMPLIFICATION_PLAN.md`](../../../docs/2026.9.28/CHARACTER_AUTHORING_SIMPLIFICATION_PLAN.md)

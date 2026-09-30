@@ -76,7 +76,7 @@ MonoBehaviour:
     hurtboxStates: []
     cancelWindowStates:
     - id: NormalCancel
-      startFrame: 16
+      startFrame: 20
       endFrame: 60
       priority: 0
       trackName: Cancel_1
@@ -102,7 +102,7 @@ MonoBehaviour:
       endFrame: 6
       priority: 0
       trackName: Rotation_1
-      smoothTimeOverride: 0
+      smoothTimeOverride: 0.05
     motionModifierStates: []
     motionCommandNotifies: []
     cameraSettings:

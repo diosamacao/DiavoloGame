@@ -72,6 +72,12 @@ public static class CharacterActorFactory
             motorConfig,
             effectiveMoveIntent,
             motorSim);
+        // Listen 的 TargetSystem 同时登记 Authority 与 Proxy；座位策略只读取对应世界的实体。
+        Predicate<IHurtboxTarget> bodySourceFilter = seat == ReplicationSeat.Authority
+            ? target => target is CharacterHurtboxTarget
+            : target => target is RemoteCharacterProxy;
+        motor.BindBodyObstacles(new CharacterBodyObstacleQuery(activeTargetsProvider, bodySourceFilter),
+            () => actor?.SimulationId ?? SimActorId.Invalid);
         var targetingState = new CharacterTargetingState(
             teamId,
             MotionQuantization.MetersToMm(config.Combat.TargetAcquireRangeMeters),

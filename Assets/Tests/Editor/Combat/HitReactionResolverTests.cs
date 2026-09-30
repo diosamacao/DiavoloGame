@@ -28,7 +28,7 @@ public sealed class HitReactionResolverTests
     {
         HitReactionCommand command = _resolver.Resolve(
             HitReactionResolveQuery.CombatHit(
-                interruptLevel: 3,
+                interruptLevel: 1,
                 baseInterruptResist: 1));
 
         Assert.That(command.Kind, Is.EqualTo(HitReactionKind.LightStun));
@@ -226,6 +226,9 @@ public sealed class HitReactionResolverTests
     {
         var vitality = new CharacterVitality(new NumericSystem(CharacterNumericConfig.Default));
         vitality.ApplyDamage(1f, default);
+        // 扣血本身不生成 Hit 边沿；先确认硬直，再验证 Flinch 清理已有边沿。
+        Assert.That(vitality.ReplicationEdge, Is.EqualTo(VitalityReplicationEdge.None));
+        vitality.ConfirmHitReaction(HitReactionKind.LightStun);
         Assert.That(vitality.ReplicationEdge, Is.EqualTo(VitalityReplicationEdge.Hit));
 
         vitality.ConfirmHitReaction(HitReactionKind.Flinch);
@@ -323,25 +326,41 @@ public sealed class HitReactionResolverTests
     public void ActionDefinition_SumsActivePhaseInterruptResistBonus()
     {
         ActionDefinition action = ScriptableObject.CreateInstance<ActionDefinition>();
-        var so = new SerializedObject(action);
-        SerializedProperty phases = so.FindProperty("timeline").FindPropertyRelative("phaseStates");
-        phases.arraySize = 2;
+        var clip = new AnimationClip();
+        try
+        {
+            // OnValidate 按动画段长度裁剪 Phase 窗，先构造有效的 11 帧动作。
+            clip.SetCurve("", typeof(Transform), "localPosition.z", AnimationCurve.Linear(0, 0, 1, 1));
+            using var so = new SerializedObject(action);
+            SerializedProperty segments = so.FindProperty("animationSegments");
+            segments.arraySize = 1;
+            SerializedProperty segment = segments.GetArrayElementAtIndex(0);
+            segment.FindPropertyRelative("clip").objectReferenceValue = clip;
+            segment.FindPropertyRelative("startFrame").intValue = 0;
+            segment.FindPropertyRelative("endFrame").intValue = 10;
+            SerializedProperty phases = so.FindProperty("timeline").FindPropertyRelative("phaseStates");
+            phases.arraySize = 2;
 
-        SerializedProperty first = phases.GetArrayElementAtIndex(0);
-        first.FindPropertyRelative("startFrame").intValue = 0;
-        first.FindPropertyRelative("endFrame").intValue = 10;
-        first.FindPropertyRelative("interruptResistBonus").intValue = 2;
+            SerializedProperty first = phases.GetArrayElementAtIndex(0);
+            first.FindPropertyRelative("startFrame").intValue = 0;
+            first.FindPropertyRelative("endFrame").intValue = 10;
+            first.FindPropertyRelative("interruptResistBonus").intValue = 2;
 
-        SerializedProperty second = phases.GetArrayElementAtIndex(1);
-        second.FindPropertyRelative("startFrame").intValue = 5;
-        second.FindPropertyRelative("endFrame").intValue = 10;
-        second.FindPropertyRelative("interruptResistBonus").intValue = 1;
-        so.ApplyModifiedPropertiesWithoutUndo();
+            SerializedProperty second = phases.GetArrayElementAtIndex(1);
+            second.FindPropertyRelative("startFrame").intValue = 5;
+            second.FindPropertyRelative("endFrame").intValue = 10;
+            second.FindPropertyRelative("interruptResistBonus").intValue = 1;
+            so.ApplyModifiedPropertiesWithoutUndo();
 
-        Assert.That(action.GetInterruptResistBonusAtFrame(0), Is.EqualTo(2));
-        Assert.That(action.GetInterruptResistBonusAtFrame(5), Is.EqualTo(3));
-        Assert.That(action.GetInterruptResistBonusAtFrame(11), Is.EqualTo(0));
-
-        Object.DestroyImmediate(action);
+            Assert.That(action.TotalFrames, Is.EqualTo(11));
+            Assert.That(action.GetInterruptResistBonusAtFrame(0), Is.EqualTo(2));
+            Assert.That(action.GetInterruptResistBonusAtFrame(5), Is.EqualTo(3));
+            Assert.That(action.GetInterruptResistBonusAtFrame(11), Is.EqualTo(0));
+        }
+        finally
+        {
+            Object.DestroyImmediate(action);
+            Object.DestroyImmediate(clip);
+        }
     }
 }

@@ -492,7 +492,7 @@ public sealed class RemoteCharacterProxyTests
             Vector3.zero,
             1f / 60f);
 
-        ActorReplicationSnapshot snapshot = CreatePoseSnapshot(2000, 0);
+        ActorReplicationSnapshot snapshot = CreatePoseSnapshot(2000, 0, PartyMemberState.Active);
         proxy.ApplySnapshot(in snapshot);
 
         Assert.That(proxy.CollectsHits, Is.False);
@@ -531,7 +531,7 @@ public sealed class RemoteCharacterProxyTests
             new ActionReplicationCatalog(),
             Vector3.zero,
             1f / 60f);
-        ActorReplicationSnapshot snapshot = CreatePoseSnapshot(2000, 0);
+        ActorReplicationSnapshot snapshot = CreatePoseSnapshot(2000, 0, PartyMemberState.Active);
         proxy.ApplySnapshot(in snapshot);
 
         var roster = new List<IHurtboxTarget> { proxy };

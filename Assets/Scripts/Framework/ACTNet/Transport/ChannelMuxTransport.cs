@@ -20,6 +20,7 @@ public sealed class ChannelMuxTransport : INetTransport
     readonly int _maxDatagramBytes;
     readonly Dictionary<int, ConnectionState> _connections = new();
     readonly Queue<NetPacket> _delivered = new();
+    readonly List<int> _disconnectedScratch = new();
     long _nowMs;
     long _bytesSent;
     long _bytesReceived;
@@ -107,6 +108,7 @@ public sealed class ChannelMuxTransport : INetTransport
     public void Poll()
     {
         _inner.Poll();
+        RemoveDisconnectedState();
         while (_inner.TryReceive(out NetPacket packet))
             HandleIncoming(in packet);
         RetransmitDue();
@@ -288,6 +290,25 @@ public sealed class ChannelMuxTransport : INetTransport
             }
             state.Unacked.RemoveAt(i);
             return;
+        }
+    }
+
+    // 底层连接表是存活真源；在重传前清理已断开连接，避免旧可靠包继续发送。
+    void RemoveDisconnectedState()
+    {
+        _disconnectedScratch.Clear();
+        foreach (int id in _connections.Keys)
+        {
+            bool connected = false;
+            for (int i = 0; i < _inner.Connections.Count; i++)
+                if (_inner.Connections[i].Value == id) { connected = true; break; }
+            if (!connected)
+                _disconnectedScratch.Add(id);
+        }
+        foreach (int id in _disconnectedScratch)
+        {
+            _connections.Remove(id);
+            RemoveDelivered(new NetConnectionId(id));
         }
     }
 

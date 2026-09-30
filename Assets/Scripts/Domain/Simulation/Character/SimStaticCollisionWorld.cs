@@ -76,6 +76,34 @@ public sealed class SimStaticCollisionWorld : ISimCollisionWorld
         return new SimVec2(x, z);
     }
 
+    /// <inheritdoc />
+    public double SweepFraction(SimVec2 fromMm, SimVec2 deltaMm, int radiusMm)
+    {
+        double best = 1;
+        double r = Math.Max(0, radiusMm);
+        for (int i = 0; i < _aabbs.Length; i++)
+        {
+            SimStaticAabb box = _aabbs[i];
+            double enter = double.NegativeInfinity, exit = double.PositiveInfinity;
+            if (!ClipAxis(fromMm.X, deltaMm.X, box.MinXMm - r, box.MaxXMm + r, ref enter, ref exit)
+                || !ClipAxis(fromMm.Z, deltaMm.Z, box.MinZMm - r, box.MaxZMm + r, ref enter, ref exit))
+                continue;
+            // 开区间判定允许沿面滑离/擦边；起点已脱嵌，向内立即停止。
+            if (exit > Math.Max(0, enter) && enter < best && exit > 0)
+                best = Math.Max(0, enter);
+        }
+        return best;
+    }
+
+    static bool ClipAxis(double from, double delta, double min, double max, ref double enter, ref double exit)
+    {
+        if (delta == 0) return from > min && from < max;
+        double a = (min - from) / delta, b = (max - from) / delta;
+        enter = Math.Max(enter, Math.Min(a, b));
+        exit = Math.Min(exit, Math.Max(a, b));
+        return enter < exit;
+    }
+
     int MoveAxisX(int x, int z, int targetX, int radiusMm)
     {
         int best = targetX;

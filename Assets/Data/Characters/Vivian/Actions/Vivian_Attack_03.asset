@@ -104,6 +104,37 @@ MonoBehaviour:
           randomizeImpactRotation: 0
           impactRandomEulerMin: {x: 0, y: 0, z: 0}
           impactRandomEulerMax: {x: 0, y: 0, z: 0}
+    - id: Hitbox_2_2
+      startFrame: 33
+      endFrame: 37
+      priority: 0
+      trackName: Hitbox_1
+      shape: 0
+      attachPointId: 
+      localOffset: {x: 0, y: 0.89, z: 0.73}
+      localEulerAngles: {x: 0, y: 0, z: 0}
+      size: {x: 2, y: 2, z: 3}
+      parentToAttachPoint: 1
+      parentToAttachPointSchema: 1
+      payload:
+        baseDamage: 0
+        hitReactionId: 
+        interruptLevel: 1
+        parriedActionPolicy: 0
+        parriedReactionId: 
+        feedback:
+          cameraShakeProfile: {fileID: 0}
+          useHitStop: 0
+          hitStopFrames: 0
+          hitStopOncePerAction: 0
+          hitImpactVfxPrefab: {fileID: 0}
+          hitImpactSfx: {fileID: 0}
+          hitImpactSfxVolume: 0
+          hitImpactWorldOffset: {x: 0, y: 0, z: 0}
+          hitImpactScale: {x: 0, y: 0, z: 0}
+          randomizeImpactRotation: 0
+          impactRandomEulerMin: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 0, z: 0}
     hurtboxStates: []
     cancelWindowStates:
     - id: NormalCancel
@@ -133,7 +164,7 @@ MonoBehaviour:
       endFrame: 25
       priority: 0
       trackName: Rotation_1
-      smoothTimeOverride: 0
+      smoothTimeOverride: 0.05
     motionModifierStates: []
     motionCommandNotifies: []
     cameraSettings:

@@ -14,6 +14,11 @@ public sealed class CharacterActionGameplayStep
     readonly CharacterTargetingState _targetingState;
     readonly IActionMotionWorldQuery _worldQuery;
     readonly List<ActionSimEvent> _events = new(16);
+    // 捕获轴只属于当前动作窗口和目标；生命周期切换清空，不能跨动作复用。
+    ActionMotionAdhesion.State _adhesion;
+    MotionModifierNotifyState _adhesionWindow;
+    SimActorId _adhesionTarget;
+    int _adhesionTargetX, _adhesionTargetZ;
 
     /// <summary>创建动作 Gameplay 固定帧执行器；表现只经只读 Sink 消费同批事件。</summary>
     public CharacterActionGameplayStep(
@@ -126,6 +131,7 @@ public sealed class CharacterActionGameplayStep
         if (actionEvent.Content is not ActionDefinition action)
             return;
 
+        ResetAdhesion();
         ExecuteStartBehaviors(actionEvent.Graph as ActionGraph, actionEvent.NodeId);
         for (int i = 0; i < _frameConsumers.Count; i++)
             _frameConsumers[i].OnActionBegan(action);
@@ -137,6 +143,7 @@ public sealed class CharacterActionGameplayStep
         for (int i = 0; i < _frameConsumers.Count; i++)
             _frameConsumers[i].OnActionEnded();
         _motor.Sim.ClearSoftBodySuppress();
+        ResetAdhesion();
     }
 
     /// <summary>仅将有效动作帧派发给 Gameplay 消费者；终止哨兵不产生判定。</summary>
@@ -158,20 +165,21 @@ public sealed class CharacterActionGameplayStep
             _frameConsumers[i].OnCombatFrameAdvanced(in context);
     }
 
-    /// <summary>按 BaseMotionMode 施加基础位移，再叠 Modifier，最后执行 MotionCommand。</summary>
+    /// <summary>先把基础位移重映射为吸附位移，只提交一次碰撞移动，最后执行 MotionCommand。</summary>
     void ApplyDisplacementForAction(ActionDefinition action, int frame, float fixedDeltaSeconds)
     {
-        switch (ResolveDisplacementSource(action))
+        if (_actorRoot != null) _motor.Sim.SetFacingDegrees(_actorRoot.eulerAngles.y);
+        SimVec2 delta = ResolveBaseDisplacement(action, frame, fixedDeltaSeconds);
+        bool adhered = TryApplyTargetAdhesion(action, frame, fixedDeltaSeconds, ref delta);
+        float? scriptedSpeed = null;
+        if (!adhered && ResolveDisplacementSource(action) == ActionDisplacementSource.ScriptedTimeline)
         {
-            case ActionDisplacementSource.BakedMotion:
-                ApplyBakedMotionDisplacement(action, frame);
-                break;
-            case ActionDisplacementSource.ScriptedTimeline:
-                ApplyScriptedDisplacement(action, frame, fixedDeltaSeconds);
-                break;
+            var movement = action.GetActiveMovementStateAtFrame(frame);
+            if (movement != null && fixedDeltaSeconds > .0001f
+                && Mathf.Abs(movement.ResolveSpeed(action.SampleRate) * fixedDeltaSeconds) >= .000316228f)
+                scriptedSpeed = Mathf.Abs(movement.ResolveSpeed(action.SampleRate));
         }
-
-        ApplyTargetAdhesionForFrame(action, frame);
+        _motor.MoveActionMm(delta, action.ExecutionPolicy, scriptedSpeed);
         ApplyMotionCommandsForFrame(action, frame);
     }
 
@@ -182,49 +190,56 @@ public sealed class CharacterActionGameplayStep
             _motor.Sim.SetSoftBodySuppressFrames(1);
     }
 
-    /// <summary>按当前逻辑目标执行逐帧 TargetAdhesion 修正。</summary>
-    void ApplyTargetAdhesionForFrame(ActionDefinition action, int frame)
+    void ResetAdhesion()
     {
-        if (action == null || _worldQuery == null)
-            return;
+        _adhesion = default; _adhesionWindow = null; _adhesionTarget = SimActorId.Invalid;
+    }
 
-        MotionModifierNotifyState window = action.Timeline.GetActiveTargetAdhesionAtFrame(frame);
-        if (window == null)
-            return;
-
+    /// <summary>捕获时固定偏移轴，随后只跟随目标平移；丢失目标可按配置继续向最后落点收敛。</summary>
+    bool TryApplyTargetAdhesion(ActionDefinition action, int frame, float dt, ref SimVec2 delta)
+    {
+        var window = action.Timeline.GetActiveTargetAdhesionAtFrame(frame);
+        if (window == null) { ResetAdhesion(); return false; }
+        if (_adhesionWindow != window) { ResetAdhesion(); _adhesionWindow = window; }
         SimActorId targetId = ResolveMotionTargetId(window.TargetSource);
-        if (!targetId.IsValid
-            || !_worldQuery.TryGetCommittedCombatPose(targetId, out SimCombatPose pose))
+        if (targetId.IsValid && _worldQuery != null
+            && _worldQuery.TryGetCommittedCombatPose(targetId, out SimCombatPose pose))
         {
-            return;
+            if (_adhesionTarget != targetId) _adhesion = default;
+            _adhesionTarget = targetId;
+            _adhesionTargetX = MotionQuantization.MetersToMm(pose.Position.x);
+            _adhesionTargetZ = MotionQuantization.MetersToMm(pose.Position.z);
         }
-
-        SimVec2 actorMm = _motor.Sim.PositionMm;
-        int targetXMm = MotionQuantization.MetersToMm(pose.Position.x);
-        int targetZMm = MotionQuantization.MetersToMm(pose.Position.z);
-        float yaw = MotionQuantization.MilliDegToDegrees(_motor.Sim.FacingMilliDeg);
-        var adhesion = new ActionMotionAdhesionParams(
-            window.StartFrame,
-            window.EndFrame,
-            window.HorizontalOffsetMm,
-            window.LateralOffsetMm,
-            window.MaxCorrectionMmPerFrame,
-            window.MaxAcquireDistanceMm,
-            window.MaxAngleMilliDeg);
-
-        if (ActionMotionAdhesion.TryComputeCorrectionMm(
-                actorMm.X,
-                actorMm.Z,
-                yaw,
-                targetXMm,
-                targetZMm,
-                in adhesion,
-                frame,
-                out int correctionXMm,
-                out int correctionZMm))
+        else if (window.StopOnTargetLost || !_adhesion.Acquired)
         {
-            _motor.MoveWorldMm(correctionXMm, correctionZMm);
+            _adhesion = default;
+            return false;
         }
+        var parameters = new ActionMotionAdhesionParams(window.StartFrame, window.EndFrame,
+            window.HorizontalOffsetMm, window.LateralOffsetMm, window.MaxCorrectionMmPerFrame,
+            window.MaxAcquireDistanceMm, window.MaxAngleMilliDeg);
+        SimVec2 position = _motor.Sim.PositionMm;
+        double progress = ActionMotionAdhesion.BakedProgress(
+            ResolveDisplacementSource(action) == ActionDisplacementSource.BakedMotion ? action.BakedMotion : null,
+            frame, window.EndFrame);
+        if (ResolveDisplacementSource(action) == ActionDisplacementSource.ScriptedTimeline)
+        {
+            double remaining = 0, current = 0;
+            for (int i = frame; i <= window.EndFrame; i++)
+            {
+                SimVec2 step = ResolveBaseDisplacement(action, i, dt);
+                double length = Math.Sqrt((double)step.X * step.X + (double)step.Z * step.Z);
+                if (i == frame) current = length;
+                remaining += length;
+            }
+            if (remaining > 0) progress = current / remaining;
+        }
+        if (!ActionMotionAdhesion.TryComputeDisplacementMm(ref _adhesion,
+                position.X, position.Z, MotionQuantization.MilliDegToDegrees(_motor.Sim.FacingMilliDeg),
+                _adhesionTargetX, _adhesionTargetZ, in parameters, frame,
+                delta.X, delta.Z, progress, out int x, out int z)) return false;
+        delta = new SimVec2(x, z);
+        return true;
     }
 
     /// <summary>按优先级执行当前帧 MotionCommand，并应用失败策略。</summary>
@@ -294,37 +309,30 @@ public sealed class CharacterActionGameplayStep
             action.Timeline.HasScriptedMovement);
     }
 
-    /// <summary>按整数帧查表并向逻辑 Motor 施加本地位移。</summary>
-    void ApplyBakedMotionDisplacement(ActionDefinition action, int frame)
+    /// <summary>只计算基础世界位移，不提前移动电机，避免烘焙与吸附各移动一次产生过冲。</summary>
+    SimVec2 ResolveBaseDisplacement(ActionDefinition action, int frame, float dt)
     {
-        if (action == null)
-            return;
-
-        ActionBakedMotion motion = action.BakedMotion;
-        if (motion.IsReady && motion.TryGetDelta(frame, out SimVec2 deltaMm, out _))
-            _motor.MoveLocalMm(deltaMm);
+        switch (ResolveDisplacementSource(action))
+        {
+            case ActionDisplacementSource.BakedMotion:
+                if (action.BakedMotion.TryGetDelta(frame, out var baked, out _))
+                {
+                    CharacterMotorSim.RotateLocalToWorld(_motor.Sim.FacingMilliDeg, baked.X, baked.Z, out int x, out int z);
+                    return new SimVec2(x, z);
+                }
+                break;
+            case ActionDisplacementSource.ScriptedTimeline:
+                var movement = action.GetActiveMovementStateAtFrame(frame);
+                if (movement == null) break;
+                Vector3 forward = _actorRoot != null ? _actorRoot.forward : Vector3.forward;
+                forward.y = 0;
+                if (forward.sqrMagnitude < .0001f) break;
+                Vector3 world = forward.normalized * (movement.ResolveSpeed(action.SampleRate) * dt);
+                if (world.sqrMagnitude < .0000001f) return SimVec2.Zero;
+                return new SimVec2(MotionQuantization.MetersToMm(world.x), MotionQuantization.MetersToMm(world.z));
+        }
+        return SimVec2.Zero;
     }
-
-    /// <summary>按脚本窗口速度向逻辑 Motor 施加世界前向位移。</summary>
-    void ApplyScriptedDisplacement(ActionDefinition action, int frame, float fixedDeltaSeconds)
-    {
-        if (action == null || !action.Timeline.HasScriptedMovement)
-            return;
-
-        MovementNotifyState movement = action.GetActiveMovementStateAtFrame(frame);
-        if (movement == null)
-            return;
-
-        Vector3 forward = _actorRoot != null ? _actorRoot.forward : Vector3.forward;
-        forward.y = 0f;
-        if (forward.sqrMagnitude < 0.0001f)
-            return;
-
-        forward.Normalize();
-        float signedSpeed = movement.ResolveSpeed(action.SampleRate);
-        _motor.MovePlanar(forward * (signedSpeed * fixedDeltaSeconds), fixedDeltaSeconds);
-    }
-
     /// <summary>读取图节点并按配置顺序执行当前实例的起手 Gameplay 行为。</summary>
     void ExecuteStartBehaviors(ActionGraph graph, string nodeId)
     {

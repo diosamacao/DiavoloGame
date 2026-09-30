@@ -1,6 +1,6 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-09-29（源码结构及内容审计 0 项；全量 EditMode 639/656，通过与失败分列）
+> Last audited: 2026-09-30（增量：动作连续路径阻挡及 Authority/Proxy 来源边界；新增功能 Unity 验收待完成；既有全量 EditMode 639/656，通过与失败分列）
 
 ## 项目概述
 
@@ -150,6 +150,8 @@ CS2B 已删除粗粒度 `ACTGame.Domain.Gameplay`。Camera 与 Action Timeline �
 | `CharacterMotorSim` / `ISimCollisionWorld` | 水平+竖直毫米权威；静态 AABB 硬挡或空场地；重力/着地在 Sim |
 | `StaticCollisionBake` / `SimStaticCollisionWorld` | Editor 烘焙场景 Collider→XZ AABB；Host 共享给全体 Actor |
 | `SoftBodySeparation` / `ISimSoftBodyParticipant` | World 帧末角色圆盘软弹开；死亡不参与 |
+| `ActionBodySweep` / `ISimBodyObstacleQuery` | 动作 StopOnContact：直线静态 AABB + 动态圆盘最早接触，安全终点由 MotorSim 单次提交；不滑墙、不累计位移欠账 |
+| `CharacterBodyObstacleQuery` / `ISimBodyObstacleSource` | 共用目标注册表获取独立身体体积；工厂为 Authority/Autonomous 注入来源筛选，避免 Listen 权威与 Proxy 混用；无敌/SoftBodySuppress 不移除身体 |
 | 复制契约（V2） | `ClientCommand` 上行；Lifecycle 可靠、Snapshot 不可靠并带 Lifecycle Sequence 屏障、Event 可靠；Loopback/UDP；`RemoteCharacterProxy` 跟状态 |
 
 `CombatWorldController` 创建并持有唯一 `SimulationHost`；`PlayerController` / `EnemyController` 只从该先行 Composition Root 装配和注册，缺失时明确失败，不扫描场景或自行创建第二个 World。Camera/Debug Controller 只取同物体组件、Composition Root 子树或 Architecture/Simulation 注册表。

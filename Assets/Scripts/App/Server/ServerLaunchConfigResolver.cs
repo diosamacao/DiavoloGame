@@ -272,7 +272,9 @@ public static class ServerLaunchConfigResolver
                 return false;
 
             string next = args[i + 1];
-            if (string.IsNullOrEmpty(next) || next.StartsWith("-", StringComparison.Ordinal))
+            // 负数也是显式配置值，应交给数值校验拒绝，不能当作下一选项而退回默认值。
+            if (string.IsNullOrEmpty(next) || (next.StartsWith("-", StringComparison.Ordinal)
+                && (next.Length < 2 || !char.IsDigit(next[1]))))
                 return false;
             value = next;
             return true;

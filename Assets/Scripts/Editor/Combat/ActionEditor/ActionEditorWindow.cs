@@ -13,6 +13,7 @@ public sealed class ActionEditorWindow : EditorWindow
     /// <summary>假敌相对预览原点的本地 Z（米）。</summary>
     const string AdhesionEnemyLocalZPrefKey = "ACTGame.ActionEditor.AdhesionEnemyLocalZ";
     const float DefaultAdhesionEnemyLocalZ = 3f;
+    const string BodyEnemyRadiusPrefKey = "ACTGame.ActionEditor.BodyEnemyRadius";
 
     readonly ActionListPanel _listPanel = new();
     readonly ActionToolbar _toolbar = new();
@@ -302,6 +303,34 @@ public sealed class ActionEditorWindow : EditorWindow
         }
         GUILayout.EndArea();
         rect.yMin += 24;
+        if (GetSelectedMotionModifier() != null || PreviewBodyCollision)
+        {
+            GUILayout.BeginArea(new Rect(rect.x + 5, rect.y, rect.width - 10, 44));
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                GUILayout.Label("假敌 X/Z (m)", GUILayout.Width(85));
+                EditorGUI.BeginChangeCheck();
+                float x = EditorGUILayout.FloatField(EditorPrefs.GetFloat(AdhesionEnemyLocalXPrefKey, 0f));
+                float z = EditorGUILayout.FloatField(EditorPrefs.GetFloat(AdhesionEnemyLocalZPrefKey, DefaultAdhesionEnemyLocalZ));
+                if (PreviewBodyCollision)
+                {
+                    GUILayout.Label("敌半径(m)", GUILayout.Width(65));
+                    float radius = EditorGUILayout.FloatField(EditorPrefs.GetFloat(BodyEnemyRadiusPrefKey, .28f));
+                    EditorPrefs.SetFloat(BodyEnemyRadiusPrefKey, Mathf.Max(0, radius));
+                }
+                if (EditorGUI.EndChangeCheck())
+                {
+                    EditorPrefs.SetFloat(AdhesionEnemyLocalXPrefKey, x);
+                    EditorPrefs.SetFloat(AdhesionEnemyLocalZPrefKey, z);
+                    SceneView.RepaintAll();
+                }
+            }
+            GUILayout.Label(PreviewBodyCollision
+                ? $"身体预览：自身 {PreviewBodyRadiusMm}mm；红=假敌 Id1 绿=安全终点 青=基础终点；不含场景墙体/网络"
+                : "红 = 假敌  黄 = 目标点  绿 = 修正后  青 = 仅烘焙", EditorStyles.miniLabel);
+            GUILayout.EndArea();
+            rect.yMin += 44;
+        }
         _viewport.Draw(rect, _useScenePreview, _scenePreviewCharacter, _ => DrawPreviewGizmos());
         if (!_useScenePreview && _previewCharacter != null && _showTrajectory
             && _selectedAction != null && _selectedAction.BakedMotion is { IsReady: true } baked)
@@ -448,6 +477,7 @@ public sealed class ActionEditorWindow : EditorWindow
         _previewSession.SetPreviewFrame(_previewFrame);
         _vfxPreviewExtension.IsEnabled = true;
         _previewSession.Tick();
+        ApplyMotionModifierPreview();
     }
 
     void OnSceneGUI(SceneView sceneView)
@@ -514,46 +544,71 @@ public sealed class ActionEditorWindow : EditorWindow
         }
 
         // 选中 MotionModifier 时：假敌球 + TargetAdhesion 修正轨迹 / 角色落点预览
-        if (_useScenePreview) DrawMotionModifierScenePreview(trajectoryOrigin, trajectoryRotation);
+        DrawMotionModifierScenePreview(trajectoryOrigin, trajectoryRotation);
     }
 
-    /// <summary>
-    /// 选中 MotionModifier 窗口时在 Scene 画假敌；Adhesion 模式叠修正路径并把预览根挪到修正落点。
-    /// </summary>
-    void DrawMotionModifierScenePreview(Vector3 originPosition, Quaternion originRotation)
+    MotionModifierNotifyState GetSelectedMotionModifier()
     {
-        if (!_selection.HasSelection)
-            return;
+        if (_selectedAction == null || !_selection.HasSelection) return null;
 
         ActionEditorSelection primary = _selection.Primary;
         if (!primary.IsValid || primary.Kind != ActionTimelineTrackKind.MotionModifier)
-            return;
+            return null;
 
         MotionModifierNotifyState[] modifiers = _selectedAction.Timeline.MotionModifierStates;
         if (primary.Index < 0 || primary.Index >= modifiers.Length)
-            return;
+            return null;
 
-        MotionModifierNotifyState window = modifiers[primary.Index];
-        if (window == null)
-            return;
+        return modifiers[primary.Index];
+    }
 
+    static Vector3 GetAdhesionEnemyWorld(Vector3 originPosition, Quaternion originRotation)
+    {
         Vector3 enemyLocal = new(
             EditorPrefs.GetFloat(AdhesionEnemyLocalXPrefKey, 0f),
             0f,
             EditorPrefs.GetFloat(AdhesionEnemyLocalZPrefKey, DefaultAdhesionEnemyLocalZ));
         Vector3 enemyWorld = originPosition + originRotation * enemyLocal;
         enemyWorld.y = originPosition.y;
+        return enemyWorld;
+    }
 
-        EditorGUI.BeginChangeCheck();
-        // 可拖拽假敌位置；存本地偏移，随预览原点旋转
-        enemyWorld = Handles.PositionHandle(enemyWorld, Quaternion.identity);
-        if (EditorGUI.EndChangeCheck())
+    // 在相机渲染与碰撞盒绘制前更新模型，避免覆盖层绘制后才移动导致一帧错位。
+    void ApplyMotionModifierPreview()
+    {
+        var window = GetSelectedMotionModifier();
+        if ((!PreviewBodyCollision && (window == null || window.Mode != MotionModifierMode.TargetAdhesion)) || _previewCharacter == null
+            || _previewSession == null
+            || !_previewSession.TryGetBakedPreviewOrigin(out var origin, out var rotation)) return;
+        var parameters = ActionMotionAdhesionSceneDrawing.ToParams(
+            window != null && window.Mode == MotionModifierMode.TargetAdhesion ? window : null);
+        ActionMotionAdhesionSceneDrawing.SimulateThroughFrame(_selectedAction, in parameters,
+            origin, rotation, GetAdhesionEnemyWorld(origin, rotation), rotation.eulerAngles.y,
+            _previewFrame, null, out var position, out _, out _, PreviewBodyRadiusMm, PreviewEnemyRadiusMm);
+        var current = _previewCharacter.position;
+        _previewCharacter.position = new Vector3(position.x, current.y, position.z);
+    }
+
+    /// <summary>两种视口共用调试点与轨迹；Scene 支持拖动，隔离视口使用顶部数值调节假敌。</summary>
+    void DrawMotionModifierScenePreview(Vector3 originPosition, Quaternion originRotation)
+    {
+        var window = GetSelectedMotionModifier();
+        if (window == null && !PreviewBodyCollision) return;
+        Vector3 enemyWorld = GetAdhesionEnemyWorld(originPosition, originRotation);
+
+        if (_useScenePreview)
         {
-            Vector3 local = Quaternion.Inverse(originRotation) * (enemyWorld - originPosition);
-            EditorPrefs.SetFloat(AdhesionEnemyLocalXPrefKey, local.x);
-            EditorPrefs.SetFloat(AdhesionEnemyLocalZPrefKey, local.z);
-            Repaint();
-            SceneView.RepaintAll();
+            EditorGUI.BeginChangeCheck();
+            // 可拖拽假敌位置；存本地偏移，随预览原点旋转
+            enemyWorld = Handles.PositionHandle(enemyWorld, Quaternion.identity);
+            if (EditorGUI.EndChangeCheck())
+            {
+                Vector3 local = Quaternion.Inverse(originRotation) * (enemyWorld - originPosition);
+                EditorPrefs.SetFloat(AdhesionEnemyLocalXPrefKey, local.x);
+                EditorPrefs.SetFloat(AdhesionEnemyLocalZPrefKey, local.z);
+                Repaint();
+                SceneView.RepaintAll();
+            }
         }
 
         ActionMotionAdhesionSceneDrawing.Draw(
@@ -563,17 +618,18 @@ public sealed class ActionEditorWindow : EditorWindow
             originRotation,
             enemyWorld,
             _previewFrame,
-            out Vector3 adhesionActorWorld);
-
-        // TargetAdhesion：预览根叠修正落点（Session 每帧会先贴 Bake，再被此处覆盖）
-        if (window.Mode == MotionModifierMode.TargetAdhesion && _previewCharacter != null)
-        {
-            Vector3 p = _previewCharacter.position;
-            p.x = adhesionActorWorld.x;
-            p.z = adhesionActorWorld.z;
-            _previewCharacter.position = p;
-        }
+            out _, drawLabels: _useScenePreview, actorRadiusMm: PreviewBodyRadiusMm, enemyRadiusMm: PreviewEnemyRadiusMm);
     }
+
+    bool PreviewBodyCollision => _selectedAction != null
+        && _selectedAction.ExecutionPolicy.BodyCollisionMode == ActionBodyCollisionMode.StopOnContact;
+
+    // 未从角色入口打开时明确采用 280mm 预览体；运行时始终读取配置半径。
+    int PreviewBodyRadiusMm => _characterContext != null
+        ? MotionQuantization.MetersToMm(_characterContext.Motor.ControllerRadius) : 280;
+
+    static int PreviewEnemyRadiusMm => MotionQuantization.MetersToMm(
+        Mathf.Max(0, EditorPrefs.GetFloat(BodyEnemyRadiusPrefKey, .28f)));
 
     /// <summary>提供全部 VFX 点事件数组，供预览扩展按 Scrub 帧驱动（无需时间轴选中）。</summary>
     SerializedProperty GetVfxArrayProperty() =>

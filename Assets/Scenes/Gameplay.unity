@@ -2564,7 +2564,7 @@ MonoBehaviour:
   invertY: 1
   topClamp: 70
   bottomClamp: -60
-  lockCursorOnStart: 0
+  lockCursorOnStart: 1
   followDistance: 3
   initialPitch: 15
   followSmoothTime: 0.05

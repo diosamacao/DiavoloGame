@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-09-29（结构与配置审计清零；全量 EditMode 639/656，17 项失败待诊断）
+> Last updated: 2026-09-30（吸附末帧精确落点 + 动作 StopOnContact 路径阻挡；新增阻挡尚待 Unity Test Runner / Play 验收；既有全量 EditMode 639/656，17 项失败待诊断）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -10,6 +10,7 @@
 | 三人阵容 / 单键换人 / 死亡接替 | ✅ P-SW0～P-SW1 Graph、资产与 Play 已验收（2026-09-19） | `PartyLoadout`、`PartyCombatCoordinator`、`PartyDeathSwitchPolicy`、`ActGameGuest` | 各角色 Graph 已配置 `SwitchIn/SwitchOut` Entry |
 | 极限支援 / 接触弹刀 | ✅ P-SW2 + P-PR + 卡肉 Graph、资产与 Play 已验收（2026-09-19） | `WorldAssistCueBoard`、`IssueParried`、`ParriedActionPolicy` | Guard/Success、Parried 规则、进攻盒 Id 与连续弹刀窗已配置 |
 | Wave4 位移（Adhesion / SoftBody / Relocate） | ✅ 已实现（吸附已验收；Relocate 已接线） | `ActionMotionAdhesion` + `ActionMotionResolver` + Bridge | Branch_02 吸附已配；Relocate 按需加 MotionCommand 轨；相机不在本 Wave |
+| 动作突刺路径阻挡 | 🟡 代码已实现，待 Unity / Play 验收 | `ActionBodySweep` + `CharacterBodyObstacleQuery` + `CharacterMotor.MoveActionMm` | 两份 Vivian 动作启用配置与验收见实施记录 |
 | 命中受击 Cue（VFX/SFX） | ✅ 已实现（A2 打击感验收 2026-08-09） | `HitImpactController` + `HitFeedbackSettings` | 接触点落点 + 随机旋转；普攻 Cue 已验 |
 | 逻辑 Hurtbox 调试线框 | ✅ 已实现 | `CombatHurtboxDebugSettings` + `CombatHurtboxDebugVisualizer` | F4 开关（F3 HUD 显示状态） |
 | Playable Additive 探针 | ✅ P-HR0 Play 已验收 | `PlayableAnimationPlayback.PlayAdditive` + F6 | Listen 无头敌人打 Observer Proxy；HUD 拖 `Hit_Shake` |
@@ -2021,26 +2022,27 @@ CombatHitPipeline（全体 Actor Step 后）
 
 ### 功能说明
 
-攻击吸附窗口：每帧沿玩家→敌人连线算 `desired`（`horizontalOffsetMm` 控制敌前/心/后），按剩余帧均摊**朝向前方未到达缺口**（过冲落到身后则不倒拖），并夹每帧上限；SoftBody 抑制窗内不参与角色互撞、仍碰静物墙。
+攻击吸附窗口：首次捕获固定玩家→敌人的偏移轴，后续目标平移时落点一起平移，穿敌不翻面。窗口内按本帧基础位移路程占剩余路程的比例重映射位移，无剩余路程时按帧均摊；末帧收敛到目标落点。正偏移表示捕获连线远侧，不表示敌人朝向定义的背后。中间帧修正限幅，末帧精确收敛优先；仍通过碰撞电机移动。SoftBody 抑制窗内不参与角色互撞、仍碰静物墙。
 
 ### 实现方案
 
 | 项 | 方案 |
 |----|------|
-| 顺序 | BaseDelta → TargetAdhesion → MotionCommand（Relocate）→ MotorSim → SoftBodySeparation |
-| 纯计算 | `ActionMotionAdhesion`；Command 经 `ActionMotionResolver` |
+| 顺序 | 计算 BaseDelta → TargetAdhesion 重映射 → 单次 Motor 移动 → MotionCommand（Relocate）→ SoftBodySeparation |
+| 纯计算 | `ActionMotionAdhesion.TryComputeDisplacementMm` + 捕获 State；Command 经 `ActionMotionResolver` |
 | 目标 | `CharacterTargetingState.SelectedTargetId`；动作中切敌后下一逻辑帧改读新目标 |
 | Pose | `ActionMotionWorldQuery` → `IHurtboxTarget.GetLogicalCombatPose`（含朝向） |
 | SoftBody | Modifier 窗 / Relocate 落地 `SetSoftBodySuppressFrames` |
 | 数据 | `motionModifierStates` + `motionCommandNotifies` |
-| Editor | MotionModifier / MotionCommand 轨；Adhesion Scene 假敌预览 |
+| Editor | MotionModifier / MotionCommand 轨；Scene 与隔离视口共用假敌、Desired 与吸附轨迹，顶部假敌 X/Z 为相对预览原点的米制坐标；Scene 仍可拖动假敌 |
 
 ### 运行时流程
 
 ```
 CharacterTargetingState.Step → SelectedTargetId
 ApplyStep：SoftBodySuppress 刷新（含卡肉帧）
-  → Base → Adhesion → MotionCommand（Resolver.Teleport + Facing）
+  → ResolveBaseDisplacement → TryApplyTargetAdhesion → MoveWorldMm → MotionCommand（Resolver.Teleport + Facing）
+  → 无窗口/未捕获：ApplyBaseDisplacement 保持原基础移动入口
   → SyncRootPoseFromSim
 SimulationWorld 帧末 SoftBodySeparation（抑制者不参与）
 客机：同一 Bridge；WorldQuery 读 Proxy.GetLogicalCombatPose；帧末 AutonomousSoftBodySolver（抑制者不参与）
@@ -2052,8 +2054,12 @@ SimulationWorld 帧末 SoftBodySeparation（抑制者不参与）
 - SkillShot / UI 展示舱不在 Wave 4/5；排期见 `docs/2026.8.26/CAMERA_SYSTEM_PLAN.md`。Lock-On 于 2026-09-19 暂时舍弃
 - Relocate 挡墙精细候选（FindNearestValid 首版≈ ResolveMove）可后续加强
 - 共线退化（玩家与敌人水平重合）本帧不吸
-- **打击感吸附已验收；Relocate 需在招上配 MotionCommand 点事件后 Play 验**
+- 2026-09-30 新吸附语义尚待 Play 验收；Relocate 需在招上配 MotionCommand 点事件后 Play 验。
+- 捕获距离/角度仅在首次捕获检查；动作起止、窗口更换、换目标时重置捕获状态，帧回退时重新捕获。卡肉不调用位移计算。
+- 目标丢失且 StopOnTargetLost=true 时恢复基础位移；false 时继续向最后已知目标落点收敛。墙体、角色分离以及后续 MotionCommand 可限制/改变最终位置。窗外基础位移恢复，需停留时应让吸附窗口覆盖对应移动段。
+- MaxCorrectionMmPerFrame 只限制中间帧，过小可导致末帧大幅修正；末帧不绕过静态碰撞。旧的动态连线、仅向前追加且过冲不拉回路径已删除。
 - 客机 Adhesion desired 读 Proxy MotorSim（有 Tick 延迟），落点相对 Host 可能有 RTT 级偏差
+- 2026-09-30：`ActionEditorWindow` 两种视口均显示吸附调试；`ActionMotionAdhesionSceneDrawing` 从零帧重放同一捕获/重映射计算，使用与电机一致的平面量化。隔离 RT 不绘制 Handles.Label，固定 GUI 图例说明颜色。预览不模拟场景碰撞或运行时目标切换；SoftBodySuppress 仅显示假敌。角色资产未改写。验证记录见 `docs/2026.9.30/TARGET_ADHESION_FIX.md`。
 - 客机不 Collect；卡肉由本机几何预测，伤害只信权威下行；穿敌窗 / Dodge 进行中禁止 2m 硬吸（`ActionMotionReconcileGate`）
 
 ### 相关文件
@@ -2290,6 +2296,29 @@ CharacterAssetMigration.Execute 消费显式 CharacterAssetMigrationManifest：�
 
 相关文件：`Assets/Scripts/Editor/Combat/ActionEditor/`，`Assets/Tests/Editor/Character/ActionEditorAlignmentTests.cs`、`ActionEditorViewportTests.cs`。2026-09-29 变更：删除独立 CharacterAuthoringPreviewWindow、手工三列分隔路径与无用布局常量，保留全部业务轨道与场景目标选择。
 
+## 动作突刺连续路径阻挡（2026-09-30）
+
+**功能说明：** ActionExecutionPolicy 的 `StopOnContact` 让连续平面动作位移停在最早接触的实体或静态墙体前，动画和 Hitbox 帧继续；被截断位移不保存、不补偿。代码已接入，Unity / Play 尚待验收。
+
+| 实现 | 职责 |
+|---|---|
+| `ActionBodySweep.Resolve` | 纯 C# 点扫膨胀圆盘与静态 AABB，最早接触；毫米量化后重新检测，不滑墙 |
+| `ISimCollisionWorld.SweepFraction` / `Depenetrate` | 复用静态烘焙数据，恢复非法起点并沿完整直线查询 |
+| `CharacterMotorSim.TryMoveActionMm` | 求解后单次提交安全终点，不再调用分轴滑墙 |
+| `CharacterBodyObstacleQuery` | 从注册目标上的 `ISimBodyObstacleSource` 获取已提交逻辑体积；排除自身、稳定排序、拒绝重复 Id |
+| `CharacterActorFactory` | 按座位注入 Authority / Observer 来源筛选，防止 Listen 同 Id 双份实体混入 |
+| `CharacterMotor.MoveActionMm` | 基础和吸附位移统一提交；策略 0 保留原有软分离及滑墙 |
+
+**关键参数：** `ActionExecutionPolicy.bodyCollisionMode` 默认 `SoftSeparationOnly(0)`，`StopOnContact(1)` 为显式启用；`bodyContactSkinMm` 默认 20mm。身体半径来自 MotorSim，不取 Hurtbox 或模型；BodyMode/Skin/RulesVersion 加入 ServerContentManifest。无敌与 SoftBodySuppress 不自动关闭身体阻挡，死亡/离场/停用不提供实体。
+
+**运行时顺序：** GameplayStep 生成基础世界位移 → TargetAdhesion 修正 → MoveActionMm → MotorSim 安全提交 → 原 Hitbox Collect → 世界软分离。客户端帧末软分离复用 Actor 的同一身体来源；Observer 只读。F3 `ActionBody` 显示最近提交的起点、期望终点和 blocker，实际结果读 Motor。ActionEditor 选择 StopOnContact 即显示假敌位置/半径与安全路径，无须先建立吸附窗口。
+
+**限制：** XZ 圆盘、逐 Actor 提交时读取当前逻辑位置；不保证未启用策略的另一角色高速穿入或瞬移后的完整两体 CCD。StopOnContact 碰墙停止，走跑仍滑墙。吸附精确落点服从身体安全。初始重叠允许离开，不恢复未知历史接触侧。预测远端数据有延迟，不增加动作 Replay 或网络位置容忍度。预览不含场景墙体及网络时间差；无角色上下文时自身半径为 280mm，假敌半径可调。现有内容指纹尚非全部 Gameplay 参数的完整序列化，本次明确覆盖新增碰撞字段及算法版本。
+
+**文件与验证：** [方案](../../../../docs/2026.9.30/ACTION_DASH_COLLISION_PLAN.md)、[逐文件实施记录](../../../../docs/2026.9.30/ACTION_DASH_COLLISION_IMPLEMENTATION.md)。新增 `ActionBodySweepTests`、`ActionDashCollisionIntegrationTests`、`ActionDashPredictionTests`；独立 Mono 可运行部分已验证，Unity 场景测试未执行。原 `ApplyBaseDisplacement` 动作旁路和重复 Proxy 采集已删除。
+
+**变更日志：** 2026-09-30 接入动作级路径阻挡、源筛选、指纹和预览；不修改既有吸附算法、Root Motion 烘焙或场景布线。
+
 ## 动作创建动画浏览器（2026-09-29）
 
 功能：两个创建窗口支持角色动画目录、名称/路径搜索、FBX 子动画、拖放与选前预览。
@@ -2300,3 +2329,5 @@ CharacterAssetMigration.Execute 消费显式 CharacterAssetMigrationManifest：�
 相关：Assets/Scripts/Editor/Character/CharacterAnimationSourcePreferences.cs、Combat/ActionEditor/ActionAnimationPickerPanel.cs；回归 ActionEditorViewportTests。移除两个窗口重复选片 ObjectField、跨窗口 FolderKey 依赖。
 
 2026-09-29 多动画创建：ActionAnimationPickerPanel 使用原生 Search 多选动作并通过可排序清单明确播放顺序；CharacterActionCreateWindow 与 ActionDefinitionCreateWindow 提交有序 Clip 集合，两个创建服务共用 ActionAnimationSegmentCommands.InitializeDraft 初始化全部 animationSegments 与累计总帧数。角色入口只绑定一个动作；批量入口继续一片一动作。命中/取消窗口不自动推断，创建不自动烘焙。回归 CharacterAuthoringCreationTests，说明 docs/2026.9.29/ACTION_MULTI_CLIP_CREATE.md。
+
+2026-09-30 RunTest 修复：SimulationStepKernel 直接以 double 的 1 / LogicHz 累计时间，修正 50ms 少算一帧；PartySwitchPlacement 普通换人右侧偏移统一为方案规定的 600mm。ChannelMuxTransport 在重传前清理底层连接表已移除的连接，ServerSession 同步清理玩家并通知 Gameplay；UDP 静默断线仍依赖心跳超时。ServerLaunchConfigResolver 将负数参数交给配置校验，不再忽略。吸附预览测试改用有效动画段，绑定失败测试显式断言日志。独立编译及 38 项 Mono/NUnit 辅助检查通过，Unity Test Runner 尚待复跑；详见 docs/2026.9.30/TEST_FAILURE_FIXES.md。
