@@ -1791,6 +1791,12 @@ CombatHitPipeline（全体 Actor Step 后）
 
 ### 输入移动连续换向混合（2026-10-01，待 Unity 验收）
 
+切段修正：Input Movement 的 `crossFadeSeconds` 仅用于同一动画段内切方向/恢复原片，进入新 Action 或新段使用 `ResolveSegmentCrossFade`。首段无 Override 时继承整招淡入，后续段无 Override 时为 0；移除未开启 Override 却仍读取旧段淡入值的分支。显式 Override 保留，包括 0。
+
+后续复现修正：移除普通 Action/Observer 的 Tick→Seek 双求值，改用 `IAnimationPlayback.Sample(time,delta)`：混合推进、共享组定位后只 Evaluate 一次；定位组在求值时禁止额外推进，其它淡出片/Additive 正常推进。Input Movement 也复用此接口；即时 Seek 保留给明确的立即定位调用。`ACTGame.Animation.SwitchClip/Seek/Tick` 标记用于测量建图/采样耗时；卡顿根因与最终表现仍待 Unity 实测。
+
+编辑器恢复帧区间绘制：闭区间 [start,end] 占 [start,end+1]，相邻动画条无空隙。帧标签/播放头/点事件定位在该帧区间右边界（frame+1），末帧 N-1 可到轨道最右边 N；鼠标反算对应减 1。区间左柄与右柄分别按自身边界换算，数据仍是 0～N-1，没有增删动作帧。
+
 `PlayableAnimationPlayback` 用多片混合替换双槽提升：换片时记录当前各片权重，在 `crossFadeSeconds` 内线性插值到目标。中断过渡不会先把旧目标提到满权；淡出完成释放旧片，同一非空时钟组内反复选择同片会复用 Playable。普通 Play 不传组时仍从头起播。
 
 `IAnimationPlayback.Play` / `CharacterAnimationService.PlayClip` 的可选 `timeGroup` 仅表示表现层共享时钟，不进入模拟/复制。`ActionInputMovementPlayer` 为 FollowActionSegment 的每个 Action 段生成独立身份，方向切换和松手沿用；新动作、跨段、restart 重建。Seek 同步当前组内全部淡入/淡出片段，保留其它组的时间；FromDirectionChange 不共享时钟。0.5 秒配置及窗口资产不变，卡肉仍暂停权重推进。

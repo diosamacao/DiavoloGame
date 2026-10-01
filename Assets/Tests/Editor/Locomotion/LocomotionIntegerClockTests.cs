@@ -131,6 +131,7 @@ public sealed class LocomotionIntegerClockTests
         public void StopAdditive() { }
         /// <inheritdoc />
         public void Seek(float timeSeconds) => LastSeekSeconds = timeSeconds;
+        public void Sample(float timeSeconds, float deltaTime) => Seek(timeSeconds);
         /// <inheritdoc />
         public void Tick(float deltaTime) { }
         /// <inheritdoc />

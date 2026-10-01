@@ -280,7 +280,7 @@ public sealed class ActionEditorViewportTests
             const float ppf = (520f - ActionEditorStyles.TrackHeaderWidth) / 60;
             foreach (var item in new[] { (ActionTimelineTrackKind.Vfx, 10, 92f), (ActionTimelineTrackKind.Sfx, 20, 122f) })
             {
-                Vector2 start = new(ActionEditorStyles.TrackHeaderWidth + (item.Item2 + .25f) * ppf, item.Item3 + 220);
+                Vector2 start = new(ActionEditorStyles.TrackHeaderWidth + (item.Item2 + 1) * ppf, item.Item3 + 220);
                 // 制造 1 帧内的吸附候选，验证单击不会意外改写触发帧。
                 frame = item.Item2 + 1;
                 window.SendEvent(new Event { type = EventType.MouseDown, button = 0, mousePosition = start });

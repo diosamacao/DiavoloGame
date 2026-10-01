@@ -39,4 +39,7 @@ public interface IAnimationPlayback : IDisposable
 
     /// <summary>按固定步长推进 Graph 时间与 CrossFade 权重；Simulation 每逻辑步必须调用。</summary>
     void Tick(float deltaTime);
+
+    /// <summary>推进混合并定位主片及共享时钟片段，一次求值输出最终姿态；用于动作时钟驱动。</summary>
+    void Sample(float timeSeconds, float deltaTime);
 }

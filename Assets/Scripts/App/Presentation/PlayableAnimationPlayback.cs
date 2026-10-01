@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.Animations;
 using UnityEngine.Playables;
@@ -13,6 +14,9 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
     const int BaseLayer = 0;
     const int AdditiveLayer = 1;
     const float DefaultAdditiveFadeOut = 0.05f;
+    static readonly ProfilerMarker PlayMarker = new("ACTGame.Animation.SwitchClip");
+    static readonly ProfilerMarker SeekMarker = new("ACTGame.Animation.Seek");
+    static readonly ProfilerMarker TickMarker = new("ACTGame.Animation.Tick");
 
     readonly Animator _animator;
     PlayableGraph _graph;
@@ -112,6 +116,7 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
     /// <summary>从现有混合权重淡入。相同非空时钟组内复用片段，避免频繁换向重复建图。</summary>
     public void Play(AnimationClip clip, float fadeDuration, object timeGroup = null)
     {
+        using var marker = PlayMarker.Auto();
         if (!IsValid || clip == null)
             return;
 
@@ -154,29 +159,63 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
     /// <summary>将当前主 Clip 跳到指定时间并立即采样姿态；保留 CrossFade，不推进时间以免产生虚假 RootMotion。</summary>
     public void Seek(float timeSeconds)
     {
+        using var marker = SeekMarker.Auto();
         if (!IsValid || !_currentPlayable.IsValid())
             return;
 
+        SetSampleTime(timeSeconds);
+        _graph.Evaluate(0f);
+    }
+
+    bool SharesCurrentClock(ClipSlot slot) => slot == _currentSlot
+        || (_currentSlot.TimeGroup != null && ReferenceEquals(slot.TimeGroup, _currentSlot.TimeGroup));
+
+    void SetSampleTime(float timeSeconds)
+    {
         foreach (ClipSlot slot in _slots)
         {
-            if (slot != _currentSlot && (_currentSlot.TimeGroup == null
-                || !ReferenceEquals(slot.TimeGroup, _currentSlot.TimeGroup))) continue;
+            if (!SharesCurrentClock(slot)) continue;
             double clamped = Mathf.Clamp(timeSeconds, 0f, slot.Clip.length);
             // 同一 Action 段内的 Pose/Move 同步定位，包括仍在淡出的片段。
             slot.Playable.SetTime(clamped);
             slot.Playable.SetTime(clamped);
         }
-        // Evaluate(0) 只应用姿态；调用方若开启 RootMotion，应在 Seek 期间临时关闭以免跳变位移。
-        _graph.Evaluate(0f);
+    }
+
+    /// <inheritdoc />
+    public void Sample(float timeSeconds, float deltaTime)
+    {
+        using var marker = SeekMarker.Auto();
+        if (!IsValid || !_currentPlayable.IsValid()) return;
+        float dt = Mathf.Max(0f, deltaTime);
+        AdvanceBlend(dt);
+        SetSampleTime(timeSeconds);
+        // 当前时钟组由调用方指定绝对时间，图求值时不可再前进 dt。
+        // 其它淡出片与 Additive 仍随图正常推进，不把上一段拖回新段起点。
+        foreach (ClipSlot slot in _slots)
+            if (SharesCurrentClock(slot)) slot.Playable.SetSpeed(0);
+        try { _graph.Evaluate(dt); }
+        finally
+        {
+            foreach (ClipSlot slot in _slots)
+                if (SharesCurrentClock(slot)) slot.Playable.SetSpeed(1);
+        }
     }
 
     /// <summary>推进 CrossFade 权重，并以固定步长 Evaluate Graph（唯一时间推进入口）。</summary>
     public void Tick(float deltaTime)
     {
+        using var marker = TickMarker.Auto();
         if (!IsValid)
             return;
 
         float dt = Mathf.Max(0f, deltaTime);
+        AdvanceBlend(dt);
+        _graph.Evaluate(dt);
+    }
+
+    void AdvanceBlend(float dt)
+    {
         if (_fading)
         {
             // CrossFade：按速度推进权重，旧片→新片
@@ -193,8 +232,6 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
 
         TickAdditive(dt);
 
-        // 唯一时间推进入口：固定步长 Evaluate Graph
-        _graph.Evaluate(dt);
     }
 
     /// <inheritdoc />

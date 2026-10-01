@@ -31,6 +31,61 @@ public sealed class ActionEditorAlignmentTests
         so.Dispose(); Object.DestroyImmediate(action); Object.DestroyImmediate(clip);
     }
 
+    [Test]
+    public void TimelineGeometry_LastWindowEdgeAndPointEventAlignWithLastFrame()
+    {
+        var lane = new Rect(100, 0, 600, 30);
+        Rect window = ActionEditorStyles.GetFrameRangeRect(lane, 10, 59, 10);
+        Assert.That(window.xMin, Is.EqualTo(200));
+        Assert.That(window.xMax, Is.EqualTo(700));
+        Rect previous = ActionEditorStyles.GetFrameRangeRect(lane, 0, 9, 10);
+        Assert.That(previous.xMax, Is.EqualTo(window.xMin), "相邻闭区间必须无缝接合");
+        Rect point = ActionEditorStyles.GetPointEventDiamondRect(lane, 59, 10);
+        Assert.That(point.center.x, Is.EqualTo(window.xMax));
+        Rect single = ActionEditorStyles.GetFrameRangeRect(lane, 59, 59, 10);
+        Assert.That(single.width, Is.GreaterThan(0));
+        Assert.That(single.xMax, Is.EqualTo(lane.xMax));
+        Assert.That(single.width, Is.EqualTo(10));
+    }
+
+    [Test]
+    public void SegmentFade_OnlyFirstSegmentInheritsActionDefault_OverrideRemainsExplicit()
+    {
+        ActionAnimationSegmentCommands.Insert(so, 1, new[] { clip });
+        so.Update();
+        so.FindProperty("crossFadeDuration").floatValue = .2f;
+        var second = so.FindProperty("animationSegments").GetArrayElementAtIndex(1);
+        second.FindPropertyRelative("hasCrossFadeOverride").boolValue = false;
+        second.FindPropertyRelative("crossFadeDuration").floatValue = .5f;
+        so.ApplyModifiedPropertiesWithoutUndo();
+        Assert.That(action.ResolveSegmentCrossFade(0), Is.EqualTo(.2f));
+        Assert.That(action.ResolveSegmentCrossFade(1), Is.Zero);
+        second.FindPropertyRelative("hasCrossFadeOverride").boolValue = true;
+        so.ApplyModifiedPropertiesWithoutUndo();
+        Assert.That(action.ResolveSegmentCrossFade(1), Is.EqualTo(.5f));
+        second.FindPropertyRelative("crossFadeDuration").floatValue = 0;
+        so.ApplyModifiedPropertiesWithoutUndo();
+        Assert.That(action.ResolveSegmentCrossFade(1), Is.Zero);
+    }
+
+    [Test]
+    public void TimelineEndBoundary_ClampsPlayheadAndWindowEndToLastPlayableFrame()
+    {
+        const int count = 60;
+        var view = new ActionTimelineView();
+        typeof(ActionTimelineView).GetField("_pixelsPerFrame", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(view, 10f);
+        var atX = typeof(ActionTimelineView).GetMethod("FrameAtX", BindingFlags.Instance | BindingFlags.NonPublic);
+        int frame = (int)atX.Invoke(view, new object[] { ActionEditorStyles.TrackHeaderWidth + count * 10f, count });
+        Assert.That(frame, Is.EqualTo(count - 1));
+        var windows = so.FindProperty("timeline.phaseStates");
+        windows.arraySize = 1;
+        var window = windows.GetArrayElementAtIndex(0);
+        window.FindPropertyRelative("startFrame").intValue = 10;
+        window.FindPropertyRelative("endFrame").intValue = 20;
+        ActionTimelineCommands.ResizeWindowEnd(window, count, count);
+        Assert.That(window.FindPropertyRelative("endFrame").intValue, Is.EqualTo(frame));
+    }
+
     [TestCase(1f, 7, 10)]
     [TestCase(4f, 7, 7)]
     [TestCase(2f, 6, 10)]

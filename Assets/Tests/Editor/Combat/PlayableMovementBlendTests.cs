@@ -60,6 +60,22 @@ public sealed class PlayableMovementBlendTests
     }
 
     [Test]
+    public void AtomicSample_UsesTargetClockWhileAdvancingFadeAndOutgoingSegment()
+    {
+        var previous = Clip(0); var current = Clip(1);
+        _playback.Play(previous, 0, new object());
+        _playback.Seek(1f);
+        _playback.Play(current, .5f, new object());
+        _playback.Sample(.25f, .1f);
+        Assert.That(Time(current), Is.EqualTo(.25f).Within(.0001), "采样目标不应再额外前进 dt");
+        Assert.That(Time(previous), Is.EqualTo(1.1f).Within(.0001));
+        Assert.That(Weight(current), Is.EqualTo(.2f).Within(.0001));
+        _playback.Sample(.25f, 0f);
+        Assert.That(Time(previous), Is.EqualTo(1.1f).Within(.0001));
+        Assert.That(Weight(current), Is.EqualTo(.2f).Within(.0001));
+    }
+
+    [Test]
     public void InterruptedHalfSecondFade_PreservesPoseLeftWeightsBeforeRightFade()
     {
         var pose = Clip(0); var left = Clip(-1); var right = Clip(1); var clock = new object();

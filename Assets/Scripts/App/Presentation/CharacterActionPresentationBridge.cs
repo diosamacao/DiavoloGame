@@ -130,8 +130,18 @@ public sealed class CharacterActionPresentationBridge : IActionPresentationSink
                 deltaTime: snapshot.IsFrozen ? 0f : fixedDeltaSeconds);
             return;
         }
-        if (fixedDeltaSeconds > 0f)
-            _animation?.Tick(fixedDeltaSeconds);
+        // 动作主片时间和混合在一次求值中更新，避免所有普通 Action 每步双重采样。
+        if (snapshot.IsActive && !snapshot.IsComplete && snapshot.Content is ActionDefinition current)
+        {
+            ActionFrameQueryResult query = ActionFrameQuery.Query(current, snapshot.CurrentFrame);
+            if (query.HasAnimationSegment && _animationAction == current
+                && _animationSegmentIndex == query.SegmentIndex)
+            {
+                _animation?.SampleClip(query.SegmentLocalTime, snapshot.IsFrozen ? 0f : fixedDeltaSeconds);
+                return;
+            }
+        }
+        if (fixedDeltaSeconds > 0f) _animation?.Tick(fixedDeltaSeconds);
     }
 
     /// <summary>动作开始时禁止 Animator Root Motion 写入逻辑 Motor。</summary>

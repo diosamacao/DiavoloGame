@@ -225,6 +225,55 @@ public sealed class ActionInputMovementTests
     }
 
     [Test]
+    public void OrdinarySegments_EndOfStepSamplesExactActionFrameWithoutExtraTickOffset()
+    {
+        ConfigureTrimmedPoseAndCancel();
+        action.ExecutionPolicy.EditorSetBaseMotionMode(ActionBaseMotionMode.None);
+        typeof(ActionTimeline).GetField("inputMovementStates", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+            .SetValue(action.Timeline, new ActionInputMovement[0]);
+        var playback = new RecordingPlayback();
+        var animation = new CharacterAnimationService(playback, null, null);
+        var sink = new CharacterActionPresentationBridge(root.transform, animation, null, null, null, null);
+        sim.TryStart(ActionSimResolveResult.FromContent(action));
+        for (int frame = 0; frame <= 43; frame++)
+        {
+            if (frame > 0) sim.Step();
+            var snapshot = sim.Snapshot;
+            sink.ApplyBeforeGameplay(in snapshot, 1f / 60);
+            sink.CompleteSimulationStep(in snapshot, 1f / 60);
+            Assert.That(playback.Time, Is.EqualTo(ActionInputMovement.SampleActionSegmentTime(action, frame)).Within(.00001), $"frame {frame}");
+        }
+        Assert.That(playback.Plays, Is.EqualTo(3));
+    }
+
+    [Test]
+    public void MovementWindow_EntryUsesSegmentFade_DirectionChangeUsesWindowFade()
+    {
+        ConfigureTrimmedPoseAndCancel();
+        var movement = action.Timeline.InputMovementStates[0];
+        SetRange(movement, 12, 60);
+        movement.crossFadeSeconds = .5f;
+        using (var so = new SerializedObject(action))
+        {
+            var segment = so.FindProperty("animationSegments").GetArrayElementAtIndex(1);
+            segment.FindPropertyRelative("hasCrossFadeOverride").boolValue = true;
+            segment.FindPropertyRelative("crossFadeDuration").floatValue = .1f;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+        var playback = new RecordingPlayback();
+        var player = new ActionInputMovementPlayer();
+        var animation = new CharacterAnimationService(playback, null, null);
+        player.Sample(animation, action, 12, ActionInputMoveState.Pack(0, 12));
+        Assert.That(playback.Fade, Is.EqualTo(.1f));
+        player.Sample(animation, action, 13, ActionInputMoveState.Pack(3, 13));
+        Assert.That(playback.Fade, Is.EqualTo(.5f));
+        player.Sample(animation, action, 14, ActionInputMoveState.Pack(0, 14));
+        Assert.That(playback.Fade, Is.EqualTo(.5f));
+        player.Sample(animation, action, 42, ActionInputMoveState.Pack(0, 14));
+        Assert.That(playback.Fade, Is.Zero);
+    }
+
+    [Test]
     public void SynchronizedMovement_ClockGroupSurvivesDirectionAndReleaseButChangesAtSegmentBoundary()
     {
         ConfigureTrimmedPoseAndCancel();
@@ -505,9 +554,11 @@ public sealed class ActionInputMovementTests
         public int Plays, Ticks;
         public float Time;
         public object TimeGroup;
-        public void Play(AnimationClip clip, float fade, object timeGroup = null) { CurrentClip = clip; Plays++; TimeGroup = timeGroup; }
+        public float Fade;
+        public void Play(AnimationClip clip, float fade, object timeGroup = null) { CurrentClip = clip; Plays++; TimeGroup = timeGroup; Fade = fade; }
         public void Seek(float seconds) { Time = seconds; }
         public void Tick(float dt) { Ticks++; Time += dt; }
+        public void Sample(float timeSeconds, float deltaTime) { if (deltaTime > 0) Ticks++; Time = timeSeconds; }
         public void PlayAdditive(AnimationClip clip, AvatarMask mask, float fade) { }
         public void StopAdditive() { }
         public void Dispose() { }

@@ -47,6 +47,9 @@ public sealed class NullAnimationPlayback : IAnimationPlayback
     }
 
     /// <inheritdoc />
+    public void Sample(float timeSeconds, float deltaTime) { }
+
+    /// <inheritdoc />
     public void Dispose()
     {
     }

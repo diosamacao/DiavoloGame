@@ -16,8 +16,8 @@ MonoBehaviour:
   - clip: {fileID: 5156482184496970385, guid: 41d22fa32b93aea499345096ef87c6a5, type: 3}
     startFrame: 0
     endFrame: -1
-    hasCrossFadeOverride: 1
-    crossFadeDuration: 0.1
+    hasCrossFadeOverride: 0
+    crossFadeDuration: 0
   - clip: {fileID: 4558673485470237207, guid: ed8df74fb519ab24b98ae6ac2c1275b1, type: 3}
     startFrame: 0
     endFrame: -1

@@ -735,7 +735,7 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         }
 
         // 同段不再用渲染 Time.deltaTime 独立前进后反复 Seek；调用方传入播放头 delta。
-        TickAnimation(deltaTimeSeconds);
+        _animation.SampleClip(targetLocal, deltaTimeSeconds);
     }
 
     /// <summary>

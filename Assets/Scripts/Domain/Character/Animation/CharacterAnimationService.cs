@@ -202,6 +202,9 @@ public sealed class CharacterAnimationService : IDisposable, ILocomotionAnimClip
     /// <summary>按逻辑步推进 Playable 时间与淡入；Native RootMotion 的 delta 由此 Evaluate 产生。</summary>
     public void Tick(float deltaTime) => playback?.Tick(deltaTime);
 
+    /// <summary>一次图求值完成动作时钟定位和混合推进，避免 Tick 后 Seek 的双重采样。</summary>
+    public void SampleClip(float timeSeconds, float deltaTime) => playback?.Sample(timeSeconds, deltaTime);
+
     /// <summary>销毁播放后端（PlayableGraph 等）。</summary>
     public void Dispose() => playback?.Dispose();
 }

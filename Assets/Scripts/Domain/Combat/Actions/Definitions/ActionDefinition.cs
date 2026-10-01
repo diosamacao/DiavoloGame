@@ -259,8 +259,7 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
 
     /// <summary>
     /// 解析切入指定段淡入时长。
-    /// 显式 Override：用段值（0=硬切）；未 Override：用招式默认。
-    /// Legacy：首段未 Override 且 ≤0 仍回退默认（迁移完成前兼容）。
+    /// 显式 Override 使用段值；首段默认使用整招淡入，后续连续片段默认直接衔接。
     /// </summary>
     public float ResolveSegmentCrossFade(int segmentIndex)
     {
@@ -272,15 +271,8 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
         if (segment.hasCrossFadeOverride)
             return Mathf.Max(0f, segment.crossFadeDuration);
 
-        // Legacy：旧资产首段用 0 表示「跟默认」而非硬切
-        if (segmentIndex == 0 && segment.crossFadeDuration <= 0f)
-            return crossFadeDuration;
-
-        // 未 Override 的非首段：仍认段上数值，避免静默丢掉已配淡入
-        if (segment.crossFadeDuration > 0f)
-            return segment.crossFadeDuration;
-
-        return crossFadeDuration;
+        // 连续片段不再让已到末尾的旧片压住新片的起始运动；需要混合时显式开启 Override。
+        return segmentIndex == 0 ? Mathf.Max(0f, crossFadeDuration) : 0f;
     }
 
     /// <summary>返回指定类型的唯一 CancelWindow；缺失或重复配置时返回 null。</summary>

@@ -14,7 +14,7 @@ public struct ActionAnimationSegment
     [Tooltip("相对 Clip 的结束逻辑帧（含）；小于 0 表示用到 Clip 末尾。")]
     public int endFrame;
 
-    [Tooltip("为 true 时使用本段 crossFadeDuration（含 0=硬切）；为 false 时用招式默认淡入。")]
+    [Tooltip("开启时使用本段淡入（0=直接衔接）；关闭时首段使用整招淡入，后续段直接衔接。")]
     public bool hasCrossFadeOverride;
 
     [Tooltip("切入本段时的淡入秒数；仅 hasCrossFadeOverride 时生效，0 表示硬切。")]

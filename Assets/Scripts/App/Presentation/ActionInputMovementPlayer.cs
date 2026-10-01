@@ -35,8 +35,7 @@ public sealed class ActionInputMovementPlayer
         else
         {
             localTime = config.SampleTime(action, state, frame);
-            if (config.animationTimeMode == ActionInputMovement.AnimationTimeMode.FollowActionSegment)
-                action.TryGetSegmentAtFrame((int)frame, out segmentIndex, out _, out _);
+            action.TryGetSegmentAtFrame((int)frame, out segmentIndex, out _, out _);
         }
         if (clip == null) return;
         bool synchronized = config.animationTimeMode == ActionInputMovement.AnimationTimeMode.FollowActionSegment;
@@ -44,10 +43,14 @@ public sealed class ActionInputMovementPlayer
         else if (restart || action != _action || segmentIndex != _segmentIndex || _timeGroup == null)
             _timeGroup = new object();
         if (restart || action != _action || config != _window || state != _state || clip != _clip || segmentIndex != _segmentIndex)
-            animation.PlayClip(clip, restart ? 0f : config.crossFadeSeconds, _timeGroup);
-        // Tick 推进混合权重与附加层，再按逻辑时钟定位主片，避免混合永远停在旧片。
-        if (deltaTime > 0f) animation.Tick(deltaTime);
-        animation.SeekClip(localTime);
+        {
+            // 窗口淡入只控制同段内的方向覆盖；不能覆盖新动作/新段本身的接续设置。
+            bool enteringSegment = action != _action || segmentIndex != _segmentIndex;
+            float fade = enteringSegment ? action.ResolveSegmentCrossFade(segmentIndex) : config.crossFadeSeconds;
+            animation.PlayClip(clip, restart ? 0f : fade, _timeGroup);
+        }
+        // 在一次求值中推进混合并定位，避免先展示超前一帧再 Seek 回来。
+        animation.SampleClip(localTime, deltaTime);
         _action = action; _clip = clip; _state = state; _window = config;
         _segmentIndex = segmentIndex;
     }

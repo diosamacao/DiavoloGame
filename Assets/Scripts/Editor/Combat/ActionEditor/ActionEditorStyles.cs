@@ -88,13 +88,22 @@ public static class ActionEditorStyles
             innerRadii);
     }
 
+    /// <summary>闭区间帧窗占据 [start,end+1]，相邻动画无空隙；不裁掉最后一帧的宽度。</summary>
+    public static Rect GetFrameRangeRect(Rect lane, int start, int end, float pixelsPerFrame)
+    {
+        float width = Mathf.Min(lane.width, Mathf.Max(2f, (end - start + 1) * pixelsPerFrame));
+        float anchor = lane.x + start * pixelsPerFrame;
+        float x = Mathf.Clamp(anchor, lane.x, lane.xMax - width);
+        return new Rect(x, lane.y + 3f, width, lane.height - 6f);
+    }
+
     /// <summary>
-    /// 按轨高计算点事件菱形外接矩形；以触发帧中心为锚点，不受 1 帧条宽限制。
+    /// 按轨高计算点事件菱形外接矩形；以触发帧坐标为锚点，不受 1 帧条宽限制。
     /// </summary>
     public static Rect GetPointEventDiamondRect(Rect laneRect, int startFrame, float pixelsPerFrame)
     {
         float size = Mathf.Max(PointEventDiamondMinSize, laneRect.height * PointEventDiamondSizeFactor);
-        float centerX = laneRect.x + (startFrame + 0.5f) * pixelsPerFrame;
+        float centerX = laneRect.x + (startFrame + 1) * pixelsPerFrame;
         float centerY = laneRect.y + laneRect.height * 0.5f;
         return new Rect(centerX - size * 0.5f, centerY - size * 0.5f, size, size);
     }

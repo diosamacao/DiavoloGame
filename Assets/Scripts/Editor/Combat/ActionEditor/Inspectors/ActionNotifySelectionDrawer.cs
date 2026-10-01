@@ -186,6 +186,7 @@ public static class ActionNotifySelectionDrawer
             new GUIContent("End Frame", "<0 = 用到 Clip 末尾"));
         DrawMultiProperty(batchSet, element, "hasCrossFadeOverride");
         DrawMultiProperty(batchSet, element, "crossFadeDuration");
+        EditorGUILayout.HelpBox("未开启过渡覆盖：首段使用整招淡入，后续段直接衔接。段内四向切换使用 Input Movement 窗口的 Cross Fade Seconds。", MessageType.Info);
 
         using (new EditorGUI.DisabledScope(true))
         {

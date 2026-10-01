@@ -209,6 +209,14 @@ Owner 保存每个固定帧输入解析后的世界位移请求，纠偏重新�
 
 ## 连续换向优化（2026-10-01）
 
+### 切段停顿与末帧刻度修正
+
+- Vivian_Attack_04_Air → Air_Pose 原本误用 Input Movement 的 0.5 秒换向淡入；现在新动作/新段遵循段自身淡入（当前 Air_Pose 首段显式 0.1 秒），同段方向切换仍保留 0.5 秒。
+- 同 Action 后续片段无 Override 时默认直接衔接，不再继承整招淡入；显式 Override 仍有效。未开启 Override 的残留数值不再生效，需要混合的段应显式开启 Override。未修改生产资产。
+- 末帧最终坐标修正：帧点宽度会使相邻动画条空一格，现恢复 [start,end+1] 的帧区间宽度；播放头/数字标签/点事件在 frame+1 处，末帧 N-1 能到总宽 N 的最右边；区间拖柄分别换算左右边界，数据仍不超过 N-1。补充邻段无缝与单帧宽度测试。
+- 移除普通 Action/Observer 上次新增的 Tick→Seek 双求值，使用 `Sample(time,delta)` 一次推进混合与定位；Input Movement 同步采用原子采样。新测试检查目标时间不会额外前进 dt、旧段仍推进、冻结权重不变。独立编译通过，实际图测试与用户报告的卡顿仍待 Unity 验证。
+- 回归类：`ActionInputMovementTests`（进入段/方向切换淡入分离）、`ActionEditorAlignmentTests`（段淡入策略、播放头与窗口末帧夹紧）。Unity Test Runner / Play 尚待验证。
+
 - 播放后端移除 Previous/Current 双槽提升逻辑，保留全部仍有权重的片段，从当前权重淡入下一目标，完成后释放旧片。
 - FollowActionSegment 每个动作段使用独立 timeGroup；Move 与无输入原动画共享 Seek，跨段/restart 不把旧段拖回新段起点。同组同片复用，反复换向不会不断增加方向片实例。
 - 不修改 Vivian 资产、方向驻留或 0.5 秒配置；不新增姿态系统。

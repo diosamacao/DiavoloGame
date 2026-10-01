@@ -269,7 +269,7 @@ public sealed class ActionTimelineView
         if (ProcessActiveMarquee(selection, ref changed))
             changed = true;
 
-        float playheadX = ActionEditorStyles.TrackHeaderWidth + previewFrame * _pixelsPerFrame;
+        float playheadX = ActionEditorStyles.TrackHeaderWidth + (previewFrame + 1) * _pixelsPerFrame;
         EditorGUI.DrawRect(new Rect(playheadX, 0, 2, contentHeight), ActionEditorStyles.Playhead);
 
         if (_dragMode == DragMode.Marquee)
@@ -415,9 +415,7 @@ public sealed class ActionTimelineView
         ActionEditorSelectionSet selection,
         ref bool changed)
     {
-        float x = laneRect.x + globalStart * _pixelsPerFrame;
-        float width = Mathf.Max(_pixelsPerFrame, (globalEnd - globalStart + 1) * _pixelsPerFrame);
-        Rect clipRect = new(x, laneRect.y + 3f, width, laneRect.height - 6f);
+        Rect clipRect = ActionEditorStyles.GetFrameRangeRect(laneRect, globalStart, globalEnd, _pixelsPerFrame);
 
         bool selected = selection.Contains(itemSelection);
         // 换序拖拽中：源片段半透明，提示正在移动。
@@ -483,7 +481,7 @@ public sealed class ActionTimelineView
         if (frameCount <= 0)
             return;
 
-        float width = Mathf.Max(_pixelsPerFrame, frameCount * _pixelsPerFrame);
+        float width = Mathf.Max(2f, frameCount * _pixelsPerFrame);
         float x = Mathf.Clamp(mouseX - width * 0.5f, laneRect.x, laneRect.xMax - width);
         Rect ghostRect = new(x, laneRect.y + 3f, width, laneRect.height - 6f);
 
@@ -1005,9 +1003,7 @@ public sealed class ActionTimelineView
         }
         else
         {
-            float x = laneRect.x + start * _pixelsPerFrame;
-            float width = Mathf.Max(_pixelsPerFrame, (end - start + 1) * _pixelsPerFrame);
-            hitRect = new Rect(x, laneRect.y + 3f, width, laneRect.height - 6f);
+            hitRect = ActionEditorStyles.GetFrameRangeRect(laneRect, start, end, _pixelsPerFrame);
             ActionEditorStyles.DrawRoundedWindowClip(hitRect, color, selected);
 
             string clipLabel = idProp != null ? idProp.stringValue : itemSelection.Kind.ToString();
@@ -1088,8 +1084,7 @@ public sealed class ActionTimelineView
         if (selection.Count > 1)
             _dragMode = DragMode.Move;
 
-        if (_dragMode == DragMode.ResizeEnd)
-            _dragStartFrame = FrameAtX(evt.mousePosition.x, totalFrames + 1);
+        _dragStartFrame = WindowDragFrameAtX(evt.mousePosition.x, totalFrames);
 
         changed = true;
         evt.Use();
@@ -1182,7 +1177,7 @@ public sealed class ActionTimelineView
             // 缩放后把预览帧大致保持在视口中部附近。
             float fitLaneWidth = Mathf.Max(1f, bodyRect.width - ActionEditorStyles.TrackHeaderWidth);
             float newPpf = (fitLaneWidth / Mathf.Max(1, totalFrames)) * _zoom;
-            float playheadX = previewFrame * newPpf;
+            float playheadX = (previewFrame + 1) * newPpf;
             _scroll.x = Mathf.Max(0f, playheadX - fitLaneWidth * 0.5f);
             _pendingRepaint = true;
         }
@@ -1226,8 +1221,8 @@ public sealed class ActionTimelineView
             return false;
         }
 
-        // 右边缘允许落到 TotalFrames 边界，才能覆盖动作的最后一帧。
-        int frame = FrameAtX(evt.mousePosition.x, totalFrames + (_dragMode == DragMode.ResizeEnd ? 1 : 0));
+        // 所有边缘与指针共用实际帧坐标，最后一帧是 TotalFrames-1。
+        int frame = WindowDragFrameAtX(evt.mousePosition.x, totalFrames);
         int delta = frame - _dragStartFrame;
 
         int originalEdge = _dragMode == DragMode.ResizeEnd ? _dragOriginalEnd : _dragOriginalStart;
@@ -1496,18 +1491,20 @@ public sealed class ActionTimelineView
             : 30;
         int minorStep = Mathf.Max(1, majorStep / 5);
 
-        for (int f = 0; f <= totalFrames; f++)
+        int lastFrame = Mathf.Max(0, totalFrames - 1);
+        for (int f = 0; f <= lastFrame; f++)
         {
-            if (f != 0 && f != totalFrames && f % minorStep != 0)
+            if (f != 0 && f != lastFrame && f % minorStep != 0)
                 continue;
 
-            float x = rect.x + f * _pixelsPerFrame;
-            bool major = f % majorStep == 0 || f == totalFrames;
+            float x = rect.x + (f + 1) * _pixelsPerFrame;
+            bool major = f % majorStep == 0 || f == lastFrame;
             float h = major ? rect.height : rect.height * 0.4f;
             Handles.DrawLine(new Vector3(x, rect.yMax - h), new Vector3(x, rect.yMax));
             if (major)
-                GUI.Label(new Rect(x + 2f, rect.y, 36f, 16f), f.ToString(), EditorStyles.miniLabel);
+                GUI.Label(new Rect(f == lastFrame ? x - 28f : x + 2f, rect.y, 36f, 16f), f.ToString(), EditorStyles.miniLabel);
         }
+
 
         Handles.EndGUI();
     }
@@ -1570,7 +1567,7 @@ public sealed class ActionTimelineView
             return;
         }
 
-        float playheadX = previewFrame * _pixelsPerFrame;
+        float playheadX = (previewFrame + 1) * _pixelsPerFrame;
         float maxScroll = Mathf.Max(0f, _contentLaneWidth - _viewportLaneWidth);
         float pad = Mathf.Min(32f, _viewportLaneWidth * 0.12f);
         float viewMin = _scroll.x;
@@ -1676,9 +1673,10 @@ public sealed class ActionTimelineView
         }
     }
 
-    // endFrame 是闭区间最后一帧；条块右边缘位于 endFrame + 1，而非该帧左边缘。
+    // 指针/点事件/帧标签落在帧区间右边界；区间左侧拖柄仍对应 start 边界。
     float GetSnapGuideX() => ActionEditorStyles.TrackHeaderWidth
-        + (_snapFrame + (_dragMode is DragMode.ResizeEnd or DragMode.TrimEnd ? 1 : 0)) * _pixelsPerFrame;
+        + (_snapFrame + (_dragMode is DragMode.ResizeEnd or DragMode.TrimEnd or DragMode.Scrub
+            || ActionEditorStyles.IsPointEventTrack(_dragKind) ? 1 : 0)) * _pixelsPerFrame;
 
     int Snap(int frame, int totalFrames)
     {
@@ -1771,10 +1769,14 @@ public sealed class ActionTimelineView
         }
     }
 
+    // 区间左柄/平移使用左边界；右柄和点事件使用与指针相同的帧右边界。
+    int WindowDragFrameAtX(float x, int totalFrames) => FrameAtX(
+        x + (_dragMode == DragMode.ResizeEnd || ActionEditorStyles.IsPointEventTrack(_dragKind) ? 0f : _pixelsPerFrame), totalFrames);
+
     int FrameAtX(float x, int totalFrames)
     {
         float local = x - ActionEditorStyles.TrackHeaderWidth;
-        int frame = Mathf.RoundToInt(local / _pixelsPerFrame);
+        int frame = Mathf.RoundToInt(local / _pixelsPerFrame) - 1;
         return Mathf.Clamp(frame, 0, Mathf.Max(0, totalFrames - 1));
     }
 }
