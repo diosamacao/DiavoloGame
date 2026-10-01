@@ -15,6 +15,10 @@ public class ActionGraph : ScriptableObject, IActionSimGraph
     [SerializeField] ActionGraphSharedRoute[] sharedRoutes = Array.Empty<ActionGraphSharedRoute>();
     [Tooltip("Graph Editor 顺序组；保存时将相邻子节点生成为普通 Cancel 边。")]
     [SerializeField] ActionGraphNodeGroup[] nodeGroups = Array.Empty<ActionGraphNodeGroup>();
+    [SerializeField, HideInInspector] ActionGraphEdgeLayout[] editorEdgeLayouts = Array.Empty<ActionGraphEdgeLayout>();
+
+    /// <summary>仅供图编辑器保存折线路径，不参与运行时路由。</summary>
+    public IReadOnlyList<ActionGraphEdgeLayout> EditorEdgeLayouts => editorEdgeLayouts ?? Array.Empty<ActionGraphEdgeLayout>();
 
     /// <summary>图节点列表。</summary>
     public IReadOnlyList<ActionGraphNode> Nodes => nodes ?? Array.Empty<ActionGraphNode>();
@@ -101,7 +105,7 @@ public class ActionGraph : ScriptableObject, IActionSimGraph
         return FinalizeNodeResolve(node, in request, in context, out result);
     }
 
-    /// <summary>Cancel：按当前节点与窗口类型找出边，再按目标节点 Intent 匹配请求。</summary>
+    /// <summary>Cancel 优先解析显式边和共享路由；当前通道没有任何显式边时才允许隐式 Entry。</summary>
     public bool TryResolveCancel(
         in ActionRequest request,
         in ActionResolveContext context,
@@ -131,7 +135,12 @@ public class ActionGraph : ScriptableObject, IActionSimGraph
         if (TryFinalizeFromCandidates(candidates, in request, in context, out result))
             return true;
 
-        return TryResolveSharedRoute(in request, in context, out result);
+        if (TryResolveSharedRoute(in request, in context, out result)) return true;
+        // 通道连线代表作者明确限定了出口；即使目标失效或 Intent 不匹配，也不能隐式回 Entry。
+        return context.AllowCancelEntryFallback
+            && edgeBuffer.Count == 0
+            && TryGetNode(context.CurrentNodeId, out _)
+            && TryResolveStart(in request, in context, out result);
     }
 
     /// <summary>
@@ -221,22 +230,20 @@ public class ActionGraph : ScriptableObject, IActionSimGraph
         }
     }
 
-    /// <summary>收集某节点某槽出边目标招的玩法意图（去重）。</summary>
+    /// <summary>收集 Cancel 显式边、共享路由和隐式 Entry 的候选意图，供输入缓冲选择。</summary>
     public void CollectCancelCandidateIntents(
         string fromNodeId,
         CancelWindowType routeKind,
         ISet<GameplayIntentType> results)
     {
         results.Clear();
-        if (edges == null)
-            return;
-
-        for (int i = 0; i < edges.Length; i++)
+        if (!TryGetNode(fromNodeId, out _)) return;
+        bool hasExplicitEdges = false;
+        foreach (ActionGraphEdge edge in Edges)
         {
-            ActionGraphEdge edge = edges[i];
             if (edge == null || edge.FromNodeId != fromNodeId || edge.RouteKind != routeKind)
                 continue;
-
+            hasExplicitEdges = true;
             if (!TryGetNode(edge.ToNodeId, out ActionGraphNode toNode))
                 continue;
 
@@ -244,6 +251,11 @@ public class ActionGraph : ScriptableObject, IActionSimGraph
             if (intent != GameplayIntentType.None)
                 results.Add(intent);
         }
+
+        if (!hasExplicitEdges)
+            foreach (var node in Nodes)
+                if (node != null && node.IsEntry && node.Action != null && node.Intent != GameplayIntentType.None)
+                    results.Add(node.Intent);
 
         if (!TryGetNode(fromNodeId, out ActionGraphNode fromNode) || sharedRoutes == null)
             return;
@@ -382,4 +394,12 @@ public class ActionGraph : ScriptableObject, IActionSimGraph
         result = ActionResolveResult.FromGraph(node.Action, this, node.NodeId);
         return result.IsValid;
     }
+}
+
+/// <summary>图连线的编辑器折线路径；Key 标识两端可视端口，坐标位于图内容空间。</summary>
+[Serializable]
+public sealed class ActionGraphEdgeLayout
+{
+    public string key;
+    public Vector2[] points = Array.Empty<Vector2>();
 }

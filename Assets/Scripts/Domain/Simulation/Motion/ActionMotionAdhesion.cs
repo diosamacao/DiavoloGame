@@ -71,8 +71,8 @@ public static class ActionMotionAdhesion
         if (baked != null && baked.IsReady)
             for (int i = Math.Max(0, frame); i <= endFrame && i < baked.frameCount; i++)
             {
-                int x = baked.positionDeltaMmX[i], z = baked.positionDeltaMmZ[i];
-                ActionBakedMotion.ApplyPlanarMode(baked.planarMode, ref x, ref z);
+                baked.TryGetDelta(i, out SimVec2 delta, out _);
+                int x = delta.X, z = delta.Z;
                 double length = Math.Sqrt((double)x * x + (double)z * z);
                 if (i == frame) current = length;
                 remaining += length;

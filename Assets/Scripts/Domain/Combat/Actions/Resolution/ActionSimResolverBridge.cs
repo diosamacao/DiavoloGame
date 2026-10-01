@@ -51,7 +51,10 @@ public sealed class ActionSimResolverBridge : IActionSimResolver
             windowType,
             snapshot.NodeId,
             hasCancelRoute: true,
-            canAfford: _canAfford);
+            canAfford: _canAfford,
+            // ActionSim 按 Perfect→Normal 尝试；重叠时不能让 Perfect 的隐式 Entry 抢先命中。
+            allowCancelEntryFallback: windowType != CancelWindowType.Perfect
+                || !snapshot.Content.IsCancelWindowActiveAtFrame(CancelWindowType.Normal, snapshot.CurrentFrame));
         if (!_resolverService.TryResolveNext(in request, in context, out ActionResolveResult resolved)
             || !resolved.IsValid)
         {

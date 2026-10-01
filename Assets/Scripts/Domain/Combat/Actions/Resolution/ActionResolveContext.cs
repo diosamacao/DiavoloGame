@@ -13,7 +13,8 @@ public readonly struct ActionResolveContext
         CancelWindowType cancelWindowType = CancelWindowType.Normal,
         string currentNodeId = null,
         bool hasCancelRoute = false,
-        Func<IActionSimContent, bool> canAfford = null)
+        Func<IActionSimContent, bool> canAfford = null,
+        bool allowCancelEntryFallback = true)
     {
         Origin = origin;
         CurrentAction = currentAction;
@@ -23,6 +24,7 @@ public readonly struct ActionResolveContext
         CurrentNodeId = currentNodeId;
         HasCancelRoute = hasCancelRoute;
         CanAfford = canAfford;
+        AllowCancelEntryFallback = allowCancelEntryFallback;
     }
 
     /// <summary>解析来源（Locomotion 起手、显式 Cancel、Recovery 软重开或高优打断）。</summary>
@@ -45,6 +47,9 @@ public readonly struct ActionResolveContext
 
     /// <summary>是否携带有效 Cancel 路由；仅 CancelWindow 来源为 true。</summary>
     public bool HasCancelRoute { get; }
+
+    /// <summary>本轮是否允许隐式 Entry；重叠窗口的 Perfect 轮须延后至 Normal 轮兜底。</summary>
+    public bool AllowCancelEntryFallback { get; }
 
     /// <summary>资源预检（不扣费）；null 视为全部可负担，仅影响同键 EX 选形。</summary>
     public Func<IActionSimContent, bool> CanAfford { get; }

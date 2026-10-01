@@ -125,4 +125,18 @@ public sealed class ActionMotionAdhesionTests
         Assert.That(ActionMotionAdhesion.BakedProgress(baked, 2, 2), Is.EqualTo(1));
         Assert.That(ActionMotionAdhesion.BakedProgress(null, 0, 9), Is.EqualTo(.1));
     }
+
+    [Test]
+    public void BakedProgress_UsesEndpointAxisInsteadOfForwardAxis()
+    {
+        var baked = new ActionBakedMotion
+        {
+            frameCount = 2, bakeStatus = ActionBakedMotionStatus.Ok,
+            planarMode = ActionMotionPlanarMode.EndpointSigned,
+            positionDeltaMmX = new[] { 100, 0 }, positionDeltaMmZ = new[] { 0, 100 },
+            yawDeltaMilliDeg = new[] { 0, 0 },
+        };
+        Assert.That(ActionMotionAdhesion.BakedProgress(baked, 0, 1), Is.EqualTo(.5).Within(1e-9));
+        Assert.That(ActionMotionAdhesion.BakedProgress(baked, 1, 1), Is.EqualTo(1));
+    }
 }

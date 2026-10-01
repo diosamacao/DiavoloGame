@@ -25,7 +25,7 @@ MonoBehaviour:
     crossFadeDuration: 0
   totalFrames: 509
   actionType: 0
-  crossFadeDuration: 0
+  crossFadeDuration: 0.2
   executionPolicy:
     interruptPriority: 5
     baseMotionMode: 4

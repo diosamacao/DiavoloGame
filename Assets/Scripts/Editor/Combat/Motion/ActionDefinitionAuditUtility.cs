@@ -138,7 +138,7 @@ public static class ActionDefinitionAuditUtility
             entry.AddIssue(
                 ActionDefinitionAuditSeverity.Error,
                 "FORWARD_ONLY_RESIDUAL",
-                "planarMode 仍为已删除的 ForwardOnly(1)，请改 ForwardSigned/FullPlanar 后重烘焙。");
+                "planarMode 仍为已删除的 ForwardOnly(1)，请改 EndpointSigned/FullPlanar 后重烘焙。");
         }
 
         if (mode == ActionBaseMotionMode.BakedMotion && !entry.BakedReady)

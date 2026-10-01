@@ -79,7 +79,11 @@ public static class ActionMotionTrajectorySceneDrawing
             int dx = baked.positionDeltaMmX[i];
             int dz = baked.positionDeltaMmZ[i];
             if (applyPlanarMode)
-                ActionBakedMotion.ApplyPlanarMode(baked.planarMode, ref dx, ref dz);
+            {
+                baked.TryGetDelta(i, out SimVec2 delta, out _);
+                dx = delta.X;
+                dz = delta.Z;
+            }
 
             xMm += dx;
             zMm += dz;
@@ -162,7 +166,11 @@ public static class ActionMotionTrajectorySceneDrawing
             int dx = baked.positionDeltaMmX[i];
             int dz = baked.positionDeltaMmZ[i];
             if (applyPlanarMode)
-                ActionBakedMotion.ApplyPlanarMode(baked.planarMode, ref dx, ref dz);
+            {
+                baked.TryGetDelta(i, out SimVec2 delta, out _);
+                dx = delta.X;
+                dz = delta.Z;
+            }
 
             xMm += dx;
             zMm += dz;

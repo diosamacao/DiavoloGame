@@ -98,6 +98,8 @@ public readonly struct ServerContentManifest
         var builder = new StringBuilder(128);
         // 快照增加动作内方向时钟；旧客户端必须在 Join 指纹检查时拒绝。
         builder.Append("action-input-movement:1|");
+        // 模式值 2 改为起终点投影；拒绝仍按固定前向轴计算位移的旧构建。
+        builder.Append("action-motion-endpoint:1|");
         builder.Append(contentVersion);
         builder.Append('|');
         builder.Append(collisionBakeId ?? string.Empty);

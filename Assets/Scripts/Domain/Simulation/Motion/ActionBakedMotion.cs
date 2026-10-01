@@ -1,6 +1,6 @@
 using System;
 
-/// <summary>招式权威运动表：逐逻辑帧本地水平 Δ（毫米）与偏航 Δ（毫度）。</summary>
+/// <summary>保存招式原始水平差分，并统一派生逻辑轨迹与模型残差（毫米）；朝向不由此表驱动。</summary>
 [Serializable]
 public sealed class ActionBakedMotion
 {
@@ -41,10 +41,19 @@ public sealed class ActionBakedMotion
         if (index >= frameCount)
             index = frameCount - 1;
 
-        int dx = positionDeltaMmX[index];
-        int dz = positionDeltaMmZ[index];
-        ApplyPlanarMode(planarMode, ref dx, ref dz);
-        deltaMm = new SimVec2(dx, dz);
+        if (planarMode == ActionMotionPlanarMode.EndpointSigned)
+        {
+            GetCumulativeAndEndpoint(index, out long x, out long z, out long endX, out long endZ);
+            ProjectCumulative(x, z, endX, endZ, out long currentX, out long currentZ);
+            ProjectCumulative(x - positionDeltaMmX[index], z - positionDeltaMmZ[index],
+                endX, endZ, out long previousX, out long previousZ);
+            // 对累计位置量化后再差分，避免逐帧取整误差累积成非零末帧残差。
+            deltaMm = new SimVec2((int)(currentX - previousX), (int)(currentZ - previousZ));
+        }
+        else
+        {
+            deltaMm = new SimVec2(positionDeltaMmX[index], positionDeltaMmZ[index]);
+        }
         // 即使旧资产里残留非零 yaw 数组，查表也不向外提供偏航
         yawMilliDeg = 0;
         return true;
@@ -87,9 +96,8 @@ public sealed class ActionBakedMotion
     }
 
     /// <summary>
-    /// Wave 2：相对 Gameplay 路径的视觉残差（累计绝对本地毫米）。
-    /// Full = 原始累计；Gameplay = 对每帧 Δ 做 planarMode 后再累计；Residual = Full - Gameplay。
-    /// 运行时派生，无需另存数组；ForwardSigned 时残差主要为横向。
+    /// 相对逻辑轨迹的累计本地残差：Full - Gameplay，与 TryGetDelta 使用相同的累计位置量化。
+    /// EndpointSigned 保留偏离起终点连线的摆动，完整动作末帧残差严格为零。
     /// </summary>
     public bool TryGetVisualResidualMm(int frame, out int residualMmX, out int residualMmZ)
     {
@@ -98,41 +106,50 @@ public sealed class ActionBakedMotion
         if (!IsReady)
             return false;
 
+        if (planarMode != ActionMotionPlanarMode.EndpointSigned)
+            return true;
+
         int index = frame < 0 ? 0 : frame;
         if (index >= frameCount)
             index = frameCount - 1;
 
-        long fullX = 0;
-        long fullZ = 0;
-        long gameX = 0;
-        long gameZ = 0;
-        for (int i = 0; i <= index; i++)
-        {
-            int dx = positionDeltaMmX[i];
-            int dz = positionDeltaMmZ[i];
-            fullX += dx;
-            fullZ += dz;
-
-            int gdx = dx;
-            int gdz = dz;
-            ApplyPlanarMode(planarMode, ref gdx, ref gdz);
-            gameX += gdx;
-            gameZ += gdz;
-        }
-
+        GetCumulativeAndEndpoint(index, out long fullX, out long fullZ, out long endX, out long endZ);
+        ProjectCumulative(fullX, fullZ, endX, endZ, out long gameX, out long gameZ);
         residualMmX = (int)(fullX - gameX);
         residualMmZ = (int)(fullZ - gameZ);
         return true;
     }
 
-    /// <summary>
-    /// 按 planarMode 投影单帧原始 Δ。
-    /// ForwardSigned：丢弃 dx、保留 dz；FullPlanar / 未知值保持原 Δ。
-    /// </summary>
-    public static void ApplyPlanarMode(ActionMotionPlanarMode mode, ref int dxMm, ref int dzMm)
+    // 端点必须来自裁剪、拼接完成的整张表，不能使用单个来源 Clip 的末帧。
+    void GetCumulativeAndEndpoint(int index, out long x, out long z, out long endX, out long endZ)
     {
-        if (mode == ActionMotionPlanarMode.ForwardSigned)
-            dxMm = 0;
+        x = z = endX = endZ = 0;
+        for (int i = 0; i < frameCount; i++)
+        {
+            endX += positionDeltaMmX[i];
+            endZ += positionDeltaMmZ[i];
+            if (i == index)
+            {
+                x = endX;
+                z = endZ;
+            }
+        }
+    }
+
+    // 不钳制投影比例，保留超过终点后的回撤及起手后退；零净位移没有可投影的方向。
+    static void ProjectCumulative(long x, long z, long endX, long endZ, out long gameX, out long gameZ)
+    {
+        if (x == endX && z == endZ)
+        {
+            gameX = endX;
+            gameZ = endZ;
+            return;
+        }
+
+        double lengthSquared = (double)endX * endX + (double)endZ * endZ;
+        double progress = lengthSquared == 0 ? 0 : ((double)x * endX + (double)z * endZ) / lengthSquared;
+        gameX = (long)Math.Round(endX * progress, MidpointRounding.AwayFromZero);
+        gameZ = (long)Math.Round(endZ * progress, MidpointRounding.AwayFromZero);
     }
 
     static int[] CloneArray(int[] source)

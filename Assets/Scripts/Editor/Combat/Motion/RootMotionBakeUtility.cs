@@ -95,7 +95,7 @@ public static class RootMotionBakeUtility
         return Mathf.Max(1, Mathf.CeilToInt(rootMotionClip.length * Mathf.Max(1, logicHz)));
     }
 
-    /// <summary>校验累计水平位移误差（米）；超阈值返回 false。</summary>
+    /// <summary>校验原始水平位移表误差（米），包含投影排除的视觉分量；超阈值返回 false。</summary>
     public static bool ValidateAgainstTrack(
         AnimationClip rootMotionClip,
         ActionBakedMotion table,
@@ -129,21 +129,19 @@ public static class RootMotionBakeUtility
             float t1 = (frame + 1) / (float)table.logicHz;
             track.TryGetDelta(t0, t1, out Vector3 srcDelta, out _);
             Vector3 srcLocal = new(srcDelta.x, 0f, srcDelta.z);
-            // 与 TryGetDelta 对齐：按 planarMode 在本地 mm 上投影后再比
+            // 校验原始表，投影与残差由 ActionBakedMotion 统一派生。
             int dxMm = MotionQuantization.MetersToMm(srcLocal.x);
             int dzMm = MotionQuantization.MetersToMm(srcLocal.z);
-            ActionBakedMotion.ApplyPlanarMode(table.planarMode, ref dxMm, ref dzMm);
             srcLocal = new Vector3(
                 MotionQuantization.MmToMeters(dxMm),
                 0f,
                 MotionQuantization.MmToMeters(dzMm));
             accumSource += srcLocal;
 
-            table.TryGetDelta(frame, out SimVec2 mm, out _);
             Vector3 tableDelta = new(
-                MotionQuantization.MmToMeters(mm.X),
+                MotionQuantization.MmToMeters(table.positionDeltaMmX[frame]),
                 0f,
-                MotionQuantization.MmToMeters(mm.Z));
+                MotionQuantization.MmToMeters(table.positionDeltaMmZ[frame]));
             accumTable += tableDelta;
 
             float frameErr = Vector3.Distance(srcLocal, tableDelta);

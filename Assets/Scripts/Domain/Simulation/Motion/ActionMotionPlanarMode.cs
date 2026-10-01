@@ -5,10 +5,10 @@ public enum ActionMotionPlanarMode
     FullPlanar = 0,
 
     /// <summary>
-    /// 正确前向提取：丢弃本地 X，保留累计轨迹的 Z 差分（= 原始 dz）。
-    /// 纯左右摆不再产生前进，也不再推逻辑根横跳。
+    /// 将累计轨迹投影到整个动作的起终点连线，保留沿线推进与回撤，末帧视觉残差为零。
+    /// 起终点重合时逻辑位移为零；数值 2 保持既有资产的模式选择。
     /// </summary>
-    ForwardSigned = 2,
+    EndpointSigned = 2,
 
     // 1 曾为 ForwardOnly（旧保模长语义），Wave 2.5 已删除；资产勿再写入。
 }

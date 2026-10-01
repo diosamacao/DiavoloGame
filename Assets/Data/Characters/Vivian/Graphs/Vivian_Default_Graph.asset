@@ -155,6 +155,53 @@ MonoBehaviour:
       lockRotationSmoothTimeOverride: 0.05
     automaticTransitions: []
     editorPosition: {x: -488.66666, y: 128.66667}
+  - nodeId: Vivian_Attack_ExSpecial
+    action: {fileID: 11400000, guid: a35d27ec054f04a43b23016600c0ff6a, type: 2}
+    intent: 6
+    isEntry: 1
+    variantResolver: {fileID: 0}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions:
+    - condition: 0
+      startFrame: 0
+      targetNodeId: Vivian_Attack_ExSpecial_End_Air
+      priority: 0
+    editorPosition: {x: 324, y: 359.33334}
+  - nodeId: Vivian_Attack_ExSpecial_End_Air
+    action: {fileID: 11400000, guid: 5b092f3ad463c7a498b9b2f50432801f, type: 2}
+    intent: 1
+    isEntry: 0
+    variantResolver: {fileID: 0}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions:
+    - condition: 0
+      startFrame: 0
+      targetNodeId: Vivian_Air_Pose
+      priority: 0
+    editorPosition: {x: 741.3333, y: 558.6667}
+  - nodeId: Vivian_Attack_ExSpecial_End_Ground
+    action: {fileID: 11400000, guid: e7869e0314c054542a0723ff35dc5f21, type: 2}
+    intent: 4
+    isEntry: 0
+    variantResolver: {fileID: 0}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions: []
+    editorPosition: {x: 741.3333, y: 359.33334}
   - nodeId: Vivian_Attack_Rush
     action: {fileID: 11400000, guid: bcedf8c75df27be45a813a1ddc185000, type: 2}
     intent: 3
@@ -277,5 +324,16 @@ MonoBehaviour:
   - fromNodeId: Vivian_Attack_Rush
     routeKind: 0
     toNodeId: Vivian_Attack_01
+  - fromNodeId: Vivian_Attack_ExSpecial
+    routeKind: 0
+    toNodeId: Vivian_Attack_ExSpecial_End_Ground
+  - fromNodeId: Vivian_Attack_ExSpecial_End_Ground
+    routeKind: 0
+    toNodeId: Vivian_Attack_04_Main
   sharedRoutes: []
   nodeGroups: []
+  editorEdgeLayouts:
+  - key: 36:node:Vivian_Attack_ExSpecial_End_Air38:Vivian_Attack_ExSpecial_End_Air
+      Auto 1>20:node:Vivian_Air_Pose2:In
+    points:
+    - {x: 2080, y: 616.6667}

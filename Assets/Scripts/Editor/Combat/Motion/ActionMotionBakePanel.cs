@@ -27,7 +27,7 @@ public sealed class ActionMotionBakePanel
             if (owners.Count == 1) preferenceOwner = owners[0];
         }
         mode = action != null && action.BakedMotion.IsReady
-            ? action.BakedMotion.planarMode : ActionMotionPlanarMode.ForwardSigned;
+            ? action.BakedMotion.planarMode : ActionMotionPlanarMode.EndpointSigned;
         folder = AssetDatabase.LoadAssetAtPath<DefaultAsset>(CharacterAnimationSourcePreferences.Get(PreferenceScope, true));
         message = null; dirtyCount = -1; nextCheck = 0;
     }
@@ -53,7 +53,7 @@ public sealed class ActionMotionBakePanel
         string path = AssetDatabase.GetAssetPath(folder);
         bool validFolder = AssetDatabase.IsValidFolder(path);
         mode = (ActionMotionPlanarMode)EditorGUILayout.EnumPopup("位移模式", mode);
-        EditorGUILayout.HelpBox("ForwardSigned：仅前后位移；FullPlanar：保留横向位移。仅烘焙水平位移，不烘焙转向。", MessageType.None);
+        EditorGUILayout.HelpBox("EndpointSigned：沿起终点连线保留推进与回撤，末帧残差归零；FullPlanar：保留完整水平轨迹。仅烘焙水平位移，不烘焙转向。", MessageType.None);
         var motion = action.BakedMotion;
         if (validFolder && (dirtyCount != EditorUtility.GetDirtyCount(action) || EditorApplication.timeSinceStartup >= nextCheck))
         {

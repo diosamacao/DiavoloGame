@@ -9,7 +9,7 @@ public sealed class FolderMotionBakeWindow : EditorWindow
 
     DefaultAsset _inplaceFolder;
     DefaultAsset _rootMotionFolder;
-    ActionMotionPlanarMode _planarMode = ActionMotionPlanarMode.ForwardSigned;
+    ActionMotionPlanarMode _planarMode = ActionMotionPlanarMode.EndpointSigned;
     int _logicHz = ActionSim.LogicHz;
     Vector2 _scroll;
     string _log = string.Empty;

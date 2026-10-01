@@ -92,9 +92,9 @@ public sealed class ActionGraphEditorWindow : EditorWindow
         toolbar.Add(new Label($"  {_graph.name}") { style = { unityTextAlign = TextAnchor.MiddleLeft, marginLeft = 8 } });
         // 隐式关系只显示摘要，不在 GraphView 复制成视觉连线。
         toolbar.Add(new Label(
-            $"  显式边 {_graph.Edges.Count} · 隐式共享路由 {_graph.SharedRoutes.Count} · Recovery→Entry")
+            $"  显式边 {_graph.Edges.Count} · 隐式共享路由 {_graph.SharedRoutes.Count} · Cancel→Entry · Recovery→Entry")
         {
-            tooltip = "画布只显示独特拓扑；共享路由与 Recovery Phase Entry 不画重复连线。",
+            tooltip = "Cancel 按显式边→共享路由解析；当前通道完全没有显式连线时才按 Intent 回 Entry。重叠窗口先尝试 Perfect 和 Normal 配置路由。双击连线加点，拖动吸附网格/端口/同线点位，Alt 自由调整，右键点位删除。",
             style = { unityTextAlign = TextAnchor.MiddleLeft, marginLeft = 12 },
         });
         rootVisualElement.Add(toolbar);
@@ -120,12 +120,45 @@ public sealed class ActionGraphEditorWindow : EditorWindow
 /// <summary>GraphView 画布：Cancel 路由与逐条自动过渡端口写回各自的唯一运行时数据。</summary>
 sealed class ActionGraphView : GraphView
 {
+    /// <summary>普通节点与顺序组共用不透明面板和清晰边框，选中描边仍由 GraphView 管理。</summary>
+    internal static void StyleNode(Node node)
+    {
+        var panel = node.mainContainer.style;
+        panel.backgroundColor = new Color(.21f, .23f, .26f, 1f);
+        var border = new Color(.40f, .44f, .49f, 1f);
+        panel.borderTopColor = panel.borderBottomColor = panel.borderLeftColor = panel.borderRightColor = border;
+        panel.borderTopWidth = panel.borderBottomWidth = panel.borderLeftWidth = panel.borderRightWidth = 1f;
+        node.titleContainer.style.backgroundColor = new Color(.28f, .32f, .37f, 1f);
+        node.style.opacity = 1f;
+    }
+
     readonly ActionGraph _graph;
     readonly Dictionary<string, ActionGraphNodeView> _nodeViews = new();
     readonly Dictionary<string, ActionGraphGroupView> _groupViews = new();
     readonly Dictionary<string, string> _nodeToGroupId = new();
     bool _isLoading;
     readonly Dictionary<(string nodeId, int index), Port> _automaticPorts = new();
+
+    internal void BindRoutedEdge(RoutedActionGraphEdge edge)
+    {
+        if (edge.LayoutBound || edge.output == null || edge.input == null) return;
+        edge.LayoutBound = true;
+        var saved = _graph.EditorEdgeLayouts.FirstOrDefault(x => x != null && x.key == EdgeLayoutKey(edge));
+        if (saved?.points != null) edge.Points.AddRange(saved.points);
+        edge.Changed = PersistViewToAsset;
+        edge.UpdateEdgeControl();
+    }
+
+    internal static string EdgeLayoutKey(Edge edge)
+    {
+        string Endpoint(Port port)
+        {
+            string id = port.node is ActionGraphNodeView n ? "node:" + n.NodeId
+                : port.node is ActionGraphGroupView g ? "group:" + g.GroupId : "";
+            return id.Length + ":" + id + port.portName.Length + ":" + port.portName;
+        }
+        return Endpoint(edge.output) + ">" + Endpoint(edge.input);
+    }
 
     /// <summary>选中并居中问题节点；合并的节点定位所属组。</summary>
     public void FocusNode(string nodeId)
@@ -148,7 +181,10 @@ sealed class ActionGraphView : GraphView
         this.AddManipulator(new ContentDragger());
         this.AddManipulator(new SelectionDragger());
         this.AddManipulator(new RectangleSelector());
-        Insert(0, new GridBackground());
+        var grid = new ActionGraphGrid(this);
+        grid.StretchToParentSize();
+        Insert(0, grid);
+        viewTransformChanged += _ => grid.MarkDirtyRepaint();
 
         // 删除节点时同步字典并写回资产，避免 Save/Reload 把已删节点复活。
         graphViewChanged = OnGraphViewChanged;
@@ -482,7 +518,7 @@ sealed class ActionGraphView : GraphView
                 if (!visualEdges.Add($"{sourceKey}|{targetKey}"))
                     continue;
 
-                Edge graphEdge = output.ConnectTo(input);
+                Edge graphEdge = output.ConnectTo<RoutedActionGraphEdge>(input);
                 AddElement(graphEdge);
             }
 
@@ -495,6 +531,7 @@ sealed class ActionGraphView : GraphView
                         && _groupViews.TryGetValue(groupId, out var groupView) ? groupView : null;
                 if (owner != null) AddAutomaticPorts(owner, node);
             }
+            foreach (var edge in edges.ToList().OfType<RoutedActionGraphEdge>()) BindRoutedEdge(edge);
         }
         finally
         {
@@ -655,6 +692,18 @@ sealed class ActionGraphView : GraphView
             // 原资产中的失效引用保留给 Validator 报错，不在打开/保存时悄悄改成结束动作。
         }
 
+        var routed = edges.ToList().OfType<RoutedActionGraphEdge>()
+            .Where(e => e.output != null && e.input != null && e.Points.Count > 0).ToList();
+        var layouts = so.FindProperty("editorEdgeLayouts");
+        layouts.arraySize = routed.Count;
+        for (int i = 0; i < routed.Count; i++)
+        {
+            var item = layouts.GetArrayElementAtIndex(i);
+            item.FindPropertyRelative("key").stringValue = EdgeLayoutKey(routed[i]);
+            var points = item.FindPropertyRelative("points");
+            points.arraySize = routed[i].Points.Count;
+            for (int j = 0; j < points.arraySize; j++) points.GetArrayElementAtIndex(j).vector2Value = routed[i].Points[j];
+        }
         so.ApplyModifiedProperties();
     }
 
@@ -668,7 +717,7 @@ sealed class ActionGraphView : GraphView
             int index = i;
             ActionGraphTransition transition = node.AutomaticTransitions[i];
             if (transition == null) continue;
-            Port port = Port.Create<Edge>(Orientation.Horizontal, Direction.Output, Port.Capacity.Single, typeof(bool));
+            Port port = Port.Create<RoutedActionGraphEdge>(Orientation.Horizontal, Direction.Output, Port.Capacity.Single, typeof(bool));
             port.portName = $"{node.NodeId} Auto {index + 1}";
             port.portColor = new Color(1f, 0.65f, 0.2f);
             port.tooltip = "连到目标 In；不连线表示条件满足时结束动作。";
@@ -677,7 +726,7 @@ sealed class ActionGraphView : GraphView
             if (!string.IsNullOrEmpty(transition.TargetNodeId))
             {
                 if (TryResolveVisualInput(transition.TargetNodeId, out Port input, out _))
-                    AddElement(port.ConnectTo(input));
+                    AddElement(port.ConnectTo<RoutedActionGraphEdge>(input));
                 else
                 {
                     port.userData = transition.TargetNodeId;
@@ -1262,6 +1311,7 @@ sealed class ActionGraphNodeView : Node
     {
         NodeId = nodeId;
         Action = action;
+        ActionGraphView.StyleNode(this);
         title = action != null ? $"{nodeId}  [{intent}]" : nodeId;
 
         _entryToggle = new UnityEngine.UIElements.Toggle("Entry")
@@ -1288,7 +1338,7 @@ sealed class ActionGraphNodeView : Node
         extensionContainer.Add(_variantResolverField);
         extensionContainer.Add(new ActionGraphNodePolicyView(graph, NodeId, includeBasics: false));
 
-        InputPort = InstantiatePort(Orientation.Horizontal, Direction.Input, Port.Capacity.Multi, typeof(bool));
+        InputPort = Port.Create<RoutedActionGraphEdge>(Orientation.Horizontal, Direction.Input, Port.Capacity.Multi, typeof(bool));
         InputPort.portName = "In";
         inputContainer.Add(InputPort);
 
@@ -1322,7 +1372,7 @@ sealed class ActionGraphNodeView : Node
     /// <summary>创建一个固定语义的 Cancel 输出端口。</summary>
     void AddCancelPort(CancelWindowType route, string label)
     {
-        Port port = InstantiatePort(
+        Port port = Port.Create<RoutedActionGraphEdge>(
             Orientation.Horizontal,
             Direction.Output,
             Port.Capacity.Multi,
@@ -1363,6 +1413,7 @@ sealed class ActionGraphGroupView : Node
         ActionGraph graph)
     {
         GroupId = groupId;
+        ActionGraphView.StyleNode(this);
         DisplayName = string.IsNullOrEmpty(displayName) ? groupId : displayName;
         _children = children ?? new List<ActionGraphNode>();
         _childNodeIds = _children.Select(child => child.NodeId).ToList();
@@ -1373,7 +1424,7 @@ sealed class ActionGraphGroupView : Node
         for (int i = 0; i < _children.Count; i++)
         {
             ActionGraphNode child = _children[i];
-            Port input = InstantiatePort(
+            Port input = Port.Create<RoutedActionGraphEdge>(
                 Orientation.Horizontal,
                 Direction.Input,
                 Port.Capacity.Multi,
@@ -1462,7 +1513,7 @@ sealed class ActionGraphGroupView : Node
 
     void AddOutput(CancelWindowType route, string label)
     {
-        Port output = InstantiatePort(
+        Port output = Port.Create<RoutedActionGraphEdge>(
             Orientation.Horizontal,
             Direction.Output,
             Port.Capacity.Multi,
@@ -1491,5 +1542,265 @@ sealed class ActionGraphGroupView : Node
         DragAndDrop.AcceptDrag();
         _addAction?.Invoke(action);
         evt.StopPropagation();
+    }
+}
+
+/// <summary>保留原生端口连接语义；路径点只改变绘制、拾取与布局保存。</summary>
+public sealed class RoutedActionGraphEdge : Edge
+{
+    internal readonly List<Vector2> Points = new();
+    internal bool LayoutBound;
+    internal System.Action Changed;
+    readonly VisualElement path = new() { pickingMode = PickingMode.Ignore };
+    readonly List<Vector2> line = new();
+    int dragging = -1;
+
+    /// <summary>双击连线插点；捕获鼠标完成拖动后一次写回，右键点位删除。</summary>
+    public RoutedActionGraphEdge()
+    {
+        path.style.position = Position.Absolute;
+        path.generateVisualContent += Paint;
+        Add(path);
+        RegisterCallback<AttachToPanelEvent>(_ => this.GetFirstAncestorOfType<ActionGraphView>()?.BindRoutedEdge(this));
+        RegisterCallback<MouseDownEvent>(OnDown, TrickleDown.TrickleDown);
+        RegisterCallback<MouseMoveEvent>(evt =>
+        {
+            if (dragging < 0) return;
+            var graph = this.GetFirstAncestorOfType<GraphView>();
+            if (graph == null) return;
+            Points[dragging] = SnapPosition(graph, graph.contentViewContainer.WorldToLocal(evt.mousePosition), dragging, evt.altKey);
+            UpdateEdgeControl(); evt.StopImmediatePropagation();
+        }, TrickleDown.TrickleDown);
+        RegisterCallback<MouseUpEvent>(evt =>
+        {
+            if (dragging < 0) return;
+            dragging = -1; this.ReleaseMouse(); Changed?.Invoke(); evt.StopImmediatePropagation();
+        }, TrickleDown.TrickleDown);
+        RegisterCallback<MouseCaptureOutEvent>(_ =>
+        {
+            if (dragging < 0) return;
+            dragging = -1; Changed?.Invoke();
+        });
+    }
+
+    /// <summary>无转折点时沿用原生曲线；有点时以图内容坐标重建折线。</summary>
+    public override bool UpdateEdgeControl()
+    {
+        // ConnectTo 先设置端口、后挂入画布；edgeWidth 的 setter 会立即查询祖先 GraphView。
+        // 同样拦住已移出画布的边，避免 Unity 内部缓存的 GraphView 让布局继续执行。
+        var graph = this.GetFirstAncestorOfType<GraphView>();
+        if (graph == null) return false;
+        bool result = base.UpdateEdgeControl();
+        if (!result) return false;
+        // 原生曲线与自绘折线保持相同视觉权重，保留端口类型的颜色区别。
+        edgeControl.edgeWidth = selected ? 4 : 3;
+        if (!selected)
+        {
+            edgeControl.outputColor = EmphasizeColor(output?.portColor ?? defaultColor);
+            edgeControl.inputColor = EmphasizeColor(input?.portColor ?? defaultColor);
+        }
+        if (path == null || Points == null) return result;
+        edgeControl.style.visibility = Points.Count == 0 ? Visibility.Visible : Visibility.Hidden;
+        path.style.display = Points.Count == 0 ? DisplayStyle.None : DisplayStyle.Flex;
+        if (Points.Count == 0 || input == null || output == null) return result;
+        line.Clear();
+        line.Add(this.WorldToLocal(output.GetGlobalCenter()));
+        foreach (var point in Points) line.Add(graph.contentViewContainer.ChangeCoordinatesTo(this, point));
+        line.Add(this.WorldToLocal(input.GetGlobalCenter()));
+        Vector2 min = line[0], max = min;
+        foreach (var point in line) { min = Vector2.Min(min, point); max = Vector2.Max(max, point); }
+        min -= Vector2.one * 8; max += Vector2.one * 8;
+        path.style.left = min.x; path.style.top = min.y;
+        path.style.width = max.x - min.x; path.style.height = max.y - min.y;
+        path.MarkDirtyRepaint();
+        return result;
+    }
+
+    void Paint(MeshGenerationContext context)
+    {
+        if (line.Count < 2) return;
+        var painter = context.painter2D;
+        painter.strokeColor = selected ? selectedColor : edgeControl.outputColor;
+        painter.lineWidth = selected ? 4 : 3;
+        painter.BeginPath(); painter.MoveTo(this.ChangeCoordinatesTo(path, line[0]));
+        for (int i = 1; i < line.Count; i++) painter.LineTo(this.ChangeCoordinatesTo(path, line[i]));
+        painter.Stroke();
+        painter.fillColor = selected ? selectedColor : new Color(.8f, .85f, 1f);
+        for (int i = 1; i < line.Count - 1; i++)
+        {
+            painter.BeginPath(); painter.Arc(this.ChangeCoordinatesTo(path, line[i]), 5, 0, 360);
+            painter.ClosePath(); painter.Fill();
+        }
+    }
+
+    internal static float DistanceToSegment(Vector2 point, Vector2 a, Vector2 b)
+    {
+        Vector2 delta = b - a;
+        float t = delta.sqrMagnitude < .0001f ? 0 : Mathf.Clamp01(Vector2.Dot(point - a, delta) / delta.sqrMagnitude);
+        return Vector2.Distance(point, a + delta * t);
+    }
+
+    static Color EmphasizeColor(Color color)
+    {
+        color = Color.Lerp(color, Color.white, .22f);
+        color.a = 1f;
+        return color;
+    }
+
+    /// <summary>使用实际折线路径拾取，避免仍拾取被隐藏的原始曲线。</summary>
+    public override bool ContainsPoint(Vector2 localPoint)
+    {
+        if (Points.Count == 0) return base.ContainsPoint(localPoint);
+        UpdateEdgeControl();
+        for (int i = 0; i + 1 < line.Count; i++)
+            if (DistanceToSegment(localPoint, line[i], line[i + 1]) <= 8) return true;
+        return false;
+    }
+
+    /// <summary>框选检测每段与矩形的交集，包含端点均在框外的穿越线段。</summary>
+    public override bool Overlaps(Rect rectangle)
+    {
+        if (Points.Count == 0) return base.Overlaps(rectangle);
+        UpdateEdgeControl();
+        for (int i = 0; i + 1 < line.Count; i++)
+            if (SegmentOverlaps(rectangle, line[i], line[i + 1])) return true;
+        return false;
+    }
+
+    internal static bool SegmentOverlaps(Rect rect, Vector2 a, Vector2 b)
+    {
+        float enter = 0, exit = 1;
+        Vector2 delta = b - a;
+        for (int axis = 0; axis < 2; axis++)
+        {
+            float min = axis == 0 ? rect.xMin : rect.yMin;
+            float max = axis == 0 ? rect.xMax : rect.yMax;
+            if (Mathf.Abs(delta[axis]) < .0001f)
+            {
+                if (a[axis] < min || a[axis] > max) return false;
+                continue;
+            }
+            float t0 = (min - a[axis]) / delta[axis];
+            float t1 = (max - a[axis]) / delta[axis];
+            enter = Mathf.Max(enter, Mathf.Min(t0, t1));
+            exit = Mathf.Min(exit, Mathf.Max(t0, t1));
+            if (enter > exit) return false;
+        }
+        return true;
+    }
+
+    void OnDown(MouseDownEvent evt)
+    {
+        var graph = this.GetFirstAncestorOfType<ActionGraphView>();
+        if (graph == null || input == null || output == null) return;
+        graph.BindRoutedEdge(this);
+        Vector2 graphPoint = graph.contentViewContainer.WorldToLocal(evt.mousePosition);
+        for (int i = 0; i < Points.Count; i++)
+        {
+            if (Vector2.Distance(graph.contentViewContainer.LocalToWorld(Points[i]), evt.mousePosition) > 9) continue;
+            if (evt.button == 1)
+            {
+                Points.RemoveAt(i); UpdateEdgeControl(); Changed?.Invoke(); evt.StopImmediatePropagation(); return;
+            }
+            if (evt.button == 0)
+            {
+                dragging = i; this.CaptureMouse(); evt.StopImmediatePropagation(); return;
+            }
+        }
+        if (evt.button != 0 || evt.clickCount != 2) return;
+        int index = 0;
+        if (Points.Count > 0)
+        {
+            Vector2 local = this.WorldToLocal(evt.mousePosition);
+            float best = float.MaxValue;
+            for (int i = 0; i + 1 < line.Count; i++)
+            {
+                float distance = DistanceToSegment(local, line[i], line[i + 1]);
+                if (distance < best) { best = distance; index = i; }
+            }
+        }
+        Points.Insert(index, SnapPosition(graph, graphPoint, -1, evt.altKey));
+        UpdateEdgeControl(); Changed?.Invoke(); evt.StopImmediatePropagation();
+    }
+
+    Vector2 SnapPosition(GraphView graph, Vector2 point, int movingIndex, bool bypass)
+    {
+        var anchors = new List<Vector2>(Points.Count + 2)
+        {
+            graph.contentViewContainer.WorldToLocal(output.GetGlobalCenter()),
+            graph.contentViewContainer.WorldToLocal(input.GetGlobalCenter()),
+        };
+        for (int i = 0; i < Points.Count; i++)
+            if (i != movingIndex) anchors.Add(Points[i]);
+        return SnapPoint(point, anchors, graph.viewTransform.scale.x, bypass);
+    }
+
+    /// <summary>优先与端口/其它转折点逐轴对齐，否则落到网格；阈值保持为屏幕上的 8px。</summary>
+    internal static Vector2 SnapPoint(Vector2 point, IReadOnlyList<Vector2> anchors, float zoom, bool bypass)
+    {
+        if (bypass) return point;
+        float tolerance = 8f / Mathf.Max(.01f, zoom);
+        Vector2 result = new Vector2(
+            Mathf.Round(point.x / ActionGraphGrid.Spacing) * ActionGraphGrid.Spacing,
+            Mathf.Round(point.y / ActionGraphGrid.Spacing) * ActionGraphGrid.Spacing);
+        for (int axis = 0; axis < 2; axis++)
+        {
+            float nearest = tolerance;
+            foreach (Vector2 anchor in anchors)
+            {
+                float distance = Mathf.Abs(point[axis] - anchor[axis]);
+                if (distance > nearest) continue;
+                nearest = distance;
+                result[axis] = anchor[axis];
+            }
+        }
+        return result;
+    }
+}
+
+/// <summary>在视口底层绘制随图平移缩放的网格，与转折点吸附共享坐标和间距。</summary>
+sealed class ActionGraphGrid : VisualElement
+{
+    internal const float Spacing = 20f;
+    readonly GraphView graph;
+
+    internal ActionGraphGrid(GraphView graph)
+    {
+        this.graph = graph;
+        pickingMode = PickingMode.Ignore;
+        style.backgroundColor = new Color(.13f, .13f, .13f);
+        generateVisualContent += DrawGrid;
+    }
+
+    void DrawGrid(MeshGenerationContext context)
+    {
+        float zoom = graph.viewTransform.scale.x;
+        if (zoom <= 0 || !float.IsFinite(contentRect.width) || !float.IsFinite(contentRect.height)) return;
+        Vector2 origin = graph.contentViewContainer.ChangeCoordinatesTo(this, Vector2.zero);
+        var painter = context.painter2D;
+        // 缩小时隐藏细网格，保留每五格一条的主网格，避免密集重叠。
+        DrawLines(Spacing * zoom, new Color(.16f, .16f, .16f), Spacing * zoom >= 8);
+        DrawLines(Spacing * 5 * zoom, new Color(.19f, .19f, .19f), true);
+
+        void DrawLines(float step, Color color, bool visible)
+        {
+            if (!visible) return;
+            painter.strokeColor = color;
+            painter.lineWidth = 1;
+            painter.BeginPath();
+            float startX = origin.x - Mathf.Floor(origin.x / step) * step;
+            float startY = origin.y - Mathf.Floor(origin.y / step) * step;
+            for (float x = startX; x < contentRect.width; x += step)
+            {
+                painter.MoveTo(new Vector2(x, 0));
+                painter.LineTo(new Vector2(x, contentRect.height));
+            }
+            for (float y = startY; y < contentRect.height; y += step)
+            {
+                painter.MoveTo(new Vector2(0, y));
+                painter.LineTo(new Vector2(contentRect.width, y));
+            }
+            painter.Stroke();
+        }
     }
 }

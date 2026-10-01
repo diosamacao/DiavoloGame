@@ -1,6 +1,6 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-10-01（新增 Action 输入移动、帧范围方向动画、Owner 电机重放及 Observer 时钟；独立编译/纯逻辑测试通过，Unity / Play 待验收；原自动过渡及路径阻挡状态保留）
+> Last updated: 2026-10-01（新增 ActionGraph Cancel→Entry 隐式路由与连线转折点，补充编译通过；Unity / Play 待验收。此前 EndpointSigned、Action 输入移动、自动过渡及路径阻挡状态保留）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
@@ -20,8 +20,8 @@
 | Wave0 动作审计 / 锚点可视化 / Debug HUD | ✅ 已实现 | `ActionDefinitionAuditUtility`、`CharacterAnchorGizmoDrawer`、`CombatDebugHudController` | 菜单 `ACTGame/Action/Validate Motion Sources`；场景挂 HUD |
 | 结构与内容总门禁 | ✅ CS7 已实现 | `StructureValidationBatch`、`StructureAuditRuleSet`、`ci.ps1` | BatchMode 阻断；EditMode；可选 Dedicated READY smoke |
 | 角色朝向调试箭头 | ✅ Play 实心箭 | `CharacterFacingDebugVisualizer` + `ICharacterFacingDebugTarget` | 本体 / 客机他人幽灵各一份；黄=wish 品红=模型 |
-| Wave1 位移止血 / BaseMotionMode / 相机滤左右 | ✅ 已实现 | `ForwardSigned`、`ActionBaseMotionMode`、`CameraManager.lateralFollowFactor` | Attack 需以 ForwardSigned 重烘焙；由统一 Action Audit 校验 |
-| Wave2 视觉残差 / VisualMotionRoot | ✅ 已实现（含 2.5） | `CharacterVisualMotionBridge`、`TryGetVisualResidualMm` | ForwardSigned：Motor 无横摆，模型在 VisualRoot 摆；BlendToZero 期间跳过逻辑贴帧，避免回 Idle 抖动 |
+| 动作位移投影 / BaseMotionMode / 相机滤左右 | ✅ 代码已实现，端点投影待 Unity 验证 | `EndpointSigned`、`ActionBaseMotionMode`、`CameraManager.lateralFollowFactor` | 整个 Action 的起终点连线作为投影轴，保留推进/回撤；模式数值 2 替换 ForwardSigned，原始表无需重烘焙 |
+| 视觉残差 / VisualMotionRoot | ✅ 代码已实现，端点闭合待 Unity 验证 | `CharacterVisualMotionBridge`、`TryGetVisualResidualMm` | 原始累计减投影累计；完整动作末帧为零，提前取消仍 BlendToZero；相机可跟随净侧向位移 |
 | Wave3 玩法资源 / 同键 EX | 🟡 资产待绑；运行时已迁 Numeric | `NumericCostGate`、`ActionResourceSpec`、`ActionEnergyFormSelector` | Spec 填表；Graph 双 Entry |
 | GAS-lite 数值重构 | ✅ G0～G5 完成 | `NumericSystem`、`DamageNumericCalculator`、`CharacterVitality` | Effect SO 壳 |
 | 完美闪避反击（Wave 3.4） | ✅ 代码路由完成 | `PerfectDodgeAttack`、Pipeline 武装、Begin 清缓冲 | Graph Counter Entry（Editor） |
@@ -1493,6 +1493,16 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 
 ### 关键参数（打断）
 
+Cancel→Entry 范围收紧（2026-10-01）：隐式 Entry 仅在「当前来源节点 + 当前 Normal/Perfect 通道」完全没有显式边时启用；已有边即使 Intent 不匹配、目标失效，也不隐式回 Entry。`CollectCancelCandidateIntents` 同步采用此门槛。共享路由继续优先于隐式 Entry，不受此新增门槛禁用；重叠窗口仍沿用延后 Perfect Entry 的规则。此规则替代此前“显式边未命中即可回 Entry”的描述。Graph 工具提示同步，未修改角色资产。
+
+Cancel 重叠窗口修复（2026-10-01）：`ActionSimResolverBridge` 使用快照当前帧查询 Normal 窗口；解析 Perfect 且 Normal 同时生效时，将 `ActionResolveContext.AllowCancelEntryFallback` 设为 false，`ActionGraph.TryResolveCancel` 此轮只解析显式边/共享路由。保持 ActionSim 的逐 Intent 优先级和 Perfect→Normal 顺序，Entry 由 Normal 最后兜底；仅 Perfect 生效时仍允许 Entry。修复隐式 Entry 抢占 Unagi 普攻 3→5 的问题，无资产迁移。回归 `CancelEntry_PreservesRoutePriorityIncludingOverlappingWindows` 已补充编译，Unity Test Runner / Play 尚待验收。
+
+Graph 布线辅助（2026-10-01）：`ActionGraphGrid` 替换未显式铺满画布的默认 GridBackground，绘制 20 单位细网格和 100 单位主网格，跟随内容空间平移/缩放；细格小于 8 屏幕像素时隐藏。转折点新增与拖动共用 `RoutedActionGraphEdge.SnapPoint`，逐轴优先吸附两端端口及同一连线其它点，容差固定 8 屏幕像素，其余轴落到 20 单位网格；Alt 临时绕过。没有新增运行时字段。补充编译通过，新增缩放阈值、最近坐标、负坐标与绕过测试，Unity Test Runner / 视觉验收尚未执行。
+
+Graph 隐式路由与连线布局（2026-10-01）：有效 Normal / Perfect Cancel 窗内，`ActionGraph.TryResolveCancel` 依次解析显式边、共享路由、匹配输入 Intent 的 Entry；`CollectCancelCandidateIntents` 同时收集 Entry 意图，保证输入缓冲能够选中隐式去向。没有有效 Cancel 上下文或来源节点时不执行隐式路由；Intent=None 的 AI Entry 不参与输入匹配。Entry 继续复用原有变体与 Special 能量选形逻辑。此规则对全部 Graph 生效，无须增加实体边或迁移资产。编辑器顶部展示规则摘要，隐式关系不铺设重复连线。
+
+显式 Cancel / Auto 连线使用 `RoutedActionGraphEdge`：双击线段插入转折点，左键拖动、右键点位删除；无点时显示原生曲线，有点时显示折线。`ActionGraph.editorEdgeLayouts` 默认空数组，按可视端口键保存图内容空间坐标，不进入运行时路由；保存会清理已删除连线的布局。支持 Undo、保存重开与折线路径拾取/框选。限制：自动规则端口键包含规则序号，重排规则或改变分组拓扑后应重新检查布线；目前 Unity 画布视觉与鼠标交互尚待验收。相关源码：`ActionGraph.cs`、`ActionGraphEditorWindow.cs`；回归类 `ActionGraphAutomaticTransitionTests` 覆盖优先级、窗口门槛、布局往返、删除与 Undo，已补充编译、未运行 Unity Test Runner。
+
 自动过渡作者流程（2026-10-01）：Graph Editor 点击 `+ <NodeId> Auto Transition`，编辑 Condition / AtFrame 起始帧 / Priority，再从对应 Auto 输出拖到目标 In。每条规则最多一个目标，多分支添加多条规则；断线保留规则并恢复“条件满足时结束动作”，彻底取消需删除规则。已有目标自动还原为连线，无需迁移资产；失效目标保留并显示警告文字，避免保存时无意改成停止。分组内部与自环允许连线。运行时继续读取同一份 `AutomaticTransitions`，不新增 Cancel 边或第二套拓扑。相关实现：`Assets/Scripts/Editor/Combat/ActionGraph/ActionGraphEditorWindow.cs`、`ActionGraphInspector.cs`。验证：新增 `ActionGraphAutomaticTransitionTests`，尚未执行 Unity Test Runner；需人工检查 Save/Reload、Undo/Redo、断线与自动衔接 Play。
 
 | 参数 | 默认 | 说明 |
@@ -1805,10 +1815,27 @@ CombatHitPipeline（全体 Actor Step 后）
 
 ## 变更日志
 
+### EndpointSigned 动作轨迹（2026-10-01）
+
+功能：逻辑轨迹沿完整 Action 的起终点连线移动，模型保留偏离连线的摆动，正常播完时不再因横向残差归零产生回移。
+
+实现：`RootMotionBakeUtility` 仍保存原始 XZ 毫米差分；`ActionMotionBakeService` 完成播放范围裁剪与多段拼接后，`ActionBakedMotion` 以整表累计终点 E 为轴，对每个累计位置 P 求 `G = E * dot(P,E) / dot(E,E)`。比例不钳制，保留后退和越过终点后的回撤。累计位置取整后再差分，残差为 P-G，末帧严格为零；E=0 时 G=0。
+
+参数与迁移：`EndpointSigned=2` 替换原 ForwardSigned，无旧算法分支；`FullPlanar=0` 保持完整轨迹。原模式 2 的就绪表不需要重烘焙，模式 0 不自动切换。未修改任何动作资产或 Prefab。`ServerContentManifest` 增加算法指纹标记，新旧构建不得混用。
+
+运行时：`TryGetDelta` 供电机与吸附路程使用，`TryGetVisualResidualMm` 供本机/Observer 模型使用；Editor 轨迹预览共用查表。原始烘焙校验同时检查 XZ 数据，避免遗漏投影排除的分量。
+
+限制：闭合保证针对完整 Action 的本地烘焙轨迹；提前取消仍使用既有 BlendToZero，同一 Action 中间片段边界不保证残差为零；运行时朝向变化、碰撞、吸附及骨骼姿态差异不由该投影消除。相机会跟随动作的净侧向移动，但不跟随垂直于端点轴的视觉摆动。
+
+相关文件：`Domain/Simulation/Motion/ActionBakedMotion.cs`、`ActionMotionPlanarMode.cs`、`ActionMotionAdhesion.cs`，`Editor/Combat/Motion/ActionMotionTrajectorySceneDrawing.cs`、`RootMotionBakeUtility.cs`，`App/Networking/Content/ServerContentManifest.cs`（均位于 `Assets/Scripts/`）。独立 C# 编译及 ActionBakedMotionTests/ActionMotionAdhesionTests 共 25 项通过；Unity Test Runner 与 Attack_End→Idle、连招取消、联机表现仍待验收。
+
+- 2026-10-01：EndpointSigned 替换 ForwardSigned（序列化值仍为 2）；整张 Action 表投影至起终点连线，累计量化后差分，完整末帧残差为零；预览/吸附共用查表，Join 指纹隔离旧算法。独立 .NET Framework 编译及 25 项纯逻辑用例通过，Unity 编译/Test Runner/Play 待验收。
+
 - 2026-10-01：输入移动支持保留现有混合权重的连续换向，并同步同段淡出片的 Action 时钟；移除双槽提升路径，新增 Playable 图回归测试，Unity 验收待完成。
 
 - 2026-10-01：Action 输入移动增加帧范围、方向驻留与 Loop/Hold；复用 Motor 碰撞并复制方向时钟，Owner 重放已解析的输入请求。独立编译及 35 项纯逻辑测试通过；Unity 验收、资产布线未完成。
 
+- 2026-10-01：新增 Cancel→Entry 隐式路由与双击加点、拖动布线；补充编译通过，Unity 交互与 Test Runner 待验收。
 - 2026-10-01：ActionGraph 自动过渡目标改为逐规则端口连线，支持顺序组子节点和既有数据回显；移除手填目标 UI。新增定向测试，Unity 编译、Test Runner 和 Play 验收待执行。
 
 | 日期 | 变更 |
