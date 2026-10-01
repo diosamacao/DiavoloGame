@@ -1,12 +1,13 @@
 # ACTGame 技术文档
 
-> Last updated: 2026-09-30（吸附末帧精确落点 + 动作 StopOnContact 路径阻挡；新增阻挡尚待 Unity Test Runner / Play 验收；既有全量 EditMode 639/656，17 项失败待诊断）
+> Last updated: 2026-10-01（新增 Action 输入移动、帧范围方向动画、Owner 电机重放及 Observer 时钟；独立编译/纯逻辑测试通过，Unity / Play 待验收；原自动过渡及路径阻挡状态保留）
 > 说明：记录**已实现功能**及其**实现方案**。架构分层见 [ARCHITECTURE.md](ARCHITECTURE.md)；编码约定见 [CONVENTIONS.md](CONVENTIONS.md)。
 
 ## 功能索引
 
 | 功能 | 状态 | 入口 / 核心类 | 关键资源 |
 |------|------|---------------|----------|
+| Action 内输入移动 / 四向动画 | 🟡 代码落地，待 Unity / Play | `ActionInputMovement`、`CharacterActionGameplayStep`、`ActionInputMovementPlayer` | Input Movement 轨道配置窗口与四个 Inplace Clip；不改生产资产 |
 | 三人阵容 / 单键换人 / 死亡接替 | ✅ P-SW0～P-SW1 Graph、资产与 Play 已验收（2026-09-19） | `PartyLoadout`、`PartyCombatCoordinator`、`PartyDeathSwitchPolicy`、`ActGameGuest` | 各角色 Graph 已配置 `SwitchIn/SwitchOut` Entry |
 | 极限支援 / 接触弹刀 | ✅ P-SW2 + P-PR + 卡肉 Graph、资产与 Play 已验收（2026-09-19） | `WorldAssistCueBoard`、`IssueParried`、`ParriedActionPolicy` | Guard/Success、Parried 规则、进攻盒 Id 与连续弹刀窗已配置 |
 | Wave4 位移（Adhesion / SoftBody / Relocate） | ✅ 已实现（吸附已验收；Relocate 已接线） | `ActionMotionAdhesion` + `ActionMotionResolver` + Bridge | Branch_02 吸附已配；Relocate 按需加 MotionCommand 轨；相机不在本 Wave |
@@ -1475,7 +1476,7 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 | 选招策略 | `ActionGraph` Entry / Normal 与 Perfect CancelWindow 边 / `ActionGraphSharedRoute`；顺序组按类型聚合子节点 |
 | 六向闪避 | `DirectionalActionResolver` 统一解析前、后、左前、左后、右前、右后；前后扇区半角默认 `30°`，纯左/右输入偏向前侧变体 |
 | Cancel 下一招 | 每招一个 Normal、可选一个 Perfect；窗口重叠且同 Intent 时 Perfect 优先 |
-| 自动衔接 | `ActionGraphNode.AutomaticTransitions`，目标为节点 Id，支持 AnimationEnd / AtFrame / OnHitConfirm / OnWhiff |
+| 自动衔接 | `ActionGraphNode.AutomaticTransitions`，支持 AnimationEnd / AtFrame / OnHitConfirm / OnWhiff；Graph Editor 每条规则提供独立橙色 Auto 输出，连到目标 In 后保存目标 Id，普通节点与顺序组子节点均支持；未连线表示结束动作，Inspector 不再手填目标 |
 | 高优硬打断 | Action 态：`TryResolveStart(PriorityInterrupt)` → `ActionSim.TryInterrupt`（候选 `interruptPriority` 严格大于当前，且 `IsInterruptibleAtFrame`） |
 | 时间轴数据 | `ActionDefinition.Timeline`：`ActionNotify` 点事件（Event/VFX/SFX）+ `ActionNotifyState` 区间窗口 |
 | 移动取消 | `CharacterActionDriver` + `CancelWindowNotifyState(Movement)` |
@@ -1491,6 +1492,8 @@ Scene 中创建 Empty GameObject，挂载 `PlayerController` 并指定 `Characte
 | Motor | `CharacterMotor`（Locomotion 位移）+ `CharacterSimulationPipeline`（重力调度） |
 
 ### 关键参数（打断）
+
+自动过渡作者流程（2026-10-01）：Graph Editor 点击 `+ <NodeId> Auto Transition`，编辑 Condition / AtFrame 起始帧 / Priority，再从对应 Auto 输出拖到目标 In。每条规则最多一个目标，多分支添加多条规则；断线保留规则并恢复“条件满足时结束动作”，彻底取消需删除规则。已有目标自动还原为连线，无需迁移资产；失效目标保留并显示警告文字，避免保存时无意改成停止。分组内部与自环允许连线。运行时继续读取同一份 `AutomaticTransitions`，不新增 Cancel 边或第二套拓扑。相关实现：`Assets/Scripts/Editor/Combat/ActionGraph/ActionGraphEditorWindow.cs`、`ActionGraphInspector.cs`。验证：新增 `ActionGraphAutomaticTransitionTests`，尚未执行 Unity Test Runner；需人工检查 Save/Reload、Undo/Redo、断线与自动衔接 Play。
 
 | 参数 | 默认 | 说明 |
 |------|------|------|
@@ -1764,7 +1767,43 @@ CombatHitPipeline（全体 Actor Step 后）
 
 ---
 
+## Action 内输入移动（2026-10-01，待 Unity 验收）
+
+**共享进度修复：** `animationTimeMode` 默认 `FollowActionSegment`，Move 使用当前 Animation Segment 的片内时间（含裁剪起点与远端小数帧），不受窗口起点或换向时间影响，也不独立循环。`FromDirectionChange` 用于独立移动循环，此时才显示/应用 Loop Move。窗口需在 Cancel 段之前结束，四向 Clip 必须覆盖对应的采样范围；不自动拉伸短片。Editor 预览与本机/Observer 共用采样方法。新增裁剪、晚入窗口、换向、松手和 Cancel 边界测试，Unity 集成验证待运行。
+
+**轨道窗口增量：** 已移除 ExecutionPolicy 内嵌配置、独立 Pose 和 Movement Tail Frames。用相邻且不重叠的窗口表达不同阶段；关闭 Override Movement Animation 的窗口只移动、不覆盖原动画。松手使用 ActionFrameQuery 当前帧，动作时钟持续推进。
+
+**功能：** 固定时长 Action 的指定帧范围内允许 XZ 输入移动，有输入时覆盖前后左右动画，无输入时采样当前帧的 Action 原动画。范围结束恢复原动作段；移动不会创建新动作或延长 TotalFrames，适配当前 Vivian 的 Pose＋Cancel 两段结构。
+
+| 职责 | 实现 |
+|---|---|
+| 配置与门禁 | `ActionTimeline.InputMovementStates`、`ActionDefinition.GetInputMovementError`；缺片/越界/冲突拒绝起手 |
+| 固定帧位移 | `CharacterActionGameplayStep` → `CharacterMotor.ResolveActionMoveWish/MoveActionMm`；复用角色相对方向解析与身体碰撞 |
+| 单一主轨 | 本机 Sink 与 Observer 共用 `ActionInputMovementPlayer`，Tick 混合后 Seek，方向状态不变不重播 |
+| 复制/预测 | 快照增加方向及切片起始帧；Owner 重放已记录输入请求的电机碰撞，不推进 Action/扣费/Notify |
+| Editor | Input Movement 轨道窗口配置；检查页方向预览；动作页错误提示和 Undo 清理冲突烘焙表 |
+
+**参数：** 窗口 StartFrame～EndFrame 为闭区间且不超过 TotalFrames，不使用 -1；2500mm/s、输入门槛 .2、最短方向驻留 3 帧、混合 .08 秒；动画默认跟随 Action 段，仅独立起播模式使用 Loop Move。开启覆盖时需绑定四个 Clip，无独立 Pose。窗口禁止重叠及 Movement Cancel；输入移动与烘焙表、脚本位移、吸附、MotionCommand 互斥。
+
+**运行时：** `CharacterSimulationPipeline.Step` 摄入 InputFrame → ActionSim → Gameplay 解析一次输入位移 → Motor 碰撞 → Sink 采样方向片。只有真实 FrameAdvanced 才产生输入位移，防止卡肉最后一帧重复移动。窗口外/退出恢复正常动作或 Locomotion。
+
+**限制：** 不处理悬空高度；跨普通攻击的完整回滚未实现。Unity 编译、Editor 集成测试和网络 Play 未验收；已通过独立编译、6 项窗口测试及 35 项纯逻辑回归。当前资产未修改，需 Editor 布线；源文件列表与步骤见[实施记录](../../../../docs/2026.10.1/ACTION_INPUT_MOVEMENT_IMPLEMENTATION.md)。
+
+### 输入移动连续换向混合（2026-10-01，待 Unity 验收）
+
+`PlayableAnimationPlayback` 用多片混合替换双槽提升：换片时记录当前各片权重，在 `crossFadeSeconds` 内线性插值到目标。中断过渡不会先把旧目标提到满权；淡出完成释放旧片，同一非空时钟组内反复选择同片会复用 Playable。普通 Play 不传组时仍从头起播。
+
+`IAnimationPlayback.Play` / `CharacterAnimationService.PlayClip` 的可选 `timeGroup` 仅表示表现层共享时钟，不进入模拟/复制。`ActionInputMovementPlayer` 为 FollowActionSegment 的每个 Action 段生成独立身份，方向切换和松手沿用；新动作、跨段、restart 重建。Seek 同步当前组内全部淡入/淡出片段，保留其它组的时间；FromDirectionChange 不共享时钟。0.5 秒配置及窗口资产不变，卡肉仍暂停权重推进。
+
+回归测试：`PlayableMovementBlendTests` 覆盖中断权重、反复左右/松手、片段复用释放、组间时间隔离与冻结/硬切；`ActionInputMovementTests` 覆盖调用端时钟身份生命周期。Unity Test Runner 与 Vivian 实机效果仍待验收。
+
 ## 变更日志
+
+- 2026-10-01：输入移动支持保留现有混合权重的连续换向，并同步同段淡出片的 Action 时钟；移除双槽提升路径，新增 Playable 图回归测试，Unity 验收待完成。
+
+- 2026-10-01：Action 输入移动增加帧范围、方向驻留与 Loop/Hold；复用 Motor 碰撞并复制方向时钟，Owner 重放已解析的输入请求。独立编译及 35 项纯逻辑测试通过；Unity 验收、资产布线未完成。
+
+- 2026-10-01：ActionGraph 自动过渡目标改为逐规则端口连线，支持顺序组子节点和既有数据回显；移除手填目标 UI。新增定向测试，Unity 编译、Test Runner 和 Play 验收待执行。
 
 | 日期 | 变更 |
 |------|------|

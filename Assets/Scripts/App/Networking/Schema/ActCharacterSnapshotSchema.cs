@@ -76,7 +76,8 @@ public sealed class ActCharacterSnapshotSchema : IReplicationSchema
             locomotionPhase: locomotionPhase,
             gait: (byte)actor.ReplicationGait,
             cardinal: actor.ReplicationCardinal,
-            locomotionPhaseFrame: locomotionPhaseFrame);
+            locomotionPhaseFrame: locomotionPhaseFrame,
+            actionMovementState: actor.ActionMovementState);
     }
 
     /// <summary>编码强类型角色快照，并复用纯 C# V2 Schema 的唯一线格式。</summary>

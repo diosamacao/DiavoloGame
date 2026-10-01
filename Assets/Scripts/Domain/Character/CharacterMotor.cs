@@ -38,13 +38,21 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
     public void MoveActionMm(SimVec2 delta, ActionExecutionPolicy policy, float? scriptedSpeed = null)
     {
         if (!policy.HasValidBodyCollision) throw new System.InvalidOperationException("Invalid action body collision policy.");
+        MoveActionMm(new ActionInputMovementCommand(delta, _sim.FacingMilliDeg, policy.BodyCollisionMode, policy.BodyContactSkinMm));
+        if (scriptedSpeed.HasValue) _planarSpeedEstimate = scriptedSpeed.Value;
+    }
+
+    /// <summary>模拟与纠偏共用同一碰撞提交入口；请求来自固定帧输入，永不重放动画。</summary>
+    public void MoveActionMm(in ActionInputMovementCommand command)
+    {
+        SimVec2 delta = command.Delta;
         ActionMoveFromMm = _sim.PositionMm;
         ActionMoveDesiredMm = new SimVec2(checked(ActionMoveFromMm.X + delta.X), checked(ActionMoveFromMm.Z + delta.Z));
         bool moved;
-        if (policy.BodyCollisionMode == ActionBodyCollisionMode.StopOnContact)
+        if (command.CollisionMode == ActionBodyCollisionMode.StopOnContact)
         {
             CollectBodyObstacles(_bodyBuffer);
-            moved = _sim.TryMoveActionMm(delta, policy.BodyContactSkinMm, _bodyBuffer, out bool blocked, out SimActorId blocker);
+            moved = _sim.TryMoveActionMm(delta, command.SkinMm, _bodyBuffer, out bool blocked, out SimActorId blocker);
             ActionMoveBlocked = blocked;
             ActionMoveBlocker = blocker;
         }
@@ -55,7 +63,6 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
             ActionMoveBlocker = SimActorId.Invalid;
         }
         if (moved) SyncRootFromSim();
-        if (scriptedSpeed.HasValue) _planarSpeedEstimate = scriptedSpeed.Value;
     }
 
     Vector3 _faceTargetForward;
@@ -365,6 +372,16 @@ public sealed class CharacterMotor : IActionStartContext, IMoveIntentResolver
         Vector3 forward = rotation * Vector3.forward;
         Vector3 right = rotation * Vector3.right;
         return (forward * moveIntent.y + right * moveIntent.x).normalized;
+    }
+
+    /// <summary>读取已经量化摄入的动作移动输入；撞墙不清除 wish，表现仍遵循输入。</summary>
+    public Vector3 ResolveActionMoveWish(float threshold, out float magnitude)
+    {
+        magnitude = Mathf.Clamp01(_moveIntent.MoveMagnitude);
+        Vector3 wish = magnitude >= threshold ? ResolveWorldMoveDirection(_moveIntent.MoveIntent) : Vector3.zero;
+        if (wish == Vector3.zero) magnitude = 0;
+        CaptureDebugWishWorldDirection(wish);
+        return wish;
     }
 
     /// <summary>写入逻辑帧 wish 快照；Locomotion 快照与 ApplyLocomotion 共用。</summary>

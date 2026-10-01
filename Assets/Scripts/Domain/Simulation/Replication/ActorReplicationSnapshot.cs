@@ -27,7 +27,8 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
         int healthMilli,
         int flagsPacked,
         VitalityReplicationEdge vitalityEdge,
-        int locomotionPhaseFrame = 0)
+        int locomotionPhaseFrame = 0,
+        int actionMovementState = 0)
     {
         ActorId = actorId;
         TeamId = teamId;
@@ -50,6 +51,8 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
         HealthMilli = healthMilli;
         FlagsPacked = flagsPacked;
         VitalityEdge = vitalityEdge;
+        ActionMovementState = actionId != 0 && ActionInputMoveState.IsValid(actionMovementState, ActionFrame)
+            ? actionMovementState : 0;
     }
 
     /// <summary>稳定模拟身份。</summary>
@@ -100,6 +103,9 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
     /// <summary>权威动作帧。</summary>
     public int ActionFrame { get; }
 
+    /// <summary>动作内方向与方向片段起始帧的打包值。</summary>
+    public int ActionMovementState { get; }
+
     /// <summary>剩余逻辑卡肉帧。</summary>
     public int FreezeFrames { get; }
 
@@ -139,7 +145,8 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
             HealthMilli,
             FlagsPacked,
             VitalityEdge,
-            LocomotionPhaseFrame);
+            LocomotionPhaseFrame,
+            actionId == ActionId ? ActionMovementState : 0);
     }
 
     /// <summary>替换 Locomotion 相位与整数帧；供客机本地走跑恢复，不改位姿/出招。</summary>
@@ -166,7 +173,8 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
             HealthMilli,
             FlagsPacked,
             VitalityEdge,
-            locomotionPhaseFrame);
+            locomotionPhaseFrame,
+            ActionMovementState);
     }
 
     /// <summary>用预测电机位姿替换本快照的毫米坐标与朝向；其它复制字段不变。</summary>
@@ -196,7 +204,8 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
             HealthMilli,
             FlagsPacked,
             VitalityEdge,
-            LocomotionPhaseFrame);
+            LocomotionPhaseFrame,
+            ActionMovementState);
     }
 
     /// <summary>比较全部复制字段。</summary>
@@ -217,6 +226,7 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
         && ActionId == other.ActionId
         && GraphNodeKey == other.GraphNodeKey
         && ActionFrame == other.ActionFrame
+        && ActionMovementState == other.ActionMovementState
         && FreezeFrames == other.FreezeFrames
         && SelectedTargetId == other.SelectedTargetId
         && HealthMilli == other.HealthMilli
@@ -243,6 +253,7 @@ public readonly struct ActorReplicationSnapshot : IEquatable<ActorReplicationSna
             hash = (hash * 397) ^ ActionId;
             hash = (hash * 397) ^ GraphNodeKey;
             hash = (hash * 397) ^ ActionFrame;
+            hash = (hash * 397) ^ ActionMovementState;
             hash = (hash * 397) ^ HealthMilli;
             return hash;
         }

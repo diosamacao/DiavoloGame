@@ -19,6 +19,14 @@ public sealed class CharacterActionGameplayStep
     MotionModifierNotifyState _adhesionWindow;
     SimActorId _adhesionTarget;
     int _adhesionTargetX, _adhesionTargetZ;
+    int _inputMovementState;
+    ActionInputMovement _inputMovementWindow;
+
+    /// <summary>当前动作内移动方向及方向起始帧，供快照复制；动作结束即清空。</summary>
+    public int InputMovementState => _inputMovementState;
+
+    /// <summary>本 Tick 实际执行的输入移动请求（冻结为零位移）；PostCombat 换招不覆盖此历史。</summary>
+    public ActionInputMovementCommand LastInputMovementCommand { get; private set; }
 
     /// <summary>创建动作 Gameplay 固定帧执行器；表现只经只读 Sink 消费同批事件。</summary>
     public CharacterActionGameplayStep(
@@ -51,6 +59,7 @@ public sealed class CharacterActionGameplayStep
     {
         IActionPresentationSink sink = presentationSink ?? NullActionPresentationSink.Instance;
         float stepDelta = Mathf.Max(0f, fixedDeltaSeconds);
+        LastInputMovementCommand = default;
         _events.Clear();
         _actionSim.DrainEvents(_events);
 
@@ -78,8 +87,18 @@ public sealed class CharacterActionGameplayStep
             && snapshot.Content is ActionDefinition current)
         {
             ApplySoftBodySuppressForFrame(current, snapshot.CurrentFrame);
-            if (!snapshot.IsFrozen)
+            if (current.IsInputMovementActive(snapshot.CurrentFrame))
+                LastInputMovementCommand = new ActionInputMovementCommand(SimVec2.Zero, _motor.Sim.FacingMilliDeg,
+                    current.ExecutionPolicy.BodyCollisionMode, current.ExecutionPolicy.BodyContactSkinMm);
+            else
+            {
+                _inputMovementState = 0;
+                _inputMovementWindow = null;
+            }
+            if (!snapshot.IsFrozen && (!current.ExecutionPolicy.UsesInputMovement || HasAdvancedFrame(in snapshot)))
                 ApplyDisplacementForAction(current, snapshot.CurrentFrame, stepDelta);
+            if (current.IsInputMovementAnimationActive(snapshot.CurrentFrame))
+                sink.ApplyInputMovement(current, snapshot.CurrentFrame, _inputMovementState);
         }
         sink.ApplyAfterGameplay(in snapshot);
 
@@ -125,6 +144,16 @@ public sealed class CharacterActionGameplayStep
         }
     }
 
+    // FreezeFrames 递减至零的那一步没有推进动作帧，不可凭 IsFrozen=false 重复移动。
+    bool HasAdvancedFrame(in ActionSimSnapshot snapshot)
+    {
+        foreach (ActionSimEvent actionEvent in _events)
+            if (actionEvent.Type == ActionSimEventType.FrameAdvanced
+                && actionEvent.InstanceId == snapshot.InstanceId && actionEvent.Frame == snapshot.CurrentFrame)
+                return true;
+        return false;
+    }
+
     /// <summary>执行图节点起手行为并通知 Gameplay 帧消费者。</summary>
     void HandleStarted(in ActionSimEvent actionEvent)
     {
@@ -133,6 +162,8 @@ public sealed class CharacterActionGameplayStep
 
         ResetAdhesion();
         ExecuteStartBehaviors(actionEvent.Graph as ActionGraph, actionEvent.NodeId);
+        _inputMovementState = 0;
+        _inputMovementWindow = null;
         for (int i = 0; i < _frameConsumers.Count; i++)
             _frameConsumers[i].OnActionBegan(action);
     }
@@ -143,6 +174,8 @@ public sealed class CharacterActionGameplayStep
         for (int i = 0; i < _frameConsumers.Count; i++)
             _frameConsumers[i].OnActionEnded();
         _motor.Sim.ClearSoftBodySuppress();
+        _inputMovementState = 0;
+        _inputMovementWindow = null;
         ResetAdhesion();
     }
 
@@ -170,6 +203,9 @@ public sealed class CharacterActionGameplayStep
     {
         if (_actorRoot != null) _motor.Sim.SetFacingDegrees(_actorRoot.eulerAngles.y);
         SimVec2 delta = ResolveBaseDisplacement(action, frame, fixedDeltaSeconds);
+        if (action.IsInputMovementActive(frame))
+            LastInputMovementCommand = new ActionInputMovementCommand(delta, _motor.Sim.FacingMilliDeg,
+                action.ExecutionPolicy.BodyCollisionMode, action.ExecutionPolicy.BodyContactSkinMm);
         bool adhered = TryApplyTargetAdhesion(action, frame, fixedDeltaSeconds, ref delta);
         float? scriptedSpeed = null;
         if (!adhered && ResolveDisplacementSource(action) == ActionDisplacementSource.ScriptedTimeline)
@@ -314,6 +350,22 @@ public sealed class CharacterActionGameplayStep
     {
         switch (ResolveDisplacementSource(action))
         {
+            case ActionDisplacementSource.InputMovement:
+                if (!action.IsInputMovementActive(frame)) return SimVec2.Zero;
+                ActionInputMovement config = action.GetInputMovementAtFrame(frame);
+                if (config == null || !config.IsValid) return SimVec2.Zero;
+                if (_inputMovementWindow != config)
+                {
+                    _inputMovementState = ActionInputMoveState.Pack(0, frame);
+                    _inputMovementWindow = config;
+                }
+                Vector3 wish = _motor.ResolveActionMoveWish(config.inputThreshold, out float magnitude);
+                Vector3 facing = _actorRoot != null ? _actorRoot.forward : Vector3.forward;
+                int direction = (int)LocomotionDirectionModel.Resolve(
+                    LocomotionDirectionModel.ToLocalMoveIntent(wish, facing));
+                _inputMovementState = config.AdvanceState(_inputMovementState, frame, direction);
+                float distanceMm = config.speedMmPerSecond * magnitude * dt;
+                return new SimVec2(Mathf.RoundToInt(wish.x * distanceMm), Mathf.RoundToInt(wish.z * distanceMm));
             case ActionDisplacementSource.BakedMotion:
                 if (action.BakedMotion.TryGetDelta(frame, out var baked, out _))
                 {

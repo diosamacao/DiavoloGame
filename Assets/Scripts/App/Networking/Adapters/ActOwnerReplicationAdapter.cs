@@ -73,7 +73,11 @@ public sealed class ActOwnerReplicationAdapter
 
         int actionId = ResolveLocalActionId(actor);
         _actionAck.Record(frame, actionId);
-        _driver.RecordAutonomous(in input);
+        ActionInputMovementCommand movement = actor.LastInputMovementCommand;
+        if (movement.IsPresent)
+            movement = new ActionInputMovementCommand(movement.Delta, actor.MotorSim.FacingMilliDeg,
+                movement.CollisionMode, movement.SkinMm);
+        _driver.RecordAutonomous(in input, movement);
     }
 
     /// <summary>应用 Owner 权威快照：覆盖 HP，并按 appliedHint 执行动作 ACK 与位移和解。吸附/闪避招在权威空闲时不掐。</summary>
@@ -119,7 +123,8 @@ public sealed class ActOwnerReplicationAdapter
                 snapThresholdMm: ActionMotionReconcileGate.ResolveSnapThresholdMm(
                     actor,
                     in self,
-                    authorityAction));
+                    authorityAction),
+                authorityInputMovement: authorityAction != null && authorityAction.IsInputMovementActive(self.ActionFrame));
             if (locomotionResult.Snapped)
                 actor.SnapPresentationToSimulation();
         }

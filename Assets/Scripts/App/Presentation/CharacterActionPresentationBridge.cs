@@ -14,6 +14,17 @@ public sealed class CharacterActionPresentationBridge : IActionPresentationSink
     Transform _defaultAttachPoint;
     ActionDefinition _animationAction;
     int _animationSegmentIndex = -1;
+    readonly ActionInputMovementPlayer _inputMovementPlayer = new();
+    int _inputMovementState;
+
+    /// <inheritdoc />
+    public void ApplyInputMovement(ActionDefinition action, int frame, int movementState)
+    {
+        _animationAction = null;
+        _animationSegmentIndex = -1;
+        _inputMovementState = movementState;
+        _inputMovementPlayer.Sample(_animation, action, frame, movementState);
+    }
     bool _hitStopPresentationActive;
     float _normalAnimationSpeed = 1f;
 
@@ -51,6 +62,7 @@ public sealed class CharacterActionPresentationBridge : IActionPresentationSink
         }
 
         _animation?.StopAdditive();
+        _inputMovementPlayer.Reset();
     }
 
     /// <inheritdoc />
@@ -111,6 +123,13 @@ public sealed class CharacterActionPresentationBridge : IActionPresentationSink
     /// <inheritdoc />
     public void CompleteSimulationStep(in ActionSimSnapshot snapshot, float fixedDeltaSeconds)
     {
+        if (snapshot.IsActive && snapshot.Content is ActionDefinition action
+            && action.IsInputMovementAnimationActive(snapshot.CurrentFrame))
+        {
+            _inputMovementPlayer.Sample(_animation, action, snapshot.CurrentFrame, _inputMovementState,
+                deltaTime: snapshot.IsFrozen ? 0f : fixedDeltaSeconds);
+            return;
+        }
         if (fixedDeltaSeconds > 0f)
             _animation?.Tick(fixedDeltaSeconds);
     }
@@ -126,6 +145,7 @@ public sealed class CharacterActionPresentationBridge : IActionPresentationSink
 
         _rootMotion?.SetActive(false);
         _animationAction = null;
+        _inputMovementPlayer.Reset();
         _animationSegmentIndex = -1;
         SyncHitStopPresentation(frozen: false);
         _characterPresentation?.EndAction(VisualResidualExitPolicy.BlendToZero);
@@ -159,6 +179,9 @@ public sealed class CharacterActionPresentationBridge : IActionPresentationSink
     /// <summary>仅在动作或动画段切换时 Play+Seek。</summary>
     void SyncAnimation(ActionDefinition action, int frame)
     {
+        if (action.IsInputMovementAnimationActive(frame))
+            return;
+        _inputMovementPlayer.Reset();
         ActionFrameQueryResult query = ActionFrameQuery.Query(action, frame);
         if (_animation == null || !query.HasAnimationSegment)
             return;

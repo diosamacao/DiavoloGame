@@ -25,7 +25,8 @@ public static class ReplicationSnapshotBuilder
         byte locomotionPhase = 0,
         byte gait = 0,
         byte cardinal = 0,
-        int locomotionPhaseFrame = 0)
+        int locomotionPhaseFrame = 0,
+        int actionMovementState = 0)
     {
         if (motor == null)
             throw new ArgumentNullException(nameof(motor));
@@ -57,6 +58,7 @@ public static class ReplicationSnapshotBuilder
             healthMilli,
             flagsPacked,
             vitalityEdge,
-            locomotionPhaseFrame);
+            locomotionPhaseFrame,
+            action.IsActive ? actionMovementState : 0);
     }
 }

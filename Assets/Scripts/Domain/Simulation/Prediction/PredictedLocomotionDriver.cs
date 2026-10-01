@@ -13,6 +13,7 @@ public sealed class PredictedLocomotionDriver
     readonly ActCharacterPredictionModel _model;
     readonly PredictionCoordinator<LocomotionPredictCommand, LocomotionPredictState> _coordinator;
     int _snapGraceFrames;
+    long _lastAuthorityFrame = long.MinValue;
 
     /// <summary>绑定电机副本与速度/阈值；motor 不得再交给 SimulationWorld 当权威。</summary>
     public PredictedLocomotionDriver(CharacterMotorSim motor, PredictedLocomotionConfig config)
@@ -42,9 +43,9 @@ public sealed class PredictedLocomotionDriver
     /// 内层机已写出 MotorSim 后只记账。skipWishReplay：禁止 ApplyInput。
     /// skipRunnerReplay=false：纠偏经 Runner 重放。
     /// </summary>
-    public void RecordAutonomous(in InputFrame input)
+    public void RecordAutonomous(in InputFrame input, ActionInputMovementCommand actionMovement = default)
     {
-        RecordPending(in input, skipWishReplay: true, skipRunnerReplay: false);
+        RecordPending(in input, skipWishReplay: true, skipRunnerReplay: false, actionMovement);
     }
 
     /// <summary>用本帧输入按 FollowInput 推进预测电机并缓存 (frame, input, pose)。</summary>
@@ -112,8 +113,13 @@ public sealed class PredictedLocomotionDriver
         long authorityFrame,
         in ActorReplicationSnapshot authority,
         IPredictedLocomotionReplay replay,
-        int snapThresholdMm = -1)
+        int snapThresholdMm = -1,
+        bool authorityInputMovement = false)
     {
+        // 已确认帧的历史已经丢弃；重复/乱序包不能拿当前预测位置再次纠偏。
+        if (authorityFrame <= _lastAuthorityFrame)
+            return new PredictedReconcileResult(false, 0, 0);
+        _lastAuthorityFrame = authorityFrame;
         LocomotionPredictState authorityPose = LocomotionPredictState.FromSnapshot(in authority);
         int errorMm = _coordinator.PeekError(authorityFrame, in authorityPose);
         int threshold = snapThresholdMm >= 0
@@ -135,6 +141,14 @@ public sealed class PredictedLocomotionDriver
 
         if (policy.CorrectionRequired && useRunner)
             _model.BindReplay(replay, in authority);
+        if (policy.CorrectionRequired && authorityInputMovement && authority.ActionId != 0
+            && authority.VitalityEdge != VitalityReplicationEdge.Hit
+            && authority.VitalityEdge != VitalityReplicationEdge.Death
+            && replay is IActionInputMovementReplay movementReplay)
+        {
+            policy = new PredictionCorrectionPolicy(true, true, ActPredictionReplayKind.ActionInputMovement);
+            _model.BindActionMovementReplay(movementReplay);
+        }
 
         PredictionReconcileResult generic = _coordinator.ReceiveAuthority(
             authorityFrame,
@@ -158,9 +172,10 @@ public sealed class PredictedLocomotionDriver
             authorityMotor.FacingMilliDeg));
     }
 
-    void RecordPending(in InputFrame input, bool skipWishReplay, bool skipRunnerReplay)
+    void RecordPending(in InputFrame input, bool skipWishReplay, bool skipRunnerReplay,
+        ActionInputMovementCommand actionMovement = default)
     {
-        var command = new LocomotionPredictCommand(in input, skipWishReplay, skipRunnerReplay);
+        var command = new LocomotionPredictCommand(in input, skipWishReplay, skipRunnerReplay, actionMovement);
         _coordinator.Record(input.Frame, in command, _model.Capture());
     }
 }

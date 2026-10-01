@@ -2,11 +2,13 @@
 public readonly struct LocomotionPredictCommand
 {
     /// <summary>创建一条位移预测命令。</summary>
-    public LocomotionPredictCommand(in InputFrame input, bool skipWishReplay, bool skipRunnerReplay)
+    public LocomotionPredictCommand(in InputFrame input, bool skipWishReplay, bool skipRunnerReplay,
+        ActionInputMovementCommand actionMovement = default)
     {
         Input = input;
         SkipWishReplay = skipWishReplay;
         SkipRunnerReplay = skipRunnerReplay;
+        ActionMovement = actionMovement;
     }
 
     /// <summary>该 Tick 的量化输入。</summary>
@@ -17,4 +19,7 @@ public readonly struct LocomotionPredictCommand
 
     /// <summary>有 Runner 时禁止 ReplayTick（贴齐/烘焙帧）。</summary>
     public bool SkipRunnerReplay { get; }
+
+    /// <summary>本 Tick 的动作输入位移；缺失时保持原走跑/普通动作策略。</summary>
+    public ActionInputMovementCommand ActionMovement { get; }
 }

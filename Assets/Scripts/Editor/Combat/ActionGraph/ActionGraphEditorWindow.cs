@@ -5,7 +5,7 @@ using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-/// <summary>ActionGraph 可视化编辑器：双通道节点连线与可直接编辑的顺序组。</summary>
+/// <summary>ActionGraph 可视化编辑器：Cancel、自动过渡连线与可直接编辑的顺序组。</summary>
 public sealed class ActionGraphEditorWindow : EditorWindow
 {
     [SerializeField] ActionGraph _graph;
@@ -35,7 +35,13 @@ public sealed class ActionGraphEditorWindow : EditorWindow
         Open(selected);
     }
 
-    void OnEnable() => RebuildView();
+    void OnEnable()
+    {
+        Undo.undoRedoPerformed += RebuildView;
+        RebuildView();
+    }
+
+    void OnDisable() => Undo.undoRedoPerformed -= RebuildView;
 
     void OnSelectionChange()
     {
@@ -111,7 +117,7 @@ public sealed class ActionGraphEditorWindow : EditorWindow
     }
 }
 
-/// <summary>GraphView 画布：节点/顺序组输出固定为 Normal 与 Perfect CancelWindow。</summary>
+/// <summary>GraphView 画布：Cancel 路由与逐条自动过渡端口写回各自的唯一运行时数据。</summary>
 sealed class ActionGraphView : GraphView
 {
     readonly ActionGraph _graph;
@@ -119,6 +125,7 @@ sealed class ActionGraphView : GraphView
     readonly Dictionary<string, ActionGraphGroupView> _groupViews = new();
     readonly Dictionary<string, string> _nodeToGroupId = new();
     bool _isLoading;
+    readonly Dictionary<(string nodeId, int index), Port> _automaticPorts = new();
 
     /// <summary>选中并居中问题节点；合并的节点定位所属组。</summary>
     public void FocusNode(string nodeId)
@@ -157,6 +164,9 @@ sealed class ActionGraphView : GraphView
         if (_isLoading)
             return change;
 
+        if (change.edgesToCreate != null && change.edgesToCreate.Count > 0)
+            EditorApplication.delayCall += PersistViewToAsset;
+
         if (change.elementsToRemove == null || change.elementsToRemove.Count == 0)
             return change;
 
@@ -170,7 +180,7 @@ sealed class ActionGraphView : GraphView
             removedNode = true;
         }
 
-        if (removedNode)
+        if (removedNode || change.elementsToRemove.OfType<Edge>().Any())
         {
             // 等 GraphView 真正删掉元素后再序列化，边列表才与画布一致。
             EditorApplication.delayCall += PersistViewToAsset;
@@ -198,6 +208,14 @@ sealed class ActionGraphView : GraphView
                 return;
             if (startPort.direction == port.direction)
                 return;
+
+            // 自动规则允许接回自身或同组的任何子节点，输入端拖线同样适用。
+            Port output = startPort.direction == Direction.Output ? startPort : port;
+            if (_automaticPorts.ContainsValue(output))
+            {
+                compatible.Add(port);
+                return;
+            }
 
             // 允许 Cancel 输出连回本节点 In（自环：同招再派生/重开）。
             if (startPort.node == port.node)
@@ -426,6 +444,7 @@ sealed class ActionGraphView : GraphView
             _nodeViews.Clear();
             _groupViews.Clear();
             _nodeToGroupId.Clear();
+            _automaticPorts.Clear();
 
             foreach (ActionGraphNodeGroup group in _graph.NodeGroups)
             {
@@ -465,6 +484,16 @@ sealed class ActionGraphView : GraphView
 
                 Edge graphEdge = output.ConnectTo(input);
                 AddElement(graphEdge);
+            }
+
+            foreach (ActionGraphNode node in _graph.Nodes)
+            {
+                if (node == null) continue;
+                Node owner = _nodeViews.TryGetValue(node.NodeId, out var nodeView)
+                    ? nodeView
+                    : _nodeToGroupId.TryGetValue(node.NodeId, out string groupId)
+                        && _groupViews.TryGetValue(groupId, out var groupView) ? groupView : null;
+                if (owner != null) AddAutomaticPorts(owner, node);
             }
         }
         finally
@@ -600,7 +629,129 @@ sealed class ActionGraphView : GraphView
             edge.FindPropertyRelative("toNodeId").stringValue = edgeList[i].to;
         }
 
+        // 目标仅从对应规则的连线取得；规则顺序、条件与优先级仍由节点数据保存。
+        foreach (var entry in _automaticPorts)
+        {
+            SerializedProperty node = FindAutomaticNode(so, entry.Key.nodeId);
+            if (node == null) continue;
+            SerializedProperty transitions = node.FindPropertyRelative("automaticTransitions");
+            if (entry.Key.index >= transitions.arraySize) continue;
+            SerializedProperty target = transitions.GetArrayElementAtIndex(entry.Key.index)
+                .FindPropertyRelative("targetNodeId");
+            Edge connection = edges.ToList().FirstOrDefault(edge => edge.output == entry.Value);
+            if (connection?.input != null)
+            {
+                entry.Value.portName = $"{entry.Key.nodeId} Auto {entry.Key.index + 1}";
+                entry.Value.userData = null;
+                target.stringValue = connection.input.node is ActionGraphNodeView targetNode
+                    ? targetNode.NodeId
+                    : ((ActionGraphGroupView)connection.input.node).GetNodeIdForInput(connection.input);
+            }
+            else if (entry.Value.userData is not string missingTarget
+                || retainedNodeIds.Contains(missingTarget))
+            {
+                target.stringValue = string.Empty;
+            }
+            // 原资产中的失效引用保留给 Validator 报错，不在打开/保存时悄悄改成结束动作。
+        }
+
         so.ApplyModifiedProperties();
+    }
+
+    /// <summary>每条自动规则独占一个输出；组内规则保持原始来源节点身份。</summary>
+    void AddAutomaticPorts(Node owner, ActionGraphNode node)
+    {
+        // SerializedObject 重排 nodes 会修改托管对象；回调只能捕获稳定 Id。
+        string nodeId = node.NodeId;
+        for (int i = 0; i < node.AutomaticTransitions.Count; i++)
+        {
+            int index = i;
+            ActionGraphTransition transition = node.AutomaticTransitions[i];
+            if (transition == null) continue;
+            Port port = Port.Create<Edge>(Orientation.Horizontal, Direction.Output, Port.Capacity.Single, typeof(bool));
+            port.portName = $"{node.NodeId} Auto {index + 1}";
+            port.portColor = new Color(1f, 0.65f, 0.2f);
+            port.tooltip = "连到目标 In；不连线表示条件满足时结束动作。";
+            owner.outputContainer.Add(port);
+            _automaticPorts[(node.NodeId, index)] = port;
+            if (!string.IsNullOrEmpty(transition.TargetNodeId))
+            {
+                if (TryResolveVisualInput(transition.TargetNodeId, out Port input, out _))
+                    AddElement(port.ConnectTo(input));
+                else
+                {
+                    port.userData = transition.TargetNodeId;
+                    port.portName += $" [失效目标: {transition.TargetNodeId}]";
+                }
+            }
+
+            owner.extensionContainer.Add(new IMGUIContainer(() =>
+            {
+                var so = new SerializedObject(_graph);
+                SerializedProperty source = FindAutomaticNode(so, nodeId);
+                SerializedProperty rules = source?.FindPropertyRelative("automaticTransitions");
+                if (rules == null || index >= rules.arraySize) return;
+                SerializedProperty rule = rules.GetArrayElementAtIndex(index);
+                EditorGUILayout.LabelField($"{nodeId} Auto {index + 1}", EditorStyles.boldLabel);
+                EditorGUI.BeginChangeCheck();
+                EditorGUILayout.PropertyField(rule.FindPropertyRelative("condition"));
+                if ((ActionTransitionCondition)rule.FindPropertyRelative("condition").enumValueIndex
+                    == ActionTransitionCondition.AtFrame)
+                    EditorGUILayout.PropertyField(rule.FindPropertyRelative("startFrame"));
+                EditorGUILayout.PropertyField(rule.FindPropertyRelative("priority"));
+                if (EditorGUI.EndChangeCheck()) so.ApplyModifiedProperties();
+                string target = rule.FindPropertyRelative("targetNodeId").stringValue;
+                EditorGUILayout.LabelField("Target", string.IsNullOrEmpty(target) ? "结束动作（未连线）" : target);
+                if (GUILayout.Button("删除此 Auto 规则"))
+                    QueueAutomaticRuleEdit(nodeId, index);
+            }));
+        }
+        owner.extensionContainer.Add(new Button(() => QueueAutomaticRuleEdit(nodeId, -1))
+        {
+            text = $"+ {node.NodeId} Auto Transition",
+            tooltip = "添加规则后，将橙色 Auto 输出连到目标节点 In；未连线的规则表示结束动作。",
+        });
+        owner.RefreshExpandedState();
+        owner.RefreshPorts();
+    }
+
+    /// <summary>先保存画布再增删规则，延后重建以免在 IMGUI 布局期间销毁控件。</summary>
+    void QueueAutomaticRuleEdit(string nodeId, int removeIndex)
+    {
+        EditorApplication.delayCall += () =>
+        {
+            if (_graph == null) return;
+            PersistViewToAsset();
+            var so = new SerializedObject(_graph);
+            SerializedProperty rules = FindAutomaticNode(so, nodeId)?.FindPropertyRelative("automaticTransitions");
+            if (rules == null) return;
+            if (removeIndex >= 0)
+            {
+                if (removeIndex < rules.arraySize) rules.DeleteArrayElementAtIndex(removeIndex);
+            }
+            else
+            {
+                int index = rules.arraySize++;
+                SerializedProperty rule = rules.GetArrayElementAtIndex(index);
+                rule.FindPropertyRelative("condition").enumValueIndex = (int)ActionTransitionCondition.AnimationEnd;
+                rule.FindPropertyRelative("startFrame").intValue = 0;
+                rule.FindPropertyRelative("priority").intValue = 0;
+                rule.FindPropertyRelative("targetNodeId").stringValue = string.Empty;
+            }
+            so.ApplyModifiedProperties();
+            LoadFromAsset();
+        };
+    }
+
+    static SerializedProperty FindAutomaticNode(SerializedObject so, string nodeId)
+    {
+        SerializedProperty nodes = so.FindProperty("nodes");
+        for (int i = 0; i < nodes.arraySize; i++)
+        {
+            SerializedProperty node = nodes.GetArrayElementAtIndex(i);
+            if (node.FindPropertyRelative("nodeId").stringValue == nodeId) return node;
+        }
+        return null;
     }
 
     static void WriteNodeView(SerializedProperty node, ActionGraphNodeView view)
@@ -908,6 +1059,7 @@ sealed class ActionGraphView : GraphView
 
         // 拖入后立即落盘，避免只改画布、Reload 丢节点或与 Inspector 打架。
         PersistViewToAsset();
+        LoadFromAsset();
     }
 
     static bool HasActionDefinitionDrag()
@@ -970,7 +1122,6 @@ sealed class ActionGraphNodePolicyView : IMGUIContainer
     bool _expanded;
     bool _targetLockExpanded;
     bool _startBehaviorsExpanded;
-    bool _automaticTransitionsExpanded;
 
     /// <summary>创建节点内联策略编辑器；顺序组子节点额外显示基础输入字段。</summary>
     public ActionGraphNodePolicyView(ActionGraph graph, string nodeId, bool includeBasics)
@@ -1020,7 +1171,6 @@ sealed class ActionGraphNodePolicyView : IMGUIContainer
         DrawTargetLock(node.FindPropertyRelative("targetLockSettings"));
         DrawStartBehaviors(node.FindPropertyRelative("startBehaviors"));
         CharacterAuthoringFields.DrawModeSwitch(node);
-        DrawAutomaticTransitions(node.FindPropertyRelative("automaticTransitions"));
 
         if (EditorGUI.EndChangeCheck())
         {
@@ -1065,35 +1215,6 @@ sealed class ActionGraphNodePolicyView : IMGUIContainer
             EditorGUILayout.PropertyField(
                 behaviors.GetArrayElementAtIndex(i),
                 new GUIContent($"Element {i}"));
-        }
-        EditorGUI.indentLevel--;
-    }
-
-    /// <summary>直接绘制自动衔接数组及每条规则，确保所有层级保持展开。</summary>
-    void DrawAutomaticTransitions(SerializedProperty transitions)
-    {
-        _automaticTransitionsExpanded = EditorGUILayout.Foldout(
-            _automaticTransitionsExpanded,
-            "Automatic Transitions",
-            true);
-        if (!_automaticTransitionsExpanded)
-            return;
-
-        EditorGUI.indentLevel++;
-        int size = Mathf.Max(0, EditorGUILayout.IntField("Size", transitions.arraySize));
-        if (size != transitions.arraySize)
-            transitions.arraySize = size;
-        for (int i = 0; i < transitions.arraySize; i++)
-        {
-            SerializedProperty transition = transitions.GetArrayElementAtIndex(i);
-            using (new EditorGUILayout.VerticalScope("box"))
-            {
-                EditorGUILayout.LabelField($"Transition {i}", EditorStyles.boldLabel);
-                EditorGUILayout.PropertyField(transition.FindPropertyRelative("condition"));
-                EditorGUILayout.PropertyField(transition.FindPropertyRelative("startFrame"));
-                EditorGUILayout.PropertyField(transition.FindPropertyRelative("targetNodeId"));
-                EditorGUILayout.PropertyField(transition.FindPropertyRelative("priority"));
-            }
         }
         EditorGUI.indentLevel--;
     }

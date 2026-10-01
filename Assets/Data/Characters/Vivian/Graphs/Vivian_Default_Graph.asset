@@ -13,6 +13,19 @@ MonoBehaviour:
   m_Name: Vivian_Default_Graph
   m_EditorClassIdentifier: 
   nodes:
+  - nodeId: Vivian_Air_Pose
+    action: {fileID: 11400000, guid: 0ed521368cc698e4a9d25f8aaf034c31, type: 2}
+    intent: 0
+    isEntry: 0
+    variantResolver: {fileID: 0}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions: []
+    editorPosition: {x: 2085.3335, y: -215.33333}
   - nodeId: Vivian_Attack_01
     action: {fileID: 11400000, guid: 2dcc670f3308b3c4686480d82300850c, type: 2}
     intent: 1
@@ -63,8 +76,12 @@ MonoBehaviour:
     targetLockSettings:
       enabled: 0
       lockRotationSmoothTimeOverride: 0
-    automaticTransitions: []
-    editorPosition: {x: 1677.3333, y: -149.33334}
+    automaticTransitions:
+    - condition: 0
+      startFrame: 0
+      targetNodeId: Vivian_Air_Pose
+      priority: 0
+    editorPosition: {x: 1652.6666, y: -215.33333}
   - nodeId: Vivian_Attack_04_Ground
     action: {fileID: 11400000, guid: 71ffa12cfd2c5bd449e9a084ec3afa3e, type: 2}
     intent: 4
@@ -76,8 +93,12 @@ MonoBehaviour:
     targetLockSettings:
       enabled: 0
       lockRotationSmoothTimeOverride: 0
-    automaticTransitions: []
-    editorPosition: {x: 1652.6666, y: -434}
+    automaticTransitions:
+    - condition: 0
+      startFrame: 0
+      targetNodeId: Vivian_Ground_Pose
+      priority: 0
+    editorPosition: {x: 1652.6666, y: -520.6666}
   - nodeId: Vivian_Attack_04_Main
     action: {fileID: 11400000, guid: 2a0c22f7ba527e54aa45454e0c6f30d5, type: 2}
     intent: 1
@@ -108,6 +129,19 @@ MonoBehaviour:
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
     editorPosition: {x: 1652.6666, y: 80}
+  - nodeId: Vivian_Ground_Pose
+    action: {fileID: 11400000, guid: abdd9b86722de4b4bbbf9e99178af92c, type: 2}
+    intent: 0
+    isEntry: 0
+    variantResolver: {fileID: 0}
+    startBehaviors: 
+    switchCombatModeTarget: 0
+    switchCombatModePolicy: 0
+    targetLockSettings:
+      enabled: 0
+      lockRotationSmoothTimeOverride: 0
+    automaticTransitions: []
+    editorPosition: {x: 2085.3335, y: -520.6666}
   - nodeId: Vivian_Parry
     action: {fileID: 11400000, guid: 2a033c6001674f7428fd2d4e01f4c121, type: 2}
     intent: 12
@@ -133,7 +167,7 @@ MonoBehaviour:
       enabled: 0
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
-    editorPosition: {x: 63.333332, y: 422}
+    editorPosition: {x: 63.333332, y: 342}
   - nodeId: Vivian_Switch_In
     action: {fileID: 11400000, guid: 90627647f550be84299811898e793ea3, type: 2}
     intent: 10
@@ -146,7 +180,7 @@ MonoBehaviour:
       enabled: 0
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
-    editorPosition: {x: 54.666668, y: 788.6667}
+    editorPosition: {x: 63.333332, y: 790}
   - nodeId: Vivian_Switch_Out
     action: {fileID: 11400000, guid: 48436b54cdf716240a808b78c77540f7, type: 2}
     intent: 11
@@ -159,7 +193,7 @@ MonoBehaviour:
       enabled: 0
       lockRotationSmoothTimeOverride: 0
     automaticTransitions: []
-    editorPosition: {x: 80, y: 1121.3334}
+    editorPosition: {x: 63.333332, y: 1003.3334}
   edges:
   - fromNodeId: Vivian_Attack_01
     routeKind: 0

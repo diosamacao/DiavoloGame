@@ -16,14 +16,29 @@ MonoBehaviour:
   - clip: {fileID: -8538175111021005129, guid: 68f02d974ec67d245ab1f28ff67c1917, type: 3}
     startFrame: 0
     endFrame: -1
-    hasCrossFadeOverride: 0
-    crossFadeDuration: 0
+    hasCrossFadeOverride: 1
+    crossFadeDuration: 0.1
   totalFrames: 38
   actionType: 0
   crossFadeDuration: 0.1
   executionPolicy:
     interruptPriority: 0
     baseMotionMode: 2
+    inputMovement:
+      startFrame: 0
+      endFrame: -1
+      movementTailFrames: 0
+      speedMmPerSecond: 2500
+      inputThreshold: 0.2
+      minimumDirectionFrames: 3
+      pose: {fileID: 0}
+      forward: {fileID: 0}
+      back: {fileID: 0}
+      left: {fileID: 0}
+      right: {fileID: 0}
+      loopPose: 1
+      loopMove: 1
+      crossFadeSeconds: 0.08
     bodyCollisionMode: 0
     bodyContactSkinMm: 20
   resourceSpec:
@@ -46,14 +61,23 @@ MonoBehaviour:
     assistCueStates: []
     assistParryWindowStates: []
     movementStates: []
-    rotationStates: []
+    rotationStates:
+    - id: Rotation_1
+      startFrame: 0
+      endFrame: 37
+      priority: 0
+      trackName: Rotation_1
+      smoothTimeOverride: 0.05
     motionModifierStates: []
     motionCommandNotifies: []
     cameraSettings:
       restoreMode: 0
       suppressLookInput: 1
     cameraShotStates: []
-    tracks: []
+    tracks:
+    - trackName: Rotation_1
+      kind: 6
+      visible: 1
   bakedMotion:
     logicHz: 60
     frameCount: 38

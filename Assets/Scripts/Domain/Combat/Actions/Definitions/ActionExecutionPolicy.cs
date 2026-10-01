@@ -8,8 +8,11 @@ public sealed class ActionExecutionPolicy
     [Tooltip("动作打断优先级；更大则可硬打断更小者，同级不互相打断。")]
     [SerializeField] int interruptPriority = 0;
 
-    [Tooltip("基础位移权威：None / BakedMotion / ScriptedTimeline（无 Animator RM）。")]
+    [Tooltip("基础位移权威：None / BakedMotion / ScriptedTimeline / InputMovement（无 Animator RM）。")]
     [SerializeField] ActionBaseMotionMode baseMotionMode = ActionBaseMotionMode.None;
+
+    /// <summary>当前动作是否独占输入移动。</summary>
+    public bool UsesInputMovement => baseMotionMode == ActionBaseMotionMode.InputMovement;
 
     [Tooltip("StopOnContact：沿完整位移路径遇实体或墙停止；动画继续，不滑墙。")]
     [SerializeField] ActionBodyCollisionMode bodyCollisionMode = ActionBodyCollisionMode.SoftSeparationOnly;

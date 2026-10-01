@@ -109,6 +109,22 @@ public static class ActionNotifySelectionDrawer
                 case ActionTimelineTrackKind.Movement:
                     DrawMovement(element, batchSet);
                     break;
+                case ActionTimelineTrackKind.InputMovement:
+                    DrawMultiProperty(batchSet, element, "speedMmPerSecond");
+                    DrawMultiProperty(batchSet, element, "inputThreshold");
+                    DrawMultiProperty(batchSet, element, "minimumDirectionFrames");
+                    DrawMultiProperty(batchSet, element, "overrideMovementAnimation");
+                    if (element.FindPropertyRelative("overrideMovementAnimation").boolValue)
+                    {
+                        foreach (string field in new[] { "forward", "back", "left", "right", "animationTimeMode", "crossFadeSeconds" })
+                            DrawMultiProperty(batchSet, element, field);
+                        if (element.FindPropertyRelative("animationTimeMode").intValue == (int)ActionInputMovement.AnimationTimeMode.FromDirectionChange)
+                            DrawMultiProperty(batchSet, element, "loopMove");
+                        else
+                            EditorGUILayout.HelpBox("方向片跟随当前 Action 动画段的片内时间，包含裁剪起点；换向不重播、不独立循环。请保持四向片与原片帧范围一致，并让窗口在 Cancel 段前结束。", MessageType.Info);
+                    }
+                    EditorGUILayout.HelpBox("无输入时按当前 Action 帧播放原动画。有输入时播放四向片；飘落等阶段可另建关闭动画覆盖的窗口。", MessageType.Info);
+                    break;
                 case ActionTimelineTrackKind.Rotation:
                     DrawRotation(element, batchSet);
                     break;
@@ -215,6 +231,19 @@ public static class ActionNotifySelectionDrawer
         if (EditorGUI.EndChangeCheck())
         {
             if (so.ApplyModifiedProperties()) EditorUtility.SetDirty(so.targetObject);
+        }
+        if (action.ExecutionPolicy.UsesInputMovement)
+        {
+            EditorGUILayout.HelpBox("在 Input Movement 轨道配置窗口与四向动画；无输入播放原 Action。飘落阶段另建关闭动画覆盖的窗口。输入移动窗口不能与允许移动取消的 Recovery 重叠。", MessageType.Info);
+            string movementError = action.GetInputMovementError();
+            if (movementError != null) EditorGUILayout.HelpBox(movementError, MessageType.Error);
+            if (action.BakedMotion.IsReady && GUILayout.Button("清除与输入移动冲突的烘焙表（支持 Undo）"))
+            {
+                Undo.RecordObject(action, "Clear Input Movement Bake");
+                action.EditorSetBakedMotion(ActionBakedMotion.CreateEmpty());
+                EditorUtility.SetDirty(action);
+                so.Update();
+            }
         }
     }
 

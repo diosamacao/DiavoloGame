@@ -22,6 +22,7 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
 
     ActionDefinition _animationAction;
     int _animationSegmentIndex = -1;
+    readonly ActionInputMovementPlayer _inputMovementPlayer = new();
     int _lastActionId;
     int _lastActionFrame;
     AnimationKey? _locomotionKey;
@@ -303,7 +304,8 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
                     actionTime,
                     forceRestart,
                     playbackDeltaSeconds,
-                    playbackSnapped);
+                    playbackSnapped,
+                    ResolveInputMovementState(in from, in to, actionTime));
 
             int residualFrom = from.ActionId == to.ActionId ? from.ActionFrame : to.ActionFrame;
             _visualMotion?.SetResidualBracket(action, residualFrom, to.ActionFrame);
@@ -402,6 +404,7 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         _animationSegmentIndex = -1;
         _lastActionId = 0;
         _lastActionFrame = 0;
+        _inputMovementPlayer.Reset();
         _visualMotion?.SetLeanRollDegrees(leanRollDegrees);
         if (_visualActionActive)
         {
@@ -470,6 +473,7 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     /// <summary>在角色根停用或销毁前通知需要清理父节点相关状态的表现消费者。</summary>
     void ResetVisibilityConsumers()
     {
+        _inputMovementPlayer.Reset();
         for (int i = 0; i < _notifyConsumers.Length; i++)
         {
             if (_notifyConsumers[i] is IActionVisibilityResetConsumer resettable)
@@ -562,9 +566,20 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
             {
                 _locomotionKey = null;
                 _animation.SetSpeed(frozen ? 0f : 1f);
-                SeekActionIfSegmentChanged(action, snapshot.ActionFrame, forceRestart);
-                if (!frozen && ticks > 0)
-                    _animation.Tick(tickDelta);
+                if (action.IsInputMovementAnimationActive(snapshot.ActionFrame))
+                {
+                    _animationAction = action;
+                    _animationSegmentIndex = -1;
+                    _inputMovementPlayer.Sample(_animation, action, snapshot.ActionFrame, snapshot.ActionMovementState, forceRestart,
+                        frozen ? 0f : tickDelta);
+                }
+                else
+                {
+                    _inputMovementPlayer.Reset();
+                    SeekActionIfSegmentChanged(action, snapshot.ActionFrame, forceRestart);
+                    if (!frozen && ticks > 0)
+                        _animation.Tick(tickDelta);
+                }
             }
             else
             {
@@ -606,6 +621,7 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         bool seekTransition,
         bool forceSeek = false)
     {
+        _inputMovementPlayer.Reset();
         if (_animation == null)
             return;
 
@@ -664,9 +680,19 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
         float actionTime,
         bool forceRestart,
         float deltaTimeSeconds,
-        bool forceSeek)
+        bool forceSeek,
+        int movementState)
     {
         _locomotionKey = null;
+        if (action.IsInputMovementAnimationActive((int)actionTime))
+        {
+            _animationAction = action;
+            _animationSegmentIndex = -1;
+            _inputMovementPlayer.Sample(_animation, action, actionTime, movementState, forceRestart || forceSeek,
+                _animationFrozen ? 0f : deltaTimeSeconds);
+            return;
+        }
+        _inputMovementPlayer.Reset();
         int queryFrame = (int)actionTime;
         if (queryFrame < 0)
             queryFrame = 0;
@@ -716,6 +742,12 @@ public sealed class RemoteCharacterProxy : IDisposable, ICharacterFacingDebugTar
     /// 同动作同段默认不 Seek，避免每逻辑帧硬切。
     /// 连续受击须 forceRestart：与权威 EnterHit(force) 一样从头播。
     /// </summary>
+    /// <summary>播放头尚未到达新方向起始帧时沿用前包方向；换招/倒帧直接使用新包。</summary>
+    public static int ResolveInputMovementState(in ActorReplicationSnapshot from, in ActorReplicationSnapshot to, float actionFrame) =>
+        from.ActionId == to.ActionId && from.ActionFrame <= to.ActionFrame
+        && actionFrame < ActionInputMoveState.StartFrame(to.ActionMovementState)
+            ? from.ActionMovementState : to.ActionMovementState;
+
     void SeekActionIfSegmentChanged(ActionDefinition action, int actionFrame, bool forceRestart)
     {
         ActionFrameQueryResult query = ActionFrameQuery.Query(action, actionFrame);

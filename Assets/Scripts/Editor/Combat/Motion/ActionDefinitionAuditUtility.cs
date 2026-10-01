@@ -109,6 +109,9 @@ public static class ActionDefinitionAuditUtility
 
     static void CollectIssues(ActionDefinition action, ActionDefinitionAuditEntry entry)
     {
+        string inputMovementError = action.GetInputMovementError();
+        if (inputMovementError != null)
+            entry.AddIssue(ActionDefinitionAuditSeverity.Error, "INPUT_MOVEMENT_INVALID", inputMovementError);
         if (!action.ExecutionPolicy.HasValidBodyCollision)
             entry.AddIssue(ActionDefinitionAuditSeverity.Error, "BODY_COLLISION_INVALID",
                 "身体阻挡模式无效或 BodyContactSkinMm 为负。");

@@ -57,8 +57,9 @@ public class ActionState : CharacterState
             _activeActionInstanceId = snapshot.InstanceId;
         }
 
-        // 出招中清空走跑输入快照，避免播移动循环
-        Context.Movement.ClearMoveSnapshot();
+        // 普通动作清理走跑观测；输入移动动作保留观测，但仍由 Action 独占动画主轨。
+        if (current == null || !current.IsInputMovementActive(snapshot.CurrentFrame))
+            Context.Movement.ClearMoveSnapshot();
         SyncMotorSnapshot();
         // Rotation 窗口内转向（锁敌优先，否则跟移动意图）
         Context.ActionRotation?.Tick(deltaTime);

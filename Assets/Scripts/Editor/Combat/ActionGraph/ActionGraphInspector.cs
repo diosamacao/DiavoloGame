@@ -135,10 +135,8 @@ public class ActionGraphInspector : Editor
                     new GUIContent("Start Behaviors"),
                     includeChildren: true);
                 CharacterAuthoringFields.DrawModeSwitch(node);
-                EditorGUILayout.PropertyField(
-                    node.FindPropertyRelative("automaticTransitions"),
-                    new GUIContent("Automatic Transitions"),
-                    includeChildren: true);
+                EditorGUILayout.LabelField("Automatic Transitions",
+                    $"{node.FindPropertyRelative("automaticTransitions").arraySize} 条（在 Graph Editor 中连线配置）");
 
                 ActionDefinition def = action.objectReferenceValue as ActionDefinition;
                 if (def != null)

@@ -1,4 +1,4 @@
-﻿# ACTGame 设计方向与重构路线图
+# ACTGame 设计方向与重构路线图
 
 > 优先级：P0 阻塞体验 → P1 架构健康 → P2 扩展预备  
 > **一页总清单：** [`docs/PROJECT_CHECKLIST.md`](../../../docs/PROJECT_CHECKLIST.md)（进度摘要；细节仍以本文 + MASTER + TECHNICAL 为准）
@@ -14,6 +14,14 @@
 6. **小步可验证**：每步可在 Play Mode 单独验证移动/动画/战斗
 
 ## 进行中的结构迁移
+
+### [P1] 固定时长 Pose Action 内输入移动（代码落地，待 Unity 验收）
+
+方向动画共享段时钟修复：默认 FollowActionSegment，换向不重播，支持段裁剪和远端小数帧；保留 FromDirectionChange 供独立循环使用。资产帧范围及 Unity 的 Pose/Move→Cancel 衔接仍待实机验收。
+
+2026-10-01 最新增量：改为 Input Movement 轨道窗口，四向覆盖可选，无输入恢复当前帧原动画。旧 Pose/尾帧配置已移除；独立编译、6 项窗口测试及 35 项纯逻辑回归通过，Unity 集成与 Play 待验收。
+
+**方案**：[`ACTION_INPUT_MOVEMENT_PLAN.md`](../../../../docs/2026.10.1/ACTION_INPUT_MOVEMENT_PLAN.md)。AM1/AM2/AM3 代码与定向测试已落地（2026-10-01），保留同一 Action 时钟，新增输入移动帧范围以支持现有 Pose＋Cancel 动画段。Owner 电机请求重放、Observer 方向相位和内容指纹已接入；不含跨普通攻击的完整回滚。独立编译与 35 项纯逻辑回归通过；Unity Test Runner、Vivian 资产配置与联网 Play 尚待验收，阶段出口未关闭。详见[实施记录](../../../../docs/2026.10.1/ACTION_INPUT_MOVEMENT_IMPLEMENTATION.md)。
 
 ### [已暂停] 可复用战斗姿态与移动模式（提案）
 

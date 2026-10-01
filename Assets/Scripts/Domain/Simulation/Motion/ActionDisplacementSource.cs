@@ -4,4 +4,5 @@ public enum ActionDisplacementSource
     None = 0,
     BakedMotion = 1,
     ScriptedTimeline = 2,
+    InputMovement = 3,
 }

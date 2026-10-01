@@ -6,4 +6,7 @@ public static class ActPredictionReplayKind
 
     /// <summary>房间路径：IPredictedLocomotionReplay.ReplayTick。</summary>
     public const byte Runner = 1;
+
+    /// <summary>动作输入移动：重放碰撞位移，不重跑动作状态机。</summary>
+    public const byte ActionInputMovement = 2;
 }

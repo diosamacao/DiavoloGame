@@ -3,6 +3,9 @@
 /// </summary>
 public interface IActionPresentationSink
 {
+    /// <summary>采样同一动作实例内的输入移动动画，不改变动作帧或派生。</summary>
+    void ApplyInputMovement(ActionDefinition action, int frame, int movementState);
+
     /// <summary>消费动作生命周期或整数帧事件。</summary>
     void ConsumeEvent(in ActionSimEvent actionEvent);
 

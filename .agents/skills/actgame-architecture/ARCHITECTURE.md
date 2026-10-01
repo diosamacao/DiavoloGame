@@ -1,6 +1,16 @@
 # ACTGame 架构文档
 
-> Last audited: 2026-09-30（增量：动作连续路径阻挡及 Authority/Proxy 来源边界；新增功能 Unity 验收待完成；既有全量 EditMode 639/656，通过与失败分列）
+> Last audited: 2026-10-01（增量：Action 输入移动的 Domain→Sink→App 与复制/电机重放；Unity 验收待完成；此前全量测试遗留状态保留）
+
+### Action 输入移动增量
+
+方向动画默认通过 `ActionInputMovement.SampleActionSegmentTime` 与原 Action 段共用片内时钟（含裁剪起点）。本机、Observer 的 `ActionInputMovementPlayer` 与 Editor 预览采用相同查询；方向起始帧只在 FromDirectionChange 模式用于动画计时，同步模式仍保留它用于方向驻留。无新增网络字段。
+
+输入移动的唯一配置源是 `ActionTimeline.InputMovementStates`。窗口继承 ActionNotifyState，共用时间轴编辑与范围查询；四向动画覆盖可以关闭，以便飘落阶段只移动并继续播放原动画。
+
+`ActionTimeline.InputMovementStates` 属于 Combat 定义；`CharacterActionGameplayStep` 在同一 Action 实例的指定帧范围解析量化输入，复用 `LocomotionDirectionModel` 和 `CharacterMotor.MoveActionMm`。范围外恢复普通动画段，支持一个 Action 中的 Pose＋Cancel。无并行 Locomotion FSM、角色专用 VariantResolver 或姿态资源池。
+
+`IActionPresentationSink.ApplyInputMovement` 把只读方向时钟交给 App；本机和 `RemoteCharacterProxy` 共用 `ActionInputMovementPlayer`。`ActorReplicationSnapshot.ActionMovementState` 编码方向与切片起始帧；Owner 仅通过 `IActionInputMovementReplay` 重演已记录的输入位移请求及碰撞，禁止重跑 Action/扣费/Notify。跨普通动作的完整回滚仍未实现。配置及验证细节见 [实施记录](../../../../docs/2026.10.1/ACTION_INPUT_MOVEMENT_IMPLEMENTATION.md)。
 
 ## 项目概述
 

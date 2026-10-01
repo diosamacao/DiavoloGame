@@ -215,6 +215,11 @@ public sealed class ActionEditorWindow : EditorWindow
         }
         GUILayout.BeginArea(rect);
         _validationScroll = EditorGUILayout.BeginScrollView(_validationScroll);
+        if (_selectedAction.ExecutionPolicy.UsesInputMovement && _previewSession != null)
+        {
+            _previewSession.InputMovementDirection = EditorGUILayout.Popup("输入移动预览（只读）",
+                _previewSession.InputMovementDirection, new[] { "Action 原动画", "Forward", "Back", "Left", "Right" });
+        }
         _sourcePanel.Draw("当前动作", _selectedAction);
         EditorGUILayout.LabelField("烘焙", _selectedAction.BakedMotion.IsReady ? $"{_selectedAction.BakedMotion.frameCount} 帧（来源检查见位移烘焙页）" : "未就绪");
         if (GUILayout.Button("在 Inspector 定位当前资产")) { Selection.activeObject = _selectedAction; EditorGUIUtility.PingObject(_selectedAction); }

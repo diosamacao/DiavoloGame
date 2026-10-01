@@ -35,6 +35,13 @@ public sealed class CharacterActor :
     readonly CharacterPartyLifecycle _partyLifecycle;
     readonly CharacterPredictionRuntime _prediction;
     readonly CharacterSimulationPipeline _simulationPipeline;
+    readonly CharacterActionGameplayStep _actionGameplay;
+
+    /// <summary>当前动作的方向片段状态，供权威快照使用。</summary>
+    public int ActionMovementState => _actionGameplay.InputMovementState;
+
+    /// <summary>本 Tick 输入移动请求，供 Owner 记录尚未确认的电机预测。</summary>
+    public ActionInputMovementCommand LastInputMovementCommand => _actionGameplay.LastInputMovementCommand;
     InputFrameBuffer _inputFrames;
     SimActorId _actorId;
 
@@ -259,6 +266,7 @@ public sealed class CharacterActor :
             actionSim,
             intentBuffer,
             effectiveFixedDeltaSeconds);
+        _actionGameplay = actionGameplay;
         _simulationPipeline = new CharacterSimulationPipeline(
             inputManager,
             intentProducer,

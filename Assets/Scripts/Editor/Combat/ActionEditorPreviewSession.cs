@@ -24,6 +24,14 @@ public sealed class ActionEditorPreviewSession : IDisposable
     AnimationClip _lastSampledClip;
     Transform _lastSampledCharacter;
     bool _extensionsBegun;
+    int _inputMovementDirection;
+
+    /// <summary>仅覆盖预览片段，不改变动作资产、逻辑帧和输入。</summary>
+    public int InputMovementDirection
+    {
+        get => _inputMovementDirection;
+        set { if (_inputMovementDirection == value) return; _inputMovementDirection = Mathf.Clamp(value, 0, 4); InvalidateSampleCache(); }
+    }
 
     // 烘焙位移预览：相对会话原点累计，结束时还原，避免弄脏场景角色
     bool _hasBakedPreviewOrigin;
@@ -167,7 +175,9 @@ public sealed class ActionEditorPreviewSession : IDisposable
         ActionFrameQueryResult query = ActionFrameQuery.Query(_action, frame);
         AnimationClip clip = query.HasAnimationSegment ? query.Segment.clip : null;
         float sampleRate = _action.SampleRate;
-        ActionEditorAnimationSampler.Sample(clip, query.SegmentLocalTime, sampleRate);
+        float localTime = query.SegmentLocalTime;
+        ResolveInputMovementPreview(frame, ref clip, ref localTime);
+        ActionEditorAnimationSampler.Sample(clip, localTime, sampleRate);
 
         var context = new ActionEditorPreviewContext(
             _action,
@@ -235,6 +245,7 @@ public sealed class ActionEditorPreviewSession : IDisposable
                 ActionFrameQuery.Query(context.Action, context.PreviewFrame);
             AnimationClip clip = query.HasAnimationSegment ? query.Segment.clip : null;
             float localTime = query.SegmentLocalTime;
+            ResolveInputMovementPreview(context.PreviewFrame, ref clip, ref localTime);
             ActionEditorAnimationSampler.Sample(clip, localTime, context.SampleRate);
 
             _lastSampledFrame = _previewFrame;
@@ -413,6 +424,8 @@ public sealed class ActionEditorPreviewSession : IDisposable
     {
         ActionFrameQueryResult query = ActionFrameQuery.Query(_action, _previewFrame);
         AnimationClip clipAtFrame = query.HasAnimationSegment ? query.Segment.clip : null;
+        float localTime = query.SegmentLocalTime;
+        ResolveInputMovementPreview(_previewFrame, ref clipAtFrame, ref localTime);
         return _previewFrame != _lastSampledFrame
             || clipAtFrame != _lastSampledClip
             || _previewCharacter != _lastSampledCharacter;
@@ -423,6 +436,15 @@ public sealed class ActionEditorPreviewSession : IDisposable
         _lastSampledFrame = int.MinValue;
         _lastSampledClip = null;
         _lastSampledCharacter = null;
+    }
+
+    void ResolveInputMovementPreview(int frame, ref AnimationClip clip, ref float localTime)
+    {
+        if (_action == null || !_action.IsInputMovementAnimationActive(frame)) return;
+        ActionInputMovement movement = _action.GetInputMovementAtFrame(frame);
+        if (movement == null || _inputMovementDirection == 0) return;
+        clip = movement.ResolveClip(_inputMovementDirection);
+        localTime = movement.SampleTime(_action, ActionInputMoveState.Pack(_inputMovementDirection, movement.StartFrame), frame);
     }
 
     void BeginExtensionsIfNeeded(in ActionEditorPreviewContext context)

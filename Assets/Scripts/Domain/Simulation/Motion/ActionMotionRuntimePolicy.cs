@@ -1,4 +1,4 @@
-/// <summary>动作位移源选择：仅 Baked / Scripted / None，无 Animator RM 回退。</summary>
+/// <summary>动作唯一位移源选择：Baked / Scripted / InputMovement / None，无 Animator RM 回退。</summary>
 public static class ActionMotionRuntimePolicy
 {
     /// <summary>表就绪时运行时必须查表。</summary>
@@ -14,6 +14,8 @@ public static class ActionMotionRuntimePolicy
     {
         switch (baseMotionMode)
         {
+            case ActionBaseMotionMode.InputMovement:
+                return ActionDisplacementSource.InputMovement;
             case ActionBaseMotionMode.BakedMotion:
                 return bakedMotionReady
                     ? ActionDisplacementSource.BakedMotion

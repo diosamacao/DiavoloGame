@@ -10,6 +10,8 @@ public sealed class ActCharacterPredictionModel : IPredictionModel<LocomotionPre
     readonly PredictedLocomotionConfig _config;
     float _facingVelocityDeg;
     IPredictedLocomotionReplay _replay;
+    IActionInputMovementReplay _actionMovementReplay;
+    bool _actionMovementReplayInterrupted;
     ActorReplicationSnapshot _authoritySnapshot;
     bool _hasAuthoritySnapshot;
 
@@ -47,6 +49,15 @@ public sealed class ActCharacterPredictionModel : IPredictionModel<LocomotionPre
     {
         // Input 是属性，不能直接 in 传参（CS8156），必须先落到局部。
         InputFrame input = command.Input;
+        if (policy.ReplayKind == ActPredictionReplayKind.ActionInputMovement)
+        {
+            // 跨入普通攻击或 Locomotion 后不能跳过中间动作再重演另一段 Pose。
+            if (!command.ActionMovement.IsPresent) _actionMovementReplayInterrupted = true;
+            if (_actionMovementReplay == null || _actionMovementReplayInterrupted) return false;
+            ActionInputMovementCommand movement = command.ActionMovement;
+            _actionMovementReplay.ReplayMovement(in movement);
+            return true;
+        }
         if (policy.ReplayKind == ActPredictionReplayKind.Runner)
         {
             if (command.SkipRunnerReplay || _replay == null)
@@ -85,8 +96,16 @@ public sealed class ActCharacterPredictionModel : IPredictionModel<LocomotionPre
     /// <summary>一次对照结束后解除 Runner 绑定，避免下一次误 Restore 动作相位。</summary>
     public void UnbindReplay()
     {
+        _actionMovementReplay = null;
         _replay = null;
         _hasAuthoritySnapshot = false;
+    }
+
+    /// <summary>绑定只重算电机碰撞的输入动作重放；不会触发 Locomotion Restore。</summary>
+    public void BindActionMovementReplay(IActionInputMovementReplay replay)
+    {
+        _actionMovementReplay = replay;
+        _actionMovementReplayInterrupted = false;
     }
 
     /// <summary>把电机吸到权威位姿并清转向阻尼。</summary>

@@ -52,6 +52,14 @@ public readonly struct ServerContentManifest
                 throw new InvalidOperationException($"Invalid body collision policy: {action.name}");
             collisionSignatures.Add(FormattableString.Invariant(
                 $"{content.Actions.RequireId(action)}:{(int)action.ExecutionPolicy.BodyCollisionMode}:{action.ExecutionPolicy.BodyContactSkinMm}"));
+            if (action.ExecutionPolicy.UsesInputMovement)
+            {
+                if (action.GetInputMovementError() != null)
+                    throw new InvalidOperationException($"Invalid input movement policy: {action.name}");
+                foreach (ActionInputMovement move in action.Timeline.InputMovementStates)
+                    collisionSignatures.Add(FormattableString.Invariant(
+                        $"input-window:{content.Actions.RequireId(action)}:{move.StartFrame}:{move.EndFrame}:{move.overrideMovementAnimation}:{move.speedMmPerSecond}:{move.inputThreshold:R}:{move.minimumDirectionFrames}"));
+            }
         }
         ContentFingerprint fingerprint = ComputeFingerprint(
             contentVersion,
@@ -88,6 +96,8 @@ public readonly struct ServerContentManifest
         IReadOnlyList<string> bodyCollisionSignatures = null)
     {
         var builder = new StringBuilder(128);
+        // 快照增加动作内方向时钟；旧客户端必须在 Join 指纹检查时拒绝。
+        builder.Append("action-input-movement:1|");
         builder.Append(contentVersion);
         builder.Append('|');
         builder.Append(collisionBakeId ?? string.Empty);

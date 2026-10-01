@@ -12,4 +12,6 @@ public enum ActionBaseMotionMode
 
     /// <summary>唯一权威为 Timeline Movement 窗口。</summary>
     ScriptedTimeline = 3,
+    /// <summary>固定帧输入驱动的动作移动，不启动 Locomotion。</summary>
+    InputMovement = 4,
 }

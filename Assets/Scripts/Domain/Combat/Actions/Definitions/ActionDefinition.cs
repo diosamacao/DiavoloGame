@@ -72,13 +72,58 @@ public class ActionDefinition : ScriptableObject, IActionSimContent
 
     /// <summary>仅完整迁移到 60Hz 且具有有效动画帧时可进入权威模拟。</summary>
     public bool IsSimulationReady =>
-        HasAnimation && totalFrames > 0;
+        HasAnimation && totalFrames > 0 && GetInputMovementError() == null;
 
+    /// <summary>当前有效动作帧的输入移动窗口；Execution Policy 只选择唯一位移源。</summary>
+    public ActionInputMovement GetInputMovementAtFrame(int frame) =>
+        ExecutionPolicy.UsesInputMovement && frame >= 0 && frame < TotalFrames
+            ? Timeline.GetActiveInputMovementAtFrame(frame) : null;
+
+    /// <summary>当前帧是否允许输入位移。</summary>
+    public bool IsInputMovementActive(int frame) => GetInputMovementAtFrame(frame) != null;
+
+    /// <summary>当前帧的窗口是否允许四向动画覆盖；无输入仍按 ActionFrameQuery 播原动画。</summary>
+    public bool IsInputMovementAnimationActive(int frame) =>
+        GetInputMovementAtFrame(frame)?.overrideMovementAnimation == true;
+
+    /// <summary>输入移动窗口为唯一配置源；拒绝重叠窗口及其它位移源冲突。</summary>
+    public string GetInputMovementError()
+    {
+        var windows = Timeline.InputMovementStates;
+        if (!ExecutionPolicy.UsesInputMovement)
+            return windows.Length == 0 ? null : "存在 Input Movement 窗口时，Base Motion Mode 必须设为 InputMovement。";
+        if (windows.Length == 0) return "请在 Input Movement 轨道添加输入移动窗口。";
+        if (BakedMotion.IsReady || Timeline.HasScriptedMovement || Timeline.MotionCommandNotifies.Length > 0)
+            return "输入移动不能同时配置烘焙位移、Movement 窗口或 MotionCommand。";
+        foreach (MotionModifierNotifyState modifier in Timeline.MotionModifierStates)
+            if (modifier != null && modifier.Mode == MotionModifierMode.TargetAdhesion)
+                return "输入移动不能同时配置 TargetAdhesion。";
+        for (int i = 0; i < windows.Length; i++)
+        {
+            var window = windows[i];
+            if (window == null || !window.IsValid || window.EndFrame >= TotalFrames)
+                return $"Input Movement 窗口[{i}] 范围或参数无效；启用动画覆盖时必须绑定四向 Clip。";
+            for (int j = 0; j < i; j++)
+                if (windows[j] != null && window.StartFrame <= windows[j].EndFrame && window.EndFrame >= windows[j].StartFrame)
+                    return "Input Movement 窗口不能重叠；相邻阶段请使用首尾不重叠的窗口。";
+            foreach (ActionPhaseNotifyState phase in Phases)
+                if (phase != null && phase.AllowMovementCancel
+                    && phase.EndFrame >= window.StartFrame && phase.StartFrame <= window.EndFrame)
+                    return "输入移动窗口不能与开启 AllowMovementCancel 的 Recovery 重叠。";
+        }
+        return null;
+    }
     /// <summary>启动期校验 60Hz、总帧与每个动画段；失败时记录具体资产与段索引。</summary>
     public bool ValidateContent(UnityEngine.Object context)
     {
         UnityEngine.Object logContext = context != null ? context : this;
         bool valid = true;
+        string movementError = GetInputMovementError();
+        if (movementError != null)
+        {
+            Debug.LogError($"ActionDefinition: '{name}' {movementError}", logContext);
+            valid = false;
+        }
         if (!ExecutionPolicy.HasValidBodyCollision)
         {
             Debug.LogError($"ActionDefinition: '{name}' 身体阻挡模式无效或 Skin 为负。", logContext);

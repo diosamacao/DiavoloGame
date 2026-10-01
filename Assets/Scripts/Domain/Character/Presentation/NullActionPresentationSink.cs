@@ -1,6 +1,9 @@
 /// <summary>Headless 动作表现空实现；保留统一调用路径且不创建任何 Unity 表现对象。</summary>
 public sealed class NullActionPresentationSink : IActionPresentationSink
 {
+    /// <inheritdoc />
+    public void ApplyInputMovement(ActionDefinition action, int frame, int movementState) { }
+
     /// <summary>共享无状态实例。</summary>
     public static readonly NullActionPresentationSink Instance = new();
 

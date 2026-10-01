@@ -1,5 +1,5 @@
 /// <summary>独占 Autonomous 角色的动作取消、权威 Locomotion 恢复与输入重放。</summary>
-public sealed class CharacterPredictionRuntime : IPredictedLocomotionReplay
+public sealed class CharacterPredictionRuntime : IPredictedLocomotionReplay, IActionInputMovementReplay
 {
     readonly InputManager _inputManager;
     readonly CharacterMotor _motor;
@@ -50,6 +50,14 @@ public sealed class CharacterPredictionRuntime : IPredictedLocomotionReplay
         _inputManager.IngestFrame(input);
         _motor.TickGravity(_fixedDeltaSeconds);
         _stateMachine.Locomotion?.Tick(_fixedDeltaSeconds);
+    }
+
+    /// <summary>仅从权威位置重算已记录输入请求的碰撞；保持正在运行的 Action 实例、帧与方向时钟。</summary>
+    public void ReplayMovement(in ActionInputMovementCommand command)
+    {
+        _motor.Sim.SetFacingMilliDeg(command.FacingMilliDeg);
+        _motor.MoveActionMm(in command);
+        _motor.TickGravity(_fixedDeltaSeconds);
     }
 
     /// <summary>用完整整数帧状态恢复 Locomotion，并确保顶层状态已回到走跑。</summary>
