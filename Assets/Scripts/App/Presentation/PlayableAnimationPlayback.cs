@@ -1,16 +1,15 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Animations;
 using UnityEngine.Playables;
 
 /// <summary>
-/// 基于 PlayableGraph 的播放后端：层 0 双槽 Override CrossFade，层 1 Additive。
+/// 基于 PlayableGraph 的播放后端：层 0 保留中断权重的多片混合，层 1 Additive。
 /// Manual 时间由 Simulation Tick 推进，保证 RootMotion delta 与逻辑步对齐。
 /// </summary>
 public sealed class PlayableAnimationPlayback : IAnimationPlayback
 {
     const int InputCount = 2;
-    const int PreviousSlot = 0;
-    const int CurrentSlot = 1;
     const int BaseLayer = 0;
     const int AdditiveLayer = 1;
     const float DefaultAdditiveFadeOut = 0.05f;
@@ -19,7 +18,17 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
     PlayableGraph _graph;
     AnimationLayerMixerPlayable _layerMixer;
     AnimationMixerPlayable _mixer;
-    AnimationClipPlayable _previousPlayable;
+    // 每次换片记录实际权重；中途换向不把尚未淡入完成的目标提升到满权。
+    sealed class ClipSlot
+    {
+        public AnimationClip Clip;
+        public AnimationClipPlayable Playable;
+        public object TimeGroup;
+        public float Weight;
+        public float FadeStartWeight;
+    }
+    readonly List<ClipSlot> _slots = new();
+    ClipSlot _currentSlot;
     AnimationClipPlayable _currentPlayable;
     AnimationClipPlayable _additivePlayable;
     AnimationClip _currentClip;
@@ -47,7 +56,7 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
         _graph = PlayableGraph.Create($"{animator.name}_CharacterAnimation");
         // Manual：禁止 GameTime 与逻辑步双轨推进，否则逐帧 Seek 会污染 Animator.deltaPosition。
         _graph.SetTimeUpdateMode(DirectorUpdateMode.Manual);
-        _mixer = AnimationMixerPlayable.Create(_graph, InputCount);
+        _mixer = AnimationMixerPlayable.Create(_graph, 0);
         _layerMixer = AnimationLayerMixerPlayable.Create(_graph, InputCount);
         _layerMixer.ConnectInput(BaseLayer, _mixer, 0);
         _layerMixer.SetInputWeight(BaseLayer, 1f);
@@ -100,36 +109,45 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
         }
     }
 
-    /// <summary>淡入播放；将当前槽挪到上一槽后接入新 Clip，fade≤0 或无上一层时立即切满权。</summary>
-    public void Play(AnimationClip clip, float fadeDuration)
+    /// <summary>从现有混合权重淡入。相同非空时钟组内复用片段，避免频繁换向重复建图。</summary>
+    public void Play(AnimationClip clip, float fadeDuration, object timeGroup = null)
     {
         if (!IsValid || clip == null)
             return;
 
         // 切主 Clip（走跑键或出招段）时清 Additive，避免探针残留到下一招。
         StopAdditive();
-        PromoteCurrentToPrevious();
-
-        _currentPlayable = AnimationClipPlayable.Create(_graph, clip);
-        _currentPlayable.SetApplyFootIK(true);
-        _currentPlayable.SetTime(0.0);
-        _currentPlayable.SetTime(0.0);
-        _currentPlayable.Play();
-        _mixer.ConnectInput(CurrentSlot, _currentPlayable, 0);
+        for (int i = _slots.Count - 1; i >= 0; i--)
+            if (_slots[i].Weight <= 0f) RemoveSlot(i);
+        _currentSlot = timeGroup == null ? null : _slots.Find(
+            slot => slot.Clip == clip && ReferenceEquals(slot.TimeGroup, timeGroup));
+        if (_currentSlot == null)
+        {
+            var playable = AnimationClipPlayable.Create(_graph, clip);
+            playable.SetApplyFootIK(true);
+            playable.SetTime(0.0);
+            playable.SetTime(0.0);
+            playable.Play();
+            _currentSlot = new ClipSlot { Clip = clip, Playable = playable, TimeGroup = timeGroup };
+            _slots.Add(_currentSlot);
+            _mixer.SetInputCount(_slots.Count);
+            _mixer.ConnectInput(_slots.Count - 1, playable, 0);
+        }
+        _currentPlayable = _currentSlot.Playable;
+        foreach (ClipSlot slot in _slots) slot.FadeStartWeight = slot.Weight;
 
         _currentClip = clip;
         _fadeDuration = Mathf.Max(0f, fadeDuration);
         _fadeElapsed = 0f;
 
-        if (_fadeDuration <= 0f || !_previousPlayable.IsValid())
+        if (_fadeDuration <= 0f || _slots.Count == 1)
         {
-            SetWeights(0f, 1f);
-            DestroySlot(PreviousSlot, ref _previousPlayable);
+            ApplyBlend(1f);
             _fading = false;
             return;
         }
 
-        SetWeights(1f, 0f);
+        ApplyBlend(0f);
         _fading = true;
     }
 
@@ -139,13 +157,15 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
         if (!IsValid || !_currentPlayable.IsValid())
             return;
 
-        double clamped = Mathf.Max(0f, timeSeconds);
-        if (_currentClip != null)
-            clamped = Mathf.Min((float)clamped, _currentClip.length);
-
-        // Unity AnimationClipPlayable 偶发需连续 SetTime 两次才生效。
-        _currentPlayable.SetTime(clamped);
-        _currentPlayable.SetTime(clamped);
+        foreach (ClipSlot slot in _slots)
+        {
+            if (slot != _currentSlot && (_currentSlot.TimeGroup == null
+                || !ReferenceEquals(slot.TimeGroup, _currentSlot.TimeGroup))) continue;
+            double clamped = Mathf.Clamp(timeSeconds, 0f, slot.Clip.length);
+            // 同一 Action 段内的 Pose/Move 同步定位，包括仍在淡出的片段。
+            slot.Playable.SetTime(clamped);
+            slot.Playable.SetTime(clamped);
+        }
         // Evaluate(0) 只应用姿态；调用方若开启 RootMotion，应在 Seek 期间临时关闭以免跳变位移。
         _graph.Evaluate(0f);
     }
@@ -162,13 +182,11 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
             // CrossFade：按速度推进权重，旧片→新片
             _fadeElapsed += dt * _speed;
             float t = _fadeDuration <= 0f ? 1f : Mathf.Clamp01(_fadeElapsed / _fadeDuration);
-            SetWeights(1f - t, t);
+            ApplyBlend(t);
 
             if (t >= 1f)
             {
                 // 淡入结束：只留当前槽，销毁上一 Clip
-                SetWeights(0f, 1f);
-                DestroySlot(PreviousSlot, ref _previousPlayable);
                 _fading = false;
             }
         }
@@ -224,46 +242,39 @@ public sealed class PlayableAnimationPlayback : IAnimationPlayback
         if (_graph.IsValid())
             _graph.Destroy();
 
-        _previousPlayable = default;
+        _slots.Clear();
+        _currentSlot = null;
         _currentPlayable = default;
         _additivePlayable = default;
         _mixer = default;
         _layerMixer = default;
     }
 
-    void PromoteCurrentToPrevious()
+    void ApplyBlend(float progress)
     {
-        DestroySlot(PreviousSlot, ref _previousPlayable);
-
-        if (!_currentPlayable.IsValid())
-            return;
-
-        _mixer.DisconnectInput(CurrentSlot);
-        _previousPlayable = _currentPlayable;
-        _currentPlayable = default;
-        _mixer.ConnectInput(PreviousSlot, _previousPlayable, 0);
+        for (int i = 0; i < _slots.Count; i++)
+        {
+            ClipSlot slot = _slots[i];
+            slot.Weight = Mathf.Lerp(slot.FadeStartWeight, slot == _currentSlot ? 1f : 0f, progress);
+            _mixer.SetInputWeight(i, slot.Weight);
+        }
+        if (progress >= 1f)
+            for (int i = _slots.Count - 1; i >= 0; i--)
+                if (_slots[i] != _currentSlot) RemoveSlot(i);
     }
 
-    void DestroySlot(int slot, ref AnimationClipPlayable playable)
+    void RemoveSlot(int index)
     {
-        if (_mixer.IsValid() && _mixer.GetInputCount() > slot && _mixer.GetInput(slot).IsValid())
-            _mixer.DisconnectInput(slot);
-
-        if (playable.IsValid())
-            playable.Destroy();
-
-        playable = default;
-        if (_mixer.IsValid())
-            _mixer.SetInputWeight(slot, 0f);
-    }
-
-    void SetWeights(float previousWeight, float currentWeight)
-    {
-        if (!_mixer.IsValid())
-            return;
-
-        _mixer.SetInputWeight(PreviousSlot, previousWeight);
-        _mixer.SetInputWeight(CurrentSlot, currentWeight);
+        ClipSlot removed = _slots[index];
+        for (int i = index; i < _slots.Count; i++) _mixer.DisconnectInput(i);
+        removed.Playable.Destroy();
+        _slots.RemoveAt(index);
+        _mixer.SetInputCount(_slots.Count);
+        for (int i = index; i < _slots.Count; i++)
+        {
+            _mixer.ConnectInput(i, _slots[i].Playable, 0);
+            _mixer.SetInputWeight(i, _slots[i].Weight);
+        }
     }
 
     void ApplySpeed()

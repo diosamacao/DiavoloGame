@@ -14,6 +14,7 @@ public static class ActionTimelineCommands
         ActionTimelineTrackKind.Cancel => "cancelWindowStates",
         ActionTimelineTrackKind.Phase => "phaseStates",
         ActionTimelineTrackKind.Movement => "movementStates",
+        ActionTimelineTrackKind.InputMovement => "inputMovementStates",
         ActionTimelineTrackKind.Rotation => "rotationStates",
         ActionTimelineTrackKind.Event => "actionEvents",
         ActionTimelineTrackKind.Animation => null,
@@ -43,6 +44,7 @@ public static class ActionTimelineCommands
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Cancel);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Phase);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Movement);
+        anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.InputMovement);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Rotation);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.Event);
         anyAdded |= AppendMissingTracks(so, tracksProp, ActionTimelineTrackKind.PerfectDodgeWindow);
@@ -323,6 +325,18 @@ public static class ActionTimelineCommands
             SetIfExists(element, "interruptible", true);
             SetIfExists(element, "allowMovementCancel", true);
             SetIfExists(element, "allowEntryRestart", true);
+        }
+
+        if (kind == ActionTimelineTrackKind.InputMovement)
+        {
+            so.FindProperty("executionPolicy.baseMotionMode").intValue = (int)ActionBaseMotionMode.InputMovement;
+            SetIfExists(element, "overrideMovementAnimation", true);
+            SetIfExists(element, "speedMmPerSecond", 2500);
+            SetIfExists(element, "inputThreshold", .2f);
+            SetIfExists(element, "minimumDirectionFrames", 3);
+            SetIfExists(element, "loopMove", true);
+            SetIfExists(element, "animationTimeMode", (int)ActionInputMovement.AnimationTimeMode.FollowActionSegment);
+            SetIfExists(element, "crossFadeSeconds", .08f);
         }
 
         if (kind == ActionTimelineTrackKind.MotionModifier)

@@ -22,8 +22,8 @@ public interface IAnimationPlayback : IDisposable
     /// <summary>Additive 层当前权重；无叠加时为 0。</summary>
     float AdditiveWeight { get; }
 
-    /// <summary>以固定秒数淡入播放 Clip；同引用也会强制从头重播。</summary>
-    void Play(AnimationClip clip, float fadeDuration);
+    /// <summary>从当前混合淡入。非空 timeGroup 标识共享片内时钟，同组同片可复用；null 强制重播。</summary>
+    void Play(AnimationClip clip, float fadeDuration, object timeGroup = null);
 
     /// <summary>
     /// 在主 Clip 上叠加一段 Additive Clip；同层后写覆盖并从头 Seek。
@@ -34,7 +34,7 @@ public interface IAnimationPlayback : IDisposable
     /// <summary>立刻将 Additive 层权重置 0 并断开 Clip。</summary>
     void StopAdditive();
 
-    /// <summary>将当前主 Clip 跳到指定时间（秒）；用于段 startFrame 裁切起点，不推进时间。</summary>
+    /// <summary>将主 Clip 及同一非空 timeGroup 内仍在混合的片段定位到指定秒数，不推进时间。</summary>
     void Seek(float timeSeconds);
 
     /// <summary>按固定步长推进 Graph 时间与 CrossFade 权重；Simulation 每逻辑步必须调用。</summary>

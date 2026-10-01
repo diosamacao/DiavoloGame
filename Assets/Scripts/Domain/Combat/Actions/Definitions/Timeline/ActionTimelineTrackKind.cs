@@ -26,4 +26,6 @@ public enum ActionTimelineTrackKind
     AssistCue = 14,
     /// <summary>玩家招架 Guard 接触窗：窗内被命中则弹刀成功。</summary>
     AssistParryWindow = 15,
+    /// <summary>输入驱动位移与可选四向动画覆盖窗口。</summary>
+    InputMovement = 16,
 }

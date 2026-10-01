@@ -129,12 +129,13 @@ public sealed class CharacterAnimationService : IDisposable, ILocomotionAnimClip
         playback.Seek(sampleFrame / (float)ActionSim.LogicHz);
     }
 
-    public void PlayClip(AnimationClip clip, float fadeDuration = 0.1f)
+    /// <summary>从当前混合淡入；共享非空时钟组的片段在 SeekClip 时一起定位。</summary>
+    public void PlayClip(AnimationClip clip, float fadeDuration = 0.1f, object timeGroup = null)
     {
         if (playback == null || !playback.IsValid || clip == null)
             return;
 
-        playback.Play(clip, fadeDuration);
+        playback.Play(clip, fadeDuration, timeGroup);
         _currentKey = null;
     }
 

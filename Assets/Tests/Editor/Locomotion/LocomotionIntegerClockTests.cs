@@ -124,7 +124,7 @@ public sealed class LocomotionIntegerClockTests
         public float LastSeekSeconds { get; private set; }
 
         /// <inheritdoc />
-        public void Play(AnimationClip clip, float fadeDuration) => CurrentClip = clip;
+        public void Play(AnimationClip clip, float fadeDuration, object timeGroup = null) => CurrentClip = clip;
         /// <inheritdoc />
         public void PlayAdditive(AnimationClip clip, AvatarMask mask, float fadeDuration) { }
         /// <inheritdoc />

@@ -22,7 +22,7 @@ public sealed class NullAnimationPlayback : IAnimationPlayback
     public float AdditiveWeight => 0f;
 
     /// <inheritdoc />
-    public void Play(AnimationClip clip, float fadeDuration)
+    public void Play(AnimationClip clip, float fadeDuration, object timeGroup = null)
     {
     }
 

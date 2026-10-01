@@ -20,6 +20,7 @@ public class ActionTimeline
     [SerializeField] AssistParryWindowNotifyState[] assistParryWindowStates =
         Array.Empty<AssistParryWindowNotifyState>();
     [SerializeField] MovementNotifyState[] movementStates = Array.Empty<MovementNotifyState>();
+    [SerializeField] ActionInputMovement[] inputMovementStates = Array.Empty<ActionInputMovement>();
     [SerializeField] RotationNotifyState[] rotationStates = Array.Empty<RotationNotifyState>();
     [SerializeField] MotionModifierNotifyState[] motionModifierStates = Array.Empty<MotionModifierNotifyState>();
     [SerializeField] MotionCommandNotify[] motionCommandNotifies = Array.Empty<MotionCommandNotify>();
@@ -79,6 +80,17 @@ public class ActionTimeline
 
     /// <summary>脚本位移区间列表。</summary>
     public MovementNotifyState[] MovementStates => movementStates ?? Array.Empty<MovementNotifyState>();
+
+    /// <summary>输入移动轨道窗口；不允许重叠，空输入保持 Action 原动画。</summary>
+    public ActionInputMovement[] InputMovementStates => inputMovementStates ?? Array.Empty<ActionInputMovement>();
+
+    /// <summary>当前帧的唯一输入移动窗口；内容校验拒绝重叠配置。</summary>
+    public ActionInputMovement GetActiveInputMovementAtFrame(int frame)
+    {
+        foreach (ActionInputMovement window in InputMovementStates)
+            if (window != null && window.IsActiveAtFrame(frame)) return window;
+        return null;
+    }
 
     /// <summary>旋转修正区间列表。</summary>
     public RotationNotifyState[] RotationStates => rotationStates ?? Array.Empty<RotationNotifyState>();
@@ -162,6 +174,8 @@ public class ActionTimeline
     /// <summary>枚举全部区间窗口，供 Runner 与编辑器轨道统一处理。</summary>
     public IEnumerable<ActionNotifyState> EnumerateStates()
     {
+        foreach (ActionInputMovement state in InputMovementStates)
+            if (state != null) yield return state;
         foreach (HitboxNotifyState state in HitboxStates)
         {
             if (state != null)
