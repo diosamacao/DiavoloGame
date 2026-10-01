@@ -1,0 +1,77 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
+  m_Name: Vivian_Attack_ExSpecial
+  m_EditorClassIdentifier: 
+  animationSegments:
+  - clip: {fileID: 51114764619234515, guid: 99feb69370c7d01418b1c4393a1d4827, type: 3}
+    startFrame: 0
+    endFrame: -1
+    hasCrossFadeOverride: 0
+    crossFadeDuration: 0
+  totalFrames: 59
+  actionType: 0
+  crossFadeDuration: 0.1
+  executionPolicy:
+    interruptPriority: 0
+    baseMotionMode: 2
+    bodyCollisionMode: 0
+    bodyContactSkinMm: 20
+  resourceSpec:
+    resourceTag: 0
+    energyCost: 0
+    energyGrantOnHit: 0
+    decibelGrantOnHit: 0
+    consumeDodgeCharge: 0
+    requiresDecibelFull: 0
+    clearsDecibelOnStart: 0
+  timeline:
+    actionEvents: []
+    playVfxNotifies: []
+    playSfxStates: []
+    hitboxStates: []
+    hurtboxStates: []
+    cancelWindowStates:
+    - id: NormalCancel
+      startFrame: 58
+      endFrame: 58
+      priority: 0
+      trackName: Cancel_1
+      windowType: 0
+    phaseStates: []
+    perfectDodgeWindowStates: []
+    assistCueStates: []
+    assistParryWindowStates: []
+    movementStates: []
+    inputMovementStates: []
+    rotationStates: []
+    motionModifierStates: []
+    motionCommandNotifies: []
+    cameraSettings:
+      restoreMode: 0
+      suppressLookInput: 1
+    cameraShotStates: []
+    tracks:
+    - trackName: Cancel_1
+      kind: 4
+      visible: 1
+  bakedMotion:
+    logicHz: 60
+    frameCount: 59
+    planarMode: 0
+    positionDeltaMmX: 01000000c1ffffff25000000fbffffff250000004500000045000000300000001c0000000a000000fbfffffff0ffffffebffffffebfffffff2fffffff6fffffff8fffffff8fffffff8fffffff7fffffff6fffffff7fffffffaffffffffffffff050000000600000004000000f5ffffffe9fffffff1fffffffcfffffffcfffffff8fffffff3fffffff4ffffffe0ffffffbfffffffc7ffffffdffffffffbffffff030000001200000011000000110000000d000000540000001c0100005e00000001000000feffffffe9ffffffcbffffff95ffffff68ffffff1cffffff4cffffff000000003800000024000000
+    positionDeltaMmZ: fcffffff1702000046020000c7020000e80200002d020000c4010000aa0100006e01000021010000dc000000bf000000a7000000920000008000000071000000650000005c000000570000005400000055000000580000005b0000005d0000005c00000059000000540000004d000000440000003a0000002f0000002e00000031000000360000003b000000420000004a000000530000005d000000460000006f0100004104000003040000fe030000f30300007f0300000a020000560100003f01000052010000410100001e010000ea000000a40000004d000000e5ffffff9bffffff85ffffff8affffff
+    yawDeltaMilliDeg: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    inplaceContentHash: PlaybackRangeV2|99feb69370c7d01418b1c4393a1d4827|51114764619234515|0900d6646578363ed276552f9154dfd4|0:58;
+    rootMotionContentHash: 96e0d93a7af2dd34d86b99451256a43c|-7818945962284247492|dd882e8774f759d3b5f69810dd801dc3;
+    matchedRootMotionName: Attack_ExSpecial
+    bakeStatus: 1

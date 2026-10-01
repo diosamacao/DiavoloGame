@@ -1,0 +1,77 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1e2f3a4b5c6970812345678abcdef10, type: 3}
+  m_Name: Vivian_Attack_ExSpecial_End_Ground
+  m_EditorClassIdentifier: 
+  animationSegments:
+  - clip: {fileID: 3663719927779912965, guid: 9dd599c4ec1cc91419353ac1d179818a, type: 3}
+    startFrame: 0
+    endFrame: -1
+    hasCrossFadeOverride: 0
+    crossFadeDuration: 0
+  totalFrames: 139
+  actionType: 0
+  crossFadeDuration: 0.1
+  executionPolicy:
+    interruptPriority: 0
+    baseMotionMode: 2
+    bodyCollisionMode: 0
+    bodyContactSkinMm: 20
+  resourceSpec:
+    resourceTag: 0
+    energyCost: 0
+    energyGrantOnHit: 0
+    decibelGrantOnHit: 0
+    consumeDodgeCharge: 0
+    requiresDecibelFull: 0
+    clearsDecibelOnStart: 0
+  timeline:
+    actionEvents: []
+    playVfxNotifies: []
+    playSfxStates: []
+    hitboxStates: []
+    hurtboxStates: []
+    cancelWindowStates:
+    - id: NormalCancel
+      startFrame: 69
+      endFrame: 138
+      priority: 0
+      trackName: Cancel_1
+      windowType: 0
+    phaseStates: []
+    perfectDodgeWindowStates: []
+    assistCueStates: []
+    assistParryWindowStates: []
+    movementStates: []
+    inputMovementStates: []
+    rotationStates: []
+    motionModifierStates: []
+    motionCommandNotifies: []
+    cameraSettings:
+      restoreMode: 0
+      suppressLookInput: 1
+    cameraShotStates: []
+    tracks:
+    - trackName: Cancel_1
+      kind: 4
+      visible: 1
+  bakedMotion:
+    logicHz: 60
+    frameCount: 139
+    planarMode: 0
+    positionDeltaMmX: 000000001400000012000000100000000f0000000e0000000e000000100000001100000011000000100000000f0000000e0000000e0000000d0000000c0000000c0000000c0000000c0000000b0000000a0000000900000007000000060000000500000005000000040000000400000004000000030000000300000003000000030000000300000003000000030000000200000002000000020000000200000001000000010000000100000001000000010000000100000001000000010000000100000000000000fffffffffefffffffdfffffffbfffffff9fffffff8fffffff7fffffff6fffffff7fffffff9fffffffbfffffffeffffff0100000003000000040000000500000005000000050000000500000004000000050000000500000005000000050000000400000003000000020000000100000001000000000000000000000000000000fffffffffffffffffffffffffffffffffefffffffefffffffefffffffefffffffefffffffefffffffdfffffffdfffffffdfffffffdfffffffdfffffffdfffffffefffffffefffffffefffffffefffffffefffffffefffffffefffffffefffffffefffffffefffffffeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffff00000000000000000000000000000000000000000000000000000000ffffffff
+    positionDeltaMmZ: f0ffffffd4ffffffbeffffffaeffffffa4ffffffa0ffffffa2ffffffaaffffffb4ffffffbbffffffc2ffffffc8ffffffceffffffd3ffffffd8ffffffddffffffe1ffffffe5ffffffe9ffffffecffffffeffffffff1fffffff4fffffff5fffffff7fffffff8fffffff8fffffff8fffffff8fffffff8fffffff7fffffff6fffffff4fffffff3fffffff3fffffff3fffffff3fffffff3fffffff4fffffff4fffffff4fffffff4fffffff5fffffff5fffffff5fffffff5fffffff5fffffff6fffffff6fffffff6fffffff6fffffff7fffffff7fffffff7fffffff7fffffff8fffffff8fffffff8fffffff8fffffff8fffffff9fffffff9fffffff9fffffff9fffffffafffffffafffffffafffffffafffffffbfffffffbfffffffbfffffffbfffffffcfffffffcfffffffcfffffffcfffffffdfffffffdfffffffdfffffffefffffffefffffffefffffffefffffffefffffffefffffffeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    yawDeltaMilliDeg: 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    inplaceContentHash: PlaybackRangeV2|9dd599c4ec1cc91419353ac1d179818a|3663719927779912965|a98bd06f12a98bcd0e950baeee890e8a|0:138;
+    rootMotionContentHash: 5077442b3b1499a4c98af0d767bc657b|1136763696658048303|58e29171188e62da2bcc969b66fa8d9c;
+    matchedRootMotionName: Attack_ExSpecial_End_Ground
+    bakeStatus: 1
