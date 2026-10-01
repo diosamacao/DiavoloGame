@@ -19,11 +19,13 @@ MonoBehaviour:
     hasCrossFadeOverride: 0
     crossFadeDuration: 0
   totalFrames: 112
-  actionType: 0
+  actionType: 1
   crossFadeDuration: 0.1
   executionPolicy:
     interruptPriority: 0
     baseMotionMode: 2
+    bodyCollisionMode: 0
+    bodyContactSkinMm: 20
   resourceSpec:
     resourceTag: 0
     energyCost: 0
@@ -67,6 +69,7 @@ MonoBehaviour:
     assistCueStates: []
     assistParryWindowStates: []
     movementStates: []
+    inputMovementStates: []
     rotationStates:
     - id: Rotation_1
       startFrame: 0

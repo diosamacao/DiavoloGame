@@ -50,21 +50,17 @@ MonoBehaviour:
     stopR: 6
     startEnd: 8
   idleInputThreshold: 0.01
-  stopMinSpeedFactor: 0.5
+  stopMinSpeedFactor: 0.3
   pivotAngleDegrees: 135
   gaitInputGapGraceFrames: 9
-  legacyGaitInputGapGraceSeconds: 0
-  legacyPivotAnimAuthNormalized: 0
   cardinalEpsilon: 0.2
   cardinalMinDwellFrames: 3
   gaitPolicy:
     maxGait: 2
     allowPivot: 1
     sprintAfterRunFrames: 180
-    legacySprintAfterRunSeconds: 0
   facingMode: 1
   interruptFadeDuration: 0.08
-  legacyStartToGaitNormalized: 0
   clipTimings:
   - key: 0
     durationFrames: 243
@@ -111,6 +107,7 @@ MonoBehaviour:
     loop: 0
     exitFrame: 74
     handoffFrame: 74
+  rootMotionSourceFingerprint: 
   sprintLean:
     maxLeanDeg: 15
     deadZoneDeg: 15

@@ -22,7 +22,7 @@ MonoBehaviour:
   actionType: 0
   crossFadeDuration: 0.1
   executionPolicy:
-    interruptPriority: 0
+    interruptPriority: 5
     baseMotionMode: 2
     bodyCollisionMode: 0
     bodyContactSkinMm: 20
@@ -40,12 +40,19 @@ MonoBehaviour:
     playSfxStates: []
     hitboxStates: []
     hurtboxStates: []
-    cancelWindowStates: []
+    cancelWindowStates:
+    - id: NormalCancel
+      startFrame: 42
+      endFrame: 65
+      priority: 0
+      trackName: Cancel_1
+      windowType: 0
     phaseStates: []
     perfectDodgeWindowStates: []
     assistCueStates: []
     assistParryWindowStates: []
     movementStates: []
+    inputMovementStates: []
     rotationStates: []
     motionModifierStates: []
     motionCommandNotifies: []
@@ -53,7 +60,10 @@ MonoBehaviour:
       restoreMode: 0
       suppressLookInput: 1
     cameraShotStates: []
-    tracks: []
+    tracks:
+    - trackName: Cancel_1
+      kind: 4
+      visible: 1
   bakedMotion:
     logicHz: 60
     frameCount: 66

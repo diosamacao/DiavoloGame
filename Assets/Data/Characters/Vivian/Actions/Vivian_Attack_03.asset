@@ -29,6 +29,8 @@ MonoBehaviour:
   executionPolicy:
     interruptPriority: 0
     baseMotionMode: 2
+    bodyCollisionMode: 0
+    bodyContactSkinMm: 20
   resourceSpec:
     resourceTag: 0
     energyCost: 0
@@ -42,99 +44,99 @@ MonoBehaviour:
     playVfxNotifies: []
     playSfxStates: []
     hitboxStates:
-    - id: Hitbox_1
+    - id: Hitbox_1_2
       startFrame: 12
-      endFrame: 15
+      endFrame: 16
       priority: 0
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 0.89, z: 0.73}
+      localOffset: {x: 0, y: 1, z: 0.86}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 2, y: 2, z: 3}
       parentToAttachPoint: 1
       parentToAttachPointSchema: 1
       payload:
-        baseDamage: 0
+        baseDamage: 10
         hitReactionId: 
-        interruptLevel: 1
+        interruptLevel: 2
         parriedActionPolicy: 0
         parriedReactionId: 
         feedback:
-          cameraShakeProfile: {fileID: 0}
-          useHitStop: 0
-          hitStopFrames: 0
+          cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
+          useHitStop: 1
+          hitStopFrames: 4
           hitStopOncePerAction: 0
-          hitImpactVfxPrefab: {fileID: 0}
-          hitImpactSfx: {fileID: 0}
-          hitImpactSfxVolume: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 0.3
           hitImpactWorldOffset: {x: 0, y: 0, z: 0}
-          hitImpactScale: {x: 0, y: 0, z: 0}
-          randomizeImpactRotation: 0
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
           impactRandomEulerMin: {x: 0, y: 0, z: 0}
-          impactRandomEulerMax: {x: 0, y: 0, z: 0}
-    - id: Hitbox_2
-      startFrame: 21
-      endFrame: 25
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
+    - id: Hitbox_1_2_2
+      startFrame: 22
+      endFrame: 26
       priority: 0
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 0.89, z: 0.73}
+      localOffset: {x: 0, y: 1, z: 0.86}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 2, y: 2, z: 3}
       parentToAttachPoint: 1
       parentToAttachPointSchema: 1
       payload:
-        baseDamage: 0
+        baseDamage: 10
         hitReactionId: 
-        interruptLevel: 1
+        interruptLevel: 2
         parriedActionPolicy: 0
         parriedReactionId: 
         feedback:
-          cameraShakeProfile: {fileID: 0}
-          useHitStop: 0
-          hitStopFrames: 0
+          cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
+          useHitStop: 1
+          hitStopFrames: 4
           hitStopOncePerAction: 0
-          hitImpactVfxPrefab: {fileID: 0}
-          hitImpactSfx: {fileID: 0}
-          hitImpactSfxVolume: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 0.3
           hitImpactWorldOffset: {x: 0, y: 0, z: 0}
-          hitImpactScale: {x: 0, y: 0, z: 0}
-          randomizeImpactRotation: 0
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
           impactRandomEulerMin: {x: 0, y: 0, z: 0}
-          impactRandomEulerMax: {x: 0, y: 0, z: 0}
-    - id: Hitbox_2_2
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
+    - id: Hitbox_1_2_3
       startFrame: 33
-      endFrame: 37
+      endFrame: 39
       priority: 0
       trackName: Hitbox_1
       shape: 0
       attachPointId: 
-      localOffset: {x: 0, y: 0.89, z: 0.73}
+      localOffset: {x: 0, y: 1, z: 0.86}
       localEulerAngles: {x: 0, y: 0, z: 0}
       size: {x: 2, y: 2, z: 3}
       parentToAttachPoint: 1
       parentToAttachPointSchema: 1
       payload:
-        baseDamage: 0
+        baseDamage: 10
         hitReactionId: 
-        interruptLevel: 1
+        interruptLevel: 2
         parriedActionPolicy: 0
         parriedReactionId: 
         feedback:
-          cameraShakeProfile: {fileID: 0}
-          useHitStop: 0
-          hitStopFrames: 0
+          cameraShakeProfile: {fileID: 11400000, guid: 75b749e3824fb734ab1fba378e61834b, type: 2}
+          useHitStop: 1
+          hitStopFrames: 4
           hitStopOncePerAction: 0
-          hitImpactVfxPrefab: {fileID: 0}
-          hitImpactSfx: {fileID: 0}
-          hitImpactSfxVolume: 0
+          hitImpactVfxPrefab: {fileID: 4130671758024245483, guid: df658a8f5659e3845aa38812182dbac1, type: 3}
+          hitImpactSfx: {fileID: 8300000, guid: 2112298c783085248b66b41911d6cb17, type: 3}
+          hitImpactSfxVolume: 0.3
           hitImpactWorldOffset: {x: 0, y: 0, z: 0}
-          hitImpactScale: {x: 0, y: 0, z: 0}
-          randomizeImpactRotation: 0
+          hitImpactScale: {x: 0.17, y: 0.17, z: 0.17}
+          randomizeImpactRotation: 1
           impactRandomEulerMin: {x: 0, y: 0, z: 0}
-          impactRandomEulerMax: {x: 0, y: 0, z: 0}
+          impactRandomEulerMax: {x: 0, y: 360, z: 0}
     hurtboxStates: []
     cancelWindowStates:
     - id: NormalCancel
@@ -158,6 +160,7 @@ MonoBehaviour:
     assistCueStates: []
     assistParryWindowStates: []
     movementStates: []
+    inputMovementStates: []
     rotationStates:
     - id: Rotation_1
       startFrame: 0

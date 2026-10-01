@@ -22,23 +22,8 @@ MonoBehaviour:
   actionType: 0
   crossFadeDuration: 0.1
   executionPolicy:
-    interruptPriority: 0
+    interruptPriority: 5
     baseMotionMode: 2
-    inputMovement:
-      startFrame: 0
-      endFrame: -1
-      movementTailFrames: 0
-      speedMmPerSecond: 2500
-      inputThreshold: 0.2
-      minimumDirectionFrames: 3
-      pose: {fileID: 0}
-      forward: {fileID: 0}
-      back: {fileID: 0}
-      left: {fileID: 0}
-      right: {fileID: 0}
-      loopPose: 1
-      loopMove: 1
-      crossFadeSeconds: 0.08
     bodyCollisionMode: 0
     bodyContactSkinMm: 20
   resourceSpec:
@@ -61,6 +46,7 @@ MonoBehaviour:
     assistCueStates: []
     assistParryWindowStates: []
     movementStates: []
+    inputMovementStates: []
     rotationStates:
     - id: Rotation_1
       startFrame: 0

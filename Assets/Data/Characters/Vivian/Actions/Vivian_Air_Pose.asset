@@ -27,7 +27,7 @@ MonoBehaviour:
   actionType: 0
   crossFadeDuration: 0
   executionPolicy:
-    interruptPriority: 0
+    interruptPriority: 5
     baseMotionMode: 4
     bodyCollisionMode: 0
     bodyContactSkinMm: 20
@@ -45,7 +45,13 @@ MonoBehaviour:
     playSfxStates: []
     hitboxStates: []
     hurtboxStates: []
-    cancelWindowStates: []
+    cancelWindowStates:
+    - id: NormalCancel
+      startFrame: 0
+      endFrame: 270
+      priority: 0
+      trackName: Cancel_1
+      windowType: 0
     phaseStates:
     - id: Phase_1
       startFrame: 270
@@ -116,6 +122,9 @@ MonoBehaviour:
       visible: 1
     - trackName: Input Movement_1
       kind: 16
+      visible: 1
+    - trackName: Cancel_1
+      kind: 4
       visible: 1
   bakedMotion:
     logicHz: 60
